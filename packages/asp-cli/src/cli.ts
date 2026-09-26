@@ -5,14 +5,14 @@
  *   asp identity new --kind human --did <did>
  *   asp identity new --kind agent --did <did> --sponsor <did> [--fleet <did>] [--purpose <text>]
  *   asp identity show <did>
- *   asp pack --runtime claude-code --agent <did> [--project <dir>] [--include-user] [--out <dir>]
+ *   asp pack --runtime claude-code|codex --agent <did> [--project <dir>] [--include-user] [--out <dir>]
  *   asp verify <package> [--json]
- *   asp run <package> --backend claude-code [--project <dir>] [--prompt <text>] [--dry-run] [--no-write-back]
+ *   asp run <package> --backend claude-code|codex [--project <dir>] [--prompt <text>] [--model <m>] [--dry-run] [--no-write-back]
  *     After a successful run, a backend swap and any memory the agent changed are recorded in the
  *     package as signed lineage updates, and the manifest is re-signed.
  *   asp log verify
  *
- * Global: --home <dir> (default $ASP_HOME or ~/.asp), --claude-home <dir> (where .claude lives; default ~).
+ * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
 import { spawn } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
@@ -42,6 +42,8 @@ export interface Io {
 const OPTIONS = {
   home: { type: "string" },
   "claude-home": { type: "string" },
+  "user-home": { type: "string" },
+  model: { type: "string" },
   kind: { type: "string" },
   did: { type: "string" },
   sponsor: { type: "string" },
@@ -196,7 +198,7 @@ async function pack(home: string, v: Values, need: Need, io: Io): Promise<number
 
   const staging = mkdtempSync(join(tmpdir(), "asp-pack-"));
   try {
-    const capture = await adapter.capture({ project, includeUser: v["include-user"] ?? false, home: v["claude-home"], staging });
+    const capture = await adapter.capture({ project, includeUser: v["include-user"] ?? false, home: v["user-home"] ?? v["claude-home"], staging });
     const findings = [...scanForSecrets(join(staging, "harness"), "harness/"), ...scanForSecrets(join(staging, "memory"), "memory/")];
     if (findings.length) {
       io.err("refusing to pack: these captured files look like they contain secrets (values not shown):");
@@ -251,6 +253,7 @@ async function run(home: string, pkg: string | undefined, v: Values, need: Need,
   mkdirSync(runDir, { recursive: true });
   const plan = await adapter.materialize({
     pkgDir, harness, project: resolve(io.cwd, v.project ?? "."), runDir, agentName: basename(agent.replace(/:/g, "/")), prompt: v.prompt, env: io.env,
+    model: v.model, sourceRuntime: (manifest.body as any).source_runtime?.name,
   });
 
   // The run's own report goes to stderr, so a -p run's stdout stays the runtime's stream alone.

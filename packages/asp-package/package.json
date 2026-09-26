@@ -14,7 +14,8 @@
   "dependencies": {
     "@agent-social/asp-core": "*",
     "@agent-social/asp-log": "*",
-    "ajv": "^8.17.0"
+    "ajv": "^8.17.0",
+    "smol-toml": "^1.9.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

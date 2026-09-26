@@ -1,101 +1,31 @@
-# Where the implementation interprets or extends ASP v0.2
+# ASP v0.2: what the spec needs from the build
 
-The spec is the source of truth. This page lists every place where the code had to choose something the spec leaves open, or depart from it. Each item should either go back into the spec or be changed here.
+16 items: 5 need a decision, 11 should be written into the spec as built. Numbers in brackets are the items' numbers in the earlier 40-item list.
 
-## Envelope and signing
+The rest of what the build had to settle is in [implementation-notes.md](implementation-notes.md), with no decision needed. Unbuilt work is in [backlog.md](backlog.md), and single-player mocks are in [../MOCKS.md](../MOCKS.md).
 
-1. **Two envelope fields added.** `issued_at` (RFC 3339 timestamp) and optional `cosigs` sit beside the spec's `{type, id, issuer, actor, subject, body, prev, sig}`. `sig` is an object `{alg: "Ed25519", kid, value}`, where `kid` is a DID URL naming the key.
-2. **What gets hashed and signed.** `id = "sha256:" + hex(sha256(JCS(unsigned view)))`. The unsigned view is `type, issuer, actor, subject, body, prev, issued_at`. Every signature and co-signature covers the same bytes. JCS is RFC 8785 canonical JSON.
-3. **Integers only.** Signed records carry no fractional numbers, so every SDK produces the same bytes. Fractions are expressed in permille: forecast `p_permille`, `risk_factor_permille`, `pro_rata_permille`, `earnings_split.agent_permille`. An integral float such as `1.0` counts as the integer 1.
-4. **Type strings** look like `asp.mandate/v0.2`, taken from the spec's Mandate example.
-5. **Actors.** `actor` is either the issuer's DID or a DID URL under it, e.g. `did:web:…:coder-1#node-3`. A node signs with its own delegated key (item 24) or with its person's key.
-6. **DIDs.** v0.1 uses `did:web`. Schemas accept any DID method, so `did:asp` can follow without a breaking change.
-7. **Schema ids** are `urn:asp:v0.2:<name>`, so no web domain is claimed yet.
+## Needs a decision
 
-## Record types
+| # | Topic | What the code does now | Decision needed |
+|---|---|---|---|
+| D1 | Learning data [32] | Packages carry a metadata-only index of past sessions: counts, models, timestamps, no content. | Which of a principal's data (transcripts, diffs, test output) may leave the machine for learning, and for the commons? |
+| D2 | Probation after a runtime move [35] | A move is recorded with `probation_until` = 7 days. Nothing enforces it, and no canary suite exists yet. | How long probation lasts, what it restricts, and who writes the canary suite (the spec's open question). |
+| D3 | Identity bootstrap [20] | A person's first passport may be self-issued, so nothing proves they control the did:web domain (MOCKS #8). | Require the did:web document, or a sponsor's attestation, before accepting a first passport? |
+| D4 | Job diagram [13–16] | Acceptance takes two records (an acceptance Attestation, then a Settlement). Redelivery is `Disputed → Delivered`, once. Revocation is allowed before delivery, not only while Running. | Adopt these three edges into the spec's diagram? |
+| D5 | Log anchoring [21] | A running hash over record ids makes the log order tamper-evident. Nothing signs or publishes it. | Who signs log checkpoints, and where they are anchored. |
 
-8. **16 record types, not 11.** Passport, lineage edge, agent package, fleet declaration and node delegation are signed records too, following "everything is an attestation".
-9. **Rebirth has no record type.** By definition it is a key rotation with no signed edge.
-10. **Where the escrow lock lives.** The spec has no escrow object, and says each transition emits one object. So the escrow lock is carried inside the Bond record (`escrow: {payer, amount}`).
-11. **Contract.** The principal issues it and the performer co-signs it. It is the first record in a job chain. Intent and Offer (or Call and Proposal) are referenced from `basis` rather than chained.
-12. **Mandate enums were chosen here:**
-    - `self_modification`: `forbidden | principal_approves | sponsor_approves | mentor_approves | automatic_audited`
-    - `checkpoints`: `plan | before_irreversible | high_impact | delivery`
-    - `irreversible.policy`: `checkpoint | forbid | allow`
-    - `scopes`: dotted lowercase names such as `repo.read` and `pr.open`
-    - `revocable`: always `true`
+## Write into the spec as built
 
-## Lifecycle (`spec/lifecycle.json`)
-
-13. **Acceptance takes two records.** The principal's acceptance Attestation keeps the job in `Delivered`, and the bank's Settlement (which cites it) moves it to `Settled`. The spec diagram shows one arrow.
-14. **Redelivery.** The spec text says the performer "may fix and redeliver once". This is modelled as `Disputed → Delivered`, at most once. The spec diagram has no such edge.
-15. **Rulings.** A ruling is an Attestation from a neutral issuer (neither principal nor performer) while the job is `Disputed`. A Settlement that cites it closes the job.
-16. **Revocation.** The spec text says revocation can happen at any time. It is modelled as a Settlement with basis `revoked`, co-signed by the principal, and it is allowed from Contracted, Bonded, Running and Checkpoint. The spec diagram shows it only from Running.
-17. **Not modelled yet:**
-    - principal-mode silence counting as acceptance (`review_deadline` exists in the Intent schema)
-    - escalation and panel fees
-    - appeals
-    - subcontract nesting
-    - checking a Mandate against the agent's tier limits
-
-## Event log (`packages/asp-log`)
-
-18. **Chains never fork.** Each record has at most one successor. Postgres enforces this with `UNIQUE (prev)`. A record whose `prev` is not its chain's head is rejected with `BAD_PREV`.
-19. **Chain kinds.** A chain is named after the type of its first record. A chain that starts with a Contract is a job and must follow the lifecycle. Any other chain holds only records of its root's type, e.g. one passport's versions. Job-only types (contract, bond, mandate, checkpoint, delivery, settlement) cannot appear outside a job.
-20. **Registry from passports.**
-    - Keys come from passport records in the log.
-    - A person's first passport starts its own chain. It may be issued by the person itself, which bootstraps its keys, or by a registered sponsor.
-    - Each update must follow the latest passport for that DID and be issued by the DID or its sponsor.
-    - Keys left out of an update are revoked from that moment on. Records signed before then still verify when the log is replayed.
-21. **Log hash.** `log_hash = sha256(previous log_hash + "\n" + record id)`, starting from 64 zeros. It makes the log order tamper-evident and gives a single value to anchor publicly later. Nothing signs or anchors it yet.
-22. **Appends run one at a time**, behind a lock on the log head. That is simple and correct, but it caps throughput. Revisit this when many fleets write at once.
-
-## Fleets and nodes
-
-23. **Fleets are declared by a Fleet record.** The spec says a fleet is "a declared group of agent persons under one organization". The fleet's org issues a Fleet record (`did`, `org`, `name`, `purpose`, optional `template` and `max_members`), and updates to it form a chain. The org never changes. An agent joins by naming the fleet on its passport. The log accepts that only if:
-    - the fleet is declared;
-    - the agent's sponsor is the fleet's org;
-    - the fleet has room.
-    Only agents can join fleets.
-24. **Nodes get delegated keys.** A person issues a Node record that gives one node (a DID URL under the person, e.g. `…:coder-1#node-7`) its own Ed25519 key.
-    - The node key's id is the node id.
-    - It can sign only records whose `actor` is that node.
-    - It can never sign identity records (passport, fleet, node).
-    - It can never co-sign.
-    - It expires, by default after at most 24 hours. It is rejected once the record's `issued_at` or the log's clock passes the expiry.
-    - The person stays the issuer and stays liable.
-25. **Nodes under a Mandate.** A Node record may name a Mandate. The Mandate must be issued to the node's person, and the node must expire no later than the Mandate. Live nodes count against the Mandate's `nodes.max_parallel`.
-26. **Replays use the original clock.** The log stores each record's append time (`appended_at`), and `verify()` replays with it, so records that were valid when appended still verify after their node key has expired.
-27. **Not built yet:**
-    - revoking a node before it expires
-    - revoking a person's nodes when its passport keys rotate
-    - requiring node keys whenever the actor is a node (a person's own key may still sign for its node)
-    - fleet-level (template) reputation
-
-## Agent package and CLI (decision #45)
-
-28. **Package layout.** A package is a directory: a signed `manifest.json` (an `asp.package/v0.2` record issued by the agent), `records/history.ndjson`, `harness/`, `memory/` and `experience/sessions.ndjson`.
-    - The history holds the signed records a verifier needs: the agent's passports, its sponsors' passports, its fleet and its lineage.
-    - Every part is hashed into the manifest. A directory's hash covers the sorted list of its paths and file hashes.
-29. **`lineage_head`** is the id of the last record in the package's history, which is the passport if the agent has no lineage edges yet. Each package record starts its own chain (`prev: null`).
-30. **Runtime-neutral harness** (`spec/package/harness.schema.json`). It holds instructions, skills (SKILL.md directories), subagents, commands, hooks (in Claude Code's shape for now), MCP servers, permission rules, env and model. Components with no neutral form yet are kept under `runtime_specific`.
-31. **Secrets.** Every literal env or MCP env/header value becomes a `{"$secret": NAME}` placeholder. This includes values that may not be secret, such as URLs. `pack` refuses to run if any captured file looks like it contains a secret, and reports only the file, line and kind. `run` resolves placeholders from the environment into the child process only; files on disk keep `${NAME}` references.
-32. **Experience is metadata only for now.** For each session the package records timestamps, models, prompt and turn counts, tool-call counts, tool errors and output tokens. Transcript content is not copied. Turning transcripts into lessons belongs to the learning layer, and needs a decision on what principals' data may leave the machine.
-33. **Manifest permissions are a heuristic.** Claude Code permission rules are mapped to coarse scopes (`repo.read`, `repo.write`, `tests.run`, `pr.open`, `repo.push`, `mcp.<server>.<tool>`, and so on) so a principal can read them. The harness keeps the exact rules.
-34. **`run` never writes into the project.** For Claude Code, everything goes under `~/.asp/runs/<run>/`:
-    - A session-only plugin (`--plugin-dir`) holds subagents, commands, output styles, the agent's hooks and its MCP servers. Subagents and commands load namespaced as `<agent>:<name>`.
-    - Skills go in a workspace folder added with `--add-dir`, so they keep their own names.
-    - Instructions go in an appended system prompt. Files the target project already has, byte for byte, are skipped.
-    - Path-scoped rules are not in the prompt. A `PreToolUse` hook injects each rule the first time the agent reads or edits a file matching its globs, once per session. This mirrors how Claude Code loads the project's own rules.
-    - A `--settings` file carries permissions and model, and points `autoMemoryDirectory` at the run's copy of the package memory, so the agent reads and writes its memory natively.
-    - The run's report goes to stderr, so the runtime's stdout (e.g. `stream-json`) stays clean.
-35. **Write-back after a run.** When the runtime exits successfully, two kinds of change become signed lineage `update` edges issued by the agent:
-    - memory the agent added, changed or removed (layer `memory`, with the new memory's hash)
-    - a move to a different runtime than the one it last ran on (layer `backend`, with a 7-day `probation_until`)
-
-    The package's memory is replaced, the edges are appended to its history, and the manifest is re-signed. The local log is brought up to date with the package's history; a conflict is reported, not fatal. `--no-write-back` skips memory. A failed run writes nothing back.
-36. **Not built yet:**
-    - canary checks in `verify` (the spec requires a backend swap to pass the canary suite on the new backend)
-    - enforcing probation
-    - packages as a single archive file
-    - subagent memory (`.claude/agent-memory`) is carried but not wired into the run
+| # | Spec section | Addition |
+|---|---|---|
+| S1 | Core objects: envelope [1, 2, 4] | Add `issued_at` and optional `cosigs`. `sig` is `{alg, kid, value}`. `id` = sha256 of the RFC 8785 canonical form of every field except id and signatures. Type strings look like `asp.mandate/v0.2`. |
+| S2 | Core objects: numbers [3] | Signed records carry integers only; fractions are in permille. |
+| S3 | Registry: identity [6] | v0.1 uses did:web; did:asp comes later without a breaking change. |
+| S4 | Core objects: record types [8, 9] | Passport, lineage edge, agent package, fleet and node become signed record types (16 in all). Rebirth has none, by definition. |
+| S5 | Bank: escrow [10] | The escrow lock travels inside the Bond record, since each transition emits one object. |
+| S6 | Coordination: Contract [11] | The principal issues it, the performer co-signs it, and it is the first record of the job's chain. Intent/Offer (or Call/Proposal) are referenced, not chained. |
+| S7 | Mandate [12] | Enumerate `self_modification`, `checkpoints` and `irreversible.policy`, and a dotted scope grammar such as `repo.read` and `pr.open`. |
+| S8 | Registry: fleets [23] | A Fleet record is issued by its org. An agent joins by naming the fleet on its passport; it must share the fleet's sponsor, and the fleet must have room. |
+| S9 | Registry: nodes [5, 24, 25] | A Node record delegates a short-lived key: it signs only as that node, never identity records, and expires. Under a Mandate, live nodes count against `max_parallel`. The person stays liable. |
+| S10 | Transport: agent package [28, 29, 31] | Package layout, a manifest signed by the agent, and secrets as named placeholders that are never stored. |
+| S11 | Learning: gates [35] | Memory changes and runtime moves are recorded as lineage `update` edges (layers `memory` and `backend`), written back after each successful run. |

@@ -233,6 +233,7 @@ const pluginName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").re
 
 async function materialize(opts: {
   pkgDir: string; harness: Harness; project: string; runDir: string; agentName: string; prompt?: string; env: NodeJS.ProcessEnv;
+  model?: string; sourceRuntime?: string;
 }): Promise<LaunchPlan> {
   const { pkgDir, harness, project, runDir } = opts;
   const h = join(pkgDir, "harness");
@@ -309,7 +310,9 @@ async function materialize(opts: {
     autoMemoryEnabled: true,
     autoMemoryDirectory: join(memDir, "auto"),
   };
-  if (harness.model) settings.model = harness.model;
+  const model = opts.model ?? (opts.sourceRuntime === undefined || opts.sourceRuntime === RUNTIME ? harness.model : undefined);
+  if (model) settings.model = model;
+  else if (harness.model) notes.push(`not using the packed model ${harness.model} (a ${opts.sourceRuntime} model); Claude Code uses its default unless you pass --model`);
   put("settings.json", () => writeJson(join(runDir, "settings.json"), settings));
 
   // Resolve every secret into the child's environment only.

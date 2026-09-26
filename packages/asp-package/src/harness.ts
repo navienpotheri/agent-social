@@ -76,5 +76,11 @@ export interface LaunchPlan {
 export interface RuntimeAdapter {
   name: string;
   capture(opts: { project: string; includeUser: boolean; home?: string; staging: string }): Promise<Capture>;
-  materialize(opts: { pkgDir: string; harness: Harness; project: string; runDir: string; agentName: string; prompt?: string; env: NodeJS.ProcessEnv }): Promise<LaunchPlan>;
+  materialize(opts: {
+    pkgDir: string; harness: Harness; project: string; runDir: string; agentName: string; prompt?: string; env: NodeJS.ProcessEnv;
+    /** Model to run; overrides the packed one. */
+    model?: string;
+    /** The runtime the package was captured from; a packed model is used only on that runtime. */
+    sourceRuntime?: string;
+  }): Promise<LaunchPlan>;
 }
