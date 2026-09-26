@@ -8,10 +8,10 @@ This repo holds the protocol's machine-readable spec, the SDKs and the conforman
 
 | Path | What |
 |---|---|
-| `spec/schemas/` | JSON Schema (2020-12) for the envelope and 14 record types |
+| `spec/schemas/` | JSON Schema (2020-12) for the envelope and 16 record types |
 | `spec/lifecycle.json` | The job state machine as data: states, transitions, issuer roles, guards, error codes |
 | `packages/asp-core/` | TypeScript SDK: canonical JSON, Ed25519 records, schema validation, `Job` lifecycle |
-| `packages/asp-log/` | Append-only signed event log: in-memory and Postgres stores, registry of keys from passports, log hash chain, full-log verification |
+| `packages/asp-log/` | Append-only signed event log: in-memory and Postgres stores; a registry of passports, fleets and delegated node keys; log hash chain; full-log verification |
 | `python/` | Python SDK with the same API |
 | `conformance/` | Shared test vectors and their generator |
 | `docs/spec-deltas.md` | Where the code interprets or extends the v0.2 spec |
@@ -77,4 +77,4 @@ job.apply(contract); // "Contracted"
 
 ## Status
 
-Step 1 of the single-player build so far: schemas, the lifecycle library in both SDKs, and the conformance suite. It also includes the append-only signed event log. Next come fleets and persons vs. nodes, the package format, and the `pack` / `run` / `verify` CLI.
+Step 1 of the single-player build so far: schemas, the lifecycle library in both SDKs, and the conformance suite. It also includes the append-only signed event log, fleets, and delegated node keys. Next come the package format and the `pack` / `run` / `verify` CLI, for Claude Code, OpenAI Codex CLI and OpenHands first.

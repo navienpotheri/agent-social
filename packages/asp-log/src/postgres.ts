@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import pg from "pg";
 import type {
-  ChainRow, KeyRow, LogHead, LogTx, PassportRow, Store, StoredRecord,
+  ChainRow, FleetRow, KeyRow, LogHead, LogTx, PassportRow, Store, StoredRecord,
 } from "./store.ts";
 
 const SQL_DIR = fileURLToPath(new URL("../sql/", import.meta.url));
@@ -34,35 +34,82 @@ export async function migrate(pool: pg.Pool): Promise<string[]> {
   return applied;
 }
 
-interface RecordRow { seq: string; id: string; chain: string; log_hash: string; envelope: StoredRecord["record"] }
-
-const toStored = (r: RecordRow): StoredRecord => ({
-  seq: Number(r.seq), id: r.id, chain: r.chain, logHash: r.log_hash, record: r.envelope,
-});
-
-const RECORD_COLS = "seq, id, chain, log_hash, envelope";
-
-async function getRecord(q: Queryable, id: string) {
-  const { rows } = await q.query<RecordRow>(`SELECT ${RECORD_COLS} FROM records WHERE id = $1`, [id]);
-  return rows[0] && toStored(rows[0]);
+interface RecordRow {
+  seq: string;
+  id: string;
+  chain: string;
+  log_hash: string;
+  appended_at: Date;
+  envelope: StoredRecord["record"];
 }
 
-async function getChain(q: Queryable, root: string): Promise<ChainRow | undefined> {
-  const { rows } = await q.query("SELECT * FROM chains WHERE root = $1", [root]);
-  const c = rows[0];
-  return c && {
-    root: c.root, kind: c.kind, head: c.head, length: c.length,
-    lastIssuedAt: c.last_issued_at, state: c.state, snapshot: c.snapshot,
+const toStored = (r: RecordRow): StoredRecord => ({
+  seq: Number(r.seq), id: r.id, chain: r.chain, logHash: r.log_hash,
+  appendedAt: r.appended_at.toISOString(), record: r.envelope,
+});
+
+const RECORD_COLS = "seq, id, chain, log_hash, appended_at, envelope";
+
+const toKey = (k: any): KeyRow => ({
+  kid: k.kid, did: k.did, publicKey: k.public_key, kind: k.kind, grantedBy: k.granted_by,
+  revokedAt: k.revoked_at, expiresAt: k.expires_at, mandate: k.mandate,
+});
+const toPassport = (p: any): PassportRow => ({ did: p.did, head: p.head, sponsor: p.sponsor, fleet: p.fleet });
+const toFleet = (f: any): FleetRow => ({ did: f.did, head: f.head, org: f.org, name: f.name, maxMembers: f.max_members });
+
+/** Reads shared by the store (pool) and a transaction (client). */
+function reads(q: Queryable) {
+  return {
+    async logHead(): Promise<LogHead> {
+      const { rows } = await q.query("SELECT seq, log_hash FROM log_head");
+      return { seq: Number(rows[0].seq), logHash: rows[0].log_hash };
+    },
+    async getRecord(id: string) {
+      const { rows } = await q.query<RecordRow>(`SELECT ${RECORD_COLS} FROM records WHERE id = $1`, [id]);
+      return rows[0] && toStored(rows[0]);
+    },
+    async getChain(root: string): Promise<ChainRow | undefined> {
+      const { rows } = await q.query("SELECT * FROM chains WHERE root = $1", [root]);
+      const c = rows[0];
+      return c && {
+        root: c.root, kind: c.kind, head: c.head, length: c.length,
+        lastIssuedAt: c.last_issued_at, state: c.state, snapshot: c.snapshot,
+      };
+    },
+    async getKey(kid: string) {
+      const { rows } = await q.query("SELECT * FROM keys WHERE kid = $1", [kid]);
+      return rows[0] && toKey(rows[0]);
+    },
+    async keysForDid(did: string) {
+      const { rows } = await q.query("SELECT * FROM keys WHERE did = $1 ORDER BY kid", [did]);
+      return rows.map(toKey);
+    },
+    async nodeKeysForMandate(mandate: string) {
+      const { rows } = await q.query("SELECT * FROM keys WHERE kind = 'node' AND mandate = $1", [mandate]);
+      return rows.map(toKey);
+    },
+    async getPassport(did: string) {
+      const { rows } = await q.query("SELECT * FROM passports WHERE did = $1", [did]);
+      return rows[0] && toPassport(rows[0]);
+    },
+    async getFleet(did: string) {
+      const { rows } = await q.query("SELECT * FROM fleets WHERE did = $1", [did]);
+      return rows[0] && toFleet(rows[0]);
+    },
+    async fleetMembers(fleet: string) {
+      const { rows } = await q.query("SELECT * FROM passports WHERE fleet = $1 ORDER BY did", [fleet]);
+      return rows.map(toPassport);
+    },
   };
 }
 
-const toKey = (k: any): KeyRow => ({ kid: k.kid, did: k.did, publicKey: k.public_key, passport: k.passport, revokedAt: k.revoked_at });
-
 export class PostgresStore implements Store {
   readonly pool: pg.Pool;
+  private readonly r: ReturnType<typeof reads>;
 
   constructor(config: string | pg.PoolConfig) {
     this.pool = new pg.Pool(typeof config === "string" ? { connectionString: config } : config);
+    this.r = reads(this.pool);
   }
 
   migrate() { return migrate(this.pool); }
@@ -84,12 +131,13 @@ export class PostgresStore implements Store {
     }
   }
 
-  async logHead(): Promise<LogHead> {
-    const { rows } = await this.pool.query("SELECT seq, log_hash FROM log_head");
-    return { seq: Number(rows[0].seq), logHash: rows[0].log_hash };
-  }
-  getRecord(id: string) { return getRecord(this.pool, id); }
-  getChain(root: string) { return getChain(this.pool, root); }
+  logHead() { return this.r.logHead(); }
+  getRecord(id: string) { return this.r.getRecord(id); }
+  getChain(root: string) { return this.r.getChain(root); }
+  getPassport(did: string) { return this.r.getPassport(did); }
+  getFleet(did: string) { return this.r.getFleet(did); }
+  fleetMembers(fleet: string) { return this.r.fleetMembers(fleet); }
+  keysForDid(did: string) { return this.r.keysForDid(did); }
   async chainRecords(root: string) {
     const { rows } = await this.pool.query<RecordRow>(`SELECT ${RECORD_COLS} FROM records WHERE chain = $1 ORDER BY seq`, [root]);
     return rows.map(toStored);
@@ -104,36 +152,29 @@ export class PostgresStore implements Store {
 
 class PgTx implements LogTx {
   private readonly c: pg.PoolClient;
+  private readonly r: ReturnType<typeof reads>;
 
   constructor(c: pg.PoolClient) {
     this.c = c;
+    this.r = reads(c);
   }
 
-  async logHead(): Promise<LogHead> {
-    const { rows } = await this.c.query("SELECT seq, log_hash FROM log_head");
-    return { seq: Number(rows[0].seq), logHash: rows[0].log_hash };
-  }
-  getRecord(id: string) { return getRecord(this.c, id); }
-  getChain(root: string) { return getChain(this.c, root); }
-  async getKey(kid: string) {
-    const { rows } = await this.c.query("SELECT * FROM keys WHERE kid = $1", [kid]);
-    return rows[0] && toKey(rows[0]);
-  }
-  async keysForDid(did: string) {
-    const { rows } = await this.c.query("SELECT * FROM keys WHERE did = $1", [did]);
-    return rows.map(toKey);
-  }
-  async getPassport(did: string): Promise<PassportRow | undefined> {
-    const { rows } = await this.c.query("SELECT did, head, sponsor FROM passports WHERE did = $1", [did]);
-    return rows[0];
-  }
+  logHead() { return this.r.logHead(); }
+  getRecord(id: string) { return this.r.getRecord(id); }
+  getChain(root: string) { return this.r.getChain(root); }
+  getKey(kid: string) { return this.r.getKey(kid); }
+  keysForDid(did: string) { return this.r.keysForDid(did); }
+  nodeKeysForMandate(mandate: string) { return this.r.nodeKeysForMandate(mandate); }
+  getPassport(did: string) { return this.r.getPassport(did); }
+  getFleet(did: string) { return this.r.getFleet(did); }
+  fleetMembers(fleet: string) { return this.r.fleetMembers(fleet); }
 
   async insertRecord(row: StoredRecord) {
     const r = row.record;
     await this.c.query(
-      `INSERT INTO records (seq, id, type, issuer, actor, subject, prev, chain, issued_at, envelope, log_hash)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [row.seq, row.id, r.type, r.issuer, r.actor, r.subject, r.prev, row.chain, r.issued_at, JSON.stringify(r), row.logHash],
+      `INSERT INTO records (seq, id, type, issuer, actor, subject, prev, chain, issued_at, envelope, log_hash, appended_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [row.seq, row.id, r.type, r.issuer, r.actor, r.subject, r.prev, row.chain, r.issued_at, JSON.stringify(r), row.logHash, row.appendedAt],
     );
   }
   async putChain(row: ChainRow) {
@@ -146,16 +187,24 @@ class PgTx implements LogTx {
   }
   async putKey(row: KeyRow) {
     await this.c.query(
-      `INSERT INTO keys (kid, did, public_key, passport, revoked_at) VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (kid) DO UPDATE SET public_key = $3, passport = $4, revoked_at = $5`,
-      [row.kid, row.did, row.publicKey, row.passport, row.revokedAt],
+      `INSERT INTO keys (kid, did, public_key, kind, granted_by, revoked_at, expires_at, mandate)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (kid) DO UPDATE SET public_key = $3, kind = $4, granted_by = $5, revoked_at = $6, expires_at = $7, mandate = $8`,
+      [row.kid, row.did, row.publicKey, row.kind, row.grantedBy, row.revokedAt, row.expiresAt, row.mandate],
     );
   }
   async putPassport(row: PassportRow) {
     await this.c.query(
-      `INSERT INTO passports (did, head, sponsor) VALUES ($1, $2, $3)
-       ON CONFLICT (did) DO UPDATE SET head = $2, sponsor = $3`,
-      [row.did, row.head, row.sponsor],
+      `INSERT INTO passports (did, head, sponsor, fleet) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (did) DO UPDATE SET head = $2, sponsor = $3, fleet = $4`,
+      [row.did, row.head, row.sponsor, row.fleet],
+    );
+  }
+  async putFleet(row: FleetRow) {
+    await this.c.query(
+      `INSERT INTO fleets (did, head, org, name, max_members) VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (did) DO UPDATE SET head = $2, org = $3, name = $4, max_members = $5`,
+      [row.did, row.head, row.org, row.name, row.maxMembers],
     );
   }
   async setLogHead(head: LogHead) {

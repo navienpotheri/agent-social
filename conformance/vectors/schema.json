@@ -1289,6 +1289,94 @@
         ]
       },
       "valid": false
+    },
+    {
+      "name": "fleet_without_org",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:fleets:payments",
+        "name": "Payments test fleet",
+        "purpose": "Keep the payments services' test suites green",
+        "template": {
+          "runtime": "example-runtime",
+          "model": "example-model-1"
+        },
+        "max_members": 30
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_zero_members",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:fleets:payments",
+        "org": "did:web:example.com:users:alice",
+        "name": "Payments test fleet",
+        "purpose": "Keep the payments services' test suites green",
+        "template": {
+          "runtime": "example-runtime",
+          "model": "example-model-1"
+        },
+        "max_members": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "node_minimal",
+      "schema": "node",
+      "instance": {
+        "node": "did:web:example.com:agents:coder-1#node-7",
+        "public_key": "1-aEOYcbxanGYBvnLoGre6k34_ScNPUgSxVobsDuh_I",
+        "expires": "2026-10-01T21:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "node_without_expiry",
+      "schema": "node",
+      "instance": {
+        "node": "did:web:example.com:agents:coder-1#node-7",
+        "public_key": "1-aEOYcbxanGYBvnLoGre6k34_ScNPUgSxVobsDuh_I",
+        "mandate": "sha256:024bfc4c8c7e7948665e8ea9f3afc77d9fbe355eede748f0d5b59ba44617f972",
+        "purpose": "parallel attempt on the flaky test",
+        "runtime": {
+          "name": "example-runtime",
+          "model": "example-model-1"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "node_id_not_did_url",
+      "schema": "node",
+      "instance": {
+        "node": "did:web:example.com:agents:coder-1",
+        "public_key": "1-aEOYcbxanGYBvnLoGre6k34_ScNPUgSxVobsDuh_I",
+        "expires": "2026-10-01T21:00:00Z",
+        "mandate": "sha256:024bfc4c8c7e7948665e8ea9f3afc77d9fbe355eede748f0d5b59ba44617f972",
+        "purpose": "parallel attempt on the flaky test",
+        "runtime": {
+          "name": "example-runtime",
+          "model": "example-model-1"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "node_short_key",
+      "schema": "node",
+      "instance": {
+        "node": "did:web:example.com:agents:coder-1#node-7",
+        "public_key": "abc",
+        "expires": "2026-10-01T21:00:00Z",
+        "mandate": "sha256:024bfc4c8c7e7948665e8ea9f3afc77d9fbe355eede748f0d5b59ba44617f972",
+        "purpose": "parallel attempt on the flaky test",
+        "runtime": {
+          "name": "example-runtime",
+          "model": "example-model-1"
+        }
+      },
+      "valid": false
     }
   ]
 }

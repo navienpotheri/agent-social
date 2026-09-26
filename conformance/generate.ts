@@ -400,6 +400,23 @@ const pkg = createRecord({
 }, coder);
 rec("ok_package", "An agent package manifest", pkg, "ok");
 
+const fleetDid = "did:web:example.com:fleets:payments";
+const fleetBody = {
+  did: fleetDid, org: alice.did, name: "Payments test fleet",
+  purpose: "Keep the payments services' test suites green",
+  template: { runtime: "example-runtime", model: "example-model-1" }, max_members: 30,
+};
+const fleetRec = createRecord({ type: "fleet", issuer: alice.did, subject: fleetDid, prev: null, issued_at: at(3), body: fleetBody }, alice);
+rec("ok_fleet", "A fleet declared by its org", fleetRec, "ok");
+
+const nodeBody = {
+  node: `${coder.did}#node-7`, public_key: b64urlEncode(publicKeyFromSeed(seedFor("coder-node-7"))),
+  expires: "2026-10-01T21:00:00Z", mandate: h[2].id, purpose: "parallel attempt on the flaky test",
+  runtime: { name: "example-runtime", model: "example-model-1" },
+};
+const nodeRec = createRecord({ type: "node", issuer: coder.did, subject: h[2].id, prev: null, issued_at: at(4), body: nodeBody }, coder);
+rec("ok_node", "A node key delegated by its person under a Mandate", nodeRec, "ok");
+
 {
   const r = clone(h[2]); (r.body as any).purpose = "Anything goes";
   rec("tampered_body", "Body changed after signing", r, { error: "BAD_ID" });
@@ -491,6 +508,12 @@ sv("delivery_without_trace", "delivery", (() => { const d: any = deliveryBody(fa
 sv("envelope_bad_type", "envelope", { ...h[0], type: "asp.contract/v1" }, false);
 sv("envelope_extra_field", "envelope", { ...h[0], note: "hi" }, false);
 sv("envelope_bad_did", "envelope", { ...h[0], issuer: "alice" }, false);
+sv("fleet_without_org", "fleet", (({ org: _o, ...rest }) => rest)(fleetBody), false);
+sv("fleet_zero_members", "fleet", { ...fleetBody, max_members: 0 }, false);
+sv("node_minimal", "node", { node: nodeBody.node, public_key: nodeBody.public_key, expires: nodeBody.expires }, true);
+sv("node_without_expiry", "node", (({ expires: _e, ...rest }) => rest)(nodeBody), false);
+sv("node_id_not_did_url", "node", { ...nodeBody, node: coder.did }, false);
+sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
 
 // ---------- canonicalization vectors ----------
 

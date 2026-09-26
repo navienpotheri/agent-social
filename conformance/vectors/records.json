@@ -460,6 +460,66 @@
       "expect": "ok"
     },
     {
+      "name": "ok_fleet",
+      "description": "A fleet declared by its org",
+      "record": {
+        "type": "asp.fleet/v0.2",
+        "issuer": "did:web:example.com:users:alice",
+        "actor": "did:web:example.com:users:alice",
+        "subject": "did:web:example.com:fleets:payments",
+        "body": {
+          "did": "did:web:example.com:fleets:payments",
+          "org": "did:web:example.com:users:alice",
+          "name": "Payments test fleet",
+          "purpose": "Keep the payments services' test suites green",
+          "template": {
+            "runtime": "example-runtime",
+            "model": "example-model-1"
+          },
+          "max_members": 30
+        },
+        "prev": null,
+        "issued_at": "2026-10-01T09:03:00Z",
+        "id": "sha256:6f65bbf2299cd4d8040f62170d65706c13017a968e3e3557b746343830e680a4",
+        "sig": {
+          "alg": "Ed25519",
+          "kid": "did:web:example.com:users:alice#key-1",
+          "value": "ow-jFlaxXoQ2O8-BPdt1jbf2w82-lnHGV4CHllFyDcDycmJa_8yVPzeNhSzo72seeNzBxNWYLW8AnZzdEhiECg"
+        }
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "ok_node",
+      "description": "A node key delegated by its person under a Mandate",
+      "record": {
+        "type": "asp.node/v0.2",
+        "issuer": "did:web:example.com:agents:coder-1",
+        "actor": "did:web:example.com:agents:coder-1",
+        "subject": "sha256:024bfc4c8c7e7948665e8ea9f3afc77d9fbe355eede748f0d5b59ba44617f972",
+        "body": {
+          "node": "did:web:example.com:agents:coder-1#node-7",
+          "public_key": "1-aEOYcbxanGYBvnLoGre6k34_ScNPUgSxVobsDuh_I",
+          "expires": "2026-10-01T21:00:00Z",
+          "mandate": "sha256:024bfc4c8c7e7948665e8ea9f3afc77d9fbe355eede748f0d5b59ba44617f972",
+          "purpose": "parallel attempt on the flaky test",
+          "runtime": {
+            "name": "example-runtime",
+            "model": "example-model-1"
+          }
+        },
+        "prev": null,
+        "issued_at": "2026-10-01T09:04:00Z",
+        "id": "sha256:50887f55cbff2b679bc0b90c6b53b665e029ed28f67963b9c456a4e054b5807e",
+        "sig": {
+          "alg": "Ed25519",
+          "kid": "did:web:example.com:agents:coder-1#key-1",
+          "value": "w6t7gygIGXEQ3wsMZZOUEDmJwaqC677PbUsEChqdOW5EbgZsVzCGBAGUZ5l92XPdXff_5zcdG3lJ5yyGarmBAA"
+        }
+      },
+      "expect": "ok"
+    },
+    {
       "name": "tampered_body",
       "description": "Body changed after signing",
       "record": {

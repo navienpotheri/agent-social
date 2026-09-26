@@ -14,7 +14,7 @@ The spec is the source of truth. This page lists every place where the code had 
 
 ## Record types
 
-8. **14 record types, not 11.** Passport, lineage edge and agent package are signed records too, following "everything is an attestation".
+8. **16 record types, not 11.** Passport, lineage edge, agent package, fleet declaration and node delegation are signed records too, following "everything is an attestation".
 9. **Rebirth has no record type.** By definition it is a key rotation with no signed edge.
 10. **Where the escrow lock lives.** The spec has no escrow object, and says each transition emits one object. So the escrow lock is carried inside the Bond record (`escrow: {payer, amount}`).
 11. **Contract.** The principal issues it and the performer co-signs it. It is the first record in a job chain. Intent and Offer (or Call and Proposal) are referenced from `basis` rather than chained.
@@ -49,3 +49,25 @@ The spec is the source of truth. This page lists every place where the code had 
     - Keys left out of an update are revoked from that moment on. Records signed before then still verify when the log is replayed.
 21. **Log hash.** `log_hash = sha256(previous log_hash + "\n" + record id)`, starting from 64 zeros. It makes the log order tamper-evident and gives a single value to anchor publicly later. Nothing signs or anchors it yet.
 22. **Appends run one at a time**, behind a lock on the log head. That is simple and correct, but it caps throughput. Revisit this when many fleets write at once.
+
+## Fleets and nodes
+
+23. **Fleets are declared by a Fleet record.** The spec says a fleet is "a declared group of agent persons under one organization". The fleet's org issues a Fleet record (`did`, `org`, `name`, `purpose`, optional `template` and `max_members`), and updates to it form a chain. The org never changes. An agent joins by naming the fleet on its passport. The log accepts that only if:
+    - the fleet is declared;
+    - the agent's sponsor is the fleet's org;
+    - the fleet has room.
+    Only agents can join fleets.
+24. **Nodes get delegated keys.** A person issues a Node record that gives one node (a DID URL under the person, e.g. `…:coder-1#node-7`) its own Ed25519 key.
+    - The node key's id is the node id.
+    - It can sign only records whose `actor` is that node.
+    - It can never sign identity records (passport, fleet, node).
+    - It can never co-sign.
+    - It expires, by default after at most 24 hours. It is rejected once the record's `issued_at` or the log's clock passes the expiry.
+    - The person stays the issuer and stays liable.
+25. **Nodes under a Mandate.** A Node record may name a Mandate. The Mandate must be issued to the node's person, and the node must expire no later than the Mandate. Live nodes count against the Mandate's `nodes.max_parallel`.
+26. **Replays use the original clock.** The log stores each record's append time (`appended_at`), and `verify()` replays with it, so records that were valid when appended still verify after their node key has expired.
+27. **Not built yet:**
+    - revoking a node before it expires
+    - revoking a person's nodes when its passport keys rotate
+    - requiring node keys whenever the actor is a node (a person's own key may still sign for its node)
+    - fleet-level (template) reputation
