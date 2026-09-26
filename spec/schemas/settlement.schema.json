@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:settlement",
+  "title": "Settlement body",
+  "description": "Escrow released, bond returned or slashed, fees split. Issued by the job's bank. Closes the job.",
+  "type": "object",
+  "required": ["contract", "basis", "escrow_released", "bond_returned", "bond_slashed"],
+  "additionalProperties": false,
+  "properties": {
+    "contract": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "basis": { "enum": ["accepted", "ruling", "revoked"] },
+    "cites": {
+      "description": "The acceptance or ruling Attestation this settlement executes.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "pro_rata_permille": {
+      "description": "Share of the price paid for work done before revocation.",
+      "$ref": "urn:asp:v0.2:common#/$defs/permille"
+    },
+    "escrow_released": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "bond_returned": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "bond_slashed": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "fees": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "earnings_split": {
+      "type": "object",
+      "required": ["agent_permille"],
+      "additionalProperties": false,
+      "properties": {
+        "agent_permille": { "$ref": "urn:asp:v0.2:common#/$defs/permille" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "basis": { "enum": ["accepted", "ruling"] } } },
+      "then": { "required": ["cites"] }
+    },
+    {
+      "if": { "properties": { "basis": { "const": "revoked" } } },
+      "then": { "required": ["pro_rata_permille"] }
+    }
+  ]
+}

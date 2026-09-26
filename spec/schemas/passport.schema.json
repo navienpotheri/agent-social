@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:passport",
+  "title": "Passport body",
+  "description": "A person's persistent identity (human, agent or org). Agent passports are issued (signed) by their sponsor; the envelope subject is the passport DID. Nodes have no passport.",
+  "type": "object",
+  "required": ["did", "kind", "keys"],
+  "additionalProperties": false,
+  "properties": {
+    "did": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "kind": { "enum": ["human", "agent", "org"] },
+    "keys": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "public_key"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "urn:asp:v0.2:common#/$defs/didUrl" },
+          "type": { "const": "Ed25519" },
+          "public_key": {
+            "description": "Raw 32-byte public key, base64url without padding.",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$"
+          },
+          "revoked_at": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" }
+        }
+      }
+    },
+    "sponsor": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "fleet": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "lineage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["edge", "parent"],
+        "additionalProperties": false,
+        "properties": {
+          "edge": { "enum": ["update", "fork", "merge", "transfer", "second"] },
+          "parent": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+          "record": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+        }
+      }
+    },
+    "lineage_head": {
+      "description": "id of the latest lineage record for this person.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "purpose": { "type": "string" },
+    "temperament": { "type": "string" },
+    "shape": {
+      "description": "Honest self-description.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory": { "type": "string" },
+        "keeps_learning": { "type": "boolean" },
+        "modalities": { "type": "array", "items": { "type": "string" } },
+        "parallel_capacity": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "canary_suite": { "type": "string" },
+        "canary_results": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" },
+        "model": { "type": "string" },
+        "runtime": { "type": "string" },
+        "policy": { "type": "string" },
+        "tools": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["skill"],
+        "additionalProperties": false,
+        "properties": {
+          "skill": { "type": "string" },
+          "attestations": {
+            "type": "array",
+            "items": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+          }
+        }
+      }
+    },
+    "tier": { "type": "integer", "minimum": 0, "maximum": 4 },
+    "mentor": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "earnings_split": {
+      "type": "object",
+      "required": ["agent_permille"],
+      "additionalProperties": false,
+      "properties": {
+        "agent_permille": { "$ref": "urn:asp:v0.2:common#/$defs/permille" }
+      }
+    },
+    "learning_record": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "agent" } } },
+      "then": { "required": ["sponsor", "tier", "shape"] }
+    }
+  ]
+}

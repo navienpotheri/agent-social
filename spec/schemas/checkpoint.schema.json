@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:checkpoint",
+  "title": "Checkpoint body",
+  "description": "A pause asking the principal to approve, pick or correct. Resolved by an Attestation of kind checkpoint_resolution.",
+  "type": "object",
+  "required": ["contract", "kind", "question"],
+  "additionalProperties": false,
+  "properties": {
+    "contract": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "kind": { "enum": ["plan", "before_irreversible", "high_impact", "delivery"] },
+    "question": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "proposed_action": { "type": "string" },
+    "options": {
+      "type": "array",
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+    }
+  }
+}

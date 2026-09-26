@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "asp-core"
+version = "0.1.0"
+description = "ASP core: canonical records, Ed25519 signing, schema validation and the job lifecycle"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+dependencies = [
+    "cryptography>=42",
+    "jsonschema[format-nongpl]>=4.23",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/asp_core"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:attestation",
+  "title": "Attestation body",
+  "description": "A signed judgment: acceptance, checkpoint resolution, rating, ruling, certificate, allocation, citation.",
+  "type": "object",
+  "required": ["kind", "about"],
+  "properties": {
+    "kind": {
+      "enum": ["acceptance", "checkpoint_resolution", "rating", "ruling", "certificate", "allocation", "citation"]
+    },
+    "about": {
+      "description": "The record this judgment is about.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "verdict": { "type": "string" },
+    "reasons": {
+      "type": "array",
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+    },
+    "correction": { "type": "string" },
+    "fault": {
+      "description": "For rulings: fault apportioned along the chain, in permille per DID.",
+      "type": "object",
+      "additionalProperties": { "$ref": "urn:asp:v0.2:common#/$defs/permille" }
+    },
+    "score": { "type": "integer" },
+    "skill": { "type": "string" }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "acceptance" } } },
+      "then": {
+        "required": ["verdict"],
+        "properties": { "verdict": { "enum": ["accepted", "rejected"] } },
+        "if": { "properties": { "verdict": { "const": "rejected" } } },
+        "then": { "required": ["reasons"], "properties": { "reasons": { "minItems": 1 } } }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "checkpoint_resolution" } } },
+      "then": {
+        "required": ["verdict"],
+        "properties": { "verdict": { "enum": ["approved", "corrected", "picked"] } },
+        "if": { "properties": { "verdict": { "const": "corrected" } } },
+        "then": { "required": ["correction"] }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "ruling" } } },
+      "then": {
+        "required": ["verdict", "fault"],
+        "properties": { "verdict": { "enum": ["for_performer", "for_principal", "split"] } }
+      }
+    }
+  ]
+}

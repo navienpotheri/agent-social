@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:intent",
+  "title": "Intent body",
+  "description": "A defined outcome: purpose, acceptance criteria, budget, deadline, verification mode.",
+  "type": "object",
+  "required": ["purpose", "acceptance_criteria", "budget", "deadline", "verification"],
+  "additionalProperties": false,
+  "properties": {
+    "purpose": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "acceptance_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+    },
+    "budget": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "deadline": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "verification": {
+      "type": "object",
+      "required": ["mode"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "$ref": "urn:asp:v0.2:common#/$defs/verificationMode" },
+        "tests": {
+          "description": "For deterministic mode: the test command or suite the court runs.",
+          "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+        },
+        "review_deadline": {
+          "description": "For principal mode: silence after this counts as acceptance.",
+          "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+        }
+      }
+    },
+    "skills": { "type": "array", "items": { "type": "string" } }
+  }
+}

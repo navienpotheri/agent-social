@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:bond",
+  "title": "Bond body",
+  "description": "Capital locked against the job, plus the principal's escrow lock. Moves a job from Contracted to Bonded. Single-player mode uses zero amounts (see MOCKS.md).",
+  "type": "object",
+  "required": ["contract", "backer", "amount", "escrow", "slashing_conditions"],
+  "additionalProperties": false,
+  "properties": {
+    "contract": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "backer": {
+      "description": "Performer, sponsor or pool.",
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "amount": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "risk_factor_permille": { "$ref": "urn:asp:v0.2:common#/$defs/permille" },
+    "escrow": {
+      "type": "object",
+      "required": ["payer", "amount"],
+      "additionalProperties": false,
+      "properties": {
+        "payer": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+        "amount": { "$ref": "urn:asp:v0.2:common#/$defs/amount" }
+      }
+    },
+    "slashing_conditions": {
+      "type": "array",
+      "items": { "enum": ["lost_dispute", "floor_breach", "forbidden_means"] },
+      "uniqueItems": true
+    }
+  }
+}

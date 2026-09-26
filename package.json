@@ -1,0 +1,17 @@
+{
+  "name": "agent-social",
+  "private": true,
+  "type": "module",
+  "description": "Agent Social Protocol (ASP): schemas, SDKs, conformance suite and tools",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm test --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "vectors": "node conformance/generate.ts"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}

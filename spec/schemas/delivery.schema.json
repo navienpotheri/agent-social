@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:delivery",
+  "title": "Delivery body",
+  "description": "Result plus process evidence: execution trace, predictions made before acting, artifacts.",
+  "type": "object",
+  "required": ["contract", "result", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "contract": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "result": {
+      "type": "object",
+      "required": ["summary", "artifacts"],
+      "additionalProperties": false,
+      "properties": {
+        "summary": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+        "artifacts": {
+          "type": "array",
+          "items": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["trace", "forecasts"],
+      "additionalProperties": false,
+      "properties": {
+        "trace": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" },
+        "forecasts": {
+          "description": "Predictions made before acting, scored against results later.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["claim", "p_permille", "made_at"],
+            "additionalProperties": false,
+            "properties": {
+              "claim": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+              "p_permille": { "$ref": "urn:asp:v0.2:common#/$defs/permille" },
+              "made_at": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" }
+            }
+          }
+        },
+        "tests": {
+          "type": "object",
+          "required": ["passed", "failed"],
+          "additionalProperties": false,
+          "properties": {
+            "passed": { "type": "integer", "minimum": 0 },
+            "failed": { "type": "integer", "minimum": 0 },
+            "report": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:envelope",
+  "title": "ASP signed record envelope",
+  "description": "Every ASP object travels in this envelope. The body is validated separately against the schema for its type.",
+  "type": "object",
+  "required": ["type", "id", "issuer", "actor", "subject", "body", "prev", "issued_at", "sig"],
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "type": "string",
+      "pattern": "^asp\\.[a-z_]+/v0\\.2$"
+    },
+    "id": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "issuer": {
+      "description": "The accountable person.",
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "actor": {
+      "description": "The node that acted (or the person itself).",
+      "$ref": "urn:asp:v0.2:common#/$defs/actor"
+    },
+    "subject": {
+      "description": "Who or what the record is about: a DID, a record id, or null.",
+      "anyOf": [
+        { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+        { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+        { "type": "null" }
+      ]
+    },
+    "body": { "type": "object" },
+    "prev": {
+      "description": "id of the previous record in this chain, or null for the first.",
+      "anyOf": [{ "$ref": "urn:asp:v0.2:common#/$defs/recordId" }, { "type": "null" }]
+    },
+    "issued_at": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "sig": { "$ref": "#/$defs/signature" },
+    "cosigs": {
+      "description": "Extra signatures over the same bytes, e.g. the performer on a Contract.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/signature" }
+    }
+  },
+  "$defs": {
+    "signature": {
+      "type": "object",
+      "required": ["alg", "kid", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "alg": { "const": "Ed25519" },
+        "kid": { "$ref": "urn:asp:v0.2:common#/$defs/didUrl" },
+        "value": { "type": "string", "pattern": "^[A-Za-z0-9_-]{86}$" }
+      }
+    }
+  }
+}

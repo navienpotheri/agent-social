@@ -1,0 +1,100 @@
+{
+  "$comment": "ASP v0.2 job lifecycle. After contracting, every job follows this machine; each transition consumes exactly one signed record. Guards and issuer roles are implemented by name in every SDK and exercised by conformance/vectors/lifecycle.json.",
+  "version": "asp.lifecycle/v0.2",
+  "states": ["Contracted", "Bonded", "Running", "Checkpoint", "Delivered", "Disputed", "Settled"],
+  "terminal": ["Settled"],
+  "max_redeliveries": 1,
+  "roles": {
+    "principal": "contract.body.principal",
+    "performer": "contract.body.performer",
+    "bank": "contract.body.bank",
+    "backer": "record.body.backer",
+    "neutral": "any DID that is not the principal or the performer"
+  },
+  "transitions": [
+    {
+      "from": [null], "type": "contract", "to": "Contracted",
+      "issuer": "principal",
+      "guards": ["cosigned_by_performer"]
+    },
+    {
+      "from": ["Contracted"], "type": "bond", "to": "Bonded",
+      "issuer": "backer",
+      "guards": ["refs_contract", "escrow_payer_is_principal"]
+    },
+    {
+      "from": ["Bonded"], "type": "mandate", "to": "Running",
+      "issuer": "principal",
+      "guards": ["refs_contract", "subject_is_performer"]
+    },
+    {
+      "from": ["Running"], "type": "checkpoint", "to": "Checkpoint",
+      "issuer": "performer",
+      "guards": ["refs_contract"]
+    },
+    {
+      "from": ["Checkpoint"], "type": "attestation", "when": { "kind": "checkpoint_resolution" }, "to": "Running",
+      "issuer": "principal",
+      "guards": ["about_open_checkpoint"]
+    },
+    {
+      "from": ["Running"], "type": "delivery", "to": "Delivered",
+      "issuer": "performer",
+      "guards": ["refs_contract"]
+    },
+    {
+      "from": ["Delivered"], "type": "attestation", "when": { "kind": "acceptance", "verdict": "accepted" }, "to": "Delivered",
+      "issuer": "principal",
+      "guards": ["about_latest_delivery", "not_yet_accepted"],
+      "effects": ["mark_accepted"]
+    },
+    {
+      "from": ["Delivered"], "type": "attestation", "when": { "kind": "acceptance", "verdict": "rejected" }, "to": "Disputed",
+      "issuer": "principal",
+      "guards": ["about_latest_delivery", "not_yet_accepted"]
+    },
+    {
+      "from": ["Disputed"], "type": "delivery", "to": "Delivered",
+      "issuer": "performer",
+      "guards": ["refs_contract", "redelivery_available"],
+      "effects": ["count_redelivery"]
+    },
+    {
+      "from": ["Disputed"], "type": "attestation", "when": { "kind": "ruling" }, "to": "Disputed",
+      "issuer": "neutral",
+      "guards": ["about_contract", "no_ruling_yet"],
+      "effects": ["record_ruling"]
+    },
+    {
+      "from": ["Delivered"], "type": "settlement", "when": { "basis": "accepted" }, "to": "Settled",
+      "issuer": "bank",
+      "guards": ["refs_contract", "cites_acceptance"]
+    },
+    {
+      "from": ["Disputed"], "type": "settlement", "when": { "basis": "ruling" }, "to": "Settled",
+      "issuer": "bank",
+      "guards": ["refs_contract", "cites_ruling"]
+    },
+    {
+      "from": ["Contracted", "Bonded", "Running", "Checkpoint"], "type": "settlement", "when": { "basis": "revoked" }, "to": "Settled",
+      "issuer": "bank",
+      "guards": ["refs_contract", "cosigned_by_principal"]
+    }
+  ],
+  "errors": {
+    "SCHEMA_INVALID": "Envelope or body fails its JSON Schema",
+    "UNKNOWN_TYPE": "No body schema for this record type",
+    "BAD_ID": "id is not the sha256 of the canonical unsigned record",
+    "KID_NOT_ISSUER": "The signing key does not belong to the issuer",
+    "UNKNOWN_KEY": "The key resolver has no key for this kid",
+    "BAD_SIGNATURE": "A signature does not verify",
+    "BAD_ACTOR": "actor is neither the issuer nor one of its nodes",
+    "NON_INTEGER_NUMBER": "Signed records carry integers only",
+    "BAD_PREV": "prev does not link to the previous record",
+    "TIME_REVERSED": "issued_at goes backwards within the chain",
+    "TERMINAL_STATE": "The job is already settled",
+    "ILLEGAL_TRANSITION": "No transition accepts this record in the current state",
+    "WRONG_ISSUER": "The record's issuer does not hold the required role",
+    "GUARD_FAILED": "A transition guard rejected the record"
+  }
+}

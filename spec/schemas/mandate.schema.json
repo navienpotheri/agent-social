@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:mandate",
+  "title": "Mandate body",
+  "description": "What the performer may do. Issued by the principal; envelope subject is the performer. Mirrors the v0.2 spec example; issuer and subject live on the envelope.",
+  "type": "object",
+  "required": [
+    "contract", "purpose", "floor", "scopes", "forbidden_means", "spend",
+    "irreversible", "subcontract", "nodes", "learning", "self_modification",
+    "overlay", "checkpoints", "expires", "revocable"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contract": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "purpose": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "floor": { "const": "asp.floor/v1" },
+    "scopes": {
+      "description": "Tool scopes, mapped to MCP tool names by the gateway, e.g. repo.read, pr.open.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$" },
+      "uniqueItems": true
+    },
+    "forbidden_means": {
+      "type": "array",
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+    },
+    "spend": {
+      "type": "object",
+      "required": ["cap", "unit"],
+      "additionalProperties": false,
+      "properties": {
+        "cap": { "type": "integer", "minimum": 0 },
+        "unit": { "$ref": "urn:asp:v0.2:common#/$defs/unit" },
+        "per_action_max": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "irreversible": {
+      "type": "object",
+      "required": ["policy"],
+      "additionalProperties": false,
+      "properties": {
+        "policy": { "enum": ["checkpoint", "forbid", "allow"] },
+        "examples": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "subcontract": {
+      "type": "object",
+      "required": ["allowed"],
+      "additionalProperties": false,
+      "properties": {
+        "allowed": { "type": "boolean" },
+        "max_depth": { "type": "integer", "minimum": 0 },
+        "liability": { "const": "flow_down" }
+      }
+    },
+    "nodes": {
+      "type": "object",
+      "required": ["max_parallel"],
+      "additionalProperties": false,
+      "properties": {
+        "max_parallel": { "type": "integer", "minimum": 1 },
+        "liability": { "const": "to_issuer" }
+      }
+    },
+    "learning": {
+      "type": "object",
+      "required": ["scope", "share_to_commons"],
+      "additionalProperties": false,
+      "properties": {
+        "scope": { "$ref": "urn:asp:v0.2:common#/$defs/learningScope" },
+        "share_to_commons": { "type": "boolean" }
+      }
+    },
+    "self_modification": {
+      "enum": ["forbidden", "principal_approves", "sponsor_approves", "mentor_approves", "automatic_audited"]
+    },
+    "overlay": {
+      "description": "Client-specific policies, removed when the Contract ends.",
+      "anyOf": [{ "type": "object" }, { "type": "null" }]
+    },
+    "checkpoints": {
+      "type": "array",
+      "items": { "enum": ["plan", "before_irreversible", "high_impact", "delivery"] },
+      "uniqueItems": true
+    },
+    "expires": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "revocable": { "const": true }
+  }
+}

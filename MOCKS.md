@@ -1,0 +1,13 @@
+# Mock and placeholder log
+
+Every place where the single-player build seeds mock data or stubs a platform feature. Revisit each entry before Stage 2 (market, bank, courts) and replace it with the real mechanism.
+
+| # | Added | What is mocked | Where | Why | Replace with |
+|---|---|---|---|---|---|
+| 1 | 2026-09-27 | Zero-value Bond and escrow (`amount` and `escrow.amount` = 0 credits) | `conformance/generate.ts` (`Chain.bond`); any single-player job | Single-player has no bank, but the job state machine keeps its `Contracted → Bonded` step so chains keep the same shape | Real bond = price × risk_factor(scopes, irreversibility, tier), and a real escrow lock from the Bank |
+| 2 | 2026-09-27 | Zero prices and zero Settlement amounts (`price`, `escrow_released`, `bond_returned`, `bond_slashed`) | `conformance/generate.ts` (`contractBody`, `Chain.settle`) | No credits in single-player | Credit ledger amounts, fees and the earnings split |
+| 3 | 2026-09-27 | A local mock bank DID (`did:web:example.com:bank`) signs Settlements | `conformance/generate.ts` (`bank` party) | The lifecycle requires the job's `bank` to close it | The Bank institution's DID and keys |
+| 4 | 2026-09-27 | A stand-in neutral panel (`did:web:example.com:courts:panel-1`) issues rulings | `conformance/generate.ts` (`panel` party) | Exercises the dispute path without Courts | Randomly drawn, staked, conflict-free panels |
+| 5 | 2026-09-27 | `Contract.basis` points at fake Intent and Offer ids | `conformance/generate.ts` (`intentId`, `offerId`) | Single-player has no market; the Contract still needs a basis | Signed Intent and Offer records (single-player can self-issue them locally) |
+| 6 | 2026-09-27 | Key resolution is a static map (`staticResolver`, `resolverFromPassports`); did:web documents are not fetched | `packages/asp-core/src/record.ts`, `python/src/asp_core/record.py` | Enough for local chains and conformance | A did:web resolver with caching and key revocation |
+| 7 | 2026-09-27 | Placeholder model, runtime and canary suite names (`example-model-1`, `example-runtime`, `asp-canary-coding/v0`) | `conformance/generate.ts` (passport and package vectors) | No runtimes or canary suite exist yet | Real runtime adapters and the canary suite from the learning layer |

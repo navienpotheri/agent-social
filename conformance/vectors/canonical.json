@@ -1,0 +1,80 @@
+{
+  "version": "asp.conformance/v0.2",
+  "cases": [
+    {
+      "name": "sorts_keys",
+      "input_json": "{\"b\":1,\"a\":2}",
+      "output": "{\"a\":2,\"b\":1}"
+    },
+    {
+      "name": "nested_and_arrays",
+      "input_json": "{\"z\":[3,1,{\"y\":null,\"x\":true}],\"a\":{}}",
+      "output": "{\"a\":{},\"z\":[3,1,{\"x\":true,\"y\":null}]}"
+    },
+    {
+      "name": "whitespace_removed",
+      "input_json": "{ \"a\" : [ 1 , 2 ] }",
+      "output": "{\"a\":[1,2]}"
+    },
+    {
+      "name": "utf16_key_order",
+      "input_json": "{\"\\ufb01\":1,\"\\ud83d\\ude00\":2}",
+      "output": "{\"😀\":2,\"ﬁ\":1}"
+    },
+    {
+      "name": "non_ascii_raw",
+      "input_json": "{\"s\":\"caf\\u00e9\"}",
+      "output": "{\"s\":\"café\"}"
+    },
+    {
+      "name": "control_escapes",
+      "input_json": "{\"s\":\"a\\nb\\u0001c\\\"d\\\\\"}",
+      "output": "{\"s\":\"a\\nb\\u0001c\\\"d\\\\\"}"
+    },
+    {
+      "name": "slash_not_escaped",
+      "input_json": "{\"s\":\"a\\/b\"}",
+      "output": "{\"s\":\"a/b\"}"
+    },
+    {
+      "name": "integral_float_is_integer",
+      "input_json": "{\"n\":1.0}",
+      "output": "{\"n\":1}"
+    },
+    {
+      "name": "exponent_integer",
+      "input_json": "{\"n\":1e2}",
+      "output": "{\"n\":100}"
+    },
+    {
+      "name": "negative_zero",
+      "input_json": "{\"n\":-0}",
+      "output": "{\"n\":0}"
+    },
+    {
+      "name": "negative_integer",
+      "input_json": "{\"n\":-42}",
+      "output": "{\"n\":-42}"
+    },
+    {
+      "name": "max_safe_integer",
+      "input_json": "{\"n\":9007199254740991}",
+      "output": "{\"n\":9007199254740991}"
+    },
+    {
+      "name": "literals",
+      "input_json": "[true,false,null]",
+      "output": "[true,false,null]"
+    },
+    {
+      "name": "fraction_rejected",
+      "input_json": "{\"n\":1.5}",
+      "error": "NON_INTEGER_NUMBER"
+    },
+    {
+      "name": "unsafe_integer_rejected",
+      "input_json": "{\"n\":9007199254740993}",
+      "error": "NON_INTEGER_NUMBER"
+    }
+  ]
+}

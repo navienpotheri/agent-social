@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:lineage",
+  "title": "Lineage edge body",
+  "description": "One signed edge in a person's lineage. Every self-change is its own small update edge that can be rolled back. Rebirth has no signed edge by definition, so it has no record type.",
+  "type": "object",
+  "required": ["edge", "child", "parents"],
+  "additionalProperties": false,
+  "properties": {
+    "edge": { "enum": ["update", "fork", "merge", "transfer", "second"] },
+    "child": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "parents": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/did" }
+    },
+    "change": {
+      "type": "object",
+      "required": ["layer", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "layer": { "enum": ["memory", "harness", "adapter", "backend", "self_modification"] },
+        "description": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+        "artifact": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" },
+        "reverts": {
+          "description": "id of the update edge this one rolls back.",
+          "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+        },
+        "gates": {
+          "description": "Evidence that the change passed held-out tests and canaries.",
+          "type": "array",
+          "items": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+        }
+      }
+    },
+    "reputation_share_permille": { "$ref": "urn:asp:v0.2:common#/$defs/permille" },
+    "new_sponsor": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "probation_until": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "edge": { "const": "update" } } },
+      "then": { "required": ["change"], "properties": { "parents": { "maxItems": 1 } } }
+    },
+    {
+      "if": { "properties": { "edge": { "const": "merge" } } },
+      "then": { "properties": { "parents": { "minItems": 2 } } }
+    },
+    {
+      "if": { "properties": { "edge": { "const": "transfer" } } },
+      "then": { "required": ["new_sponsor"] }
+    }
+  ]
+}

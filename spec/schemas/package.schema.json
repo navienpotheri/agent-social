@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:package",
+  "title": "Agent package manifest body",
+  "description": "A portable agent bundle (decision #45): manifest, signed identity, memory and experience-store reference, permissions, lineage head. Signed by the agent; `asp verify` checks it.",
+  "type": "object",
+  "required": ["agent", "passport", "memory", "experience_store", "permissions", "lineage_head", "source_runtime"],
+  "additionalProperties": false,
+  "properties": {
+    "agent": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "passport": {
+      "description": "id of the signed passport record included in the bundle.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "memory": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" },
+    "experience_store": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" },
+    "skills": {
+      "type": "array",
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" }
+    },
+    "harness": {
+      "description": "Prompts, tool config and workflows, in a runtime-neutral form.",
+      "$ref": "urn:asp:v0.2:common#/$defs/artifactRef"
+    },
+    "permissions": {
+      "description": "Default Mandate scopes the agent expects; a principal's Mandate may only narrow them.",
+      "type": "object",
+      "required": ["scopes"],
+      "additionalProperties": false,
+      "properties": {
+        "scopes": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "forbidden": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "lineage_head": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "history": {
+      "description": "The signed record log bundled with the package.",
+      "$ref": "urn:asp:v0.2:common#/$defs/artifactRef"
+    },
+    "source_runtime": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "model": { "type": "string" }
+      }
+    },
+    "canary": {
+      "type": "object",
+      "required": ["suite", "results"],
+      "additionalProperties": false,
+      "properties": {
+        "suite": { "type": "string" },
+        "results": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" }
+      }
+    }
+  }
+}

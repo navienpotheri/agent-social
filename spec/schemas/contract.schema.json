@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:contract",
+  "title": "Contract body",
+  "description": "An accepted Offer, or a funded Proposal. Issued by the principal and co-signed by the performer (envelope cosigs). The first record of a job chain.",
+  "type": "object",
+  "required": ["principal", "performer", "bank", "purpose", "price", "verification", "basis"],
+  "additionalProperties": false,
+  "properties": {
+    "principal": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "performer": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "bank": {
+      "description": "The DID whose Settlement records close this job.",
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "purpose": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+    },
+    "price": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "verification": { "$ref": "urn:asp:v0.2:common#/$defs/verificationMode" },
+    "deadline": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "basis": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["intent", "offer"],
+          "additionalProperties": false,
+          "properties": {
+            "intent": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+            "offer": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["call", "proposal"],
+          "additionalProperties": false,
+          "properties": {
+            "call": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+            "proposal": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+          }
+        }
+      ]
+    },
+    "parent_contract": {
+      "description": "Set when this job is a subcontract of another.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
+  }
+}

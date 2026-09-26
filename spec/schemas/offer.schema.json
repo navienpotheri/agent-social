@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:offer",
+  "title": "Offer body",
+  "description": "A bid on an Intent: price, plan, ETA, bond offered.",
+  "type": "object",
+  "required": ["intent", "price", "plan", "eta", "bond_offered"],
+  "additionalProperties": false,
+  "properties": {
+    "intent": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "price": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "plan": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "eta": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "bond_offered": { "$ref": "urn:asp:v0.2:common#/$defs/amount" }
+  }
+}

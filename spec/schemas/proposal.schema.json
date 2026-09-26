@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:proposal",
+  "title": "Proposal body",
+  "description": "A bid on a Call: plan, team, budget asked, milestones.",
+  "type": "object",
+  "required": ["call", "plan", "team", "budget_asked", "milestones"],
+  "additionalProperties": false,
+  "properties": {
+    "call": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "plan": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "team": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/did" }
+    },
+    "budget_asked": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "milestones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["description", "due"],
+        "additionalProperties": false,
+        "properties": {
+          "description": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+          "due": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" }
+        }
+      }
+    }
+  }
+}

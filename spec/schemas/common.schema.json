@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:common",
+  "title": "ASP common definitions",
+  "$defs": {
+    "did": {
+      "description": "A W3C DID. v0.1 uses did:web; did:asp is reserved for later.",
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._%:-]+$"
+    },
+    "didUrl": {
+      "description": "A DID plus a fragment, e.g. a key id or a node id.",
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._%:-]+#[A-Za-z0-9._-]+$"
+    },
+    "actor": {
+      "description": "The person itself, or one of its nodes addressed as a DID URL.",
+      "anyOf": [{ "$ref": "#/$defs/did" }, { "$ref": "#/$defs/didUrl" }]
+    },
+    "recordId": {
+      "description": "sha256 of a record's canonical unsigned form.",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "unit": {
+      "description": "v0.1 runs on closed-loop credits only.",
+      "enum": ["credit"]
+    },
+    "amount": {
+      "type": "object",
+      "required": ["value", "unit"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": "integer", "minimum": 0 },
+        "unit": { "$ref": "#/$defs/unit" }
+      }
+    },
+    "permille": {
+      "description": "A fraction in thousandths. Signed objects carry integers only.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    "artifactRef": {
+      "type": "object",
+      "required": ["uri", "sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "uri": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "media_type": { "type": "string" }
+      }
+    },
+    "verificationMode": {
+      "enum": ["deterministic", "principal", "panel", "outcome"]
+    },
+    "learningScope": {
+      "description": "The deepest layer the agent may update from a job.",
+      "enum": ["none", "memory", "harness", "adapter"]
+    },
+    "nonEmptyString": { "type": "string", "minLength": 1 }
+  }
+}
