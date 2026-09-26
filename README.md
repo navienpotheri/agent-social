@@ -13,7 +13,7 @@ This repo holds the protocol's machine-readable spec, the SDKs and the conforman
 | `spec/lifecycle.json` | The job state machine as data: states, transitions, issuer roles, guards, error codes |
 | `packages/asp-core/` | TypeScript SDK: canonical JSON, Ed25519 records, schema validation, `Job` lifecycle |
 | `packages/asp-log/` | Append-only signed event log: in-memory and Postgres stores; a registry of passports, fleets and delegated node keys; log hash chain; full-log verification |
-| `packages/asp-package/` | Agent packages: the runtime-neutral harness, runtime adapters (Claude Code and Codex CLI), writing and verifying packages, and the local keystore and log in `~/.asp` |
+| `packages/asp-package/` | Agent packages: the runtime-neutral harness, runtime adapters (Claude Code, Codex CLI, OpenHands), writing and verifying packages, and the local keystore and log in `~/.asp` |
 | `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run`, `log verify` |
 | `python/` | Python SDK with the same API |
 | `conformance/` | Shared test vectors and their generator |
@@ -86,7 +86,7 @@ npm run asp -- verify coder.aspkg
 npm run asp -- run coder.aspkg --backend claude-code --project /path/to/repo --dry-run
 ```
 
-The same package runs on Codex with `--backend codex`, and `pack --runtime codex` captures an agent from a Codex project.
+The same package runs on Codex with `--backend codex` and on OpenHands with `--backend openhands` (inside WSL on Windows). `pack --runtime codex|openhands` captures an agent from those runtimes.
 
 Without `--dry-run`, `run` launches `claude` with the agent loaded, so it needs the Claude Code CLI on your PATH. After a successful run, memory the agent wrote and any move to a new runtime are recorded back into the package as signed lineage updates. Keys and the local log live in `~/.asp` (override with `ASP_HOME`).
 
@@ -110,4 +110,4 @@ job.apply(contract); // "Contracted"
 
 ## Status
 
-Step 1 of the single-player build so far: schemas, the lifecycle library in both SDKs, and the conformance suite. It also includes the append-only signed event log, fleets, delegated node keys, the agent package format, and the `asp` CLI with Claude Code and Codex CLI adapters. The OpenHands adapter is next.
+Step 1 of the single-player build so far: schemas, the lifecycle library in both SDKs, and the conformance suite. It also includes the append-only signed event log, fleets, delegated node keys, the agent package format, and the `asp` CLI with Claude Code, Codex CLI and OpenHands adapters.

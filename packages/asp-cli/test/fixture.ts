@@ -59,6 +59,26 @@ export function makeFixture(): Fixture {
   return { root, project, home, aspHome };
 }
 
+/** A fake OpenHands project and home: context files, skills, legacy microagents, hooks, MCP, agent settings. */
+export function makeOpenHandsFixture(): Fixture {
+  const root = mkdtempSync(join(tmpdir(), "asp-oh-fixture-"));
+  const project = join(root, "search-service");
+  const home = join(root, "home");
+  const aspHome = join(root, "asp-home");
+
+  put(join(project, "AGENTS.md"), "# Search service\n\nRun `make test` before committing.\n");
+  put(join(project, ".agents", "skills", "reindex", "SKILL.md"), "---\nname: reindex\ndescription: Rebuild the search index safely\n---\nSnapshot, rebuild, swap.\n");
+  put(join(project, ".openhands", "microagents", "repo.md"), "Always write docstrings.\n");
+  put(join(project, ".openhands", "microagents", "docker.md"), "---\nname: docker\ntriggers:\n  - docker\n  - container\n---\nUse the slim base image.\n");
+  put(join(project, ".openhands", "hooks.json"), { hooks: { PostToolUse: [{ matcher: "file_editor", hooks: [{ type: "command", command: "make lint" }] }] } });
+
+  const oh = join(home, ".openhands");
+  put(join(home, ".agents", "skills", "triage", "SKILL.md"), "---\nname: triage\ndescription: Triage a bug report\n---\nReproduce first.\n");
+  put(join(oh, "mcp.json"), { mcpServers: { sentry: { command: "npx", args: ["-y", "sentry-mcp"], env: { SENTRY_TOKEN: "not-a-real-sentry-value" } } } });
+  put(join(oh, "agent_settings.json"), { llm: { model: "anthropic/claude-sonnet-5", api_key: "not-a-real-llm-key" } });
+  return { root, project, home, aspHome };
+}
+
 /** A fake Codex project and home: AGENTS.md, .agents/skills, .codex/config.toml, hooks, rules, rollouts. */
 export function makeCodexFixture(): Fixture {
   const root = mkdtempSync(join(tmpdir(), "asp-codex-fixture-"));

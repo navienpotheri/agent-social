@@ -5,9 +5,9 @@
  *   asp identity new --kind human --did <did>
  *   asp identity new --kind agent --did <did> --sponsor <did> [--fleet <did>] [--purpose <text>]
  *   asp identity show <did>
- *   asp pack --runtime claude-code|codex --agent <did> [--project <dir>] [--include-user] [--out <dir>]
+ *   asp pack --runtime claude-code|codex|openhands --agent <did> [--project <dir>] [--include-user] [--out <dir>]
  *   asp verify <package> [--json]
- *   asp run <package> --backend claude-code|codex [--project <dir>] [--prompt <text>] [--model <m>] [--dry-run] [--no-write-back]
+ *   asp run <package> --backend claude-code|codex|openhands [--project <dir>] [--prompt <text>] [--model <m>] [--dry-run] [--no-write-back]
  *     After a successful run, a backend swap and any memory the agent changed are recorded in the
  *     package as signed lineage updates, and the manifest is re-signed.
  *   asp log verify

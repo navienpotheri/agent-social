@@ -25,3 +25,10 @@ Known gaps, grouped by area. Mocks to replace before Stage 2 are in [../MOCKS.md
 - Hooks aren't carried; Codex runs only hooks the user has reviewed and trusted
 - Execpolicy `.rules` files are carried in the package but not loaded
 - A model packed from another runtime isn't used unless `--model` is given
+
+## OpenHands (reported at run time)
+- Its sessions aren't indexed into the package's experience yet
+- Path-scoped rules are on-demand skills naming their globs; OpenHands has no path triggers
+- Permission rules are stated, not enforced; headless OpenHands auto-approves every action, with the WSL user's full permissions
+- Hook events OpenHands lacks are dropped
+

@@ -45,3 +45,20 @@ How the build works where the spec is silent and no decision is needed. Decision
 Capture reads `AGENTS.md`/`AGENTS.override.md`, `.agents/skills`, `.codex/config.toml`, `.codex/hooks.json`, `.codex/rules/*.rules`, and the index of this project's sessions. With `--include-user` it also reads the Codex home's `AGENTS.md`, user skills, and Codex's global memories.
 
 `packages/asp-cli/scripts/codex-live-check.ts` checks the adapter against the installed Codex with no model call. It uses `codex debug prompt-input` and `codex mcp list`.
+
+### OpenHands (runs inside WSL on Windows)
+
+| Agent part | How it reaches OpenHands |
+|---|---|
+| Home | A shadow home in the run folder: every entry of the real home is symlinked, so git, ssh and toolchains keep working, except `.agents` and `.openhands`. `.openhands` holds links to the real LLM settings and credentials. `HOME` points at the shadow home for the run. |
+| Instructions, commands, subagent roles, deny rules, memory index | A legacy microagent with no triggers (`~/.openhands/microagents/asp-agent.md`), which OpenHands puts in the system prompt. The project's own `AGENTS.md`/`CLAUDE.md`/`GEMINI.md` are skipped when identical, since OpenHands loads them natively. |
+| Skills | Native user skills (`~/.agents/skills`), advertised on demand. |
+| Path-scoped rules | On-demand skills whose description names the globs, because OpenHands has only keyword and task triggers. |
+| Hooks | `~/.openhands/hooks.json`, the same shape as Claude Code's. Matchers are translated to OpenHands tool names (`terminal`, `file_editor`, `task_tracker`), and events OpenHands lacks are dropped. |
+| MCP | A template with `${NAME}` references. The launch script expands it into a private file on the Linux filesystem, links it into the shadow home, and deletes it on exit. |
+| Launch | `wsl.exe -- bash launch.sh`, with secrets shared through `WSLENV`. `--headless --json -f task.md` when there is a prompt; `--override-with-envs` with `LLM_MODEL` when `--model` is given. Conversations are kept in the run folder. |
+
+Capture reads the repo context files, `.agents/skills`, `.openhands/skills`, `.openhands/microagents` and `.openhands/hooks.json`. A microagent without triggers becomes an always-on instruction; one with triggers becomes an on-demand skill. With `--include-user`, capture also reads the user's skills, microagents, hooks, MCP servers, and the model name from `agent_settings.json` (never the API key).
+
+`packages/asp-cli/scripts/openhands-live-check.ts` runs the real `launch.sh` in WSL, with `openhands` replaced by a probe on OpenHands' own Python. The probe builds the agent context the way the CLI does. No LLM call is made.
+
