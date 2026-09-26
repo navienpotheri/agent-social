@@ -37,3 +37,15 @@ The spec is the source of truth. This page lists every place where the code had 
     - appeals
     - subcontract nesting
     - checking a Mandate against the agent's tier limits
+
+## Event log (`packages/asp-log`)
+
+18. **Chains never fork.** Each record has at most one successor. Postgres enforces this with `UNIQUE (prev)`. A record whose `prev` is not its chain's head is rejected with `BAD_PREV`.
+19. **Chain kinds.** A chain is named after the type of its first record. A chain that starts with a Contract is a job and must follow the lifecycle. Any other chain holds only records of its root's type, e.g. one passport's versions. Job-only types (contract, bond, mandate, checkpoint, delivery, settlement) cannot appear outside a job.
+20. **Registry from passports.**
+    - Keys come from passport records in the log.
+    - A person's first passport starts its own chain. It may be issued by the person itself, which bootstraps its keys, or by a registered sponsor.
+    - Each update must follow the latest passport for that DID and be issued by the DID or its sponsor.
+    - Keys left out of an update are revoked from that moment on. Records signed before then still verify when the log is replayed.
+21. **Log hash.** `log_hash = sha256(previous log_hash + "\n" + record id)`, starting from 64 zeros. It makes the log order tamper-evident and gives a single value to anchor publicly later. Nothing signs or anchors it yet.
+22. **Appends run one at a time**, behind a lock on the log head. That is simple and correct, but it caps throughput. Revisit this when many fleets write at once.

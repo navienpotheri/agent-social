@@ -9,4 +9,4 @@ export {
   unsignedView, verifyRecord,
   type AspRecord, type KeyResolver, type RecordDraft, type Signature, type Signer,
 } from "./record.ts";
-export { Job, LIFECYCLE, type JobOptions, type JobState } from "./lifecycle.ts";
+export { Job, LIFECYCLE, type JobOptions, type JobSnapshot, type JobState } from "./lifecycle.ts";

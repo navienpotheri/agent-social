@@ -35,9 +35,28 @@ export interface JobOptions {
  * A job chain: verifies each record, checks the hash link, and applies the lifecycle.
  * Records must arrive in chain order, starting with the Contract.
  */
+/** Everything a Job needs to resume without replaying its chain. Plain JSON. */
+export interface JobSnapshot {
+  state: JobState | null;
+  head: string | null;
+  lastIssuedAt: string | null;
+  length: number;
+  contractId?: string;
+  principal?: string;
+  performer?: string;
+  bank?: string;
+  openCheckpoint?: string;
+  latestDelivery?: string;
+  acceptance?: string;
+  ruling?: string;
+  redeliveries: number;
+}
+
 export class Job {
   state: JobState | null = null;
-  readonly records: AspRecord[] = [];
+  head: string | null = null;
+  lastIssuedAt: string | null = null;
+  length = 0;
   contractId?: string;
   principal?: string;
   performer?: string;
@@ -48,10 +67,11 @@ export class Job {
   ruling?: string;
   redeliveries = 0;
 
-  private readonly resolve: KeyResolver;
+  private readonly resolve?: KeyResolver;
   private readonly schemas: SchemaSet;
 
-  constructor(opts: JobOptions) {
+  /** `resolve` is needed only for apply(); step() takes records that were already verified. */
+  constructor(opts: Partial<JobOptions> = {}) {
     this.resolve = opts.resolve;
     this.schemas = opts.schemas ?? defaultSchemas();
   }
@@ -62,17 +82,28 @@ export class Job {
     return job;
   }
 
-  get head(): string | null {
-    return this.records.at(-1)?.id ?? null;
+  static fromSnapshot(s: JobSnapshot, opts: Partial<JobOptions> = {}): Job {
+    return Object.assign(new Job(opts), s);
   }
 
-  apply(raw: unknown): JobState {
-    const r = verifyRecord(raw, this.resolve, this.schemas);
+  snapshot(): JobSnapshot {
+    const { state, head, lastIssuedAt, length, contractId, principal, performer, bank,
+      openCheckpoint, latestDelivery, acceptance, ruling, redeliveries } = this;
+    return JSON.parse(JSON.stringify({ state, head, lastIssuedAt, length, contractId, principal, performer, bank,
+      openCheckpoint, latestDelivery, acceptance, ruling, redeliveries }));
+  }
 
-    const last = this.records.at(-1);
-    if (r.prev !== (last?.id ?? null)) throw new AspError("BAD_PREV", `prev should be ${last?.id ?? null}`);
-    if (last && Date.parse(r.issued_at) < Date.parse(last.issued_at)) {
-      throw new AspError("TIME_REVERSED", `${r.issued_at} is before ${last.issued_at}`);
+  /** Verifies the record (schema, id, signatures), then steps the lifecycle. */
+  apply(raw: unknown): JobState {
+    if (!this.resolve) throw new Error("Job.apply needs a key resolver; use step() for verified records");
+    return this.step(verifyRecord(raw, this.resolve, this.schemas));
+  }
+
+  /** Steps the lifecycle with a record whose schema and signatures were already verified. */
+  step(r: AspRecord): JobState {
+    if (r.prev !== this.head) throw new AspError("BAD_PREV", `prev should be ${this.head}`);
+    if (this.lastIssuedAt && Date.parse(r.issued_at) < Date.parse(this.lastIssuedAt)) {
+      throw new AspError("TIME_REVERSED", `${r.issued_at} is before ${this.lastIssuedAt}`);
     }
 
     if (this.state && LIFECYCLE.terminal.includes(this.state)) {
@@ -99,7 +130,9 @@ export class Job {
 
     this.record(t, type, r);
     this.state = t.to;
-    this.records.push(r);
+    this.head = r.id;
+    this.lastIssuedAt = r.issued_at;
+    this.length++;
     return t.to;
   }
 

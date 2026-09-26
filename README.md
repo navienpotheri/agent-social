@@ -11,6 +11,7 @@ This repo holds the protocol's machine-readable spec, the SDKs and the conforman
 | `spec/schemas/` | JSON Schema (2020-12) for the envelope and 14 record types |
 | `spec/lifecycle.json` | The job state machine as data: states, transitions, issuer roles, guards, error codes |
 | `packages/asp-core/` | TypeScript SDK: canonical JSON, Ed25519 records, schema validation, `Job` lifecycle |
+| `packages/asp-log/` | Append-only signed event log: in-memory and Postgres stores, registry of keys from passports, log hash chain, full-log verification |
 | `python/` | Python SDK with the same API |
 | `conformance/` | Shared test vectors and their generator |
 | `docs/spec-deltas.md` | Where the code interprets or extends the v0.2 spec |
@@ -32,6 +33,27 @@ python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"
 .venv/Scripts/python -m pytest
 ```
+
+The event log's Postgres tests need a database. Without one they are skipped. With Docker:
+
+```bash
+docker compose up -d --wait
+ASP_TEST_DATABASE_URL=postgres://asp:asp-local-dev@127.0.0.1:54329/asp npm test
+```
+
+Without Docker, use PGlite (Postgres 17 in WebAssembly) served over the wire protocol. Start the server in one terminal:
+
+```bash
+node packages/asp-log/scripts/pglite-server.ts 54330
+```
+
+Then run the tests in another:
+
+```bash
+ASP_TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54330/postgres ASP_TEST_PGLITE=1 npm test -w @agent-social/asp-log
+```
+
+PGlite is a single session, so its run cannot create real lock contention. Real Postgres is still the reference.
 
 After changing `spec/` or `conformance/generate.ts`, regenerate the vectors with `npm run vectors`.
 
@@ -55,4 +77,4 @@ job.apply(contract); // "Contracted"
 
 ## Status
 
-Step 1 of the single-player build: schemas, the lifecycle library in both SDKs, and the conformance suite. Next come the append-only signed event log (Postgres), passports and fleets, the package format, and the `pack` / `run` / `verify` CLI.
+Step 1 of the single-player build so far: schemas, the lifecycle library in both SDKs, and the conformance suite. It also includes the append-only signed event log. Next come fleets and persons vs. nodes, the package format, and the `pack` / `run` / `verify` CLI.
