@@ -109,6 +109,20 @@ test("after a real OpenHands run: the move and the new memory are signed into th
   assert.equal((await asp(f, ["verify", pkg])).code, 0);
 });
 
+test("a ConversationErrorEvent is treated as a failure even though OpenHands exits 0", async () => {
+  const f = makeFixture();
+  const { pkg } = await packFrom(f, "claude-code");
+  const before = readFileSync(join(pkg, "manifest.json"), "utf8");
+  const res = await asp(f, ["run", pkg, "--backend", "openhands", "--project", f.project, "--prompt", "go"],
+    fakeOpenHands({ GITHUB_TOKEN: "t", API_BASE: "x", FAKE_OH_HIDDEN_FAILURE: "invalid x-api-key" }));
+  assert.equal(res.code, 1, "a hidden failure fails the run despite exit code 0");
+  assert.match(res.err, /openhands reported a failure it did not exit with: AuthenticationError: invalid x-api-key/);
+  assert.match(res.err, /openhands failed; nothing written back/);
+  assert.doesNotMatch(res.err, /recorded/, "no lineage edge for a run that never actually happened");
+  assert.equal(readFileSync(join(pkg, "manifest.json"), "utf8"), before, "the manifest is not re-signed");
+  assert.ok(!existsSync(join(pkg, "memory", "auto", "openhands-wsl.md")));
+});
+
 test("--model is passed to OpenHands through its environment overrides", async () => {
   const f = makeFixture();
   const { pkg } = await packFrom(f, "claude-code");

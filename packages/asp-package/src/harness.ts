@@ -71,6 +71,12 @@ export interface LaunchPlan {
   memoryDir?: string;
   missingSecrets: string[];
   notes: string[];
+  /**
+   * Some runtimes exit 0 even after a fatal error inside the run (OpenHands' headless mode does this
+   * on an LLM authentication failure). When set, `asp run` scans each line of the child's stdout and
+   * treats a match as a failed run regardless of the exit code, skipping write-back.
+   */
+  checkOutputForFailure?: (line: string) => string | undefined;
 }
 
 export interface RuntimeAdapter {

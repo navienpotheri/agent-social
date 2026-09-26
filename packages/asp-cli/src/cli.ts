@@ -271,8 +271,25 @@ async function run(home: string, pkg: string | undefined, v: Values, need: Need,
   }
   if (v["dry-run"]) return 0;
 
+  // Some runtimes report a fatal error only inside their output stream and still exit 0
+  // (see checkOutputForFailure); when the adapter asks for it, stdout is piped and scanned
+  // line by line while still being forwarded, instead of simply inherited.
+  let hiddenFailure: string | undefined;
   const code = await new Promise<number>((done) => {
-    const child = spawn(plan.command, plan.args, { cwd: plan.cwd, env: { ...io.env, ...plan.env }, stdio: "inherit" });
+    const child = spawn(plan.command, plan.args, {
+      cwd: plan.cwd, env: { ...io.env, ...plan.env },
+      stdio: plan.checkOutputForFailure ? ["inherit", "pipe", "inherit"] : "inherit",
+    });
+    if (plan.checkOutputForFailure) {
+      let carry = "";
+      child.stdout!.on("data", (chunk: Buffer) => {
+        process.stdout.write(chunk);
+        carry += chunk.toString("utf8");
+        const lines = carry.split("\n");
+        carry = lines.pop() ?? "";
+        for (const line of lines) hiddenFailure ??= plan.checkOutputForFailure!(line);
+      });
+    }
     child.on("error", (e: NodeJS.ErrnoException) => {
       io.err(e.code === "ENOENT"
         ? `${plan.command} is not installed or not on PATH. Install it, or rerun with --dry-run.`
@@ -282,9 +299,10 @@ async function run(home: string, pkg: string | undefined, v: Values, need: Need,
     child.on("exit", (c) => done(c ?? 1));
   });
   if (code === -1) return 1;
-  if (code !== 0) {
-    io.err(`${backend} exited with code ${code}; nothing written back. The run's memory is in ${plan.memoryDir ?? runDir}.`);
-    return code;
+  if (code !== 0 || hiddenFailure) {
+    if (hiddenFailure) io.err(`${backend} reported a failure it did not exit with: ${hiddenFailure}`);
+    io.err(`${backend} ${hiddenFailure ? "failed" : `exited with code ${code}`}; nothing written back. The run's memory is in ${plan.memoryDir ?? runDir}.`);
+    return hiddenFailure ? 1 : code;
   }
 
   // Write back: a backend swap and any memory the agent changed become signed lineage updates.

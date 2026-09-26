@@ -312,7 +312,20 @@ async function materialize(opts: {
     env.WSLENV = wslEnvFor(Object.keys(env), opts.env.WSLENV);
   } else { command = "bash"; cmdArgs = [script]; }
 
-  return { command, args: cmdArgs, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: [...missing].sort(), notes };
+  return {
+    command, args: cmdArgs, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: [...missing].sort(), notes,
+    // OpenHands' headless --json mode exits 0 even after a fatal error (e.g. an LLM auth failure);
+    // ConversationErrorEvent is how it reports that on the JSONL stream, so asp checks for it itself.
+    checkOutputForFailure: opts.prompt === undefined ? undefined : (line: string) => {
+      if (!line.includes('"kind":"ConversationErrorEvent"') && !line.includes('"kind": "ConversationErrorEvent"')) return undefined;
+      try {
+        const e = JSON.parse(line);
+        return e.detail ? `${e.code ?? "OpenHands error"}: ${e.detail}` : (e.code ?? "OpenHands reported a conversation error");
+      } catch {
+        return "OpenHands reported a conversation error";
+      }
+    },
+  };
 }
 
 export const openhands: RuntimeAdapter = { name: RUNTIME, capture, materialize };
