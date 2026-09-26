@@ -67,6 +67,8 @@ export interface LaunchPlan {
   /** Files the adapter wrote, relative to the run dir. */
   files: string[];
   runDir: string;
+  /** Where the runtime keeps the agent's memory during the run, laid out like the package's memory/. */
+  memoryDir?: string;
   missingSecrets: string[];
   notes: string[];
 }

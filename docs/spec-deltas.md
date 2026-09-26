@@ -82,13 +82,20 @@ The spec is the source of truth. This page lists every place where the code had 
 31. **Secrets.** Every literal env or MCP env/header value becomes a `{"$secret": NAME}` placeholder. This includes values that may not be secret, such as URLs. `pack` refuses to run if any captured file looks like it contains a secret, and reports only the file, line and kind. `run` resolves placeholders from the environment into the child process only; files on disk keep `${NAME}` references.
 32. **Experience is metadata only for now.** For each session the package records timestamps, models, prompt and turn counts, tool-call counts, tool errors and output tokens. Transcript content is not copied. Turning transcripts into lessons belongs to the learning layer, and needs a decision on what principals' data may leave the machine.
 33. **Manifest permissions are a heuristic.** Claude Code permission rules are mapped to coarse scopes (`repo.read`, `repo.write`, `tests.run`, `pr.open`, `repo.push`, `mcp.<server>.<tool>`, and so on) so a principal can read them. The harness keeps the exact rules.
-34. **`run` never writes into the project.** For Claude Code it builds a session-only plugin (`--plugin-dir`), an appended system prompt holding instructions and memory, and a `--settings` file, all in `~/.asp/runs/`.
-    - Path-scoped rules are included unconditionally, with their globs shown as text.
-    - Skills load namespaced as `<agent>:<skill>`.
-    - Instructions the target project already has, byte for byte, are skipped.
-35. **Not built yet:**
-    - recording a backend swap as a lineage `update` edge with probation
-    - canary checks in `verify`
-    - packages as a single archive file
-    - write-back of memory the agent adds while running
+34. **`run` never writes into the project.** For Claude Code, everything goes under `~/.asp/runs/<run>/`:
+    - A session-only plugin (`--plugin-dir`) holds subagents, commands, output styles, the agent's hooks and its MCP servers. Subagents and commands load namespaced as `<agent>:<name>`.
+    - Skills go in a workspace folder added with `--add-dir`, so they keep their own names.
+    - Instructions go in an appended system prompt. Files the target project already has, byte for byte, are skipped.
+    - Path-scoped rules are not in the prompt. A `PreToolUse` hook injects each rule the first time the agent reads or edits a file matching its globs, once per session. This mirrors how Claude Code loads the project's own rules.
+    - A `--settings` file carries permissions and model, and points `autoMemoryDirectory` at the run's copy of the package memory, so the agent reads and writes its memory natively.
+    - The run's report goes to stderr, so the runtime's stdout (e.g. `stream-json`) stays clean.
+35. **Write-back after a run.** When the runtime exits successfully, two kinds of change become signed lineage `update` edges issued by the agent:
+    - memory the agent added, changed or removed (layer `memory`, with the new memory's hash)
+    - a move to a different runtime than the one it last ran on (layer `backend`, with a 7-day `probation_until`)
 
+    The package's memory is replaced, the edges are appended to its history, and the manifest is re-signed. The local log is brought up to date with the package's history; a conflict is reported, not fatal. `--no-write-back` skips memory. A failed run writes nothing back.
+36. **Not built yet:**
+    - canary checks in `verify` (the spec requires a backend swap to pass the canary suite on the new backend)
+    - enforcing probation
+    - packages as a single archive file
+    - subagent memory (`.claude/agent-memory`) is carried but not wired into the run

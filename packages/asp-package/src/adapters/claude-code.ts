@@ -5,15 +5,18 @@
  *   CLAUDE.md, .claude/CLAUDE.md, CLAUDE.local.md, AGENTS.md, .claude/rules/**, skills, agents,
  *   commands, output styles, settings (permissions, hooks, env, model), .mcp.json, auto memory
  *   (~/.claude/projects/<project>/memory) and a metadata-only index of session transcripts.
- * materialize: never writes into the project. It builds a session-only plugin (skills, agents,
- *   commands, hooks, MCP), an appended system prompt (instructions + memory) and a settings file,
- *   and returns the `claude` command that loads them.
+ * materialize: never writes into the project. Under the run dir it builds a session-only plugin
+ *   (subagents, commands, hooks, MCP, and a hook that gates path-scoped rules), a workspace whose
+ *   .claude/skills loads via --add-dir (so skills keep their names), an appended system prompt, and a
+ *   settings file whose autoMemoryDirectory points Claude Code's own memory at the run's copy of the
+ *   package memory, so the CLI can write changes back.
  *
  * File locations follow https://code.claude.com/docs/en/claude-directory (checked 2026-09-27).
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { copyInto, listFiles, readJsonIfExists, sha256File, writeJson } from "../files.ts";
 import { asList, frontmatter } from "../frontmatter.ts";
 import type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter, SessionSummary } from "../harness.ts";
@@ -234,20 +237,55 @@ async function materialize(opts: {
   const { pkgDir, harness, project, runDir } = opts;
   const h = join(pkgDir, "harness");
   const plugin = join(runDir, "plugin");
+  const workspace = join(runDir, "workspace");
   const name = pluginName(opts.agentName);
   const notes: string[] = [];
   const files: string[] = [];
   const put = (rel: string, write: () => void) => { write(); files.push(rel); };
 
+  // Plugin: subagents, commands, output styles, hooks and MCP servers.
   put("plugin/.claude-plugin/plugin.json", () => writeJson(join(plugin, ".claude-plugin", "plugin.json"), {
     name, version: "0.0.0-asp", description: `ASP agent ${opts.agentName}, materialized from an agent package`,
   }));
-  for (const s of harness.skills) put(`plugin/skills/${s.name}`, () => copyInto(join(h, s.path), join(plugin, "skills", s.name)));
   for (const a of harness.subagents) put(`plugin/${a.path}`, () => copyInto(join(h, a.path), join(plugin, a.path)));
   for (const c of harness.commands) put(`plugin/${c.path}`, () => copyInto(join(h, c.path), join(plugin, c.path)));
   const styles = ((harness.runtime_specific?.[RUNTIME] as any)?.output_styles ?? []) as string[];
   for (const s of styles) put(`plugin/output-styles/${basename(s)}`, () => copyInto(join(h, s), join(plugin, "output-styles", basename(s))));
-  if (Object.keys(harness.hooks).length) put("plugin/hooks/hooks.json", () => writeJson(join(plugin, "hooks", "hooks.json"), { hooks: harness.hooks }));
+  if (harness.subagents.length || harness.commands.length) notes.push(`subagents and commands load namespaced as "${name}:<name>"`);
+
+  // Skills: a workspace dir added with --add-dir, so they keep their own names.
+  for (const s of harness.skills) put(`workspace/.claude/skills/${s.name}`, () => copyInto(join(h, s.path), join(workspace, ".claude", "skills", s.name)));
+
+  // Instructions: one appended system prompt. Path-scoped rules are gated by a hook instead.
+  const skip = (i: Harness["instructions"][number]) => {
+    const inProject = i.scope === "rules" ? join(project, ".claude", i.name) : i.scope === "user" ? undefined : join(project, i.name);
+    if (inProject && existsSync(inProject) && sha256File(inProject) === sha256File(join(h, i.path))) {
+      notes.push(`skipped ${i.name}: the project already has the same file`);
+      return true;
+    }
+    return false;
+  };
+  const parts: string[] = [`# Agent: ${opts.agentName}\n\nYou are running as the ASP agent ${opts.agentName}. These are your standing instructions, carried in your agent package.`];
+  const scoped: { name: string; globs: string[]; text: string }[] = [];
+  for (const i of harness.instructions) {
+    if (skip(i)) continue;
+    const text = stripFrontmatter(readFileSync(join(h, i.path), "utf8"));
+    if (i.applies_to?.length) scoped.push({ name: i.name, globs: i.applies_to, text });
+    else parts.push(`## ${i.name}\n\n${text}`);
+  }
+  put("instructions.md", () => writeFileSync(join(runDir, "instructions.md"), parts.join("\n\n") + "\n"));
+
+  const hooks = structuredClone(harness.hooks) as Record<string, unknown[]>;
+  if (scoped.length) {
+    put("plugin/asp-rules.json", () => writeJson(join(plugin, "asp-rules.json"), scoped));
+    put("plugin/scripts/asp-rules.mjs", () => copyInto(RULES_HOOK, join(plugin, "scripts", "asp-rules.mjs")));
+    hooks.PreToolUse = [...(hooks.PreToolUse ?? []), {
+      matcher: "Read|Edit|Write|MultiEdit|NotebookEdit",
+      hooks: [{ type: "command", command: `node "\${CLAUDE_PLUGIN_ROOT}/scripts/asp-rules.mjs"` }],
+    }];
+    notes.push(`${scoped.length} path-scoped rule(s) load when the agent first touches a matching file`);
+  }
+  if (Object.keys(hooks).length) put("plugin/hooks/hooks.json", () => writeJson(join(plugin, "hooks", "hooks.json"), { hooks }));
   if (Object.keys(harness.mcp_servers).length) {
     // Secrets stay out of files: "${NAME}" references, expanded by Claude Code from the child's environment.
     const servers = Object.fromEntries(Object.entries(harness.mcp_servers).map(([k, s]) => [k, {
@@ -255,58 +293,46 @@ async function materialize(opts: {
     }]));
     put("plugin/.mcp.json", () => writeJson(join(plugin, ".mcp.json"), { mcpServers: servers }));
   }
-  if (harness.skills.length) notes.push(`skills load namespaced as "${name}:<skill>"`);
 
-  // Instructions and memory go into one appended system prompt. Files the project already has are skipped.
-  const parts: string[] = [`# Agent: ${opts.agentName}\n\nYou are running as the ASP agent ${opts.agentName}. These are your standing instructions and memory, carried in your agent package.`];
-  for (const i of harness.instructions) {
-    const src = join(h, i.path);
-    const inProject = i.scope === "rules" ? join(project, ".claude", i.name) : i.scope === "user" ? undefined : join(project, i.name);
-    if (inProject && existsSync(inProject) && sha256File(inProject) === sha256File(src)) {
-      notes.push(`skipped ${i.name}: the project already has the same file`);
-      continue;
-    }
-    const scopeNote = i.applies_to ? ` (applies to files matching ${i.applies_to.join(", ")})` : "";
-    parts.push(`## ${i.name}${scopeNote}\n\n${readFileSync(src, "utf8").trim()}`);
-  }
-  if (harness.instructions.some((i) => i.applies_to)) notes.push("path-scoped rules are included unconditionally (their globs are shown as text)");
-  const memSrc = join(pkgDir, "memory");
-  const memDest = join(runDir, "memory");
-  if (listFiles(memSrc).length) {
-    copyInto(memSrc, memDest);
-    files.push("memory/");
-    const index = join(memDest, "auto", "MEMORY.md");
-    const body = existsSync(index) ? readFileSync(index, "utf8").trim() : "(no index)";
-    parts.push(`## Your memory\n\nYour memory files are in ${memDest}. The index:\n\n${body}`);
-  }
-  put("instructions.md", () => writeFileSync(join(runDir, "instructions.md"), parts.join("\n\n") + "\n"));
+  // Memory: the package's memory becomes Claude Code's own auto memory for this run, so the agent
+  // reads it natively and what it writes can be carried back into the package afterwards.
+  const memDir = join(runDir, "memory");
+  if (existsSync(join(pkgDir, "memory"))) copyInto(join(pkgDir, "memory"), memDir);
+  mkdirSync(join(memDir, "auto"), { recursive: true });
+  files.push("memory/");
 
   const settings: Record<string, unknown> = {
     permissions: {
       allow: harness.permissions.allow, deny: harness.permissions.deny, ask: harness.permissions.ask,
       ...(harness.permissions.default_mode ? { defaultMode: harness.permissions.default_mode } : {}),
     },
+    autoMemoryEnabled: true,
+    autoMemoryDirectory: join(memDir, "auto"),
   };
   if (harness.model) settings.model = harness.model;
   put("settings.json", () => writeJson(join(runDir, "settings.json"), settings));
 
   // Resolve every secret into the child's environment only.
   const env: Record<string, string> = {};
-  const missing = new Set<string>();
   const secretEnv: Env = {};
-  for (const name of harness.secrets ?? []) secretEnv[name] = { $secret: name };
+  for (const secret of harness.secrets ?? []) secretEnv[secret] = { $secret: secret };
   const r = resolveSecrets(secretEnv, opts.env);
-  Object.assign(env, r.values);
-  r.missing.forEach((m) => missing.add(m));
-  const top = resolveSecrets(harness.env, opts.env);
-  Object.assign(env, top.values);
+  Object.assign(env, r.values, resolveSecrets(harness.env, opts.env).values);
 
-  const args: string[] = [];
+  // ASP_CLAUDE_BIN / ASP_CLAUDE_SCRIPT let tests substitute a fake runtime.
+  const command = opts.env.ASP_CLAUDE_BIN ?? "claude";
+  const args: string[] = opts.env.ASP_CLAUDE_SCRIPT ? [opts.env.ASP_CLAUDE_SCRIPT] : [];
   if (opts.prompt !== undefined) args.push("-p", opts.prompt, "--output-format", "stream-json", "--verbose");
   args.push("--plugin-dir", plugin, "--append-system-prompt-file", join(runDir, "instructions.md"), "--settings", join(runDir, "settings.json"));
-  if (existsSync(memDest)) args.push("--add-dir", memDest);
+  if (harness.skills.length) args.push("--add-dir", workspace);
 
-  return { command: "claude", args, cwd: project, env, files, runDir, missingSecrets: [...missing].sort(), notes };
+  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: r.missing.sort(), notes };
 }
+
+function stripFrontmatter(text: string): string {
+  return text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "").trim();
+}
+
+const RULES_HOOK = fileURLToPath(new URL("./claude-code-rules-hook.mjs", import.meta.url));
 
 export const claudeCode: RuntimeAdapter = { name: RUNTIME, capture, materialize };

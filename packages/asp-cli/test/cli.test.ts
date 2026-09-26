@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Keystore, updatePackage } from "@agent-social/asp-package";
 import { main, type Io } from "../src/cli.ts";
 import { makeFixture, type Fixture } from "./fixture.ts";
 
@@ -134,39 +136,109 @@ test("verify rejects a manifest re-signed by someone other than the agent", asyn
   assert.match(JSON.parse(res.out).checks.find((c: any) => c.name === "manifest").detail, /BAD_ID/);
 });
 
-test("run --dry-run materializes a session-only plugin and never touches the project", async () => {
+test("run --dry-run materializes the agent under the run dir and never touches the project", async () => {
   const { f, pkg } = await packed();
   const target = join(f.root, "other-repo");
   mkdirSync(target);
   const res = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", target, "--prompt", "fix the flaky test", "--dry-run"],
     { GITHUB_TOKEN: "t", API_BASE: "https://x" });
   assert.equal(res.code, 0, res.err);
-  assert.match(res.out, /command\s+claude -p "fix the flaky test" --output-format stream-json --verbose --plugin-dir \S*plugin"? --append-system-prompt-file \S*instructions\.md"? --settings \S*settings\.json"? --add-dir \S*memory"?$/m);
+  assert.equal(res.out, "", "the run report goes to stderr; stdout belongs to the runtime");
+  assert.match(res.err, /command\s+claude -p "fix the flaky test" --output-format stream-json --verbose --plugin-dir \S*plugin"? --append-system-prompt-file \S*instructions\.md"? --settings \S*settings\.json"? --add-dir \S*workspace"?$/m);
   assert.deepEqual(readdirSync(target), [], "the project is untouched");
 
-  const runDir = /run dir\s+(.*)/.exec(res.out)![1];
+  const runDir = /run dir\s+(.*)/.exec(res.err)![1];
   const plugin = JSON.parse(readFileSync(join(runDir, "plugin", ".claude-plugin", "plugin.json"), "utf8"));
   assert.equal(plugin.name, "payments-coder");
-  assert.ok(existsSync(join(runDir, "plugin", "skills", "fix-flaky", "SKILL.md")));
+  assert.ok(existsSync(join(runDir, "workspace", ".claude", "skills", "fix-flaky", "SKILL.md")), "skills load un-namespaced via --add-dir");
+  assert.ok(!existsSync(join(runDir, "plugin", "skills")));
   assert.ok(existsSync(join(runDir, "plugin", "agents", "reviewer.md")));
-  assert.deepEqual(JSON.parse(readFileSync(join(runDir, "plugin", "hooks", "hooks.json"), "utf8")).hooks.PostToolUse[0].hooks[0].command, "pnpm lint");
+
+  const hooks = JSON.parse(readFileSync(join(runDir, "plugin", "hooks", "hooks.json"), "utf8")).hooks;
+  assert.equal(hooks.PostToolUse[0].hooks[0].command, "pnpm lint", "the agent's own hooks come along");
+  assert.equal(hooks.PreToolUse[0].matcher, "Read|Edit|Write|MultiEdit|NotebookEdit");
+  assert.match(hooks.PreToolUse[0].hooks[0].command, /asp-rules\.mjs/);
+  assert.deepEqual(JSON.parse(readFileSync(join(runDir, "plugin", "asp-rules.json"), "utf8")),
+    [{ name: "rules/testing.md", globs: ["tests/**"], text: "Prefer table-driven tests." }]);
+
   const mcp = JSON.parse(readFileSync(join(runDir, "plugin", ".mcp.json"), "utf8"));
   assert.deepEqual(mcp.mcpServers.github.env, { GITHUB_TOKEN: "${GITHUB_TOKEN}" }, "secrets stay references on disk");
   const instructions = readFileSync(join(runDir, "instructions.md"), "utf8");
   assert.match(instructions, /Run migrations before tests/);
-  assert.match(instructions, /## rules\/testing\.md \(applies to files matching tests\/\*\*\)/);
-  assert.match(instructions, /Migrations first/, "memory index is appended");
+  assert.doesNotMatch(instructions, /table-driven/, "path-scoped rules are not in the always-on prompt");
   const settings = JSON.parse(readFileSync(join(runDir, "settings.json"), "utf8"));
   assert.deepEqual(settings.permissions.deny, ["Bash(git push --force:*)"]);
   assert.equal(settings.model, "claude-sonnet-5");
+  assert.equal(settings.autoMemoryDirectory, join(runDir, "memory", "auto"));
+  assert.ok(existsSync(join(runDir, "memory", "auto", "MEMORY.md")), "the package memory is the run's auto memory");
 });
 
 test("run on the source project skips instructions the project already has", async () => {
   const { f, pkg } = await packed();
   const res = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--dry-run"], { GITHUB_TOKEN: "t", API_BASE: "x" });
-  assert.match(res.out, /skipped CLAUDE\.md: the project already has the same file/);
-  const runDir = /run dir\s+(.*)/.exec(res.out)![1];
+  assert.match(res.err, /skipped CLAUDE\.md: the project already has the same file/);
+  assert.match(res.err, /skipped rules\/testing\.md/);
+  const runDir = /run dir\s+(.*)/.exec(res.err)![1];
   assert.doesNotMatch(readFileSync(join(runDir, "instructions.md"), "utf8"), /Run migrations before tests/);
+});
+
+const fakeClaude = (extra: NodeJS.ProcessEnv = {}) => ({
+  GITHUB_TOKEN: "t", API_BASE: "x", ASP_CLAUDE_BIN: process.execPath,
+  ASP_CLAUDE_SCRIPT: fileURLToPath(new URL("./fake-claude.mjs", import.meta.url)), ...extra,
+});
+
+test("after a run, memory the agent wrote comes back into the package as a signed lineage update", async () => {
+  const { f, pkg } = await packed();
+  const before = JSON.parse(readFileSync(join(pkg, "manifest.json"), "utf8"));
+  const res = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "go"], fakeClaude());
+  assert.equal(res.code, 0, res.err);
+  assert.match(res.err, /recorded memory updated during a claude-code run: \+1 ~1 -0 files/);
+
+  assert.match(readFileSync(join(pkg, "memory", "auto", "refund-race.md"), "utf8"), /per-key lock/);
+  const history = readFileSync(join(pkg, "records", "history.ndjson"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  const edge = history.at(-1);
+  assert.equal(edge.type, "asp.lineage/v0.2");
+  assert.equal(edge.issuer, AGENT);
+  assert.deepEqual([edge.body.edge, edge.body.change.layer], ["update", "memory"]);
+  const after = JSON.parse(readFileSync(join(pkg, "manifest.json"), "utf8"));
+  assert.notEqual(after.id, before.id, "the manifest is re-signed");
+  assert.equal(after.body.lineage_head, edge.id);
+  assert.equal((await asp(f, ["verify", pkg])).code, 0, "the updated package verifies");
+  assert.match((await asp(f, ["log", "verify"])).out, /log ok: 3 records/, "the edge is in the local log too");
+
+  // A second run extends the same lineage chain.
+  const again = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project], fakeClaude({ FAKE_CLAUDE_LEARN: "0" }));
+  assert.doesNotMatch(again.err, /recorded/, "nothing changed, nothing recorded");
+});
+
+test("no write-back after a failed run or with --no-write-back", async () => {
+  const { f, pkg } = await packed();
+  const manifest = readFileSync(join(pkg, "manifest.json"), "utf8");
+  const failed = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project], fakeClaude({ FAKE_CLAUDE_EXIT: "3" }));
+  assert.equal(failed.code, 3);
+  assert.match(failed.err, /nothing written back/);
+  const opted = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--no-write-back"], fakeClaude());
+  assert.equal(opted.code, 0);
+  assert.equal(readFileSync(join(pkg, "manifest.json"), "utf8"), manifest);
+});
+
+test("a backend swap is detected from the lineage and recorded once", async () => {
+  const { f, pkg } = await packed();
+  // Simulate an earlier move to another runtime, as a Codex run will record it.
+  const signer = new Keystore(f.aspHome).forDid(AGENT)!;
+  updatePackage(pkg, { signer, changes: [{ layer: "backend", description: "runtime claude-code -> codex", probationDays: 7 }] });
+  assert.equal((await asp(f, ["verify", pkg])).code, 0);
+  const history = readFileSync(join(pkg, "records", "history.ndjson"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  assert.ok(history.at(-1).body.probation_until, "a backend swap starts a probation window");
+
+  const dry = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--dry-run"], fakeClaude());
+  assert.match(dry.err, /on claude-code \(last ran on codex\)/);
+  assert.match(dry.err, /a real run would record the backend swap codex -> claude-code/);
+
+  const real = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project], fakeClaude({ FAKE_CLAUDE_LEARN: "0" }));
+  assert.match(real.err, /recorded runtime codex -> claude-code/);
+  const next = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--dry-run"], fakeClaude());
+  assert.doesNotMatch(next.err, /last ran on/);
 });
 
 test("run names missing secrets, and refuses a package that does not verify", async () => {

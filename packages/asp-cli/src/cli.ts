@@ -7,7 +7,9 @@
  *   asp identity show <did>
  *   asp pack --runtime claude-code --agent <did> [--project <dir>] [--include-user] [--out <dir>]
  *   asp verify <package> [--json]
- *   asp run <package> --backend claude-code [--project <dir>] [--prompt <text>] [--dry-run]
+ *   asp run <package> --backend claude-code [--project <dir>] [--prompt <text>] [--dry-run] [--no-write-back]
+ *     After a successful run, a backend swap and any memory the agent changed are recorded in the
+ *     package as signed lineage updates, and the manifest is re-signed.
  *   asp log verify
  *
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --claude-home <dir> (where .claude lives; default ~).
@@ -19,7 +21,8 @@ import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { b64urlEncode, createRecord, type AspRecord } from "@agent-social/asp-core";
 import {
-  ADAPTERS, Keystore, LocalLog, aspHome, scanForSecrets, verifyPackage, writePackage, type Harness,
+  ADAPTERS, Keystore, LocalLog, aspHome, diffTrees, isEmptyDiff, scanForSecrets, updatePackage, verifyPackage, writePackage,
+  type Harness, type LineageChange,
 } from "@agent-social/asp-package";
 import { readFileSync } from "node:fs";
 
@@ -52,6 +55,7 @@ const OPTIONS = {
   prompt: { type: "string" },
   "include-user": { type: "boolean" },
   "dry-run": { type: "boolean" },
+  "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
   help: { type: "boolean", short: "h" },
 } as const;
@@ -249,29 +253,89 @@ async function run(home: string, pkg: string | undefined, v: Values, need: Need,
     pkgDir, harness, project: resolve(io.cwd, v.project ?? "."), runDir, agentName: basename(agent.replace(/:/g, "/")), prompt: v.prompt, env: io.env,
   });
 
-  const source = (manifest.body as any).source_runtime?.name;
-  io.out(`run ${agent} on ${backend}${source && source !== backend ? ` (packed from ${source})` : ""}`);
-  io.out(`  run dir  ${runDir}`);
-  io.out(`  cwd      ${plan.cwd}`);
-  io.out(`  command  ${[plan.command, ...plan.args].map(quote).join(" ")}`);
-  for (const n of plan.notes) io.out(`  note     ${n}`);
-  if (source && source !== backend) io.out("  note     the backend swap is not yet recorded as a lineage update edge");
+  // The run's own report goes to stderr, so a -p run's stdout stays the runtime's stream alone.
+  const current = currentRuntime(pkgDir, manifest);
+  const swap = current !== backend;
+  io.err(`run ${agent} on ${backend}${swap ? ` (last ran on ${current})` : ""}`);
+  io.err(`  run dir  ${runDir}`);
+  io.err(`  cwd      ${plan.cwd}`);
+  io.err(`  command  ${[plan.command, ...plan.args].map(quote).join(" ")}`);
+  for (const n of plan.notes) io.err(`  note     ${n}`);
+  if (swap) io.err(`  note     ${v["dry-run"] ? "a real run would record" : "after a successful run, records"} the backend swap ${current} -> ${backend} as a lineage update (7-day probation)`);
   if (plan.missingSecrets.length) {
     io.err(`missing secrets: ${plan.missingSecrets.join(", ")}; set them as environment variables.`);
     if (!v["dry-run"]) return 1;
   }
   if (v["dry-run"]) return 0;
 
-  return await new Promise<number>((done) => {
+  const code = await new Promise<number>((done) => {
     const child = spawn(plan.command, plan.args, { cwd: plan.cwd, env: { ...io.env, ...plan.env }, stdio: "inherit" });
     child.on("error", (e: NodeJS.ErrnoException) => {
       io.err(e.code === "ENOENT"
-        ? `${plan.command} is not installed or not on PATH. Install Claude Code (https://code.claude.com/docs/en/setup), or rerun with --dry-run.`
+        ? `${plan.command} is not installed or not on PATH. Install it, or rerun with --dry-run.`
         : `could not start ${plan.command}: ${e.message}`);
-      done(1);
+      done(-1);
     });
-    child.on("exit", (code) => done(code ?? 1));
+    child.on("exit", (c) => done(c ?? 1));
   });
+  if (code === -1) return 1;
+  if (code !== 0) {
+    io.err(`${backend} exited with code ${code}; nothing written back. The run's memory is in ${plan.memoryDir ?? runDir}.`);
+    return code;
+  }
+
+  // Write back: a backend swap and any memory the agent changed become signed lineage updates.
+  const changes: LineageChange[] = [];
+  if (swap) changes.push({ layer: "backend", description: `runtime ${current} -> ${backend}`, probationDays: 7 });
+  const diff = plan.memoryDir ? diffTrees(join(pkgDir, "memory"), plan.memoryDir) : undefined;
+  const memoryChanged = !!diff && !isEmptyDiff(diff) && !v["no-write-back"];
+  if (memoryChanged) {
+    changes.push({ layer: "memory", description: `memory updated during a ${backend} run: +${diff!.added.length} ~${diff!.changed.length} -${diff!.removed.length} files` });
+  }
+  if (!changes.length) return 0;
+
+  const signer = new Keystore(home).forDid(agent);
+  if (!signer) {
+    io.err(`no key for ${agent} in ${join(home, "keys")}: cannot sign the lineage update. The run's memory is in ${plan.memoryDir}.`);
+    return 0;
+  }
+  const { edges } = updatePackage(pkgDir, { signer, changes, memoryFrom: memoryChanged ? plan.memoryDir : undefined });
+  for (const e of edges) io.err(`  recorded ${(e.body as any).change.description} (${e.id})`);
+  io.err(`  package  ${pkgDir} re-signed`);
+  await syncLocalLog(home, pkgDir, agent, io);
+  return 0;
+}
+
+/**
+ * Brings the local log up to date with the package's history (it may have gained records elsewhere),
+ * when the local log knows this agent. Every record is verified on append; a conflict is reported, not fatal.
+ */
+async function syncLocalLog(home: string, pkgDir: string, agent: string, io: Io): Promise<void> {
+  const local = await LocalLog.open(home);
+  if (!(await local.log.passport(agent))) return;
+  const history = readFileSync(join(pkgDir, "records", "history.ndjson"), "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l) as AspRecord);
+  let added = 0;
+  for (const r of history) {
+    if (await local.log.get(r.id)) continue;
+    try {
+      await local.append(r);
+      added++;
+    } catch (e) {
+      io.err(`  warning  the local log's history for ${agent} diverges from the package's: ${(e as Error).message}`);
+      return;
+    }
+  }
+  if (added) io.err(`  log      ${added} record(s) added to the local log`);
+}
+
+/** The runtime the agent last moved to (the latest backend lineage edge), or the one it was packed from. */
+function currentRuntime(pkgDir: string, manifest: AspRecord): string {
+  const history = readFileSync(join(pkgDir, "records", "history.ndjson"), "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l) as AspRecord);
+  const agent = (manifest.body as any).agent;
+  const moves = history.filter((r) => r.type === "asp.lineage/v0.2" && (r.body as any).child === agent && (r.body as any).change?.layer === "backend");
+  const last = moves.at(-1);
+  const to = last && /-> (\S+)$/.exec((last.body as any).change.description)?.[1];
+  return to ?? (manifest.body as any).source_runtime?.name;
 }
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));

@@ -84,7 +84,7 @@ npm run asp -- verify coder.aspkg
 npm run asp -- run coder.aspkg --backend claude-code --project /path/to/repo --dry-run
 ```
 
-Without `--dry-run`, `run` launches `claude` with the agent loaded, so it needs the Claude Code CLI on your PATH. Keys and the local log live in `~/.asp` (override with `ASP_HOME`).
+Without `--dry-run`, `run` launches `claude` with the agent loaded, so it needs the Claude Code CLI on your PATH. After a successful run, memory the agent wrote and any move to a new runtime are recorded back into the package as signed lineage updates. Keys and the local log live in `~/.asp` (override with `ASP_HOME`).
 
 ## Quick example (TypeScript)
 

@@ -4,8 +4,8 @@ export { frontmatter } from "./frontmatter.ts";
 export type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter, SessionSummary } from "./harness.ts";
 export { Keystore, LocalLog, aspHome } from "./home.ts";
 export {
-  HISTORY, MANIFEST, deriveScopes, verifyPackage, writePackage,
-  type Check, type VerifyPackageReport, type WritePackageOptions,
+  HISTORY, MANIFEST, deriveScopes, diffTrees, isEmptyDiff, updatePackage, verifyPackage, writePackage,
+  type Check, type LineageChange, type TreeDiff, type VerifyPackageReport, type WritePackageOptions,
 } from "./package.ts";
 export { resolveSecrets, scanForSecrets, stripSecrets, toEnvRefs, type Env, type SecretFinding } from "./secrets.ts";
 

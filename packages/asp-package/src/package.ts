@@ -7,7 +7,7 @@
  *   memory/                    the agent's memory files
  *   experience/sessions.ndjson metadata-only index of past sessions
  */
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import Ajv2020Module from "ajv/dist/2020.js";
 import {
@@ -93,6 +93,75 @@ export function writePackage(opts: WritePackageOptions): AspRecord {
   }, opts.signer);
   writeJson(join(out, MANIFEST), manifest);
   return manifest;
+}
+
+export interface TreeDiff {
+  added: string[];
+  changed: string[];
+  removed: string[];
+}
+
+/** File-level differences between two directories (either may be missing). */
+export function diffTrees(before: string, after: string): TreeDiff {
+  const a = new Map(listFiles(before).map((p) => [p, treeHash(join(before, p))]));
+  const b = new Map(listFiles(after).map((p) => [p, treeHash(join(after, p))]));
+  return {
+    added: [...b.keys()].filter((p) => !a.has(p)),
+    changed: [...b.keys()].filter((p) => a.has(p) && a.get(p) !== b.get(p)),
+    removed: [...a.keys()].filter((p) => !b.has(p)),
+  };
+}
+
+export const isEmptyDiff = (d: TreeDiff) => !d.added.length && !d.changed.length && !d.removed.length;
+
+export interface LineageChange {
+  layer: "memory" | "harness" | "adapter" | "backend" | "self_modification";
+  description: string;
+  probationDays?: number;
+}
+
+/**
+ * Records changes to the agent as signed lineage `update` edges and re-signs the manifest.
+ * With `memoryFrom`, the package's memory is replaced by that directory first and the memory edge
+ * carries the new memory's hash. Edges extend the agent's lineage chain in the package history.
+ */
+export function updatePackage(dir: string, opts: {
+  signer: Signer; changes: LineageChange[]; memoryFrom?: string; now?: Date;
+}): { manifest: AspRecord; edges: AspRecord[] } {
+  const manifest = readJson<AspRecord>(join(dir, MANIFEST));
+  const body = structuredClone(manifest.body) as any;
+  const agent: string = body.agent;
+  const history = readFileSync(join(dir, HISTORY), "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l) as AspRecord);
+  const lineage = history.filter((r) => r.type === "asp.lineage/v0.2" && (r.body as any).child === agent);
+  const now = opts.now ?? new Date();
+  const stamp = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, "Z");
+  // Never before the last lineage record: chains may not go back in time.
+  const lastAt = lineage.at(-1)?.issued_at;
+  const issuedAt = lastAt && Date.parse(lastAt) > now.getTime() ? lastAt : stamp(now);
+
+  if (opts.memoryFrom) {
+    rmSync(join(dir, "memory"), { recursive: true, force: true });
+    cpSync(opts.memoryFrom, join(dir, "memory"), { recursive: true });
+  }
+  const edges: AspRecord[] = [];
+  let prev = lineage.at(-1)?.id ?? null;
+  for (const c of opts.changes) {
+    const change: Record<string, unknown> = { layer: c.layer, description: c.description };
+    if (c.layer === "memory") change.artifact = { uri: "memory/", sha256: treeHash(join(dir, "memory")) };
+    const edgeBody: Record<string, unknown> = { edge: "update", child: agent, parents: [agent], change };
+    if (c.probationDays) edgeBody.probation_until = stamp(new Date(Date.parse(issuedAt) + c.probationDays * 86_400_000));
+    const edge = createRecord({ type: "lineage", issuer: agent, subject: agent, prev, body: edgeBody, issued_at: issuedAt }, opts.signer);
+    edges.push(edge);
+    prev = edge.id;
+  }
+  appendFileSync(join(dir, HISTORY), edges.map((r) => JSON.stringify(r) + "\n").join(""));
+
+  body.memory = { uri: "memory/", sha256: treeHash(join(dir, "memory")) };
+  body.history = { ...body.history, sha256: treeHash(join(dir, HISTORY)) };
+  body.lineage_head = edges.at(-1)?.id ?? body.lineage_head;
+  const next = createRecord({ type: "package", issuer: agent, subject: agent, prev: null, body, issued_at: stamp(now) }, opts.signer);
+  writeJson(join(dir, MANIFEST), next);
+  return { manifest: next, edges };
 }
 
 export interface Check {
