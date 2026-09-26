@@ -8,7 +8,7 @@ The spec is the source of truth. This page lists every place where the code had 
 2. **What gets hashed and signed.** `id = "sha256:" + hex(sha256(JCS(unsigned view)))`. The unsigned view is `type, issuer, actor, subject, body, prev, issued_at`. Every signature and co-signature covers the same bytes. JCS is RFC 8785 canonical JSON.
 3. **Integers only.** Signed records carry no fractional numbers, so every SDK produces the same bytes. Fractions are expressed in permille: forecast `p_permille`, `risk_factor_permille`, `pro_rata_permille`, `earnings_split.agent_permille`. An integral float such as `1.0` counts as the integer 1.
 4. **Type strings** look like `asp.mandate/v0.2`, taken from the spec's Mandate example.
-5. **Actors.** `actor` is either the issuer's DID or a DID URL under it, e.g. `did:web:…:coder-1#node-3`. Nodes sign with their person's key for now; delegated node keys come later.
+5. **Actors.** `actor` is either the issuer's DID or a DID URL under it, e.g. `did:web:…:coder-1#node-3`. A node signs with its own delegated key (item 24) or with its person's key.
 6. **DIDs.** v0.1 uses `did:web`. Schemas accept any DID method, so `did:asp` can follow without a breaking change.
 7. **Schema ids** are `urn:asp:v0.2:<name>`, so no web domain is claimed yet.
 
@@ -71,3 +71,24 @@ The spec is the source of truth. This page lists every place where the code had 
     - revoking a person's nodes when its passport keys rotate
     - requiring node keys whenever the actor is a node (a person's own key may still sign for its node)
     - fleet-level (template) reputation
+
+## Agent package and CLI (decision #45)
+
+28. **Package layout.** A package is a directory: a signed `manifest.json` (an `asp.package/v0.2` record issued by the agent), `records/history.ndjson`, `harness/`, `memory/` and `experience/sessions.ndjson`.
+    - The history holds the signed records a verifier needs: the agent's passports, its sponsors' passports, its fleet and its lineage.
+    - Every part is hashed into the manifest. A directory's hash covers the sorted list of its paths and file hashes.
+29. **`lineage_head`** is the id of the last record in the package's history, which is the passport if the agent has no lineage edges yet. Each package record starts its own chain (`prev: null`).
+30. **Runtime-neutral harness** (`spec/package/harness.schema.json`). It holds instructions, skills (SKILL.md directories), subagents, commands, hooks (in Claude Code's shape for now), MCP servers, permission rules, env and model. Components with no neutral form yet are kept under `runtime_specific`.
+31. **Secrets.** Every literal env or MCP env/header value becomes a `{"$secret": NAME}` placeholder. This includes values that may not be secret, such as URLs. `pack` refuses to run if any captured file looks like it contains a secret, and reports only the file, line and kind. `run` resolves placeholders from the environment into the child process only; files on disk keep `${NAME}` references.
+32. **Experience is metadata only for now.** For each session the package records timestamps, models, prompt and turn counts, tool-call counts, tool errors and output tokens. Transcript content is not copied. Turning transcripts into lessons belongs to the learning layer, and needs a decision on what principals' data may leave the machine.
+33. **Manifest permissions are a heuristic.** Claude Code permission rules are mapped to coarse scopes (`repo.read`, `repo.write`, `tests.run`, `pr.open`, `repo.push`, `mcp.<server>.<tool>`, and so on) so a principal can read them. The harness keeps the exact rules.
+34. **`run` never writes into the project.** For Claude Code it builds a session-only plugin (`--plugin-dir`), an appended system prompt holding instructions and memory, and a `--settings` file, all in `~/.asp/runs/`.
+    - Path-scoped rules are included unconditionally, with their globs shown as text.
+    - Skills load namespaced as `<agent>:<skill>`.
+    - Instructions the target project already has, byte for byte, are skipped.
+35. **Not built yet:**
+    - recording a backend swap as a lineage `update` edge with probation
+    - canary checks in `verify`
+    - packages as a single archive file
+    - write-back of memory the agent adds while running
+

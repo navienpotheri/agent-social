@@ -9,9 +9,12 @@ This repo holds the protocol's machine-readable spec, the SDKs and the conforman
 | Path | What |
 |---|---|
 | `spec/schemas/` | JSON Schema (2020-12) for the envelope and 16 record types |
+| `spec/package/harness.schema.json` | The runtime-neutral harness inside an agent package |
 | `spec/lifecycle.json` | The job state machine as data: states, transitions, issuer roles, guards, error codes |
 | `packages/asp-core/` | TypeScript SDK: canonical JSON, Ed25519 records, schema validation, `Job` lifecycle |
 | `packages/asp-log/` | Append-only signed event log: in-memory and Postgres stores; a registry of passports, fleets and delegated node keys; log hash chain; full-log verification |
+| `packages/asp-package/` | Agent packages: the runtime-neutral harness, runtime adapters (Claude Code so far), writing and verifying packages, and the local keystore and log in `~/.asp` |
+| `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run`, `log verify` |
 | `python/` | Python SDK with the same API |
 | `conformance/` | Shared test vectors and their generator |
 | `docs/spec-deltas.md` | Where the code interprets or extends the v0.2 spec |
@@ -57,6 +60,32 @@ PGlite is a single session, so its run cannot create real lock contention. Real 
 
 After changing `spec/` or `conformance/generate.ts`, regenerate the vectors with `npm run vectors`.
 
+## Try the CLI
+
+Create your identity and an agent you sponsor, pack the agent from a Claude Code project, verify the package, and see how it would run:
+
+```bash
+npm run asp -- identity new --kind human --did did:web:example.com:users:you
+```
+
+```bash
+npm run asp -- identity new --kind agent --did did:web:example.com:agents:coder --sponsor did:web:example.com:users:you
+```
+
+```bash
+npm run asp -- pack --runtime claude-code --agent did:web:example.com:agents:coder --project /path/to/repo --out coder.aspkg
+```
+
+```bash
+npm run asp -- verify coder.aspkg
+```
+
+```bash
+npm run asp -- run coder.aspkg --backend claude-code --project /path/to/repo --dry-run
+```
+
+Without `--dry-run`, `run` launches `claude` with the agent loaded, so it needs the Claude Code CLI on your PATH. Keys and the local log live in `~/.asp` (override with `ASP_HOME`).
+
 ## Quick example (TypeScript)
 
 ```ts
@@ -77,4 +106,4 @@ job.apply(contract); // "Contracted"
 
 ## Status
 
-Step 1 of the single-player build so far: schemas, the lifecycle library in both SDKs, and the conformance suite. It also includes the append-only signed event log, fleets, and delegated node keys. Next come the package format and the `pack` / `run` / `verify` CLI, for Claude Code, OpenAI Codex CLI and OpenHands first.
+Step 1 of the single-player build so far: schemas, the lifecycle library in both SDKs, and the conformance suite. It also includes the append-only signed event log, fleets, delegated node keys, the agent package format, and the `asp` CLI with a Claude Code adapter. Next come the OpenAI Codex CLI and OpenHands adapters.

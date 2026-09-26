@@ -1,0 +1,23 @@
+{
+  "name": "@agent-social/asp-package",
+  "version": "0.1.0",
+  "description": "ASP agent packages: capture an agent from its runtime, sign it, verify it, and materialize it on another runtime",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@agent-social/asp-core": "*",
+    "@agent-social/asp-log": "*",
+    "ajv": "^8.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "~5.9.0"
+  }
+}

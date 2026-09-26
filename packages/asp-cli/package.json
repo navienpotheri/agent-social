@@ -1,0 +1,20 @@
+{
+  "name": "@agent-social/asp-cli",
+  "version": "0.1.0",
+  "description": "asp: pack an agent from its runtime, verify it, and run it on another runtime",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@agent-social/asp-core": "*",
+    "@agent-social/asp-log": "*",
+    "@agent-social/asp-package": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "~5.9.0"
+  }
+}
