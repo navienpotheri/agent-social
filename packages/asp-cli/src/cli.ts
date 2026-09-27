@@ -32,23 +32,43 @@
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
  *   asp credits balance <did>
  *
+ *   Assignment mode (one performer bidding directly):
  *   asp market intent --by <did> --purpose <text> [--criteria <text> ...] --budget <n> --deadline <iso> [--verification deterministic|principal|arbiter]
  *   asp market offer --by <did> --intent <id> --price <n> --plan <text> --eta <iso> [--bond-offered <n>]
- *   asp market contract --principal <did> --performer <did> --bank <did> --intent <id> --offer <id>
- *     Issued by the principal, co-signed by the performer. purpose/criteria/deadline/verification come
- *     from the Intent; price comes from the Offer.
+ *
+ *   Allocation mode (several Proposals compete for one Call; a panel member picks one):
+ *   asp market call --by <did> --purpose <text> --budget <n> --panel <did> [--panel <did> ...] [--criteria <text> ...] --deadline <iso>
+ *   asp market propose --by <did> --call <id> --plan <text> --budget-asked <n> [--team <did> ...]
+ *   asp market allocate --by <did> --proposal <id> [--verdict <text>]
+ *     `--by` must be one of the Call's panel DIDs (not enforced by the log — Call/Proposal aren't
+ *     chained, so this is informational, same as MOCKS.md #4's mocked panel).
+ *
+ *   asp market contract --principal <did> --bank <did> [--performer <did>]
+ *                        (--intent <id> --offer <id> | --call <id> --proposal <id>)
+ *     Issued by the principal, co-signed by the performer. In assignment mode, purpose/criteria/
+ *     deadline/verification come from the Intent and price from the Offer (performer defaults to the
+ *     Offer's issuer). In allocation mode, they come from the Call and the allocated Proposal
+ *     (performer defaults to the Proposal's team[0]; --verification, since Call has none).
  *   asp market bond --contract <id> --backer <did> --amount <n> --escrow-payer <did> --escrow-amount <n>
  *     Locks real credits: debits both the escrow payer and the backer for real (rejects with
  *     insufficient_balance rather than starting a job uncovered).
  *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--spend-cap <n>]
  *   asp market deliver --contract <id> --by <did> --summary <text>
+ *     Also redelivers after a reject (the lifecycle's own redelivery_available guard applies; at
+ *     most one redelivery).
  *   asp market accept|reject --contract <id> --by <did> [--about <id>] [--reasons <text> ...]
+ *     A reject moves the job to Disputed, open to either a redelivery or a ruling.
+ *   asp market rule --contract <id> --by <did> --verdict for_performer|for_principal|split --fault <did>=<permille> [...]
+ *     Courts, narrowly: a neutral party's ruling on a Disputed job. The real Courts institution (a
+ *     staked, randomly-drawn, conflict-free panel) is Stage 3; this is just the ruling step the
+ *     lifecycle already supports either way.
  *   asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked
  *                      --escrow-released <n> --bond-returned <n> --bond-slashed <n>
  *                      [--pro-rata <permille>] [--cites <id>] [--principal <did>]
  *     Distributes exactly what the Bond locked: pay to the performer, unreleased escrow back to the
  *     principal, bond returned to the backer or slashed to compensate the principal. Never releases
- *     more than was locked (over_release). `revoked` is cosigned by the principal.
+ *     more than was locked (over_release). `revoked` is cosigned by the principal; `accepted`/`ruling`
+ *     cite the acceptance or ruling Attestation (defaults to the chain's latest one).
  *   asp market show <contract>
  *     Prints the job's state, its full chain, and (once bonded) the ledger lock for that contract.
  *
@@ -141,6 +161,15 @@ const OPTIONS = {
   "bond-slashed": { type: "string" },
   "pro-rata": { type: "string" },
   cites: { type: "string" },
+
+  // asp market call|propose|allocate|rule (allocation mode + the dispute/ruling path)
+  panel: { type: "string", multiple: true },
+  call: { type: "string" },
+  proposal: { type: "string" },
+  team: { type: "string", multiple: true },
+  "budget-asked": { type: "string" },
+  verdict: { type: "string" },
+  fault: { type: "string", multiple: true },
 } as const;
 
 export async function main(argv: string[], io: Io): Promise<number> {
@@ -183,7 +212,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -357,27 +386,96 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
+  // Allocation mode (Call -> several Proposals -> a panel picks one): an open problem instead of
+  // one performer's direct bid. Call/Proposal are referenced by a Contract's basis, not chained,
+  // exactly like Intent/Offer — so this needs no lifecycle change, only these three commands.
+  if (sub === "call") {
+    const by = need("by");
+    if (!v.panel?.length) throw new UsageError("--panel <did> is required, at least once");
+    const panel = v.panel;
+    const body = {
+      purpose: need("purpose"), budget: { value: Math.trunc(Number(need("budget"))), unit: "credit" as const },
+      evaluation_criteria: v.criteria?.length ? v.criteria : [need("purpose")],
+      panel, deadline: need("deadline"),
+    };
+    const record = createRecord({ type: "call", issuer: by, subject: by, prev: null, body, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`call ${res.id} by ${by}, panel: ${panel.join(", ")} (log seq ${res.seq})`);
+    return 0;
+  }
+
+  if (sub === "propose") {
+    const by = need("by");
+    const call = need("call");
+    const body = {
+      call, plan: need("plan"), team: v.team?.length ? v.team : [by],
+      budget_asked: { value: Math.trunc(Number(need("budget-asked"))), unit: "credit" as const },
+      milestones: [] as { description: string; due: string }[],
+    };
+    const record = createRecord({ type: "proposal", issuer: by, subject: by, prev: null, body, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`proposal ${res.id} by ${by} on call ${call} (log seq ${res.seq})`);
+    return 0;
+  }
+
+  if (sub === "allocate") {
+    const by = need("by");
+    const proposal = need("proposal");
+    const body = { kind: "allocation", about: proposal, verdict: v.verdict ?? "selected" };
+    const record = createRecord({ type: "attestation", issuer: by, subject: proposal, prev: null, body, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`allocation ${res.id}: panel member ${by} selects proposal ${proposal} (log seq ${res.seq})`);
+    return 0;
+  }
+
   if (sub === "contract") {
     const principal = need("principal");
-    const performer = need("performer");
     const bank = need("bank");
-    const intentId = need("intent");
-    const offerId = need("offer");
-    const intentRec = await local.log.get(intentId);
-    const offerRec = await local.log.get(offerId);
-    if (!intentRec) throw new Error(`intent ${intentId} is not in the log`);
-    if (!offerRec) throw new Error(`offer ${offerId} is not in the log`);
-    const intentBody = intentRec.record.body as any;
-    const offerBody = offerRec.record.body as any;
-    const body = {
-      principal, performer, bank, purpose: intentBody.purpose, acceptance_criteria: intentBody.acceptance_criteria,
-      price: offerBody.price, verification: intentBody.verification.mode, deadline: intentBody.deadline,
-      basis: { intent: intentId, offer: offerId },
-    };
+    const intentId = v.intent;
+    const offerId = v.offer;
+    const callId = v.call;
+    const proposalId = v.proposal;
+    let performer = v.performer;
+    let body: Record<string, unknown>;
+    let priceValue: number;
+    if (intentId || offerId) {
+      if (!intentId || !offerId) throw new UsageError("assignment mode needs both --intent and --offer");
+      const intentRec = await local.log.get(intentId);
+      const offerRec = await local.log.get(offerId);
+      if (!intentRec) throw new Error(`intent ${intentId} is not in the log`);
+      if (!offerRec) throw new Error(`offer ${offerId} is not in the log`);
+      const intentBody = intentRec.record.body as any;
+      const offerBody = offerRec.record.body as any;
+      performer ??= offerRec.record.issuer;
+      priceValue = offerBody.price.value;
+      body = {
+        principal, performer, bank, purpose: intentBody.purpose, acceptance_criteria: intentBody.acceptance_criteria,
+        price: offerBody.price, verification: intentBody.verification.mode, deadline: intentBody.deadline,
+        basis: { intent: intentId, offer: offerId },
+      };
+    } else if (callId || proposalId) {
+      if (!callId || !proposalId) throw new UsageError("allocation mode needs both --call and --proposal");
+      const callRec = await local.log.get(callId);
+      const proposalRec = await local.log.get(proposalId);
+      if (!callRec) throw new Error(`call ${callId} is not in the log`);
+      if (!proposalRec) throw new Error(`proposal ${proposalId} is not in the log`);
+      const callBody = callRec.record.body as any;
+      const proposalBody = proposalRec.record.body as any;
+      performer ??= proposalBody.team[0];
+      priceValue = proposalBody.budget_asked.value;
+      body = {
+        principal, performer, bank, purpose: callBody.purpose, acceptance_criteria: callBody.evaluation_criteria,
+        price: proposalBody.budget_asked, verification: v.verification ?? "principal", deadline: callBody.deadline,
+        basis: { call: callId, proposal: proposalId },
+      };
+    } else {
+      throw new UsageError("give --intent and --offer (assignment mode), or --call and --proposal (allocation mode)");
+    }
+    if (!performer) throw new UsageError("--performer is required (or derivable from the Offer's issuer or the Proposal's team)");
     let record = createRecord({ type: "contract", issuer: principal, subject: performer, prev: null, body, issued_at: now() }, signerFor(principal));
     record = cosign(record, signerFor(performer));
     const res = await local.append(record);
-    io.out(`contract ${res.id}: ${principal} -> ${performer}, price ${offerBody.price.value} credits (log seq ${res.seq}, state ${res.state})`);
+    io.out(`contract ${res.id}: ${principal} -> ${performer}, price ${priceValue} credits (log seq ${res.seq}, state ${res.state})`);
     return 0;
   }
 
@@ -459,6 +557,33 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
+  // Courts, narrowly: a neutral party's ruling on a Disputed job. The real Courts institution
+  // (a staked, randomly-drawn, conflict-free panel) is Stage 3 — MOCKS.md #4 already documents the
+  // mocked stand-in panel; this is just the ruling step the lifecycle already supports either way.
+  if (sub === "rule") {
+    const contract = need("contract");
+    const by = need("by");
+    const verdict = need("verdict");
+    if (!["for_performer", "for_principal", "split"].includes(verdict)) {
+      throw new UsageError("--verdict is for_performer, for_principal or split");
+    }
+    const chain = await marketChain(local.log, contract);
+    const head = chain.at(-1);
+    if (!head) throw new Error(`contract ${contract} is not in the log`);
+    const fault: Record<string, number> = {};
+    for (const entry of v.fault ?? []) {
+      const [did, permille] = entry.split("=");
+      if (!did || !permille) throw new UsageError(`--fault must be <did>=<permille>, got "${entry}"`);
+      fault[did] = Math.trunc(Number(permille));
+    }
+    if (!Object.keys(fault).length) throw new UsageError("--fault <did>=<permille> is required, at least once");
+    const body = { kind: "ruling", about: contract, verdict, fault };
+    const record = createRecord({ type: "attestation", issuer: by, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`ruling ${res.id} on contract ${contract}: ${verdict} (log seq ${res.seq}, state ${res.state})`);
+    return 0;
+  }
+
   if (sub === "settle") {
     const contract = need("contract");
     const bank = need("bank");
@@ -502,7 +627,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
-  throw new UsageError("asp market intent|offer|contract|bond|mandate|deliver|accept|reject|settle|show");
+  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|accept|reject|rule|settle|show");
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */

@@ -4,11 +4,11 @@ Known gaps, grouped by area. Mocks to replace before Stage 2 are in [../MOCKS.md
 
 ## Job lifecycle
 - Principal-mode silence counting as acceptance (`review_deadline` is already in the Intent schema)
-- Escalation, panel fees and appeals
+- Panel fees and appeals on a ruling
 - Subcontract nesting
 - Checking a Mandate against the agent's tier limits
-- `asp market` (Stage 2 slice 1, added 2026-09-28) covers assignment mode only (Intent→Offer→Contract, one performer bidding directly). Allocation mode (Call→Proposal→a panel choosing among several Proposals) isn't built — same underlying Contract/Bond/Mandate/Settlement records, just no `asp market call`/`propose`/`allocate` commands yet.
-- `asp market accept`/`reject`/`settle` don't drive the dispute path (a second Delivery after a Reject, a Courts ruling) — only the two shortest paths to Settled (accepted, revoked) are wired up as commands. The log itself supports the fuller lifecycle (see the `rejected_then_redelivered`/`dispute_ruled` conformance vectors); the CLI just doesn't expose it yet.
+- ~~`asp market` covers assignment mode only~~ — done 2026-09-28: `asp market call`/`propose`/`allocate` add allocation mode (Call→several Proposals→a panel member picks one), and `asp market contract` accepts either `--intent`/`--offer` or `--call`/`--proposal`. Call/Proposal aren't chained (same as Intent/Offer), so this needed no lifecycle change.
+- ~~`asp market` doesn't drive the dispute path~~ — done 2026-09-28: `asp market deliver` already redelivers (the lifecycle's own `redelivery_available` guard applies), and `asp market rule` adds the ruling step (Courts, narrowly — see MOCKS.md #4 for what's still mocked about it) so `asp market settle --basis ruling` works too.
 
 ## Registry
 - ~~Revoking a node before it expires, and revoking a person's nodes when its keys rotate~~ — done: a second Node record chained onto the first (`prev` = its id) is an update; setting `expires` at or before `issued_at` revokes it immediately (`revokedAt` is set, so the key becomes entirely unresolvable, not merely expired). Dropping a passport key now also revokes every one of that person's live node keys, since the delegations were made under a key that's being retired.
