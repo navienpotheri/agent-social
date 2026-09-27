@@ -10,21 +10,28 @@
  *   asp run <package> --backend claude-code|codex|openhands [--project <dir>] [--prompt <text>] [--model <m>] [--dry-run] [--no-write-back]
  *     After a successful run, a backend swap and any memory the agent changed are recorded in the
  *     package as signed lineage updates, and the manifest is re-signed.
+ *   asp orchestrate <package> --backend <runtime> --task <text> [--task <text> ...] [--project <dir>]
+ *                   [--max-parallel N] [--model <m>] [--dry-run]
+ *     Runs one task per node, in parallel, each under its own signed, short-lived delegated key
+ *     (an asp.node/v0.2 record; see spec/schemas/node.schema.json). Nodes only write memory; a single
+ *     consolidation step then merges what every node learned into one signed lineage update for the
+ *     agent, deduplicating identical lines and keeping conflicting ones side by side rather than
+ *     silently discarding either. This is the spec's Learning-section pattern: "nodes only write
+ *     experience... a consolidation step... produces one update to the person".
  *   asp log verify
  *
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
 import { spawn } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { b64urlEncode, createRecord, type AspRecord } from "@agent-social/asp-core";
+import { b64urlEncode, createRecord, publicKeyFromSeed, randomSeed, type AspRecord } from "@agent-social/asp-core";
 import {
   ADAPTERS, Keystore, LocalLog, aspHome, diffTrees, isEmptyDiff, scanForSecrets, updatePackage, verifyPackage, writePackage,
   type Harness, type LineageChange,
 } from "@agent-social/asp-package";
-import { readFileSync } from "node:fs";
 
 class UsageError extends Error {}
 
@@ -60,6 +67,8 @@ const OPTIONS = {
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
   help: { type: "boolean", short: "h" },
+  task: { type: "string", multiple: true },
+  "max-parallel": { type: "string" },
 } as const;
 
 export async function main(argv: string[], io: Io): Promise<number> {
@@ -88,6 +97,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
     if (cmd === "pack") return await pack(home, v, need, io);
     if (cmd === "verify") return await verify(sub, v.json ?? false, io);
     if (cmd === "run") return await run(home, sub, v, need, io);
+    if (cmd === "orchestrate") return await orchestrate(home, sub, v, need, io);
     if (cmd === "log" && sub === "verify") {
       const local = await LocalLog.open(home);
       const report = await local.log.verify();
@@ -101,7 +111,9 @@ export async function main(argv: string[], io: Io): Promise<number> {
   }
 }
 
-type Values = { [K in keyof typeof OPTIONS]?: (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string };
+type Values = {
+  [K in keyof typeof OPTIONS]?: K extends "task" ? string[] : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
+};
 type Need = (name: keyof typeof OPTIONS) => string;
 
 async function identityNew(home: string, v: Values, need: Need, io: Io): Promise<number> {
@@ -325,6 +337,227 @@ async function run(home: string, pkg: string | undefined, v: Values, need: Need,
   io.err(`  package  ${pkgDir} re-signed`);
   await syncLocalLog(home, pkgDir, agent, io);
   return 0;
+}
+
+interface NodeResult {
+  index: number;
+  task: string;
+  ok: boolean;
+  runDir: string;
+  memoryDir?: string;
+  error?: string;
+}
+
+/**
+ * Runs one task per node in parallel, each under its own signed, short-lived delegated key
+ * (asp.node/v0.2; nodes only write memory, per the spec's Learning section), then consolidates
+ * every node's memory changes into a single signed lineage update for the agent.
+ */
+async function orchestrate(home: string, pkg: string | undefined, v: Values, need: Need, io: Io): Promise<number> {
+  if (!pkg) throw new UsageError("asp orchestrate <package> --backend <runtime> --task <text> [--task <text> ...]");
+  const backend = need("backend");
+  const adapter = ADAPTERS[backend];
+  if (!adapter) throw new UsageError(`unknown backend ${backend}; available: ${Object.keys(ADAPTERS).join(", ")}`);
+  const tasks = v.task ?? [];
+  if (!tasks.length) throw new UsageError("--task is required at least once");
+  const maxParallel = Math.max(1, Math.trunc(Number(v["max-parallel"] ?? 4)) || 1);
+
+  const pkgDir = resolve(io.cwd, pkg);
+  const report = await verifyPackage(pkgDir);
+  if (!report.ok) {
+    io.err(`refusing to orchestrate: the package does not verify (${report.checks.filter((c) => c.status === "fail").map((c) => c.name).join(", ")}). Run asp verify for details.`);
+    return 1;
+  }
+  const manifest = JSON.parse(readFileSync(join(pkgDir, "manifest.json"), "utf8")) as AspRecord;
+  const harness = JSON.parse(readFileSync(join(pkgDir, "harness", "harness.json"), "utf8")) as Harness;
+  const agent = report.agent!;
+  const foundSigner = new Keystore(home).forDid(agent);
+  if (!foundSigner) throw new Error(`no key for ${agent} in ${join(home, "keys")}`);
+  const signer = foundSigner;
+  const project = resolve(io.cwd, v.project ?? ".");
+  const local = await LocalLog.open(home);
+  const inLocalLog = !!(await local.log.passport(agent));
+  const dryRun = v["dry-run"] ?? false;
+
+  const batchTag = Date.now().toString(36);
+  const batchDir = join(home, "runs", `${slug(agent)}-fleet-${batchTag}`);
+  mkdirSync(batchDir, { recursive: true });
+  io.err(`orchestrating ${tasks.length} task(s) for ${agent} on ${backend} (up to ${maxParallel} in parallel)`);
+  io.err(`  batch    ${batchDir}`);
+
+  const results: NodeResult[] = new Array(tasks.length);
+  let cursor = 0;
+  async function worker(): Promise<void> {
+    for (;;) {
+      const i = cursor++;
+      if (i >= tasks.length) return;
+      results[i] = await runNode(i);
+    }
+  }
+
+  async function runNode(i: number): Promise<NodeResult> {
+    const index = i + 1;
+    const task = tasks[i];
+    const runDir = join(batchDir, `node-${index}`);
+    mkdirSync(runDir, { recursive: true });
+    const plan = await adapter.materialize({
+      pkgDir, harness, project, runDir, agentName: `${basename(agent.replace(/:/g, "/"))}-node${index}`,
+      prompt: task, env: io.env, model: v.model, sourceRuntime: (manifest.body as any).source_runtime?.name,
+    });
+    io.err(`  node ${index}  ${task.length > 60 ? task.slice(0, 57) + "..." : task}`);
+    io.err(`         command  ${[plan.command, ...plan.args].map(quote).join(" ")}`);
+    if (dryRun) return { index, task, ok: true, runDir, memoryDir: plan.memoryDir };
+    if (plan.missingSecrets.length) {
+      const error = `missing secrets: ${plan.missingSecrets.join(", ")}`;
+      io.err(`  node ${index}  FAILED  ${error}`);
+      return { index, task, ok: false, runDir, error };
+    }
+
+    // A delegated, short-lived key for this node (spec/schemas/node.schema.json); no Mandate yet in
+    // single-player mode, so it is bookkeeping and audit trail only (see MOCKS.md).
+    const nodeSeed = randomSeed();
+    const nodeKid = `${agent}#node-${batchTag}-${index}`;
+    const nodeRecord = createRecord({
+      type: "node", issuer: agent, subject: agent, prev: null, issued_at: now(),
+      body: {
+        node: nodeKid, public_key: b64urlEncode(publicKeyFromSeed(nodeSeed)),
+        expires: new Date(Date.now() + 3600_000).toISOString().replace(/\.\d{3}Z$/, "Z"),
+        purpose: task.slice(0, 200),
+      },
+    }, signer);
+    if (inLocalLog) {
+      try { await local.append(nodeRecord); } catch { /* best-effort: node bookkeeping only */ }
+    }
+
+    const stdoutLog = join(runDir, "stdout.log");
+    const stderrLog = join(runDir, "stderr.log");
+    let hiddenFailure: string | undefined;
+    const code = await new Promise<number>((done) => {
+      const child = spawn(plan.command, plan.args, { cwd: plan.cwd, env: { ...io.env, ...plan.env }, stdio: ["ignore", "pipe", "pipe"] });
+      let outCarry = "";
+      child.stdout!.on("data", (chunk: Buffer) => {
+        appendFileEnsured(stdoutLog, chunk);
+        if (!plan.checkOutputForFailure) return;
+        outCarry += chunk.toString("utf8");
+        const lines = outCarry.split("\n");
+        outCarry = lines.pop() ?? "";
+        for (const line of lines) hiddenFailure ??= plan.checkOutputForFailure!(line);
+      });
+      child.stderr!.on("data", (chunk: Buffer) => appendFileEnsured(stderrLog, chunk));
+      child.on("error", (e: NodeJS.ErrnoException) => {
+        io.err(`  node ${index}  FAILED  ${e.code === "ENOENT" ? `${plan.command} is not installed or not on PATH` : e.message}`);
+        done(-1);
+      });
+      child.on("exit", (c) => done(c ?? 1));
+    });
+    if (code === -1) return { index, task, ok: false, runDir, error: "could not start the runtime" };
+    if (code !== 0 || hiddenFailure) {
+      const error = hiddenFailure ?? `exited with code ${code}`;
+      io.err(`  node ${index}  FAILED  ${error} (log: ${stderrLog})`);
+      return { index, task, ok: false, runDir, error };
+    }
+    io.err(`  node ${index}  ok`);
+    return { index, task, ok: true, runDir, memoryDir: plan.memoryDir };
+  }
+
+  await Promise.all(Array.from({ length: Math.min(maxParallel, tasks.length) }, worker));
+  const succeeded = results.filter((r) => r.ok && r.memoryDir);
+  const failed = results.filter((r) => !r.ok);
+  io.err(`  ${succeeded.length}/${tasks.length} node(s) succeeded${failed.length ? `; failed: ${failed.map((r) => r.index).join(", ")}` : ""}`);
+  if (dryRun) return 0;
+  if (!succeeded.length) {
+    io.err("  no node completed successfully; nothing consolidated");
+    return 1;
+  }
+
+  // Consolidation: every node's memory diff is merged into one tree. MEMORY.md entries are unioned
+  // (deduplicated line by line); other files that differ between nodes are kept side by side rather
+  // than one silently overwriting another's lesson (spec: "deduplicates lessons, resolves
+  // contradictions... produces one update to the person").
+  const baseMemDir = join(pkgDir, "memory");
+  const mergedDir = join(batchDir, "memory");
+  if (existsSync(baseMemDir)) cpFolder(baseMemDir, mergedDir);
+  mkdirSync(join(mergedDir, "auto"), { recursive: true });
+  const written = new Set<string>();
+  const removalCandidates = new Set<string>();
+  const conflictNotes: string[] = [];
+  for (const r of succeeded) {
+    const diff = diffTrees(baseMemDir, r.memoryDir!);
+    for (const rel of diff.removed) removalCandidates.add(rel);
+    for (const rel of [...diff.added, ...diff.changed]) {
+      const src = join(r.memoryDir!, rel);
+      const dest = join(mergedDir, rel);
+      if (basename(rel) === "MEMORY.md") {
+        mergeLineUnion(existsSync(dest) ? dest : join(baseMemDir, rel), src, dest);
+      } else if (!existsSync(dest)) {
+        copyFileEnsured(src, dest);
+      } else if (readFileSync(dest, "utf8") !== readFileSync(src, "utf8")) {
+        const alt = withNodeSuffix(dest, r.index);
+        copyFileEnsured(src, alt);
+        conflictNotes.push(`node ${r.index}'s ${rel} differs from an earlier node's; kept separately as ${relative(mergedDir, alt)}`);
+      } // else identical: already merged, nothing to do
+      written.add(rel);
+    }
+  }
+  for (const rel of removalCandidates) if (!written.has(rel)) { const p = join(mergedDir, rel); if (existsSync(p)) rmSync(p); }
+  for (const n of conflictNotes) io.err(`  note     ${n}`);
+
+  const overall = diffTrees(baseMemDir, mergedDir);
+  if (isEmptyDiff(overall)) {
+    io.err("  no memory changes across nodes; nothing consolidated");
+    return 0;
+  }
+  const changes: LineageChange[] = [{
+    layer: "memory",
+    description: `consolidated fleet memory from ${succeeded.length}/${tasks.length} node(s): +${overall.added.length} ~${overall.changed.length} -${overall.removed.length} files`,
+  }];
+  const { edges } = updatePackage(pkgDir, { signer, changes, memoryFrom: mergedDir });
+  for (const e of edges) io.err(`  recorded ${(e.body as any).change.description} (${e.id})`);
+  io.err(`  package  ${pkgDir} re-signed`);
+  await syncLocalLog(home, pkgDir, agent, io);
+  return 0;
+}
+
+function appendFileEnsured(path: string, chunk: Buffer): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, chunk, { flag: "a" });
+}
+
+function copyFileEnsured(src: string, dest: string): void {
+  mkdirSync(dirname(dest), { recursive: true });
+  copyFileSync(src, dest);
+}
+
+function cpFolder(src: string, dest: string): void {
+  mkdirSync(dest, { recursive: true });
+  cpSync(src, dest, { recursive: true });
+}
+
+/** Inserts .node<N> before the last extension: foo/bar.md, 2 -> foo/bar.node2.md. */
+function withNodeSuffix(path: string, index: number): string {
+  const dot = path.lastIndexOf(".");
+  const slash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+  return dot > slash ? `${path.slice(0, dot)}.node${index}${path.slice(dot)}` : `${path}.node${index}`;
+}
+
+/**
+ * Merges a memory index file by the union of its lines: every line already at `dest` (or, failing
+ * that, the original `base`) is kept, and every non-blank line from `incoming` not already present
+ * (by exact trimmed match) is appended. Never drops an existing entry.
+ */
+function mergeLineUnion(base: string, incoming: string, dest: string): void {
+  const startFrom = existsSync(dest) ? dest : base;
+  const destLines = existsSync(startFrom) ? readFileSync(startFrom, "utf8").split("\n") : [];
+  const seen = new Set(destLines.map((l) => l.trim()).filter(Boolean));
+  for (const line of readFileSync(incoming, "utf8").split("\n")) {
+    const t = line.trim();
+    if (!t || seen.has(t)) continue;
+    destLines.push(line);
+    seen.add(t);
+  }
+  while (destLines.length && destLines.at(-1) === "") destLines.pop();
+  mkdirSync(dirname(dest), { recursive: true });
+  writeFileSync(dest, destLines.join("\n") + "\n");
 }
 
 /**

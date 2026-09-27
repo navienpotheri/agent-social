@@ -14,7 +14,7 @@ This repo holds the protocol's machine-readable spec, the SDKs and the conforman
 | `packages/asp-core/` | TypeScript SDK: canonical JSON, Ed25519 records, schema validation, `Job` lifecycle |
 | `packages/asp-log/` | Append-only signed event log: in-memory and Postgres stores; a registry of passports, fleets and delegated node keys; log hash chain; full-log verification |
 | `packages/asp-package/` | Agent packages: the runtime-neutral harness, runtime adapters (Claude Code, Codex CLI, OpenHands), writing and verifying packages, and the local keystore and log in `~/.asp` |
-| `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run`, `log verify` |
+| `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run`, `orchestrate` (a fleet of parallel nodes with one consolidated memory update), `log verify` |
 | `python/` | Python SDK with the same API |
 | `conformance/` | Shared test vectors and their generator |
 | `docs/spec-deltas.md` | What the v0.2 spec needs from the build: 5 decisions, 11 additions |
