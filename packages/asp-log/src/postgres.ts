@@ -3,7 +3,8 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import pg from "pg";
 import type {
-  AccountRow, ChainRow, EscrowRow, FleetRow, JurorRow, KeyRow, LogHead, LogTx, MintRow, PassportRow, ProbationRow, Store, StoredRecord,
+  AccountRow, ChainRow, EscrowRow, FleetRow, JurorRow, KeyRow, LogHead, LogTx, MintRow, PassportRow, ProbationRow,
+  ReputationRow, Store, StoredRecord,
 } from "./store.ts";
 
 const SQL_DIR = fileURLToPath(new URL("../sql/", import.meta.url));
@@ -64,6 +65,7 @@ const toEscrow = (e: any): EscrowRow => ({
 });
 const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_minted) });
 const toJuror = (j: any): JurorRow => ({ did: j.did, head: j.head, staked: Number(j.staked) });
+const toReputation = (r: any): ReputationRow => ({ did: r.did, tier: Number(r.tier), slashCount: Number(r.slash_count) });
 
 /** Reads shared by the store (pool) and a transaction (client). */
 function reads(q: Queryable) {
@@ -136,6 +138,10 @@ function reads(q: Queryable) {
       const { rows } = await q.query("SELECT * FROM jurors WHERE staked > 0 ORDER BY did");
       return rows.map(toJuror);
     },
+    async getReputation(did: string) {
+      const { rows } = await q.query("SELECT * FROM reputations WHERE did = $1", [did]);
+      return rows[0] && toReputation(rows[0]);
+    },
   };
 }
 
@@ -180,6 +186,7 @@ export class PostgresStore implements Store {
   allMints() { return this.r.allMints(); }
   getJuror(did: string) { return this.r.getJuror(did); }
   activeJurors() { return this.r.activeJurors(); }
+  getReputation(did: string) { return this.r.getReputation(did); }
   async chainRecords(root: string) {
     const { rows } = await this.pool.query<RecordRow>(`SELECT ${RECORD_COLS} FROM records WHERE chain = $1 ORDER BY seq`, [root]);
     return rows.map(toStored);
@@ -216,6 +223,7 @@ class PgTx implements LogTx {
   getMint(did: string) { return this.r.getMint(did); }
   getJuror(did: string) { return this.r.getJuror(did); }
   activeJurors() { return this.r.activeJurors(); }
+  getReputation(did: string) { return this.r.getReputation(did); }
 
   async insertRecord(row: StoredRecord) {
     const r = row.record;
@@ -289,6 +297,13 @@ class PgTx implements LogTx {
       `INSERT INTO jurors (did, head, staked) VALUES ($1, $2, $3)
        ON CONFLICT (did) DO UPDATE SET head = $2, staked = $3`,
       [row.did, row.head, row.staked],
+    );
+  }
+  async putReputation(row: ReputationRow) {
+    await this.c.query(
+      `INSERT INTO reputations (did, tier, slash_count) VALUES ($1, $2, $3)
+       ON CONFLICT (did) DO UPDATE SET tier = $2, slash_count = $3`,
+      [row.did, row.tier, row.slashCount],
     );
   }
   async setLogHead(head: LogHead) {

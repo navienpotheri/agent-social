@@ -12,6 +12,11 @@ const JOB_ONLY_TYPES = new Set(["contract", "bond", "mandate", "checkpoint", "de
 const IDENTITY_TYPES = new Set(["passport", "fleet", "node"]);
 
 const DEFAULT_MAX_NODE_TTL_MS = 24 * 60 * 60 * 1000;
+/** Deterrence (docs/backlog.md "Making a slash actually matter"): tunable constants, a judgment
+ * call like probation's 7 days, not a formula derived from anything. Per own slash, and per other
+ * live fleet-mate's slash, how many extra permille of the contract price the next Bond must cover. */
+const RISK_PERMILLE_PER_OWN_SLASH = 250;
+const RISK_PERMILLE_PER_FLEET_SLASH = 100;
 
 export interface EventLogOptions {
   schemas?: SchemaSet;
@@ -327,15 +332,67 @@ export class EventLog {
   }
 
   /**
+   * A DID's current tier and slash count. Only tracked for agents (a Passport's `tier` is required
+   * for kind "agent", not for humans/orgs) — humans aren't excluded or risk-loaded by this
+   * mechanism. Falls back to the agent's self-declared Passport tier until its first slash.
+   * Takes anything with these three reads — a LogTx mid-append, or the Store for a plain query.
+   */
+  private async reputation(tx: Pick<LogTx, "getPassport" | "getRecord" | "getReputation">, did: string): Promise<{ tier: number; slashCount: number } | null> {
+    const passport = await tx.getPassport(did);
+    if (!passport) return null;
+    const existing = await tx.getReputation(did);
+    if (existing) return { tier: existing.tier, slashCount: existing.slashCount };
+    const head = await tx.getRecord(passport.head);
+    const body = head?.record.body as { kind: string; tier?: number } | undefined;
+    if (body?.kind !== "agent") return null;
+    return { tier: body.tier ?? 1, slashCount: 0 };
+  }
+
+  /** Demotes a slashed backer by one tier (floor 0) and counts the slash, for its next Bond's risk floor. */
+  private async demote(tx: LogTx, did: string): Promise<void> {
+    const rep = await this.reputation(tx, did);
+    if (!rep) return; // not an agent (or has no passport at all): this mechanism doesn't apply
+    await tx.putReputation({ did, tier: Math.max(0, rep.tier - 1), slashCount: rep.slashCount + 1 });
+  }
+
+  /**
    * Bank: locks the principal's escrow and the backer's bond against the contract, debiting both
    * (Stage 2 slice 1). Fails with insufficient_balance rather than letting a job start uncovered.
    * The lock is recorded so `projectSettlement` cannot release more than was actually locked.
+   *
+   * Deterrence: a backer at tier 0 (demoted to nothing by repeat slashes) is excluded from bonding
+   * at all; otherwise its own and its live fleet-mates' slash history raise the minimum bond it
+   * must post for this contract's price (risk_floor), so a repeat offender needs more skin in the
+   * game for the same job, and a sponsor whose fleet accumulates slashes feels it fleet-wide too.
    */
   private async projectBond(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as {
       contract: string; backer: string; amount: { value: number };
       escrow: { payer: string; amount: { value: number } };
     };
+    const backerRep = await this.reputation(tx, body.backer);
+    if (backerRep && backerRep.tier === 0) {
+      throw rule("tier_excluded", `${body.backer} is excluded from bonding: repeat slashes demoted it to tier 0`);
+    }
+    if (backerRep) {
+      let fleetSlashes = 0;
+      const backerPassport = await tx.getPassport(body.backer);
+      if (backerPassport?.fleet) {
+        for (const member of await tx.fleetMembers(backerPassport.fleet)) {
+          if (member.did === body.backer) continue;
+          fleetSlashes += (await this.reputation(tx, member.did))?.slashCount ?? 0;
+        }
+      }
+      const riskFloorPermille = Math.min(1000, backerRep.slashCount * RISK_PERMILLE_PER_OWN_SLASH + fleetSlashes * RISK_PERMILLE_PER_FLEET_SLASH);
+      if (riskFloorPermille > 0) {
+        const contract = await tx.getRecord(body.contract);
+        const price = (contract?.record.body as { price?: { value: number } } | undefined)?.price?.value ?? 0;
+        const minBond = Math.ceil((price * riskFloorPermille) / 1000);
+        if (body.amount.value < minBond) {
+          throw rule("bond_below_risk_floor", `${body.backer}'s slash history requires a bond of at least ${minBond} for this contract, got ${body.amount.value}`);
+        }
+      }
+    }
     const debits = new Map<string, number>();
     debits.set(body.escrow.payer, (debits.get(body.escrow.payer) ?? 0) + body.escrow.amount.value);
     debits.set(body.backer, (debits.get(body.backer) ?? 0) + body.amount.value);
@@ -378,6 +435,7 @@ export class EventLog {
     await this.credit(tx, cbody.performer, body.escrow_released.value);
     await this.credit(tx, cbody.principal, escrowLeftover + body.bond_slashed.value);
     await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover);
+    if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer);
     await tx.putEscrow({ ...escrow, settled: true });
   }
 
@@ -440,6 +498,7 @@ export class EventLog {
   async balance(did: string) { return (await this.store.getAccount(did))?.balance ?? 0; }
   escrow(contract: string) { return this.store.getEscrow(contract); }
   juror(did: string) { return this.store.getJuror(did); }
+  reputationOf(did: string) { return this.reputation(this.store, did); }
 
   /** The current panel for a contract's open dispute — for display before a ruling is issued. */
   async drawPanel(contract: string, size?: number): Promise<string[]> {

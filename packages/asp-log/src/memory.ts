@@ -1,7 +1,7 @@
 import {
   GENESIS_LOG_HASH,
   type AccountRow, type ChainRow, type EscrowRow, type FleetRow, type JurorRow, type KeyRow, type LogHead, type LogTx,
-  type MintRow, type PassportRow, type ProbationRow, type Store, type StoredRecord,
+  type MintRow, type PassportRow, type ProbationRow, type ReputationRow, type Store, type StoredRecord,
 } from "./store.ts";
 
 const copy = <T>(v: T): T => structuredClone(v);
@@ -16,11 +16,12 @@ interface Tables {
   escrows: Map<string, EscrowRow>;
   mints: Map<string, MintRow>;
   jurors: Map<string, JurorRow>;
+  reputations: Map<string, ReputationRow>;
 }
 
 const emptyTables = (): Tables => ({
   chains: new Map(), keys: new Map(), passports: new Map(), fleets: new Map(), probations: new Map(),
-  accounts: new Map(), escrows: new Map(), mints: new Map(), jurors: new Map(),
+  accounts: new Map(), escrows: new Map(), mints: new Map(), jurors: new Map(), reputations: new Map(),
 });
 
 /** An in-memory Store for tests and local tools. Appends are serialized; failed appends leave no trace. */
@@ -77,6 +78,7 @@ export class MemoryStore implements Store {
   async allMints() { return [...this.tables.mints.values()].map((m) => ({ did: m.did, balance: m.totalMinted })); }
   async getJuror(did: string) { const j = this.tables.jurors.get(did); return j && copy(j); }
   async activeJurors() { return [...this.tables.jurors.values()].filter((j) => j.staked > 0).map(copy); }
+  async getReputation(did: string) { const r = this.tables.reputations.get(did); return r && copy(r); }
   async close() {}
 
   /** @internal read access for MemoryTx */
@@ -127,6 +129,7 @@ class MemoryTx implements LogTx {
   async getMint(did: string) { return this.read("mints", did) as MintRow | undefined; }
   async getJuror(did: string) { return this.read("jurors", did) as JurorRow | undefined; }
   async activeJurors() { return this.all("jurors").filter((j) => j.staked > 0); }
+  async getReputation(did: string) { return this.read("reputations", did) as ReputationRow | undefined; }
 
   async insertRecord(row: StoredRecord) { this.newRecords.push(copy(row)); }
   async putChain(row: ChainRow) { this.staged.chains.set(row.root, copy(row)); }
@@ -138,5 +141,6 @@ class MemoryTx implements LogTx {
   async putEscrow(row: EscrowRow) { this.staged.escrows.set(row.contract, copy(row)); }
   async putMint(row: MintRow) { this.staged.mints.set(row.did, copy(row)); }
   async putJuror(row: JurorRow) { this.staged.jurors.set(row.did, copy(row)); }
+  async putReputation(row: ReputationRow) { this.staged.reputations.set(row.did, copy(row)); }
   async setLogHead(head: LogHead) { this.head = { ...head }; }
 }

@@ -118,6 +118,19 @@ export interface JurorRow {
   staked: number;
 }
 
+/**
+ * A DID's reputation, derived (never independently signed) from its Settlement history: `tier`
+ * starts at its Passport's own declared tier and is demoted by one (floor 0) each time it's
+ * slashed as a Bond's backer; `slashCount` is the raw count, used to size the next Bond's minimum
+ * (deterrence, docs/backlog.md "Making a slash actually matter"). Same trust pattern as
+ * ProbationRow: a consequence of an already-signed record, not a new claim needing its own signature.
+ */
+export interface ReputationRow {
+  did: string;
+  tier: number;
+  slashCount: number;
+}
+
 /** Reads and writes inside one append. Writes become visible only if the transaction commits. */
 export interface LogTx {
   logHead(): Promise<LogHead>;
@@ -135,6 +148,7 @@ export interface LogTx {
   getMint(did: string): Promise<MintRow | undefined>;
   getJuror(did: string): Promise<JurorRow | undefined>;
   activeJurors(): Promise<JurorRow[]>;
+  getReputation(did: string): Promise<ReputationRow | undefined>;
 
   insertRecord(row: StoredRecord): Promise<void>;
   putChain(row: ChainRow): Promise<void>;
@@ -146,6 +160,7 @@ export interface LogTx {
   putEscrow(row: EscrowRow): Promise<void>;
   putMint(row: MintRow): Promise<void>;
   putJuror(row: JurorRow): Promise<void>;
+  putReputation(row: ReputationRow): Promise<void>;
   setLogHead(head: LogHead): Promise<void>;
 }
 
@@ -170,5 +185,6 @@ export interface Store {
   allMints(): Promise<AccountRow[]>;
   getJuror(did: string): Promise<JurorRow | undefined>;
   activeJurors(): Promise<JurorRow[]>;
+  getReputation(did: string): Promise<ReputationRow | undefined>;
   close(): Promise<void>;
 }

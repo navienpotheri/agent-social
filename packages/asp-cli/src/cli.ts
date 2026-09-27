@@ -8,6 +8,8 @@
  *     generates a fresh key and derives a self-certifying DID from it: no domain to bring, lose
  *     access to, or depend on anyone else for.
  *   asp identity show <did>
+ *     Includes `reputation` (tier, slash count) for an agent that's ever been slashed as a Bond's
+ *     backer, or that has a declared tier to fall back on — derived, not itself a signed record.
  *   asp pack --runtime claude-code|codex|openhands --agent <did> [--project <dir>] [--include-user] [--out <dir>]
  *   asp verify <package> [--json]
  *   asp run <package> --backend claude-code|codex|openhands [--project <dir>] [--prompt <text>] [--model <m>] [--dry-run] [--no-write-back]
@@ -290,7 +292,11 @@ async function identityShow(home: string, did: string | undefined, io: Io): Prom
   const p = await log.passport(did);
   if (!p) throw new Error(`no passport for ${did}`);
   const rec = (await log.get(p.head))!.record;
-  io.out(JSON.stringify({ passport: p.head, sponsor: p.sponsor, fleet: p.fleet, body: rec.body, keys: await log.keys(did) }, null, 2));
+  const reputation = await log.reputationOf(did);
+  io.out(JSON.stringify({
+    passport: p.head, sponsor: p.sponsor, fleet: p.fleet, body: rec.body, keys: await log.keys(did),
+    ...(reputation ? { reputation } : {}),
+  }, null, 2));
   return 0;
 }
 
