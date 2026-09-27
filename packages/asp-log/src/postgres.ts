@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import pg from "pg";
 import type {
-  AccountRow, ChainRow, EscrowRow, FleetRow, KeyRow, LogHead, LogTx, MintRow, PassportRow, ProbationRow, Store, StoredRecord,
+  AccountRow, ChainRow, EscrowRow, FleetRow, JurorRow, KeyRow, LogHead, LogTx, MintRow, PassportRow, ProbationRow, Store, StoredRecord,
 } from "./store.ts";
 
 const SQL_DIR = fileURLToPath(new URL("../sql/", import.meta.url));
@@ -63,6 +63,7 @@ const toEscrow = (e: any): EscrowRow => ({
   backer: e.backer, bondLocked: Number(e.bond_locked), settled: e.settled,
 });
 const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_minted) });
+const toJuror = (j: any): JurorRow => ({ did: j.did, head: j.head, staked: Number(j.staked) });
 
 /** Reads shared by the store (pool) and a transaction (client). */
 function reads(q: Queryable) {
@@ -127,6 +128,14 @@ function reads(q: Queryable) {
       const { rows } = await q.query("SELECT * FROM mints ORDER BY did");
       return rows.map(toMint).map((m) => ({ did: m.did, balance: m.totalMinted }));
     },
+    async getJuror(did: string) {
+      const { rows } = await q.query("SELECT * FROM jurors WHERE did = $1", [did]);
+      return rows[0] && toJuror(rows[0]);
+    },
+    async activeJurors() {
+      const { rows } = await q.query("SELECT * FROM jurors WHERE staked > 0 ORDER BY did");
+      return rows.map(toJuror);
+    },
   };
 }
 
@@ -169,6 +178,8 @@ export class PostgresStore implements Store {
   getAccount(did: string) { return this.r.getAccount(did); }
   getEscrow(contract: string) { return this.r.getEscrow(contract); }
   allMints() { return this.r.allMints(); }
+  getJuror(did: string) { return this.r.getJuror(did); }
+  activeJurors() { return this.r.activeJurors(); }
   async chainRecords(root: string) {
     const { rows } = await this.pool.query<RecordRow>(`SELECT ${RECORD_COLS} FROM records WHERE chain = $1 ORDER BY seq`, [root]);
     return rows.map(toStored);
@@ -203,6 +214,8 @@ class PgTx implements LogTx {
   getAccount(did: string) { return this.r.getAccount(did); }
   getEscrow(contract: string) { return this.r.getEscrow(contract); }
   getMint(did: string) { return this.r.getMint(did); }
+  getJuror(did: string) { return this.r.getJuror(did); }
+  activeJurors() { return this.r.activeJurors(); }
 
   async insertRecord(row: StoredRecord) {
     const r = row.record;
@@ -269,6 +282,13 @@ class PgTx implements LogTx {
       `INSERT INTO mints (did, total_minted) VALUES ($1, $2)
        ON CONFLICT (did) DO UPDATE SET total_minted = $2`,
       [row.did, row.totalMinted],
+    );
+  }
+  async putJuror(row: JurorRow) {
+    await this.c.query(
+      `INSERT INTO jurors (did, head, staked) VALUES ($1, $2, $3)
+       ON CONFLICT (did) DO UPDATE SET head = $2, staked = $3`,
+      [row.did, row.head, row.staked],
     );
   }
   async setLogHead(head: LogHead) {

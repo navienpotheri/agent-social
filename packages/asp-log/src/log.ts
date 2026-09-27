@@ -1,8 +1,9 @@
 import {
-  AspError, Job, b64urlDecode, defaultSchemas, sha256Id, shortType, verifyRecord,
+  AspError, Job, b64urlDecode, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
 } from "@agent-social/asp-core";
 import { MemoryStore } from "./memory.ts";
+import { DEFAULT_PANEL_SIZE, drawPanel, findRejection } from "./panel.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
 
 /** Record types that exist only inside a job chain. */
@@ -23,6 +24,8 @@ export interface EventLogOptions {
   now?: () => Date;
   /** Longest lifetime a Node record may grant. Default 24 hours. */
   maxNodeTtlMs?: number;
+  /** How many jurors a Courts ruling panel draws. Default 3 (see panel.ts, DEFAULT_PANEL_SIZE). */
+  panelSize?: number;
 }
 
 export interface AppendResult {
@@ -63,6 +66,7 @@ export class EventLog {
   private readonly fallback?: KeyResolver;
   private readonly now: () => Date;
   private readonly maxNodeTtlMs: number;
+  private readonly panelSize: number;
 
   constructor(store: Store, opts: EventLogOptions = {}) {
     this.store = store;
@@ -70,6 +74,7 @@ export class EventLog {
     this.fallback = opts.fallbackResolver;
     this.now = opts.now ?? (() => new Date());
     this.maxNodeTtlMs = opts.maxNodeTtlMs ?? DEFAULT_MAX_NODE_TTL_MS;
+    this.panelSize = opts.panelSize ?? DEFAULT_PANEL_SIZE;
   }
 
   append(raw: unknown): Promise<AppendResult> {
@@ -137,6 +142,8 @@ export class EventLog {
     if (type === "lineage") await this.projectLineage(tx, verified);
     if (type === "bond") await this.projectBond(tx, verified);
     if (type === "settlement") await this.projectSettlement(tx, verified);
+    if (type === "juror") await this.projectJuror(tx, verified);
+    if (type === "attestation") await this.checkRulingPanel(tx, verified);
     await tx.putChain({
       root, kind, head: verified.id, length: (chain?.length ?? 0) + 1, lastIssuedAt: verified.issued_at,
       state: snapshot?.state ?? null, snapshot,
@@ -374,6 +381,54 @@ export class EventLog {
     await tx.putEscrow({ ...escrow, settled: true });
   }
 
+  /**
+   * Courts, narrowly (Stage 2 slice): a DID self-registers a real credit stake to be eligible for
+   * random draw onto a ruling panel. A second Juror record chained onto the first (prev = its id)
+   * updates the stake — locking more (debit), returning some or all (credit) — never a fresh chain.
+   */
+  private async projectJuror(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as { did: string; stake: { value: number } };
+    if (r.issuer !== body.did) throw new AspError("WRONG_ISSUER", `a juror record must be self-issued by ${body.did}`);
+    const current = await tx.getJuror(body.did);
+    if ((current?.head ?? null) !== r.prev) {
+      throw new AspError("BAD_PREV", current
+        ? `a juror update for ${body.did} must follow ${current.head}`
+        : `the first juror registration for ${body.did} must start a chain`);
+    }
+    const delta = body.stake.value - (current?.staked ?? 0);
+    if (delta > 0) await this.debit(tx, body.did, delta);
+    else if (delta < 0) await this.credit(tx, body.did, -delta);
+    await tx.putJuror({ did: body.did, head: r.id, staked: body.stake.value });
+  }
+
+  /**
+   * Courts, narrowly: a ruling Attestation must be signed by a majority of the panel drawn for
+   * that dispute (drawPanel, panel.ts) — conflict-free, seeded from the rejection that opened it —
+   * not by any DID. Everything this depends on (jurors, passports, the rejection record) replays
+   * the same way every time, so this is fully checkable by EventLog.verify(), unlike EventLog.mint.
+   */
+  private async checkRulingPanel(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as { kind: string; about: string };
+    if (body.kind !== "ruling") return;
+    const contract = await tx.getRecord(body.about);
+    if (!contract) return; // the lifecycle's own about_contract guard already rejects this
+    const cbody = contract.record.body as { principal: string; performer: string };
+    const seed = await findRejection(tx, r.prev);
+    if (!seed) return; // defensive; the lifecycle's own guards already require a prior rejection
+    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: this.panelSize });
+    // No staked, conflict-free juror is registered anywhere: Courts hasn't been bootstrapped in
+    // this log, so fall back to the pre-Courts mocked behavior (any neutral DID may rule) rather
+    // than blocking every dispute — this is what keeps the `dispute_ruled`/`ruling_by_party`
+    // conformance vectors (single mocked panel DID, no jurors) valid unchanged (MOCKS.md #4).
+    if (panel.length === 0) return;
+    const signers = new Set([r.sig.kid, ...(r.cosigs ?? []).map((c) => c.kid)].map(didOf));
+    const onPanel = panel.filter((p) => signers.has(p));
+    const quorum = Math.ceil(panel.length / 2);
+    if (onPanel.length < quorum) {
+      throw rule("panel_quorum", `a ruling needs ${quorum} of the drawn panel (${panel.join(", ")}) to sign; only ${onPanel.length} did`);
+    }
+  }
+
   get(id: string) { return this.store.getRecord(id); }
   head() { return this.store.logHead(); }
   chain(root: string) { return this.store.chainRecords(root); }
@@ -384,6 +439,18 @@ export class EventLog {
   probation(did: string) { return this.store.getProbation(did); }
   async balance(did: string) { return (await this.store.getAccount(did))?.balance ?? 0; }
   escrow(contract: string) { return this.store.getEscrow(contract); }
+  juror(did: string) { return this.store.getJuror(did); }
+
+  /** The current panel for a contract's open dispute — for display before a ruling is issued. */
+  async drawPanel(contract: string, size?: number): Promise<string[]> {
+    const contractRec = await this.store.getRecord(contract);
+    if (!contractRec) throw new AspError("BAD_PREV", `${contract} is not in the log`);
+    const cbody = contractRec.record.body as { principal: string; performer: string };
+    const chainRecords = await this.store.chainRecords(contract);
+    const seed = await findRejection(this.store, chainRecords.at(-1)?.id ?? null);
+    if (!seed) throw rule("no_dispute", `contract ${contract} has no open dispute (no rejection found)`);
+    return drawPanel(this.store, { principal: cbody.principal, performer: cbody.performer, seed, size: size ?? this.panelSize });
+  }
 
   /**
    * Bootstraps a DID's balance for local testing. Not a signed record, not part of the tamper-
@@ -410,7 +477,9 @@ export class EventLog {
    * rather than trusting the stored value at that row.
    */
   async verifyCheckpoint(at: { seq: number; logHash: string }): Promise<boolean> {
-    const replay = new EventLog(new MemoryStore(await this.store.allMints()), { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs });
+    const replay = new EventLog(new MemoryStore(await this.store.allMints()), {
+      schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize,
+    });
     for (let afterSeq = 0; ; ) {
       const page = await this.store.since(afterSeq, 500);
       if (!page.length) return false; // the log is shorter than the checkpoint claims
@@ -436,7 +505,7 @@ export class EventLog {
    */
   async verify(pageSize = 500): Promise<VerifyReport> {
     const replay = new EventLog(new MemoryStore(await this.store.allMints()), {
-      schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs,
+      schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize,
     });
     let afterSeq = 0;
     let count = 0;

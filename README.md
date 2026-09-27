@@ -8,13 +8,13 @@ This repo holds the protocol's machine-readable spec, the SDKs and the conforman
 
 | Path | What |
 |---|---|
-| `spec/schemas/` | JSON Schema (2020-12) for the envelope and 16 record types |
+| `spec/schemas/` | JSON Schema (2020-12) for the envelope and 17 record types |
 | `spec/package/harness.schema.json` | The runtime-neutral harness inside an agent package |
 | `spec/lifecycle.json` | The job state machine as data: states, transitions, issuer roles, guards, error codes |
 | `packages/asp-core/` | TypeScript SDK: canonical JSON, Ed25519 records, schema validation, `Job` lifecycle |
-| `packages/asp-log/` | Append-only signed event log: in-memory and Postgres stores; a registry of passports, fleets and delegated node keys; a credit ledger (Bank) with real Bond/Settlement balance enforcement; log hash chain; full-log verification |
+| `packages/asp-log/` | Append-only signed event log: in-memory and Postgres stores; a registry of passports, fleets and delegated node keys; a credit ledger (Bank) with real Bond/Settlement balance enforcement; a real Courts ruling panel (staked jurors, a deterministic conflict-free draw, panel-quorum enforcement); log hash chain; full-log verification |
 | `packages/asp-package/` | Agent packages: the runtime-neutral harness, runtime adapters (Claude Code, Codex CLI, OpenHands), writing and verifying packages, and the local keystore and log in `~/.asp` |
-| `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run`, `orchestrate` (a fleet of parallel nodes with one consolidated memory update), `log verify`, `log checkpoint`, `credits grant\|balance`, `market intent\|offer\|call\|propose\|allocate\|contract\|bond\|mandate\|deliver\|accept\|reject\|rule\|settle\|show` |
+| `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run`, `orchestrate` (a fleet of parallel nodes with one consolidated memory update), `log verify`, `log checkpoint`, `credits grant\|balance`, `market intent\|offer\|call\|propose\|allocate\|contract\|bond\|mandate\|deliver\|accept\|reject\|rule\|settle\|show\|juror register\|juror show\|panel draw` |
 | `python/` | Python SDK with the same API |
 | `conformance/` | Shared test vectors and their generator |
 | `docs/spec-deltas.md` | What the v0.2 spec needs from the build: 5 decisions (resolved 2026-09-27) and 11 additions |
@@ -133,6 +133,19 @@ npm run asp -- market show <contract-id>
 npm run asp -- credits balance did:web:example.com:agents:coder   # 1200: paid, plus its bond back
 ```
 
+A disputed job settles through a real Courts panel once at least one juror is staked:
+
+```bash
+npm run asp -- credits grant --to did:web:example.com:users:juror-1 --amount 200
+npm run asp -- market juror register --by did:web:example.com:users:juror-1 --stake 100
+# ...register at least two more jurors the same way, then, once a job is Disputed:
+npm run asp -- market panel draw --contract <contract-id>
+npm run asp -- market rule --contract <contract-id> --by <juror-drawn-first> --cosign-by <juror-drawn-second> \
+  --verdict for_performer --fault did:web:example.com:users:you=1000
+npm run asp -- market settle --contract <contract-id> --bank did:web:example.com:bank --basis ruling \
+  --escrow-released 1000 --bond-returned 200 --bond-slashed 0
+```
+
 ## Quick example (TypeScript)
 
 ```ts
@@ -155,4 +168,4 @@ job.apply(contract); // "Contracted"
 
 Step 1 (the single-player build) is complete: schemas, the lifecycle library in both SDKs, the conformance suite, the append-only signed event log, fleets, delegated node keys, the agent package format, and the `asp` CLI with Claude Code, Codex CLI and OpenHands adapters.
 
-Stage 2 slice 1 (Bank + Market, local/single-machine, closed-loop credits) is done, including allocation mode and the dispute/ruling path. The credit ledger is real: `EventLog.balance`/`mint` and real balance enforcement in `projectBond`/`projectSettlement` (`packages/asp-log/src/log.ts`) — a Bond with a nonzero amount actually locks credits, insufficient balance is rejected, and Settlement actually moves them (pro-rata pay, unreleased escrow back to the principal, bond returned or slashed to compensate). `asp market` and `asp credits` (`packages/asp-cli/src/cli.ts`) expose the full job lifecycle as real local commands: assignment mode (Intent→Offer) and allocation mode (Call→several Proposals→a panel member picks one) both feed the same Contract→Bond→Mandate→Delivery→Accept/Reject→Settlement path, plus a redelivery and a neutral ruling (Courts, narrowly — MOCKS.md #4) for the dispute path. Real Courts (staked, randomly-drawn, conflict-free panels) and multi-tenant hosting are still later slices (`docs/backlog.md`).
+Stage 2 slice 1 (Bank + Market, local/single-machine, closed-loop credits) is done, including allocation mode, the dispute/ruling path, and a real Courts ruling panel. The credit ledger is real: `EventLog.balance`/`mint` and real balance enforcement in `projectBond`/`projectSettlement` (`packages/asp-log/src/log.ts`) — a Bond with a nonzero amount actually locks credits, insufficient balance is rejected, and Settlement actually moves them (pro-rata pay, unreleased escrow back to the principal, bond returned or slashed to compensate). `asp market` and `asp credits` (`packages/asp-cli/src/cli.ts`) expose the full job lifecycle as real local commands: assignment mode (Intent→Offer) and allocation mode (Call→several Proposals→a panel member picks one) both feed the same Contract→Bond→Mandate→Delivery→Accept/Reject→Settlement path, plus a redelivery and a ruling for the dispute path. That ruling now comes from a real Courts panel — a 17th signed record type, Juror (`spec/schemas/juror.schema.json`), lets a DID stake real credits to be eligible; `EventLog.drawPanel` draws a deterministic, conflict-free panel seeded from the dispute itself, and a ruling must be cosigned by a majority of it (`asp market juror register`, `asp market panel draw`, `asp market rule --cosign-by`). With zero jurors registered, rulings fall back to the original mocked behavior unchanged. Multi-tenant hosting, appeals, and slashing a juror's own stake are still later work (`docs/backlog.md`).

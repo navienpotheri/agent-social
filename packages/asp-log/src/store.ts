@@ -107,6 +107,17 @@ export interface EscrowRow {
   settled: boolean;
 }
 
+/**
+ * A DID's self-registered stake to be randomly drawn onto a dispute's ruling panel (Courts,
+ * `asp.juror/v0.2`). `staked` moves real credits: a later Juror record chained onto the first
+ * locks more (debit) or returns some/all (credit) — see `EventLog.projectJuror`.
+ */
+export interface JurorRow {
+  did: string;
+  head: string;
+  staked: number;
+}
+
 /** Reads and writes inside one append. Writes become visible only if the transaction commits. */
 export interface LogTx {
   logHead(): Promise<LogHead>;
@@ -122,6 +133,8 @@ export interface LogTx {
   getAccount(did: string): Promise<AccountRow | undefined>;
   getEscrow(contract: string): Promise<EscrowRow | undefined>;
   getMint(did: string): Promise<MintRow | undefined>;
+  getJuror(did: string): Promise<JurorRow | undefined>;
+  activeJurors(): Promise<JurorRow[]>;
 
   insertRecord(row: StoredRecord): Promise<void>;
   putChain(row: ChainRow): Promise<void>;
@@ -132,6 +145,7 @@ export interface LogTx {
   putAccount(row: AccountRow): Promise<void>;
   putEscrow(row: EscrowRow): Promise<void>;
   putMint(row: MintRow): Promise<void>;
+  putJuror(row: JurorRow): Promise<void>;
   setLogHead(head: LogHead): Promise<void>;
 }
 
@@ -154,5 +168,7 @@ export interface Store {
   getEscrow(contract: string): Promise<EscrowRow | undefined>;
   /** Every DID's cumulative minted total, as {did, balance}. Used to seed verify()'s replay. */
   allMints(): Promise<AccountRow[]>;
+  getJuror(did: string): Promise<JurorRow | undefined>;
+  activeJurors(): Promise<JurorRow[]>;
   close(): Promise<void>;
 }

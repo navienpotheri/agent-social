@@ -15,7 +15,7 @@ export const SPEC_DIR = fileURLToPath(new URL("../../../spec/", import.meta.url)
 /** Short record names ("mandate") that have a body schema. */
 export const RECORD_TYPES = [
   "intent", "call", "proposal", "offer", "contract", "mandate", "bond",
-  "checkpoint", "delivery", "attestation", "settlement", "passport", "lineage", "package", "fleet", "node",
+  "checkpoint", "delivery", "attestation", "settlement", "passport", "lineage", "package", "fleet", "node", "juror",
 ] as const;
 export type RecordType = (typeof RECORD_TYPES)[number];
 

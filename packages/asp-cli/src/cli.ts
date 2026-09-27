@@ -58,10 +58,20 @@
  *     most one redelivery).
  *   asp market accept|reject --contract <id> --by <did> [--about <id>] [--reasons <text> ...]
  *     A reject moves the job to Disputed, open to either a redelivery or a ruling.
- *   asp market rule --contract <id> --by <did> --verdict for_performer|for_principal|split --fault <did>=<permille> [...]
- *     Courts, narrowly: a neutral party's ruling on a Disputed job. The real Courts institution (a
- *     staked, randomly-drawn, conflict-free panel) is Stage 3; this is just the ruling step the
- *     lifecycle already supports either way.
+ *   asp market juror register --by <did> --stake <n>
+ *     Self-registers (or re-registers, chaining onto the last one) to be eligible for random draw
+ *     onto a Courts ruling panel, staking real credits from the ledger. A lower stake returns the
+ *     difference; 0 withdraws.
+ *   asp market juror show <did>
+ *   asp market panel draw --contract <id> [--size <n>]
+ *     Shows the panel a Disputed contract's ruling would draw — conflict-free (excludes the
+ *     principal, the performer, and anyone they sponsor), deterministic (seeded from the rejection
+ *     that opened the dispute, so it's reproducible, including by EventLog.verify()'s replay).
+ *     Default panel size 3.
+ *   asp market rule --contract <id> --by <did> [--cosign-by <did> ...] --verdict for_performer|for_principal|split --fault <did>=<permille> [...]
+ *     A ruling on a Disputed job. If at least one juror is registered anywhere, the issuer plus
+ *     cosigners must include a majority of the panel `panel draw` would show (panel_quorum);
+ *     otherwise any neutral DID may rule, unchanged from the original mocked Courts (MOCKS.md #4).
  *   asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked
  *                      --escrow-released <n> --bond-returned <n> --bond-slashed <n>
  *                      [--pro-rata <permille>] [--cites <id>] [--principal <did>]
@@ -170,6 +180,11 @@ const OPTIONS = {
   "budget-asked": { type: "string" },
   verdict: { type: "string" },
   fault: { type: "string", multiple: true },
+  "cosign-by": { type: "string", multiple: true },
+
+  // asp market juror|panel (Courts, a real staked random panel)
+  stake: { type: "string" },
+  size: { type: "string" },
 } as const;
 
 export async function main(argv: string[], io: Io): Promise<number> {
@@ -212,7 +227,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -557,9 +572,9 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
-  // Courts, narrowly: a neutral party's ruling on a Disputed job. The real Courts institution
-  // (a staked, randomly-drawn, conflict-free panel) is Stage 3 — MOCKS.md #4 already documents the
-  // mocked stand-in panel; this is just the ruling step the lifecycle already supports either way.
+  // Courts: a ruling on a Disputed job, drawn from the real staked juror panel (asp-log's
+  // drawPanel/checkRulingPanel) when at least one is registered anywhere; falls back to any
+  // neutral DID when none are (MOCKS.md #4's original mocked behavior, unchanged).
   if (sub === "rule") {
     const contract = need("contract");
     const by = need("by");
@@ -578,9 +593,36 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     }
     if (!Object.keys(fault).length) throw new UsageError("--fault <did>=<permille> is required, at least once");
     const body = { kind: "ruling", about: contract, verdict, fault };
-    const record = createRecord({ type: "attestation", issuer: by, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(by));
+    let record = createRecord({ type: "attestation", issuer: by, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(by));
+    for (const cosigner of v["cosign-by"] ?? []) record = cosign(record, signerFor(cosigner));
     const res = await local.append(record);
     io.out(`ruling ${res.id} on contract ${contract}: ${verdict} (log seq ${res.seq}, state ${res.state})`);
+    return 0;
+  }
+
+  // Courts: who is eligible to be drawn (real credits at stake) and who was actually drawn.
+  if (sub === "juror" && rest[0] === "register") {
+    const by = need("by");
+    const stake = Math.trunc(Number(need("stake")));
+    const current = await local.log.juror(by);
+    const body = { did: by, stake: { value: stake, unit: "credit" as const } };
+    const record = createRecord({ type: "juror", issuer: by, subject: by, prev: current?.head ?? null, body, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`juror ${res.id}: ${by} now stakes ${stake} credits (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "juror" && rest[0] === "show") {
+    const did = rest[1] ?? v.to;
+    if (!did) throw new UsageError("asp market juror show <did>");
+    const juror = await local.log.juror(did);
+    io.out(juror ? `${did}: staked ${juror.staked} credits` : `${did} is not a registered juror`);
+    return 0;
+  }
+  if (sub === "panel" && rest[0] === "draw") {
+    const contract = need("contract");
+    const size = v.size ? Math.trunc(Number(v.size)) : undefined;
+    const panel = await local.log.drawPanel(contract, size);
+    io.out(panel.length ? `drawn panel for ${contract}: ${panel.join(", ")}` : `no staked, conflict-free jurors registered; asp market rule accepts any neutral DID`);
     return 0;
   }
 
@@ -627,7 +669,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
-  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|accept|reject|rule|settle|show");
+  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|accept|reject|rule|settle|show|juror register|juror show|panel draw");
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */
