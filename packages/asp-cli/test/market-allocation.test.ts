@@ -88,11 +88,34 @@ test("Courts: a reject opens a dispute; a neutral ruling settles it without a re
   assert.equal(rule.code, 0, rule.err);
   assert.match(rule.out, /for_performer/);
 
-  const settle = await asp(f, ["market", "settle", "--contract", contractId, "--bank", BANK, "--basis", "ruling",
-    "--escrow-released", "1000", "--bond-returned", "200", "--bond-slashed", "0"]);
+  // --escrow-released/--bond-slashed omitted: derived from the ruling's fault (0‰ on the performer).
+  const settle = await asp(f, ["market", "settle", "--contract", contractId, "--bank", BANK, "--basis", "ruling", "--bond-returned", "200"]);
   assert.equal(settle.code, 0, settle.err);
   assert.match(settle.out, /state Settled/);
   assert.match((await asp(f, ["credits", "balance", CODER])).out, /1200 credits/, "the ruling favored the performer: paid in full, bond back");
+});
+
+test("Courts: settle derives escrow_released/bond_slashed from the ruling's fault when the caller omits them", async () => {
+  const f = await setup();
+  await asp(f, ["credits", "grant", "--to", ALICE, "--amount", "1000"]);
+  await asp(f, ["credits", "grant", "--to", CODER, "--amount", "200"]);
+  const intent = await asp(f, ["market", "intent", "--by", ALICE, "--purpose", "Fix it", "--budget", "1000", "--deadline", "2026-12-01T00:00:00Z"]);
+  const intentId = /^intent (\S+)/.exec(intent.out)![1];
+  const offer = await asp(f, ["market", "offer", "--by", CODER, "--intent", intentId, "--price", "1000", "--plan", "fix", "--eta", "2026-11-01T00:00:00Z"]);
+  const offerId = /^offer (\S+)/.exec(offer.out)![1];
+  const contract = await asp(f, ["market", "contract", "--principal", ALICE, "--bank", BANK, "--intent", intentId, "--offer", offerId]);
+  const contractId = /^contract (\S+):/.exec(contract.out)![1];
+  await asp(f, ["market", "bond", "--contract", contractId, "--backer", CODER, "--amount", "200", "--escrow-payer", ALICE, "--escrow-amount", "1000"]);
+  await asp(f, ["market", "mandate", "--contract", contractId, "--principal", ALICE, "--performer", CODER]);
+  await asp(f, ["market", "deliver", "--contract", contractId, "--by", CODER, "--summary", "First attempt"]);
+  await asp(f, ["market", "reject", "--contract", contractId, "--by", ALICE, "--reasons", "not good enough"]);
+  await asp(f, ["market", "rule", "--contract", contractId, "--by", PANEL, "--verdict", "split", "--fault", `${CODER}=400`, "--fault", `${ALICE}=600`]);
+
+  const settle = await asp(f, ["market", "settle", "--contract", contractId, "--bank", BANK, "--basis", "ruling", "--bond-returned", "120"]);
+  assert.equal(settle.code, 0, settle.err);
+  // 400 permille performer fault: released = floor(1000*600/1000)=600, slashed = ceil(200*400/1000)=80.
+  assert.match((await asp(f, ["credits", "balance", CODER])).out, /720 credits/, "paid 600, bond partly returned (120 of 200)");
+  assert.match((await asp(f, ["credits", "balance", ALICE])).out, /480 credits/, "unreleased escrow (400) plus the slashed bond (80)");
 });
 
 test("Courts: a reject can instead be followed by a redelivery, then acceptance settles normally", async () => {

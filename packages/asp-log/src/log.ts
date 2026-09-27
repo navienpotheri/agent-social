@@ -413,8 +413,8 @@ export class EventLog {
    */
   private async projectSettlement(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as {
-      contract: string; escrow_released: { value: number }; bond_returned: { value: number };
-      bond_slashed: { value: number }; fees?: { value: number };
+      contract: string; basis: string; cites?: string; escrow_released: { value: number };
+      bond_returned: { value: number }; bond_slashed: { value: number }; fees?: { value: number };
     };
     if (body.fees?.value) throw rule("fees_not_implemented", "settlement fees are not yet credited to anyone; omit fees for now");
     const escrow = await tx.getEscrow(body.contract);
@@ -429,6 +429,22 @@ export class EventLog {
 
     const contract = await tx.getRecord(body.contract);
     const cbody = contract!.record.body as { principal: string; performer: string };
+
+    // A ruling-backed Settlement can't declare whatever it likes: the ruling's fault map for the
+    // performer *is* the formula, so a bank can't rule one way and settle another (Courts becomes
+    // a real adjudication, not a rubber stamp on top of it — docs/backlog.md).
+    if (body.basis === "ruling") {
+      const ruling = body.cites ? await tx.getRecord(body.cites) : undefined;
+      const rbody = ruling?.record.body as { kind: string; fault?: Record<string, number> } | undefined;
+      const performerFault = rbody?.kind === "ruling" ? (rbody.fault?.[cbody.performer] ?? 0) : 0;
+      const expectedReleased = Math.floor((escrow.escrowLocked * (1000 - performerFault)) / 1000);
+      const expectedSlashed = Math.ceil((escrow.bondLocked * performerFault) / 1000);
+      if (body.escrow_released.value !== expectedReleased || body.bond_slashed.value !== expectedSlashed) {
+        throw rule("settlement_mismatches_ruling",
+          `the ruling puts ${performerFault}‰ fault on the performer: escrow_released must be ${expectedReleased} (got ${body.escrow_released.value}), bond_slashed must be ${expectedSlashed} (got ${body.bond_slashed.value})`);
+      }
+    }
+
     const escrowLeftover = escrow.escrowLocked - body.escrow_released.value;
     const bondLeftover = escrow.bondLocked - body.bond_returned.value - body.bond_slashed.value;
 

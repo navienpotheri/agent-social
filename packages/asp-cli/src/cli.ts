@@ -75,12 +75,15 @@
  *     cosigners must include a majority of the panel `panel draw` would show (panel_quorum);
  *     otherwise any neutral DID may rule, unchanged from the original mocked Courts (MOCKS.md #4).
  *   asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked
- *                      --escrow-released <n> --bond-returned <n> --bond-slashed <n>
+ *                      [--escrow-released <n>] [--bond-returned <n>] [--bond-slashed <n>]
  *                      [--pro-rata <permille>] [--cites <id>] [--principal <did>]
  *     Distributes exactly what the Bond locked: pay to the performer, unreleased escrow back to the
  *     principal, bond returned to the backer or slashed to compensate the principal. Never releases
  *     more than was locked (over_release). `revoked` is cosigned by the principal; `accepted`/`ruling`
- *     cite the acceptance or ruling Attestation (defaults to the chain's latest one).
+ *     cite the acceptance or ruling Attestation (defaults to the chain's latest one). For `ruling`,
+ *     omitting --escrow-released/--bond-slashed derives them from the cited ruling's fault on the
+ *     performer — the formula the log itself enforces (settlement_mismatches_ruling otherwise), so
+ *     you don't have to hand-compute it. --bond-returned still defaults to 0 either way.
  *   asp market show <contract>
  *     Prints the job's state, its full chain, and (once bonded) the ledger lock for that contract.
  *
@@ -639,19 +642,35 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const chain = await marketChain(local.log, contract);
     const head = chain.at(-1);
     if (!head) throw new Error(`contract ${contract} is not in the log`);
+
+    let escrowReleased = v["escrow-released"] !== undefined ? Math.trunc(Number(v["escrow-released"])) : undefined;
+    let bondSlashed = v["bond-slashed"] !== undefined ? Math.trunc(Number(v["bond-slashed"])) : undefined;
+    const bondReturned = Math.trunc(Number(v["bond-returned"] ?? "0"));
+    let cited: string | undefined = v.cites;
+
+    if (basis !== "revoked") {
+      cited ??= [...chain].reverse().find((s) => s.kind === "attestation")?.id;
+      if (!cited) throw new Error(`no attestation to cite; give --cites <id>, or run asp market accept/reject first`);
+    }
+    // A ruling's fault on the performer *is* the payout formula (asp-log's checkRulingPanel guard,
+    // docs/spec-deltas.md S13) — derive it here rather than making the caller compute it by hand.
+    if (basis === "ruling" && (escrowReleased === undefined || bondSlashed === undefined)) {
+      const [rulingRec, escrow] = await Promise.all([local.log.get(cited!), local.log.escrow(contract)]);
+      const contractRec = await local.log.get(contract);
+      const performer = (contractRec!.record.body as any).performer;
+      const fault = (rulingRec?.record.body as any)?.fault?.[performer] ?? 0;
+      escrowReleased ??= Math.floor((escrow!.escrowLocked * (1000 - fault)) / 1000);
+      bondSlashed ??= Math.ceil((escrow!.bondLocked * fault) / 1000);
+    }
+
     const body: Record<string, unknown> = {
       contract, basis,
-      escrow_released: { value: Math.trunc(Number(v["escrow-released"] ?? "0")), unit: "credit" },
-      bond_returned: { value: Math.trunc(Number(v["bond-returned"] ?? "0")), unit: "credit" },
-      bond_slashed: { value: Math.trunc(Number(v["bond-slashed"] ?? "0")), unit: "credit" },
+      escrow_released: { value: escrowReleased ?? 0, unit: "credit" },
+      bond_returned: { value: bondReturned, unit: "credit" },
+      bond_slashed: { value: bondSlashed ?? 0, unit: "credit" },
     };
-    if (basis === "revoked") {
-      body.pro_rata_permille = Math.trunc(Number(v["pro-rata"] ?? "0"));
-    } else {
-      const cited = v.cites ?? [...chain].reverse().find((s) => s.kind === "attestation")?.id;
-      if (!cited) throw new Error(`no attestation to cite; give --cites <id>, or run asp market accept/reject first`);
-      body.cites = cited;
-    }
+    if (basis === "revoked") body.pro_rata_permille = Math.trunc(Number(v["pro-rata"] ?? "0"));
+    else body.cites = cited;
     let record = createRecord({ type: "settlement", issuer: bank, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(bank));
     if (basis === "revoked") {
       const contractRec = await local.log.get(contract);
