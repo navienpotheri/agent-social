@@ -2,8 +2,11 @@
 /**
  * asp: the Agent Social portability tool.
  *
- *   asp identity new --kind human --did <did>
- *   asp identity new --kind agent --did <did> --sponsor <did> [--fleet <did>] [--purpose <text>]
+ *   asp identity new --kind human (--did <did> | --method did:key) [--sponsor <did>]
+ *   asp identity new --kind agent (--did <did> | --method did:key) --sponsor <did> [--fleet <did>] [--purpose <text>]
+ *     --did <did> uses a DID you already have (e.g. did:web:your-own-domain:...). --method did:key
+ *     generates a fresh key and derives a self-certifying DID from it: no domain to bring, lose
+ *     access to, or depend on anyone else for.
  *   asp identity show <did>
  *   asp pack --runtime claude-code|codex|openhands --agent <did> [--project <dir>] [--include-user] [--out <dir>]
  *   asp verify <package> [--json]
@@ -31,7 +34,10 @@ import { copyFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync,
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { b64urlDecode, b64urlEncode, createRecord, didOf, publicKeyFromSeed, randomSeed, type AspRecord } from "@agent-social/asp-core";
+import {
+  b64urlDecode, b64urlEncode, createRecord, didKeyFromPublicKey, didOf, publicKeyFromSeed, randomSeed,
+  type AspRecord, type Signer,
+} from "@agent-social/asp-core";
 import {
   ADAPTERS, Keystore, LocalLog, appendCheckpoint, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   readCheckpoints, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
@@ -59,6 +65,7 @@ const OPTIONS = {
   model: { type: "string" },
   kind: { type: "string" },
   did: { type: "string" },
+  method: { type: "string" },
   sponsor: { type: "string" },
   fleet: { type: "string" },
   purpose: { type: "string" },
@@ -121,24 +128,39 @@ type Need = (name: keyof typeof OPTIONS) => string;
 
 async function identityNew(home: string, v: Values, need: Need, io: Io): Promise<number> {
   const kind = need("kind");
-  const did = need("did");
+  if (kind !== "human" && kind !== "agent") throw new UsageError("--kind is human or agent");
   const keys = new Keystore(home);
   const log = await LocalLog.open(home);
-  if (await log.log.passport(did)) throw new Error(`${did} already has a passport`);
-  if (kind !== "human" && kind !== "agent") throw new UsageError("--kind is human or agent");
 
-  let issuerSigner;
-  let body: Record<string, unknown>;
+  // did:web (--did) requires a domain you control; did:key (--method did:key) is self-certifying —
+  // derived from a fresh key, so there is no domain to bring, lose, or depend on anyone else for
+  // (2026-09-27: raised against did:web-only identity undercutting "take your agent and leave").
+  let did: string;
+  let signer: Signer & { publicKey: Uint8Array };
+  if (v.did) {
+    did = v.did;
+    const kid = `${did}#key-1`;
+    signer = keys.find(kid) ?? keys.create(kid);
+  } else if (v.method === "did:key") {
+    const seed = randomSeed();
+    did = didKeyFromPublicKey(publicKeyFromSeed(seed));
+    signer = keys.createFromSeed(`${did}#key-1`, seed);
+  } else {
+    throw new UsageError("give --did <did> (e.g. did:web:your-domain:...), or --method did:key for a self-certifying identity that needs no domain");
+  }
+  if (await log.log.passport(did)) throw new Error(`${did} already has a passport`);
   const kid = `${did}#key-1`;
+
+  let issuerSigner: Signer & { publicKey: Uint8Array };
+  let body: Record<string, unknown>;
   if (kind === "human") {
-    const signer = keys.find(kid) ?? keys.create(kid);
     issuerSigner = signer;
     body = { did, kind, keys: [{ id: kid, type: "Ed25519", public_key: b64urlEncode(signer.publicKey) }] };
   } else {
     const sponsor = need("sponsor");
-    issuerSigner = keys.forDid(sponsor);
-    if (!issuerSigner) throw new Error(`no key for sponsor ${sponsor} in ${home}; create it with: asp identity new --kind human --did ${sponsor}`);
-    const signer = keys.find(kid) ?? keys.create(kid);
+    const sponsorSigner = keys.forDid(sponsor);
+    if (!sponsorSigner) throw new Error(`no key for sponsor ${sponsor} in ${home}; create it with: asp identity new --kind human --did ${sponsor}`);
+    issuerSigner = sponsorSigner;
     body = {
       did, kind, keys: [{ id: kid, type: "Ed25519", public_key: b64urlEncode(signer.publicKey) }],
       sponsor, mentor: sponsor, tier: 1,

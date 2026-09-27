@@ -23,8 +23,13 @@ export class Keystore {
   }
 
   create(kid: string): Signer & { publicKey: Uint8Array } {
+    return this.createFromSeed(kid, randomSeed());
+  }
+
+  /** For a did:key identity, where the DID must be derived from the key before its kid is known. */
+  createFromSeed(kid: string, seed: Uint8Array): Signer & { publicKey: Uint8Array } {
     if (this.find(kid)) throw new Error(`key ${kid} already exists`);
-    const signer = signerFromSeed(kid, randomSeed());
+    const signer = signerFromSeed(kid, seed);
     mkdirSync(this.dir, { recursive: true });
     writeFileSync(join(this.dir, `${slug(kid)}.json`), JSON.stringify({ kid, seed_hex: Buffer.from(signer.seed).toString("hex") }, null, 2), { mode: 0o600 });
     return signer;

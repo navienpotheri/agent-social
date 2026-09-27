@@ -17,7 +17,7 @@ This repo holds the protocol's machine-readable spec, the SDKs and the conforman
 | `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run`, `orchestrate` (a fleet of parallel nodes with one consolidated memory update), `log verify`, `log checkpoint` |
 | `python/` | Python SDK with the same API |
 | `conformance/` | Shared test vectors and their generator |
-| `docs/spec-deltas.md` | What the v0.2 spec needs from the build: 5 decisions, 11 additions |
+| `docs/spec-deltas.md` | What the v0.2 spec needs from the build: 5 decisions (resolved 2026-09-27) and 11 additions |
 | `docs/implementation-notes.md` | How the build works where the spec is silent |
 | `docs/backlog.md` | Known gaps |
 | `MOCKS.md` | Every mock or placeholder to replace before Stage 2 |
@@ -68,6 +68,12 @@ Create your identity and an agent you sponsor, pack the agent from a Claude Code
 
 ```bash
 npm run asp -- identity new --kind human --did did:web:example.com:users:you
+```
+
+Or, for a self-certifying identity that needs no domain (recommended if you don't want to run one):
+
+```bash
+npm run asp -- identity new --kind human --method did:key
 ```
 
 ```bash

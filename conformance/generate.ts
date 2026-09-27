@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import {
-  b64urlEncode, cosign, createRecord, fullType, publicKeyFromSeed, sha256Id, signingBytes,
+  b64urlEncode, cosign, createRecord, didKeyFromPublicKey, fullType, publicKeyFromSeed, sha256Id, signingBytes,
   type AspRecord, type RecordType, type Signer,
 } from "../packages/asp-core/src/index.ts";
 import { signBytes } from "../packages/asp-core/src/crypto.ts";
@@ -42,6 +42,7 @@ const keysFile = {
     kid: p.kid,
     seed_hex: Buffer.from(p.seed).toString("hex"),
     public_key: b64urlEncode(publicKeyFromSeed(p.seed)),
+    did_key: didKeyFromPublicKey(publicKeyFromSeed(p.seed)),
   })),
 };
 

@@ -99,3 +99,16 @@ than trusting the value stored in the file; a checkpoint that is validly signed 
 wrong hash is still caught. Nothing publishes checkpoints anywhere yet — copying one out (email, a public
 post, handing it to a counterparty) is what would make it externally checkable.
 
+## did:key (`packages/asp-core/src/didkey.ts`, `python/src/asp_core/didkey.py`)
+
+A self-certifying DID for anyone who doesn't want to run their own domain: `didKeyFromPublicKey`
+derives `did:key:z...` directly from a raw 32-byte Ed25519 public key (multicodec ed25519-pub, 0xed01,
+base58btc-encoded), and `publicKeyFromDidKey` recovers the key by decoding the DID itself -- no network
+resolution, unlike did:web. Every Ed25519 did:key starts `did:key:z6Mk`, a fixed artifact of the
+multicodec prefix. Both SDKs are checked against the same seeds in `conformance/keys.json`'s `did_key`
+field, so they're proven to agree byte for byte, not just internally consistent.
+
+`asp identity new --method did:key` generates a fresh key and derives its DID from it, instead of
+taking `--did`. Everything downstream (passports, packages, `pack`/`run`/`verify`) treats a did:key
+identity exactly like a did:web one -- the DID's schema pattern already accepted any method.
+

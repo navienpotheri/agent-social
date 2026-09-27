@@ -20,7 +20,7 @@ The rest of what the build had to settle is in [implementation-notes.md](impleme
 |---|---|---|
 | S1 | Core objects: envelope [1, 2, 4] | Add `issued_at` and optional `cosigs`. `sig` is `{alg, kid, value}`. `id` = sha256 of the RFC 8785 canonical form of every field except id and signatures. Type strings look like `asp.mandate/v0.2`. |
 | S2 | Core objects: numbers [3] | Signed records carry integers only; fractions are in permille. |
-| S3 | Registry: identity [6] | v0.1 uses did:web; did:asp comes later without a breaking change. |
+| S3 | Registry: identity [6] | v0.1 uses did:web for anyone who brings their own domain, and did:key (self-certifying, no domain) for anyone who doesn't; did:asp comes later without a breaking change. Added 2026-09-27, alongside the D1-D5 decisions, after the strategy review flagged that did:web-only identity ties "take your agent and leave" to whoever hosts the domain. |
 | S4 | Core objects: record types [8, 9] | Passport, lineage edge, agent package, fleet and node become signed record types (16 in all). Rebirth has none, by definition. |
 | S5 | Bank: escrow [10] | The escrow lock travels inside the Bond record, since each transition emits one object. |
 | S6 | Coordination: Contract [11] | The principal issues it, the performer co-signs it, and it is the first record of the job's chain. Intent/Offer (or Call/Proposal) are referenced, not chained. |
