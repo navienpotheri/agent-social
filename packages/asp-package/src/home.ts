@@ -60,16 +60,30 @@ export class Keystore {
 export class LocalLog {
   readonly log: EventLog;
   private readonly file: string;
+  private readonly mintsFile: string;
 
-  private constructor(file: string, log: EventLog) {
+  private constructor(file: string, mintsFile: string, log: EventLog) {
     this.file = file;
+    this.mintsFile = mintsFile;
     this.log = log;
   }
 
   static async open(home: string): Promise<LocalLog> {
     mkdirSync(home, { recursive: true });
     const file = join(home, "log.ndjson");
+    const mintsFile = join(home, "mints.ndjson");
     const log = new EventLog(new MemoryStore());
+    // EventLog.mint (MOCKS.md #13) is deliberately not a signed record, so it isn't in log.ndjson;
+    // replay it from its own file first, before the log itself — a Bond or Settlement record in
+    // log.ndjson may depend on a balance that a mint granted before it, so the balance must already
+    // be there by the time that record replays.
+    if (existsSync(mintsFile)) {
+      for (const line of readFileSync(mintsFile, "utf8").split("\n")) {
+        if (!line.trim()) continue;
+        const { did, amount } = JSON.parse(line);
+        await log.mint(did, amount);
+      }
+    }
     if (existsSync(file)) {
       for (const line of readFileSync(file, "utf8").split("\n")) {
         if (!line.trim()) continue;
@@ -77,7 +91,7 @@ export class LocalLog {
         await log.appendAt(record, appendedAt);
       }
     }
-    return new LocalLog(file, log);
+    return new LocalLog(file, mintsFile, log);
   }
 
   async append(record: AspRecord): Promise<AppendResult> {
@@ -85,5 +99,12 @@ export class LocalLog {
     const res = await this.log.appendAt(record, appendedAt);
     if (!res.duplicate) appendFileSync(this.file, JSON.stringify({ appendedAt, record }) + "\n");
     return res;
+  }
+
+  /** Grants credits (EventLog.mint) and persists the grant so it survives the next `open`. */
+  async mint(did: string, amount: number): Promise<number> {
+    const balance = await this.log.mint(did, amount);
+    appendFileSync(this.mintsFile, JSON.stringify({ did, amount }) + "\n");
+    return balance;
   }
 }

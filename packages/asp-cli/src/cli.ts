@@ -27,6 +27,31 @@
  *     D5): a portable, externally-checkable proof of the log's state at that point, published nowhere
  *     by asp itself. `log verify` re-checks every stored checkpoint against an independent replay.
  *
+ *   asp credits grant --to <did> --amount <n>
+ *     Bootstraps a DID's credit balance. Local, unsigned, not part of the tamper-evident log — a
+ *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
+ *   asp credits balance <did>
+ *
+ *   asp market intent --by <did> --purpose <text> [--criteria <text> ...] --budget <n> --deadline <iso> [--verification deterministic|principal|arbiter]
+ *   asp market offer --by <did> --intent <id> --price <n> --plan <text> --eta <iso> [--bond-offered <n>]
+ *   asp market contract --principal <did> --performer <did> --bank <did> --intent <id> --offer <id>
+ *     Issued by the principal, co-signed by the performer. purpose/criteria/deadline/verification come
+ *     from the Intent; price comes from the Offer.
+ *   asp market bond --contract <id> --backer <did> --amount <n> --escrow-payer <did> --escrow-amount <n>
+ *     Locks real credits: debits both the escrow payer and the backer for real (rejects with
+ *     insufficient_balance rather than starting a job uncovered).
+ *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--spend-cap <n>]
+ *   asp market deliver --contract <id> --by <did> --summary <text>
+ *   asp market accept|reject --contract <id> --by <did> [--about <id>] [--reasons <text> ...]
+ *   asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked
+ *                      --escrow-released <n> --bond-returned <n> --bond-slashed <n>
+ *                      [--pro-rata <permille>] [--cites <id>] [--principal <did>]
+ *     Distributes exactly what the Bond locked: pay to the performer, unreleased escrow back to the
+ *     principal, bond returned to the backer or slashed to compensate the principal. Never releases
+ *     more than was locked (over_release). `revoked` is cosigned by the principal.
+ *   asp market show <contract>
+ *     Prints the job's state, its full chain, and (once bonded) the ledger lock for that contract.
+ *
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
 import { spawn } from "node:child_process";
@@ -35,7 +60,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
-  b64urlDecode, b64urlEncode, createRecord, didKeyFromPublicKey, didOf, publicKeyFromSeed, randomSeed,
+  b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, publicKeyFromSeed, randomSeed, sha256Id,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import {
@@ -83,6 +108,39 @@ const OPTIONS = {
   task: { type: "string", multiple: true },
   "max-parallel": { type: "string" },
   as: { type: "string" },
+
+  // asp credits / asp market (Stage 2 slice 1)
+  to: { type: "string" },
+  amount: { type: "string" },
+  by: { type: "string" },
+  price: { type: "string" },
+  budget: { type: "string" },
+  deadline: { type: "string" },
+  verification: { type: "string" },
+  criteria: { type: "string", multiple: true },
+  intent: { type: "string" },
+  offer: { type: "string" },
+  plan: { type: "string" },
+  eta: { type: "string" },
+  "bond-offered": { type: "string" },
+  contract: { type: "string" },
+  principal: { type: "string" },
+  performer: { type: "string" },
+  bank: { type: "string" },
+  backer: { type: "string" },
+  "escrow-payer": { type: "string" },
+  "escrow-amount": { type: "string" },
+  scopes: { type: "string", multiple: true },
+  "spend-cap": { type: "string" },
+  summary: { type: "string" },
+  about: { type: "string" },
+  reasons: { type: "string", multiple: true },
+  basis: { type: "string" },
+  "escrow-released": { type: "string" },
+  "bond-returned": { type: "string" },
+  "bond-slashed": { type: "string" },
+  "pro-rata": { type: "string" },
+  cites: { type: "string" },
 } as const;
 
 export async function main(argv: string[], io: Io): Promise<number> {
@@ -114,6 +172,9 @@ export async function main(argv: string[], io: Io): Promise<number> {
     if (cmd === "orchestrate") return await orchestrate(home, sub, v, need, io);
     if (cmd === "log" && sub === "verify") return await logVerify(home, io);
     if (cmd === "log" && sub === "checkpoint") return await logCheckpoint(home, v, need, io);
+    if (cmd === "credits" && sub === "grant") return await creditsGrant(home, v, need, io);
+    if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
+    if (cmd === "market") return await market(home, sub, rest, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
   } catch (e) {
     io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${(e as Error).message}`);
@@ -122,7 +183,8 @@ export async function main(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "task" ? string[] : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
+  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" ? string[]
+    : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
 
@@ -224,6 +286,223 @@ async function logVerify(home: string, io: Io): Promise<number> {
     io.out(`  checkpoint seq ${cp.seq} (${cp.signedAt}, ${cp.signer}): ${sigOk && hashOk ? "ok" : `FAILED (${problem})`}`);
   }
   return allOk ? 0 : 1;
+}
+
+/**
+ * Bootstraps a DID's credit balance (MOCKS.md #13): local, unsigned, not part of the tamper-evident
+ * log — a closed-loop ledger with no cash-out still needs some way to get the first credits in.
+ */
+async function creditsGrant(home: string, v: Values, need: Need, io: Io): Promise<number> {
+  const to = need("to");
+  const amount = Math.trunc(Number(need("amount")));
+  if (!Number.isFinite(amount) || amount < 0) throw new UsageError("--amount must be a non-negative integer");
+  const local = await LocalLog.open(home);
+  const balance = await local.mint(to, amount);
+  io.out(`granted ${amount} credits to ${to} (not a signed record; local test/bootstrap only, see MOCKS.md #13)`);
+  io.out(`  balance ${balance}`);
+  return 0;
+}
+
+async function creditsBalance(home: string, did: string | undefined, io: Io): Promise<number> {
+  if (!did) throw new UsageError("asp credits balance <did>");
+  const local = await LocalLog.open(home);
+  io.out(`${did}: ${await local.log.balance(did)} credits`);
+  return 0;
+}
+
+/** The full chain for a contract, in order, with each record's short type for convenience. */
+async function marketChain(log: LocalLog["log"], contract: string) {
+  const records = await log.chain(contract);
+  return records.map((s) => ({ ...s, kind: s.record.type.replace(/^asp\./, "").replace(/\/v0\.2$/, "") }));
+}
+
+const artifactRefOf = (text: string) => ({ uri: `asp://local/${Buffer.from(text).toString("hex").slice(0, 16)}`, sha256: sha256Id(new TextEncoder().encode(text)) });
+
+/** asp market intent|offer|contract|bond|mandate|deliver|accept|reject|settle|show */
+async function market(home: string, sub: string | undefined, rest: string[], v: Values, need: Need, io: Io): Promise<number> {
+  const keys = new Keystore(home);
+  const local = await LocalLog.open(home);
+  const signerFor = (did: string) => {
+    const s = keys.forDid(did);
+    if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}`);
+    return s;
+  };
+
+  if (sub === "intent") {
+    const by = need("by");
+    const body = {
+      purpose: need("purpose"),
+      acceptance_criteria: v.criteria?.length ? v.criteria : [need("purpose")],
+      budget: { value: Math.trunc(Number(need("budget"))), unit: "credit" as const },
+      deadline: need("deadline"),
+      verification: { mode: (v.verification ?? "principal") as "deterministic" | "principal" | "arbiter" },
+    };
+    const record = createRecord({ type: "intent", issuer: by, subject: by, prev: null, body, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`intent ${res.id} by ${by} (log seq ${res.seq})`);
+    return 0;
+  }
+
+  if (sub === "offer") {
+    const by = need("by");
+    const intent = need("intent");
+    const body = {
+      intent, price: { value: Math.trunc(Number(need("price"))), unit: "credit" as const },
+      plan: need("plan"), eta: need("eta"),
+      bond_offered: { value: Math.trunc(Number(v["bond-offered"] ?? "0")), unit: "credit" as const },
+    };
+    const record = createRecord({ type: "offer", issuer: by, subject: by, prev: null, body, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`offer ${res.id} by ${by} on intent ${intent} (log seq ${res.seq})`);
+    return 0;
+  }
+
+  if (sub === "contract") {
+    const principal = need("principal");
+    const performer = need("performer");
+    const bank = need("bank");
+    const intentId = need("intent");
+    const offerId = need("offer");
+    const intentRec = await local.log.get(intentId);
+    const offerRec = await local.log.get(offerId);
+    if (!intentRec) throw new Error(`intent ${intentId} is not in the log`);
+    if (!offerRec) throw new Error(`offer ${offerId} is not in the log`);
+    const intentBody = intentRec.record.body as any;
+    const offerBody = offerRec.record.body as any;
+    const body = {
+      principal, performer, bank, purpose: intentBody.purpose, acceptance_criteria: intentBody.acceptance_criteria,
+      price: offerBody.price, verification: intentBody.verification.mode, deadline: intentBody.deadline,
+      basis: { intent: intentId, offer: offerId },
+    };
+    let record = createRecord({ type: "contract", issuer: principal, subject: performer, prev: null, body, issued_at: now() }, signerFor(principal));
+    record = cosign(record, signerFor(performer));
+    const res = await local.append(record);
+    io.out(`contract ${res.id}: ${principal} -> ${performer}, price ${offerBody.price.value} credits (log seq ${res.seq}, state ${res.state})`);
+    return 0;
+  }
+
+  if (sub === "bond") {
+    const contract = need("contract");
+    const backer = need("backer");
+    const escrowPayer = need("escrow-payer");
+    const body = {
+      contract, backer, amount: { value: Math.trunc(Number(need("amount"))), unit: "credit" as const },
+      escrow: { payer: escrowPayer, amount: { value: Math.trunc(Number(need("escrow-amount"))), unit: "credit" as const } },
+      slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] as const,
+    };
+    const record = createRecord({ type: "bond", issuer: backer, subject: contract, prev: contract, body, issued_at: now() }, signerFor(backer));
+    const res = await local.append(record);
+    io.out(`bond ${res.id} on contract ${contract} (log seq ${res.seq}, state ${res.state})`);
+    io.out(`  locked: ${body.escrow.amount.value} escrow from ${escrowPayer}, ${body.amount.value} bond from ${backer}`);
+    return 0;
+  }
+
+  if (sub === "mandate") {
+    const contract = need("contract");
+    const principal = need("principal");
+    const performer = need("performer");
+    const contractRec = await local.log.get(contract);
+    if (!contractRec) throw new Error(`contract ${contract} is not in the log`);
+    const cbody = contractRec.record.body as any;
+    const chain = await local.log.chain(contract);
+    const bond = chain.find((s) => s.record.type === "asp.bond/v0.2");
+    if (!bond) throw new Error(`contract ${contract} has no Bond yet; run asp market bond first`);
+    const body = {
+      contract, purpose: cbody.purpose, floor: "asp.floor/v1" as const,
+      scopes: v.scopes?.length ? v.scopes : ["repo.read"],
+      forbidden_means: [] as string[],
+      spend: { cap: Math.trunc(Number(v["spend-cap"] ?? "0")), unit: "credit" as const },
+      irreversible: { policy: "checkpoint" as const },
+      subcontract: { allowed: false },
+      nodes: { max_parallel: 1 },
+      learning: { scope: "harness" as const, share_to_commons: false },
+      self_modification: "principal_approves" as const,
+      overlay: null, checkpoints: [] as string[], expires: cbody.deadline, revocable: true as const,
+    };
+    const record = createRecord({ type: "mandate", issuer: principal, subject: performer, prev: bond.id, body, issued_at: now() }, signerFor(principal));
+    const res = await local.append(record);
+    io.out(`mandate ${res.id} on contract ${contract} (log seq ${res.seq}, state ${res.state})`);
+    return 0;
+  }
+
+  if (sub === "deliver") {
+    const contract = need("contract");
+    const by = need("by");
+    const chain = await marketChain(local.log, contract);
+    const head = chain.at(-1);
+    if (!head) throw new Error(`contract ${contract} is not in the log`);
+    const summary = need("summary");
+    const body = {
+      contract, result: { summary, artifacts: [] as { uri: string; sha256: string }[] },
+      evidence: { trace: artifactRefOf(summary), forecasts: [] as unknown[] },
+    };
+    const record = createRecord({ type: "delivery", issuer: by, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`delivery ${res.id} on contract ${contract} (log seq ${res.seq}, state ${res.state})`);
+    return 0;
+  }
+
+  if (sub === "accept" || sub === "reject") {
+    const contract = need("contract");
+    const by = need("by");
+    const chain = await marketChain(local.log, contract);
+    const head = chain.at(-1);
+    const delivery = [...chain].reverse().find((s) => s.kind === "delivery");
+    if (!head) throw new Error(`contract ${contract} is not in the log`);
+    if (!delivery) throw new Error(`contract ${contract} has no Delivery yet; run asp market deliver first`);
+    const about = v.about ?? delivery.id;
+    const body: Record<string, unknown> = { kind: "acceptance", about, verdict: sub === "accept" ? "accepted" : "rejected" };
+    if (sub === "reject") body.reasons = v.reasons?.length ? v.reasons : ["rejected"];
+    const record = createRecord({ type: "attestation", issuer: by, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`${sub === "accept" ? "acceptance" : "rejection"} ${res.id} on contract ${contract} (log seq ${res.seq}, state ${res.state})`);
+    return 0;
+  }
+
+  if (sub === "settle") {
+    const contract = need("contract");
+    const bank = need("bank");
+    const basis = need("basis") as "accepted" | "ruling" | "revoked";
+    const chain = await marketChain(local.log, contract);
+    const head = chain.at(-1);
+    if (!head) throw new Error(`contract ${contract} is not in the log`);
+    const body: Record<string, unknown> = {
+      contract, basis,
+      escrow_released: { value: Math.trunc(Number(v["escrow-released"] ?? "0")), unit: "credit" },
+      bond_returned: { value: Math.trunc(Number(v["bond-returned"] ?? "0")), unit: "credit" },
+      bond_slashed: { value: Math.trunc(Number(v["bond-slashed"] ?? "0")), unit: "credit" },
+    };
+    if (basis === "revoked") {
+      body.pro_rata_permille = Math.trunc(Number(v["pro-rata"] ?? "0"));
+    } else {
+      const cited = v.cites ?? [...chain].reverse().find((s) => s.kind === "attestation")?.id;
+      if (!cited) throw new Error(`no attestation to cite; give --cites <id>, or run asp market accept/reject first`);
+      body.cites = cited;
+    }
+    let record = createRecord({ type: "settlement", issuer: bank, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(bank));
+    if (basis === "revoked") {
+      const contractRec = await local.log.get(contract);
+      const principal = (contractRec!.record.body as any).principal;
+      record = cosign(record, signerFor(v.principal ?? principal));
+    }
+    const res = await local.append(record);
+    io.out(`settlement ${res.id} on contract ${contract} (log seq ${res.seq}, state ${res.state})`);
+    return 0;
+  }
+
+  if (sub === "show") {
+    const contract = rest[0] ?? v.contract;
+    if (!contract) throw new UsageError("asp market show <contract>");
+    const chain = await marketChain(local.log, contract);
+    const info = await local.log.chainInfo(contract);
+    io.out(`contract ${contract}: state ${info?.state ?? "unknown"}, ${chain.length} records`);
+    for (const s of chain) io.out(`  seq ${s.seq}  ${s.kind.padEnd(11)} ${s.id}`);
+    const escrow = await local.log.escrow(contract);
+    if (escrow) io.out(`  escrow: ${escrow.escrowLocked} locked from ${escrow.escrowPayer}, ${escrow.bondLocked} bond from ${escrow.backer}, settled: ${escrow.settled}`);
+    return 0;
+  }
+
+  throw new UsageError("asp market intent|offer|contract|bond|mandate|deliver|accept|reject|settle|show");
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */

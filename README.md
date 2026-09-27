@@ -14,7 +14,7 @@ This repo holds the protocol's machine-readable spec, the SDKs and the conforman
 | `packages/asp-core/` | TypeScript SDK: canonical JSON, Ed25519 records, schema validation, `Job` lifecycle |
 | `packages/asp-log/` | Append-only signed event log: in-memory and Postgres stores; a registry of passports, fleets and delegated node keys; a credit ledger (Bank) with real Bond/Settlement balance enforcement; log hash chain; full-log verification |
 | `packages/asp-package/` | Agent packages: the runtime-neutral harness, runtime adapters (Claude Code, Codex CLI, OpenHands), writing and verifying packages, and the local keystore and log in `~/.asp` |
-| `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run`, `orchestrate` (a fleet of parallel nodes with one consolidated memory update), `log verify`, `log checkpoint` |
+| `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run`, `orchestrate` (a fleet of parallel nodes with one consolidated memory update), `log verify`, `log checkpoint`, `credits grant\|balance`, `market intent\|offer\|contract\|bond\|mandate\|deliver\|accept\|reject\|settle\|show` |
 | `python/` | Python SDK with the same API |
 | `conformance/` | Shared test vectors and their generator |
 | `docs/spec-deltas.md` | What the v0.2 spec needs from the build: 5 decisions (resolved 2026-09-27) and 11 additions |
@@ -112,6 +112,27 @@ npm run asp -- log checkpoint --as did:web:example.com:users:you
 
 `asp log verify` re-checks every stored checkpoint against an independent replay, not just its signature.
 
+Run a real job end to end, with real credits (Stage 2 slice 1 — see MOCKS.md #13 for what `credits grant` is and isn't):
+
+```bash
+npm run asp -- credits grant --to did:web:example.com:users:you --amount 1000
+npm run asp -- market intent --by did:web:example.com:users:you --purpose "Fix the flaky test" \
+  --criteria "test passes 50 times" --budget 1000 --deadline 2026-12-01T00:00:00Z
+npm run asp -- market offer --by did:web:example.com:agents:coder --intent <intent-id> \
+  --price 1000 --plan "fix the race" --eta 2026-11-01T00:00:00Z
+npm run asp -- market contract --principal did:web:example.com:users:you --performer did:web:example.com:agents:coder \
+  --bank did:web:example.com:bank --intent <intent-id> --offer <offer-id>
+npm run asp -- market bond --contract <contract-id> --backer did:web:example.com:agents:coder \
+  --amount 200 --escrow-payer did:web:example.com:users:you --escrow-amount 1000
+npm run asp -- market mandate --contract <contract-id> --principal did:web:example.com:users:you --performer did:web:example.com:agents:coder
+npm run asp -- market deliver --contract <contract-id> --by did:web:example.com:agents:coder --summary "Fixed the race"
+npm run asp -- market accept --contract <contract-id> --by did:web:example.com:users:you
+npm run asp -- market settle --contract <contract-id> --bank did:web:example.com:bank --basis accepted \
+  --escrow-released 1000 --bond-returned 200 --bond-slashed 0
+npm run asp -- market show <contract-id>
+npm run asp -- credits balance did:web:example.com:agents:coder   # 1200: paid, plus its bond back
+```
+
 ## Quick example (TypeScript)
 
 ```ts
@@ -134,4 +155,4 @@ job.apply(contract); // "Contracted"
 
 Step 1 (the single-player build) is complete: schemas, the lifecycle library in both SDKs, the conformance suite, the append-only signed event log, fleets, delegated node keys, the agent package format, and the `asp` CLI with Claude Code, Codex CLI and OpenHands adapters.
 
-Stage 2 slice 1 (Bank + Market, local/single-machine, closed-loop credits) is underway. The credit ledger is built: `EventLog.balance`/`mint` and real balance enforcement in `projectBond`/`projectSettlement` (`packages/asp-log/src/log.ts`) — a Bond with a nonzero amount now actually locks credits, insufficient balance is rejected, and Settlement actually moves them (pro-rata pay, unreleased escrow back to the principal, bond returned or slashed to compensate). The Market CLI (`asp market ...`, the full job lifecycle as real local commands) is next.
+Stage 2 slice 1 (Bank + Market, local/single-machine, closed-loop credits) is done. The credit ledger is real: `EventLog.balance`/`mint` and real balance enforcement in `projectBond`/`projectSettlement` (`packages/asp-log/src/log.ts`) — a Bond with a nonzero amount actually locks credits, insufficient balance is rejected, and Settlement actually moves them (pro-rata pay, unreleased escrow back to the principal, bond returned or slashed to compensate). `asp market` and `asp credits` (`packages/asp-cli/src/cli.ts`) expose the full job lifecycle — Intent, Offer, Contract, Bond, Mandate, Delivery, Accept/Reject, Settlement — as real local commands over two (or more) real identities. Allocation mode (Call→Proposal→panel), Courts, and multi-tenant hosting are still later slices (`docs/backlog.md`).
