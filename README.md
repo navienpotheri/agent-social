@@ -20,7 +20,7 @@ This repo holds the protocol's machine-readable spec, the SDKs and the conforman
 | `docs/spec-deltas.md` | What the v0.2 spec needs from the build: 5 decisions (resolved 2026-09-27) and 11 additions |
 | `docs/implementation-notes.md` | How the build works where the spec is silent |
 | `docs/backlog.md` | Known gaps |
-| `MOCKS.md` | Every mock or placeholder to replace before Stage 2 |
+| `MOCKS.md` | Every mock or placeholder: 8 wait on Stage 2 infrastructure, 3 resolved or found to be non-issues, 1 decided to keep as is |
 
 ## Run the tests
 

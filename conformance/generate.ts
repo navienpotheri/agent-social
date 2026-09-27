@@ -74,8 +74,23 @@ const clone = <T>(v: T): T => structuredClone(v);
 
 // ---------- bodies ----------
 
-const intentId = fakeId("intent:fix-flaky-test");
-const offerId = fakeId("offer:fix-flaky-test");
+// MOCKS.md #5 (resolved): single-player has no market, but a Contract's basis can still point at
+// genuine signed Intent and Offer records the two parties issue themselves, instead of fake ids.
+const intentRecord = createRecord({
+  type: "intent", issuer: alice.did, subject: null, prev: null, issued_at: at(-10),
+  body: {
+    purpose: "Keep the payments service test suite green without weakening any test",
+    acceptance_criteria: ["test_refund_idempotency passes 50 runs in a row", "no test is skipped or deleted"],
+    budget: credits(0), deadline: "2026-10-03T18:00:00Z",
+    verification: { mode: "deterministic", tests: "pytest tests/test_refunds.py -k idempotency --count 50" },
+  },
+}, alice);
+const offerRecord = createRecord({
+  type: "offer", issuer: coder.did, subject: intentRecord.id, prev: null, issued_at: at(-5),
+  body: { intent: intentRecord.id, price: credits(0), plan: "Reproduce, isolate the race, fix, prove 50/50", eta: "2026-10-02T12:00:00Z", bond_offered: credits(0) },
+}, coder);
+const intentId = intentRecord.id;
+const offerId = offerRecord.id;
 
 function contractBody() {
   return {
@@ -361,6 +376,8 @@ const rec = (name: string, description: string, record: unknown, expect: "ok" | 
 
 const h = happy().records;
 for (const r of h) rec(`ok_${r.type.slice(4, -5)}_${h.indexOf(r)}`, "Valid record from the happy path", r, "ok");
+rec("ok_intent", "An Intent, referenced (not chained) from a Contract's basis", intentRecord, "ok");
+rec("ok_offer", "An Offer against that Intent, referenced from the same Contract's basis", offerRecord, "ok");
 
 const agentPassport = createRecord({
   type: "passport", issuer: alice.did, subject: coder.did, prev: null, issued_at: at(0),
