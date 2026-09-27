@@ -80,3 +80,22 @@ into a temp directory, operated on as usual, and — for `run`/`orchestrate`, on
 actually happened — re-packed into the same path afterward. A failed run never repacks, so the archive
 on disk stays byte-for-byte whatever it was before a failed attempt.
 
+## Probation tracking (decision D2)
+
+A lineage `update` record carrying `probation_until` sets that DID's current probation window in the
+registry (`EventLog.probation(did)`). A plain update with no `probation_until` leaves an existing window
+untouched; a new one overwrites it. Nothing enforces the window yet, because there is no self-modification
+pathway in the codebase to enforce it on (`docs/backlog.md`) — the decided policy (force
+`self_modification` to `principal_approves` during probation) is recorded so it can be wired in the
+moment that pathway exists.
+
+## Log checkpoints (decision D5, `packages/asp-package/src/checkpoint.ts`)
+
+`asp log checkpoint --as <did>` signs `{seq, log_hash, signed_at}` with that DID's key and appends it to
+`~/.asp/checkpoints.ndjson`. This is not an ASP record — it is about the log, not a fact recorded in it —
+so it doesn't add a 17th record type. `asp log verify` re-checks every stored checkpoint by independently
+replaying the log up to that seq (`EventLog.verifyCheckpoint`) and comparing the resulting hash, rather
+than trusting the value stored in the file; a checkpoint that is validly signed but simply claims the
+wrong hash is still caught. Nothing publishes checkpoints anywhere yet — copying one out (email, a public
+post, handing it to a counterparty) is what would make it externally checkable.
+

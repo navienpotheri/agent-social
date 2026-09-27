@@ -252,5 +252,47 @@ for (const h of [memory, postgres] as Harness[]) {
       const res = await log.append(delivery(n7, n7.kid, "2026-10-01T10:40:00Z"));
       assert.equal(res.state, "Delivered");
     });
+
+    // ---------- probation (decision D2) ----------
+
+    test("a lineage update with probation_until sets the DID's tracked probation window", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      const moved = make("lineage", coder, coder.did, {
+        edge: "update", child: coder.did, parents: [coder.did],
+        change: { layer: "backend", description: "runtime claude-code -> codex" },
+        probation_until: "2026-10-08T00:00:00Z",
+      }, "2026-10-01T00:00:00Z", { subject: coder.did });
+      const res = await log.append(moved);
+
+      const p = await log.probation(coder.did);
+      assert.deepEqual(p, { did: coder.did, until: "2026-10-08T00:00:00Z", setBy: res.id });
+      assert.equal(await log.probation(alice.did), undefined, "untouched for anyone else");
+    });
+
+    test("a later lineage update with a new window overwrites it; one with none leaves it alone", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      const first = make("lineage", coder, coder.did, {
+        edge: "update", child: coder.did, parents: [coder.did],
+        change: { layer: "backend", description: "runtime claude-code -> codex" }, probation_until: "2026-10-08T00:00:00Z",
+      }, "2026-10-01T00:00:00Z", { subject: coder.did });
+      const firstRes = await log.append(first);
+
+      const plainUpdate = make("lineage", coder, coder.did, {
+        edge: "update", child: coder.did, parents: [coder.did],
+        change: { layer: "memory", description: "learned something" },
+      }, "2026-10-01T01:00:00Z", { prev: firstRes.id, subject: coder.did });
+      await log.append(plainUpdate);
+      assert.deepEqual(await log.probation(coder.did), { did: coder.did, until: "2026-10-08T00:00:00Z", setBy: firstRes.id },
+        "a plain update carries no probation_until, so the existing window is untouched");
+
+      const secondMove = make("lineage", coder, coder.did, {
+        edge: "update", child: coder.did, parents: [coder.did],
+        change: { layer: "backend", description: "runtime codex -> openhands" }, probation_until: "2026-10-15T00:00:00Z",
+      }, "2026-10-02T00:00:00Z", { prev: plainUpdate.id, subject: coder.did });
+      const secondRes = await log.append(secondMove);
+      assert.deepEqual(await log.probation(coder.did), { did: coder.did, until: "2026-10-15T00:00:00Z", setBy: secondRes.id });
+    });
   });
 }

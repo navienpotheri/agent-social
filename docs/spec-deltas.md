@@ -1,18 +1,18 @@
 # ASP v0.2: what the spec needs from the build
 
-16 items: 5 need a decision, 11 should be written into the spec as built. Numbers in brackets are the items' numbers in the earlier 40-item list.
+11 additions to write into the spec as built, and 5 decisions — now resolved (2026-09-27). Numbers in brackets are the items' numbers in the earlier 40-item list.
 
 The rest of what the build had to settle is in [implementation-notes.md](implementation-notes.md), with no decision needed. Unbuilt work is in [backlog.md](backlog.md), and single-player mocks are in [../MOCKS.md](../MOCKS.md).
 
-## Needs a decision
+## Decided (2026-09-27)
 
-| # | Topic | What the code does now | Decision needed |
+| # | Topic | Decision | What changed |
 |---|---|---|---|
-| D1 | Learning data [32] | Packages carry a metadata-only index of past sessions: counts, models, timestamps, no content. | Which of a principal's data (transcripts, diffs, test output) may leave the machine for learning, and for the commons? |
-| D2 | Probation after a runtime move [35] | A move is recorded with `probation_until` = 7 days. Nothing enforces it, and no canary suite exists yet. | How long probation lasts, what it restricts, and who writes the canary suite (the spec's open question). |
-| D3 | Identity bootstrap [20] | A person's first passport may be self-issued, so nothing proves they control the did:web domain (MOCKS #8). | Require the did:web document, or a sponsor's attestation, before accepting a first passport? |
-| D4 | Job diagram [13–16] | Acceptance takes two records (an acceptance Attestation, then a Settlement). Redelivery is `Disputed → Delivered`, once. Revocation is allowed before delivery, not only while Running. | Adopt these three edges into the spec's diagram? |
-| D5 | Log anchoring [21] | A running hash over record ids makes the log order tamper-evident. Nothing signs or publishes it. | Who signs log checkpoints, and where they are anchored. |
+| D1 | Learning data [32] | Metadata only, for now. No transcript content, diffs, or test output leaves the machine — only session counts, models, timestamps, tool-call counts. Revisit once the learning layer actually needs richer signals. | No code change; this is what's already built. |
+| D2 | Probation after a runtime move [35] | Keep 7 days. Once a self-modification pathway exists, probation should force `self_modification` to `principal_approves` regardless of tier; nothing else is restricted. Who writes the canary suite stays open (Academy, Stage 2). | The registry now tracks each DID's current probation window (`EventLog.probation(did)`), derived from lineage `update` records carrying `probation_until`. Enforcement itself waits on a self-modification pathway, which doesn't exist yet (`docs/backlog.md`). |
+| D3 | Identity bootstrap [20] | Keep trust-on-first-use for now. Must change before any hosted, multi-tenant network (already flagged in `docs/backlog.md`). | No code change. |
+| D4 | Job diagram [13–16] | Adopt all three edges the build already added — two-step acceptance, one redelivery, revocation before delivery — into the spec's own diagram. They already match the spec's prose; only the diagram was narrower. | Spec-doc change (outside this repo); noted here for the record. |
+| D5 | Log anchoring [21] | The log owner's own key periodically signs a checkpoint of the log's head; not published anywhere yet. | New: `asp log checkpoint --as <did>` signs `{seq, log_hash, signed_at}` and appends it to `~/.asp/checkpoints.ndjson`. `asp log verify` re-checks every stored checkpoint by independently replaying the log up to that seq (`EventLog.verifyCheckpoint`), not by trusting the stored value. |
 
 ## Write into the spec as built
 
@@ -26,6 +26,6 @@ The rest of what the build had to settle is in [implementation-notes.md](impleme
 | S6 | Coordination: Contract [11] | The principal issues it, the performer co-signs it, and it is the first record of the job's chain. Intent/Offer (or Call/Proposal) are referenced, not chained. |
 | S7 | Mandate [12] | Enumerate `self_modification`, `checkpoints` and `irreversible.policy`, and a dotted scope grammar such as `repo.read` and `pr.open`. |
 | S8 | Registry: fleets [23] | A Fleet record is issued by its org. An agent joins by naming the fleet on its passport; it must share the fleet's sponsor, and the fleet must have room. |
-| S9 | Registry: nodes [5, 24, 25] | A Node record delegates a short-lived key: it signs only as that node, never identity records, and expires. Under a Mandate, live nodes count against `max_parallel`. The person stays liable. |
-| S10 | Transport: agent package [28, 29, 31] | Package layout, a manifest signed by the agent, and secrets as named placeholders that are never stored. |
-| S11 | Learning: gates [35] | Memory changes and runtime moves are recorded as lineage `update` edges (layers `memory` and `backend`), written back after each successful run. |
+| S9 | Registry: nodes [5, 24, 25] | A Node record delegates a short-lived key: it signs only as that node, never identity records, and expires. Under a Mandate, live nodes count against `max_parallel`. The person stays liable. A second Node record chained onto the first is an update — a rotation, or (setting `expires` at or before `issued_at`) an immediate revocation. |
+| S10 | Transport: agent package [28, 29, 31] | Package layout, a manifest signed by the agent, and secrets as named placeholders that are never stored. May be a directory or a single gzipped tar file. |
+| S11 | Learning: gates [35] | Memory changes and runtime moves are recorded as lineage `update` edges (layers `memory` and `backend`), written back after each successful run. A move's `probation_until` is tracked per DID in the registry. |

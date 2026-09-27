@@ -15,7 +15,7 @@ Known gaps, grouped by area. Mocks to replace before Stage 2 are in [../MOCKS.md
 
 ## Packages and `asp run`
 - Canary checks in `verify` (a runtime move should pass the canary suite on the new runtime) — blocked on the Academy/canary suite existing at all; Stage 2.
-- Enforcing probation — blocked on spec decision D2 (probation length and what it restricts); see spec-deltas.md.
+- Enforcing probation — D2 is decided (7 days; force `self_modification` to `principal_approves`) and the registry now tracks each DID's current probation window (`EventLog.probation(did)`). Still blocked on a self-modification pathway existing at all to enforce it on — there is none yet.
 - ~~Packages as a single archive file~~ — done: `asp pack --out foo.aspkg.tgz` (or `.tar.gz`) produces one gzipped tar file; `verify`, `run` and `orchestrate` all accept either a directory or an archive, extracting to a temp directory and (for `run`/`orchestrate`, only after a successful write-back) re-packing it in place.
 - Subagent memory (`.claude/agent-memory`) is captured into the package but not wired into runs. Claude Code only reads it from `.claude/agent-memory/` inside the actual project directory, not from an added directory — wiring it in would mean writing into the target project, which breaks the "run never writes into the project" guarantee. Left undone rather than building a fragile workaround.
 

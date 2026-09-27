@@ -135,6 +135,20 @@ for (const h of [memory, postgres]) {
       const p2 = await log.since(3, 100);
       assert.deepEqual([...p1, ...p2].map((s) => s.seq), records.map((_: unknown, i: number) => i + 1));
     });
+
+    test("verifyCheckpoint (decision D5): true only for the exact hash the log actually had at that seq", async () => {
+      const log = new EventLog(await h.make(), { fallbackResolver: vectorResolver });
+      const records = lifecycleCases.find((c: any) => c.name === "happy_path").records;
+      const heads: { seq: number; logHash: string }[] = [];
+      for (const r of records) { await log.append(r); heads.push(await log.head()); }
+
+      // Every checkpoint taken along the way still verifies against the finished log.
+      for (const h of heads) assert.equal(await log.verifyCheckpoint(h), true);
+      // A wrong hash at a real seq, a real hash claimed at the wrong seq, and a seq beyond the log all fail.
+      assert.equal(await log.verifyCheckpoint({ seq: heads[2].seq, logHash: heads[1].logHash }), false);
+      assert.equal(await log.verifyCheckpoint({ seq: heads[1].seq, logHash: heads[2].logHash }), false);
+      assert.equal(await log.verifyCheckpoint({ seq: heads.at(-1)!.seq + 10, logHash: heads.at(-1)!.logHash }), false);
+    });
   });
 }
 

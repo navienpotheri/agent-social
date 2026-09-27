@@ -3,5 +3,5 @@ export { MemoryStore } from "./memory.ts";
 export { PostgresStore, migrate } from "./postgres.ts";
 export {
   GENESIS_LOG_HASH,
-  type ChainRow, type FleetRow, type KeyRow, type LogHead, type LogTx, type PassportRow, type Store, type StoredRecord,
+  type ChainRow, type FleetRow, type KeyRow, type LogHead, type LogTx, type PassportRow, type ProbationRow, type Store, type StoredRecord,
 } from "./store.ts";

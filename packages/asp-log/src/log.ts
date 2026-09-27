@@ -134,6 +134,7 @@ export class EventLog {
     if (type === "passport") await this.projectPassport(tx, verified);
     if (type === "fleet") await this.projectFleet(tx, verified);
     if (type === "node") await this.projectNode(tx, verified);
+    if (type === "lineage") await this.projectLineage(tx, verified);
     await tx.putChain({
       root, kind, head: verified.id, length: (chain?.length ?? 0) + 1, lastIssuedAt: verified.issued_at,
       state: snapshot?.state ?? null, snapshot,
@@ -293,6 +294,15 @@ export class EventLog {
     });
   }
 
+  /**
+   * A lineage `update` record with `probation_until` sets that DID's current probation window
+   * (decision D2). Nothing checks this yet — see the class doc on projectLineage.
+   */
+  private async projectLineage(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as { child: string; probation_until?: string };
+    if (body.probation_until) await tx.putProbation({ did: body.child, until: body.probation_until, setBy: r.id });
+  }
+
   get(id: string) { return this.store.getRecord(id); }
   head() { return this.store.logHead(); }
   chain(root: string) { return this.store.chainRecords(root); }
@@ -300,6 +310,26 @@ export class EventLog {
   since(afterSeq: number, limit = 500) { return this.store.since(afterSeq, limit); }
   passport(did: string) { return this.store.getPassport(did); }
   keys(did: string) { return this.store.keysForDid(did); }
+  probation(did: string) { return this.store.getProbation(did); }
+
+  /**
+   * Re-verifies a signed log checkpoint (decision D5, see @agent-social/asp-package's checkpoint.ts):
+   * replays this log independently up to `at.seq` and checks the resulting hash matches `at.logHash`,
+   * rather than trusting the stored value at that row.
+   */
+  async verifyCheckpoint(at: { seq: number; logHash: string }): Promise<boolean> {
+    const replay = new EventLog(new MemoryStore(), { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs });
+    for (let afterSeq = 0; ; ) {
+      const page = await this.store.since(afterSeq, 500);
+      if (!page.length) return false; // the log is shorter than the checkpoint claims
+      for (const s of page) {
+        if (s.seq > at.seq) return false;
+        const res = await replay.appendAt(s.record, s.appendedAt);
+        if (s.seq === at.seq) return res.logHash === at.logHash;
+        afterSeq = s.seq;
+      }
+    }
+  }
 
   /** A fleet's declaration and its current members. */
   async fleet(did: string) {

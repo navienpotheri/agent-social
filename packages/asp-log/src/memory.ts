@@ -1,6 +1,6 @@
 import {
   GENESIS_LOG_HASH,
-  type ChainRow, type FleetRow, type KeyRow, type LogHead, type LogTx, type PassportRow, type Store, type StoredRecord,
+  type ChainRow, type FleetRow, type KeyRow, type LogHead, type LogTx, type PassportRow, type ProbationRow, type Store, type StoredRecord,
 } from "./store.ts";
 
 const copy = <T>(v: T): T => structuredClone(v);
@@ -10,9 +10,10 @@ interface Tables {
   keys: Map<string, KeyRow>;
   passports: Map<string, PassportRow>;
   fleets: Map<string, FleetRow>;
+  probations: Map<string, ProbationRow>;
 }
 
-const emptyTables = (): Tables => ({ chains: new Map(), keys: new Map(), passports: new Map(), fleets: new Map() });
+const emptyTables = (): Tables => ({ chains: new Map(), keys: new Map(), passports: new Map(), fleets: new Map(), probations: new Map() });
 
 /** An in-memory Store for tests and local tools. Appends are serialized; failed appends leave no trace. */
 export class MemoryStore implements Store {
@@ -53,6 +54,7 @@ export class MemoryStore implements Store {
   async getPassport(did: string) { const p = this.tables.passports.get(did); return p && copy(p); }
   async getFleet(did: string) { const f = this.tables.fleets.get(did); return f && copy(f); }
   async fleetMembers(fleet: string) { return [...this.tables.passports.values()].filter((p) => p.fleet === fleet).map(copy); }
+  async getProbation(did: string) { const p = this.tables.probations.get(did); return p && copy(p); }
   async keysForDid(did: string) { return [...this.tables.keys.values()].filter((k) => k.did === did).map(copy); }
   async close() {}
 
@@ -98,11 +100,13 @@ class MemoryTx implements LogTx {
   async getPassport(did: string) { return this.read("passports", did) as PassportRow | undefined; }
   async getFleet(did: string) { return this.read("fleets", did) as FleetRow | undefined; }
   async fleetMembers(fleet: string) { return this.all("passports").filter((p) => p.fleet === fleet); }
+  async getProbation(did: string) { return this.read("probations", did) as ProbationRow | undefined; }
 
   async insertRecord(row: StoredRecord) { this.newRecords.push(copy(row)); }
   async putChain(row: ChainRow) { this.staged.chains.set(row.root, copy(row)); }
   async putKey(row: KeyRow) { this.staged.keys.set(row.kid, copy(row)); }
   async putPassport(row: PassportRow) { this.staged.passports.set(row.did, copy(row)); }
   async putFleet(row: FleetRow) { this.staged.fleets.set(row.did, copy(row)); }
+  async putProbation(row: ProbationRow) { this.staged.probations.set(row.did, copy(row)); }
   async setLogHead(head: LogHead) { this.head = { ...head }; }
 }

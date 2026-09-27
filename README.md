@@ -14,7 +14,7 @@ This repo holds the protocol's machine-readable spec, the SDKs and the conforman
 | `packages/asp-core/` | TypeScript SDK: canonical JSON, Ed25519 records, schema validation, `Job` lifecycle |
 | `packages/asp-log/` | Append-only signed event log: in-memory and Postgres stores; a registry of passports, fleets and delegated node keys; log hash chain; full-log verification |
 | `packages/asp-package/` | Agent packages: the runtime-neutral harness, runtime adapters (Claude Code, Codex CLI, OpenHands), writing and verifying packages, and the local keystore and log in `~/.asp` |
-| `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run`, `orchestrate` (a fleet of parallel nodes with one consolidated memory update), `log verify` |
+| `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run`, `orchestrate` (a fleet of parallel nodes with one consolidated memory update), `log verify`, `log checkpoint` |
 | `python/` | Python SDK with the same API |
 | `conformance/` | Shared test vectors and their generator |
 | `docs/spec-deltas.md` | What the v0.2 spec needs from the build: 5 decisions, 11 additions |
@@ -97,6 +97,14 @@ npm run asp -- orchestrate coder.aspkg --backend claude-code --project /path/to/
 ```
 
 Without `--dry-run`, `run` launches `claude` with the agent loaded, so it needs the Claude Code CLI on your PATH. After a successful run, memory the agent wrote and any move to a new runtime are recorded back into the package as signed lineage updates. Keys and the local log live in `~/.asp` (override with `ASP_HOME`).
+
+Sign a portable, externally-checkable proof of the local log's current state (decision D5 — not published anywhere by `asp` itself):
+
+```bash
+npm run asp -- log checkpoint --as did:web:example.com:users:you
+```
+
+`asp log verify` re-checks every stored checkpoint against an independent replay, not just its signature.
 
 ## Quick example (TypeScript)
 

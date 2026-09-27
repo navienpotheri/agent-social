@@ -19,6 +19,10 @@
  *     silently discarding either. This is the spec's Learning-section pattern: "nodes only write
  *     experience... a consolidation step... produces one update to the person".
  *   asp log verify
+ *   asp log checkpoint --as <did>
+ *     Signs {seq, log_hash, signed_at} with <did>'s key and appends it to checkpoints.ndjson (decision
+ *     D5): a portable, externally-checkable proof of the log's state at that point, published nowhere
+ *     by asp itself. `log verify` re-checks every stored checkpoint against an independent replay.
  *
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
@@ -27,10 +31,11 @@ import { copyFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync,
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { b64urlEncode, createRecord, publicKeyFromSeed, randomSeed, type AspRecord } from "@agent-social/asp-core";
+import { b64urlDecode, b64urlEncode, createRecord, didOf, publicKeyFromSeed, randomSeed, type AspRecord } from "@agent-social/asp-core";
 import {
-  ADAPTERS, Keystore, LocalLog, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory, resolvePackage,
-  scanForSecrets, updatePackage, verifyPackage, writePackage,
+  ADAPTERS, Keystore, LocalLog, appendCheckpoint, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
+  readCheckpoints, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
+  verifyPackage, writePackage,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -70,6 +75,7 @@ const OPTIONS = {
   help: { type: "boolean", short: "h" },
   task: { type: "string", multiple: true },
   "max-parallel": { type: "string" },
+  as: { type: "string" },
 } as const;
 
 export async function main(argv: string[], io: Io): Promise<number> {
@@ -99,12 +105,8 @@ export async function main(argv: string[], io: Io): Promise<number> {
     if (cmd === "verify") return await verify(sub, v.json ?? false, io);
     if (cmd === "run") return await run(home, sub, v, need, io);
     if (cmd === "orchestrate") return await orchestrate(home, sub, v, need, io);
-    if (cmd === "log" && sub === "verify") {
-      const local = await LocalLog.open(home);
-      const report = await local.log.verify();
-      io.out(report.ok ? `log ok: ${report.records} records, head ${report.head.logHash}` : `log FAILED at seq ${report.error!.seq}: ${report.error!.message}`);
-      return report.ok ? 0 : 1;
-    }
+    if (cmd === "log" && sub === "verify") return await logVerify(home, io);
+    if (cmd === "log" && sub === "checkpoint") return await logCheckpoint(home, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
   } catch (e) {
     io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${(e as Error).message}`);
@@ -162,6 +164,44 @@ async function identityShow(home: string, did: string | undefined, io: Io): Prom
   const rec = (await log.get(p.head))!.record;
   io.out(JSON.stringify({ passport: p.head, sponsor: p.sponsor, fleet: p.fleet, body: rec.body, keys: await log.keys(did) }, null, 2));
   return 0;
+}
+
+/** Signs a checkpoint of the local log's current head (decision D5) and appends it to checkpoints.ndjson. */
+async function logCheckpoint(home: string, v: Values, need: Need, io: Io): Promise<number> {
+  const did = need("as");
+  const signer = new Keystore(home).forDid(did);
+  if (!signer) throw new Error(`no key for ${did} in ${join(home, "keys")}`);
+  const local = await LocalLog.open(home);
+  const head = await local.log.head();
+  const cp = signCheckpoint(head, signer);
+  const file = join(home, "checkpoints.ndjson");
+  appendCheckpoint(file, cp);
+  io.out(`checkpoint seq ${cp.seq} signed by ${cp.signer}`);
+  io.out(`  log_hash   ${cp.logHash}`);
+  io.out(`  signed_at  ${cp.signedAt}`);
+  io.out(`  saved to   ${file}`);
+  io.out("  this is not published anywhere yet; copy it out yourself to make it externally checkable.");
+  return 0;
+}
+
+/** Verifies the log, then re-verifies every stored checkpoint against an independent replay. */
+async function logVerify(home: string, io: Io): Promise<number> {
+  const local = await LocalLog.open(home);
+  const report = await local.log.verify();
+  io.out(report.ok ? `log ok: ${report.records} records, head ${report.head.logHash}` : `log FAILED at seq ${report.error!.seq}: ${report.error!.message}`);
+  if (!report.ok) return 1;
+
+  const checkpoints = readCheckpoints(join(home, "checkpoints.ndjson"));
+  let allOk = true;
+  for (const cp of checkpoints) {
+    const key = (await local.log.keys(didOf(cp.signer))).find((k) => k.kid === cp.signer);
+    const sigOk = !!key && verifyCheckpointSignature(cp, b64urlDecode(key.publicKey));
+    const hashOk = await local.log.verifyCheckpoint({ seq: cp.seq, logHash: cp.logHash });
+    if (!sigOk || !hashOk) allOk = false;
+    const problem = [!sigOk && "bad signature", !hashOk && "hash mismatch"].filter(Boolean).join(", ");
+    io.out(`  checkpoint seq ${cp.seq} (${cp.signedAt}, ${cp.signer}): ${sigOk && hashOk ? "ok" : `FAILED (${problem})`}`);
+  }
+  return allOk ? 0 : 1;
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */

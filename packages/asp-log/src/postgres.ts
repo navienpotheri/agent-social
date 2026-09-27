@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import pg from "pg";
 import type {
-  ChainRow, FleetRow, KeyRow, LogHead, LogTx, PassportRow, Store, StoredRecord,
+  ChainRow, FleetRow, KeyRow, LogHead, LogTx, PassportRow, ProbationRow, Store, StoredRecord,
 } from "./store.ts";
 
 const SQL_DIR = fileURLToPath(new URL("../sql/", import.meta.url));
@@ -56,6 +56,7 @@ const toKey = (k: any): KeyRow => ({
 });
 const toPassport = (p: any): PassportRow => ({ did: p.did, head: p.head, sponsor: p.sponsor, fleet: p.fleet });
 const toFleet = (f: any): FleetRow => ({ did: f.did, head: f.head, org: f.org, name: f.name, maxMembers: f.max_members });
+const toProbation = (p: any): ProbationRow => ({ did: p.did, until: p.until, setBy: p.set_by });
 
 /** Reads shared by the store (pool) and a transaction (client). */
 function reads(q: Queryable) {
@@ -100,6 +101,10 @@ function reads(q: Queryable) {
       const { rows } = await q.query("SELECT * FROM passports WHERE fleet = $1 ORDER BY did", [fleet]);
       return rows.map(toPassport);
     },
+    async getProbation(did: string) {
+      const { rows } = await q.query("SELECT * FROM probations WHERE did = $1", [did]);
+      return rows[0] && toProbation(rows[0]);
+    },
   };
 }
 
@@ -137,6 +142,7 @@ export class PostgresStore implements Store {
   getPassport(did: string) { return this.r.getPassport(did); }
   getFleet(did: string) { return this.r.getFleet(did); }
   fleetMembers(fleet: string) { return this.r.fleetMembers(fleet); }
+  getProbation(did: string) { return this.r.getProbation(did); }
   keysForDid(did: string) { return this.r.keysForDid(did); }
   async chainRecords(root: string) {
     const { rows } = await this.pool.query<RecordRow>(`SELECT ${RECORD_COLS} FROM records WHERE chain = $1 ORDER BY seq`, [root]);
@@ -168,6 +174,7 @@ class PgTx implements LogTx {
   getPassport(did: string) { return this.r.getPassport(did); }
   getFleet(did: string) { return this.r.getFleet(did); }
   fleetMembers(fleet: string) { return this.r.fleetMembers(fleet); }
+  getProbation(did: string) { return this.r.getProbation(did); }
 
   async insertRecord(row: StoredRecord) {
     const r = row.record;
@@ -205,6 +212,13 @@ class PgTx implements LogTx {
       `INSERT INTO fleets (did, head, org, name, max_members) VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (did) DO UPDATE SET head = $2, org = $3, name = $4, max_members = $5`,
       [row.did, row.head, row.org, row.name, row.maxMembers],
+    );
+  }
+  async putProbation(row: ProbationRow) {
+    await this.c.query(
+      `INSERT INTO probations (did, until, set_by) VALUES ($1, $2, $3)
+       ON CONFLICT (did) DO UPDATE SET until = $2, set_by = $3`,
+      [row.did, row.until, row.setBy],
     );
   }
   async setLogHead(head: LogHead) {

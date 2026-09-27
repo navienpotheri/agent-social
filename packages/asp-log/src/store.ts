@@ -59,6 +59,18 @@ export interface FleetRow {
   maxMembers: number | null;
 }
 
+/**
+ * The current probation window for a DID (decision D2), derived from lineage `update` records that
+ * carry `probation_until`. Nothing is enforced against it yet — no self-modification pathway exists
+ * to enforce it on — but it is tracked so that pathway can check it once it does (docs/backlog.md).
+ */
+export interface ProbationRow {
+  did: string;
+  until: string;
+  /** The lineage record that set this window. */
+  setBy: string;
+}
+
 /** Reads and writes inside one append. Writes become visible only if the transaction commits. */
 export interface LogTx {
   logHead(): Promise<LogHead>;
@@ -70,12 +82,14 @@ export interface LogTx {
   getPassport(did: string): Promise<PassportRow | undefined>;
   getFleet(did: string): Promise<FleetRow | undefined>;
   fleetMembers(fleet: string): Promise<PassportRow[]>;
+  getProbation(did: string): Promise<ProbationRow | undefined>;
 
   insertRecord(row: StoredRecord): Promise<void>;
   putChain(row: ChainRow): Promise<void>;
   putKey(row: KeyRow): Promise<void>;
   putPassport(row: PassportRow): Promise<void>;
   putFleet(row: FleetRow): Promise<void>;
+  putProbation(row: ProbationRow): Promise<void>;
   setLogHead(head: LogHead): Promise<void>;
 }
 
@@ -92,6 +106,7 @@ export interface Store {
   getPassport(did: string): Promise<PassportRow | undefined>;
   getFleet(did: string): Promise<FleetRow | undefined>;
   fleetMembers(fleet: string): Promise<PassportRow[]>;
+  getProbation(did: string): Promise<ProbationRow | undefined>;
   keysForDid(did: string): Promise<KeyRow[]>;
   close(): Promise<void>;
 }
