@@ -1,4 +1,5 @@
 export { claudeCode, findProjectDataDir, projectSlug, summarizeTranscript } from "./adapters/claude-code.ts";
+export { finishPackage, packDirectory, resolvePackage, unpackToTemp, type ResolvedPackage } from "./archive.ts";
 export { codex, resolveCodexCommand, summarizeRollout, tomlValue } from "./adapters/codex.ts";
 export { openhands } from "./adapters/openhands.ts";
 export { toWslPath, wslEnvFor } from "./wsl.ts";

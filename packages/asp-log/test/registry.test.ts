@@ -42,10 +42,10 @@ function nodeKey(n: number): Signer {
   return { kid: `${coder.did}#node-${n}`, seed: new Uint8Array(randomBytes(32)) };
 }
 
-function grant(node: Signer, issuedAt: string, expires: string, opts: { by?: Person | Signer; issuer?: string; mandate?: string | null } = {}) {
+function grant(node: Signer, issuedAt: string, expires: string, opts: { by?: Person | Signer; issuer?: string; mandate?: string | null; prev?: string | null } = {}) {
   const body: Record<string, unknown> = { node: node.kid, public_key: b64urlEncode(publicKeyFromSeed(node.seed)), expires };
   if (opts.mandate !== null) body.mandate = opts.mandate ?? mandate.id;
-  return make("node", opts.by ?? coder, opts.issuer ?? coder.did, body, issuedAt);
+  return make("node", opts.by ?? coder, opts.issuer ?? coder.did, body, issuedAt, { prev: opts.prev ?? null });
 }
 
 const delivery = (by: Signer, actor: string, issuedAt: string) =>
@@ -171,6 +171,86 @@ for (const h of [memory, postgres] as Harness[]) {
         "GUARD_FAILED", "key_id_taken");
       await rejects(log.append(grant(nodeKey(4), "2026-10-01T10:00:00Z", "2026-10-01T11:00:00Z", { mandate: contract.id })),
         "GUARD_FAILED", "node_mandate_unknown");
+    });
+
+    test("a node can be revoked before it expires, by chaining a shortened grant onto it", async () => {
+      const clock = { now: "2026-10-01T10:00:00Z" };
+      const log = await jobLog(clock);
+      const n7 = nodeKey(7);
+      const granted = await log.append(grant(n7, "2026-10-01T10:00:00Z", "2026-10-01T18:00:00Z"));
+      await log.append(delivery(n7, n7.kid, "2026-10-01T10:05:00Z"));
+
+      clock.now = "2026-10-01T10:10:00Z";
+      await log.append(grant(n7, "2026-10-01T10:10:00Z", "2026-10-01T10:10:00Z", { prev: granted.id }));
+      // Revoked, not merely expired: the key is gone from the registry outright.
+      await rejects(log.append(delivery(n7, n7.kid, "2026-10-01T10:20:00Z")), "UNKNOWN_KEY");
+      assert.equal((await log.keys(coder.did)).find((k) => k.kid === n7.kid)?.revokedAt, "2026-10-01T10:10:00Z");
+      assert.equal((await log.verify()).ok, true);
+    });
+
+    test("a node's key can be rotated (extended or replaced) by chaining onto its own grant, not someone else's", async () => {
+      const clock = { now: "2026-10-01T10:00:00Z" };
+      const log = await jobLog(clock);
+      const n7 = nodeKey(7);
+      const granted = await log.append(grant(n7, "2026-10-01T10:00:00Z", "2026-10-01T11:00:00Z"));
+
+      // Extend past the original expiry: still usable afterwards.
+      await log.append(grant(n7, "2026-10-01T10:30:00Z", "2026-10-01T13:00:00Z", { prev: granted.id }));
+      clock.now = "2026-10-01T12:00:00Z";
+      await log.append(delivery(n7, n7.kid, "2026-10-01T12:00:00Z"));
+
+      // A first grant can't claim an id that already exists (a fresh record, not a replay of the first grant).
+      await rejects(log.append(grant(n7, "2026-10-01T12:05:00Z", "2026-10-01T13:05:00Z")), "GUARD_FAILED", "key_id_taken");
+      // Chaining onto a record that isn't this node's own grant is rejected the same way.
+      const n8 = nodeKey(8);
+      const otherGrant = await log.append(grant(n8, "2026-10-01T10:00:00Z", "2026-10-01T11:00:00Z"));
+      await rejects(log.append(grant(n7, "2026-10-01T12:10:00Z", "2026-10-01T14:00:00Z", { prev: otherGrant.id })), "GUARD_FAILED", "key_id_taken");
+      // An update must chain onto its predecessor; it can't start a fresh chain.
+      await rejects(log.append(grant(n8, "2026-10-01T12:10:00Z", "2026-10-01T14:00:00Z")), "GUARD_FAILED", "key_id_taken");
+    });
+
+    test("dropping a passport key revokes every one of that person's live node keys, not just the passport key", async () => {
+      const clock = { now: "2026-10-01T10:00:00Z" };
+      const log = await jobLog(clock);
+      const n7 = nodeKey(7);
+      const n8 = nodeKey(8);
+      await log.append(grant(n7, "2026-10-01T10:00:00Z", "2026-10-01T20:00:00Z"));
+      await log.append(grant(n8, "2026-10-01T10:00:00Z", "2026-10-01T20:00:00Z"));
+
+      const key2: Signer = { kid: `${coder.did}#key-2`, seed: new Uint8Array(randomBytes(32)) };
+      const currentHead = (await log.passport(coder.did))!.head;
+      const afterPassport = new Date(Date.parse((await log.get(currentHead))!.record.issued_at) + 60_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+      const rotated = make("passport", alice, alice.did, {
+        did: coder.did, kind: "agent", sponsor: alice.did, tier: 1, shape: { keeps_learning: true },
+        keys: [{ id: key2.kid, type: "Ed25519", public_key: b64urlEncode(publicKeyFromSeed(key2.seed)) }],
+      }, afterPassport, { prev: currentHead, subject: coder.did });
+      await log.append(rotated);
+
+      await rejects(log.append(delivery(n7, n7.kid, "2026-10-01T10:40:00Z")), "UNKNOWN_KEY");
+      await rejects(log.append(delivery(n8, n8.kid, "2026-10-01T10:40:00Z")), "UNKNOWN_KEY");
+      const keys = await log.keys(coder.did);
+      assert.ok(keys.find((k) => k.kid === n7.kid)?.revokedAt);
+      assert.ok(keys.find((k) => k.kid === n8.kid)?.revokedAt);
+      assert.equal((await log.verify()).ok, true);
+    });
+
+    test("a passport update that keeps every existing key doesn't touch outstanding node grants", async () => {
+      const clock = { now: "2026-10-01T10:00:00Z" };
+      const log = await jobLog(clock);
+      const n7 = nodeKey(7);
+      await log.append(grant(n7, "2026-10-01T10:00:00Z", "2026-10-01T20:00:00Z"));
+
+      const currentHead = (await log.passport(coder.did))!.head;
+      const afterPassport = new Date(Date.parse((await log.get(currentHead))!.record.issued_at) + 60_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+      const same = make("passport", alice, alice.did, {
+        did: coder.did, kind: "agent", sponsor: alice.did, tier: 2, shape: { keeps_learning: true },
+        keys: [{ id: coder.kid, type: "Ed25519", public_key: b64urlEncode(coder.publicKey) }],
+      }, afterPassport, { prev: currentHead, subject: coder.did });
+      await log.append(same);
+
+      clock.now = "2026-10-01T10:40:00Z";
+      const res = await log.append(delivery(n7, n7.kid, "2026-10-01T10:40:00Z"));
+      assert.equal(res.state, "Delivered");
     });
   });
 }

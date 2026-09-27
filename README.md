@@ -88,6 +88,14 @@ npm run asp -- run coder.aspkg --backend claude-code --project /path/to/repo --d
 
 The same package runs on Codex with `--backend codex` and on OpenHands with `--backend openhands` (inside WSL on Windows). `pack --runtime codex|openhands` captures an agent from those runtimes.
 
+Give `--out` a `.aspkg.tgz` or `.tar.gz` name (e.g. `--out coder.aspkg.tgz`) to get one file instead of a directory — the whole point of "package" is something you can send someone. `verify`, `run` and `orchestrate` accept either form.
+
+Several nodes can work in parallel, each under its own delegated key, with their memory changes consolidated into one signed update:
+
+```bash
+npm run asp -- orchestrate coder.aspkg --backend claude-code --project /path/to/repo --task "fix the flaky test" --task "add a retry to the webhook handler"
+```
+
 Without `--dry-run`, `run` launches `claude` with the agent loaded, so it needs the Claude Code CLI on your PATH. After a successful run, memory the agent wrote and any move to a new runtime are recorded back into the package as signed lineage updates. Keys and the local log live in `~/.asp` (override with `ASP_HOME`).
 
 ## Quick example (TypeScript)

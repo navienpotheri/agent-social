@@ -199,8 +199,19 @@ export class EventLog {
     if (body.fleet) await this.checkFleetMembership(tx, body.did, body.kind, newSponsor, body.fleet);
 
     const declared = new Set(body.keys.map((k) => k.id));
+    let rotated = false;
     for (const old of await tx.keysForDid(body.did)) {
-      if (old.kind === "passport" && !declared.has(old.kid) && !old.revokedAt) await tx.putKey({ ...old, revokedAt: r.issued_at });
+      if (old.kind === "passport" && !declared.has(old.kid) && !old.revokedAt) {
+        await tx.putKey({ ...old, revokedAt: r.issued_at });
+        rotated = true;
+      }
+    }
+    if (rotated) {
+      // Dropping a passport key breaks continuity of trust: every outstanding delegation made under
+      // it is now suspect, so all of this person's live node keys are revoked too, not just expired.
+      for (const nodeKey of await tx.keysForDid(body.did)) {
+        if (nodeKey.kind === "node" && !nodeKey.revokedAt) await tx.putKey({ ...nodeKey, revokedAt: r.issued_at });
+      }
     }
     for (const k of body.keys) {
       await tx.putKey({
@@ -237,12 +248,28 @@ export class EventLog {
     await tx.putFleet({ did: body.did, head: r.id, org: body.org, name: body.name, maxMembers: body.max_members ?? null });
   }
 
-  /** A person delegates a short-lived key to one node, optionally under a Mandate whose max_parallel it counts against. */
+  /**
+   * A person delegates a short-lived key to one node, optionally under a Mandate whose max_parallel
+   * it counts against. A second record for the same node id, chained onto the first (prev = its id),
+   * is an update: a rotation (new key or extended expiry) or, by setting expires at or before
+   * issued_at, an immediate revocation before the original grant would otherwise expire.
+   */
   private async projectNode(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as { node: string; public_key: string; expires: string; mandate?: string };
     if (!body.node.startsWith(`${r.issuer}#`)) throw new AspError("KID_NOT_ISSUER", `node ${body.node} is not under ${r.issuer}`);
-    if (await tx.getKey(body.node)) throw rule("key_id_taken", `${body.node} is already a key id`);
-    if (!after(body.expires, r.issued_at)) throw rule("node_ttl", "a node must expire after it is granted");
+
+    const existing = await tx.getKey(body.node);
+    if (existing) {
+      // Chain placement already proved r.prev is this record's rightful predecessor; only need to
+      // confirm that predecessor really is this same node's own grant, not a hijack of its id.
+      const prevRecord = r.prev && (await tx.getRecord(r.prev));
+      if (!prevRecord || (prevRecord.record.body as any).node !== body.node) {
+        throw rule("key_id_taken", `${body.node} is already a key id`);
+      }
+    } else if (r.prev) {
+      throw rule("node_chain_start", `the first grant for ${body.node} must start its own chain (prev: null)`);
+    }
+    if (!existing && !after(body.expires, r.issued_at)) throw rule("node_ttl", "a node must expire after it is granted");
     if (Date.parse(body.expires) - Date.parse(r.issued_at) > this.maxNodeTtlMs) {
       throw rule("node_ttl", `a node may live at most ${this.maxNodeTtlMs / 3_600_000} hours`);
     }
@@ -259,9 +286,10 @@ export class EventLog {
       }
     }
 
+    const revokedNow = !after(body.expires, r.issued_at); // expires <= issued_at: an immediate revocation
     await tx.putKey({
       kid: body.node, did: r.issuer, publicKey: body.public_key, kind: "node", grantedBy: r.id,
-      revokedAt: null, expiresAt: body.expires, mandate: body.mandate ?? null,
+      revokedAt: revokedNow ? r.issued_at : null, expiresAt: body.expires, mandate: body.mandate ?? null,
     });
   }
 

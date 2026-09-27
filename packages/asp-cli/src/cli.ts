@@ -29,8 +29,9 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { b64urlEncode, createRecord, publicKeyFromSeed, randomSeed, type AspRecord } from "@agent-social/asp-core";
 import {
-  ADAPTERS, Keystore, LocalLog, aspHome, diffTrees, isEmptyDiff, scanForSecrets, updatePackage, verifyPackage, writePackage,
-  type Harness, type LineageChange,
+  ADAPTERS, Keystore, LocalLog, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory, resolvePackage,
+  scanForSecrets, updatePackage, verifyPackage, writePackage,
+  type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
 class UsageError extends Error {}
@@ -219,10 +220,16 @@ async function pack(home: string, v: Values, need: Need, io: Io): Promise<number
       return 1;
     }
     const out = resolve(io.cwd, v.out ?? `${slug(agent)}-${now().slice(0, 10)}.aspkg`);
-    const manifest = writePackage({ out, capture, agent, signer, history: await historyFor(log.log, agent) });
+    const asArchive = /\.(tgz|tar\.gz)$/i.test(out);
+    const writeDir = asArchive ? mkdtempSync(join(tmpdir(), "asp-pack-out-")) : out;
+    const manifest = writePackage({ out: writeDir, capture, agent, signer, history: await historyFor(log.log, agent) });
+    if (asArchive) {
+      await packDirectory(writeDir, out);
+      rmSync(writeDir, { recursive: true, force: true });
+    }
     const h: Harness = capture.harness;
     io.out(`packed ${agent} from ${runtime} (${project})`);
-    io.out(`  package      ${out}`);
+    io.out(`  package      ${out}${asArchive ? " (single file)" : ""}`);
     io.out(`  manifest     ${manifest.id}`);
     io.out(`  instructions ${h.instructions.map((i) => i.name).join(", ") || "none"}`);
     io.out(`  skills       ${h.skills.length}   subagents ${h.subagents.length}   commands ${h.commands.length}   MCP servers ${Object.keys(h.mcp_servers).length}`);
@@ -238,7 +245,9 @@ async function pack(home: string, v: Values, need: Need, io: Io): Promise<number
 
 async function verify(pkg: string | undefined, json: boolean, io: Io): Promise<number> {
   if (!pkg) throw new UsageError("asp verify <package>");
-  const report = await verifyPackage(resolve(io.cwd, pkg));
+  const resolved = await resolvePackage(resolve(io.cwd, pkg));
+  const report = await verifyPackage(resolved.dir);
+  await finishPackage(resolved, false);
   if (json) io.out(JSON.stringify(report, null, 2));
   else {
     io.out(`${report.ok ? "VERIFIED" : "FAILED"}  ${report.agent ?? pkg}`);
@@ -252,7 +261,16 @@ async function run(home: string, pkg: string | undefined, v: Values, need: Need,
   const backend = need("backend");
   const adapter = ADAPTERS[backend];
   if (!adapter) throw new UsageError(`unknown backend ${backend}; available: ${Object.keys(ADAPTERS).join(", ")}`);
-  const pkgDir = resolve(io.cwd, pkg);
+  const resolved = await resolvePackage(resolve(io.cwd, pkg));
+  let mutated = false;
+  try {
+    return await runIn(resolved.dir, home, backend, adapter, v, io, () => { mutated = true; });
+  } finally {
+    await finishPackage(resolved, mutated);
+  }
+}
+
+async function runIn(pkgDir: string, home: string, backend: string, adapter: RuntimeAdapter, v: Values, io: Io, onMutate: () => void): Promise<number> {
   const report = await verifyPackage(pkgDir);
   if (!report.ok) {
     io.err(`refusing to run: the package does not verify (${report.checks.filter((c) => c.status === "fail").map((c) => c.name).join(", ")}). Run asp verify for details.`);
@@ -333,6 +351,7 @@ async function run(home: string, pkg: string | undefined, v: Values, need: Need,
     return 0;
   }
   const { edges } = updatePackage(pkgDir, { signer, changes, memoryFrom: memoryChanged ? plan.memoryDir : undefined });
+  onMutate();
   for (const e of edges) io.err(`  recorded ${(e.body as any).change.description} (${e.id})`);
   io.err(`  package  ${pkgDir} re-signed`);
   await syncLocalLog(home, pkgDir, agent, io);
@@ -362,7 +381,15 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
   if (!tasks.length) throw new UsageError("--task is required at least once");
   const maxParallel = Math.max(1, Math.trunc(Number(v["max-parallel"] ?? 4)) || 1);
 
-  const pkgDir = resolve(io.cwd, pkg);
+  const resolved = await resolvePackage(resolve(io.cwd, pkg));
+  let mutated = false;
+  try {
+    return await orchestrateIn(resolved.dir);
+  } finally {
+    await finishPackage(resolved, mutated);
+  }
+
+  async function orchestrateIn(pkgDir: string): Promise<number> {
   const report = await verifyPackage(pkgDir);
   if (!report.ok) {
     io.err(`refusing to orchestrate: the package does not verify (${report.checks.filter((c) => c.status === "fail").map((c) => c.name).join(", ")}). Run asp verify for details.`);
@@ -512,10 +539,12 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
     description: `consolidated fleet memory from ${succeeded.length}/${tasks.length} node(s): +${overall.added.length} ~${overall.changed.length} -${overall.removed.length} files`,
   }];
   const { edges } = updatePackage(pkgDir, { signer, changes, memoryFrom: mergedDir });
+  mutated = true;
   for (const e of edges) io.err(`  recorded ${(e.body as any).change.description} (${e.id})`);
   io.err(`  package  ${pkgDir} re-signed`);
   await syncLocalLog(home, pkgDir, agent, io);
   return 0;
+  }
 }
 
 function appendFileEnsured(path: string, chunk: Buffer): void {

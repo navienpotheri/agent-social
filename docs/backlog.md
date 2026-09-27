@@ -9,15 +9,15 @@ Known gaps, grouped by area. Mocks to replace before Stage 2 are in [../MOCKS.md
 - Checking a Mandate against the agent's tier limits
 
 ## Registry
-- Revoking a node before it expires, and revoking a person's nodes when its keys rotate
-- Requiring node keys whenever the actor is a node (a person's own key can still sign for its node)
-- Fleet-level (template) reputation
+- ~~Revoking a node before it expires, and revoking a person's nodes when its keys rotate~~ — done: a second Node record chained onto the first (`prev` = its id) is an update; setting `expires` at or before `issued_at` revokes it immediately (`revokedAt` is set, so the key becomes entirely unresolvable, not merely expired). Dropping a passport key now also revokes every one of that person's live node keys, since the delegations were made under a key that's being retired.
+- Requiring node keys whenever the actor is a node (a person's own key can still sign for its node) — left as is; tightening this could break legitimate recovery (a person acting as its own node when a delegated key is lost), so it needs a decision, not just a change.
+- Fleet-level (template) reputation — needs AgentRank/Attestations infrastructure; Stage 2.
 
 ## Packages and `asp run`
-- Canary checks in `verify` (a runtime move should pass the canary suite on the new runtime)
-- Enforcing probation
-- Packages as a single archive file
-- Subagent memory (`.claude/agent-memory`) is carried but not wired into runs
+- Canary checks in `verify` (a runtime move should pass the canary suite on the new runtime) — blocked on the Academy/canary suite existing at all; Stage 2.
+- Enforcing probation — blocked on spec decision D2 (probation length and what it restricts); see spec-deltas.md.
+- ~~Packages as a single archive file~~ — done: `asp pack --out foo.aspkg.tgz` (or `.tar.gz`) produces one gzipped tar file; `verify`, `run` and `orchestrate` all accept either a directory or an archive, extracting to a temp directory and (for `run`/`orchestrate`, only after a successful write-back) re-packing it in place.
+- Subagent memory (`.claude/agent-memory`) is captured into the package but not wired into runs. Claude Code only reads it from `.claude/agent-memory/` inside the actual project directory, not from an added directory — wiring it in would mean writing into the target project, which breaks the "run never writes into the project" guarantee. Left undone rather than building a fragile workaround.
 
 ## Codex (reported at run time)
 - Path-scoped rules are in the prompt with their globs; Codex has no per-file rule loading
@@ -27,7 +27,7 @@ Known gaps, grouped by area. Mocks to replace before Stage 2 are in [../MOCKS.md
 - A model packed from another runtime isn't used unless `--model` is given
 
 ## OpenHands (reported at run time)
-- Its sessions aren't indexed into the package's experience yet
+- Its sessions aren't indexed into the package's experience: OpenHands' own conversation store (`~/.openhands/conversations/<id>/base_state.json` and its `ConversationMetadata`) records no working directory or project association at all, unlike Claude Code (nests conversations under a directory named for the project) and Codex (`session_meta.cwd` in every rollout). There's no reliable way to tell which of a user's past OpenHands sessions belong to a given project, so indexing them would mean guessing (wrong) or scanning event content for file paths (fragile and expensive). Sessions `asp run`/`orchestrate` start themselves are already isolated per run (`OPENHANDS_CONVERSATIONS_DIR` points at the run folder), so this only affects capturing a project's pre-existing history.
 - Path-scoped rules are on-demand skills naming their globs; OpenHands has no path triggers
 - Permission rules are stated, not enforced; headless OpenHands auto-approves every action, with the WSL user's full permissions
 - Hook events OpenHands lacks are dropped

@@ -62,3 +62,21 @@ Capture reads the repo context files, `.agents/skills`, `.openhands/skills`, `.o
 
 `packages/asp-cli/scripts/openhands-live-check.ts` runs the real `launch.sh` in WSL, with `openhands` replaced by a probe on OpenHands' own Python. The probe builds the agent context the way the CLI does. No LLM call is made.
 
+## Node revocation and key rotation (`packages/asp-log`)
+
+A second Node record for the same node id, chained onto the first (`prev` = its id), is an update:
+extending or replacing the key, or — by setting `expires` at or before `issued_at` — an immediate
+revocation. `projectNode` checks that the chain's predecessor really is this same node's own grant
+(never someone else's), then sets `revokedAt` when the update is a revocation, which makes the key
+entirely unresolvable rather than merely expired. Dropping a passport key (a real rotation, not just
+adding one) also revokes every one of that person's currently-live node keys, since delegations made
+under a retired key are no longer trustworthy.
+
+## Single-file packages (`packages/asp-package/src/archive.ts`)
+
+A package is normally a directory, but `pack --out foo.aspkg.tgz` (or `.tar.gz`) packs it into one
+gzipped tar file instead. `verify`, `run` and `orchestrate` accept either form: an archive is extracted
+into a temp directory, operated on as usual, and — for `run`/`orchestrate`, only once a write-back
+actually happened — re-packed into the same path afterward. A failed run never repacks, so the archive
+on disk stays byte-for-byte whatever it was before a failed attempt.
+
