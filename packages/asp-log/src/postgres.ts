@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import pg from "pg";
 import type {
-  ChainRow, FleetRow, KeyRow, LogHead, LogTx, PassportRow, ProbationRow, Store, StoredRecord,
+  AccountRow, ChainRow, EscrowRow, FleetRow, KeyRow, LogHead, LogTx, MintRow, PassportRow, ProbationRow, Store, StoredRecord,
 } from "./store.ts";
 
 const SQL_DIR = fileURLToPath(new URL("../sql/", import.meta.url));
@@ -57,6 +57,12 @@ const toKey = (k: any): KeyRow => ({
 const toPassport = (p: any): PassportRow => ({ did: p.did, head: p.head, sponsor: p.sponsor, fleet: p.fleet });
 const toFleet = (f: any): FleetRow => ({ did: f.did, head: f.head, org: f.org, name: f.name, maxMembers: f.max_members });
 const toProbation = (p: any): ProbationRow => ({ did: p.did, until: p.until, setBy: p.set_by });
+const toAccount = (a: any): AccountRow => ({ did: a.did, balance: Number(a.balance) });
+const toEscrow = (e: any): EscrowRow => ({
+  contract: e.contract, escrowPayer: e.escrow_payer, escrowLocked: Number(e.escrow_locked),
+  backer: e.backer, bondLocked: Number(e.bond_locked), settled: e.settled,
+});
+const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_minted) });
 
 /** Reads shared by the store (pool) and a transaction (client). */
 function reads(q: Queryable) {
@@ -105,6 +111,22 @@ function reads(q: Queryable) {
       const { rows } = await q.query("SELECT * FROM probations WHERE did = $1", [did]);
       return rows[0] && toProbation(rows[0]);
     },
+    async getAccount(did: string) {
+      const { rows } = await q.query("SELECT * FROM accounts WHERE did = $1", [did]);
+      return rows[0] && toAccount(rows[0]);
+    },
+    async getEscrow(contract: string) {
+      const { rows } = await q.query("SELECT * FROM escrows WHERE contract = $1", [contract]);
+      return rows[0] && toEscrow(rows[0]);
+    },
+    async getMint(did: string) {
+      const { rows } = await q.query("SELECT * FROM mints WHERE did = $1", [did]);
+      return rows[0] && toMint(rows[0]);
+    },
+    async allMints() {
+      const { rows } = await q.query("SELECT * FROM mints ORDER BY did");
+      return rows.map(toMint).map((m) => ({ did: m.did, balance: m.totalMinted }));
+    },
   };
 }
 
@@ -144,6 +166,9 @@ export class PostgresStore implements Store {
   fleetMembers(fleet: string) { return this.r.fleetMembers(fleet); }
   getProbation(did: string) { return this.r.getProbation(did); }
   keysForDid(did: string) { return this.r.keysForDid(did); }
+  getAccount(did: string) { return this.r.getAccount(did); }
+  getEscrow(contract: string) { return this.r.getEscrow(contract); }
+  allMints() { return this.r.allMints(); }
   async chainRecords(root: string) {
     const { rows } = await this.pool.query<RecordRow>(`SELECT ${RECORD_COLS} FROM records WHERE chain = $1 ORDER BY seq`, [root]);
     return rows.map(toStored);
@@ -175,6 +200,9 @@ class PgTx implements LogTx {
   getFleet(did: string) { return this.r.getFleet(did); }
   fleetMembers(fleet: string) { return this.r.fleetMembers(fleet); }
   getProbation(did: string) { return this.r.getProbation(did); }
+  getAccount(did: string) { return this.r.getAccount(did); }
+  getEscrow(contract: string) { return this.r.getEscrow(contract); }
+  getMint(did: string) { return this.r.getMint(did); }
 
   async insertRecord(row: StoredRecord) {
     const r = row.record;
@@ -219,6 +247,28 @@ class PgTx implements LogTx {
       `INSERT INTO probations (did, until, set_by) VALUES ($1, $2, $3)
        ON CONFLICT (did) DO UPDATE SET until = $2, set_by = $3`,
       [row.did, row.until, row.setBy],
+    );
+  }
+  async putAccount(row: AccountRow) {
+    await this.c.query(
+      `INSERT INTO accounts (did, balance) VALUES ($1, $2)
+       ON CONFLICT (did) DO UPDATE SET balance = $2`,
+      [row.did, row.balance],
+    );
+  }
+  async putEscrow(row: EscrowRow) {
+    await this.c.query(
+      `INSERT INTO escrows (contract, escrow_payer, escrow_locked, backer, bond_locked, settled)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (contract) DO UPDATE SET escrow_payer = $2, escrow_locked = $3, backer = $4, bond_locked = $5, settled = $6`,
+      [row.contract, row.escrowPayer, row.escrowLocked, row.backer, row.bondLocked, row.settled],
+    );
+  }
+  async putMint(row: MintRow) {
+    await this.c.query(
+      `INSERT INTO mints (did, total_minted) VALUES ($1, $2)
+       ON CONFLICT (did) DO UPDATE SET total_minted = $2`,
+      [row.did, row.totalMinted],
     );
   }
   async setLogHead(head: LogHead) {

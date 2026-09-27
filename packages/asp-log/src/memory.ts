@@ -1,6 +1,7 @@
 import {
   GENESIS_LOG_HASH,
-  type ChainRow, type FleetRow, type KeyRow, type LogHead, type LogTx, type PassportRow, type ProbationRow, type Store, type StoredRecord,
+  type AccountRow, type ChainRow, type EscrowRow, type FleetRow, type KeyRow, type LogHead, type LogTx, type MintRow,
+  type PassportRow, type ProbationRow, type Store, type StoredRecord,
 } from "./store.ts";
 
 const copy = <T>(v: T): T => structuredClone(v);
@@ -11,9 +12,15 @@ interface Tables {
   passports: Map<string, PassportRow>;
   fleets: Map<string, FleetRow>;
   probations: Map<string, ProbationRow>;
+  accounts: Map<string, AccountRow>;
+  escrows: Map<string, EscrowRow>;
+  mints: Map<string, MintRow>;
 }
 
-const emptyTables = (): Tables => ({ chains: new Map(), keys: new Map(), passports: new Map(), fleets: new Map(), probations: new Map() });
+const emptyTables = (): Tables => ({
+  chains: new Map(), keys: new Map(), passports: new Map(), fleets: new Map(), probations: new Map(),
+  accounts: new Map(), escrows: new Map(), mints: new Map(),
+});
 
 /** An in-memory Store for tests and local tools. Appends are serialized; failed appends leave no trace. */
 export class MemoryStore implements Store {
@@ -22,6 +29,14 @@ export class MemoryStore implements Store {
   private tables = emptyTables();
   private head: LogHead = { seq: 0, logHash: GENESIS_LOG_HASH };
   private queue: Promise<unknown> = Promise.resolve();
+
+  /** @param initialMints Seeds starting balances from cumulative mint totals (used to seed verify()'s replay; see MintRow). */
+  constructor(initialMints: AccountRow[] = []) {
+    for (const a of initialMints) {
+      this.tables.accounts.set(a.did, copy(a));
+      this.tables.mints.set(a.did, { did: a.did, totalMinted: a.balance });
+    }
+  }
 
   transaction<T>(fn: (tx: LogTx) => Promise<T>): Promise<T> {
     const run = async () => {
@@ -56,6 +71,9 @@ export class MemoryStore implements Store {
   async fleetMembers(fleet: string) { return [...this.tables.passports.values()].filter((p) => p.fleet === fleet).map(copy); }
   async getProbation(did: string) { const p = this.tables.probations.get(did); return p && copy(p); }
   async keysForDid(did: string) { return [...this.tables.keys.values()].filter((k) => k.did === did).map(copy); }
+  async getAccount(did: string) { const a = this.tables.accounts.get(did); return a && copy(a); }
+  async getEscrow(contract: string) { const e = this.tables.escrows.get(contract); return e && copy(e); }
+  async allMints() { return [...this.tables.mints.values()].map((m) => ({ did: m.did, balance: m.totalMinted })); }
   async close() {}
 
   /** @internal read access for MemoryTx */
@@ -101,6 +119,9 @@ class MemoryTx implements LogTx {
   async getFleet(did: string) { return this.read("fleets", did) as FleetRow | undefined; }
   async fleetMembers(fleet: string) { return this.all("passports").filter((p) => p.fleet === fleet); }
   async getProbation(did: string) { return this.read("probations", did) as ProbationRow | undefined; }
+  async getAccount(did: string) { return this.read("accounts", did) as AccountRow | undefined; }
+  async getEscrow(contract: string) { return this.read("escrows", contract) as EscrowRow | undefined; }
+  async getMint(did: string) { return this.read("mints", did) as MintRow | undefined; }
 
   async insertRecord(row: StoredRecord) { this.newRecords.push(copy(row)); }
   async putChain(row: ChainRow) { this.staged.chains.set(row.root, copy(row)); }
@@ -108,5 +129,8 @@ class MemoryTx implements LogTx {
   async putPassport(row: PassportRow) { this.staged.passports.set(row.did, copy(row)); }
   async putFleet(row: FleetRow) { this.staged.fleets.set(row.did, copy(row)); }
   async putProbation(row: ProbationRow) { this.staged.probations.set(row.did, copy(row)); }
+  async putAccount(row: AccountRow) { this.staged.accounts.set(row.did, copy(row)); }
+  async putEscrow(row: EscrowRow) { this.staged.escrows.set(row.contract, copy(row)); }
+  async putMint(row: MintRow) { this.staged.mints.set(row.did, copy(row)); }
   async setLogHead(head: LogHead) { this.head = { ...head }; }
 }

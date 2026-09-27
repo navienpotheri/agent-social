@@ -71,6 +71,42 @@ export interface ProbationRow {
   setBy: string;
 }
 
+/**
+ * A DID's credit balance (the Bank ledger). v0.1 has one unit ("credit"), so this is a single
+ * integer per DID. Moved by `projectBond`/`projectSettlement`.
+ */
+export interface AccountRow {
+  did: string;
+  balance: number;
+}
+
+/**
+ * Cumulative credits ever minted to a DID by `EventLog.mint` — local, unsigned, un-replayed
+ * test/bootstrap infrastructure (see MOCKS.md), since a closed-loop ledger still needs some way
+ * to get the first credits into an account. Tracked separately from the live balance so
+ * `EventLog.verify()`/`verifyCheckpoint()` can seed their replay with "everything ever minted" as
+ * each DID's starting balance (assuming a mint always precedes whatever record spends it, true of
+ * the actual append order, since the live append would have failed insufficient_balance otherwise)
+ * rather than with the live, already-spent-from current balance, which would double-count.
+ */
+export interface MintRow {
+  did: string;
+  totalMinted: number;
+}
+
+/**
+ * What a Bond locked for one contract, so Settlement can be checked against it: it may not
+ * release, return or slash more than was actually locked. Cleared (not deleted) once settled.
+ */
+export interface EscrowRow {
+  contract: string;
+  escrowPayer: string;
+  escrowLocked: number;
+  backer: string;
+  bondLocked: number;
+  settled: boolean;
+}
+
 /** Reads and writes inside one append. Writes become visible only if the transaction commits. */
 export interface LogTx {
   logHead(): Promise<LogHead>;
@@ -83,6 +119,9 @@ export interface LogTx {
   getFleet(did: string): Promise<FleetRow | undefined>;
   fleetMembers(fleet: string): Promise<PassportRow[]>;
   getProbation(did: string): Promise<ProbationRow | undefined>;
+  getAccount(did: string): Promise<AccountRow | undefined>;
+  getEscrow(contract: string): Promise<EscrowRow | undefined>;
+  getMint(did: string): Promise<MintRow | undefined>;
 
   insertRecord(row: StoredRecord): Promise<void>;
   putChain(row: ChainRow): Promise<void>;
@@ -90,6 +129,9 @@ export interface LogTx {
   putPassport(row: PassportRow): Promise<void>;
   putFleet(row: FleetRow): Promise<void>;
   putProbation(row: ProbationRow): Promise<void>;
+  putAccount(row: AccountRow): Promise<void>;
+  putEscrow(row: EscrowRow): Promise<void>;
+  putMint(row: MintRow): Promise<void>;
   setLogHead(head: LogHead): Promise<void>;
 }
 
@@ -108,5 +150,9 @@ export interface Store {
   fleetMembers(fleet: string): Promise<PassportRow[]>;
   getProbation(did: string): Promise<ProbationRow | undefined>;
   keysForDid(did: string): Promise<KeyRow[]>;
+  getAccount(did: string): Promise<AccountRow | undefined>;
+  getEscrow(contract: string): Promise<EscrowRow | undefined>;
+  /** Every DID's cumulative minted total, as {did, balance}. Used to seed verify()'s replay. */
+  allMints(): Promise<AccountRow[]>;
   close(): Promise<void>;
 }

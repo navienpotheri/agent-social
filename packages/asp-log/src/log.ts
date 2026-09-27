@@ -135,6 +135,8 @@ export class EventLog {
     if (type === "fleet") await this.projectFleet(tx, verified);
     if (type === "node") await this.projectNode(tx, verified);
     if (type === "lineage") await this.projectLineage(tx, verified);
+    if (type === "bond") await this.projectBond(tx, verified);
+    if (type === "settlement") await this.projectSettlement(tx, verified);
     await tx.putChain({
       root, kind, head: verified.id, length: (chain?.length ?? 0) + 1, lastIssuedAt: verified.issued_at,
       state: snapshot?.state ?? null, snapshot,
@@ -303,6 +305,75 @@ export class EventLog {
     if (body.probation_until) await tx.putProbation({ did: body.child, until: body.probation_until, setBy: r.id });
   }
 
+  /** Debits an account, throwing insufficient_balance rather than letting it go negative. */
+  private async debit(tx: LogTx, did: string, amount: number): Promise<void> {
+    if (amount === 0) return;
+    const balance = (await tx.getAccount(did))?.balance ?? 0;
+    if (balance < amount) throw rule("insufficient_balance", `${did} has ${balance} credits, needs ${amount}`);
+    await tx.putAccount({ did, balance: balance - amount });
+  }
+
+  private async credit(tx: LogTx, did: string, amount: number): Promise<void> {
+    if (amount === 0) return;
+    const balance = (await tx.getAccount(did))?.balance ?? 0;
+    await tx.putAccount({ did, balance: balance + amount });
+  }
+
+  /**
+   * Bank: locks the principal's escrow and the backer's bond against the contract, debiting both
+   * (Stage 2 slice 1). Fails with insufficient_balance rather than letting a job start uncovered.
+   * The lock is recorded so `projectSettlement` cannot release more than was actually locked.
+   */
+  private async projectBond(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as {
+      contract: string; backer: string; amount: { value: number };
+      escrow: { payer: string; amount: { value: number } };
+    };
+    const debits = new Map<string, number>();
+    debits.set(body.escrow.payer, (debits.get(body.escrow.payer) ?? 0) + body.escrow.amount.value);
+    debits.set(body.backer, (debits.get(body.backer) ?? 0) + body.amount.value);
+    for (const [did, amount] of debits) await this.debit(tx, did, amount);
+    await tx.putEscrow({
+      contract: body.contract, escrowPayer: body.escrow.payer, escrowLocked: body.escrow.amount.value,
+      backer: body.backer, bondLocked: body.amount.value, settled: false,
+    });
+  }
+
+  /**
+   * Bank: distributes what a Bond locked, once, per contract. escrow_released goes to the
+   * performer, any escrow left over returns to the principal; bond_returned goes back to the
+   * backer, bond_slashed compensates the principal (the harmed party), and any bond left over
+   * also returns to the backer. Never releases, returns or slashes more than was locked.
+   * `fees` isn't credited to anyone yet — see MOCKS.md — so a nonzero fee is rejected outright
+   * rather than silently vanishing.
+   */
+  private async projectSettlement(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as {
+      contract: string; escrow_released: { value: number }; bond_returned: { value: number };
+      bond_slashed: { value: number }; fees?: { value: number };
+    };
+    if (body.fees?.value) throw rule("fees_not_implemented", "settlement fees are not yet credited to anyone; omit fees for now");
+    const escrow = await tx.getEscrow(body.contract);
+    if (!escrow) throw rule("no_bond_for_settlement", `no Bond found for contract ${body.contract}`);
+    if (escrow.settled) throw rule("already_settled", `contract ${body.contract} was already settled`);
+    if (body.escrow_released.value > escrow.escrowLocked) {
+      throw rule("over_release", `escrow_released ${body.escrow_released.value} exceeds the ${escrow.escrowLocked} locked`);
+    }
+    if (body.bond_returned.value + body.bond_slashed.value > escrow.bondLocked) {
+      throw rule("over_release", `bond_returned + bond_slashed exceeds the ${escrow.bondLocked} bond locked`);
+    }
+
+    const contract = await tx.getRecord(body.contract);
+    const cbody = contract!.record.body as { principal: string; performer: string };
+    const escrowLeftover = escrow.escrowLocked - body.escrow_released.value;
+    const bondLeftover = escrow.bondLocked - body.bond_returned.value - body.bond_slashed.value;
+
+    await this.credit(tx, cbody.performer, body.escrow_released.value);
+    await this.credit(tx, cbody.principal, escrowLeftover + body.bond_slashed.value);
+    await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover);
+    await tx.putEscrow({ ...escrow, settled: true });
+  }
+
   get(id: string) { return this.store.getRecord(id); }
   head() { return this.store.logHead(); }
   chain(root: string) { return this.store.chainRecords(root); }
@@ -311,6 +382,27 @@ export class EventLog {
   passport(did: string) { return this.store.getPassport(did); }
   keys(did: string) { return this.store.keysForDid(did); }
   probation(did: string) { return this.store.getProbation(did); }
+  async balance(did: string) { return (await this.store.getAccount(did))?.balance ?? 0; }
+  escrow(contract: string) { return this.store.getEscrow(contract); }
+
+  /**
+   * Bootstraps a DID's balance for local testing. Not a signed record, not part of the tamper-
+   * evident log — a closed-loop ledger with no cash-out still needs some way to get the first
+   * credits into an account, and there's no real payment rail behind it yet (MOCKS.md). Because
+   * it isn't a record, `verify()` and `verifyCheckpoint()` can't independently re-derive it; they
+   * seed their replay from a snapshot of current balances instead, the same trust boundary as
+   * the fallback key resolver (MOCKS.md #9).
+   */
+  async mint(did: string, amount: number): Promise<number> {
+    if (amount < 0) throw rule("mint_negative", "mint amount must be >= 0");
+    return this.store.transaction(async (tx) => {
+      const balance = ((await tx.getAccount(did))?.balance ?? 0) + amount;
+      const totalMinted = ((await tx.getMint(did))?.totalMinted ?? 0) + amount;
+      await tx.putAccount({ did, balance });
+      await tx.putMint({ did, totalMinted });
+      return balance;
+    });
+  }
 
   /**
    * Re-verifies a signed log checkpoint (decision D5, see @agent-social/asp-package's checkpoint.ts):
@@ -318,7 +410,7 @@ export class EventLog {
    * rather than trusting the stored value at that row.
    */
   async verifyCheckpoint(at: { seq: number; logHash: string }): Promise<boolean> {
-    const replay = new EventLog(new MemoryStore(), { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs });
+    const replay = new EventLog(new MemoryStore(await this.store.allMints()), { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs });
     for (let afterSeq = 0; ; ) {
       const page = await this.store.since(afterSeq, 500);
       if (!page.length) return false; // the log is shorter than the checkpoint claims
@@ -343,7 +435,7 @@ export class EventLog {
    * log hash must come out the same.
    */
   async verify(pageSize = 500): Promise<VerifyReport> {
-    const replay = new EventLog(new MemoryStore(), {
+    const replay = new EventLog(new MemoryStore(await this.store.allMints()), {
       schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs,
     });
     let afterSeq = 0;

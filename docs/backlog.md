@@ -33,6 +33,11 @@ Known gaps, grouped by area. Mocks to replace before Stage 2 are in [../MOCKS.md
 - Hook events OpenHands lacks are dropped
 
 
+## Bank (credit ledger)
+- `fees` and `earnings_split` on Settlement aren't credited to anyone yet — a nonzero `fees` is rejected outright (`fees_not_implemented`) rather than silently dropped, pending a fee-recipient design (a platform account? the Insurer's reserve?).
+- `EventLog.mint` is a local, unsigned bootstrap mechanism (MOCKS.md #13), not a real payment rail — fine for single-player, not for a hosted network.
+- Bond's `slashing_conditions` (`lost_dispute`, `floor_breach`, `forbidden_means`) are enforced arithmetically once a Settlement declares a slash, but nothing yet *decides* when a slash is warranted — that's Courts (rulings), still unbuilt.
+
 ## Stage 2 / hosted network
 - Multi-tenant hosting: today `~/.asp` is single-user, single-machine — one local keystore, one local event log, no auth layer. A hosted network needs per-tenant auth boundaries, data isolation between orgs, rate limits and billing separation. The registry's data model (many persons/orgs/fleets in one log, sponsor-based isolation rules) already supports this; the deployment and auth layer around it does not exist yet.
 
@@ -41,3 +46,8 @@ Known gaps, grouped by area. Mocks to replace before Stage 2 are in [../MOCKS.md
 - No Mandate/Contract wraps a fleet run yet (see MOCKS.md #12), so `nodes.max_parallel` isn't enforced by the registry, only by the CLI's own `--max-parallel`
 - Node grants aren't revoked early if a node's task is abandoned; they simply expire
 - No retry or backoff for a failed node; a failed task is just reported and excluded from consolidation
+
+## Future test scenario: exploit contagion / whistleblowing (Stage 3, needs Courts + a live Bank)
+DeepMind's ["Cheaters and whistleblowers in the agent swarm"](https://institute.deepmind.com/essays/cheaters-and-whistleblowers-in-the-agent-swarm/) (2026) ran 100 Gemini agents on a shared math-proof task; one agent found an autograder exploit, it spread peer-to-peer in ~30 minutes, 14 agents exploited it and 24 reported it through official channels — but human oversight only arrived after the run ended, so the whistleblowers had no real-time backing. Their prescription (Ostrom: graduated sanctions, peer verification, monitoring that lets honest agents police the collective) is close to ASP's own thesis.
+- Worth building as a concrete conformance/arena scenario once Courts (rulings) and a real Bank (bonds that can actually be slashed) exist: agents share a task pool, one finds a shortcut that violates the Mandate's scope, bonds get slashed on a proven violation, a "whistleblower" report resolves as a real-time Courts ruling rather than post-hoc.
+- Not startable yet — needs Courts and live bonds, both later than the ledger + Market slice being built now (Stage 2 slice 1).
