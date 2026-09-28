@@ -11,6 +11,9 @@
  *     Includes `reputation` (tier, slash count) for an agent that's ever been slashed as a Bond's
  *     backer, or that has a declared tier to fall back on — derived, not itself a signed record.
  *   asp pack --runtime claude-code|codex|openhands --agent <did> [--project <dir>] [--include-user] [--out <dir>]
+ *     Includes memory/PENALTIES.md if the agent has ever been slashed and self-signed the lineage
+ *     entry for it (asp market settle does this automatically) — every runtime materializes it into
+ *     the agent's own memory alongside everything else it packed.
  *   asp verify <package> [--json]
  *   asp run <package> --backend claude-code|codex|openhands [--project <dir>] [--prompt <text>] [--model <m>] [--dry-run] [--no-write-back]
  *     After a successful run, a backend swap and any memory the agent changed are recorded in the
@@ -84,6 +87,8 @@
  *     omitting --escrow-released/--bond-slashed derives them from the cited ruling's fault on the
  *     performer — the formula the log itself enforces (settlement_mismatches_ruling otherwise), so
  *     you don't have to hand-compute it. --bond-returned still defaults to 0 either way.
+ *     A slash also self-signs a lineage penalty for the backer, if its key is available locally
+ *     (see `asp pack`'s note on memory/PENALTIES.md).
  *   asp market show <contract>
  *     Prints the job's state, its full chain, and (once bonded) the ledger lock for that contract.
  *
@@ -679,6 +684,31 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     }
     const res = await local.append(record);
     io.out(`settlement ${res.id} on contract ${contract} (log seq ${res.seq}, state ${res.state})`);
+
+    // Lineage as behavior-shaping (docs/backlog.md "Making a slash actually matter", mechanism 3):
+    // a slash writes a real, signed lineage edge for the backer, self-issued — the log can't sign
+    // on anyone's behalf, so this only happens when that DID's own key is available locally (true
+    // for single-player testing; a real network would need the backer's own agent to countersign
+    // this itself). asp pack later renders it into memory/PENALTIES.md, so it's what the agent
+    // actually reads at the start of its next run, not just an entry in its signed history.
+    if ((bondSlashed ?? 0) > 0) {
+      const escrow = await local.log.escrow(contract);
+      const backerSigner = escrow && keys.forDid(escrow.backer);
+      if (escrow && backerSigner) {
+        const lineage = createRecord({
+          type: "lineage", issuer: escrow.backer, subject: escrow.backer, prev: null,
+          body: {
+            edge: "update", child: escrow.backer, parents: [escrow.backer],
+            change: { layer: "memory", description: `Penalized: bond slashed ${bondSlashed} credits on contract ${contract} (settlement basis: ${basis}).` },
+          },
+          issued_at: now(),
+        }, backerSigner);
+        const lineageRes = await local.append(lineage);
+        io.out(`  penalty recorded: lineage ${lineageRes.id} for ${escrow.backer}`);
+      } else if (escrow) {
+        io.out(`  note: ${escrow.backer} was slashed but no local key is available to record it in lineage`);
+      }
+    }
     return 0;
   }
 
@@ -698,6 +728,27 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */
+/**
+ * Renders any of this agent's lineage `update` edges written by a slash (asp market settle's
+ * "Penalized: ..." descriptions) into memory/PENALTIES.md, so the runtime materializes it into the
+ * agent's own memory alongside everything else in the package — the second half of "lineage as
+ * behavior-shaping" (docs/backlog.md): the point isn't that the penalty is *recorded*, it's that
+ * the agent actually reads it at the start of its next run. Writes nothing if there are none.
+ */
+function writePenalties(staging: string, agent: string, history: AspRecord[]): void {
+  const penalties = history
+    .filter((r) => r.type === "asp.lineage/v0.2" && (r.body as any).child === agent)
+    .map((r) => ({ issuedAt: r.issued_at, description: (r.body as any).change?.description as string | undefined }))
+    .filter((p): p is { issuedAt: string; description: string } => !!p.description?.startsWith("Penalized:"))
+    .sort((a, b) => Date.parse(a.issuedAt) - Date.parse(b.issuedAt));
+  if (!penalties.length) return;
+  const dir = join(staging, "memory");
+  mkdirSync(dir, { recursive: true });
+  const lines = ["# Penalties", "", "Read this before deciding how to act — these are real, signed consequences from past jobs.", ""];
+  for (const p of penalties) lines.push(`- ${p.issuedAt}: ${p.description}`);
+  appendFileEnsured(join(dir, "PENALTIES.md"), Buffer.from(lines.join("\n") + "\n"));
+}
+
 async function historyFor(log: LocalLog["log"], agent: string): Promise<AspRecord[]> {
   const all: AspRecord[] = [];
   for (let after = 0; ; ) {
@@ -745,6 +796,8 @@ async function pack(home: string, v: Values, need: Need, io: Io): Promise<number
   const staging = mkdtempSync(join(tmpdir(), "asp-pack-"));
   try {
     const capture = await adapter.capture({ project, includeUser: v["include-user"] ?? false, home: v["user-home"] ?? v["claude-home"], staging });
+    const history = await historyFor(log.log, agent);
+    writePenalties(staging, agent, history);
     const findings = [...scanForSecrets(join(staging, "harness"), "harness/"), ...scanForSecrets(join(staging, "memory"), "memory/")];
     if (findings.length) {
       io.err("refusing to pack: these captured files look like they contain secrets (values not shown):");
@@ -755,7 +808,7 @@ async function pack(home: string, v: Values, need: Need, io: Io): Promise<number
     const out = resolve(io.cwd, v.out ?? `${slug(agent)}-${now().slice(0, 10)}.aspkg`);
     const asArchive = /\.(tgz|tar\.gz)$/i.test(out);
     const writeDir = asArchive ? mkdtempSync(join(tmpdir(), "asp-pack-out-")) : out;
-    const manifest = writePackage({ out: writeDir, capture, agent, signer, history: await historyFor(log.log, agent) });
+    const manifest = writePackage({ out: writeDir, capture, agent, signer, history });
     if (asArchive) {
       await packDirectory(writeDir, out);
       rmSync(writeDir, { recursive: true, force: true });
