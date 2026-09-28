@@ -8,7 +8,7 @@
   "additionalProperties": false,
   "properties": {
     "contract": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
-    "basis": { "enum": ["accepted", "ruling", "revoked"] },
+    "basis": { "enum": ["accepted", "ruling", "revoked", "silence"] },
     "cites": {
       "description": "The acceptance or ruling Attestation this settlement executes.",
       "$ref": "urn:asp:v0.2:common#/$defs/recordId"

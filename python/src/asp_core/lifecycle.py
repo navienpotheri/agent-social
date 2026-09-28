@@ -20,7 +20,7 @@ class Job:
 
     _SNAPSHOT_FIELDS = (
         "state", "head", "last_issued_at", "length", "contract_id", "principal", "performer", "bank",
-        "open_checkpoint", "latest_delivery", "acceptance", "ruling", "redeliveries",
+        "review_deadline", "open_checkpoint", "latest_delivery", "acceptance", "ruling", "redeliveries",
     )
 
     def __init__(self, resolve: KeyResolver | None = None, schemas: SchemaSet | None = None):
@@ -35,6 +35,7 @@ class Job:
         self.principal: str | None = None
         self.performer: str | None = None
         self.bank: str | None = None
+        self.review_deadline: str | None = None
         self.open_checkpoint: str | None = None
         self.latest_delivery: str | None = None
         self.acceptance: str | None = None
@@ -94,6 +95,7 @@ class Job:
             self.contract_id, self.principal, self.performer, self.bank = (
                 r["id"], b["principal"], b["performer"], b["bank"],
             )
+            self.review_deadline = b.get("review_deadline")
         try:
             self._check_issuer(t["issuer"], r)
             for g in t.get("guards", []):
@@ -102,7 +104,7 @@ class Job:
         except AspError:
             # A rejected record leaves the job unchanged.
             if rtype == "contract":
-                self.contract_id = self.principal = self.performer = self.bank = None
+                self.contract_id = self.principal = self.performer = self.bank = self.review_deadline = None
             raise
 
         self._record(t, rtype, r)
@@ -159,6 +161,9 @@ class Job:
                 return b.get("cites") is not None and b.get("cites") == self.acceptance
             case "cites_ruling":
                 return b.get("cites") is not None and b.get("cites") == self.ruling
+            case "past_review_deadline":
+                return (self.review_deadline is not None
+                        and datetime.fromisoformat(r["issued_at"]) > datetime.fromisoformat(self.review_deadline))
         raise ValueError(f"unknown guard {name}")
 
     def _record(self, t: dict[str, Any], rtype: str, r: Record) -> None:

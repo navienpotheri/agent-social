@@ -45,6 +45,7 @@ export interface JobSnapshot {
   principal?: string;
   performer?: string;
   bank?: string;
+  reviewDeadline?: string;
   openCheckpoint?: string;
   latestDelivery?: string;
   acceptance?: string;
@@ -61,6 +62,7 @@ export class Job {
   principal?: string;
   performer?: string;
   bank?: string;
+  reviewDeadline?: string;
   openCheckpoint?: string;
   latestDelivery?: string;
   acceptance?: string;
@@ -87,9 +89,9 @@ export class Job {
   }
 
   snapshot(): JobSnapshot {
-    const { state, head, lastIssuedAt, length, contractId, principal, performer, bank,
+    const { state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline,
       openCheckpoint, latestDelivery, acceptance, ruling, redeliveries } = this;
-    return JSON.parse(JSON.stringify({ state, head, lastIssuedAt, length, contractId, principal, performer, bank,
+    return JSON.parse(JSON.stringify({ state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline,
       openCheckpoint, latestDelivery, acceptance, ruling, redeliveries }));
   }
 
@@ -124,7 +126,7 @@ export class Job {
       }
     } catch (e) {
       // A rejected record leaves the job unchanged.
-      if (type === "contract") this.contractId = this.principal = this.performer = this.bank = undefined;
+      if (type === "contract") this.contractId = this.principal = this.performer = this.bank = this.reviewDeadline = undefined;
       throw e;
     }
 
@@ -137,11 +139,12 @@ export class Job {
   }
 
   private bindContract(r: AspRecord): void {
-    const b = r.body as { principal: string; performer: string; bank: string };
+    const b = r.body as { principal: string; performer: string; bank: string; review_deadline?: string };
     this.contractId = r.id;
     this.principal = b.principal;
     this.performer = b.performer;
     this.bank = b.bank;
+    this.reviewDeadline = b.review_deadline;
   }
 
   private checkIssuer(role: Role, r: AspRecord): void {
@@ -175,6 +178,8 @@ export class Job {
       case "no_ruling_yet": return this.ruling === undefined;
       case "cites_acceptance": return b.cites !== undefined && b.cites === this.acceptance;
       case "cites_ruling": return b.cites !== undefined && b.cites === this.ruling;
+      case "past_review_deadline":
+        return this.reviewDeadline !== undefined && Date.parse(r.issued_at) > Date.parse(this.reviewDeadline);
       default: throw new Error(`unknown guard ${name}`);
     }
   }

@@ -92,7 +92,7 @@ const offerRecord = createRecord({
 const intentId = intentRecord.id;
 const offerId = offerRecord.id;
 
-function contractBody() {
+function contractBody(overrides: Record<string, unknown> = {}) {
   return {
     principal: alice.did,
     performer: coder.did,
@@ -103,6 +103,7 @@ function contractBody() {
     verification: "deterministic",
     deadline: "2026-10-03T18:00:00Z",
     basis: { intent: intentId, offer: offerId },
+    ...overrides,
   };
 }
 
@@ -161,8 +162,8 @@ class Chain {
 
   private recordsSubject() { return this.records.length ? this.contract : null; }
 
-  contractRec(opts: { by?: Party; cosigners?: Party[] } = {}) {
-    return this.add("contract", opts.by ?? alice, contractBody(), { subject: coder.did, cosigners: opts.cosigners ?? [coder] });
+  contractRec(opts: { by?: Party; cosigners?: Party[]; body?: Record<string, unknown> } = {}) {
+    return this.add("contract", opts.by ?? alice, contractBody(opts.body), { subject: coder.did, cosigners: opts.cosigners ?? [coder] });
   }
   bond(overrides: Record<string, unknown> = {}) {
     // Single-player: zero-value bond and escrow (see MOCKS.md).
@@ -202,7 +203,7 @@ class Chain {
       reasons: ["fix was correct but the acceptance criterion was ambiguous about CI retries"],
     });
   }
-  settle(basis: "accepted" | "ruling" | "revoked", cites?: string, opts: { by?: Party; cosigners?: Party[] } = {}) {
+  settle(basis: "accepted" | "ruling" | "revoked" | "silence", cites?: string, opts: { by?: Party; cosigners?: Party[] } = {}) {
     const body: Record<string, unknown> = {
       contract: this.contract, basis,
       escrow_released: credits(0), bond_returned: credits(0), bond_slashed: credits(0),
@@ -258,6 +259,21 @@ lc("happy_path", "Contract, zero bond, mandate, plan checkpoint, delivery, accep
   const c = new Chain(); c.contractRec(); c.bond(); c.mandate();
   c.settle("revoked", undefined, { cosigners: [alice] });
   lc("revoked_while_running", "Principal revokes; the bank settles pro rata with the principal's cosignature", c, { state: "Settled" });
+}
+{
+  // Contract at t=0 (09:00), bond t=5, mandate t=10, deliver t=15, settle t=20 — review_deadline
+  // (09:12) falls between mandate and delivery, so it has passed by the time the bank settles.
+  const c = new Chain(); c.contractRec({ body: { review_deadline: "2026-10-01T09:12:00Z" } }); c.bond(); c.mandate();
+  c.deliver();
+  c.settle("silence");
+  lc("silence_after_deadline", "Principal-mode silence past review_deadline counts as acceptance", c, { state: "Settled" });
+}
+{
+  // Same shape, but review_deadline is a day after the bank's settlement attempt.
+  const c = new Chain(); c.contractRec({ body: { review_deadline: "2026-10-02T00:00:00Z" } }); c.bond(); c.mandate();
+  c.deliver();
+  c.settle("silence");
+  lc("settle_before_deadline", "A silence settlement before review_deadline has passed is refused", c, err("GUARD_FAILED", 4, "past_review_deadline"));
 }
 {
   const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); c.deliver();

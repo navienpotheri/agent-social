@@ -38,7 +38,10 @@
  *   asp credits balance <did>
  *
  *   Assignment mode (one performer bidding directly):
- *   asp market intent --by <did> --purpose <text> [--criteria <text> ...] --budget <n> --deadline <iso> [--verification deterministic|principal|arbiter]
+ *   asp market intent --by <did> --purpose <text> [--criteria <text> ...] --budget <n> --deadline <iso> [--verification deterministic|principal|arbiter] [--review-deadline <iso>]
+ *     --review-deadline (principal-mode verification only) is mirrored onto the Contract by
+ *     `asp market contract`, and lets `asp market settle --basis silence` close the job once it's
+ *     passed, without the principal ever signing an acceptance.
  *   asp market offer --by <did> --intent <id> --price <n> --plan <text> --eta <iso> [--bond-offered <n>]
  *
  *   Allocation mode (several Proposals compete for one Call; a panel member picks one):
@@ -77,11 +80,12 @@
  *     A ruling on a Disputed job. If at least one juror is registered anywhere, the issuer plus
  *     cosigners must include a majority of the panel `panel draw` would show (panel_quorum);
  *     otherwise any neutral DID may rule, unchanged from the original mocked Courts (MOCKS.md #4).
- *   asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked
+ *   asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked|silence
  *                      [--escrow-released <n>] [--bond-returned <n>] [--bond-slashed <n>]
  *                      [--pro-rata <permille>] [--cites <id>] [--principal <did>]
- *     Distributes exactly what the Bond locked: pay to the performer, unreleased escrow back to the
- *     principal, bond returned to the backer or slashed to compensate the principal. Never releases
+ *     `silence`: requires the Contract to carry a review_deadline (from a principal-mode Intent)
+ *     that the settlement's own timestamp is already past — no --cites needed, since no acceptance
+ *     was ever signed. Distributes exactly what the Bond locked: pay to the performer, unreleased escrow back to the
  *     more than was locked (over_release). `revoked` is cosigned by the principal; `accepted`/`ruling`
  *     cite the acceptance or ruling Attestation (defaults to the chain's latest one). For `ruling`,
  *     omitting --escrow-released/--bond-slashed derives them from the cited ruling's fault on the
@@ -157,6 +161,7 @@ const OPTIONS = {
   budget: { type: "string" },
   deadline: { type: "string" },
   verification: { type: "string" },
+  "review-deadline": { type: "string" },
   criteria: { type: "string", multiple: true },
   intent: { type: "string" },
   offer: { type: "string" },
@@ -388,12 +393,14 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
 
   if (sub === "intent") {
     const by = need("by");
+    const verification: Record<string, unknown> = { mode: (v.verification ?? "principal") as "deterministic" | "principal" | "arbiter" };
+    if (v["review-deadline"]) verification.review_deadline = v["review-deadline"];
     const body = {
       purpose: need("purpose"),
       acceptance_criteria: v.criteria?.length ? v.criteria : [need("purpose")],
       budget: { value: Math.trunc(Number(need("budget"))), unit: "credit" as const },
       deadline: need("deadline"),
-      verification: { mode: (v.verification ?? "principal") as "deterministic" | "principal" | "arbiter" },
+      verification,
     };
     const record = createRecord({ type: "intent", issuer: by, subject: by, prev: null, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
@@ -481,6 +488,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
         principal, performer, bank, purpose: intentBody.purpose, acceptance_criteria: intentBody.acceptance_criteria,
         price: offerBody.price, verification: intentBody.verification.mode, deadline: intentBody.deadline,
         basis: { intent: intentId, offer: offerId },
+        ...(intentBody.verification.review_deadline ? { review_deadline: intentBody.verification.review_deadline } : {}),
       };
     } else if (callId || proposalId) {
       if (!callId || !proposalId) throw new UsageError("allocation mode needs both --call and --proposal");
@@ -643,7 +651,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
   if (sub === "settle") {
     const contract = need("contract");
     const bank = need("bank");
-    const basis = need("basis") as "accepted" | "ruling" | "revoked";
+    const basis = need("basis") as "accepted" | "ruling" | "revoked" | "silence";
     const chain = await marketChain(local.log, contract);
     const head = chain.at(-1);
     if (!head) throw new Error(`contract ${contract} is not in the log`);
@@ -653,7 +661,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const bondReturned = Math.trunc(Number(v["bond-returned"] ?? "0"));
     let cited: string | undefined = v.cites;
 
-    if (basis !== "revoked") {
+    if (basis === "accepted" || basis === "ruling") {
       cited ??= [...chain].reverse().find((s) => s.kind === "attestation")?.id;
       if (!cited) throw new Error(`no attestation to cite; give --cites <id>, or run asp market accept/reject first`);
     }
@@ -675,7 +683,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       bond_slashed: { value: bondSlashed ?? 0, unit: "credit" },
     };
     if (basis === "revoked") body.pro_rata_permille = Math.trunc(Number(v["pro-rata"] ?? "0"));
-    else body.cites = cited;
+    else if (basis === "accepted" || basis === "ruling") body.cites = cited;
     let record = createRecord({ type: "settlement", issuer: bank, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(bank));
     if (basis === "revoked") {
       const contractRec = await local.log.get(contract);
