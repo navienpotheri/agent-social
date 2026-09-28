@@ -1,7 +1,7 @@
 import { after, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { cosign } from "@agent-social/asp-core";
-import { EventLog } from "../src/index.ts";
+import { EventLog, PLATFORM_DID } from "../src/index.ts";
 import { alice, at, bank, codeOf, coder, memory, pgUrl, postgres, rec, registerParties, type Harness } from "./harness.ts";
 
 const contractBody = (price: number) => ({
@@ -124,13 +124,26 @@ for (const h of [memory, postgres] as Harness[]) {
       assert.equal(settlementResult, "GUARD_FAILED");
     });
 
-    test("settlement fees are rejected outright rather than silently uncredited", async () => {
+    test("settlement fees come out of escrow and credit to the local mock platform account", async () => {
       const log = new EventLog(await h.make());
       await registerParties(log);
       await log.mint(alice.did, 1000);
       await log.mint(coder.did, 200);
       const { settlementResult } = await bondAndRevoke(log, 1000, 200, 1000, { escrowReleased: 400, bondReturned: 200, bondSlashed: 0, fees: 10 });
+      assert.equal(settlementResult, undefined);
+      assert.equal(await log.balance(coder.did), 400 + 200, "paid 400, bond returned in full");
+      assert.equal(await log.balance(PLATFORM_DID), 10);
+      assert.equal(await log.balance(alice.did), 1000 - 400 - 10, "the rest of the escrow (590) returns to alice");
+    });
+
+    test("fees can't push escrow_released past what was actually locked", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      await log.mint(alice.did, 1000);
+      await log.mint(coder.did, 200);
+      const { settlementResult } = await bondAndRevoke(log, 1000, 200, 1000, { escrowReleased: 995, bondReturned: 200, bondSlashed: 0, fees: 10 });
       assert.equal(settlementResult, "GUARD_FAILED");
+      assert.equal(await log.balance(PLATFORM_DID), 0, "the failed settlement moved nothing");
     });
 
     test("zero-value bonds and settlements (single-player mode, MOCKS.md #1-#2) still work with no ledger effect", async () => {

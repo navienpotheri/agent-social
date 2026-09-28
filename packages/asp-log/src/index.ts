@@ -1,4 +1,4 @@
-export { EventLog, nextLogHash, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
+export { EventLog, PLATFORM_DID, nextLogHash, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore } from "./memory.ts";
 export { PostgresStore, migrate } from "./postgres.ts";
 export { DEFAULT_PANEL_SIZE, drawPanel, findRejection, type PanelSource } from "./panel.ts";

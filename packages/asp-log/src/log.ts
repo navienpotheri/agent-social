@@ -17,6 +17,13 @@ const DEFAULT_MAX_NODE_TTL_MS = 24 * 60 * 60 * 1000;
  * live fleet-mate's slash, how many extra permille of the contract price the next Bond must cover. */
 const RISK_PERMILLE_PER_OWN_SLASH = 250;
 const RISK_PERMILLE_PER_FLEET_SLASH = 100;
+/**
+ * Decided 2026-09-28: Settlement `fees` credit here — a local mock for a real platform/Insurer
+ * account, same trust boundary as the mocked bank/panel DIDs in conformance/generate.ts (MOCKS.md).
+ * No passport is required for a DID to hold a ledger balance (see `credit`), so this needs no
+ * registration; it's just an account id.
+ */
+export const PLATFORM_DID = "did:web:asp.local:platform";
 
 export interface EventLogOptions {
   schemas?: SchemaSet;
@@ -151,6 +158,7 @@ export class EventLog {
     if (type === "attestation") await this.checkRulingPanel(tx, verified);
     if (type === "mandate") await this.checkMandateTier(tx, verified);
     if (type === "proposal") await this.checkProposerTier(tx, verified);
+    if (type === "contract") await this.checkSubcontract(tx, verified);
     await tx.putChain({
       root, kind, head: verified.id, length: (chain?.length ?? 0) + 1, lastIssuedAt: verified.issued_at,
       state: snapshot?.state ?? null, snapshot,
@@ -374,6 +382,29 @@ export class EventLog {
   }
 
   /**
+   * Subcontract nesting (decided 2026-09-28: the performer funds its own subcontract, no automatic
+   * netting to the parent's escrow — `parent_contract` only links child to parent for audit). Real
+   * checks, not just an unvalidated field: the parent must actually be a Contract still open (not
+   * already Settled), and the child's principal must be the parent's own performer — a subcontract
+   * is that performer hiring help for work it's already on the hook for, not an arbitrary DID
+   * borrowing someone else's job id.
+   */
+  private async checkSubcontract(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as { principal: string; parent_contract?: string };
+    if (!body.parent_contract) return;
+    const parent = await tx.getRecord(body.parent_contract);
+    if (!parent || parent.record.type !== "asp.contract/v0.2") {
+      throw rule("parent_contract_unknown", `${body.parent_contract} is not a Contract in this log`);
+    }
+    const parentChain = await tx.getChain(parent.chain);
+    if (parentChain?.state === "Settled") throw rule("parent_already_settled", `contract ${body.parent_contract} is already Settled`);
+    const parentBody = parent.record.body as { performer: string };
+    if (parentBody.performer !== body.principal) {
+      throw rule("subcontract_principal_mismatch", `a subcontract's principal must be the parent contract's own performer (${parentBody.performer}), not ${body.principal}`);
+    }
+  }
+
+  /**
    * Bank: locks the principal's escrow and the backer's bond against the contract, debiting both
    * (Stage 2 slice 1). Fails with insufficient_balance rather than letting a job start uncovered.
    * The lock is recorded so `projectSettlement` cannot release more than was actually locked.
@@ -426,20 +457,21 @@ export class EventLog {
    * performer, any escrow left over returns to the principal; bond_returned goes back to the
    * backer, bond_slashed compensates the principal (the harmed party), and any bond left over
    * also returns to the backer. Never releases, returns or slashes more than was locked.
-   * `fees` isn't credited to anyone yet — see MOCKS.md — so a nonzero fee is rejected outright
-   * rather than silently vanishing.
+   * `fees` (decided 2026-09-28) comes out of the same escrow, on top of `escrow_released`, and
+   * credits to `PLATFORM_DID` — a local mock standing in for a real platform/Insurer account
+   * (MOCKS.md), the same trust boundary as the mocked bank/panel DIDs conformance already uses.
    */
   private async projectSettlement(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as {
       contract: string; basis: string; cites?: string; escrow_released: { value: number };
       bond_returned: { value: number }; bond_slashed: { value: number }; fees?: { value: number };
     };
-    if (body.fees?.value) throw rule("fees_not_implemented", "settlement fees are not yet credited to anyone; omit fees for now");
+    const fees = body.fees?.value ?? 0;
     const escrow = await tx.getEscrow(body.contract);
     if (!escrow) throw rule("no_bond_for_settlement", `no Bond found for contract ${body.contract}`);
     if (escrow.settled) throw rule("already_settled", `contract ${body.contract} was already settled`);
-    if (body.escrow_released.value > escrow.escrowLocked) {
-      throw rule("over_release", `escrow_released ${body.escrow_released.value} exceeds the ${escrow.escrowLocked} locked`);
+    if (body.escrow_released.value + fees > escrow.escrowLocked) {
+      throw rule("over_release", `escrow_released + fees exceeds the ${escrow.escrowLocked} locked`);
     }
     if (body.bond_returned.value + body.bond_slashed.value > escrow.bondLocked) {
       throw rule("over_release", `bond_returned + bond_slashed exceeds the ${escrow.bondLocked} bond locked`);
@@ -463,10 +495,11 @@ export class EventLog {
       }
     }
 
-    const escrowLeftover = escrow.escrowLocked - body.escrow_released.value;
+    const escrowLeftover = escrow.escrowLocked - body.escrow_released.value - fees;
     const bondLeftover = escrow.bondLocked - body.bond_returned.value - body.bond_slashed.value;
 
     await this.credit(tx, cbody.performer, body.escrow_released.value);
+    if (fees > 0) await this.credit(tx, PLATFORM_DID, fees);
     await this.credit(tx, cbody.principal, escrowLeftover + body.bond_slashed.value);
     await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover);
     if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer);

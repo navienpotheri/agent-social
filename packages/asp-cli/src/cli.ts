@@ -51,12 +51,15 @@
  *     `--by` must be one of the Call's panel DIDs (not enforced by the log — Call/Proposal aren't
  *     chained, so this is informational, same as MOCKS.md #4's mocked panel).
  *
- *   asp market contract --principal <did> --bank <did> [--performer <did>]
+ *   asp market contract --principal <did> --bank <did> [--performer <did>] [--parent-contract <id>]
  *                        (--intent <id> --offer <id> | --call <id> --proposal <id>)
  *     Issued by the principal, co-signed by the performer. In assignment mode, purpose/criteria/
  *     deadline/verification come from the Intent and price from the Offer (performer defaults to the
  *     Offer's issuer). In allocation mode, they come from the Call and the allocated Proposal
  *     (performer defaults to the Proposal's team[0]; --verification, since Call has none).
+ *     --parent-contract: subcontract nesting — the parent's own performer becomes this contract's
+ *     principal (checked, not just recorded), funding it from its own balance; no automatic netting
+ *     back to the parent's escrow. The parent must exist and not already be Settled.
  *   asp market bond --contract <id> --backer <did> --amount <n> --escrow-payer <did> --escrow-amount <n>
  *     Locks real credits: debits both the escrow payer and the backer for real (rejects with
  *     insufficient_balance rather than starting a job uncovered).
@@ -81,8 +84,10 @@
  *     cosigners must include a majority of the panel `panel draw` would show (panel_quorum);
  *     otherwise any neutral DID may rule, unchanged from the original mocked Courts (MOCKS.md #4).
  *   asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked|silence
- *                      [--escrow-released <n>] [--bond-returned <n>] [--bond-slashed <n>]
+ *                      [--escrow-released <n>] [--bond-returned <n>] [--bond-slashed <n>] [--fees <n>]
  *                      [--pro-rata <permille>] [--cites <id>] [--principal <did>]
+ *     --fees comes out of the same escrow, on top of --escrow-released, and credits to a local mock
+ *     platform account (EventLog.PLATFORM_DID) standing in for a real platform/Insurer recipient.
  *     `silence`: requires the Contract to carry a review_deadline (from a principal-mode Intent)
  *     that the settlement's own timestamp is already past — no --cites needed, since no acceptance
  *     was ever signed. Distributes exactly what the Bond locked: pay to the performer, unreleased escrow back to the
@@ -162,6 +167,8 @@ const OPTIONS = {
   deadline: { type: "string" },
   verification: { type: "string" },
   "review-deadline": { type: "string" },
+  "parent-contract": { type: "string" },
+  fees: { type: "string" },
   criteria: { type: "string", multiple: true },
   intent: { type: "string" },
   offer: { type: "string" },
@@ -509,6 +516,9 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       throw new UsageError("give --intent and --offer (assignment mode), or --call and --proposal (allocation mode)");
     }
     if (!performer) throw new UsageError("--performer is required (or derivable from the Offer's issuer or the Proposal's team)");
+    // Subcontract nesting (docs/spec-deltas.md): the log itself checks this is coherent — the
+    // parent must exist, not be Settled yet, and its own performer must be this contract's principal.
+    if (v["parent-contract"]) body.parent_contract = v["parent-contract"];
     let record = createRecord({ type: "contract", issuer: principal, subject: performer, prev: null, body, issued_at: now() }, signerFor(principal));
     record = cosign(record, signerFor(performer));
     const res = await local.append(record);
@@ -682,6 +692,9 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       bond_returned: { value: bondReturned, unit: "credit" },
       bond_slashed: { value: bondSlashed ?? 0, unit: "credit" },
     };
+    // Comes out of the same escrow, on top of escrow_released; credits to the local mock platform
+    // account (EventLog.PLATFORM_DID) standing in for a real platform/Insurer recipient (MOCKS.md).
+    if (v.fees) body.fees = { value: Math.trunc(Number(v.fees)), unit: "credit" };
     if (basis === "revoked") body.pro_rata_permille = Math.trunc(Number(v["pro-rata"] ?? "0"));
     else if (basis === "accepted" || basis === "ruling") body.cites = cited;
     let record = createRecord({ type: "settlement", issuer: bank, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(bank));
