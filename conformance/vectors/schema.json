@@ -424,6 +424,40 @@
       "valid": true
     },
     {
+      "name": "valid_action",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read",
+          "tests.run"
+        ],
+        "summary": "read the repo, ran the test suite"
+      },
+      "valid": true
+    },
+    {
+      "name": "action_missing_contract",
+      "schema": "action",
+      "instance": {
+        "scopes_used": [
+          "repo.read"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "action_bad_scope_format",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "Repo Read"
+        ]
+      },
+      "valid": false
+    },
+    {
       "name": "mandate_floor_v2",
       "schema": "mandate",
       "instance": {

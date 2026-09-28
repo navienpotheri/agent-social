@@ -20,6 +20,8 @@ import { fileURLToPath } from "node:url";
 import { copyInto, listFiles, readJsonIfExists, sha256File, writeJson } from "../files.ts";
 import { asList, frontmatter } from "../frontmatter.ts";
 import type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter, SessionSummary } from "../harness.ts";
+import { sha256Id } from "@agent-social/asp-core";
+import { deriveScopeForTool } from "../package.ts";
 import { resolveSecrets, stripSecrets, toEnvRefs, type Env } from "../secrets.ts";
 
 export const RUNTIME = "claude-code";
@@ -329,7 +331,29 @@ async function materialize(opts: {
   args.push("--plugin-dir", plugin, "--append-system-prompt-file", join(runDir, "instructions.md"), "--settings", join(runDir, "settings.json"));
   if (harness.skills.length) args.push("--add-dir", workspace);
 
-  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: r.missing.sort(), notes };
+  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: r.missing.sort(), notes, checkOutputForAction };
+}
+
+/**
+ * The compliance bridge (docs/backlog.md): `--output-format stream-json` (already used for
+ * `-p` runs) emits one JSON object per line, in the same shape as the session JSONL
+ * `summarizeTranscript` reads at pack time — so a live tool_use block is detectable the same way,
+ * as it happens, not just after the fact from a finished transcript.
+ */
+function checkOutputForAction(line: string): { scope: string; artifact?: { uri: string; sha256: string } }[] | undefined {
+  let o: any;
+  try { o = JSON.parse(line); } catch { return undefined; }
+  if (o.type !== "assistant" || !Array.isArray(o.message?.content)) return undefined;
+  const calls = o.message.content.filter((b: any) => b.type === "tool_use");
+  if (!calls.length) return undefined;
+  return calls.map((b: any) => {
+    const arg = typeof b.input?.command === "string" ? b.input.command : "";
+    const inputJson = JSON.stringify(b.input ?? {});
+    return {
+      scope: deriveScopeForTool(b.name, arg),
+      artifact: { uri: `asp://tool-call/${b.name}`, sha256: sha256Id(new TextEncoder().encode(inputJson)) },
+    };
+  });
 }
 
 function stripFrontmatter(text: string): string {

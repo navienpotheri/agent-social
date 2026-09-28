@@ -77,6 +77,14 @@ export interface LaunchPlan {
    * treats a match as a failed run regardless of the exit code, skipping write-back.
    */
   checkOutputForFailure?: (line: string) => string | undefined;
+  /**
+   * The runtime → protocol compliance bridge (docs/backlog.md): when set, `asp run` scans each
+   * line of the child's live stdout and collects every scope this returns, so it can report what
+   * was actually used (not self-declared after the fact) against the contract's live Mandate once
+   * the run ends — see `asp run --contract <id>`. `artifact` (data-flow fingerprinting) is a hash
+   * of the call's input, never the input itself — provable later in a dispute, never in the log.
+   */
+  checkOutputForAction?: (line: string) => { scope: string; artifact?: { uri: string; sha256: string } }[] | undefined;
 }
 
 export interface RuntimeAdapter {

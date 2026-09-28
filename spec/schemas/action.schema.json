@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:action",
+  "title": "Action body",
+  "description": "The runtime→protocol compliance bridge: a self-issued, near-real-time report of what scopes a performer's tool calls actually exercised during a run, checked against the job's live Mandate. Self-reported — this cannot catch a genuinely adversarial agent that simply omits a violating action, but it turns accidental scope creep into an immediately-checkable record instead of something only a human might notice later in the Delivery.",
+  "type": "object",
+  "required": ["contract", "scopes_used"],
+  "additionalProperties": false,
+  "properties": {
+    "contract": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "scopes_used": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$" },
+      "uniqueItems": true
+    },
+    "summary": { "type": "string" },
+    "artifacts": {
+      "description": "Data-flow fingerprinting: a hash of what a tool call's input actually was, never the content itself — provable later in a dispute, never exposed in the log.",
+      "type": "array",
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" }
+    }
+  }
+}

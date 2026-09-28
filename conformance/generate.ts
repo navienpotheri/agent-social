@@ -512,6 +512,9 @@ sv("valid_intent", "intent", {
 sv("valid_offer", "offer", { intent: intentId, price: credits(0), plan: "Reproduce, isolate the race, fix, prove 50/50", eta: "2026-10-02T12:00:00Z", bond_offered: credits(0) }, true);
 sv("valid_call", "call", { purpose: "Cut CI time in half", budget: credits(5000), evaluation_criteria: ["median CI minutes"], panel: [panel.did], deadline: "2026-11-01T00:00:00Z" }, true);
 sv("valid_proposal", "proposal", { call: fakeId("call"), plan: "Shard and cache", team: [coder.did], budget_asked: credits(1200), milestones: [{ description: "sharding", due: "2026-10-15T00:00:00Z" }] }, true);
+sv("valid_action", "action", { contract: fakeId("c"), scopes_used: ["repo.read", "tests.run"], summary: "read the repo, ran the test suite" }, true);
+sv("action_missing_contract", "action", { scopes_used: ["repo.read"] }, false);
+sv("action_bad_scope_format", "action", { contract: fakeId("c"), scopes_used: ["Repo Read"] }, false);
 
 const m = mandateBody(fakeId("c"));
 sv("mandate_floor_v2", "mandate", { ...m, floor: "asp.floor/v2" }, false);

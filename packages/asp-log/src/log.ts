@@ -156,7 +156,8 @@ export class EventLog {
     if (type === "settlement") await this.projectSettlement(tx, verified);
     if (type === "juror") await this.projectJuror(tx, verified);
     if (type === "attestation") await this.checkRulingPanel(tx, verified);
-    if (type === "mandate") await this.checkMandateTier(tx, verified);
+    if (type === "mandate") { await this.checkMandateTier(tx, verified); await this.projectMandate(tx, verified); }
+    if (type === "action") await this.checkAction(tx, verified);
     if (type === "proposal") await this.checkProposerTier(tx, verified);
     if (type === "contract") await this.checkSubcontract(tx, verified);
     await tx.putChain({
@@ -404,6 +405,40 @@ export class EventLog {
     }
   }
 
+  /** Tracks a contract's current Mandate scopes, so a later Action report can be checked against it. */
+  private async projectMandate(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as { contract: string; scopes: string[] };
+    await tx.putMandate({ contract: body.contract, scopes: body.scopes });
+  }
+
+  /**
+   * The runtime → protocol compliance bridge (docs/backlog.md): a self-issued, near-real-time
+   * report of what scopes a performer's tool calls actually exercised, checked against that
+   * contract's live Mandate. Self-reported — this can't catch a genuinely adversarial agent that
+   * simply omits a violating action, but an honest report of an out-of-scope action can never be
+   * laundered into a clean-looking log: it's refused, the same as any other guard failure, right
+   * when it's submitted, not discovered later in a Delivery nobody double-checked.
+   */
+  private async checkAction(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as { contract: string; scopes_used: string[] };
+    const contract = await tx.getRecord(body.contract);
+    if (!contract || contract.record.type !== "asp.contract/v0.2") {
+      throw rule("action_contract_unknown", `${body.contract} is not a Contract in this log`);
+    }
+    const cbody = contract.record.body as { performer: string };
+    if (r.issuer !== cbody.performer) throw new AspError("WRONG_ISSUER", `${r.issuer} is not the performer of ${body.contract}`);
+    const chain = await tx.getChain(contract.chain);
+    if (chain?.state !== "Running" && chain?.state !== "Checkpoint") {
+      throw rule("action_not_running", `contract ${body.contract} is not currently Running (state: ${chain?.state ?? "unknown"})`);
+    }
+    const mandate = await tx.getMandate(body.contract);
+    if (!mandate) throw rule("no_mandate_for_action", `contract ${body.contract} has no Mandate yet`);
+    const outOfScope = body.scopes_used.filter((s) => !mandate.scopes.includes(s));
+    if (outOfScope.length) {
+      throw rule("scope_violation", `${r.issuer} used scope(s) not granted by the Mandate: ${outOfScope.join(", ")}`);
+    }
+  }
+
   /**
    * Bank: locks the principal's escrow and the backer's bond against the contract, debiting both
    * (Stage 2 slice 1). Fails with insufficient_balance rather than letting a job start uncovered.
@@ -566,6 +601,7 @@ export class EventLog {
   escrow(contract: string) { return this.store.getEscrow(contract); }
   juror(did: string) { return this.store.getJuror(did); }
   reputationOf(did: string) { return this.reputation(this.store, did); }
+  mandateOf(contract: string) { return this.store.getMandate(contract); }
 
   /** The current panel for a contract's open dispute — for display before a ruling is issued. */
   async drawPanel(contract: string, size?: number): Promise<string[]> {

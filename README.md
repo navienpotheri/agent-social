@@ -8,13 +8,13 @@ This repo holds the protocol's machine-readable spec, the SDKs and the conforman
 
 | Path | What |
 |---|---|
-| `spec/schemas/` | JSON Schema (2020-12) for the envelope and 17 record types |
+| `spec/schemas/` | JSON Schema (2020-12) for the envelope and 18 record types |
 | `spec/package/harness.schema.json` | The runtime-neutral harness inside an agent package |
 | `spec/lifecycle.json` | The job state machine as data: states, transitions, issuer roles, guards, error codes |
 | `packages/asp-core/` | TypeScript SDK: canonical JSON, Ed25519 records, schema validation, `Job` lifecycle |
 | `packages/asp-log/` | Append-only signed event log: in-memory and Postgres stores; a registry of passports, fleets and delegated node keys; a credit ledger (Bank) with real Bond/Settlement balance enforcement; a real Courts ruling panel (staked jurors, a deterministic conflict-free draw, panel-quorum enforcement); slash-driven reputation (tier demotion, a risk-scaled minimum Bond, fleet-wide cost); log hash chain; full-log verification |
 | `packages/asp-package/` | Agent packages: the runtime-neutral harness, runtime adapters (Claude Code, Codex CLI, OpenHands), writing and verifying packages, and the local keystore and log in `~/.asp` |
-| `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run`, `orchestrate` (a fleet of parallel nodes with one consolidated memory update), `log verify`, `log checkpoint`, `credits grant\|balance`, `market intent\|offer\|call\|propose\|allocate\|contract\|bond\|mandate\|deliver\|accept\|reject\|rule\|settle\|show\|juror register\|juror show\|panel draw` |
+| `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run` (with `--contract <id>` for live compliance reporting), `orchestrate` (a fleet of parallel nodes with one consolidated memory update), `log verify`, `log checkpoint`, `credits grant\|balance`, `market intent\|offer\|call\|propose\|allocate\|contract\|bond\|mandate\|deliver\|accept\|reject\|rule\|settle\|show\|action\|juror register\|juror show\|panel draw` |
 | `python/` | Python SDK with the same API |
 | `conformance/` | Shared test vectors and their generator |
 | `docs/spec-deltas.md` | What the v0.2 spec needs from the build: 5 decisions (resolved 2026-09-27) and 11 additions |

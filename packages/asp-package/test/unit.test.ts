@@ -40,6 +40,18 @@ test("permission rules map to coarse ASP scopes", () => {
   );
 });
 
+test("network-bound shell commands map to shell.network, not shell.exec", () => {
+  assert.deepEqual(
+    deriveScopes(["Bash(curl https://example.com:*)", "Bash(ssh user@host:*)", "Bash(ls)"]),
+    ["shell.exec", "shell.network"],
+  );
+  assert.deepEqual(deriveScopes(["Bash(wget http://internal:*)"]), ["shell.network"]);
+  assert.deepEqual(deriveScopes(["Bash(echo hi | nc 10.0.0.1 80:*)"]), ["shell.network"]);
+  assert.deepEqual(deriveScopes(["PowerShell(Invoke-WebRequest -Uri https://example.com:*)"]), ["shell.network"]);
+  // A bare URL in the argument (e.g. curl-less fetch scripts) is still caught.
+  assert.deepEqual(deriveScopes(["Bash(python fetch.py https://example.com/data:*)"]), ["shell.network"]);
+});
+
 test("Claude Code project slugs, with a prefix fallback for truncated long paths", () => {
   assert.equal(projectSlug("C:\\Users\\me\\repo"), "C--Users-me-repo");
   assert.equal(projectSlug("/home/me/my.repo"), "-home-me-my-repo");

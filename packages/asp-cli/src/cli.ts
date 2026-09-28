@@ -15,9 +15,15 @@
  *     entry for it (asp market settle does this automatically) — every runtime materializes it into
  *     the agent's own memory alongside everything else it packed.
  *   asp verify <package> [--json]
- *   asp run <package> --backend claude-code|codex|openhands [--project <dir>] [--prompt <text>] [--model <m>] [--dry-run] [--no-write-back]
+ *   asp run <package> --backend claude-code|codex|openhands [--project <dir>] [--prompt <text>] [--model <m>] [--dry-run] [--no-write-back] [--contract <id>]
  *     After a successful run, a backend swap and any memory the agent changed are recorded in the
  *     package as signed lineage updates, and the manifest is re-signed.
+ *     --contract: the compliance bridge (docs/backlog.md). If the adapter supports it (Claude Code
+ *     does, via --output-format stream-json), real tool-call scopes seen during the run are
+ *     collected and reported as an asp.action/v0.2 record against that contract's live Mandate —
+ *     not self-declared after the fact. A violation doesn't block the run (the tool call already
+ *     happened); it's flagged loudly on stderr and the action record itself is refused, so it can
+ *     never get laundered into a clean-looking log.
  *   asp orchestrate <package> --backend <runtime> --task <text> [--task <text> ...] [--project <dir>]
  *                   [--max-parallel N] [--model <m>] [--dry-run]
  *     Runs one task per node, in parallel, each under its own signed, short-lived delegated key
@@ -98,6 +104,9 @@
  *     you don't have to hand-compute it. --bond-returned still defaults to 0 either way.
  *     A slash also self-signs a lineage penalty for the backer, if its key is available locally
  *     (see `asp pack`'s note on memory/PENALTIES.md).
+ *   asp market action --contract <id> --by <did> --scopes-used <s> [...] [--summary <text>]
+ *     The compliance bridge, by hand (see `asp run --contract` for automatic emission from real
+ *     tool calls). Checked against the contract's live Mandate; refused if any scope wasn't granted.
  *   asp market show <contract>
  *     Prints the job's state, its full chain, and (once bonded) the ledger lock for that contract.
  *
@@ -207,6 +216,10 @@ const OPTIONS = {
   // asp market juror|panel (Courts, a real staked random panel)
   stake: { type: "string" },
   size: { type: "string" },
+
+  // asp market action (the compliance bridge) / asp run --contract
+  "scopes-used": { type: "string", multiple: true },
+  artifact: { type: "string", multiple: true },
 } as const;
 
 export async function main(argv: string[], io: Io): Promise<number> {
@@ -249,7 +262,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -658,6 +671,29 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
+  // The runtime -> protocol compliance bridge (docs/backlog.md): a self-issued, checkable report of
+  // scopes actually used, against the contract's live Mandate. `asp run --contract` emits this
+  // automatically from real tool calls; this command is for reporting by hand, or from a runtime
+  // with no live-emission wiring yet.
+  if (sub === "action") {
+    const contract = need("contract");
+    const by = need("by");
+    const scopesUsed = v["scopes-used"] ?? [];
+    const body: Record<string, unknown> = { contract, scopes_used: scopesUsed };
+    if (v.summary) body.summary = v.summary;
+    if (v.artifact?.length) {
+      body.artifacts = v.artifact.map((entry) => {
+        const [uri, sha256] = entry.split("=");
+        if (!uri || !sha256) throw new UsageError(`--artifact must be <uri>=<sha256>, got "${entry}"`);
+        return { uri, sha256: sha256.startsWith("sha256:") ? sha256 : `sha256:${sha256}` };
+      });
+    }
+    const record = createRecord({ type: "action", issuer: by, subject: contract, prev: null, body, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`action ${res.id} on contract ${contract}: ${scopesUsed.join(", ") || "no scopes"} (log seq ${res.seq})`);
+    return 0;
+  }
+
   if (sub === "settle") {
     const contract = need("contract");
     const bank = need("bank");
@@ -745,7 +781,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
-  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|accept|reject|rule|settle|show|juror register|juror show|panel draw");
+  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|accept|reject|rule|settle|show|action|juror register|juror show|panel draw");
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */
@@ -877,6 +913,43 @@ async function run(home: string, pkg: string | undefined, v: Values, need: Need,
   }
 }
 
+/**
+ * The kill switch's economic consequence (docs/backlog.md): the same `basis: "revoked"` Settlement
+ * `asp market settle` already exposes for manual mid-job cancellation, just with the numbers set to
+ * full fault instead of a benign pro-rata split — zero escrow released, the whole bond slashed, the
+ * escrow (plus the slash, as compensation) returned to the principal. No new settlement basis and no
+ * lifecycle change: `checkSettlement`'s `revoked` guard already allows any split within what's locked,
+ * it's the CLI choosing full fault here. Requires the bank's and the principal's keys to be available
+ * locally to sign/cosign — true in this single-player build, an honest limit in a real deployment
+ * (same as the existing slash-lineage write, which also only fires when a key happens to be local).
+ */
+async function autoSettleOnKill(local: LocalLog, home: string, contract: string, io: Io): Promise<void> {
+  const [contractRec, escrow] = await Promise.all([local.log.get(contract), local.log.escrow(contract)]);
+  if (!contractRec || !escrow) { io.err(`  settle   kill-switch fired but contract ${contract} has no Bond to slash`); return; }
+  if (escrow.settled) { io.err(`  settle   kill-switch fired but contract ${contract} was already settled`); return; }
+  const cbody = contractRec.record.body as { principal: string; bank: string };
+  const bankSigner = new Keystore(home).forDid(cbody.bank);
+  const principalSigner = new Keystore(home).forDid(cbody.principal);
+  if (!bankSigner || !principalSigner) {
+    io.err(`  settle   kill-switch fired but could not auto-settle: no local key for ${!bankSigner ? cbody.bank : cbody.principal}`);
+    return;
+  }
+  const chain = await marketChain(local.log, contract);
+  const body = {
+    contract, basis: "revoked" as const,
+    escrow_released: { value: 0, unit: "credit" }, bond_returned: { value: 0, unit: "credit" },
+    bond_slashed: { value: escrow.bondLocked, unit: "credit" }, pro_rata_permille: 0,
+  };
+  let record = createRecord({ type: "settlement", issuer: cbody.bank, subject: contract, prev: chain.at(-1)!.id, body, issued_at: now() }, bankSigner);
+  record = cosign(record, principalSigner);
+  try {
+    const res = await local.append(record);
+    io.err(`  settle   ${res.id} kill-switch settlement: bond fully slashed, escrow returned to the principal`);
+  } catch (e) {
+    io.err(`  settle   kill-switch fired but auto-settlement was refused: ${(e as Error).message}`);
+  }
+}
+
 async function runIn(pkgDir: string, home: string, backend: string, adapter: RuntimeAdapter, v: Values, io: Io, onMutate: () => void): Promise<number> {
   const report = await verifyPackage(pkgDir);
   if (!report.ok) {
@@ -910,21 +983,49 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
 
   // Some runtimes report a fatal error only inside their output stream and still exit 0
   // (see checkOutputForFailure); when the adapter asks for it, stdout is piped and scanned
-  // line by line while still being forwarded, instead of simply inherited.
+  // line by line while still being forwarded, instead of simply inherited. The compliance bridge
+  // (checkOutputForAction, docs/backlog.md) piggybacks on the same piping: real tool-call scopes,
+  // not self-declared ones, collected as they happen.
+  //
+  // Kill switch (docs/backlog.md, raised 2026-09-28): with a live Mandate to check against, the
+  // very first out-of-scope call stops the child process instead of only being flagged once the
+  // run has already finished. It can't undo the call that already happened, but it stops the next
+  // one. SIGTERM first, SIGKILL after a grace period if the runtime doesn't exit on its own.
+  const KILL_GRACE_MS = 3000;
+  const local = v.contract ? await LocalLog.open(home) : undefined;
+  const mandate = v.contract ? await local!.log.mandateOf(v.contract) : undefined;
   let hiddenFailure: string | undefined;
+  const scopesSeen = new Set<string>();
+  const artifactsSeen: { uri: string; sha256: string }[] = [];
+  let killed: { scope: string } | undefined;
   const code = await new Promise<number>((done) => {
     const child = spawn(plan.command, plan.args, {
       cwd: plan.cwd, env: { ...io.env, ...plan.env },
-      stdio: plan.checkOutputForFailure ? ["inherit", "pipe", "inherit"] : "inherit",
+      stdio: (plan.checkOutputForFailure || plan.checkOutputForAction) ? ["inherit", "pipe", "inherit"] : "inherit",
     });
-    if (plan.checkOutputForFailure) {
+    let killTimer: NodeJS.Timeout | undefined;
+    if (plan.checkOutputForFailure || plan.checkOutputForAction) {
       let carry = "";
       child.stdout!.on("data", (chunk: Buffer) => {
         process.stdout.write(chunk);
         carry += chunk.toString("utf8");
         const lines = carry.split("\n");
         carry = lines.pop() ?? "";
-        for (const line of lines) hiddenFailure ??= plan.checkOutputForFailure!(line);
+        for (const line of lines) {
+          hiddenFailure ??= plan.checkOutputForFailure?.(line);
+          for (const call of plan.checkOutputForAction?.(line) ?? []) {
+            scopesSeen.add(call.scope);
+            if (call.artifact) artifactsSeen.push(call.artifact);
+            if (!killed && mandate && !mandate.scopes.includes(call.scope)) {
+              killed = { scope: call.scope };
+              io.err(`  KILL SWITCH  ${call.scope} is outside the Mandate; stopping ${backend} now.`);
+              child.kill("SIGTERM");
+              killTimer = setTimeout(() => {
+                if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+              }, KILL_GRACE_MS);
+            }
+          }
+        }
       });
     }
     child.on("error", (e: NodeJS.ErrnoException) => {
@@ -933,13 +1034,62 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
         : `could not start ${plan.command}: ${e.message}`);
       done(-1);
     });
-    child.on("exit", (c) => done(c ?? 1));
+    child.on("exit", (c) => {
+      if (killTimer) clearTimeout(killTimer);
+      done(c ?? 1);
+    });
   });
   if (code === -1) return 1;
+
+  if (killed) {
+    // A refused Action record for the offending scope, purely for the paper trail (it will be
+    // refused the same way checkAction refuses any out-of-scope call — this never gets laundered
+    // into a clean-looking log). Then the same economic consequence a Courts ruling of full fault
+    // would produce: escrow back to the principal, the performer's whole bond slashed — without
+    // waiting for a human to notice the job stalled Running and open a dispute themselves.
+    const actionSigner = new Keystore(home).forDid(agent);
+    if (actionSigner) {
+      const action = createRecord({
+        type: "action", issuer: agent, subject: v.contract!, prev: null, issued_at: now(),
+        body: {
+          contract: v.contract!, scopes_used: [...scopesSeen].sort(), summary: `${backend} run, ${runDir}, killed mid-run`,
+          ...(artifactsSeen.length ? { artifacts: artifactsSeen } : {}),
+        },
+      }, actionSigner);
+      try { await local!.append(action); } catch (e) { io.err(`  action   COMPLIANCE VIOLATION: ${(e as Error).message}`); }
+    }
+    await autoSettleOnKill(local!, home, v.contract!, io);
+    io.err(`${backend} killed mid-run for a Mandate violation (${killed.scope}); nothing written back. The run's memory is in ${plan.memoryDir ?? runDir}.`);
+    return 1;
+  }
+
   if (code !== 0 || hiddenFailure) {
     if (hiddenFailure) io.err(`${backend} reported a failure it did not exit with: ${hiddenFailure}`);
     io.err(`${backend} ${hiddenFailure ? "failed" : `exited with code ${code}`}; nothing written back. The run's memory is in ${plan.memoryDir ?? runDir}.`);
     return hiddenFailure ? 1 : code;
+  }
+
+  // The runtime -> protocol compliance bridge: report what was actually used against the
+  // contract's live Mandate, before the agent gets to write up a clean Delivery. Self-reported by
+  // this same CLI process (not the runtime), so it can't be skipped by a runtime that doesn't know
+  // about it, but it's still only as honest as the tool-call parsing that produced scopesSeen.
+  if (v.contract && scopesSeen.size) {
+    const actionSigner = new Keystore(home).forDid(agent);
+    if (actionSigner) {
+      const action = createRecord({
+        type: "action", issuer: agent, subject: v.contract, prev: null, issued_at: now(),
+        body: {
+          contract: v.contract, scopes_used: [...scopesSeen].sort(), summary: `${backend} run, ${runDir}`,
+          ...(artifactsSeen.length ? { artifacts: artifactsSeen } : {}),
+        },
+      }, actionSigner);
+      try {
+        const res = await local!.append(action);
+        io.err(`  action   ${res.id} reported scopes: ${[...scopesSeen].sort().join(", ")}`);
+      } catch (e) {
+        io.err(`  action   COMPLIANCE VIOLATION: ${(e as Error).message}`);
+      }
+    }
   }
 
   // Write back: a backend swap and any memory the agent changed become signed lineage updates.

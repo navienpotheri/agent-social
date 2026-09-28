@@ -131,6 +131,16 @@ export interface ReputationRow {
   slashCount: number;
 }
 
+/**
+ * The scopes granted by a contract's current Mandate, kept per-contract so `checkAction` can check
+ * a live Action report against it without re-scanning the whole job chain (same reasoning as
+ * EscrowRow). Overwritten if the Mandate is ever re-issued (no rotation exists yet in practice).
+ */
+export interface MandateRow {
+  contract: string;
+  scopes: string[];
+}
+
 /** Reads and writes inside one append. Writes become visible only if the transaction commits. */
 export interface LogTx {
   logHead(): Promise<LogHead>;
@@ -149,6 +159,7 @@ export interface LogTx {
   getJuror(did: string): Promise<JurorRow | undefined>;
   activeJurors(): Promise<JurorRow[]>;
   getReputation(did: string): Promise<ReputationRow | undefined>;
+  getMandate(contract: string): Promise<MandateRow | undefined>;
 
   insertRecord(row: StoredRecord): Promise<void>;
   putChain(row: ChainRow): Promise<void>;
@@ -161,6 +172,7 @@ export interface LogTx {
   putMint(row: MintRow): Promise<void>;
   putJuror(row: JurorRow): Promise<void>;
   putReputation(row: ReputationRow): Promise<void>;
+  putMandate(row: MandateRow): Promise<void>;
   setLogHead(head: LogHead): Promise<void>;
 }
 
@@ -186,5 +198,6 @@ export interface Store {
   getJuror(did: string): Promise<JurorRow | undefined>;
   activeJurors(): Promise<JurorRow[]>;
   getReputation(did: string): Promise<ReputationRow | undefined>;
+  getMandate(contract: string): Promise<MandateRow | undefined>;
   close(): Promise<void>;
 }

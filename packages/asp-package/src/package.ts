@@ -23,6 +23,26 @@ const Ajv2020 = ((Ajv2020Module as any).default ?? Ajv2020Module) as typeof Ajv2
 export const MANIFEST = "manifest.json";
 export const HISTORY = "records/history.ndjson";
 
+/** One tool name plus its shell-like argument text (a permission rule's pattern, or a live call's command) → an ASP scope. */
+export function deriveScopeForTool(tool: string, arg: string): string {
+  if (["Read", "Grep", "Glob", "LS", "NotebookRead"].includes(tool)) return "repo.read";
+  if (["Edit", "Write", "MultiEdit", "NotebookEdit"].includes(tool)) return "repo.write";
+  if (tool === "WebFetch" || tool === "WebSearch") return "web.read";
+  if (tool === "Bash" || tool === "PowerShell") {
+    if (/^git push/.test(arg)) return "repo.push";
+    if (/^gh pr (create|merge)/.test(arg)) return arg.startsWith("gh pr merge") ? "pr.merge" : "pr.open";
+    if (/(test|pytest|jest|vitest|cargo test|go test)/.test(arg)) return "tests.run";
+    if (/\b(curl|wget|nc|ncat|netcat|ssh|scp|sftp|rsync|telnet|Invoke-WebRequest|Invoke-RestMethod|iwr)\b/i.test(arg)) return "shell.network";
+    if (/\bhttps?:\/\/\S+/i.test(arg)) return "shell.network";
+    return "shell.exec";
+  }
+  if (tool.startsWith("mcp__")) {
+    const [, server, name] = tool.split("__");
+    return `mcp.${server.toLowerCase().replace(/[^a-z0-9_]/g, "_")}${name ? `.${name.toLowerCase().replace(/[^a-z0-9_]/g, "_")}` : ""}`;
+  }
+  return `tool.${tool.toLowerCase().replace(/[^a-z0-9_]/g, "_")}`;
+}
+
 /**
  * Coarse ASP scopes from runtime permission rules, for the manifest's permissions field.
  * A heuristic view for principals; the harness keeps the exact rules.
@@ -32,18 +52,7 @@ export function deriveScopes(rules: string[]): string[] {
   for (const rule of rules) {
     const tool = rule.split("(")[0];
     const arg = /\((.*)\)/.exec(rule)?.[1] ?? "";
-    if (["Read", "Grep", "Glob", "LS", "NotebookRead"].includes(tool)) scopes.add("repo.read");
-    else if (["Edit", "Write", "MultiEdit", "NotebookEdit"].includes(tool)) scopes.add("repo.write");
-    else if (tool === "WebFetch" || tool === "WebSearch") scopes.add("web.read");
-    else if (tool === "Bash" || tool === "PowerShell") {
-      if (/^git push/.test(arg)) scopes.add("repo.push");
-      else if (/^gh pr (create|merge)/.test(arg)) scopes.add(arg.startsWith("gh pr merge") ? "pr.merge" : "pr.open");
-      else if (/(test|pytest|jest|vitest|cargo test|go test)/.test(arg)) scopes.add("tests.run");
-      else scopes.add("shell.exec");
-    } else if (tool.startsWith("mcp__")) {
-      const [, server, name] = tool.split("__");
-      scopes.add(`mcp.${server.toLowerCase().replace(/[^a-z0-9_]/g, "_")}${name ? `.${name.toLowerCase().replace(/[^a-z0-9_]/g, "_")}` : ""}`);
-    } else scopes.add(`tool.${tool.toLowerCase().replace(/[^a-z0-9_]/g, "_")}`);
+    scopes.add(deriveScopeForTool(tool, arg));
   }
   return [...scopes].sort();
 }
