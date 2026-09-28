@@ -149,6 +149,8 @@ export class EventLog {
     if (type === "settlement") await this.projectSettlement(tx, verified);
     if (type === "juror") await this.projectJuror(tx, verified);
     if (type === "attestation") await this.checkRulingPanel(tx, verified);
+    if (type === "mandate") await this.checkMandateTier(tx, verified);
+    if (type === "proposal") await this.checkProposerTier(tx, verified);
     await tx.putChain({
       root, kind, head: verified.id, length: (chain?.length ?? 0) + 1, lastIssuedAt: verified.issued_at,
       state: snapshot?.state ?? null, snapshot,
@@ -353,6 +355,22 @@ export class EventLog {
     const rep = await this.reputation(tx, did);
     if (!rep) return; // not an agent (or has no passport at all): this mechanism doesn't apply
     await tx.putReputation({ did, tier: Math.max(0, rep.tier - 1), slashCount: rep.slashCount + 1 });
+  }
+
+  /**
+   * Deterrence, extended past Bond: a tier-0 agent (demoted to nothing by repeat slashes) can't
+   * receive a Mandate either, not just bond a job. The envelope subject is the performer for a
+   * Mandate (lifecycle's own subject_is_performer guard already establishes this).
+   */
+  private async checkMandateTier(tx: LogTx, r: AspRecord): Promise<void> {
+    const rep = await this.reputation(tx, r.subject as string);
+    if (rep?.tier === 0) throw rule("tier_excluded", `${r.subject} is excluded from receiving a Mandate: repeat slashes demoted it to tier 0`);
+  }
+
+  /** Deterrence, extended to allocation mode: a tier-0 agent can't submit a Proposal either. */
+  private async checkProposerTier(tx: LogTx, r: AspRecord): Promise<void> {
+    const rep = await this.reputation(tx, r.issuer);
+    if (rep?.tier === 0) throw rule("tier_excluded", `${r.issuer} is excluded from proposing: repeat slashes demoted it to tier 0`);
   }
 
   /**

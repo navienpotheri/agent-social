@@ -1041,6 +1041,20 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
     if (inLocalLog) {
       try { await local.append(nodeRecord); } catch { /* best-effort: node bookkeeping only */ }
     }
+    // A node whose task is abandoned shouldn't just sit there until its hour is up: chain an
+    // immediate revocation onto its own grant the moment failure is known (the existing
+    // revoke-by-chaining pattern: a second Node record with expires <= issued_at).
+    async function revokeAbandonedNode(): Promise<void> {
+      if (!inLocalLog) return;
+      try {
+        const revokedAt = now();
+        const revoke = createRecord({
+          type: "node", issuer: agent, subject: agent, prev: nodeRecord.id, issued_at: revokedAt,
+          body: { node: nodeKid, public_key: b64urlEncode(publicKeyFromSeed(nodeSeed)), expires: revokedAt, purpose: task.slice(0, 200) },
+        }, signer);
+        await local.append(revoke);
+      } catch { /* best-effort: node bookkeeping only */ }
+    }
 
     const stdoutLog = join(runDir, "stdout.log");
     const stderrLog = join(runDir, "stderr.log");
@@ -1063,10 +1077,14 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
       });
       child.on("exit", (c) => done(c ?? 1));
     });
-    if (code === -1) return { index, task, ok: false, runDir, error: "could not start the runtime" };
+    if (code === -1) {
+      await revokeAbandonedNode();
+      return { index, task, ok: false, runDir, error: "could not start the runtime" };
+    }
     if (code !== 0 || hiddenFailure) {
       const error = hiddenFailure ?? `exited with code ${code}`;
       io.err(`  node ${index}  FAILED  ${error} (log: ${stderrLog})`);
+      await revokeAbandonedNode();
       return { index, task, ok: false, runDir, error };
     }
     io.err(`  node ${index}  ok`);

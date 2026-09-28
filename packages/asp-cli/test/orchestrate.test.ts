@@ -96,6 +96,24 @@ test("a failing node doesn't block consolidating the ones that succeeded", async
   assert.ok(!existsSync(join(pkg, "memory", "auto", "bad-task.md")));
 });
 
+test("a failing node's delegated key is revoked immediately, not left to expire naturally", async () => {
+  const { f, pkg } = await packed();
+  const res = await asp(f, ["orchestrate", pkg, "--backend", "claude-code", "--project", f.project,
+    "--task", "good task", "--task", "bad task"], fakeClaude({ FAKE_FLEET_FAIL_MATCH: "bad", FAKE_FLEET_FAIL_EXIT: "3" }));
+  assert.equal(res.code, 0, res.err);
+  const show = JSON.parse((await asp(f, ["identity", "show", AGENT])).out);
+  const nodeKeys = show.keys.filter((k: any) => k.kind === "node");
+  assert.equal(nodeKeys.length, 2, "one node key per task, good or bad");
+  const failedNode = nodeKeys.find((k: any) => k.kid.includes("node-") && k.revokedAt);
+  const succeededNode = nodeKeys.find((k: any) => !k.revokedAt);
+  assert.ok(failedNode, "the failed node's key was revoked");
+  assert.ok(succeededNode, "the succeeded node's key was not touched");
+  // The revocation record set expires = its own issued_at (immediate revocation), overwriting the
+  // original 1-hour grant — proving it was revoked right then, not left to expire an hour later.
+  assert.equal(failedNode.revokedAt, failedNode.expiresAt);
+  assert.ok(Date.now() - Date.parse(failedNode.revokedAt) < 60_000, "revoked just now, during this test run");
+});
+
 test("when every node fails, nothing is consolidated and the run fails", async () => {
   const { f, pkg } = await packed();
   const before = readFileSync(join(pkg, "manifest.json"), "utf8");

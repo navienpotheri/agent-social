@@ -160,6 +160,60 @@ for (const h of [memory, postgres] as Harness[]) {
       assert.equal(enough.bondResult, undefined);
     });
 
+    test("tier 0 excludes an agent from receiving a Mandate too, not just bonding", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      const agent = freshAgent("mandate-blocked");
+      const cleanBacker = freshAgent("clean-backer");
+      await registerAgent(log, agent);
+      await registerAgent(log, cleanBacker);
+      await log.mint(alice.did, 3000);
+      await log.mint(agent.did, 100);
+      await log.mint(cleanBacker.did, 100);
+      // Demote `agent` to tier 0 by slashing it as a backer elsewhere, unrelated to what follows.
+      await settleWithSlash(log, cleanBacker, agent, 1000, 100, 100);
+      assert.deepEqual(await log.reputationOf(agent.did), { tier: 0, slashCount: 1 });
+
+      // Now `agent` is the performer on a fresh contract, backed by someone with a clean tier —
+      // the Bond succeeds (it's about the backer's tier, not the performer's), but the Mandate
+      // that would let `agent` actually start work is refused.
+      const { bondResult, contract, bond } = await bondOnly(log, agent, cleanBacker, 1000, 100, 1000);
+      assert.equal(bondResult, undefined);
+      const mandate = rec("mandate", alice, {
+        contract: contract.id, purpose: "Fix the flaky test", floor: "asp.floor/v1",
+        scopes: ["repo.read"], forbidden_means: [],
+        spend: { cap: 0, unit: "credit" as const }, irreversible: { policy: "checkpoint" as const },
+        subcontract: { allowed: false }, nodes: { max_parallel: 1 },
+        learning: { scope: "harness" as const, share_to_commons: false }, self_modification: "principal_approves" as const,
+        overlay: null, checkpoints: [], expires: "2026-10-04T00:00:00Z", revocable: true,
+      }, bond.id, agent.did);
+      assert.equal(await codeOf(log.append(mandate)), "GUARD_FAILED");
+    });
+
+    test("tier 0 excludes an agent from submitting a Proposal (allocation mode)", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      const agent = freshAgent("proposal-blocked");
+      const cleanBacker = freshAgent("clean-backer-2");
+      await registerAgent(log, agent);
+      await registerAgent(log, cleanBacker);
+      await log.mint(alice.did, 2000);
+      await log.mint(agent.did, 100);
+      await log.mint(cleanBacker.did, 100);
+      await settleWithSlash(log, cleanBacker, agent, 1000, 100, 100);
+      assert.deepEqual(await log.reputationOf(agent.did), { tier: 0, slashCount: 1 });
+
+      const call = rec("call", alice, {
+        purpose: "Fix it", budget: { value: 1000, unit: "credit" as const },
+        evaluation_criteria: ["works"], panel: [bank.did], deadline: "2026-12-01T00:00:00Z",
+      }, null, alice.did);
+      await log.append(call);
+      const proposal = rec("proposal", agent, {
+        call: call.id, plan: "I'll fix it", team: [agent.did], budget_asked: { value: 1000, unit: "credit" as const }, milestones: [],
+      }, null, agent.did);
+      assert.equal(await codeOf(log.append(proposal)), "GUARD_FAILED");
+    });
+
     test("verify() replays reputation and risk-floor guards without breaking", async () => {
       const log = new EventLog(await h.make());
       await registerParties(log);
