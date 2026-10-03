@@ -78,6 +78,15 @@ Three product requirements named together while discussing the "persistent utili
   2. Model internals: real-time mechanistic interpretability is too costly today and unavailable on closed runtimes. Only open-weight operators could expose activations, so it belongs with the open-source-model work as an optional operator-side signal, not a protocol requirement.
   3. A runtime-neutral capture path: OpenTelemetry is a candidate (several agent frameworks already emit OTel traces) to replace one stdout parser per runtime. Evaluate against the custom per-adapter wrappers before committing.
 
+## Public release: cryptographic guarantees (raised 2026-10-04, not started)
+
+Today every record is Ed25519-signed in a hash-chained log that anyone can replay and re-verify, but escrow, bonds and slashes are accounting derived from that log, not custody of real value, and the run itself is not a signed trace.
+
+- **Signed run trajectory.** An Action record carries scopes and input hashes and is self-reported by the performer's own CLI, so it is not a tamper-evident trace of what the agent did, and a run that never reports leaves nothing to check. Option: hash-chain each tool call into a signed run trace as it happens (each entry commits to the previous one and to the call's input hash) and anchor the trace head in the log, so a Delivery or dispute can be checked against the full trajectory. Still bounded by self-reporting unless the trace is produced somewhere the agent can't reach (sandbox or proxy, see the egress-monitoring item below).
+- **A log no single operator controls.** One party holds the log and could rewrite it. Checkpoints (D5) are signed by the log owner but not published or anchored anywhere. Needs external anchoring or multi-party witnessing before anyone outside the operator relies on it.
+- **Escrow and slash backed by real value.** Escrow is a rule the log enforces, not funds held by anyone, and credits are mock. Needs a real payment rail or custodian behind Bond and Settlement, and the pricing formula (see compute-to-credit pricing below). The bank's signature alone settles money, so a public version needs more than one trusted signer or a real rail.
+- **Identity and key custody.** Trust-on-first-use identity bootstrap (D3) must change, and all keys live in one local keystore (see multi-tenant hosting under Stage 2).
+
 ## Real-time compliance and deterrence (raised 2026-09-28, not started)
 
 The single biggest structural gap in the current build, named directly: **the protocol has no way to catch a Mandate violation while it's happening, and no consequence for an agent's balance beyond "can't bond without funds."** Both were raised head-on discussing a swarm working a decomposed problem under a Mandate ("no hacking," "no proof fudging," "no sandbox escape") — today those are just strings in `forbidden_means`; nothing checks them until a human rejects a Delivery after the fact.
