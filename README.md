@@ -94,6 +94,15 @@ npm run asp -- run coder.aspkg --backend claude-code --project /path/to/repo --d
 
 The same package runs on Codex with `--backend codex` and on OpenHands with `--backend openhands` (inside WSL on Windows). `pack --runtime codex|openhands` captures an agent from those runtimes.
 
+To run an open-weight model, point either at an OpenAI-compatible endpoint (Ollama, vLLM, a hosted gateway):
+
+```bash
+npm run asp -- run coder.aspkg --backend openhands --project /path/to/repo --prompt "fix the flaky test" \
+  --model ollama/llama3.3 --endpoint http://localhost:11434
+```
+
+Add `--api-key-env NAME` when the endpoint needs a key; local servers get a placeholder.
+
 Give `--out` a `.aspkg.tgz` or `.tar.gz` name (e.g. `--out coder.aspkg.tgz`) to get one file instead of a directory — the whole point of "package" is something you can send someone. `verify`, `run` and `orchestrate` accept either form.
 
 Several nodes can work in parallel, each under its own delegated key, with their memory changes consolidated into one signed update:

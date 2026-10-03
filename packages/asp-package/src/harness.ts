@@ -94,6 +94,10 @@ export interface RuntimeAdapter {
     pkgDir: string; harness: Harness; project: string; runDir: string; agentName: string; prompt?: string; env: NodeJS.ProcessEnv;
     /** Model to run; overrides the packed one. */
     model?: string;
+    /** An OpenAI-compatible base URL for an open-weight model (Ollama, vLLM, ...); needs `model`. */
+    endpoint?: string;
+    /** Name of the environment variable holding the endpoint's API key (a placeholder is used for local servers). */
+    apiKeyEnv?: string;
     /** The runtime the package was captured from; a packed model is used only on that runtime. */
     sourceRuntime?: string;
   }): Promise<LaunchPlan>;

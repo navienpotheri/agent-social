@@ -16,6 +16,9 @@
  *     the agent's own memory alongside everything else it packed.
  *   asp verify <package> [--json]
  *   asp run <package> --backend claude-code|codex|openhands [--project <dir>] [--prompt <text>] [--model <m>] [--dry-run] [--no-write-back] [--contract <id>]
+ *     --model <m> --endpoint <url> [--api-key-env <NAME>]: run an open-weight model served from an
+ *     OpenAI-compatible endpoint (Ollama, vLLM, ...) on OpenHands or Codex. --api-key-env names the
+ *     environment variable holding the key; local servers get a placeholder.
  *     After a successful run, a backend swap and any memory the agent changed are recorded in the
  *     package as signed lineage updates, and the manifest is re-signed.
  *     --contract: the compliance bridge (docs/backlog.md). If the adapter supports it (Claude Code
@@ -146,6 +149,8 @@ const OPTIONS = {
   "claude-home": { type: "string" },
   "user-home": { type: "string" },
   model: { type: "string" },
+  endpoint: { type: "string" },
+  "api-key-env": { type: "string" },
   kind: { type: "string" },
   did: { type: "string" },
   method: { type: "string" },
@@ -963,7 +968,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   mkdirSync(runDir, { recursive: true });
   const plan = await adapter.materialize({
     pkgDir, harness, project: resolve(io.cwd, v.project ?? "."), runDir, agentName: basename(agent.replace(/:/g, "/")), prompt: v.prompt, env: io.env,
-    model: v.model, sourceRuntime: (manifest.body as any).source_runtime?.name,
+    model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
   });
 
   // The run's own report goes to stderr, so a -p run's stdout stays the runtime's stream alone.
@@ -1186,7 +1191,7 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
     mkdirSync(runDir, { recursive: true });
     const plan = await adapter.materialize({
       pkgDir, harness, project, runDir, agentName: `${basename(agent.replace(/:/g, "/"))}-node${index}`,
-      prompt: task, env: io.env, model: v.model, sourceRuntime: (manifest.body as any).source_runtime?.name,
+      prompt: task, env: io.env, model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
     });
     io.err(`  node ${index}  ${task.length > 60 ? task.slice(0, 57) + "..." : task}`);
     io.err(`         command  ${[plan.command, ...plan.args].map(quote).join(" ")}`);

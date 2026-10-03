@@ -12,6 +12,15 @@ if (process.env.FAKE_OH_HIDDEN_FAILURE) {
   console.log(JSON.stringify({ kind: "ConversationErrorEvent", code: "AuthenticationError", detail: process.env.FAKE_OH_HIDDEN_FAILURE }));
   process.exit(0);
 }
+if (process.env.FAKE_OH_ACTIONS) {
+  // Real headless --json shape: one ActionEvent per tool call, with tool_name and an action payload.
+  for (const a of JSON.parse(process.env.FAKE_OH_ACTIONS)) {
+    console.log(JSON.stringify({ kind: "ActionEvent", source: "agent", tool_name: a.tool_name, action: a.action ?? {} }));
+  }
+}
+if (process.env.FAKE_OH_ENV) {
+  writeFileSync(process.env.FAKE_OH_ENV, JSON.stringify({ model: process.env.LLM_MODEL, base: process.env.LLM_BASE_URL, key: process.env.LLM_API_KEY }));
+}
 if (process.env.FAKE_OH_LEARN !== "0") {
   const mem = join(dirname(script), "memory", "auto");
   writeFileSync(join(mem, "openhands-wsl.md"), "---\nname: openhands-wsl\n---\nRun tests inside WSL, not PowerShell.\n");

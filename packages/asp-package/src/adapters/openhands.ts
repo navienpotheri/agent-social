@@ -18,7 +18,9 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { sha256Id } from "@agent-social/asp-core";
 import { copyInto, listFiles, sha256File, writeJson } from "../files.ts";
+import { deriveScopeForTool } from "../package.ts";
 import { asList, frontmatter } from "../frontmatter.ts";
 import type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter } from "../harness.ts";
 import { stripSecrets, toEnvRefs } from "../secrets.ts";
@@ -207,9 +209,28 @@ $CMD ${o.args.map(q).join(" ")}
 `;
 }
 
+/**
+ * The compliance bridge for OpenHands' headless --json stream: one ActionEvent per tool call, with
+ * `tool_name` and an `action` payload. Built to the SDK's documented event shape, not yet checked
+ * against a live run (docs/backlog.md); anything unrecognized yields no scope rather than a guess.
+ */
+function checkOutputForAction(line: string): { scope: string; artifact?: { uri: string; sha256: string } }[] | undefined {
+  if (!line.includes("ActionEvent")) return undefined;
+  let o: any;
+  try { o = JSON.parse(line); } catch { return undefined; }
+  if (o.kind !== "ActionEvent" || typeof o.tool_name !== "string") return undefined;
+  const action = o.action ?? {};
+  const scope = o.tool_name === "terminal"
+    ? deriveScopeForTool("Bash", typeof action.command === "string" ? action.command : "")
+    : o.tool_name === "file_editor"
+      ? (action.command === "view" ? "repo.read" : "repo.write")
+      : deriveScopeForTool(o.tool_name, "");
+  return [{ scope, artifact: { uri: `asp://tool-call/${o.tool_name}`, sha256: sha256Id(new TextEncoder().encode(JSON.stringify(action))) } }];
+}
+
 async function materialize(opts: {
   pkgDir: string; harness: Harness; project: string; runDir: string; agentName: string; prompt?: string;
-  env: NodeJS.ProcessEnv; model?: string; sourceRuntime?: string;
+  env: NodeJS.ProcessEnv; model?: string; endpoint?: string; apiKeyEnv?: string; sourceRuntime?: string;
 }): Promise<LaunchPlan> {
   const { pkgDir, harness, project, runDir } = opts;
   const h = join(pkgDir, "harness");
@@ -292,7 +313,16 @@ async function materialize(opts: {
   const model = opts.model ?? (opts.sourceRuntime === RUNTIME ? harness.model : undefined);
   if (!opts.model && harness.model && opts.sourceRuntime !== RUNTIME) notes.push(`not using the packed model ${harness.model} (a ${opts.sourceRuntime} model); OpenHands uses its configured model unless you pass --model`);
   const args: string[] = [];
+  if (opts.endpoint && !model) notes.push("--endpoint has no effect without --model (use a LiteLLM name, e.g. openai/llama3 or ollama/llama3)");
   if (model) { env.LLM_MODEL = model; args.push("--override-with-envs"); }
+  if (model && opts.endpoint) {
+    env.LLM_BASE_URL = opts.endpoint;
+    if (opts.apiKeyEnv) {
+      if (opts.env[opts.apiKeyEnv] === undefined) missing.add(opts.apiKeyEnv);
+      else env.LLM_API_KEY = opts.env[opts.apiKeyEnv]!;
+    } else env.LLM_API_KEY = "local";
+    notes.push(`model served from ${opts.endpoint}${opts.apiKeyEnv ? "" : " (placeholder API key; pass --api-key-env for a hosted endpoint)"}`);
+  }
   if (opts.prompt !== undefined) {
     writeFileSync(join(runDir, "task.md"), opts.prompt + "\n");
     args.push("--headless", "--json", "-f", lx(join(runDir, "task.md")));
@@ -314,6 +344,7 @@ async function materialize(opts: {
 
   return {
     command, args: cmdArgs, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: [...missing].sort(), notes,
+    checkOutputForAction: opts.prompt === undefined ? undefined : checkOutputForAction,
     // OpenHands' headless --json mode exits 0 even after a fatal error (e.g. an LLM auth failure);
     // ConversationErrorEvent is how it reports that on the JSONL stream, so asp checks for it itself.
     checkOutputForFailure: opts.prompt === undefined ? undefined : (line: string) => {

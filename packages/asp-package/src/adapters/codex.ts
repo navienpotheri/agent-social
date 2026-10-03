@@ -226,7 +226,7 @@ const envName = (...parts: string[]) => parts.join("_").toUpperCase().replace(/[
 
 async function materialize(opts: {
   pkgDir: string; harness: Harness; project: string; runDir: string; agentName: string; prompt?: string;
-  env: NodeJS.ProcessEnv; model?: string; sourceRuntime?: string;
+  env: NodeJS.ProcessEnv; model?: string; endpoint?: string; apiKeyEnv?: string; sourceRuntime?: string;
 }): Promise<LaunchPlan> {
   const { pkgDir, harness, project, runDir } = opts;
   const h = join(pkgDir, "harness");
@@ -352,6 +352,14 @@ async function materialize(opts: {
 
   const model = opts.model ?? (opts.sourceRuntime === RUNTIME ? harness.model : undefined);
   if (!opts.model && harness.model && opts.sourceRuntime !== RUNTIME) notes.push(`not using the packed model ${harness.model} (a ${opts.sourceRuntime} model); Codex uses its default unless you pass --model`);
+
+  if (opts.endpoint && !model) notes.push("--endpoint has no effect without --model");
+  if (model && opts.endpoint) {
+    const p = "model_providers.asp_open";
+    overrides.push(["model_provider", "asp_open"], [`${p}.name`, "ASP open-weight endpoint"], [`${p}.base_url`, opts.endpoint], [`${p}.wire_api`, "chat"]);
+    if (opts.apiKeyEnv) { need(opts.apiKeyEnv); overrides.push([`${p}.env_key`, opts.apiKeyEnv]); }
+    notes.push(`model served from ${opts.endpoint} through a custom Codex provider (chat completions)`);
+  }
 
   const { command, prefix } = resolveCodexCommand(opts.env);
   const args = [...prefix];
