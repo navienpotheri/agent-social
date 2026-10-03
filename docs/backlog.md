@@ -72,6 +72,10 @@ Three product requirements named together while discussing the "persistent utili
   2. A canary/regression suite run on runtime moves and memory updates (fills the empty `canary` check in `asp verify`; needs the Academy decision on who writes it), with a before/after behavioral comparison to make probation meaningful.
   3. Memory-loss detection: memory hashes show that memory changed, not that something was lost.
   4. Goal hijacking needs the cognitive-evidence side (reasoning-trace monitoring) as a second input to `checkOutputForAction`, which only helps if the visible reasoning is faithful.
+- **Capturing reasoning traces and model internals.** Everything captured today is behavioral: live stdout (tool_use events for Claude Code) and metadata-only session summaries read from each runtime's own files (counts, models, tool-call tallies, token usage). No tracing framework is used, and no reasoning content or internal state is captured.
+  1. Reasoning traces: parse the model's visible reasoning where a runtime exposes it and feed it to `checkOutputForAction` as an earlier-firing input, which would make the kill switch preventive rather than reactive. Needs a privacy decision first, since D1 says no content leaves the machine, so likely local-only analysis with only hashes or flags reaching the log. Unreliable if visible reasoning isn't faithful to what the model does.
+  2. Model internals: real-time mechanistic interpretability is too costly today and unavailable on closed runtimes. Only open-weight operators could expose activations, so it belongs with the open-source-model work as an optional operator-side signal, not a protocol requirement.
+  3. A runtime-neutral capture path: OpenTelemetry is a candidate (several agent frameworks already emit OTel traces) to replace one stdout parser per runtime. Evaluate against the custom per-adapter wrappers before committing.
 
 ## Real-time compliance and deterrence (raised 2026-09-28, not started)
 
