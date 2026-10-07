@@ -112,7 +112,7 @@ for (const h of [memory, postgres] as Harness[]) {
       assert.equal(await bondWith(0, 40), undefined, "40 days on, the strikes no longer weigh");
     });
 
-    test("a tier 1 agent's Mandate may not let it spend more than 100 credits (tier_limit_exceeded)", async () => {
+    test("a tier 1 agent's Mandate may not exceed 100 credits or 4 parallel nodes (tier_limit_exceeded)", async () => {
       const log = new EventLog(await h.make());
       await registerParties(log); // coder is tier 1
       const contract = cosign(rec("contract", alice, contractBody(), null, coder.did), coder);
@@ -122,13 +122,14 @@ for (const h of [memory, postgres] as Harness[]) {
         escrow: { payer: alice.did, amount: { value: 0, unit: "credit" as const } }, slashing_conditions: ["lost_dispute" as const],
       }, contract.id, contract.id);
       await log.append(bond);
-      const mandateWith = (spend: Record<string, unknown>) => rec("mandate", alice, {
+      const mandateWith = (spend: Record<string, unknown>, parallel = 4) => rec("mandate", alice, {
         contract: contract.id, purpose: "Fix the flaky test", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [],
         spend: { unit: "credit" as const, ...spend }, irreversible: { policy: "checkpoint" as const },
-        subcontract: { allowed: false }, nodes: { max_parallel: 1 },
+        subcontract: { allowed: false }, nodes: { max_parallel: parallel },
         learning: { scope: "harness" as const, share_to_commons: false }, self_modification: "principal_approves" as const,
         overlay: null, checkpoints: [], expires: "2026-10-04T00:00:00Z", revocable: true,
       }, bond.id, coder.did);
+      await assert.rejects(log.append(mandateWith({ cap: 100 }, 5)), /max_parallel may not exceed 4/);
       await assert.rejects(log.append(mandateWith({ cap: 101 })), /may not exceed 100 credits/);
       await assert.rejects(log.append(mandateWith({ cap: 100, per_action_max: 101 })), /may not exceed 100 credits/);
       assert.equal((await log.append(mandateWith({ cap: 100, per_action_max: 100 }))).state, "Running");
