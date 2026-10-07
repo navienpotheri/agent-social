@@ -17,6 +17,12 @@ const DEFAULT_MAX_NODE_TTL_MS = 24 * 60 * 60 * 1000;
  * live fleet-mate's slash, how many extra permille of the contract price the next Bond must cover. */
 const RISK_PERMILLE_PER_OWN_SLASH = 250;
 const RISK_PERMILLE_PER_FLEET_SLASH = 100;
+const RISK_PERMILLE_PER_STRIKE = 10;
+const RISK_PERMILLE_STRIKE_CAP = 200;
+const STRIKE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+type StrikeEntry = { at: string; count: number };
+/** Strikes at or after `since` (the Bond's own issued_at, so replay is deterministic). */
+const recentStrikes = (log: StrikeEntry[], now: string) => log.filter((s) => Date.parse(s.at) >= Date.parse(now) - STRIKE_WINDOW_MS).reduce((n, s) => n + s.count, 0);
 /**
  * Decided 2026-09-28: Settlement `fees` credit here — a local mock for a real platform/Insurer
  * account, same trust boundary as the mocked bank/panel DIDs in conformance/generate.ts (MOCKS.md).
@@ -164,7 +170,7 @@ export class EventLog {
       await this.checkVerifiedBeforeAcceptance(tx, verified);
     }
     if (type === "mandate") { await this.checkMandateTier(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
-    if (type === "action") await this.checkAction(tx, verified);
+    if (type === "action") { await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); }
     if (type === "proposal") await this.checkProposerTier(tx, verified);
     if (type === "contract") await this.checkSubcontract(tx, verified);
     await tx.putChain({
@@ -355,22 +361,33 @@ export class EventLog {
    * mechanism. Falls back to the agent's self-declared Passport tier until its first slash.
    * Takes anything with these three reads — a LogTx mid-append, or the Store for a plain query.
    */
-  private async reputation(tx: Pick<LogTx, "getPassport" | "getRecord" | "getReputation">, did: string): Promise<{ tier: number; slashCount: number } | null> {
+  private async reputation(tx: Pick<LogTx, "getPassport" | "getRecord" | "getReputation">, did: string): Promise<{ tier: number; slashCount: number; strikeLog: StrikeEntry[] } | null> {
     const passport = await tx.getPassport(did);
     if (!passport) return null;
     const existing = await tx.getReputation(did);
-    if (existing) return { tier: existing.tier, slashCount: existing.slashCount };
+    if (existing) return { tier: existing.tier, slashCount: existing.slashCount, strikeLog: existing.strikeLog };
     const head = await tx.getRecord(passport.head);
     const body = head?.record.body as { kind: string; tier?: number } | undefined;
     if (body?.kind !== "agent") return null;
-    return { tier: body.tier ?? 1, slashCount: 0 };
+    return { tier: body.tier ?? 1, slashCount: 0, strikeLog: [] };
   }
 
   /** Demotes a slashed backer by one tier (floor 0) and counts the slash, for its next Bond's risk floor. */
   private async demote(tx: LogTx, did: string): Promise<void> {
     const rep = await this.reputation(tx, did);
     if (!rep) return; // not an agent (or has no passport at all): this mechanism doesn't apply
-    await tx.putReputation({ did, tier: Math.max(0, rep.tier - 1), slashCount: rep.slashCount + 1 });
+    await tx.putReputation({ did, tier: Math.max(0, rep.tier - 1), slashCount: rep.slashCount + 1, strikeLog: rep.strikeLog });
+  }
+
+  /** Counts an Action's blocked attempts as strikes on the performer (agents only; no demotion, no slash). */
+  private async recordStrikes(tx: LogTx, r: AspRecord): Promise<void> {
+    const blocked = (r.body as { blocked_attempts?: { count: number }[] }).blocked_attempts;
+    const total = blocked?.reduce((n, b) => n + b.count, 0) ?? 0;
+    if (total === 0) return;
+    const rep = await this.reputation(tx, r.issuer);
+    if (!rep) return;
+    await tx.putReputation({ did: r.issuer, tier: rep.tier, slashCount: rep.slashCount, strikeLog: [...rep.strikeLog.filter((s) => Date.parse(s.at) >= Date.parse(r.issued_at) - STRIKE_WINDOW_MS), { at: r.issued_at, count: total }],
+    });
   }
 
   /**
@@ -481,7 +498,14 @@ export class EventLog {
           fleetSlashes += (await this.reputation(tx, member.did))?.slashCount ?? 0;
         }
       }
-      const riskFloorPermille = Math.min(1000, backerRep.slashCount * RISK_PERMILLE_PER_OWN_SLASH + fleetSlashes * RISK_PERMILLE_PER_FLEET_SLASH);
+      // Strikes (blocked attempts) weigh lightly and are capped: the performer's and, if different, the backer's.
+      const performerDid = ((await tx.getRecord(body.contract))?.record.body as { performer?: string } | undefined)?.performer;
+      let strikes = recentStrikes(backerRep.strikeLog, r.issued_at);
+      if (performerDid && performerDid !== body.backer) {
+        strikes += recentStrikes((await this.reputation(tx, performerDid))?.strikeLog ?? [], r.issued_at);
+      }
+      const strikePermille = Math.min(RISK_PERMILLE_STRIKE_CAP, strikes * RISK_PERMILLE_PER_STRIKE);
+      const riskFloorPermille = Math.min(1000, backerRep.slashCount * RISK_PERMILLE_PER_OWN_SLASH + fleetSlashes * RISK_PERMILLE_PER_FLEET_SLASH + strikePermille);
       if (riskFloorPermille > 0) {
         const contract = await tx.getRecord(body.contract);
         const price = (contract?.record.body as { price?: { value: number } } | undefined)?.price?.value ?? 0;
@@ -733,7 +757,10 @@ export class EventLog {
   async balance(did: string) { return (await this.store.getAccount(did))?.balance ?? 0; }
   escrow(contract: string) { return this.store.getEscrow(contract); }
   juror(did: string) { return this.store.getJuror(did); }
-  reputationOf(did: string) { return this.reputation(this.store, did); }
+  async reputationOf(did: string) {
+    const rep = await this.reputation(this.store, did);
+    return rep && { tier: rep.tier, slashCount: rep.slashCount, strikes: rep.strikeLog.reduce((n, s) => n + s.count, 0) };
+  }
   mandateOf(contract: string) { return this.store.getMandate(contract); }
   verificationOf(delivery: string) { return this.store.getVerification(delivery); }
 

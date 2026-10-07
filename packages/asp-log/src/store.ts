@@ -131,6 +131,8 @@ export interface ReputationRow {
   did: string;
   tier: number;
   slashCount: number;
+  /** Blocked attempts across the DID's Action records, dated; only recent ones weigh on its next Bond's risk floor. */
+  strikeLog: { at: string; count: number }[];
 }
 
 /**

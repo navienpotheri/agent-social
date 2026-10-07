@@ -80,10 +80,10 @@ for (const h of [memory, postgres] as Harness[]) {
       await log.mint(alice.did, 1000);
       await log.mint(backer.did, 100);
 
-      assert.deepEqual(await log.reputationOf(backer.did), { tier: 1, slashCount: 0 }); // no reputation row yet: falls back to the declared passport tier
+      assert.deepEqual(await log.reputationOf(backer.did), { tier: 1, slashCount: 0, strikes: 0 }); // no reputation row yet: falls back to the declared passport tier
       const { settlementResult } = await settleWithSlash(log, performer, backer, 1000, 100, 100);
       assert.equal(settlementResult, undefined);
-      assert.deepEqual(await log.reputationOf(backer.did), { tier: 0, slashCount: 1 });
+      assert.deepEqual(await log.reputationOf(backer.did), { tier: 0, slashCount: 1, strikes: 0 });
       assert.equal(await log.reputationOf(alice.did), null, "a human is never tier-tracked");
     });
 
@@ -100,7 +100,7 @@ for (const h of [memory, postgres] as Harness[]) {
       // Tier starts at 1 (registerAgent sets tier: 1): one slash demotes straight to 0.
       const first = await settleWithSlash(log, performer, backer, 1000, 100, 100);
       assert.equal(first.settlementResult, undefined);
-      assert.deepEqual(await log.reputationOf(backer.did), { tier: 0, slashCount: 1 });
+      assert.deepEqual(await log.reputationOf(backer.did), { tier: 0, slashCount: 1, strikes: 0 });
 
       const second = await bondOnly(log, performer, backer, 1000, 100, 1000);
       assert.equal(second.bondResult, "GUARD_FAILED");
@@ -120,7 +120,7 @@ for (const h of [memory, postgres] as Harness[]) {
       await log.mint(alice.did, 3000);
       await log.mint(backer.did, 1000);
       await settleWithSlash(log, performer, backer, 1000, 100, 100);
-      assert.deepEqual(await log.reputationOf(backer.did), { tier: 3, slashCount: 1 });
+      assert.deepEqual(await log.reputationOf(backer.did), { tier: 3, slashCount: 1, strikes: 0 });
 
       // Next contract, price 1000: risk floor is 250 permille of price = 250. A bond below that is refused.
       const performer2 = freshAgent("perf-3b");
@@ -147,8 +147,8 @@ for (const h of [memory, postgres] as Harness[]) {
       await log.mint(cleanMember.did, 1000);
 
       await settleWithSlash(log, performer, badActor, 1000, 500, 500);
-      assert.deepEqual(await log.reputationOf(badActor.did), { tier: 0, slashCount: 1 });
-      assert.deepEqual(await log.reputationOf(cleanMember.did), { tier: 1, slashCount: 0 }, "clean member has no slashes of its own");
+      assert.deepEqual(await log.reputationOf(badActor.did), { tier: 0, slashCount: 1, strikes: 0 });
+      assert.deepEqual(await log.reputationOf(cleanMember.did), { tier: 1, slashCount: 0, strikes: 0 }, "clean member has no slashes of its own");
 
       // cleanMember has never been slashed, but its fleet-mate's one slash adds 100 permille to its floor.
       const performer2 = freshAgent("fleet-performer-2");
@@ -172,7 +172,7 @@ for (const h of [memory, postgres] as Harness[]) {
       await log.mint(cleanBacker.did, 100);
       // Demote `agent` to tier 0 by slashing it as a backer elsewhere, unrelated to what follows.
       await settleWithSlash(log, cleanBacker, agent, 1000, 100, 100);
-      assert.deepEqual(await log.reputationOf(agent.did), { tier: 0, slashCount: 1 });
+      assert.deepEqual(await log.reputationOf(agent.did), { tier: 0, slashCount: 1, strikes: 0 });
 
       // Now `agent` is the performer on a fresh contract, backed by someone with a clean tier —
       // the Bond succeeds (it's about the backer's tier, not the performer's), but the Mandate
@@ -201,7 +201,7 @@ for (const h of [memory, postgres] as Harness[]) {
       await log.mint(agent.did, 100);
       await log.mint(cleanBacker.did, 100);
       await settleWithSlash(log, cleanBacker, agent, 1000, 100, 100);
-      assert.deepEqual(await log.reputationOf(agent.did), { tier: 0, slashCount: 1 });
+      assert.deepEqual(await log.reputationOf(agent.did), { tier: 0, slashCount: 1, strikes: 0 });
 
       const call = rec("call", alice, {
         purpose: "Fix it", budget: { value: 1000, unit: "credit" as const },

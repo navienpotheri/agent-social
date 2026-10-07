@@ -66,7 +66,7 @@ const toEscrow = (e: any): EscrowRow => ({
 });
 const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_minted) });
 const toJuror = (j: any): JurorRow => ({ did: j.did, head: j.head, staked: Number(j.staked) });
-const toReputation = (r: any): ReputationRow => ({ did: r.did, tier: Number(r.tier), slashCount: Number(r.slash_count) });
+const toReputation = (r: any): ReputationRow => ({ did: r.did, tier: Number(r.tier), slashCount: Number(r.slash_count), strikeLog: r.strike_log ?? [] });
 const toMandate = (m: any): MandateRow => ({ contract: m.contract, scopes: m.scopes });
 const toVerification = (v: any): VerificationRow => ({ delivery: v.delivery, contract: v.contract, verifier: v.verifier, verdict: v.verdict });
 
@@ -316,9 +316,9 @@ class PgTx implements LogTx {
   }
   async putReputation(row: ReputationRow) {
     await this.c.query(
-      `INSERT INTO reputations (did, tier, slash_count) VALUES ($1, $2, $3)
-       ON CONFLICT (did) DO UPDATE SET tier = $2, slash_count = $3`,
-      [row.did, row.tier, row.slashCount],
+      `INSERT INTO reputations (did, tier, slash_count, strike_log) VALUES ($1, $2, $3, $4::jsonb)
+       ON CONFLICT (did) DO UPDATE SET tier = $2, slash_count = $3, strike_log = $4::jsonb`,
+      [row.did, row.tier, row.slashCount, JSON.stringify(row.strikeLog)],
     );
   }
   async putMandate(row: MandateRow) {

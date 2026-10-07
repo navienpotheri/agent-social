@@ -53,7 +53,7 @@ test("a slash demotes the backer's tier, shown in identity show", async () => {
   assert.equal(settle.code, 0, settle.err);
 
   const show = JSON.parse((await asp(f, ["identity", "show", CODER])).out);
-  assert.deepEqual(show.reputation, { tier: 0, slashCount: 1 });
+  assert.deepEqual(show.reputation, { tier: 0, slashCount: 1, strikes: 0 });
 });
 
 test("a tier-0 agent (demoted by a slash) is excluded from bonding at all", async () => {
@@ -85,5 +85,5 @@ test("a clean agent (never slashed) can still bond and settle normally", async (
     "--escrow-released", "1000", "--bond-returned", "200", "--bond-slashed", "0", "--pro-rata", "1000"]);
   assert.equal(settle.code, 0, settle.err);
   const show = JSON.parse((await asp(f, ["identity", "show", CODER2])).out);
-  assert.deepEqual(show.reputation, { tier: 1, slashCount: 0 }, "never slashed: reputation reflects its untouched declared tier");
+  assert.deepEqual(show.reputation, { tier: 1, slashCount: 0, strikes: 0 }, "never slashed: reputation reflects its untouched declared tier");
 });

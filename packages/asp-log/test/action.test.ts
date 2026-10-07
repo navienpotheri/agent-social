@@ -1,6 +1,6 @@
 import { after, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { cosign } from "@agent-social/asp-core";
+import { cosign, createRecord } from "@agent-social/asp-core";
 import { EventLog } from "../src/index.ts";
 import { alice, bank, codeOf, coder, memory, pgUrl, postgres, rec, registerParties, type Harness } from "./harness.ts";
 
@@ -73,6 +73,43 @@ for (const h of [memory, postgres] as Harness[]) {
       // The same out-of-scope scope in scopes_used (it executed) is still refused.
       const executed = rec("action", coder, { contract: contract.id, scopes_used: ["shell.exec"], blocked_attempts: [] }, null, contract.id);
       assert.equal(await codeOf(log.append(executed)), "GUARD_FAILED");
+    });
+
+    test("strikes count on the performer and nudge its next Bond's risk floor, capped, with no demotion", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      const contract = await running(log, ["repo.read"]);
+      assert.deepEqual(await log.reputationOf(coder.did), { tier: 1, slashCount: 0, strikes: 0 });
+      await log.append(rec("action", coder, {
+        contract: contract.id, scopes_used: [], blocked_attempts: [{ scope: "shell.exec", count: 3 }, { scope: "repo.push", count: 2 }],
+      }, null, contract.id));
+      assert.deepEqual(await log.reputationOf(coder.did), { tier: 1, slashCount: 0, strikes: 5 });
+
+      await log.mint(alice.did, 2000);
+      await log.mint(coder.did, 2000);
+      const DAY = 24 * 60 * 60 * 1000;
+      const stamp = (days: number) => new Date(Date.parse("2026-10-05T12:00:00Z") + days * DAY).toISOString().replace(".000Z", "Z");
+      const make = (type: "contract" | "bond", by: typeof alice, body: Record<string, unknown>, prev: string | null, subject: string, days: number) =>
+        days ? createRecord({ type, issuer: by.did, subject, body, prev, issued_at: stamp(days) }, by) : rec(type, by, body, prev, subject);
+      const bondWith = async (amount: number, days = 0) => {
+        const c = cosign(make("contract", alice, { ...contractBody(), price: { value: 1000, unit: "credit" as const } }, null, coder.did, days), coder);
+        await log.append(c);
+        return codeOf(log.append(make("bond", coder, {
+          contract: c.id, backer: coder.did, amount: { value: amount, unit: "credit" as const },
+          escrow: { payer: alice.did, amount: { value: 1000, unit: "credit" as const } }, slashing_conditions: ["lost_dispute" as const],
+        }, c.id, c.id, days)));
+      };
+      assert.equal(await bondWith(49), "GUARD_FAILED", "5 strikes x 10 permille = 50 of 1000");
+      assert.equal(await bondWith(50), undefined);
+
+      await log.append(rec("action", coder, { contract: contract.id, scopes_used: [], blocked_attempts: [{ scope: "shell.exec", count: 100 }] }, null, contract.id));
+      assert.equal(await bondWith(199), "GUARD_FAILED", "capped at 200 permille");
+      assert.equal(await bondWith(200), undefined);
+
+      await log.mint(alice.did, 1000);
+      // Strikes decay: still counted 29 days later, gone after 30.
+      assert.equal(await bondWith(199, 29), "GUARD_FAILED");
+      assert.equal(await bondWith(0, 40), undefined, "40 days on, the strikes no longer weigh");
     });
 
     test("only the contract's own performer may report an action for it", async () => {
