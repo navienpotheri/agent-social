@@ -116,3 +116,15 @@ test("the hook holds a gated call for an answer: approved runs it, refused or si
   const garbled = await gatedCall(10, (dir, id) => writeFileSync(join(dir, `${id}.decision.json`), "{ not json"));
   assert.equal(garbled.code, 2, "an unreadable decision is a refusal, never an approval");
 });
+
+test("post-call events record the calls that ran, and nothing else does", () => {
+  const { run, script } = pluginRun(JSON.stringify({ scopes: ["repo.read"] }));
+  const post = (name: string, id: string) => callHook(script, JSON.stringify({ hook_event_name: name, tool_name: "Bash", tool_use_id: id, session_id: "s" }));
+  assert.equal(post("PostToolUse", "toolu_A").status, 0);
+  assert.equal(post("PostToolUseFailure", "toolu_B").status, 0);
+  // A pre-call decision, allowed or blocked, is never a record that a call ran.
+  assert.equal(callHook(script, event("Read")).status, 0);
+  assert.equal(callHook(script, event("Bash", "rm -rf x")).status, 2);
+  const lines = readFileSync(join(run, "executed-calls.ndjson"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  assert.deepEqual(lines.map((l) => [l.id, l.failed]), [["toolu_A", false], ["toolu_B", true]]);
+});

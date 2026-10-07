@@ -98,6 +98,15 @@ async function main() {
   let input = "";
   for await (const chunk of process.stdin) input += chunk;
   const event = JSON.parse(input);
+  // The same script is registered for the runtime's post-call events. PostToolUse and PostToolUseFailure
+  // fire only for a call that actually ran (never for one a hook blocked or the runtime's own
+  // permissions refused), so this record is what asp run trusts, instead of guessing from result text.
+  if (event.hook_event_name === "PostToolUse" || event.hook_event_name === "PostToolUseFailure") {
+    appendFileSync(join(pluginRoot, "..", "executed-calls.ndjson"), JSON.stringify({
+      at: new Date().toISOString(), id: event.tool_use_id, tool: event.tool_name, failed: event.hook_event_name === "PostToolUseFailure",
+    }) + "\n");
+    return;
+  }
   const mandate = JSON.parse(readFileSync(join(pluginRoot, "asp-mandate.json"), "utf8"));
   if (!Array.isArray(mandate.scopes)) throw new Error("asp-mandate.json has no scopes list");
   const d = decide(event, mandate.scopes, mandate.gate);

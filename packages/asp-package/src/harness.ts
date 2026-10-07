@@ -93,6 +93,12 @@ export interface LaunchPlan {
   preventsCalls?: boolean;
   /** Where the adapter's pre-call hook drops approval requests for `asp run` to raise as Checkpoints (set only for `ask` gates). */
   approvalsDir?: string;
+  /**
+   * A file the adapter appends one JSON line `{id, tool, failed}` to for every call that actually ran
+   * (the runtime's own post-call events). Set only where it exists; `asp run` then judges an out-of-scope
+   * call a violation only if it appears here, and a call without a line was not run.
+   */
+  executedCallsFile?: string;
   /** Reads a call's outcome from a line of output: `blocked` means the pre-call hook stopped it before it ran. */
   checkOutputForResult?: (line: string) => { id: string; blocked: boolean }[] | undefined;
 }

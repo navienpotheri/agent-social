@@ -298,6 +298,11 @@ async function materialize(opts: {
       ...(gate ? { gate: { scopes: [...gate.scopes].sort(), mode: gate.mode, waitSeconds: gate.waitSeconds } } : {}),
     }));
     put("plugin/scripts/asp-mandate.mjs", () => copyInto(MANDATE_HOOK, join(plugin, "scripts", "asp-mandate.mjs")));
+    // The same script records which calls actually ran (post-call events), so a call the runtime's own
+    // permissions refused is never mistaken for one that ran.
+    const record = { matcher: "*", hooks: [{ type: "command", command: `node "\${CLAUDE_PLUGIN_ROOT}/scripts/asp-mandate.mjs"`, timeout: 10 }] };
+    hooks.PostToolUse = [record, ...(hooks.PostToolUse ?? [])];
+    hooks.PostToolUseFailure = [record, ...(hooks.PostToolUseFailure ?? [])];
     hooks.PreToolUse = [{
       matcher: "*",
       hooks: [{ type: "command", command: `node "\${CLAUDE_PLUGIN_ROOT}/scripts/asp-mandate.mjs"`, timeout: gate?.mode === "ask" ? gate.waitSeconds + 30 : 10 }],
@@ -348,7 +353,7 @@ async function materialize(opts: {
   args.push("--plugin-dir", plugin, "--append-system-prompt-file", join(runDir, "instructions.md"), "--settings", join(runDir, "settings.json"));
   if (harness.skills.length) args.push("--add-dir", workspace);
 
-  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: r.missing.sort(), notes, checkOutputForAction, checkOutputForResult, ...(opts.mandateScopes ? { preventsCalls: true } : {}),
+  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: r.missing.sort(), notes, checkOutputForAction, checkOutputForResult, ...(opts.mandateScopes ? { preventsCalls: true, executedCallsFile: join(runDir, "executed-calls.ndjson") } : {}),
     ...(opts.mandateScopes && opts.mandateGate?.mode === "ask" && opts.mandateGate.scopes.length ? { approvalsDir: join(runDir, "approvals") } : {}) };
 }
 

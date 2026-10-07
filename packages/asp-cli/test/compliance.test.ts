@@ -247,6 +247,30 @@ test("two blocked attempts do not stop a run under the default limit, but do und
   assert.match(stopped.err, /2 blocked attempts reached the limit of 2/);
 });
 
+test("an out-of-scope call the runtime's own permissions refused is a strike, never a slash: only the runtime's record that it ran makes it a violation", async () => {
+  const f = makeFixture();
+  const contractId = await runningContract(f, ["repo.read"]);
+  const run = await packedRun(f, contractId, [{ name: "Bash", input: { command: "touch x" }, result: "refused" }]);
+  assert.equal(run.code, 0, run.err);
+  assert.match(run.err, /strike\s+shell\.exec was refused by the runtime before it ran \(1 of 3\)/);
+  assert.doesNotMatch(run.err, /KILL SWITCH|COMPLIANCE VIOLATION/);
+  const local = await LocalLog.open(f.aspHome);
+  assert.equal((await local.log.escrow(contractId))?.settled, false, "nothing was settled");
+  const actionId = /action\s+(\S+) reported scopes/.exec(run.err)![1];
+  const body = (await local.log.get(actionId))!.record.body as { scopes_used: string[]; blocked_attempts: { scope: string; count: number }[] };
+  assert.deepEqual(body.scopes_used, [], "it did not run");
+  assert.deepEqual(body.blocked_attempts, [{ scope: "shell.exec", count: 1 }]);
+});
+
+test("a call that ran and failed is still a violation: the runtime's record says it ran", async () => {
+  const f = makeFixture();
+  const contractId = await runningContract(f, ["repo.read"]);
+  const run = await packedRun(f, contractId, [{ name: "Bash", input: { command: "rm -rf /tmp/whatever" }, result: "failed" }]);
+  assert.equal(run.code, 1);
+  assert.match(run.err, /KILL SWITCH\s+shell\.exec is outside the Mandate and the call ran/);
+  assert.match(run.err, /kill-switch settlement: bond fully slashed/);
+});
+
 test("a call with no result is not counted either way, and planning tools are never a violation or a strike", async () => {
   const f = makeFixture();
   const contractId = await runningContract(f, ["repo.read"]);

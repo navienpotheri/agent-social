@@ -1223,6 +1223,31 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
     const approvals = plan.approvalsDir && v.contract
       ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, io })
       : undefined;
+    const strike = (scope: string, how: string) => {
+      strikes++;
+      blockedByScope.set(scope, (blockedByScope.get(scope) ?? 0) + 1);
+      io.err(`  strike   ${scope} was ${how} (${strikes} of ${maxStrikes})`);
+      if (strikes >= maxStrikes) halt({ scope, reason: "probing" }, `${strikes} blocked attempts reached the limit of ${maxStrikes}; stopping ${backend} now.`);
+    };
+    // Did the runtime actually run this call? Where the adapter records that (its post-call events), the
+    // record decides; the result's text never does. The record may land a moment after the result, so a call
+    // with no record yet is rechecked for a short grace period before it is judged not run.
+    const ranFile = plan.executedCallsFile;
+    const didRun = (id: string): boolean => {
+      if (!ranFile || !existsSync(ranFile)) return false;
+      return readFileSync(ranFile, "utf8").split(/\r?\n/).some((l) => { try { return JSON.parse(l).id === id; } catch { return false; } });
+    };
+    const confirmations: Promise<void>[] = [];
+    const settle = (id: string, onRan: () => void, onNotRun: () => void) => {
+      if (!ranFile || didRun(id)) { onRan(); return; } // no record kept for this runtime: assume it ran
+      confirmations.push((async () => {
+        for (let i = 0; i < 30; i++) {
+          await new Promise((r) => setTimeout(r, 100));
+          if (didRun(id)) { onRan(); return; }
+        }
+        onNotRun();
+      })());
+    };
     const halt = (k: { scope: string; reason: "violation" | "probing" }, message: string) => {
       if (killed) return;
       killed = k;
@@ -1256,21 +1281,20 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
             const call = pending.get(res.id);
             if (!call) continue;
             pending.delete(res.id);
+            const ran = () => { scopesSeen.add(call.scope); if (call.artifact) artifactsSeen.push(call.artifact); };
             if (call.gated) {
               // An approval gate, not a violation: refused means the call never ran and nothing is counted.
               if (res.blocked) io.err(`  gate     ${call.scope} was not approved, so the call did not run`);
-              else { scopesSeen.add(call.scope); if (call.artifact) artifactsSeen.push(call.artifact); }
+              else settle(res.id, ran, () => io.err(`  gate     ${call.scope} was approved, but the runtime did not run the call`));
               continue;
             }
-            if (res.blocked) {
-              strikes++;
-              blockedByScope.set(call.scope, (blockedByScope.get(call.scope) ?? 0) + 1);
-              io.err(`  strike   ${call.scope} was blocked before it ran (${strikes} of ${maxStrikes})`);
-              if (strikes >= maxStrikes) halt({ scope: call.scope, reason: "probing" }, `${strikes} blocked attempts reached the limit of ${maxStrikes}; stopping ${backend} now.`);
-            } else {
-              scopesSeen.add(call.scope);
-              if (call.artifact) artifactsSeen.push(call.artifact);
-              halt({ scope: call.scope, reason: "violation" }, `${call.scope} is outside the Mandate and the call ran; stopping ${backend} now.`);
+            if (res.blocked) strike(call.scope, "blocked before it ran");
+            else {
+              // No hook blocked it. It is only a violation if the runtime says it ran: its own permissions may
+              // have refused the call, which did no harm and is a strike, never a slash.
+              settle(res.id,
+                () => { ran(); halt({ scope: call.scope, reason: "violation" }, `${call.scope} is outside the Mandate and the call ran; stopping ${backend} now.`); },
+                () => strike(call.scope, "refused by the runtime before it ran"));
             }
           }
         }
@@ -1282,9 +1306,12 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
         : `could not start ${plan.command}: ${e.message}`);
       void (approvals ? approvals.stop() : Promise.resolve()).then(() => done(-1));
     });
-    child.on("exit", (c) => {
+    // "close", not "exit": every line of output is read (and every outcome judged) before the run is wrapped up.
+    child.on("close", (c) => {
       if (killTimer) clearTimeout(killTimer);
-      void (approvals ? approvals.stop() : Promise.resolve()).then(() => done(c ?? 1));
+      void (approvals ? approvals.stop() : Promise.resolve())
+        .then(() => Promise.all(confirmations))
+        .then(() => done(c ?? 1));
     });
   });
   if (code === -1) return 1;

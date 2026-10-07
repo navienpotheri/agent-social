@@ -95,6 +95,16 @@ test("a refusal (corrected, with the reason) blocks the call: nothing ran, no st
   assert.equal((await (await LocalLog.open(f.aspHome)).log.escrow(job.id))?.settled, false);
 });
 
+test("an approved call the runtime then refuses on its own is not counted as having run", async () => {
+  const f = makeFixture();
+  const job = await gatedJob(f, ["--gate", "shell.exec"]);
+  const [res] = await Promise.all([run(f, job, [READ, { ...SHELL, runtimeRefuses: true }]), answerWhenAsked(f, job.id, "approved")]);
+  assert.equal(res.code, 0, res.err);
+  assert.match(res.err, /approval granted for shell\.exec/);
+  assert.match(res.err, /gate\s+shell\.exec was approved, but the runtime did not run the call/);
+  assert.deepEqual((await actionBody(f, res.err)).scopes_used, ["repo.read"]);
+});
+
 test("no answer in time is a refusal, never an approval; the Checkpoint stays open until the principal answers", async () => {
   const f = makeFixture();
   const job = await gatedJob(f, ["--gate", "shell.exec"]);
