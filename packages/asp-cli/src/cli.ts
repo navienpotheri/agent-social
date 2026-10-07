@@ -24,9 +24,11 @@
  *     --contract: the compliance bridge (docs/backlog.md). If the adapter supports it (Claude Code
  *     does, via --output-format stream-json), real tool-call scopes seen during the run are
  *     collected and reported as an asp.action/v0.2 record against that contract's live Mandate —
- *     not self-declared after the fact. A violation doesn't block the run (the tool call already
- *     happened); it's flagged loudly on stderr and the action record itself is refused, so it can
- *     never get laundered into a clean-looking log.
+ *     not self-declared after the fact. The first call outside the Mandate is a violation: the
+ *     process is stopped (kill switch) and the job settles with full fault (escrow back to the
+ *     principal, the bond slashed). On Claude Code a pre-call hook also blocks such a call before
+ *     it runs. The action record for a violation is refused, so it can never get laundered into a
+ *     clean-looking log.
  *   asp orchestrate <package> --backend <runtime> --task <text> [--task <text> ...] [--project <dir>]
  *                   [--max-parallel N] [--model <m>] [--dry-run]
  *     Runs one task per node, in parallel, each under its own signed, short-lived delegated key
@@ -966,9 +968,13 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   const agent = report.agent!;
   const runDir = join(home, "runs", `${slug(agent)}-${now().replace(/[:]/g, "")}`);
   mkdirSync(runDir, { recursive: true });
+  // Under a contract, the live Mandate is read once up front: it drives the pre-call hook (an
+  // out-of-scope call is blocked before it runs, where the adapter supports it) and the live check below.
+  const local = v.contract ? await LocalLog.open(home) : undefined;
+  const mandate = v.contract ? await local!.log.mandateOf(v.contract) : undefined;
   const plan = await adapter.materialize({
     pkgDir, harness, project: resolve(io.cwd, v.project ?? "."), runDir, agentName: basename(agent.replace(/:/g, "/")), prompt: v.prompt, env: io.env,
-    model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
+    mandateScopes: mandate?.scopes, model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
   });
 
   // The run's own report goes to stderr, so a -p run's stdout stays the runtime's stream alone.
@@ -997,8 +1003,6 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   // run has already finished. It can't undo the call that already happened, but it stops the next
   // one. SIGTERM first, SIGKILL after a grace period if the runtime doesn't exit on its own.
   const KILL_GRACE_MS = 3000;
-  const local = v.contract ? await LocalLog.open(home) : undefined;
-  const mandate = v.contract ? await local!.log.mandateOf(v.contract) : undefined;
   let hiddenFailure: string | undefined;
   const scopesSeen = new Set<string>();
   const artifactsSeen: { uri: string; sha256: string }[] = [];
@@ -1045,6 +1049,12 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
     });
   });
   if (code === -1) return 1;
+
+  const blockedLog = join(runDir, "blocked-calls.ndjson");
+  if (existsSync(blockedLog)) {
+    const blocked = readFileSync(blockedLog, "utf8").split(/\r?\n/).filter(Boolean).map((l) => JSON.parse(l) as { scope: string });
+    io.err(`  blocked  ${blocked.length} call(s) stopped before they ran: ${[...new Set(blocked.map((b) => b.scope))].sort().join(", ")}`);
+  }
 
   if (killed) {
     // A refused Action record for the offending scope, purely for the paper trail (it will be

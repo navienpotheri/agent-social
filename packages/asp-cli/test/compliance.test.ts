@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LocalLog } from "@agent-social/asp-package";
@@ -164,6 +165,30 @@ test("asp run --contract fingerprints the tool call's real input and stores the 
   assert.match(body.artifacts![0].sha256, /^sha256:[0-9a-f]{64}$/);
   // The fingerprint is a hash, never the file path or content it stood for.
   assert.doesNotMatch(JSON.stringify(body.artifacts), /secret|plan\.md/);
+});
+
+test("under --contract, the pre-call Mandate hook is installed with the Mandate's scopes; without it, no hook", async () => {
+  const f = makeFixture();
+  const contractId = await runningContract(f, ["repo.read", "tests.run"]);
+  const pkg = join(f.root, "coder.aspkg");
+  const pack = await asp(f, ["pack", "--runtime", "claude-code", "--agent", CODER, "--project", f.project, "--user-home", f.home, "--out", pkg]);
+  assert.equal(pack.code, 0, pack.err);
+  const runDirOf = (err: string) => /run dir\s+(.*)/.exec(err)![1].trim();
+
+  const without = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", "--dry-run"], fakeClaude());
+  assert.doesNotMatch(without.err, /pre-call Mandate hook/);
+  assert.ok(!existsSync(join(runDirOf(without.err), "plugin", "asp-mandate.json")));
+
+  // A second run in the same second would share the first's run dir, so the hook-free run goes first.
+  const withContract = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", "--contract", contractId, "--dry-run"], fakeClaude());
+  assert.equal(withContract.code, 0, withContract.err);
+  assert.match(withContract.err, /pre-call Mandate hook active: calls outside repo\.read, tests\.run are blocked/);
+  const plugin = join(runDirOf(withContract.err), "plugin");
+  assert.deepEqual(JSON.parse(readFileSync(join(plugin, "asp-mandate.json"), "utf8")), { scopes: ["repo.read", "tests.run"] });
+  const hooks = JSON.parse(readFileSync(join(plugin, "hooks", "hooks.json"), "utf8")).hooks.PreToolUse;
+  assert.equal(hooks[0].matcher, "*");
+  assert.match(hooks[0].hooks[0].command, /asp-mandate\.mjs/);
+  assert.ok(existsSync(join(plugin, "scripts", "asp-mandate.mjs")));
 });
 
 test("without --contract, asp run behaves exactly as before (no action report at all)", async () => {

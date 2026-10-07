@@ -235,7 +235,7 @@ const pluginName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").re
 
 async function materialize(opts: {
   pkgDir: string; harness: Harness; project: string; runDir: string; agentName: string; prompt?: string; env: NodeJS.ProcessEnv;
-  model?: string; sourceRuntime?: string;
+  model?: string; sourceRuntime?: string; mandateScopes?: string[];
 }): Promise<LaunchPlan> {
   const { pkgDir, harness, project, runDir } = opts;
   const h = join(pkgDir, "harness");
@@ -287,6 +287,17 @@ async function materialize(opts: {
       hooks: [{ type: "command", command: `node "\${CLAUDE_PLUGIN_ROOT}/scripts/asp-rules.mjs"` }],
     }];
     notes.push(`${scoped.length} path-scoped rule(s) load when the agent first touches a matching file`);
+  }
+  if (opts.mandateScopes) {
+    // The pre-call half of the kill switch: block any call whose scope the Mandate doesn't grant,
+    // before it runs. Listed first; Claude Code runs every PreToolUse hook and any block wins.
+    put("plugin/asp-mandate.json", () => writeJson(join(plugin, "asp-mandate.json"), { scopes: [...opts.mandateScopes!].sort() }));
+    put("plugin/scripts/asp-mandate.mjs", () => copyInto(MANDATE_HOOK, join(plugin, "scripts", "asp-mandate.mjs")));
+    hooks.PreToolUse = [{
+      matcher: "*",
+      hooks: [{ type: "command", command: `node "\${CLAUDE_PLUGIN_ROOT}/scripts/asp-mandate.mjs"`, timeout: 10 }],
+    }, ...(hooks.PreToolUse ?? [])];
+    notes.push(`pre-call Mandate hook active: calls outside ${opts.mandateScopes.length ? opts.mandateScopes.join(", ") : "an empty scope list"} are blocked before they run`);
   }
   if (Object.keys(hooks).length) put("plugin/hooks/hooks.json", () => writeJson(join(plugin, "hooks", "hooks.json"), { hooks }));
   if (Object.keys(harness.mcp_servers).length) {
@@ -361,5 +372,6 @@ function stripFrontmatter(text: string): string {
 }
 
 const RULES_HOOK = fileURLToPath(new URL("./claude-code-rules-hook.mjs", import.meta.url));
+const MANDATE_HOOK = fileURLToPath(new URL("./claude-code-mandate-hook.mjs", import.meta.url));
 
 export const claudeCode: RuntimeAdapter = { name: RUNTIME, capture, materialize };

@@ -94,6 +94,11 @@ export interface RuntimeAdapter {
     pkgDir: string; harness: Harness; project: string; runDir: string; agentName: string; prompt?: string; env: NodeJS.ProcessEnv;
     /** Model to run; overrides the packed one. */
     model?: string;
+    /**
+     * The live Mandate's scopes, when the run is under a contract (`asp run --contract`). An adapter
+     * that can intercept calls before they run uses them to block out-of-scope ones; others ignore it.
+     */
+    mandateScopes?: string[];
     /** An OpenAI-compatible base URL for an open-weight model (Ollama, vLLM, ...); needs `model`. */
     endpoint?: string;
     /** Name of the environment variable holding the endpoint's API key (a placeholder is used for local servers). */
