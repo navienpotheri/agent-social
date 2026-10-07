@@ -19,6 +19,8 @@ const RISK_PERMILLE_PER_OWN_SLASH = 250;
 const RISK_PERMILLE_PER_FLEET_SLASH = 100;
 const RISK_PERMILLE_PER_STRIKE = 10;
 const RISK_PERMILLE_STRIKE_CAP = 200;
+/** Graduated tier limits: the most credit a Mandate may let a tier spend (tier 3 and above: uncapped; tier 0 is excluded outright). */
+const TIER_SPEND_LIMIT: Record<number, number> = { 1: 100, 2: 1000 };
 const STRIKE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 type StrikeEntry = { at: string; count: number };
 /** Strikes at or after `since` (the Bond's own issued_at, so replay is deterministic). */
@@ -392,12 +394,18 @@ export class EventLog {
 
   /**
    * Deterrence, extended past Bond: a tier-0 agent (demoted to nothing by repeat slashes) can't
-   * receive a Mandate either, not just bond a job. The envelope subject is the performer for a
+   * receive a Mandate either, not just bond a job, and a tier 1 or 2 agent's spend is capped (TIER_SPEND_LIMIT). The envelope subject is the performer for a
    * Mandate (lifecycle's own subject_is_performer guard already establishes this).
    */
   private async checkMandateTier(tx: LogTx, r: AspRecord): Promise<void> {
     const rep = await this.reputation(tx, r.subject as string);
     if (rep?.tier === 0) throw rule("tier_excluded", `${r.subject} is excluded from receiving a Mandate: repeat slashes demoted it to tier 0`);
+    const limit = rep ? TIER_SPEND_LIMIT[rep.tier] : undefined;
+    if (limit === undefined) return;
+    const spend = (r.body as { spend: { cap: number; per_action_max?: number } }).spend;
+    for (const [field, value] of [["cap", spend.cap], ["per_action_max", spend.per_action_max ?? 0]] as const) {
+      if (value > limit) throw rule("tier_limit_exceeded", `${r.subject} is tier ${rep!.tier}: spend.${field} may not exceed ${limit} credits (got ${value})`);
+    }
   }
 
   /** Deterrence, extended to allocation mode: a tier-0 agent can't submit a Proposal either. */
