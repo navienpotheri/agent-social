@@ -104,6 +104,8 @@ export interface EscrowRow {
   escrowLocked: number;
   backer: string;
   bondLocked: number;
+  /** The performer's passport earnings_split at Bond time (permille the agent keeps); null = none. */
+  agentPermille: number | null;
   settled: boolean;
 }
 

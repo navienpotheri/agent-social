@@ -495,9 +495,14 @@ export class EventLog {
     debits.set(body.escrow.payer, (debits.get(body.escrow.payer) ?? 0) + body.escrow.amount.value);
     debits.set(body.backer, (debits.get(body.backer) ?? 0) + body.amount.value);
     for (const [did, amount] of debits) await this.debit(tx, did, amount);
+    // Snapshot the performer's passport earnings_split now, so a later passport edit can't change it.
+    const performer = (await tx.getRecord(body.contract))?.record.body as { performer?: string } | undefined;
+    const pp = performer?.performer ? await tx.getPassport(performer.performer) : undefined;
+    const ppRec = pp ? await tx.getRecord(pp.head) : undefined;
+    const agentPermille = (ppRec?.record.body as { earnings_split?: { agent_permille: number } } | undefined)?.earnings_split?.agent_permille ?? null;
     await tx.putEscrow({
       contract: body.contract, escrowPayer: body.escrow.payer, escrowLocked: body.escrow.amount.value,
-      backer: body.backer, bondLocked: body.amount.value, settled: false,
+      backer: body.backer, bondLocked: body.amount.value, agentPermille, settled: false,
     });
   }
 
@@ -547,12 +552,18 @@ export class EventLog {
     const escrowLeftover = escrow.escrowLocked - body.escrow_released.value - fees;
     const bondLeftover = escrow.bondLocked - body.bond_returned.value - body.bond_slashed.value;
 
-    // earnings_split: the agent keeps agent_permille of its pay; the rest goes to its sponsor.
-    const split = (r.body as { earnings_split?: { agent_permille: number } }).earnings_split;
-    if (split && split.agent_permille < 1000 && body.escrow_released.value > 0) {
+    // earnings_split: the performer's passport sets it (snapshotted at Bond time); a Settlement may
+    // omit it or restate it, never contradict it. The agent keeps agent_permille of its pay, the rest
+    // goes to its sponsor.
+    const declared = (r.body as { earnings_split?: { agent_permille: number } }).earnings_split?.agent_permille;
+    if (declared !== undefined && declared !== (escrow.agentPermille ?? 1000)) {
+      throw rule("earnings_split_mismatch", `the performer's passport splits ${escrow.agentPermille ?? 1000}‰ to the agent, not ${declared}‰`);
+    }
+    const agentPermille = escrow.agentPermille ?? 1000;
+    if (agentPermille < 1000 && body.escrow_released.value > 0) {
       const sponsor = (await tx.getPassport(cbody.performer))?.sponsor;
       if (!sponsor) throw rule("earnings_split_no_sponsor", `${cbody.performer} has no sponsor to receive the rest of an earnings_split`);
-      const agentShare = Math.floor((body.escrow_released.value * split.agent_permille) / 1000);
+      const agentShare = Math.floor((body.escrow_released.value * agentPermille) / 1000);
       await this.credit(tx, cbody.performer, agentShare);
       await this.credit(tx, sponsor, body.escrow_released.value - agentShare);
     } else {

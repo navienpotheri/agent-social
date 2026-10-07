@@ -110,8 +110,8 @@
  *   asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked|silence
  *                      [--escrow-released <n>] [--bond-returned <n>] [--bond-slashed <n>] [--fees <n>]
  *                      [--pro-rata <permille>] [--cites <id>] [--principal <did>] [--agent-permille <n>]
- *     --agent-permille (earnings_split): the performer keeps that share of its pay; the rest goes
- *     to its passport's sponsor (rejected if it has none).
+ *     The performer's passport sets the earnings_split (kept share, snapshotted at Bond time); the rest of its pay goes
+ *     to its sponsor. --agent-permille only restates it (earnings_split_mismatch if it differs).
  *     --fees comes out of the same escrow, on top of --escrow-released, and credits to a local mock
  *     platform account (EventLog.PLATFORM_DID) standing in for a real platform/Insurer recipient.
  *     `silence`: requires the Contract to carry a review_deadline (from a principal-mode Intent)

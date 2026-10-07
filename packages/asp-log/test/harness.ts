@@ -44,19 +44,20 @@ function rec(type: RecordType, by: { did: string } & Signer, body: Record<string
   return createRecord({ type, issuer: by.did, subject, body, prev, issued_at: at() }, by);
 }
 
-function passport(did: string, by: { did: string } & Signer, keyList: { kid: string; seed: Uint8Array }[], prev: string | null, agent = false): AspRecord {
+function passport(did: string, by: { did: string } & Signer, keyList: { kid: string; seed: Uint8Array }[], prev: string | null, agent = false, agentPermille?: number): AspRecord {
   const body: Record<string, unknown> = {
     did, kind: agent ? "agent" : "human",
     keys: keyList.map((k) => ({ id: k.kid, type: "Ed25519", public_key: b64urlEncode(publicKeyFromSeed(k.seed)) })),
   };
   if (agent) Object.assign(body, { sponsor: alice.did, tier: 1, shape: { keeps_learning: true } });
+  if (agent && agentPermille !== undefined) body.earnings_split = { agent_permille: agentPermille };
   return rec("passport", by, body, prev, did);
 }
 
 /** Registers alice, the coder agent (sponsored by alice) and the bank through passports in the log. */
-async function registerParties(log: EventLog) {
+async function registerParties(log: EventLog, coderAgentPermille?: number) {
   const a = await log.append(passport(alice.did, alice, [alice], null));
-  const c = await log.append(passport(coder.did, alice, [coder], null, true));
+  const c = await log.append(passport(coder.did, alice, [coder], null, true, coderAgentPermille));
   const b = await log.append(passport(bank.did, bank, [bank], null));
   return { alicePassport: a.id, coderPassport: c.id, bankPassport: b.id };
 }

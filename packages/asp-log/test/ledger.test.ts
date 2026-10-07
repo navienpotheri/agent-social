@@ -81,7 +81,7 @@ for (const h of [memory, postgres] as Harness[]) {
       assert.equal(await log.balance(alice.did), 0, "alice's escrow is locked, not spent");
       assert.equal(await log.balance(coder.did), 0, "coder's bond is locked");
       assert.deepEqual(await log.escrow(contract.id), {
-        contract: contract.id, escrowPayer: alice.did, escrowLocked: 1000, backer: coder.did, bondLocked: 200, settled: false,
+        contract: contract.id, escrowPayer: alice.did, escrowLocked: 1000, backer: coder.did, bondLocked: 200, agentPermille: null, settled: false,
       });
     });
 
@@ -137,15 +137,28 @@ for (const h of [memory, postgres] as Harness[]) {
       assert.equal(await log.balance(alice.did), 1000 - 400 - 10, "the rest of the escrow (590) returns to alice");
     });
 
-    test("earnings_split sends the non-agent share of the pay to the performer's sponsor", async () => {
+    for (const [name, split, ok] of [["derived from the passport when the Settlement omits it", undefined, true],
+      ["accepted when the Settlement restates it", 250, true], ["rejected when the Settlement contradicts it", 900, false]] as const) {
+      test(`earnings_split: ${name}`, async () => {
+        const log = new EventLog(await h.make());
+        await registerParties(log, 250);
+        await log.mint(alice.did, 1000);
+        await log.mint(coder.did, 200);
+        const { settlementResult } = await bondAndRevoke(log, 1000, 200, 1000, { escrowReleased: 400, bondReturned: 200, bondSlashed: 0, split });
+        if (!ok) { assert.equal(settlementResult, "GUARD_FAILED"); return; }
+        assert.equal(settlementResult, undefined);
+        assert.equal(await log.balance(coder.did), 100 + 200, "keeps 25% of 400, bond returned");
+        assert.equal(await log.balance(alice.did), 600 + 300, "unreleased escrow plus the sponsor's 75% of the pay");
+      });
+    }
+
+    test("earnings_split declared on a Settlement without a passport split is rejected", async () => {
       const log = new EventLog(await h.make());
       await registerParties(log);
       await log.mint(alice.did, 1000);
       await log.mint(coder.did, 200);
       const { settlementResult } = await bondAndRevoke(log, 1000, 200, 1000, { escrowReleased: 400, bondReturned: 200, bondSlashed: 0, split: 250 });
-      assert.equal(settlementResult, undefined);
-      assert.equal(await log.balance(coder.did), 100 + 200, "keeps 25% of 400, bond returned");
-      assert.equal(await log.balance(alice.did), 600 + 300, "unreleased escrow plus the sponsor's 75% of the pay");
+      assert.equal(settlementResult, "GUARD_FAILED");
     });
 
     test("allocation must be signed by a DID on the Call's panel", async () => {
