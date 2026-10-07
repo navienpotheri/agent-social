@@ -23,6 +23,13 @@ const Ajv2020 = ((Ajv2020Module as any).default ?? Ajv2020Module) as typeof Ajv2
 export const MANIFEST = "manifest.json";
 export const HISTORY = "records/history.ndjson";
 
+/**
+ * Built-in planning tools with no side effects. They are exempt from scope checks (the compliance
+ * bridge and the pre-call hook), so an agent organizing its own work is never counted as a violation
+ * or a strike. The pre-call hook script carries a copy of this list; a test keeps them in step.
+ */
+export const NO_SCOPE_TOOLS = ["TodoWrite", "ExitPlanMode"];
+
 /** One tool name plus its shell-like argument text (a permission rule's pattern, or a live call's command) → an ASP scope. */
 export function deriveScopeForTool(tool: string, arg: string): string {
   if (["Read", "Grep", "Glob", "LS", "NotebookRead"].includes(tool)) return "repo.read";

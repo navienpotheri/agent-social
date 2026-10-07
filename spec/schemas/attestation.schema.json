@@ -7,7 +7,7 @@
   "required": ["kind", "about"],
   "properties": {
     "kind": {
-      "enum": ["acceptance", "checkpoint_resolution", "rating", "ruling", "certificate", "allocation", "citation"]
+      "enum": ["acceptance", "checkpoint_resolution", "rating", "ruling", "certificate", "allocation", "citation", "verification"]
     },
     "about": {
       "description": "The record this judgment is about.",
@@ -23,6 +23,19 @@
       "description": "For rulings: fault apportioned along the chain, in permille per DID.",
       "type": "object",
       "additionalProperties": { "$ref": "urn:asp:v0.2:common#/$defs/permille" }
+    },
+    "claims": {
+      "description": "For verifications: the verifier's grade for each of the Delivery's claims, by index. unverified means the verifier could not establish it.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["index", "grade"],
+        "additionalProperties": false,
+        "properties": {
+          "index": { "type": "integer", "minimum": 0 },
+          "grade": { "enum": ["measured", "simulated", "predicted", "unverified"] }
+        }
+      }
     },
     "score": { "type": "integer" },
     "skill": { "type": "string" }
@@ -45,6 +58,13 @@
         "properties": { "verdict": { "enum": ["approved", "corrected", "picked"] } },
         "if": { "properties": { "verdict": { "const": "corrected" } } },
         "then": { "required": ["correction"] }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "verification" } } },
+      "then": {
+        "required": ["verdict"],
+        "properties": { "verdict": { "enum": ["confirmed", "partly_confirmed", "not_confirmed"] } }
       }
     },
     {

@@ -14,6 +14,19 @@
       "uniqueItems": true
     },
     "summary": { "type": "string" },
+    "blocked_attempts": {
+      "description": "Calls the runtime stopped before they ran because their scope wasn't in the Mandate. A signed strike: nothing out of scope executed, so these are not in scopes_used and are not checked against the Mandate.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["scope", "count"],
+        "additionalProperties": false,
+        "properties": {
+          "scope": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$" },
+          "count": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
     "artifacts": {
       "description": "Data-flow fingerprinting: a hash of what a tool call's input actually was, never the content itself — provable later in a dispute, never exposed in the log.",
       "type": "array",

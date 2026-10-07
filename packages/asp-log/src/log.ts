@@ -65,6 +65,8 @@ export function nextLogHash(prev: string, id: string): string {
 }
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
+/** How well established a claim is, for comparing a verifier's grade with the performer's declared one. */
+const GRADE_RANK: Record<string, number> = { measured: 3, simulated: 2, predicted: 1, unverified: 0 };
 const after = (a: string, b: string) => Date.parse(a) > Date.parse(b);
 
 /**
@@ -153,9 +155,13 @@ export class EventLog {
     if (type === "node") await this.projectNode(tx, verified);
     if (type === "lineage") await this.projectLineage(tx, verified);
     if (type === "bond") await this.projectBond(tx, verified);
-    if (type === "settlement") await this.projectSettlement(tx, verified);
+    if (type === "settlement") { await this.checkVerifiedBeforeSilence(tx, verified); await this.projectSettlement(tx, verified); }
     if (type === "juror") await this.projectJuror(tx, verified);
-    if (type === "attestation") await this.checkRulingPanel(tx, verified);
+    if (type === "attestation") {
+      await this.checkRulingPanel(tx, verified);
+      await this.checkVerification(tx, verified);
+      await this.checkVerifiedBeforeAcceptance(tx, verified);
+    }
     if (type === "mandate") { await this.checkMandateTier(tx, verified); await this.projectMandate(tx, verified); }
     if (type === "action") await this.checkAction(tx, verified);
     if (type === "proposal") await this.checkProposerTier(tx, verified);
@@ -589,6 +595,91 @@ export class EventLog {
     }
   }
 
+  /**
+   * Outcome verification: when a Contract names a `verifier`, that DID (separate from the principal,
+   * the performer, and anyone either sponsors) must re-check the Delivery and sign a verification
+   * Attestation before the principal can accept it. The verification is a standalone record about the
+   * Delivery (like an allocation), so it needs no lifecycle change; what it adds is a guard on
+   * acceptance. Claims on the Delivery carry the performer's declared evidence grade; the verifier
+   * confirms or downgrades each by index, and a "confirmed" verdict cannot hide a downgrade.
+   */
+  private async checkVerification(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as { kind: string; about: string; verdict: string; claims?: { index: number; grade: string }[] };
+    if (body.kind !== "verification") return;
+    const delivery = await tx.getRecord(body.about);
+    if (!delivery || delivery.record.type !== "asp.delivery/v0.2") {
+      throw rule("verification_about_unknown", `${body.about} is not a Delivery in this log`);
+    }
+    const dbody = delivery.record.body as { contract: string; result: { claims?: { claim: string; grade: string }[] } };
+    const contract = await tx.getRecord(dbody.contract);
+    if (!contract || contract.record.type !== "asp.contract/v0.2" || delivery.chain !== contract.chain) {
+      throw rule("verification_about_unknown", `the Delivery ${body.about} is not on a job chain in this log`);
+    }
+    const cbody = contract.record.body as { principal: string; performer: string; verifier?: string };
+    if (!cbody.verifier) throw rule("no_verifier_named", `contract ${dbody.contract} names no verifier`);
+    if (r.issuer !== cbody.verifier) throw rule("not_the_verifier", `${r.issuer} is not the verifier (${cbody.verifier}) named by contract ${dbody.contract}`);
+    const parties = new Set([cbody.principal, cbody.performer]);
+    const sponsor = (await tx.getPassport(r.issuer))?.sponsor;
+    if (parties.has(r.issuer) || (sponsor && parties.has(sponsor))) {
+      throw rule("verifier_conflicted", `${r.issuer} is, or is sponsored by, the principal or the performer, so it cannot verify this Delivery`);
+    }
+    const chain = await tx.getChain(contract.chain);
+    if (chain?.state !== "Delivered") throw rule("verification_not_delivered", `contract ${dbody.contract} is not awaiting acceptance (state: ${chain?.state ?? "unknown"})`);
+    if (await tx.getVerification(body.about)) throw rule("already_verified", `Delivery ${body.about} already has a verification`);
+
+    const declared = dbody.result.claims ?? [];
+    const given = body.claims ?? [];
+    const seen = new Set<number>();
+    for (const c of given) {
+      if (c.index >= declared.length) throw rule("verification_claim_unknown", `the Delivery has ${declared.length} claim(s); there is no claim ${c.index}`);
+      if (seen.has(c.index)) throw rule("verification_claim_duplicate", `claim ${c.index} is graded twice`);
+      seen.add(c.index);
+    }
+    if (body.verdict === "partly_confirmed" && !declared.length) {
+      throw rule("verification_no_claims", "a Delivery with no claims can only be confirmed or not confirmed");
+    }
+    if ((body.verdict === "confirmed" || body.verdict === "partly_confirmed") && declared.length && seen.size !== declared.length) {
+      throw rule("verification_claims_incomplete", `grade all ${declared.length} claim(s), or the verdict cannot say what was established`);
+    }
+    if (body.verdict === "confirmed") {
+      for (const c of given) {
+        if ((GRADE_RANK[c.grade] ?? 0) < (GRADE_RANK[declared[c.index].grade] ?? 0)) {
+          throw rule("verification_downgrade_not_confirmed", `claim ${c.index} was declared ${declared[c.index].grade} but verified only ${c.grade}; that is partly_confirmed at best`);
+        }
+      }
+    }
+    await tx.putVerification({ delivery: body.about, contract: dbody.contract, verifier: r.issuer, verdict: body.verdict });
+  }
+
+  /** Acceptance gate: with a verifier named, a Delivery needs a confirming verification before it is accepted. */
+  private async checkVerifiedBeforeAcceptance(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as { kind: string; about: string; verdict?: string };
+    if (body.kind !== "acceptance" || body.verdict !== "accepted") return;
+    const delivery = await tx.getRecord(body.about);
+    if (!delivery || delivery.record.type !== "asp.delivery/v0.2") return; // the lifecycle's own guard rejects this
+    const contract = await tx.getRecord((delivery.record.body as { contract: string }).contract);
+    const verifier = (contract?.record.body as { verifier?: string } | undefined)?.verifier;
+    if (!verifier) return;
+    const ver = await tx.getVerification(body.about);
+    if (!ver || ver.verdict === "not_confirmed") {
+      throw rule("verification_required", `this contract names ${verifier} as verifier: the Delivery needs a confirming verification before it can be accepted${ver ? " (the verifier did not confirm it)" : ""}`);
+    }
+  }
+
+  /** The same gate for settling on the principal's silence: silence cannot stand in for a verification. */
+  private async checkVerifiedBeforeSilence(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as { contract: string; basis: string };
+    if (body.basis !== "silence") return;
+    const contract = await tx.getRecord(body.contract);
+    const verifier = (contract?.record.body as { verifier?: string } | undefined)?.verifier;
+    if (!contract || !verifier) return;
+    const head = (await tx.getChain(contract.chain))?.head;
+    const ver = head ? await tx.getVerification(head) : undefined;
+    if (!ver || ver.verdict === "not_confirmed") {
+      throw rule("verification_required", `this contract names ${verifier} as verifier: silence cannot settle a Delivery that was not confirmed`);
+    }
+  }
+
   get(id: string) { return this.store.getRecord(id); }
   head() { return this.store.logHead(); }
   chain(root: string) { return this.store.chainRecords(root); }
@@ -602,6 +693,7 @@ export class EventLog {
   juror(did: string) { return this.store.getJuror(did); }
   reputationOf(did: string) { return this.reputation(this.store, did); }
   mandateOf(contract: string) { return this.store.getMandate(contract); }
+  verificationOf(delivery: string) { return this.store.getVerification(delivery); }
 
   /** The current panel for a contract's open dispute — for display before a ruling is issued. */
   async drawPanel(contract: string, size?: number): Promise<string[]> {

@@ -5,9 +5,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { deriveScopeForTool } from "../src/index.ts";
+import { NO_SCOPE_TOOLS, deriveScopeForTool } from "../src/index.ts";
 // @ts-expect-error: plain .mjs without type declarations
-import { decide, deriveScopeForTool as hookScope } from "../src/adapters/claude-code-mandate-hook.mjs";
+import { NO_SCOPE_TOOLS as HOOK_NO_SCOPE_TOOLS, decide, deriveScopeForTool as hookScope } from "../src/adapters/claude-code-mandate-hook.mjs";
 
 const HOOK = fileURLToPath(new URL("../src/adapters/claude-code-mandate-hook.mjs", import.meta.url));
 
@@ -20,6 +20,11 @@ test("the hook maps calls to the same scopes the compliance bridge does", () => 
     ["mcp__github__create_issue", ""], ["mcp__Slack-Bot__post.message", ""], ["TodoWrite", ""], ["Task", ""], ["Skill", ""],
   ];
   for (const [tool, arg] of calls) assert.equal(hookScope(tool, arg), deriveScopeForTool(tool, arg), `${tool} ${arg}`);
+});
+
+test("the hook's list of scope-free planning tools matches package.ts, and they pass any Mandate", () => {
+  assert.deepEqual(HOOK_NO_SCOPE_TOOLS, NO_SCOPE_TOOLS);
+  for (const tool of NO_SCOPE_TOOLS) assert.equal(decide({ tool_name: tool, tool_input: {} }, []).allow, true, tool);
 });
 
 test("decide allows a granted scope and blocks anything else, by exact scope", () => {

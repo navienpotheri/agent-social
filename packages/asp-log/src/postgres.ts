@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import pg from "pg";
 import type {
-  AccountRow, ChainRow, EscrowRow, FleetRow, JurorRow, KeyRow, LogHead, LogTx, MandateRow, MintRow, PassportRow,
+  AccountRow, ChainRow, EscrowRow, FleetRow, JurorRow, KeyRow, LogHead, LogTx, MandateRow, MintRow, PassportRow, VerificationRow,
   ProbationRow, ReputationRow, Store, StoredRecord,
 } from "./store.ts";
 
@@ -67,6 +67,7 @@ const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_m
 const toJuror = (j: any): JurorRow => ({ did: j.did, head: j.head, staked: Number(j.staked) });
 const toReputation = (r: any): ReputationRow => ({ did: r.did, tier: Number(r.tier), slashCount: Number(r.slash_count) });
 const toMandate = (m: any): MandateRow => ({ contract: m.contract, scopes: m.scopes });
+const toVerification = (v: any): VerificationRow => ({ delivery: v.delivery, contract: v.contract, verifier: v.verifier, verdict: v.verdict });
 
 /** Reads shared by the store (pool) and a transaction (client). */
 function reads(q: Queryable) {
@@ -147,6 +148,10 @@ function reads(q: Queryable) {
       const { rows } = await q.query("SELECT * FROM mandates WHERE contract = $1", [contract]);
       return rows[0] && toMandate(rows[0]);
     },
+    async getVerification(delivery: string) {
+      const { rows } = await q.query("SELECT * FROM verifications WHERE delivery = $1", [delivery]);
+      return rows[0] && toVerification(rows[0]);
+    },
   };
 }
 
@@ -193,6 +198,7 @@ export class PostgresStore implements Store {
   activeJurors() { return this.r.activeJurors(); }
   getReputation(did: string) { return this.r.getReputation(did); }
   getMandate(contract: string) { return this.r.getMandate(contract); }
+  getVerification(delivery: string) { return this.r.getVerification(delivery); }
   async chainRecords(root: string) {
     const { rows } = await this.pool.query<RecordRow>(`SELECT ${RECORD_COLS} FROM records WHERE chain = $1 ORDER BY seq`, [root]);
     return rows.map(toStored);
@@ -231,6 +237,7 @@ class PgTx implements LogTx {
   activeJurors() { return this.r.activeJurors(); }
   getReputation(did: string) { return this.r.getReputation(did); }
   getMandate(contract: string) { return this.r.getMandate(contract); }
+  getVerification(delivery: string) { return this.r.getVerification(delivery); }
 
   async insertRecord(row: StoredRecord) {
     const r = row.record;
@@ -318,6 +325,13 @@ class PgTx implements LogTx {
       `INSERT INTO mandates (contract, scopes) VALUES ($1, $2)
        ON CONFLICT (contract) DO UPDATE SET scopes = $2`,
       [row.contract, row.scopes],
+    );
+  }
+  async putVerification(row: VerificationRow) {
+    await this.c.query(
+      `INSERT INTO verifications (delivery, contract, verifier, verdict) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (delivery) DO UPDATE SET contract = $2, verifier = $3, verdict = $4`,
+      [row.delivery, row.contract, row.verifier, row.verdict],
     );
   }
   async setLogHead(head: LogHead) {

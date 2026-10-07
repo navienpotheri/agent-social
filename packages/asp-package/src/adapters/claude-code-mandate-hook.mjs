@@ -33,6 +33,9 @@ export function deriveScopeForTool(tool, arg) {
   return `tool.${tool.toLowerCase().replace(/[^a-z0-9_]/g, "_")}`;
 }
 
+/** Planning tools with no side effects; a copy of NO_SCOPE_TOOLS in package.ts (a test keeps them in step). */
+export const NO_SCOPE_TOOLS = ["TodoWrite", "ExitPlanMode"];
+
 /** Same call-to-scope mapping the compliance bridge uses on the live stream. */
 export function scopeOfCall(event) {
   const arg = typeof event.tool_input?.command === "string" ? event.tool_input.command : "";
@@ -42,6 +45,7 @@ export function scopeOfCall(event) {
 /** Exact membership, like the log's own check (`EventLog.checkAction`). */
 export function decide(event, scopes) {
   if (typeof event?.tool_name !== "string") return { allow: false, scope: "", reason: "ASP Mandate hook: the call has no tool_name" };
+  if (NO_SCOPE_TOOLS.includes(event.tool_name)) return { allow: true, scope: "" };
   const scope = scopeOfCall(event);
   if (scopes.includes(scope)) return { allow: true, scope };
   return { allow: false, scope, reason: `ASP Mandate: the scope ${scope} is not granted by this job's Mandate, so this call was blocked before it ran` };

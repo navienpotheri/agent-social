@@ -100,7 +100,7 @@ test("asp run --contract reports real tool-call scopes from the runtime's own ou
   assert.match(run.err, /action .* reported scopes: repo\.read/);
 });
 
-test("asp run --contract kills the process on the first out-of-scope tool call and auto-settles with full fault", async () => {
+test("asp run --contract kills the process when an out-of-scope call actually ran, and auto-settles with full fault", async () => {
   const f = makeFixture();
   const contractId = await runningContract(f, ["repo.read"]);
   const pkg = join(f.root, "coder.aspkg");
@@ -108,7 +108,7 @@ test("asp run --contract kills the process on the first out-of-scope tool call a
   assert.equal(pack.code, 0, pack.err);
 
   const run = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", "--contract", contractId],
-    fakeClaude({ FAKE_CLAUDE_TOOL_USE: JSON.stringify([{ name: "Bash", input: { command: "rm -rf /tmp/whatever" } }]) }));
+    fakeClaude({ FAKE_CLAUDE_TOOL_USE: JSON.stringify([{ name: "Bash", input: { command: "rm -rf /tmp/whatever" }, result: "ok" }]) }));
   // The kill switch stops the process on the first violation — the run itself now fails, unlike the
   // old flag-only behavior.
   assert.equal(run.code, 1);
@@ -189,6 +189,86 @@ test("under --contract, the pre-call Mandate hook is installed with the Mandate'
   assert.equal(hooks[0].matcher, "*");
   assert.match(hooks[0].hooks[0].command, /asp-mandate\.mjs/);
   assert.ok(existsSync(join(plugin, "scripts", "asp-mandate.mjs")));
+});
+
+async function packedRun(f: Fixture, contractId: string, calls: unknown[], extra: string[] = []) {
+  const pkg = join(f.root, "coder.aspkg");
+  const pack = await asp(f, ["pack", "--runtime", "claude-code", "--agent", CODER, "--project", f.project, "--user-home", f.home, "--out", pkg]);
+  assert.equal(pack.code, 0, pack.err);
+  return asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", "--contract", contractId, ...extra],
+    fakeClaude({ FAKE_CLAUDE_TOOL_USE: JSON.stringify(calls) }));
+}
+const blockedBash = { name: "Bash", input: { command: "rm -rf /tmp/whatever" }, result: "blocked" };
+
+test("a blocked attempt is a strike, not a slash: the run finishes and the strike is a signed record", async () => {
+  const f = makeFixture();
+  const contractId = await runningContract(f, ["repo.read"]);
+  const run = await packedRun(f, contractId, [{ name: "Read", input: {}, result: "ok" }, blockedBash]);
+  assert.equal(run.code, 0, run.err);
+  assert.match(run.err, /strike\s+shell\.exec was blocked before it ran \(1 of 3\)/);
+  assert.doesNotMatch(run.err, /KILL SWITCH/);
+  assert.match(run.err, /reported scopes: repo\.read; 1 blocked attempt\(s\) recorded as a strike/);
+
+  const local = await LocalLog.open(f.aspHome);
+  assert.equal((await local.log.escrow(contractId))?.settled, false, "nothing settled");
+  const actionId = /action\s+(\S+) reported scopes/.exec(run.err)![1];
+  const body = (await local.log.get(actionId))!.record.body as { scopes_used: string[]; blocked_attempts: { scope: string; count: number }[] };
+  assert.deepEqual(body.scopes_used, ["repo.read"], "only what actually ran");
+  assert.deepEqual(body.blocked_attempts, [{ scope: "shell.exec", count: 1 }]);
+  assert.match((await asp(f, ["credits", "balance", ALICE])).out, /: 0 credits/, "no money moved");
+});
+
+test("three blocked attempts (the default limit) read as probing: the run stops and settles with full fault", async () => {
+  const f = makeFixture();
+  const contractId = await runningContract(f, ["repo.read"]);
+  const run = await packedRun(f, contractId, [blockedBash, { ...blockedBash, name: "Write" }, { ...blockedBash, input: { command: "curl https://x.y" } }]);
+  assert.equal(run.code, 1);
+  assert.match(run.err, /3 of 3/);
+  assert.match(run.err, /KILL SWITCH\s+3 blocked attempts reached the limit of 3/);
+  assert.match(run.err, /killed mid-run for repeated blocked attempts \(3, limit 3\)/);
+  assert.match(run.err, /kill-switch settlement: bond fully slashed/);
+  assert.match((await asp(f, ["credits", "balance", ALICE])).out, /: 1200 credits/);
+  const local = await LocalLog.open(f.aspHome);
+  const records = await local.log.chain(contractId);
+  assert.ok(records.some((s: any) => s.record.type === "asp.action/v0.2") === false, "actions are not on the job chain");
+});
+
+test("two blocked attempts do not stop a run under the default limit, but do under --max-strikes 2", async () => {
+  const f1 = makeFixture();
+  const c1 = await runningContract(f1, ["repo.read"]);
+  const ok = await packedRun(f1, c1, [blockedBash, blockedBash]);
+  assert.equal(ok.code, 0, ok.err);
+  assert.match(ok.err, /2 blocked attempt\(s\) recorded as a strike/);
+
+  const f2 = makeFixture();
+  const c2 = await runningContract(f2, ["repo.read"]);
+  const stopped = await packedRun(f2, c2, [blockedBash, blockedBash], ["--max-strikes", "2"]);
+  assert.equal(stopped.code, 1);
+  assert.match(stopped.err, /2 blocked attempts reached the limit of 2/);
+});
+
+test("a call with no result is not counted either way, and planning tools are never a violation or a strike", async () => {
+  const f = makeFixture();
+  const contractId = await runningContract(f, ["repo.read"]);
+  const run = await packedRun(f, contractId, [
+    { name: "Bash", input: { command: "rm -rf /tmp/whatever" } },
+    { name: "TodoWrite", input: {}, result: "blocked" },
+    { name: "ExitPlanMode", input: {} },
+  ]);
+  assert.equal(run.code, 0, run.err);
+  assert.match(run.err, /1 out-of-scope call\(s\) ended with no result/);
+  assert.doesNotMatch(run.err, /strike|KILL SWITCH|COMPLIANCE VIOLATION/);
+});
+
+test("--max-strikes must be a whole number of at least 1", async () => {
+  const f = makeFixture();
+  const contractId = await runningContract(f, ["repo.read"]);
+  const pkg = join(f.root, "coder.aspkg");
+  assert.equal((await asp(f, ["pack", "--runtime", "claude-code", "--agent", CODER, "--project", f.project, "--user-home", f.home, "--out", pkg])).code, 0);
+  for (const bad of ["0", "-1", "two", "1.5"]) {
+    const run = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", "--contract", contractId, `--max-strikes=${bad}`], fakeClaude());
+    assert.equal(run.code, 2, `--max-strikes ${bad}`);
+  }
 });
 
 test("without --contract, asp run behaves exactly as before (no action report at all)", async () => {

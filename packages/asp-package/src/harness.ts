@@ -84,7 +84,15 @@ export interface LaunchPlan {
    * the run ends — see `asp run --contract <id>`. `artifact` (data-flow fingerprinting) is a hash
    * of the call's input, never the input itself — provable later in a dispute, never in the log.
    */
-  checkOutputForAction?: (line: string) => { scope: string; artifact?: { uri: string; sha256: string } }[] | undefined;
+  checkOutputForAction?: (line: string) => { id?: string; scope: string; artifact?: { uri: string; sha256: string } }[] | undefined;
+  /**
+   * Set when the adapter blocks out-of-scope calls before they run (a pre-call hook is installed).
+   * `asp run` then waits for each out-of-scope call's outcome (see `checkOutputForResult`) instead of
+   * treating the call itself as the violation: a blocked call is a strike, an executed one is fatal.
+   */
+  preventsCalls?: boolean;
+  /** Reads a call's outcome from a line of output: `blocked` means the pre-call hook stopped it before it ran. */
+  checkOutputForResult?: (line: string) => { id: string; blocked: boolean }[] | undefined;
 }
 
 export interface RuntimeAdapter {

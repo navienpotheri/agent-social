@@ -514,6 +514,9 @@ sv("valid_call", "call", { purpose: "Cut CI time in half", budget: credits(5000)
 sv("valid_proposal", "proposal", { call: fakeId("call"), plan: "Shard and cache", team: [coder.did], budget_asked: credits(1200), milestones: [{ description: "sharding", due: "2026-10-15T00:00:00Z" }] }, true);
 sv("valid_action", "action", { contract: fakeId("c"), scopes_used: ["repo.read", "tests.run"], summary: "read the repo, ran the test suite" }, true);
 sv("action_missing_contract", "action", { scopes_used: ["repo.read"] }, false);
+sv("valid_action_with_blocked_attempts", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], blocked_attempts: [{ scope: "shell.exec", count: 2 }] }, true);
+sv("action_blocked_attempt_zero_count", "action", { contract: fakeId("c"), scopes_used: [], blocked_attempts: [{ scope: "shell.exec", count: 0 }] }, false);
+sv("action_blocked_attempt_missing_count", "action", { contract: fakeId("c"), scopes_used: [], blocked_attempts: [{ scope: "shell.exec" }] }, false);
 sv("action_bad_scope_format", "action", { contract: fakeId("c"), scopes_used: ["Repo Read"] }, false);
 
 const m = mandateBody(fakeId("c"));
@@ -541,6 +544,18 @@ sv("lineage_transfer_without_sponsor", "lineage", { edge: "transfer", child: cod
 sv("lineage_rebirth", "lineage", { edge: "rebirth", child: coder.did, parents: [coder.did] }, false);
 sv("contract_mixed_basis", "contract", { ...contractBody(), basis: { intent: intentId, proposal: fakeId("p") } }, false);
 sv("forecast_over_1000", "delivery", (() => { const d: any = deliveryBody(fakeId("c")); d.evidence.forecasts[0].p_permille = 1001; return d; })(), false);
+const claimsDelivery = (claims: unknown) => { const d: any = deliveryBody(fakeId("c")); d.result.claims = claims; return d; };
+sv("valid_delivery_with_claims", "delivery", claimsDelivery([
+  { claim: "the band gap is 2.35 eV", grade: "predicted", evidence: { uri: "asp://trace/span-12", sha256: fakeId("s") } },
+  { claim: "all 50 test runs pass", grade: "measured" },
+]), true);
+sv("delivery_claim_bad_grade", "delivery", claimsDelivery([{ claim: "it works", grade: "probably" }]), false);
+sv("delivery_claim_missing_grade", "delivery", claimsDelivery([{ claim: "it works" }]), false);
+sv("valid_verification", "attestation", { kind: "verification", about: fakeId("d"), verdict: "partly_confirmed", claims: [{ index: 0, grade: "simulated" }, { index: 1, grade: "measured" }] }, true);
+sv("verification_bad_verdict", "attestation", { kind: "verification", about: fakeId("d"), verdict: "accepted" }, false);
+sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
+sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
+sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
 sv("delivery_without_trace", "delivery", (() => { const d: any = deliveryBody(fakeId("c")); delete d.evidence.trace; return d; })(), false);
 sv("envelope_bad_type", "envelope", { ...h[0], type: "asp.contract/v1" }, false);
 sv("envelope_extra_field", "envelope", { ...h[0], note: "hi" }, false);

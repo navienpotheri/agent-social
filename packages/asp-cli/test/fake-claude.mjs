@@ -12,8 +12,17 @@ if (process.env.FAKE_CLAUDE_ARGS) writeFileSync(process.env.FAKE_CLAUDE_ARGS, JS
 // to parse, the same shape a real `claude -p ... --output-format stream-json` run would produce.
 if (process.env.FAKE_CLAUDE_TOOL_USE) {
   const calls = JSON.parse(process.env.FAKE_CLAUDE_TOOL_USE);
-  const content = calls.map((c) => ({ type: "tool_use", name: c.name, input: c.input ?? {} }));
+  const content = calls.map((c, i) => ({ type: "tool_use", id: `toolu_${i}`, name: c.name, input: c.input ?? {} }));
   console.log(JSON.stringify({ type: "assistant", message: { model: "claude-sonnet-5", content, usage: { output_tokens: 10 } } }));
+  // Optional per-call outcome, as the answering tool_result: "blocked" is what the pre-call Mandate
+  // hook's refusal looks like to the runtime; "ok" means the call ran.
+  const results = calls.map((c, i) => c.result && ({
+    type: "tool_result", tool_use_id: `toolu_${i}`, is_error: c.result === "blocked",
+    content: c.result === "blocked"
+      ? "PreToolUse:Bash hook error: [node asp-mandate.mjs]: ASP Mandate: the scope is not granted by this job's Mandate, so this call was blocked before it ran"
+      : "ok",
+  })).filter(Boolean);
+  if (results.length) console.log(JSON.stringify({ type: "user", message: { role: "user", content: results } }));
 }
 if (process.env.FAKE_CLAUDE_LEARN !== "0") {
   writeFileSync(join(mem, "refund-race.md"), "---\nname: refund-race\n---\nThe refund cache needs a per-key lock.\n");

@@ -142,6 +142,16 @@ export interface MandateRow {
 }
 
 /** Reads and writes inside one append. Writes become visible only if the transaction commits. */
+/**
+ * Outcome verification: the independent verifier's verdict on one Delivery, kept per delivery so the
+ * acceptance guard (EventLog.checkVerifiedBeforeAcceptance) can find it without scanning chains.
+ */
+export interface VerificationRow {
+  delivery: string;
+  contract: string;
+  verifier: string;
+  verdict: string;
+}
 export interface LogTx {
   logHead(): Promise<LogHead>;
   getRecord(id: string): Promise<StoredRecord | undefined>;
@@ -160,6 +170,7 @@ export interface LogTx {
   activeJurors(): Promise<JurorRow[]>;
   getReputation(did: string): Promise<ReputationRow | undefined>;
   getMandate(contract: string): Promise<MandateRow | undefined>;
+  getVerification(delivery: string): Promise<VerificationRow | undefined>;
 
   insertRecord(row: StoredRecord): Promise<void>;
   putChain(row: ChainRow): Promise<void>;
@@ -173,6 +184,7 @@ export interface LogTx {
   putJuror(row: JurorRow): Promise<void>;
   putReputation(row: ReputationRow): Promise<void>;
   putMandate(row: MandateRow): Promise<void>;
+  putVerification(row: VerificationRow): Promise<void>;
   setLogHead(head: LogHead): Promise<void>;
 }
 
@@ -199,5 +211,6 @@ export interface Store {
   activeJurors(): Promise<JurorRow[]>;
   getReputation(did: string): Promise<ReputationRow | undefined>;
   getMandate(contract: string): Promise<MandateRow | undefined>;
+  getVerification(delivery: string): Promise<VerificationRow | undefined>;
   close(): Promise<void>;
 }

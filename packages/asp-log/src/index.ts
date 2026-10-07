@@ -5,5 +5,5 @@ export { DEFAULT_PANEL_SIZE, drawPanel, findRejection, type PanelSource } from "
 export {
   GENESIS_LOG_HASH,
   type AccountRow, type ChainRow, type EscrowRow, type FleetRow, type JurorRow, type KeyRow, type LogHead, type LogTx,
-  type MandateRow, type MintRow, type PassportRow, type ProbationRow, type ReputationRow, type Store, type StoredRecord,
+  type MandateRow, type MintRow, type PassportRow, type ProbationRow, type ReputationRow, type Store, type StoredRecord, type VerificationRow,
 } from "./store.ts";

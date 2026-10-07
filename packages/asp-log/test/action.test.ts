@@ -58,6 +58,23 @@ for (const h of [memory, postgres] as Harness[]) {
       assert.equal(result, "GUARD_FAILED");
     });
 
+    test("blocked attempts are a signed strike, not a violation: they may name scopes outside the Mandate", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      const contract = await running(log, ["repo.read"]);
+      const withStrikes = rec("action", coder, {
+        contract: contract.id, scopes_used: ["repo.read"], blocked_attempts: [{ scope: "shell.exec", count: 2 }],
+      }, null, contract.id);
+      assert.equal(await codeOf(log.append(withStrikes)), undefined);
+      const onlyStrikes = rec("action", coder, {
+        contract: contract.id, scopes_used: [], blocked_attempts: [{ scope: "repo.push", count: 1 }], summary: "only blocked attempts",
+      }, null, contract.id);
+      assert.equal(await codeOf(log.append(onlyStrikes)), undefined);
+      // The same out-of-scope scope in scopes_used (it executed) is still refused.
+      const executed = rec("action", coder, { contract: contract.id, scopes_used: ["shell.exec"], blocked_attempts: [] }, null, contract.id);
+      assert.equal(await codeOf(log.append(executed)), "GUARD_FAILED");
+    });
+
     test("only the contract's own performer may report an action for it", async () => {
       const log = new EventLog(await h.make());
       await registerParties(log);

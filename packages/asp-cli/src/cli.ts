@@ -27,8 +27,10 @@
  *     not self-declared after the fact. The first call outside the Mandate is a violation: the
  *     process is stopped (kill switch) and the job settles with full fault (escrow back to the
  *     principal, the bond slashed). On Claude Code a pre-call hook also blocks such a call before
- *     it runs. The action record for a violation is refused, so it can never get laundered into a
- *     clean-looking log.
+ *     it runs. A blocked call did no harm, so it is a signed strike (the action record's
+ *     blocked_attempts), not the full settlement: the run is stopped only after --max-strikes
+ *     blocked attempts (default 3) or when an out-of-scope call actually ran. The action record for
+ *     a violation is refused, so it can never get laundered into a clean-looking log.
  *   asp orchestrate <package> --backend <runtime> --task <text> [--task <text> ...] [--project <dir>]
  *                   [--max-parallel N] [--model <m>] [--dry-run]
  *     Runs one task per node, in parallel, each under its own signed, short-lived delegated key
@@ -49,7 +51,7 @@
  *   asp credits balance <did>
  *
  *   Assignment mode (one performer bidding directly):
- *   asp market intent --by <did> --purpose <text> [--criteria <text> ...] --budget <n> --deadline <iso> [--verification deterministic|principal|arbiter] [--review-deadline <iso>]
+ *   asp market intent --by <did> --purpose <text> [--criteria <text> ...] --budget <n> --deadline <iso> [--verification deterministic|principal|arbiter] [--review-deadline <iso>] [--verifier <did>]
  *     --review-deadline (principal-mode verification only) is mirrored onto the Contract by
  *     `asp market contract`, and lets `asp market settle --basis silence` close the job once it's
  *     passed, without the principal ever signing an acceptance.
@@ -75,9 +77,14 @@
  *     Locks real credits: debits both the escrow payer and the backer for real (rejects with
  *     insufficient_balance rather than starting a job uncovered).
  *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--spend-cap <n>]
- *   asp market deliver --contract <id> --by <did> --summary <text>
+ *   asp market deliver --contract <id> --by <did> --summary <text> [--claim "<text>::<measured|simulated|predicted>[::<uri>=<sha256>]" ...]
  *     Also redelivers after a reject (the lifecycle's own redelivery_available guard applies; at
- *     most one redelivery).
+ *     most one redelivery). Each --claim says what the Delivery asserts and how well established it is.
+ *   asp market verify --contract <id> --by <verifier> --verdict confirmed|partly_confirmed|not_confirmed [--grade <claim index>=<grade> ...] [--about <id>]
+ *     Outcome verification: the verifier named on the contract (asp market intent|contract --verifier
+ *     <did>; never the principal, the performer, or anyone they sponsor) re-checks the Delivery and
+ *     grades each claim (measured, simulated, predicted, unverified). With a verifier named, the log
+ *     refuses to accept (or settle on silence) a Delivery without a confirming verification.
  *   asp market accept|reject --contract <id> --by <did> [--about <id>] [--reasons <text> ...]
  *     A reject moves the job to Disputed, open to either a redelivery or a ruling.
  *   asp market juror register --by <did> --stake <n>
@@ -226,6 +233,11 @@ const OPTIONS = {
 
   // asp market action (the compliance bridge) / asp run --contract
   "scopes-used": { type: "string", multiple: true },
+  "max-strikes": { type: "string" },
+  // asp market verify / deliver --claim / intent|contract --verifier (outcome verification)
+  verifier: { type: "string" },
+  claim: { type: "string", multiple: true },
+  grade: { type: "string", multiple: true },
   artifact: { type: "string", multiple: true },
 } as const;
 
@@ -269,7 +281,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "claim" | "grade" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -422,6 +434,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const by = need("by");
     const verification: Record<string, unknown> = { mode: (v.verification ?? "principal") as "deterministic" | "principal" | "arbiter" };
     if (v["review-deadline"]) verification.review_deadline = v["review-deadline"];
+    if (v.verifier) verification.verifier = v.verifier;
     const body = {
       purpose: need("purpose"),
       acceptance_criteria: v.criteria?.length ? v.criteria : [need("purpose")],
@@ -516,6 +529,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
         price: offerBody.price, verification: intentBody.verification.mode, deadline: intentBody.deadline,
         basis: { intent: intentId, offer: offerId },
         ...(intentBody.verification.review_deadline ? { review_deadline: intentBody.verification.review_deadline } : {}),
+        ...(intentBody.verification.verifier ? { verifier: intentBody.verification.verifier } : {}),
       };
     } else if (callId || proposalId) {
       if (!callId || !proposalId) throw new UsageError("allocation mode needs both --call and --proposal");
@@ -539,6 +553,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     // Subcontract nesting (docs/spec-deltas.md): the log itself checks this is coherent — the
     // parent must exist, not be Settled yet, and its own performer must be this contract's principal.
     if (v["parent-contract"]) body.parent_contract = v["parent-contract"];
+    // Outcome verification: an explicit --verifier wins over the Intent's (and is the only way in allocation mode).
+    if (v.verifier) body.verifier = v.verifier;
     let record = createRecord({ type: "contract", issuer: principal, subject: performer, prev: null, body, issued_at: now() }, signerFor(principal));
     record = cosign(record, signerFor(performer));
     const res = await local.append(record);
@@ -597,13 +613,56 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const head = chain.at(-1);
     if (!head) throw new Error(`contract ${contract} is not in the log`);
     const summary = need("summary");
+    // --claim "<text>::<measured|simulated|predicted>[::<uri>=<sha256>]": what the Delivery asserts and how
+    // well established each claim is, for the verifier to confirm or downgrade by index.
+    const claims = (v.claim ?? []).map((entry) => {
+      const [claim, grade, evidence] = entry.split("::");
+      if (!claim || !["measured", "simulated", "predicted"].includes(grade ?? "")) {
+        throw new UsageError(`--claim must be "<text>::<measured|simulated|predicted>[::<uri>=<sha256>]", got "${entry}"`);
+      }
+      const out: Record<string, unknown> = { claim, grade };
+      if (evidence) {
+        const [uri, sha256] = evidence.split("=");
+        if (!uri || !sha256) throw new UsageError(`a claim's evidence must be <uri>=<sha256>, got "${evidence}"`);
+        out.evidence = { uri, sha256: sha256.startsWith("sha256:") ? sha256 : `sha256:${sha256}` };
+      }
+      return out;
+    });
     const body = {
-      contract, result: { summary, artifacts: [] as { uri: string; sha256: string }[] },
+      contract, result: { summary, artifacts: [] as { uri: string; sha256: string }[], ...(claims.length ? { claims } : {}) },
       evidence: { trace: artifactRefOf(summary), forecasts: [] as unknown[] },
     };
     const record = createRecord({ type: "delivery", issuer: by, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
     io.out(`delivery ${res.id} on contract ${contract} (log seq ${res.seq}, state ${res.state})`);
+    return 0;
+  }
+
+  // Outcome verification: the contract's named, independent verifier re-checks the latest Delivery and
+  // signs a verdict; --grade <claim index>=<measured|simulated|predicted|unverified> grades each claim.
+  if (sub === "verify") {
+    const contract = need("contract");
+    const by = need("by");
+    const verdict = need("verdict");
+    if (!["confirmed", "partly_confirmed", "not_confirmed"].includes(verdict)) {
+      throw new UsageError("--verdict must be confirmed, partly_confirmed or not_confirmed");
+    }
+    const chain = await marketChain(local.log, contract);
+    const delivery = [...chain].reverse().find((s) => s.kind === "delivery");
+    if (!delivery) throw new Error(`contract ${contract} has no Delivery yet; run asp market deliver first`);
+    const about = v.about ?? delivery.id;
+    const claims = (v.grade ?? []).map((entry) => {
+      const [index, grade] = entry.split("=");
+      if (!/^\d+$/.test(index ?? "") || !["measured", "simulated", "predicted", "unverified"].includes(grade ?? "")) {
+        throw new UsageError(`--grade must be <claim index>=<measured|simulated|predicted|unverified>, got "${entry}"`);
+      }
+      return { index: Number(index), grade };
+    });
+    const body: Record<string, unknown> = { kind: "verification", about, verdict, ...(claims.length ? { claims } : {}) };
+    if (v.reasons?.length) body.reasons = v.reasons;
+    const record = createRecord({ type: "attestation", issuer: by, subject: about, prev: null, body, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`verification ${res.id} on delivery ${about}: ${verdict} by ${by} (log seq ${res.seq})`);
     return 0;
   }
 
@@ -788,7 +847,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
-  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|accept|reject|rule|settle|show|action|juror register|juror show|panel draw");
+  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|accept|reject|rule|settle|show|action|juror register|juror show|panel draw");
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */
@@ -967,6 +1026,8 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   const harness = JSON.parse(readFileSync(join(pkgDir, "harness", "harness.json"), "utf8")) as Harness;
   const agent = report.agent!;
   const runDir = join(home, "runs", `${slug(agent)}-${now().replace(/[:]/g, "")}`);
+  const maxStrikes = v["max-strikes"] === undefined ? 3 : Number(v["max-strikes"]);
+  if (!Number.isInteger(maxStrikes) || maxStrikes < 1) throw new UsageError("--max-strikes must be a whole number, at least 1");
   mkdirSync(runDir, { recursive: true });
   // Under a contract, the live Mandate is read once up front: it drives the pre-call hook (an
   // out-of-scope call is blocked before it runs, where the adapter supports it) and the live check below.
@@ -1002,17 +1063,36 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   // very first out-of-scope call stops the child process instead of only being flagged once the
   // run has already finished. It can't undo the call that already happened, but it stops the next
   // one. SIGTERM first, SIGKILL after a grace period if the runtime doesn't exit on its own.
+  //
+  // Strikes (docs/backlog.md): where the adapter blocks out-of-scope calls before they run (a
+  // pre-call hook), a blocked attempt did no harm, so it is a signed strike, not grounds for the full
+  // settlement: the run is stopped only when --max-strikes blocked attempts pile up (probing), or
+  // when an out-of-scope call actually executed (the hook missing, failing open, or timing out).
+  // Each out-of-scope call waits for its outcome (checkOutputForResult) before it is judged.
   const KILL_GRACE_MS = 3000;
   let hiddenFailure: string | undefined;
   const scopesSeen = new Set<string>();
   const artifactsSeen: { uri: string; sha256: string }[] = [];
-  let killed: { scope: string } | undefined;
+  const prevents = !!(plan.preventsCalls && plan.checkOutputForResult && mandate);
+  const pending = new Map<string, { scope: string; artifact?: { uri: string; sha256: string } }>();
+  const blockedByScope = new Map<string, number>();
+  let strikes = 0;
+  let killed: { scope: string; reason: "violation" | "probing" } | undefined;
   const code = await new Promise<number>((done) => {
     const child = spawn(plan.command, plan.args, {
       cwd: plan.cwd, env: { ...io.env, ...plan.env },
       stdio: (plan.checkOutputForFailure || plan.checkOutputForAction) ? ["inherit", "pipe", "inherit"] : "inherit",
     });
     let killTimer: NodeJS.Timeout | undefined;
+    const halt = (k: { scope: string; reason: "violation" | "probing" }, message: string) => {
+      if (killed) return;
+      killed = k;
+      io.err(`  KILL SWITCH  ${message}`);
+      child.kill("SIGTERM");
+      killTimer = setTimeout(() => {
+        if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+      }, KILL_GRACE_MS);
+    };
     if (plan.checkOutputForFailure || plan.checkOutputForAction) {
       let carry = "";
       child.stdout!.on("data", (chunk: Buffer) => {
@@ -1023,15 +1103,28 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
         for (const line of lines) {
           hiddenFailure ??= plan.checkOutputForFailure?.(line);
           for (const call of plan.checkOutputForAction?.(line) ?? []) {
+            const outside = !!mandate && !mandate.scopes.includes(call.scope);
+            if (prevents && outside && call.id) {
+              pending.set(call.id, { scope: call.scope, artifact: call.artifact });
+              continue;
+            }
             scopesSeen.add(call.scope);
             if (call.artifact) artifactsSeen.push(call.artifact);
-            if (!killed && mandate && !mandate.scopes.includes(call.scope)) {
-              killed = { scope: call.scope };
-              io.err(`  KILL SWITCH  ${call.scope} is outside the Mandate; stopping ${backend} now.`);
-              child.kill("SIGTERM");
-              killTimer = setTimeout(() => {
-                if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
-              }, KILL_GRACE_MS);
+            if (outside) halt({ scope: call.scope, reason: "violation" }, `${call.scope} is outside the Mandate; stopping ${backend} now.`);
+          }
+          if (prevents) for (const res of plan.checkOutputForResult!(line) ?? []) {
+            const call = pending.get(res.id);
+            if (!call) continue;
+            pending.delete(res.id);
+            if (res.blocked) {
+              strikes++;
+              blockedByScope.set(call.scope, (blockedByScope.get(call.scope) ?? 0) + 1);
+              io.err(`  strike   ${call.scope} was blocked before it ran (${strikes} of ${maxStrikes})`);
+              if (strikes >= maxStrikes) halt({ scope: call.scope, reason: "probing" }, `${strikes} blocked attempts reached the limit of ${maxStrikes}; stopping ${backend} now.`);
+            } else {
+              scopesSeen.add(call.scope);
+              if (call.artifact) artifactsSeen.push(call.artifact);
+              halt({ scope: call.scope, reason: "violation" }, `${call.scope} is outside the Mandate and the call ran; stopping ${backend} now.`);
             }
           }
         }
@@ -1050,11 +1143,8 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   });
   if (code === -1) return 1;
 
-  const blockedLog = join(runDir, "blocked-calls.ndjson");
-  if (existsSync(blockedLog)) {
-    const blocked = readFileSync(blockedLog, "utf8").split(/\r?\n/).filter(Boolean).map((l) => JSON.parse(l) as { scope: string });
-    io.err(`  blocked  ${blocked.length} call(s) stopped before they ran: ${[...new Set(blocked.map((b) => b.scope))].sort().join(", ")}`);
-  }
+  if (pending.size) io.err(`  note     ${pending.size} out-of-scope call(s) ended with no result, so they were not counted either way`);
+  const blockedAttempts = [...blockedByScope].sort(([a], [b]) => a.localeCompare(b)).map(([scope, count]) => ({ scope, count }));
 
   if (killed) {
     // A refused Action record for the offending scope, purely for the paper trail (it will be
@@ -1068,13 +1158,15 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
         type: "action", issuer: agent, subject: v.contract!, prev: null, issued_at: now(),
         body: {
           contract: v.contract!, scopes_used: [...scopesSeen].sort(), summary: `${backend} run, ${runDir}, killed mid-run`,
+          ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
           ...(artifactsSeen.length ? { artifacts: artifactsSeen } : {}),
         },
       }, actionSigner);
       try { await local!.append(action); } catch (e) { io.err(`  action   COMPLIANCE VIOLATION: ${(e as Error).message}`); }
     }
     await autoSettleOnKill(local!, home, v.contract!, io);
-    io.err(`${backend} killed mid-run for a Mandate violation (${killed.scope}); nothing written back. The run's memory is in ${plan.memoryDir ?? runDir}.`);
+    const why = killed.reason === "probing" ? `repeated blocked attempts (${strikes}, limit ${maxStrikes})` : `a Mandate violation (${killed.scope})`;
+    io.err(`${backend} killed mid-run for ${why}; nothing written back. The run's memory is in ${plan.memoryDir ?? runDir}.`);
     return 1;
   }
 
@@ -1088,19 +1180,20 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   // contract's live Mandate, before the agent gets to write up a clean Delivery. Self-reported by
   // this same CLI process (not the runtime), so it can't be skipped by a runtime that doesn't know
   // about it, but it's still only as honest as the tool-call parsing that produced scopesSeen.
-  if (v.contract && scopesSeen.size) {
+  if (v.contract && (scopesSeen.size || blockedAttempts.length)) {
     const actionSigner = new Keystore(home).forDid(agent);
     if (actionSigner) {
       const action = createRecord({
         type: "action", issuer: agent, subject: v.contract, prev: null, issued_at: now(),
         body: {
           contract: v.contract, scopes_used: [...scopesSeen].sort(), summary: `${backend} run, ${runDir}`,
+          ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
           ...(artifactsSeen.length ? { artifacts: artifactsSeen } : {}),
         },
       }, actionSigner);
       try {
         const res = await local!.append(action);
-        io.err(`  action   ${res.id} reported scopes: ${[...scopesSeen].sort().join(", ")}`);
+        io.err(`  action   ${res.id} reported scopes: ${[...scopesSeen].sort().join(", ") || "none"}${strikes ? `; ${strikes} blocked attempt(s) recorded as a strike` : ""}`);
       } catch (e) {
         io.err(`  action   COMPLIANCE VIOLATION: ${(e as Error).message}`);
       }

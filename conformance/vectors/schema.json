@@ -447,6 +447,52 @@
       "valid": false
     },
     {
+      "name": "valid_action_with_blocked_attempts",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "blocked_attempts": [
+          {
+            "scope": "shell.exec",
+            "count": 2
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "action_blocked_attempt_zero_count",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [],
+        "blocked_attempts": [
+          {
+            "scope": "shell.exec",
+            "count": 0
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "action_blocked_attempt_missing_count",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [],
+        "blocked_attempts": [
+          {
+            "scope": "shell.exec"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
       "name": "action_bad_scope_format",
       "schema": "action",
       "instance": {
@@ -1154,6 +1200,217 @@
         }
       },
       "valid": false
+    },
+    {
+      "name": "valid_delivery_with_claims",
+      "schema": "delivery",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "result": {
+          "summary": "Fixed race in refund idempotency key cache (attempt 1)",
+          "artifacts": [
+            {
+              "uri": "https://git.example.com/payments/pull/412",
+              "sha256": "sha256:a261cb3a0b8bd719423a8814c9c1e76cb3f12f864253956547802daa6365d073"
+            }
+          ],
+          "claims": [
+            {
+              "claim": "the band gap is 2.35 eV",
+              "grade": "predicted",
+              "evidence": {
+                "uri": "asp://trace/span-12",
+                "sha256": "sha256:043a718774c572bd8a25adbeb1bfcd5c0256ae11cecf9f9c3f925d0e52beaf89"
+              }
+            },
+            {
+              "claim": "all 50 test runs pass",
+              "grade": "measured"
+            }
+          ]
+        },
+        "evidence": {
+          "trace": {
+            "uri": "asp-trace://coder-1/job-412/1",
+            "sha256": "sha256:4563c73e597ce688d14d5f10c9b074b079fa13e2b405d811ef5338e950d7e017",
+            "media_type": "application/x-ndjson"
+          },
+          "forecasts": [
+            {
+              "claim": "test passes 50/50 runs after the fix",
+              "p_permille": 850,
+              "made_at": "2026-10-01T09:20:00Z"
+            }
+          ],
+          "tests": {
+            "passed": 312,
+            "failed": 0
+          }
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "delivery_claim_bad_grade",
+      "schema": "delivery",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "result": {
+          "summary": "Fixed race in refund idempotency key cache (attempt 1)",
+          "artifacts": [
+            {
+              "uri": "https://git.example.com/payments/pull/412",
+              "sha256": "sha256:a261cb3a0b8bd719423a8814c9c1e76cb3f12f864253956547802daa6365d073"
+            }
+          ],
+          "claims": [
+            {
+              "claim": "it works",
+              "grade": "probably"
+            }
+          ]
+        },
+        "evidence": {
+          "trace": {
+            "uri": "asp-trace://coder-1/job-412/1",
+            "sha256": "sha256:4563c73e597ce688d14d5f10c9b074b079fa13e2b405d811ef5338e950d7e017",
+            "media_type": "application/x-ndjson"
+          },
+          "forecasts": [
+            {
+              "claim": "test passes 50/50 runs after the fix",
+              "p_permille": 850,
+              "made_at": "2026-10-01T09:20:00Z"
+            }
+          ],
+          "tests": {
+            "passed": 312,
+            "failed": 0
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "delivery_claim_missing_grade",
+      "schema": "delivery",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "result": {
+          "summary": "Fixed race in refund idempotency key cache (attempt 1)",
+          "artifacts": [
+            {
+              "uri": "https://git.example.com/payments/pull/412",
+              "sha256": "sha256:a261cb3a0b8bd719423a8814c9c1e76cb3f12f864253956547802daa6365d073"
+            }
+          ],
+          "claims": [
+            {
+              "claim": "it works"
+            }
+          ]
+        },
+        "evidence": {
+          "trace": {
+            "uri": "asp-trace://coder-1/job-412/1",
+            "sha256": "sha256:4563c73e597ce688d14d5f10c9b074b079fa13e2b405d811ef5338e950d7e017",
+            "media_type": "application/x-ndjson"
+          },
+          "forecasts": [
+            {
+              "claim": "test passes 50/50 runs after the fix",
+              "p_permille": 850,
+              "made_at": "2026-10-01T09:20:00Z"
+            }
+          ],
+          "tests": {
+            "passed": 312,
+            "failed": 0
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_verification",
+      "schema": "attestation",
+      "instance": {
+        "kind": "verification",
+        "about": "sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4",
+        "verdict": "partly_confirmed",
+        "claims": [
+          {
+            "index": 0,
+            "grade": "simulated"
+          },
+          {
+            "index": 1,
+            "grade": "measured"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "verification_bad_verdict",
+      "schema": "attestation",
+      "instance": {
+        "kind": "verification",
+        "about": "sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4",
+        "verdict": "accepted"
+      },
+      "valid": false
+    },
+    {
+      "name": "verification_without_verdict",
+      "schema": "attestation",
+      "instance": {
+        "kind": "verification",
+        "about": "sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4"
+      },
+      "valid": false
+    },
+    {
+      "name": "verification_bad_claim_grade",
+      "schema": "attestation",
+      "instance": {
+        "kind": "verification",
+        "about": "sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4",
+        "verdict": "confirmed",
+        "claims": [
+          {
+            "index": 0,
+            "grade": "certain"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_contract_with_verifier",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "verifier": "did:web:example.com:agents:verifier"
+      },
+      "valid": true
     },
     {
       "name": "delivery_without_trace",
