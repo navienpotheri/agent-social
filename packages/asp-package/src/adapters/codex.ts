@@ -18,6 +18,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { homedir } from "node:os";
 import { basename, delimiter, join, resolve } from "node:path";
 import { parse as parseToml } from "smol-toml";
+import { codexActionParser } from "./codex-actions.ts";
 import { copyInto, listFiles, sha256File, toPosix, writeJson } from "../files.ts";
 import { asList, frontmatter } from "../frontmatter.ts";
 import type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter, SessionSummary } from "../harness.ts";
@@ -369,7 +370,10 @@ async function materialize(opts: {
   for (const [k, v] of overrides) args.push("-c", `${k}=${tomlValue(v)}`);
   if (opts.prompt !== undefined) args.push(opts.prompt);
 
-  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: [...missing].sort(), notes };
+  return {
+    command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: [...missing].sort(), notes,
+    ...(opts.prompt !== undefined ? { checkOutputForAction: codexActionParser() } : {}),
+  };
 }
 
 export const codex: RuntimeAdapter = { name: RUNTIME, capture, materialize };
