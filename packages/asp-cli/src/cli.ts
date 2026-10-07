@@ -61,8 +61,7 @@
  *   asp market call --by <did> --purpose <text> --budget <n> --panel <did> [--panel <did> ...] [--criteria <text> ...] --deadline <iso>
  *   asp market propose --by <did> --call <id> --plan <text> --budget-asked <n> [--team <did> ...]
  *   asp market allocate --by <did> --proposal <id> [--verdict <text>]
- *     `--by` must be one of the Call's panel DIDs (not enforced by the log — Call/Proposal aren't
- *     chained, so this is informational, same as MOCKS.md #4's mocked panel).
+ *     `--by` must be one of the Call's panel DIDs (the log rejects others: not_on_call_panel).
  *
  *   asp market contract --principal <did> --bank <did> [--performer <did>] [--parent-contract <id>]
  *                        (--intent <id> --offer <id> | --call <id> --proposal <id>)
@@ -110,7 +109,9 @@
  *     otherwise any neutral DID may rule, unchanged from the original mocked Courts (MOCKS.md #4).
  *   asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked|silence
  *                      [--escrow-released <n>] [--bond-returned <n>] [--bond-slashed <n>] [--fees <n>]
- *                      [--pro-rata <permille>] [--cites <id>] [--principal <did>]
+ *                      [--pro-rata <permille>] [--cites <id>] [--principal <did>] [--agent-permille <n>]
+ *     --agent-permille (earnings_split): the performer keeps that share of its pay; the rest goes
+ *     to its passport's sponsor (rejected if it has none).
  *     --fees comes out of the same escrow, on top of --escrow-released, and credits to a local mock
  *     platform account (EventLog.PLATFORM_DID) standing in for a real platform/Insurer recipient.
  *     `silence`: requires the Contract to carry a review_deadline (from a principal-mode Intent)
@@ -222,6 +223,7 @@ const OPTIONS = {
   "bond-returned": { type: "string" },
   "bond-slashed": { type: "string" },
   "pro-rata": { type: "string" },
+  "agent-permille": { type: "string" },
   cites: { type: "string" },
 
   // asp market call|propose|allocate|rule (allocation mode + the dispute/ruling path)
@@ -848,7 +850,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     // Comes out of the same escrow, on top of escrow_released; credits to the local mock platform
     // account (EventLog.PLATFORM_DID) standing in for a real platform/Insurer recipient (MOCKS.md).
     if (v.fees) body.fees = { value: Math.trunc(Number(v.fees)), unit: "credit" };
-    if (basis === "revoked") body.pro_rata_permille = Math.trunc(Number(v["pro-rata"] ?? "0"));
+    if (v["agent-permille"] !== undefined) body.earnings_split = { agent_permille: Math.trunc(Number(v["agent-permille"])) };
+    if (basis === "revoked") body.pro_rata_permille =Math.trunc(Number(v["pro-rata"] ?? "0"));
     else if (basis === "accepted" || basis === "ruling") body.cites = cited;
     let record = createRecord({ type: "settlement", issuer: bank, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(bank));
     if (basis === "revoked") {

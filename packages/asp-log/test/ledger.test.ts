@@ -38,7 +38,7 @@ async function bondOnly(log: EventLog, price: number, bondAmount: number, escrow
 
 /** contract -> bond -> mandate -> settlement(revoked), the shortest path to Settled (vector: revoked_while_running). */
 async function bondAndRevoke(log: EventLog, price: number, bondAmount: number, escrowAmount: number, settled: {
-  escrowReleased: number; bondReturned: number; bondSlashed: number; proRata?: number; fees?: number;
+  escrowReleased: number; bondReturned: number; bondSlashed: number; proRata?: number; fees?: number; split?: number;
 }) {
   const { bondResult, contract, bond } = await bondOnly(log, price, bondAmount, escrowAmount);
   if (bondResult) return { bondResult, contract };
@@ -52,6 +52,7 @@ async function bondAndRevoke(log: EventLog, price: number, bondAmount: number, e
     pro_rata_permille: settled.proRata ?? 400,
   };
   if (settled.fees !== undefined) settlementBody.fees = { value: settled.fees, unit: "credit" };
+  if (settled.split !== undefined) settlementBody.earnings_split = { agent_permille: settled.split };
   const settlement = cosign(rec("settlement", bank, settlementBody, mandate.id, contract.id), alice);
   const settlementResult = await codeOf(log.append(settlement));
   return { settlementResult, contract };
@@ -134,6 +135,34 @@ for (const h of [memory, postgres] as Harness[]) {
       assert.equal(await log.balance(coder.did), 400 + 200, "paid 400, bond returned in full");
       assert.equal(await log.balance(PLATFORM_DID), 10);
       assert.equal(await log.balance(alice.did), 1000 - 400 - 10, "the rest of the escrow (590) returns to alice");
+    });
+
+    test("earnings_split sends the non-agent share of the pay to the performer's sponsor", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      await log.mint(alice.did, 1000);
+      await log.mint(coder.did, 200);
+      const { settlementResult } = await bondAndRevoke(log, 1000, 200, 1000, { escrowReleased: 400, bondReturned: 200, bondSlashed: 0, split: 250 });
+      assert.equal(settlementResult, undefined);
+      assert.equal(await log.balance(coder.did), 100 + 200, "keeps 25% of 400, bond returned");
+      assert.equal(await log.balance(alice.did), 600 + 300, "unreleased escrow plus the sponsor's 75% of the pay");
+    });
+
+    test("allocation must be signed by a DID on the Call's panel", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      const call = rec("call", alice, {
+        purpose: "Fix it", budget: { value: 10, unit: "credit" as const },
+        evaluation_criteria: ["works"], panel: [bank.did], deadline: "2026-12-01T00:00:00Z",
+      }, null, alice.did);
+      await log.append(call);
+      const proposal = rec("proposal", coder, {
+        call: call.id, plan: "fix", team: [coder.did], budget_asked: { value: 10, unit: "credit" as const }, milestones: [],
+      }, null, coder.did);
+      await log.append(proposal);
+      const alloc = (by: typeof bank) => rec("attestation", by, { kind: "allocation", about: proposal.id, verdict: "selected" }, null, proposal.id);
+      await assert.rejects(log.append(alloc(alice)), /not on the Call.s panel/);
+      assert.equal(await codeOf(log.append(alloc(bank))), undefined);
     });
 
     test("fees can't push escrow_released past what was actually locked", async () => {

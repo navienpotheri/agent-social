@@ -159,6 +159,7 @@ export class EventLog {
     if (type === "juror") await this.projectJuror(tx, verified);
     if (type === "attestation") {
       await this.checkRulingPanel(tx, verified);
+      await this.checkAllocationPanel(tx, verified);
       await this.checkVerification(tx, verified);
       await this.checkVerifiedBeforeAcceptance(tx, verified);
     }
@@ -546,7 +547,17 @@ export class EventLog {
     const escrowLeftover = escrow.escrowLocked - body.escrow_released.value - fees;
     const bondLeftover = escrow.bondLocked - body.bond_returned.value - body.bond_slashed.value;
 
-    await this.credit(tx, cbody.performer, body.escrow_released.value);
+    // earnings_split: the agent keeps agent_permille of its pay; the rest goes to its sponsor.
+    const split = (r.body as { earnings_split?: { agent_permille: number } }).earnings_split;
+    if (split && split.agent_permille < 1000 && body.escrow_released.value > 0) {
+      const sponsor = (await tx.getPassport(cbody.performer))?.sponsor;
+      if (!sponsor) throw rule("earnings_split_no_sponsor", `${cbody.performer} has no sponsor to receive the rest of an earnings_split`);
+      const agentShare = Math.floor((body.escrow_released.value * split.agent_permille) / 1000);
+      await this.credit(tx, cbody.performer, agentShare);
+      await this.credit(tx, sponsor, body.escrow_released.value - agentShare);
+    } else {
+      await this.credit(tx, cbody.performer, body.escrow_released.value);
+    }
     if (fees > 0) await this.credit(tx, PLATFORM_DID, fees);
     await this.credit(tx, cbody.principal, escrowLeftover + body.bond_slashed.value);
     await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover);
@@ -580,6 +591,19 @@ export class EventLog {
    * not by any DID. Everything this depends on (jurors, passports, the rejection record) replays
    * the same way every time, so this is fully checkable by EventLog.verify(), unlike EventLog.mint.
    */
+  /** Allocation mode: only a DID named in the Call's `panel` may select a Proposal for it (MOCKS.md #14). */
+  private async checkAllocationPanel(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as { kind: string; about: string };
+    if (body.kind !== "allocation") return;
+    const proposal = await tx.getRecord(body.about);
+    if (!proposal || shortType(proposal.record.type) !== "proposal") throw rule("allocation_unknown_proposal", `${body.about} is not a Proposal in the log`);
+    const callId = (proposal.record.body as { call: string }).call;
+    const call = await tx.getRecord(callId);
+    if (!call || shortType(call.record.type) !== "call") throw rule("allocation_unknown_call", `the Proposal's Call ${callId} is not in the log`);
+    const panel = (call.record.body as { panel: string[] }).panel;
+    if (!panel.includes(r.issuer)) throw rule("not_on_call_panel", `${r.issuer} is not on the Call's panel (${panel.join(", ")})`);
+  }
+
   private async checkRulingPanel(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as { kind: string; about: string };
     if (body.kind !== "ruling") return;
