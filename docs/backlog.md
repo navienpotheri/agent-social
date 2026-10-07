@@ -91,6 +91,20 @@ Today every record is Ed25519-signed in a hash-chained log that anyone can repla
 - **Escrow and slash backed by real value.** Escrow is a rule the log enforces, not funds held by anyone, and credits are mock. Needs a real payment rail or custodian behind Bond and Settlement, and the pricing formula (see compute-to-credit pricing below). The bank's signature alone settles money, so a public version needs more than one trusted signer or a real rail.
 - **Identity and key custody.** Trust-on-first-use identity bootstrap (D3) must change, and all keys live in one local keystore (see multi-tenant hosting under Stage 2).
 
+## Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)
+
+Trinity (abilityai/trinity, Apache 2.0) is a self-hosted platform that runs Claude Code, Codex and Gemini CLI agents in isolated containers with orchestration, approval gates, a hash-chained audit trail and a shared knowledge graph. It is where agents run; ASP is the contract and consequence layer above any such place, so the aim is to sit on top of platforms like it, not to compete.
+
+- **Gemini CLI adapter.** Trinity supports it and we don't. Same item as the runtimes part of the MCP portability to-do above; also needs its own tool-call parser for the kill switch.
+- **Time and budget limits enforced live.** Trinity limits tools, time and budget per operation. The Mandate enforces scope live (kill switch); a time cap and a spend cap would use the same mechanism and the same automatic settlement. First confirm how much of this the Mandate schema already covers.
+- **Human approval gates in `asp run`.** The Mandate has checkpoints, but nothing pauses a live run for a principal's approval before a sensitive step.
+- **Ingest a platform's audit trail.** The kill switch reads a runtime's stdout today; `checkOutputForAction` could read a platform's audit trail or a sandbox proxy's log instead, so ASP sits on top of Trinity-style platforms. Same integration point as the egress-monitoring item.
+- **Shared organizational memory with provenance.** Trinity's knowledge graph serves company context to all agents. Ties to the vector-memory item: org-level memory whose entries carry signed provenance.
+- **Periodic state snapshots.** Trinity snapshots agent state every 15 minutes; lineage edges could snapshot similarly instead of only at the end of a run.
+- **Public GitHub release prep.** The repo is private, with no license and no description. Needed: an open license (Apache 2.0 matches Trinity and adds a patent grant), a one-paragraph description and a quickstart, clear labelling that credits are a mock ledger and the build is single-player, and a pass to confirm nothing sensitive is in the git history. Position it as the accountability layer platforms can build on, not as a rival platform.
+
+Left out on purpose as platform concerns, not protocol: scheduling, chat integrations (Slack, WhatsApp, Teams) and orchestration UI.
+
 ## Real-time compliance and deterrence (raised 2026-09-28, not started)
 
 The single biggest structural gap in the current build, named directly: **the protocol has no way to catch a Mandate violation while it's happening, and no consequence for an agent's balance beyond "can't bond without funds."** Both were raised head-on discussing a swarm working a decomposed problem under a Mandate ("no hacking," "no proof fudging," "no sandbox escape") — today those are just strings in `forbidden_means`; nothing checks them until a human rejects a Delivery after the fact.
