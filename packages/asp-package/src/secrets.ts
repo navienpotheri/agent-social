@@ -57,6 +57,38 @@ const PATTERNS: [string, RegExp][] = [
   ["password assignment", /\b(password|passwd|secret|api[_-]?key|token)\s*[:=]\s*["'][^"'\s${}]{8,}["']/i],
 ];
 
+/**
+ * Shapes a secret takes inside a shell command or tool input, beyond the file patterns above:
+ * credentials in a URL, an Authorization header, NAME=value for a secret-named variable, a secret
+ * flag's value, and a long mixed letter-and-digit token that is not a plain hex hash.
+ */
+const COMMAND_PATTERNS: [string, RegExp, string | ((m: string, ...g: string[]) => string)][] = [
+  ["URL credentials", /(:\/\/)[^\s/:@]+:[^\s/@]+@/g, "$1[redacted]@"],
+  ["Authorization header", /(Authorization:\s*)(Basic|Bearer|Token)\s+\S+/gi, "$1$2 [redacted]"],
+  ["secret variable", /\b([A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|PRIVATE_?KEY|ACCESS_?KEY|CREDENTIAL)[A-Za-z0-9_]*)=("[^"]*"|'[^']*'|\S+)/gi, "$1=[redacted]"],
+  ["secret flag", /(--?(?:password|passwd|token|secret|api-?key|access-?key)(?:=|\s+))("[^"]*"|'[^']*'|\S+)/gi, "$1[redacted]"],
+  ["long token", /\b(?=[A-Za-z0-9_-]*[A-Za-z])(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{32,}\b/g, (m) => (/^[0-9a-f]+$/.test(m) ? m : "[redacted]")],
+];
+
+/**
+ * Masks anything in `text` that looks like a secret, so it can be shown to a person or written to the
+ * log without carrying the secret. Meant for text that was never meant to hold one (a command an agent
+ * is about to run): it favours masking too much over too little, and leaves plain hex hashes alone.
+ */
+export function redactSecrets(text: string): { text: string; redacted: number } {
+  let out = text;
+  let redacted = 0;
+  const count = (before: string, after: string) => { if (after !== before) redacted++; return after; };
+  for (const [, re] of PATTERNS) {
+    const global = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
+    out = count(out, out.replace(global, "[redacted]"));
+  }
+  for (const [, re, replacement] of COMMAND_PATTERNS) {
+    out = count(out, out.replace(re, replacement as string));
+  }
+  return { text: out, redacted };
+}
+
 export interface SecretFinding {
   file: string;
   line: number;

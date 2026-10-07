@@ -142,3 +142,24 @@ test("a gate must name a scope the Mandate grants; and resolve needs a Checkpoin
   const noWait = await run(f, job, [], ["--approval-wait", "0"]);
   assert.equal(noWait.code, 2);
 });
+
+test("secrets in a gated command never reach the log or the terminal, but the principal still sees what it does", async () => {
+  const f = makeFixture();
+  const job = await gatedJob(f, ["--gate", "shell.exec"]);
+  const ghp = "ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8";
+  const command = `API_TOKEN=hunter2hunter2 ./deploy.sh --password=s3cr3t-value-123 --note ${ghp}`;
+  const [res] = await Promise.all([
+    run(f, job, [{ name: "Bash", input: { command } }]),
+    answerWhenAsked(f, job.id, "approved"),
+  ]);
+  assert.equal(res.code, 0, res.err);
+  for (const secret of ["hunter2hunter2", "s3cr3t-value-123", ghp]) assert.ok(!res.err.includes(secret), `${secret} reached the terminal`);
+  assert.match(res.err, /APPROVAL NEEDED\s+shell\.exec: API_TOKEN=\[redacted\] \.\/deploy\.sh --password \[redacted\]|APPROVAL NEEDED\s+shell\.exec: API_TOKEN=\[redacted\] \.\/deploy\.sh/);
+  assert.match(res.err, /secret-looking text was masked/);
+
+  const chain = await (await LocalLog.open(f.aspHome)).log.chain(job.id);
+  const checkpoint = chain.find((s) => s.record.type === "asp.checkpoint/v0.2")!;
+  const logged = JSON.stringify(checkpoint.record);
+  for (const secret of ["hunter2hunter2", "s3cr3t-value-123", ghp]) assert.ok(!logged.includes(secret), `${secret} reached the log`);
+  assert.match((checkpoint.record.body as { proposed_action: string }).proposed_action, /deploy\.sh/);
+});

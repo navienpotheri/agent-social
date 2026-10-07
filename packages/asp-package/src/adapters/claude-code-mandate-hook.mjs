@@ -64,7 +64,7 @@ export function decide(event, scopes, gate) {
 
 const summarize = (event) => {
   const text = typeof event.tool_input?.command === "string" ? event.tool_input.command : JSON.stringify(event.tool_input ?? {});
-  return text.length > 300 ? text.slice(0, 300) + "..." : text;
+  return text.length > 2000 ? text.slice(0, 2000) + "..." : text;
 };
 
 /**

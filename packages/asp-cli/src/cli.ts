@@ -142,7 +142,7 @@ import {
 } from "@agent-social/asp-core";
 import {
   ADAPTERS, Keystore, LocalLog, appendCheckpoint, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
-  readCheckpoints, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
+  readCheckpoints, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   verifyPackage, writePackage,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
@@ -1089,14 +1089,17 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
       await sleep(o.pollMs);
       local = await LocalLog.open(o.home);
     }
+    // What the principal sees, and what goes in the log, is the command with anything secret-looking masked.
+    const masked = redactSecrets(req.summary);
+    const shown = masked.text.length > 300 ? masked.text.slice(0, 300) + "..." : masked.text;
     const head = (await marketChain(local.log, o.contract)).at(-1)!;
     const principal = ((await local.log.get(o.contract))!.record.body as { principal: string }).principal;
     const checkpoint = createRecord({
       type: "checkpoint", issuer: o.agent, subject: o.contract, prev: head.id, issued_at: now(),
-      body: { contract: o.contract, kind: "before_irreversible", question: `May ${o.agent} run ${req.tool} (${req.scope})?`, proposed_action: req.summary },
+      body: { contract: o.contract, kind: "before_irreversible", question: `May ${o.agent} run ${req.tool} (${req.scope})?`, proposed_action: shown },
     }, signer);
     await local.append(checkpoint);
-    o.io.err(`  APPROVAL NEEDED  ${req.scope}: ${req.summary}`);
+    o.io.err(`  APPROVAL NEEDED  ${req.scope}: ${shown}${masked.redacted ? "  (secret-looking text was masked)" : ""}`);
     o.io.err(`    answer with: asp market resolve --contract ${o.contract} --by ${principal} --verdict approved`);
     for (;;) {
       if (stopped) return;
