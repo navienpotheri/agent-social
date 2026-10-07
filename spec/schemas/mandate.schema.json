@@ -40,6 +40,12 @@
       "additionalProperties": false,
       "properties": {
         "policy": { "enum": ["checkpoint", "forbid", "allow"] },
+        "scopes": {
+          "description": "The granted scopes this policy applies to: with checkpoint, a call needs the principal's approval (a Checkpoint resolved by a signed checkpoint_resolution) before it runs; with forbid, it is blocked; with allow, it is ungated. Each must also be in the Mandate's scopes.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$" },
+          "uniqueItems": true
+        },
         "examples": { "type": "array", "items": { "type": "string" } }
       }
     },

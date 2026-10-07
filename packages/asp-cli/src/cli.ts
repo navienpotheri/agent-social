@@ -76,7 +76,14 @@
  *   asp market bond --contract <id> --backer <did> --amount <n> --escrow-payer <did> --escrow-amount <n>
  *     Locks real credits: debits both the escrow payer and the backer for real (rejects with
  *     insufficient_balance rather than starting a job uncovered).
- *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--spend-cap <n>]
+ *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow]
+ *     --gate names granted scopes the irreversible policy applies to: with checkpoint (the default) a
+ *     call to one needs the principal's approval first (asp run holds the call, raises a Checkpoint, and
+ *     waits for asp market resolve; --approval-wait <seconds>, default 600, then it is refused); with
+ *     forbid it is blocked outright; with allow it is ungated. Needs a runtime with a pre-call hook.
+ *   asp market checkpoint --contract <id> --by <performer> --question <text> [--kind before_irreversible|plan|high_impact|delivery] [--summary <proposed action>]
+ *   asp market resolve --contract <id> --by <principal> --verdict approved|corrected|picked [--correction <text>] [--about <checkpoint id>]
+ *     The principal's signed answer to an open Checkpoint; corrected (with the reason) is how a request is refused.
  *   asp market deliver --contract <id> --by <did> --summary <text> [--claim "<text>::<measured|simulated|predicted>[::<uri>=<sha256>]" ...]
  *     Also redelivers after a reject (the lifecycle's own redelivery_available guard applies; at
  *     most one redelivery). Each --claim says what the Delivery asserts and how well established it is.
@@ -125,7 +132,7 @@
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
 import { spawn } from "node:child_process";
-import { copyFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -236,6 +243,12 @@ const OPTIONS = {
   "max-strikes": { type: "string" },
   // asp market verify / deliver --claim / intent|contract --verifier (outcome verification)
   verifier: { type: "string" },
+  // approval gates: asp market mandate --gate / --irreversible; asp market checkpoint|resolve; asp run --approval-wait
+  gate: { type: "string", multiple: true },
+  irreversible: { type: "string" },
+  "approval-wait": { type: "string" },
+  correction: { type: "string" },
+  question: { type: "string" },
   claim: { type: "string", multiple: true },
   grade: { type: "string", multiple: true },
   artifact: { type: "string", multiple: true },
@@ -281,7 +294,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "claim" | "grade" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "claim" | "grade" | "gate" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -593,7 +606,10 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       scopes: v.scopes?.length ? v.scopes : ["repo.read"],
       forbidden_means: [] as string[],
       spend: { cap: Math.trunc(Number(v["spend-cap"] ?? "0")), unit: "credit" as const },
-      irreversible: { policy: "checkpoint" as const },
+      irreversible: {
+        policy: (v.irreversible ?? "checkpoint") as "checkpoint" | "forbid" | "allow",
+        ...(v.gate?.length ? { scopes: v.gate } : {}),
+      },
       subcontract: { allowed: false },
       nodes: { max_parallel: 1 },
       learning: { scope: "harness" as const, share_to_commons: false },
@@ -663,6 +679,41 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const record = createRecord({ type: "attestation", issuer: by, subject: about, prev: null, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
     io.out(`verification ${res.id} on delivery ${about}: ${verdict} by ${by} (log seq ${res.seq})`);
+    return 0;
+  }
+
+  // Approval gates: the performer raises a Checkpoint (asp run does this by itself when a gated call is
+  // attempted), and the principal answers with a signed checkpoint_resolution that returns the job to Running.
+  if (sub === "checkpoint") {
+    const contract = need("contract");
+    const by = need("by");
+    const kind = v.kind ?? "before_irreversible";
+    if (!["plan", "before_irreversible", "high_impact", "delivery"].includes(kind)) throw new UsageError("--kind must be plan, before_irreversible, high_impact or delivery");
+    const head = (await marketChain(local.log, contract)).at(-1);
+    if (!head) throw new Error(`contract ${contract} is not in the log`);
+    const body: Record<string, unknown> = { contract, kind, question: need("question") };
+    if (v.summary) body.proposed_action = v.summary;
+    const record = createRecord({ type: "checkpoint", issuer: by, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`checkpoint ${res.id} on contract ${contract} (log seq ${res.seq}, state ${res.state})`);
+    return 0;
+  }
+
+  if (sub === "resolve") {
+    const contract = need("contract");
+    const by = need("by");
+    const verdict = need("verdict");
+    if (!["approved", "corrected", "picked"].includes(verdict)) throw new UsageError("--verdict must be approved, corrected or picked");
+    if (verdict === "corrected" && !v.correction) throw new UsageError("--verdict corrected needs --correction <text>");
+    const chain = await marketChain(local.log, contract);
+    const head = chain.at(-1);
+    const open = [...chain].reverse().find((s) => s.kind === "checkpoint");
+    if (!head || !open) throw new Error(`contract ${contract} has no Checkpoint to resolve`);
+    const body: Record<string, unknown> = { kind: "checkpoint_resolution", about: v.about ?? open.id, verdict };
+    if (v.correction) body.correction = v.correction;
+    const record = createRecord({ type: "attestation", issuer: by, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`resolution ${res.id} on contract ${contract}: ${verdict} (log seq ${res.seq}, state ${res.state})`);
     return 0;
   }
 
@@ -847,7 +898,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
-  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|accept|reject|rule|settle|show|action|juror register|juror show|panel draw");
+  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|settle|show|action|juror register|juror show|panel draw");
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */
@@ -1016,6 +1067,72 @@ async function autoSettleOnKill(local: LocalLog, home: string, contract: string,
   }
 }
 
+/**
+ * Approval gates, the run side. The pre-call hook holds a gated call and drops a request file; this
+ * raises it as a Checkpoint (signed by the performer, which moves the job to Checkpoint), waits for the
+ * principal's signed checkpoint_resolution to appear in the log, and writes the hook's decision file:
+ * approved only for an `approved` resolution. Each request reopens the log fresh, because the principal
+ * answers from another process, and requests are served one at a time (a job has one open Checkpoint).
+ */
+function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; io: Io }) {
+  let stopped = false;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const decide = (id: string, d: { approved: boolean; reason?: string }) => writeFileSync(join(o.dir, `${id}.decision.json`), JSON.stringify(d));
+
+  async function handle(req: { id: string; tool: string; scope: string; summary: string }) {
+    const signer = new Keystore(o.home).forDid(o.agent);
+    if (!signer) return decide(req.id, { approved: false, reason: `no key for ${o.agent} to raise the Checkpoint` });
+    // A job has one open Checkpoint at a time: wait for any earlier one to be resolved first.
+    let local = await LocalLog.open(o.home);
+    while ((await local.log.chainInfo(o.contract))?.state !== "Running") {
+      if (stopped) return;
+      await sleep(o.pollMs);
+      local = await LocalLog.open(o.home);
+    }
+    const head = (await marketChain(local.log, o.contract)).at(-1)!;
+    const principal = ((await local.log.get(o.contract))!.record.body as { principal: string }).principal;
+    const checkpoint = createRecord({
+      type: "checkpoint", issuer: o.agent, subject: o.contract, prev: head.id, issued_at: now(),
+      body: { contract: o.contract, kind: "before_irreversible", question: `May ${o.agent} run ${req.tool} (${req.scope})?`, proposed_action: req.summary },
+    }, signer);
+    await local.append(checkpoint);
+    o.io.err(`  APPROVAL NEEDED  ${req.scope}: ${req.summary}`);
+    o.io.err(`    answer with: asp market resolve --contract ${o.contract} --by ${principal} --verdict approved`);
+    for (;;) {
+      if (stopped) return;
+      await sleep(o.pollMs);
+      const fresh = await LocalLog.open(o.home);
+      const chain = await marketChain(fresh.log, o.contract);
+      const at = chain.findIndex((x) => x.id === checkpoint.id);
+      const resolution = chain.slice(at + 1).find((x) => {
+        const b = x.record.body as { kind?: string; about?: string };
+        return x.record.type === "asp.attestation/v0.2" && b.kind === "checkpoint_resolution" && b.about === checkpoint.id;
+      });
+      if (!resolution) continue;
+      const b = resolution.record.body as { verdict: string; correction?: string };
+      const approved = b.verdict === "approved";
+      o.io.err(`  approval ${approved ? "granted" : "refused"} for ${req.scope}${b.correction ? `: ${b.correction}` : ""}`);
+      return decide(req.id, approved ? { approved: true } : { approved: false, reason: b.correction ?? `the principal answered ${b.verdict}` });
+    }
+  }
+
+  const loop = (async () => {
+    mkdirSync(o.dir, { recursive: true });
+    while (!stopped) {
+      const files = readdirSync(o.dir).filter((f) => f.endsWith(".request.json")).sort();
+      for (const f of files) {
+        if (stopped) break;
+        const path = join(o.dir, f);
+        const req = JSON.parse(readFileSync(path, "utf8"));
+        renameSync(path, join(o.dir, f.replace(".request.json", ".request.seen.json")));
+        try { await handle(req); } catch (e) { try { decide(req.id, { approved: false, reason: `asp run could not raise the Checkpoint: ${(e as Error).message}` }); } catch { /* the run is ending */ } }
+      }
+      await sleep(o.pollMs);
+    }
+  })();
+  return { stop: async () => { stopped = true; await loop; } };
+}
+
 async function runIn(pkgDir: string, home: string, backend: string, adapter: RuntimeAdapter, v: Values, io: Io, onMutate: () => void): Promise<number> {
   const report = await verifyPackage(pkgDir);
   if (!report.ok) {
@@ -1028,14 +1145,25 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   const runDir = join(home, "runs", `${slug(agent)}-${now().replace(/[:]/g, "")}`);
   const maxStrikes = v["max-strikes"] === undefined ? 3 : Number(v["max-strikes"]);
   if (!Number.isInteger(maxStrikes) || maxStrikes < 1) throw new UsageError("--max-strikes must be a whole number, at least 1");
+  const approvalWait = v["approval-wait"] === undefined ? 600 : Number(v["approval-wait"]);
+  if (!Number.isInteger(approvalWait) || approvalWait < 1) throw new UsageError("--approval-wait must be a whole number of seconds, at least 1");
   mkdirSync(runDir, { recursive: true });
   // Under a contract, the live Mandate is read once up front: it drives the pre-call hook (an
   // out-of-scope call is blocked before it runs, where the adapter supports it) and the live check below.
-  const local = v.contract ? await LocalLog.open(home) : undefined;
+  let local = v.contract ? await LocalLog.open(home) : undefined;
   const mandate = v.contract ? await local!.log.mandateOf(v.contract) : undefined;
+  // The Mandate's irreversible policy: scopes that need the principal's approval first, or are forbidden.
+  let gate: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number } | undefined;
+  if (v.contract && mandate) {
+    const mandateRecord = (await local!.log.chain(v.contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
+    const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
+    if (irreversible?.scopes?.length && irreversible.policy !== "allow") {
+      gate = { scopes: irreversible.scopes, mode: irreversible.policy === "forbid" ? "deny" : "ask", waitSeconds: approvalWait };
+    }
+  }
   const plan = await adapter.materialize({
     pkgDir, harness, project: resolve(io.cwd, v.project ?? "."), runDir, agentName: basename(agent.replace(/:/g, "/")), prompt: v.prompt, env: io.env,
-    mandateScopes: mandate?.scopes, model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
+    mandateScopes: mandate?.scopes, mandateGate: gate, model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
   });
 
   // The run's own report goes to stderr, so a -p run's stdout stays the runtime's stream alone.
@@ -1074,7 +1202,12 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   const scopesSeen = new Set<string>();
   const artifactsSeen: { uri: string; sha256: string }[] = [];
   const prevents = !!(plan.preventsCalls && plan.checkOutputForResult && mandate);
-  const pending = new Map<string, { scope: string; artifact?: { uri: string; sha256: string } }>();
+  const pending = new Map<string, { scope: string; artifact?: { uri: string; sha256: string }; gated: boolean }>();
+  const gatedScopes = new Set(gate?.mode === "ask" ? gate.scopes : []);
+  const forbiddenScopes = new Set(gate?.mode === "deny" ? gate.scopes : []);
+  if (gate?.mode === "ask" && !plan.approvalsDir) {
+    io.err(`  note     ${backend} cannot hold a call for approval, so ${gate.scopes.join(", ")} are NOT gated on this run`);
+  }
   const blockedByScope = new Map<string, number>();
   let strikes = 0;
   let killed: { scope: string; reason: "violation" | "probing" } | undefined;
@@ -1084,6 +1217,9 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
       stdio: (plan.checkOutputForFailure || plan.checkOutputForAction) ? ["inherit", "pipe", "inherit"] : "inherit",
     });
     let killTimer: NodeJS.Timeout | undefined;
+    const approvals = plan.approvalsDir && v.contract
+      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, io })
+      : undefined;
     const halt = (k: { scope: string; reason: "violation" | "probing" }, message: string) => {
       if (killed) return;
       killed = k;
@@ -1103,9 +1239,10 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
         for (const line of lines) {
           hiddenFailure ??= plan.checkOutputForFailure?.(line);
           for (const call of plan.checkOutputForAction?.(line) ?? []) {
-            const outside = !!mandate && !mandate.scopes.includes(call.scope);
-            if (prevents && outside && call.id) {
-              pending.set(call.id, { scope: call.scope, artifact: call.artifact });
+            const outside = !!mandate && (!mandate.scopes.includes(call.scope) || forbiddenScopes.has(call.scope));
+            const held = !outside && !!plan.approvalsDir && gatedScopes.has(call.scope);
+            if (prevents && (outside || held) && call.id) {
+              pending.set(call.id, { scope: call.scope, artifact: call.artifact, gated: held });
               continue;
             }
             scopesSeen.add(call.scope);
@@ -1116,6 +1253,12 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
             const call = pending.get(res.id);
             if (!call) continue;
             pending.delete(res.id);
+            if (call.gated) {
+              // An approval gate, not a violation: refused means the call never ran and nothing is counted.
+              if (res.blocked) io.err(`  gate     ${call.scope} was not approved, so the call did not run`);
+              else { scopesSeen.add(call.scope); if (call.artifact) artifactsSeen.push(call.artifact); }
+              continue;
+            }
             if (res.blocked) {
               strikes++;
               blockedByScope.set(call.scope, (blockedByScope.get(call.scope) ?? 0) + 1);
@@ -1134,14 +1277,16 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
       io.err(e.code === "ENOENT"
         ? `${plan.command} is not installed or not on PATH. Install it, or rerun with --dry-run.`
         : `could not start ${plan.command}: ${e.message}`);
-      done(-1);
+      void (approvals ? approvals.stop() : Promise.resolve()).then(() => done(-1));
     });
     child.on("exit", (c) => {
       if (killTimer) clearTimeout(killTimer);
-      done(c ?? 1);
+      void (approvals ? approvals.stop() : Promise.resolve()).then(() => done(c ?? 1));
     });
   });
   if (code === -1) return 1;
+  // The principal may have answered Checkpoints from another process while the run was going.
+  if (v.contract) local = await LocalLog.open(home);
 
   if (pending.size) io.err(`  note     ${pending.size} out-of-scope call(s) ended with no result, so they were not counted either way`);
   const blockedAttempts = [...blockedByScope].sort(([a], [b]) => a.localeCompare(b)).map(([scope, count]) => ({ scope, count }));

@@ -91,6 +91,8 @@ export interface LaunchPlan {
    * treating the call itself as the violation: a blocked call is a strike, an executed one is fatal.
    */
   preventsCalls?: boolean;
+  /** Where the adapter's pre-call hook drops approval requests for `asp run` to raise as Checkpoints (set only for `ask` gates). */
+  approvalsDir?: string;
   /** Reads a call's outcome from a line of output: `blocked` means the pre-call hook stopped it before it ran. */
   checkOutputForResult?: (line: string) => { id: string; blocked: boolean }[] | undefined;
 }
@@ -107,6 +109,12 @@ export interface RuntimeAdapter {
      * that can intercept calls before they run uses them to block out-of-scope ones; others ignore it.
      */
     mandateScopes?: string[];
+    /**
+     * The Mandate's irreversible policy, when it gates scopes: `ask` holds a gated call until the
+     * principal's signed checkpoint_resolution approves it (no answer within `waitSeconds` is a refusal);
+     * `deny` blocks it outright. Needs `mandateScopes`; adapters that can't hold a call ignore it.
+     */
+    mandateGate?: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number };
     /** An OpenAI-compatible base URL for an open-weight model (Ollama, vLLM, ...); needs `model`. */
     endpoint?: string;
     /** Name of the environment variable holding the endpoint's API key (a placeholder is used for local servers). */

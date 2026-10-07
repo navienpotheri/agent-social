@@ -1,5 +1,6 @@
 // Stands in for the `claude` CLI in tests: records its arguments, then behaves like an agent that
 // learned something, writing a note into the auto memory directory its --settings file points at.
+import { spawnSync } from "node:child_process";
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -23,6 +24,20 @@ if (process.env.FAKE_CLAUDE_TOOL_USE) {
       : "ok",
   })).filter(Boolean);
   if (results.length) console.log(JSON.stringify({ type: "user", message: { role: "user", content: results } }));
+}
+// FAKE_CLAUDE_HOOK_CALLS: a JSON array of {name, input}. Each call is made the way Claude Code makes it:
+// a tool_use line, then the plugin's PreToolUse hook is actually run (the real asp-mandate.mjs, with the
+// hook's JSON on stdin), then a tool_result: "ok" if the hook exits 0, otherwise the hook's refusal.
+if (process.env.FAKE_CLAUDE_HOOK_CALLS) {
+  const plugin = args[args.indexOf("--plugin-dir") + 1];
+  const script = join(plugin, "scripts", "asp-mandate.mjs");
+  JSON.parse(process.env.FAKE_CLAUDE_HOOK_CALLS).forEach((c, i) => {
+    const id = `toolu_h${i}`;
+    console.log(JSON.stringify({ type: "assistant", message: { model: "claude-sonnet-5", content: [{ type: "tool_use", id, name: c.name, input: c.input ?? {} }], usage: { output_tokens: 10 } } }));
+    const hook = spawnSync(process.execPath, [script], { input: JSON.stringify({ tool_name: c.name, tool_input: c.input ?? {}, tool_use_id: id, session_id: "s" }), encoding: "utf8" });
+    const content = hook.status === 0 ? "ok" : `PreToolUse:${c.name} hook error: [node asp-mandate.mjs]: ${hook.stderr}`;
+    console.log(JSON.stringify({ type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, is_error: hook.status !== 0, content }] } }));
+  });
 }
 if (process.env.FAKE_CLAUDE_LEARN !== "0") {
   writeFileSync(join(mem, "refund-race.md"), "---\nname: refund-race\n---\nThe refund cache needs a per-key lock.\n");

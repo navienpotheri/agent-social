@@ -162,7 +162,7 @@ export class EventLog {
       await this.checkVerification(tx, verified);
       await this.checkVerifiedBeforeAcceptance(tx, verified);
     }
-    if (type === "mandate") { await this.checkMandateTier(tx, verified); await this.projectMandate(tx, verified); }
+    if (type === "mandate") { await this.checkMandateTier(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
     if (type === "action") await this.checkAction(tx, verified);
     if (type === "proposal") await this.checkProposerTier(tx, verified);
     if (type === "contract") await this.checkSubcontract(tx, verified);
@@ -412,6 +412,13 @@ export class EventLog {
   }
 
   /** Tracks a contract's current Mandate scopes, so a later Action report can be checked against it. */
+  /** Approval gates: every scope the Mandate gates (or forbids) must be one it actually grants. */
+  private checkMandateGates(r: AspRecord): void {
+    const body = r.body as { scopes: string[]; irreversible?: { scopes?: string[] } };
+    const stray = (body.irreversible?.scopes ?? []).filter((s) => !body.scopes.includes(s));
+    if (stray.length) throw rule("gate_not_granted", `irreversible.scopes names scope(s) the Mandate does not grant: ${stray.join(", ")}`);
+  }
+
   private async projectMandate(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as { contract: string; scopes: string[] };
     await tx.putMandate({ contract: body.contract, scopes: body.scopes });

@@ -6,7 +6,8 @@
 // and blocks it (exit 2) unless the Mandate grants that scope, so an out-of-scope call never runs.
 // Claude Code treats any other failure of a hook as "do not block", so this hook fails CLOSED: any
 // error at all (bad input, a missing or corrupt Mandate file) blocks. It makes no network calls.
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -42,13 +43,53 @@ export function scopeOfCall(event) {
   return deriveScopeForTool(event.tool_name, arg);
 }
 
-/** Exact membership, like the log's own check (`EventLog.checkAction`). */
-export function decide(event, scopes) {
+/**
+ * Exact membership, like the log's own check (`EventLog.checkAction`). `gate` is the Mandate's
+ * irreversible policy: a granted scope it names needs the principal's approval (`mode: "ask"`, the
+ * call is held until a signed resolution answers it) or is forbidden outright (`mode: "deny"`).
+ */
+export function decide(event, scopes, gate) {
   if (typeof event?.tool_name !== "string") return { allow: false, scope: "", reason: "ASP Mandate hook: the call has no tool_name" };
   if (NO_SCOPE_TOOLS.includes(event.tool_name)) return { allow: true, scope: "" };
   const scope = scopeOfCall(event);
-  if (scopes.includes(scope)) return { allow: true, scope };
+  if (scopes.includes(scope)) {
+    if (gate?.scopes?.includes(scope)) {
+      if (gate.mode === "deny") return { allow: false, scope, reason: `ASP Mandate: the scope ${scope} is forbidden by this job's irreversible policy, so this call was blocked before it ran` };
+      return { allow: true, ask: true, scope };
+    }
+    return { allow: true, scope };
+  }
   return { allow: false, scope, reason: `ASP Mandate: the scope ${scope} is not granted by this job's Mandate, so this call was blocked before it ran` };
+}
+
+const summarize = (event) => {
+  const text = typeof event.tool_input?.command === "string" ? event.tool_input.command : JSON.stringify(event.tool_input ?? {});
+  return text.length > 300 ? text.slice(0, 300) + "..." : text;
+};
+
+/**
+ * Holds a gated call: drops a request for `asp run` (which raises the Checkpoint in the log) and waits
+ * for its decision file, which `asp run` writes once the principal's signed checkpoint_resolution is
+ * in the log. No answer in time is a refusal, never an approval.
+ */
+async function askPrincipal(pluginRoot, event, scope, waitSeconds) {
+  const dir = join(resolve(pluginRoot, ".."), "approvals");
+  mkdirSync(dir, { recursive: true });
+  const id = String(event.tool_use_id ?? randomUUID()).replace(/[^A-Za-z0-9_-]/g, "_");
+  const tmp = join(dir, `${id}.request.tmp`);
+  writeFileSync(tmp, JSON.stringify({ id, tool: event.tool_name, scope, summary: summarize(event), requested_at: new Date().toISOString() }));
+  renameSync(tmp, join(dir, `${id}.request.json`));
+  const decisionFile = join(dir, `${id}.decision.json`);
+  const poll = Number(process.env.ASP_HOOK_POLL_MS) > 0 ? Number(process.env.ASP_HOOK_POLL_MS) : 200;
+  const deadline = Date.now() + waitSeconds * 1000;
+  while (Date.now() < deadline) {
+    if (existsSync(decisionFile)) {
+      const decision = JSON.parse(readFileSync(decisionFile, "utf8"));
+      return decision.approved === true ? { approved: true } : { approved: false, reason: decision.reason };
+    }
+    await new Promise((r) => setTimeout(r, poll));
+  }
+  return { approved: false, reason: `no answer within ${waitSeconds} seconds` };
 }
 
 async function main() {
@@ -59,8 +100,13 @@ async function main() {
   const event = JSON.parse(input);
   const mandate = JSON.parse(readFileSync(join(pluginRoot, "asp-mandate.json"), "utf8"));
   if (!Array.isArray(mandate.scopes)) throw new Error("asp-mandate.json has no scopes list");
-  const d = decide(event, mandate.scopes);
-  if (d.allow) return;
+  const d = decide(event, mandate.scopes, mandate.gate);
+  if (d.allow && !d.ask) return;
+  if (d.ask) {
+    const answer = await askPrincipal(pluginRoot, event, d.scope, mandate.gate.waitSeconds ?? 600);
+    if (answer.approved) return;
+    d.reason = `ASP Mandate: the scope ${d.scope} needs the principal's approval and it was not given${answer.reason ? `: ${answer.reason}` : ""}`;
+  }
   try {
     appendFileSync(join(pluginRoot, "..", "blocked-calls.ndjson"), JSON.stringify({ at: new Date().toISOString(), tool: event.tool_name, scope: d.scope }) + "\n");
   } catch { /* the block itself must not depend on the record of it */ }

@@ -236,6 +236,7 @@ const pluginName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").re
 async function materialize(opts: {
   pkgDir: string; harness: Harness; project: string; runDir: string; agentName: string; prompt?: string; env: NodeJS.ProcessEnv;
   model?: string; sourceRuntime?: string; mandateScopes?: string[];
+  mandateGate?: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number };
 }): Promise<LaunchPlan> {
   const { pkgDir, harness, project, runDir } = opts;
   const h = join(pkgDir, "harness");
@@ -291,12 +292,17 @@ async function materialize(opts: {
   if (opts.mandateScopes) {
     // The pre-call half of the kill switch: block any call whose scope the Mandate doesn't grant,
     // before it runs. Listed first; Claude Code runs every PreToolUse hook and any block wins.
-    put("plugin/asp-mandate.json", () => writeJson(join(plugin, "asp-mandate.json"), { scopes: [...opts.mandateScopes!].sort() }));
+    const gate = opts.mandateGate && opts.mandateGate.scopes.length ? opts.mandateGate : undefined;
+    put("plugin/asp-mandate.json", () => writeJson(join(plugin, "asp-mandate.json"), {
+      scopes: [...opts.mandateScopes!].sort(),
+      ...(gate ? { gate: { scopes: [...gate.scopes].sort(), mode: gate.mode, waitSeconds: gate.waitSeconds } } : {}),
+    }));
     put("plugin/scripts/asp-mandate.mjs", () => copyInto(MANDATE_HOOK, join(plugin, "scripts", "asp-mandate.mjs")));
     hooks.PreToolUse = [{
       matcher: "*",
-      hooks: [{ type: "command", command: `node "\${CLAUDE_PLUGIN_ROOT}/scripts/asp-mandate.mjs"`, timeout: 10 }],
+      hooks: [{ type: "command", command: `node "\${CLAUDE_PLUGIN_ROOT}/scripts/asp-mandate.mjs"`, timeout: gate?.mode === "ask" ? gate.waitSeconds + 30 : 10 }],
     }, ...(hooks.PreToolUse ?? [])];
+    if (gate) notes.push(`${gate.mode === "ask" ? "approval needed from the principal" : "forbidden by the Mandate"} for: ${gate.scopes.join(", ")}${gate.mode === "ask" ? ` (waits up to ${gate.waitSeconds}s per call)` : ""}`);
     notes.push(`pre-call Mandate hook active: calls outside ${opts.mandateScopes.length ? opts.mandateScopes.join(", ") : "an empty scope list"} are blocked before they run`);
   }
   if (Object.keys(hooks).length) put("plugin/hooks/hooks.json", () => writeJson(join(plugin, "hooks", "hooks.json"), { hooks }));
@@ -342,7 +348,8 @@ async function materialize(opts: {
   args.push("--plugin-dir", plugin, "--append-system-prompt-file", join(runDir, "instructions.md"), "--settings", join(runDir, "settings.json"));
   if (harness.skills.length) args.push("--add-dir", workspace);
 
-  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: r.missing.sort(), notes, checkOutputForAction, checkOutputForResult, ...(opts.mandateScopes ? { preventsCalls: true } : {}) };
+  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: r.missing.sort(), notes, checkOutputForAction, checkOutputForResult, ...(opts.mandateScopes ? { preventsCalls: true } : {}),
+    ...(opts.mandateScopes && opts.mandateGate?.mode === "ask" && opts.mandateGate.scopes.length ? { approvalsDir: join(runDir, "approvals") } : {}) };
 }
 
 /**
