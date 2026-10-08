@@ -103,3 +103,88 @@ test("incremental export: a witness catches up from where it left off", async ()
   await ok(f, ["log", "witnesses", "add", wfile]);
   assert.equal((await asp(f, ["log", "verify", "--min-witnesses", "1"])).code, 0);
 });
+
+// ---- published feeds ----
+import { createServer, type Server } from "node:http";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+
+const feedServers: Server[] = [];
+/** A real HTTP server serving one folder, standing in for GitHub Pages or any static host. */
+async function serveDir(dir: string): Promise<string> {
+  const server = createServer((req, res) => {
+    const file = join(dir, (req.url ?? "/").split("?")[0]);
+    if (existsSync(file) && !file.endsWith("/")) { res.end(readFileSync(file)); } else { res.statusCode = 404; res.end("not found"); }
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  feedServers.push(server);
+  return `http://127.0.0.1:${(server.address() as any).port}`;
+}
+test.after(() => { for (const s of feedServers) s.close(); });
+
+/** A witness who has replayed the operator's log and published its checkpoint to a folder. */
+async function publishedWitness(f: Fixture) {
+  const exp = join(f.root, "export.ndjson");
+  await ok(f, ["log", "export", "--out", exp]);
+  const w = makeFixture();
+  const created = await ok(w, ["identity", "new", "--kind", "human", "--method", "did:key"]);
+  const did = didKeyOf(created.out + created.err);
+  await ok(w, ["log", "witness", exp, "--as", did]);
+  const feed = join(w.root, "feed");
+  return { w, did, feed };
+}
+
+test("a witness publishes a feed folder; the operator reads it from the folder and from a URL", async () => {
+  const { f } = await operator();
+  const { w, feed } = await publishedWitness(f);
+  assert.match((await ok(w, ["log", "publish", "--to", feed])).out, /published 1 new checkpoint/);
+  assert.match((await ok(w, ["log", "publish", "--to", feed])).out, /published 0 new checkpoint/, "publishing again adds nothing");
+
+  await ok(f, ["log", "witnesses", "add", feed]);
+  assert.equal((await asp(f, ["log", "verify", "--min-witnesses", "1"])).code, 0);
+
+  const base = await serveDir(feed);
+  const g = makeFixture();
+  // A second operator copy with the same log reads the same feed over HTTP.
+  await ok(g, ["log", "import", join(f.root, "export.ndjson")]);
+  await ok(g, ["log", "witnesses", "add", base]);
+  const viaUrl = await asp(g, ["log", "verify", "--min-witnesses", "1"]);
+  assert.equal(viaUrl.code, 0, viaUrl.out);
+  assert.match(viaUrl.out, /witnessed by 1 independent witness/);
+});
+
+test("a feed that rewrites its history is refused, and an unreachable feed fails closed", async () => {
+  const { f } = await operator();
+  const { w, did, feed } = await publishedWitness(f);
+  await ok(w, ["log", "publish", "--to", feed]);
+  const base = await serveDir(feed);
+  await ok(f, ["log", "witnesses", "add", base]);
+
+  // The feed host swaps the old entry for a different one.
+  const other = makeFixture();
+  const oc = await ok(other, ["identity", "new", "--kind", "human", "--method", "did:key"]);
+  await ok(other, ["log", "checkpoint", "--as", didKeyOf(oc.out + oc.err)]);
+  writeFileSync(join(feed, "feed.ndjson"), readFileSync(join(other.aspHome, "checkpoints.ndjson")));
+  const again = await asp(f, ["log", "witnesses", "add", base]);
+  assert.equal(again.code, 1);
+  assert.match(again.err, /rewritten its history/);
+  void did;
+
+  const dead = await asp(f, ["log", "witnesses", "add", "http://127.0.0.1:1/"]);
+  assert.equal(dead.code, 1);
+  assert.match(dead.err, /could not fetch/);
+  const insecure = await asp(f, ["log", "witnesses", "add", "http://example.com/feed.ndjson"]);
+  assert.equal(insecure.code, 1);
+  assert.match(insecure.err, /must be https/);
+});
+
+test("publish --with-export writes the whole log for others to replay, and only when asked", async () => {
+  const { f } = await operator();
+  const plain = join(f.root, "pub-plain");
+  await ok(f, ["log", "publish", "--to", plain]);
+  assert.equal(existsSync(join(plain, "export.ndjson")), false, "the log's contents are not published by default");
+  const full = join(f.root, "pub-full");
+  await ok(f, ["log", "publish", "--to", full, "--with-export"]);
+  assert.equal(existsSync(join(full, "export.ndjson")), true);
+  const replayer = makeFixture();
+  assert.match((await ok(replayer, ["log", "import", join(full, "export.ndjson")])).out, /imported \d+ record/);
+});

@@ -55,7 +55,14 @@
  *   asp log witness <export file> --as <witness did> [--out <file>]
  *     A witness: imports the export into a replica log (<home>/replica), and only if the replay reproduces the exported head,
  *     signs a checkpoint of it (saved in its checkpoints.ndjson, and to --out). Use a did:key identity.
- *   asp log witnesses add <witness checkpoints file>
+ *   asp log publish --to <dir> [--with-export]
+ *     Copies this home's signed checkpoints that are not published yet into <dir>/feed.ndjson (append-only),
+ *     for anyone to read: commit the folder to a public git repo, or serve it from any static host. A witness
+ *     publishes its own the same way. --with-export also writes <dir>/export.ndjson, the whole log, so others
+ *     can replay it themselves: it makes the log's contents public, so it is never done unless you ask.
+ *   asp log witnesses add <witness checkpoints file | folder | https URL>
+ *     A folder or URL means a published feed (feed.ndjson inside). Adding the same source again refreshes it;
+ *     it fails if an entry published before has disappeared (a rewritten feed).
  *     Keeps witness checkpoints beside this log. `log verify` re-checks each against an independent replay
  *     (a witness that saw different history fails), and with --min-witnesses n needs n distinct witnesses.
  *   asp log checkpoint --as <did>
@@ -156,12 +163,12 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
-  b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
+  b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import {
   ADAPTERS, Keystore, LocalLog, appendCheckpoint, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
-  readCheckpoints, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
+  readCheckpoints, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   verifyPackage, writePackage,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
@@ -202,6 +209,8 @@ const OPTIONS = {
   "trust-unverified": { type: "boolean" },
   since: { type: "string" },
   "min-witnesses": { type: "string" },
+  to: { type: "string" },
+  "with-export": { type: "boolean" },
   "dry-run": { type: "boolean" },
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
@@ -211,7 +220,6 @@ const OPTIONS = {
   as: { type: "string" },
 
   // asp credits / asp market (Stage 2 slice 1)
-  to: { type: "string" },
   amount: { type: "string" },
   by: { type: "string" },
   price: { type: "string" },
@@ -310,6 +318,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "verify") return await logVerify(home, v, io);
     if (cmd === "log" && sub === "export") return await logExport(home, v, need, io);
     if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
+    if (cmd === "log" && sub === "publish") return await logPublish(home, v, need, io);
     if (cmd === "log" && sub === "witness") return await logWitness(home, rest[0], v, need, io);
     if (cmd === "log" && sub === "witnesses") return await logWitnessesAdd(home, rest[0] === "add" ? rest[1] : undefined, io);
     if (cmd === "log" && sub === "checkpoint") return await logCheckpoint(home, v, need, io);
@@ -505,12 +514,50 @@ async function logWitness(home: string, file: string | undefined, v: Values, nee
   return 0;
 }
 
+/** Copies the home's signed checkpoints that the feed folder does not have yet into <dir>/feed.ndjson (append-only). */
+async function logPublish(home: string, v: Values, need: Need, io: Io): Promise<number> {
+  const dir = need("to");
+  const mine = readCheckpoints(join(home, "checkpoints.ndjson"));
+  if (!mine.length) throw new Error("no checkpoints to publish; sign one with: asp log checkpoint --as <did>");
+  const feed = join(dir, "feed.ndjson");
+  const published = new Set(readCheckpoints(feed).map((c) => c.sig));
+  const fresh = mine.filter((c) => !published.has(c.sig));
+  for (const cp of fresh) appendCheckpoint(feed, cp);
+  io.out(`published ${fresh.length} new checkpoint(s) to ${feed} (${published.size + fresh.length} in the feed)`);
+  if (v["with-export"]) {
+    const exportTo = join(dir, "export.ndjson");
+    await logExport(home, { ...v, out: exportTo }, ((name: string) => (name === "out" ? exportTo : need(name as never))) as Need, io);
+  }
+  io.out("  nothing was uploaded: commit this folder to a public git repo, or serve it from a static host.");
+  return 0;
+}
+
+/** Reads a witness feed: a local checkpoints file, a folder holding feed.ndjson, or an https URL of one. */
+async function readFeed(source: string): Promise<LogCheckpoint[]> {
+  if (/^https?:\/\//.test(source)) {
+    const url = source.endsWith(".ndjson") ? source : source.replace(/\/?$/, "/") + "feed.ndjson";
+    return fetchSmallText(url, { maxBytes: 1024 * 1024, timeoutMs: 10_000 })
+      .then((t) => t.split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l) as LogCheckpoint));
+  }
+  return readCheckpoints(existsSync(join(source, "feed.ndjson")) ? join(source, "feed.ndjson") : source);
+}
+
 async function logWitnessesAdd(home: string, file: string | undefined, io: Io): Promise<number> {
-  if (!file) throw new UsageError("asp log witnesses add <witness checkpoints file>");
-  const cps = readCheckpoints(file);
+  if (!file) throw new UsageError("asp log witnesses add <witness checkpoints file | folder | https URL>");
+  const cps = await readFeed(file);
   if (!cps.length) throw new Error(`no checkpoints in ${file}`);
-  for (const cp of cps) appendCheckpoint(join(home, "witnesses.ndjson"), cp);
-  io.out(`added ${cps.length} witness checkpoint(s); asp log verify --min-witnesses <n> checks them`);
+  // Append-only: an entry seen from this source before must still be there.
+  const trackFile = join(home, "witness-feeds.json");
+  const tracked: Record<string, string[]> = existsSync(trackFile) ? JSON.parse(readFileSync(trackFile, "utf8")) : {};
+  const nowSigs = new Set(cps.map((c) => c.sig));
+  const vanished = (tracked[file] ?? []).filter((s) => !nowSigs.has(s));
+  if (vanished.length) throw new Error(`${file} has rewritten its history: ${vanished.length} entry(ies) published before are gone; not updated`);
+  const have = new Set(readCheckpoints(join(home, "witnesses.ndjson")).map((c) => c.sig));
+  const fresh = cps.filter((c) => !have.has(c.sig));
+  for (const cp of fresh) appendCheckpoint(join(home, "witnesses.ndjson"), cp);
+  tracked[file] = [...nowSigs];
+  writeFileSync(trackFile, JSON.stringify(tracked, null, 2));
+  io.out(`added ${fresh.length} new witness checkpoint(s) (${cps.length} in the feed); asp log verify --min-witnesses <n> checks them`);
   return 0;
 }
 

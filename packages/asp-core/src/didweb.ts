@@ -45,6 +45,33 @@ function keyOf(method: any): Uint8Array | undefined {
   return undefined;
 }
 
+/**
+ * Fetches a small text file safely: https (http only for localhost), no redirects, a size and a time limit.
+ * Used for did:web documents and published checkpoint feeds.
+ */
+export async function fetchSmallText(url: string, opts: { fetch?: FetchLike; timeoutMs?: number; maxBytes?: number } = {}): Promise<string> {
+  const u = new URL(url);
+  if (u.protocol !== "https:" && !(u.protocol === "http:" && LOCAL.test(u.host))) {
+    throw new AspError("SCHEMA_INVALID", `${url} must be https (http is allowed only for localhost)`);
+  }
+  const doFetch = opts.fetch ?? (globalThis.fetch as unknown as FetchLike);
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), opts.timeoutMs ?? 5000);
+  let text: string;
+  try {
+    const res = await doFetch(url, { signal: ctl.signal, redirect: "error" });
+    if (!res.ok) throw new AspError("SCHEMA_INVALID", `${url} answered ${res.status}`);
+    text = await res.text();
+  } catch (e) {
+    if (e instanceof AspError) throw e;
+    throw new AspError("SCHEMA_INVALID", `could not fetch ${url}: ${(e as Error).message}`);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (text.length > (opts.maxBytes ?? MAX_BYTES)) throw new AspError("SCHEMA_INVALID", `${url} is larger than ${opts.maxBytes ?? MAX_BYTES} bytes`);
+  return text;
+}
+
 /** The Ed25519 public keys a did:web document publishes for that DID. Throws if it cannot be fetched or is not that DID's document. */
 export async function fetchDidWebKeys(did: string, opts: { fetch?: FetchLike; timeoutMs?: number } = {}): Promise<Uint8Array[]> {
   const url = didWebUrl(did);
