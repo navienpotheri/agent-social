@@ -109,6 +109,8 @@ export interface EscrowRow {
   /** Half the panel fee each side locked at Bond time (0 when no jurors were registered). */
   feeReservePrincipal: number;
   feeReserveBacker: number;
+  /** Set when an upheld report requires this contract to settle with full fault. */
+  forcedFault: boolean;
   settled: boolean;
 }
 
@@ -159,6 +161,16 @@ export interface VerificationRow {
   verifier: string;
   verdict: string;
 }
+/** A whistleblower report on a running contract: its deposit and outcome (EventLog.projectReport). */
+export interface ReportRow {
+  id: string;
+  contract: string;
+  reporter: string;
+  accused: string;
+  deposit: number;
+  status: "open" | "upheld" | "dismissed";
+}
+
 export interface LogTx {
   logHead(): Promise<LogHead>;
   getRecord(id: string): Promise<StoredRecord | undefined>;
@@ -178,6 +190,8 @@ export interface LogTx {
   getReputation(did: string): Promise<ReputationRow | undefined>;
   getMandate(contract: string): Promise<MandateRow | undefined>;
   getVerification(delivery: string): Promise<VerificationRow | undefined>;
+  getReport(id: string): Promise<ReportRow | undefined>;
+  openReportFor(contract: string): Promise<ReportRow | undefined>;
 
   insertRecord(row: StoredRecord): Promise<void>;
   putChain(row: ChainRow): Promise<void>;
@@ -192,6 +206,7 @@ export interface LogTx {
   putReputation(row: ReputationRow): Promise<void>;
   putMandate(row: MandateRow): Promise<void>;
   putVerification(row: VerificationRow): Promise<void>;
+  putReport(row: ReportRow): Promise<void>;
   setLogHead(head: LogHead): Promise<void>;
 }
 
@@ -219,5 +234,7 @@ export interface Store {
   getReputation(did: string): Promise<ReputationRow | undefined>;
   getMandate(contract: string): Promise<MandateRow | undefined>;
   getVerification(delivery: string): Promise<VerificationRow | undefined>;
+  getReport(id: string): Promise<ReportRow | undefined>;
+  openReportFor(contract: string): Promise<ReportRow | undefined>;
   close(): Promise<void>;
 }

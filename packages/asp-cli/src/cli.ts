@@ -8,6 +8,11 @@
  *     generates a fresh key and derives a self-certifying DID from it: no domain to bring, lose
  *     access to, or depend on anyone else for.
  *   asp identity show <did>
+ *   asp identity copy <agent did> [--count <n>]
+ *     Fleet isolation: makes n independently liable copies of an agent. Each is a fresh did:key agent with its
+ *     own passport, key, ledger account and reputation, sponsored by the original's sponsor (whose key must be
+ *     here), so one copy's slash or strike never touches another's balance. A copy starts at the original's
+ *     CURRENT tier (a demoted agent cannot launder its record through copies; tier 0 cannot be copied).
  *   asp identity export <did> [--out <file>]
  *     Writes the DID's current signed passport record, to send to a registry operator.
  *   asp identity register <passport.json> [--trust-unverified]
@@ -40,7 +45,9 @@
  *     blocked attempts (default 3) or when an out-of-scope call actually ran. The action record for
  *     a violation is refused, so it can never get laundered into a clean-looking log.
  *   asp orchestrate <package> --backend <runtime> --task <text> [--task <text> ...] [--project <dir>]
- *                   [--max-parallel N] [--model <m>] [--dry-run]
+ *                   [--max-parallel N] [--model <m>] [--dry-run] [--isolate]
+ *     --isolate: each node runs as its own independently liable copy (asp identity copy), and its node grant is
+ *     issued by that copy, so a slash on one node cannot reach another's account.
  *     Runs one task per node, in parallel, each under its own signed, short-lived delegated key
  *     (an asp.node/v0.2 record; see spec/schemas/node.schema.json). Nodes only write memory; a single
  *     consolidation step then merges what every node learned into one signed lineage update for the
@@ -129,6 +136,13 @@
  *     onto a Courts ruling panel, staking real credits from the ledger. A lower stake returns the
  *     difference; 0 withdraws.
  *   asp market juror show <did>
+ *   asp market report --contract <id> --by <did> --reasons <text>
+ *     A whistleblower report on a RUNNING contract, by any DID with a passport that is not a party (or sponsored
+ *     by one). Locks a deposit equal to the panel fee (5% of the price).
+ *   asp market report-rule --report <id> --by <juror> [--cosign-by <juror> ...] --verdict upheld|dismissed
+ *     A majority of the panel drawn for the report (asp market panel draw --report <id>) rules. Upheld: the
+ *     deposit returns, the accused's bond pays the jurors and gives the reporter 20% of what is left, and the
+ *     contract must settle with full fault (settle defaults to it). Dismissed: the deposit pays the jurors.
  *   asp market panel draw --contract <id> [--size <n>]
  *     Shows the panel a Disputed contract's ruling would draw — conflict-free (excludes the
  *     principal, the performer, and anyone they sponsor), deterministic (seeded from the rejection
@@ -213,6 +227,9 @@ const OPTIONS = {
   prompt: { type: "string" },
   "include-user": { type: "boolean" },
   "trust-unverified": { type: "boolean" },
+  isolate: { type: "boolean" },
+  report: { type: "string" },
+  count: { type: "string" },
   since: { type: "string" },
   "min-witnesses": { type: "string" },
   to: { type: "string" },
@@ -316,6 +333,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
   try {
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
+    if (cmd === "identity" && sub === "copy") return await identityCopy(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "export") return await identityExport(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "register") return await identityRegister(home, rest[0], v, io);
     if (cmd === "pack") return await pack(home, v, need, io);
@@ -395,6 +413,43 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
   io.out(`created ${kind} ${did}`);
   io.out(`  key      ${kid} (stored in ${join(home, "keys")})`);
   io.out(`  passport ${res.id} (log seq ${res.seq})`);
+  return 0;
+}
+
+/** Fleet isolation (docs/stage-3-plan.md M1): one independently liable copy of an agent. */
+async function createCopy(home: string, local: LocalLog, original: string): Promise<{ did: string; signer: Signer & { publicKey: Uint8Array } }> {
+  const p = await local.log.passport(original);
+  if (!p) throw new Error(`no passport for ${original}`);
+  const orig = (await local.log.get(p.head))!.record.body as {
+    kind: string; sponsor?: string; mentor?: string; tier?: number; shape?: Record<string, unknown>; purpose?: string; fleet?: string;
+  };
+  if (orig.kind !== "agent" || !orig.sponsor) throw new Error(`${original} is not a sponsored agent, so it cannot be copied`);
+  const rep = await local.log.reputationOf(original);
+  const tier = Math.min(orig.tier ?? 1, rep?.tier ?? orig.tier ?? 1);
+  if (tier === 0) throw new Error(`${original} is at tier 0 (demoted by repeat slashes); its copies would be excluded too`);
+  const keys = new Keystore(home);
+  const sponsorSigner = keys.forDid(orig.sponsor);
+  if (!sponsorSigner) throw new Error(`no key for sponsor ${orig.sponsor} in ${home}; a copy is issued by the sponsor`);
+  const seed = randomSeed();
+  const did = didKeyFromPublicKey(publicKeyFromSeed(seed));
+  const signer = keys.createFromSeed(`${did}#key-1`, seed);
+  const body = {
+    did, kind: "agent", keys: [{ id: `${did}#key-1`, type: "Ed25519", public_key: b64urlEncode(signer.publicKey) }],
+    sponsor: orig.sponsor, mentor: orig.mentor ?? orig.sponsor, tier,
+    shape: orig.shape ?? { keeps_learning: true },
+    purpose: `${orig.purpose ?? "copy"} (independent copy of ${original})`.slice(0, 500),
+    ...(orig.fleet ? { fleet: orig.fleet } : {}),
+  };
+  await local.append(createRecord({ type: "passport", issuer: orig.sponsor, subject: did, prev: null, body, issued_at: now() }, sponsorSigner));
+  return { did, signer };
+}
+
+async function identityCopy(home: string, original: string | undefined, v: Values, io: Io): Promise<number> {
+  if (!original) throw new UsageError("asp identity copy <agent did> [--count <n>]");
+  const count = v.count === undefined ? 1 : Math.trunc(Number(v.count));
+  if (!Number.isInteger(count) || count < 1 || count > 1000) throw new UsageError("--count must be a whole number from 1 to 1000");
+  const local = await LocalLog.open(home);
+  for (let i = 0; i < count; i++) io.out((await createCopy(home, local, original)).did);
   return 0;
 }
 
@@ -1044,6 +1099,40 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     io.out(juror ? `${did}: staked ${juror.staked} credits` : `${did} is not a registered juror`);
     return 0;
   }
+  // Whistleblower reports (docs/stage-3-plan.md M2): any DID with a passport may report a running contract.
+  if (sub === "report") {
+    const by = need("by");
+    const contract = need("contract");
+    const reasons = v.reasons ?? [];
+    if (!reasons.length) throw new UsageError("--reasons <text> is required, at least once");
+    const record = createRecord({ type: "attestation", issuer: by, subject: contract, prev: null, body: { kind: "report", about: contract, reasons }, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    const row = await local.log.report(res.id);
+    io.out(`report ${res.id} on contract ${contract} by ${by}; deposit ${row?.deposit ?? 0} credits locked (log seq ${res.seq})`);
+    io.out(`  a drawn panel rules with: asp market report-rule --report ${res.id} --by <juror> --cosign-by <juror> --verdict upheld|dismissed`);
+    return 0;
+  }
+
+  if (sub === "report-rule") {
+    const reportId = need("report");
+    const by = need("by");
+    const verdict = need("verdict");
+    if (!["upheld", "dismissed"].includes(verdict)) throw new UsageError("--verdict is upheld or dismissed");
+    const report = await local.log.report(reportId);
+    if (!report) throw new Error(`${reportId} is not a report in the log`);
+    let record = createRecord({ type: "attestation", issuer: by, subject: report.contract, prev: null, body: { kind: "report_ruling", about: reportId, verdict }, issued_at: now() }, signerFor(by));
+    for (const cosigner of v["cosign-by"] ?? []) record = cosign(record, signerFor(cosigner));
+    const res = await local.append(record);
+    io.out(`report ruling ${res.id} on report ${reportId}: ${verdict} (log seq ${res.seq})`);
+    if (verdict === "upheld") io.out(`  contract ${report.contract} must now settle with full fault: asp market settle --contract ${report.contract} --bank <bank> --basis revoked --principal <principal>`);
+    return 0;
+  }
+
+  if (sub === "panel" && rest[0] === "draw" && v.report) {
+    const panel = await local.log.drawReportPanel(v.report, v.size ? Math.trunc(Number(v.size)) : undefined);
+    io.out(panel.length ? `drawn panel for report ${v.report}: ${panel.join(", ")}` : "no staked, conflict-free jurors registered; a report cannot be ruled on");
+    return 0;
+  }
   if (sub === "panel" && rest[0] === "draw") {
     const contract = need("contract");
     const size = v.size ? Math.trunc(Number(v.size)) : undefined;
@@ -1087,6 +1176,9 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     let bondSlashed = v["bond-slashed"] !== undefined ? Math.trunc(Number(v["bond-slashed"])) : undefined;
     const bondReturned = Math.trunc(Number(v["bond-returned"] ?? "0"));
     let cited: string | undefined = v.cites;
+    // An upheld report forces full fault (the log refuses anything else): default to exactly that.
+    const forced = (await local.log.escrow(contract))?.forcedFault ? await local.log.escrow(contract) : undefined;
+    if (forced) { escrowReleased ??= 0; bondSlashed ??= forced.bondLocked; io.err("  note     an upheld report on this contract requires a full-fault settlement"); }
 
     if (basis === "accepted" || basis === "ruling") {
       cited ??= [...chain].reverse().find((s) => s.kind === "attestation")?.id;
@@ -1163,7 +1255,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
-  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|settle|show|action|juror register|juror show|panel draw");
+  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|report|report-rule|settle|show|action|juror register|juror show|panel draw");
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */
@@ -1763,16 +1855,22 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
 
     // A delegated, short-lived key for this node (spec/schemas/node.schema.json); no Mandate yet in
     // single-player mode, so it is bookkeeping and audit trail only (see MOCKS.md).
+    // --isolate: the node is its own independently liable copy; otherwise it is a key of the one agent.
+    let liable: { did: string; signer: Signer & { publicKey: Uint8Array } } = { did: agent, signer };
+    if (v.isolate) {
+      try { liable = await createCopy(home, local, agent); io.err(`  node ${index}  runs as its own copy ${liable.did}`); }
+      catch (e) { io.err(`  node ${index}  FAILED  could not make an independent copy: ${(e as Error).message}`); return { index, task, ok: false, runDir, error: "isolation failed" }; }
+    }
     const nodeSeed = randomSeed();
-    const nodeKid = `${agent}#node-${batchTag}-${index}`;
+    const nodeKid = `${liable.did}#node-${batchTag}-${index}`;
     const nodeRecord = createRecord({
-      type: "node", issuer: agent, subject: agent, prev: null, issued_at: now(),
+      type: "node", issuer: liable.did, subject: liable.did, prev: null, issued_at: now(),
       body: {
         node: nodeKid, public_key: b64urlEncode(publicKeyFromSeed(nodeSeed)),
         expires: new Date(Date.now() + 3600_000).toISOString().replace(/\.\d{3}Z$/, "Z"),
         purpose: task.slice(0, 200),
       },
-    }, signer);
+    }, liable.signer);
     if (inLocalLog) {
       try { await local.append(nodeRecord); } catch { /* best-effort: node bookkeeping only */ }
     }
@@ -1784,9 +1882,9 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
       try {
         const revokedAt = now();
         const revoke = createRecord({
-          type: "node", issuer: agent, subject: agent, prev: nodeRecord.id, issued_at: revokedAt,
+          type: "node", issuer: liable.did, subject: liable.did, prev: nodeRecord.id, issued_at: revokedAt,
           body: { node: nodeKid, public_key: b64urlEncode(publicKeyFromSeed(nodeSeed)), expires: revokedAt, purpose: task.slice(0, 200) },
-        }, signer);
+        }, liable.signer);
         await local.append(revoke);
       } catch { /* best-effort: node bookkeeping only */ }
     }

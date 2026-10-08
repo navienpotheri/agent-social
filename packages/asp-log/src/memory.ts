@@ -1,7 +1,7 @@
 import {
   GENESIS_LOG_HASH,
   type AccountRow, type ChainRow, type EscrowRow, type FleetRow, type JurorRow, type KeyRow, type LogHead, type LogTx,
-  type MandateRow, type MintRow, type PassportRow, type ProbationRow, type ReputationRow, type Store, type StoredRecord, type VerificationRow,
+  type MandateRow, type MintRow, type PassportRow, type ProbationRow, type ReportRow, type ReputationRow, type Store, type StoredRecord, type VerificationRow,
 } from "./store.ts";
 
 const copy = <T>(v: T): T => structuredClone(v);
@@ -19,11 +19,12 @@ interface Tables {
   reputations: Map<string, ReputationRow>;
   mandates: Map<string, MandateRow>;
   verifications: Map<string, VerificationRow>;
+  reports: Map<string, ReportRow>;
 }
 
 const emptyTables = (): Tables => ({
   chains: new Map(), keys: new Map(), passports: new Map(), fleets: new Map(), probations: new Map(),
-  accounts: new Map(), escrows: new Map(), mints: new Map(), jurors: new Map(), reputations: new Map(), mandates: new Map(), verifications: new Map(),
+  accounts: new Map(), escrows: new Map(), mints: new Map(), jurors: new Map(), reputations: new Map(), mandates: new Map(), verifications: new Map(), reports: new Map(),
 });
 
 /** An in-memory Store for tests and local tools. Appends are serialized; failed appends leave no trace. */
@@ -83,6 +84,8 @@ export class MemoryStore implements Store {
   async getReputation(did: string) { const r = this.tables.reputations.get(did); return r && copy(r); }
   async getMandate(contract: string) { const m = this.tables.mandates.get(contract); return m && copy(m); }
   async getVerification(delivery: string) { const v = this.tables.verifications.get(delivery); return v && copy(v); }
+  async getReport(id: string) { const r = this.tables.reports.get(id); return r && copy(r); }
+  async openReportFor(contract: string) { const r = [...this.tables.reports.values()].find((x) => x.contract === contract && x.status === "open"); return r && copy(r); }
   async close() {}
 
   /** @internal read access for MemoryTx */
@@ -136,6 +139,8 @@ class MemoryTx implements LogTx {
   async getReputation(did: string) { return this.read("reputations", did) as ReputationRow | undefined; }
   async getMandate(contract: string) { return this.read("mandates", contract) as MandateRow | undefined; }
   async getVerification(delivery: string) { return this.read("verifications", delivery) as VerificationRow | undefined; }
+  async getReport(id: string) { return this.read("reports", id) as ReportRow | undefined; }
+  async openReportFor(contract: string) { return this.all("reports").find((x) => x.contract === contract && x.status === "open"); }
 
   async insertRecord(row: StoredRecord) { this.newRecords.push(copy(row)); }
   async putChain(row: ChainRow) { this.staged.chains.set(row.root, copy(row)); }
@@ -150,5 +155,6 @@ class MemoryTx implements LogTx {
   async putReputation(row: ReputationRow) { this.staged.reputations.set(row.did, copy(row)); }
   async putMandate(row: MandateRow) { this.staged.mandates.set(row.contract, copy(row)); }
   async putVerification(row: VerificationRow) { this.staged.verifications.set(row.delivery, copy(row)); }
+  async putReport(row: ReportRow) { this.staged.reports.set(row.id, copy(row)); }
   async setLogHead(head: LogHead) { this.head = { ...head }; }
 }

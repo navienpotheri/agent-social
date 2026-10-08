@@ -7,7 +7,7 @@
   "required": ["kind", "about"],
   "properties": {
     "kind": {
-      "enum": ["acceptance", "checkpoint_resolution", "rating", "ruling", "certificate", "allocation", "citation", "verification"]
+      "enum": ["acceptance", "checkpoint_resolution", "rating", "ruling", "certificate", "allocation", "citation", "verification", "report", "report_ruling"]
     },
     "about": {
       "description": "The record this judgment is about.",
@@ -66,6 +66,14 @@
         "required": ["verdict"],
         "properties": { "verdict": { "enum": ["confirmed", "partly_confirmed", "not_confirmed"] } }
       }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "report" } } },
+      "then": { "required": ["reasons"], "properties": { "reasons": { "minItems": 1 } } }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "report_ruling" } } },
+      "then": { "required": ["verdict"], "properties": { "verdict": { "enum": ["upheld", "dismissed"] } } }
     },
     {
       "if": { "properties": { "kind": { "const": "ruling" } } },

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import pg from "pg";
 import type {
-  AccountRow, ChainRow, EscrowRow, FleetRow, JurorRow, KeyRow, LogHead, LogTx, MandateRow, MintRow, PassportRow, VerificationRow,
+  AccountRow, ChainRow, EscrowRow, FleetRow, JurorRow, KeyRow, LogHead, LogTx, MandateRow, MintRow, PassportRow, ReportRow, VerificationRow,
   ProbationRow, ReputationRow, Store, StoredRecord,
 } from "./store.ts";
 
@@ -63,12 +63,13 @@ const toEscrow = (e: any): EscrowRow => ({
   contract: e.contract, escrowPayer: e.escrow_payer, escrowLocked: Number(e.escrow_locked),
   backer: e.backer, bondLocked: Number(e.bond_locked),
   agentPermille: e.agent_permille === null ? null : Number(e.agent_permille),
-  feeReservePrincipal: Number(e.fee_reserve_principal), feeReserveBacker: Number(e.fee_reserve_backer), settled: e.settled,
+  feeReservePrincipal: Number(e.fee_reserve_principal), feeReserveBacker: Number(e.fee_reserve_backer), forcedFault: !!e.forced_fault, settled: e.settled,
 });
 const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_minted) });
 const toJuror = (j: any): JurorRow => ({ did: j.did, head: j.head, staked: Number(j.staked) });
 const toReputation = (r: any): ReputationRow => ({ did: r.did, tier: Number(r.tier), slashCount: Number(r.slash_count), strikeLog: r.strike_log ?? [] });
 const toMandate = (m: any): MandateRow => ({ contract: m.contract, scopes: m.scopes });
+const toReport = (r: any): ReportRow => ({ id: r.id, contract: r.contract, reporter: r.reporter, accused: r.accused, deposit: Number(r.deposit), status: r.status });
 const toVerification = (v: any): VerificationRow => ({ delivery: v.delivery, contract: v.contract, verifier: v.verifier, verdict: v.verdict });
 
 /** Reads shared by the store (pool) and a transaction (client). */
@@ -154,6 +155,14 @@ function reads(q: Queryable) {
       const { rows } = await q.query("SELECT * FROM verifications WHERE delivery = $1", [delivery]);
       return rows[0] && toVerification(rows[0]);
     },
+    async getReport(id: string) {
+      const { rows } = await q.query("SELECT * FROM reports WHERE id = $1", [id]);
+      return rows[0] && toReport(rows[0]);
+    },
+    async openReportFor(contract: string) {
+      const { rows } = await q.query("SELECT * FROM reports WHERE contract = $1 AND status = 'open' LIMIT 1", [contract]);
+      return rows[0] && toReport(rows[0]);
+    },
   };
 }
 
@@ -201,6 +210,8 @@ export class PostgresStore implements Store {
   getReputation(did: string) { return this.r.getReputation(did); }
   getMandate(contract: string) { return this.r.getMandate(contract); }
   getVerification(delivery: string) { return this.r.getVerification(delivery); }
+  getReport(id: string) { return this.r.getReport(id); }
+  openReportFor(contract: string) { return this.r.openReportFor(contract); }
   async chainRecords(root: string) {
     const { rows } = await this.pool.query<RecordRow>(`SELECT ${RECORD_COLS} FROM records WHERE chain = $1 ORDER BY seq`, [root]);
     return rows.map(toStored);
@@ -240,6 +251,8 @@ class PgTx implements LogTx {
   getReputation(did: string) { return this.r.getReputation(did); }
   getMandate(contract: string) { return this.r.getMandate(contract); }
   getVerification(delivery: string) { return this.r.getVerification(delivery); }
+  getReport(id: string) { return this.r.getReport(id); }
+  openReportFor(contract: string) { return this.r.openReportFor(contract); }
 
   async insertRecord(row: StoredRecord) {
     const r = row.record;
@@ -295,11 +308,11 @@ class PgTx implements LogTx {
   }
   async putEscrow(row: EscrowRow) {
     await this.c.query(
-      `INSERT INTO escrows (contract, escrow_payer, escrow_locked, backer, bond_locked, settled, agent_permille, fee_reserve_principal, fee_reserve_backer)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO escrows (contract, escrow_payer, escrow_locked, backer, bond_locked, settled, agent_permille, fee_reserve_principal, fee_reserve_backer, forced_fault)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (contract) DO UPDATE SET escrow_payer = $2, escrow_locked = $3, backer = $4, bond_locked = $5, settled = $6, agent_permille = $7,
-         fee_reserve_principal = $8, fee_reserve_backer = $9`,
-      [row.contract, row.escrowPayer, row.escrowLocked, row.backer, row.bondLocked, row.settled, row.agentPermille, row.feeReservePrincipal, row.feeReserveBacker],
+         fee_reserve_principal = $8, fee_reserve_backer = $9, forced_fault = $10`,
+      [row.contract, row.escrowPayer, row.escrowLocked, row.backer, row.bondLocked, row.settled, row.agentPermille, row.feeReservePrincipal, row.feeReserveBacker, row.forcedFault],
     );
   }
   async putMint(row: MintRow) {
@@ -328,6 +341,13 @@ class PgTx implements LogTx {
       `INSERT INTO mandates (contract, scopes) VALUES ($1, $2)
        ON CONFLICT (contract) DO UPDATE SET scopes = $2`,
       [row.contract, row.scopes],
+    );
+  }
+  async putReport(row: ReportRow) {
+    await this.c.query(
+      `INSERT INTO reports (id, contract, reporter, accused, deposit, status) VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO UPDATE SET status = $6`,
+      [row.id, row.contract, row.reporter, row.accused, row.deposit, row.status],
     );
   }
   async putVerification(row: VerificationRow) {

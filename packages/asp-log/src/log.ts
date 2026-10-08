@@ -25,6 +25,8 @@ const TIER_SPEND_LIMIT: Record<number, number> = { 1: 100, 2: 1000 };
 const TIER_PARALLEL_LIMIT: Record<number, number> = { 1: 4, 2: 16 };
 /** Courts pay the jurors who signed a ruling: this share of the contract price, split among them. Loser pays. */
 const PANEL_FEE_PERMILLE = 50;
+/** Whistleblower reports: the reporter's share of the accused's bond when a report is upheld (S39). */
+const REPORT_REWARD_PERMILLE = 200;
 const STRIKE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 type StrikeEntry = { at: string; count: number };
 /** Strikes at or after `since` (the Bond's own issued_at, so replay is deterministic). */
@@ -172,6 +174,7 @@ export class EventLog {
     if (type === "attestation") {
       await this.checkRulingPanel(tx, verified);
       await this.checkAllocationPanel(tx, verified);
+      await this.projectReport(tx, verified);
       await this.checkVerification(tx, verified);
       await this.checkVerifiedBeforeAcceptance(tx, verified);
     }
@@ -559,7 +562,7 @@ export class EventLog {
     const agentPermille = (ppRec?.record.body as { earnings_split?: { agent_permille: number } } | undefined)?.earnings_split?.agent_permille ?? null;
     await tx.putEscrow({
       contract: body.contract, escrowPayer: body.escrow.payer, escrowLocked: body.escrow.amount.value,
-      backer: body.backer, bondLocked: body.amount.value, agentPermille, feeReservePrincipal: reserveEach, feeReserveBacker: reserveEach, settled: false,
+      backer: body.backer, bondLocked: body.amount.value, agentPermille, feeReservePrincipal: reserveEach, feeReserveBacker: reserveEach, forcedFault: false, settled: false,
     });
   }
 
@@ -581,6 +584,9 @@ export class EventLog {
     const escrow = await tx.getEscrow(body.contract);
     if (!escrow) throw rule("no_bond_for_settlement", `no Bond found for contract ${body.contract}`);
     if (escrow.settled) throw rule("already_settled", `contract ${body.contract} was already settled`);
+    if (escrow.forcedFault && (body.escrow_released.value !== 0 || fees !== 0 || body.bond_returned.value !== 0 || body.bond_slashed.value !== escrow.bondLocked)) {
+      throw rule("report_requires_full_fault", `an upheld report requires a full-fault settlement: nothing released, the remaining ${escrow.bondLocked} of the bond slashed`);
+    }
     if (body.escrow_released.value + fees > escrow.escrowLocked) {
       throw rule("over_release", `escrow_released + fees exceeds the ${escrow.escrowLocked} locked`);
     }
@@ -708,6 +714,73 @@ export class EventLog {
     if (!call || shortType(call.record.type) !== "call") throw rule("allocation_unknown_call", `the Proposal's Call ${callId} is not in the log`);
     const panel = (call.record.body as { panel: string[] }).panel;
     if (!panel.includes(r.issuer)) throw rule("not_on_call_panel", `${r.issuer} is not on the Call's panel (${panel.join(", ")})`);
+  }
+
+  /**
+   * Whistleblower reports (docs/stage-3-plan.md M2, S39). A `report` is a standalone Attestation any DID with a
+   * passport may file against a contract that is Running (or at a Checkpoint): it locks a deposit equal to the panel
+   * fee and opens a case. A `report_ruling`, signed by a majority of a panel drawn for that report (seeded from the
+   * report, excluding the principal, the performer, the reporter and anyone they sponsor), settles it:
+   * upheld: the deposit comes back, the accused's bond pays the jurors and the reporter's share, and the contract must
+   * settle with full fault; dismissed: the deposit pays the jurors.
+   */
+  private async projectReport(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as { kind: string; about: string; verdict?: string };
+    if (body.kind === "report") return this.fileReport(tx, r, body.about);
+    if (body.kind === "report_ruling") return this.ruleReport(tx, r, body.about, body.verdict as "upheld" | "dismissed");
+  }
+
+  private async fileReport(tx: LogTx, r: AspRecord, contractId: string): Promise<void> {
+    const contract = await tx.getRecord(contractId);
+    if (!contract || contract.record.type !== "asp.contract/v0.2") throw rule("report_about_unknown", `${contractId} is not a Contract in this log`);
+    const cbody = contract.record.body as { principal: string; performer: string; price?: { value: number } };
+    const state = (await tx.getChain(contract.chain))?.state;
+    if (state !== "Running" && state !== "Checkpoint") throw rule("report_not_running", `contract ${contractId} is not running (state: ${state ?? "unknown"}); only a running job can be reported`);
+    const escrow = await tx.getEscrow(contractId);
+    if (!escrow || escrow.settled) throw rule("report_no_bond", `contract ${contractId} has no live bond to report against`);
+    const reporter = r.issuer;
+    const sponsor = (await tx.getPassport(reporter))?.sponsor;
+    if (!(await tx.getPassport(reporter))) throw rule("reporter_unknown", `${reporter} has no passport`);
+    const parties = new Set([cbody.principal, cbody.performer]);
+    if (parties.has(reporter) || (sponsor && parties.has(sponsor))) {
+      throw rule("reporter_conflicted", `${reporter} is, or is sponsored by, a party to the contract; a party uses reject or revoke, not a report`);
+    }
+    if (await tx.openReportFor(contractId)) throw rule("report_already_open", `contract ${contractId} already has an open report`);
+    const deposit = Math.floor(((cbody.price?.value ?? 0) * PANEL_FEE_PERMILLE) / 1000);
+    if (deposit > 0) await this.debit(tx, reporter, deposit);
+    await tx.putReport({ id: r.id, contract: contractId, reporter, accused: cbody.performer, deposit, status: "open" });
+  }
+
+  private async ruleReport(tx: LogTx, r: AspRecord, reportId: string, verdict: "upheld" | "dismissed"): Promise<void> {
+    const report = await tx.getReport(reportId);
+    if (!report) throw rule("ruling_about_unknown_report", `${reportId} is not a report in this log`);
+    if (report.status !== "open") throw rule("report_already_ruled", `report ${reportId} was already ${report.status}`);
+    const contract = (await tx.getRecord(report.contract))!;
+    const cbody = contract.record.body as { principal: string; performer: string; price?: { value: number } };
+    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed: reportId, size: this.panelSize, also: [report.reporter] });
+    if (panel.length === 0) throw rule("no_panel_for_report", "no staked, conflict-free juror is registered, so no panel can rule on a report");
+    const signers = new Set([r.sig.kid, ...(r.cosigs ?? []).map((c) => c.kid)].map(didOf));
+    const paid = panel.filter((p) => signers.has(p));
+    const quorum = Math.ceil(panel.length / 2);
+    if (paid.length < quorum) throw rule("panel_quorum", `a report ruling needs ${quorum} of the drawn panel (${panel.join(", ")}) to sign; only ${paid.length} did`);
+    const price = cbody.price?.value ?? 0;
+    const fee = Math.floor((price * PANEL_FEE_PERMILLE) / 1000);
+    const pay = async (total: number) => {
+      const each = Math.floor(total / paid.length);
+      for (const [i, d] of paid.entries()) await this.credit(tx, d, each + (i === 0 ? total - each * paid.length : 0));
+    };
+    if (verdict === "dismissed") {
+      await pay(report.deposit);
+    } else {
+      const escrow = (await tx.getEscrow(report.contract))!;
+      await this.credit(tx, report.reporter, report.deposit);
+      const feeFromBond = Math.min(escrow.bondLocked, fee);
+      await pay(feeFromBond);
+      const reward = Math.floor(((escrow.bondLocked - feeFromBond) * REPORT_REWARD_PERMILLE) / 1000);
+      await this.credit(tx, report.reporter, reward);
+      await tx.putEscrow({ ...escrow, bondLocked: escrow.bondLocked - feeFromBond - reward, forcedFault: true });
+    }
+    await tx.putReport({ ...report, status: verdict });
   }
 
   private async checkRulingPanel(tx: LogTx, r: AspRecord): Promise<void> {
@@ -845,6 +918,16 @@ export class EventLog {
     if (!seed) throw rule("no_dispute", `contract ${contract} has no open dispute (no rejection found)`);
     return drawPanel(this.store, { principal: cbody.principal, performer: cbody.performer, seed, size: size ?? this.panelSize });
   }
+
+  /** The panel a report's ruling would draw (excludes the principal, performer, reporter and anyone they sponsor). */
+  async drawReportPanel(reportId: string, size?: number): Promise<string[]> {
+    const report = await this.store.getReport(reportId);
+    if (!report) throw new AspError("BAD_PREV", `${reportId} is not a report in this log`);
+    const contract = (await this.store.getRecord(report.contract))!.record.body as { principal: string; performer: string };
+    return drawPanel(this.store, { principal: contract.principal, performer: contract.performer, seed: reportId, size: size ?? this.panelSize, also: [report.reporter] });
+  }
+
+  report(id: string) { return this.store.getReport(id); }
 
   /**
    * Bootstraps a DID's balance for local testing. Not a signed record, not part of the tamper-

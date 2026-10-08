@@ -1122,6 +1122,66 @@
       "valid": true
     },
     {
+      "name": "valid_report",
+      "schema": "attestation",
+      "instance": {
+        "kind": "report",
+        "about": "sha256:cc8321d6375c494d043fdd0260f21bc0ec51dacc9f6abb7f909cdcd3041b78bf",
+        "reasons": [
+          "sending data to an outside host"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "report_without_reasons",
+      "schema": "attestation",
+      "instance": {
+        "kind": "report",
+        "about": "sha256:cc8321d6375c494d043fdd0260f21bc0ec51dacc9f6abb7f909cdcd3041b78bf"
+      },
+      "valid": false
+    },
+    {
+      "name": "report_empty_reasons",
+      "schema": "attestation",
+      "instance": {
+        "kind": "report",
+        "about": "sha256:cc8321d6375c494d043fdd0260f21bc0ec51dacc9f6abb7f909cdcd3041b78bf",
+        "reasons": []
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_report_ruling_upheld",
+      "schema": "attestation",
+      "instance": {
+        "kind": "report_ruling",
+        "about": "sha256:845e91831319e89c4d656bdb80c278ac09a7230d61e5dfd2e1b1fbb436ac8917",
+        "verdict": "upheld"
+      },
+      "valid": true
+    },
+    {
+      "name": "report_ruling_bad_verdict",
+      "schema": "attestation",
+      "instance": {
+        "kind": "report_ruling",
+        "about": "sha256:845e91831319e89c4d656bdb80c278ac09a7230d61e5dfd2e1b1fbb436ac8917",
+        "verdict": "for_principal"
+      },
+      "valid": false
+    },
+    {
+      "name": "report_ruling_without_verdict",
+      "schema": "attestation",
+      "instance": {
+        "kind": "report_ruling",
+        "about": "sha256:845e91831319e89c4d656bdb80c278ac09a7230d61e5dfd2e1b1fbb436ac8917"
+      },
+      "valid": false
+    },
+    {
       "name": "correction_without_text",
       "schema": "attestation",
       "instance": {

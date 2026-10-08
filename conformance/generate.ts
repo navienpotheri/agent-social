@@ -554,6 +554,12 @@ sv("acceptance_bad_verdict", "attestation", { kind: "acceptance", about: fakeId(
 sv("valid_checkpoint_expires", "checkpoint", { contract: fakeId("c"), kind: "before_irreversible", question: "May it run?", expires: "2026-10-05T10:00:00Z" }, true);
 sv("checkpoint_bad_expires", "checkpoint", { contract: fakeId("c"), kind: "before_irreversible", question: "May it run?", expires: "tomorrow" }, false);
 sv("valid_resolution_expired", "attestation", { kind: "checkpoint_resolution", about: fakeId("cp"), verdict: "expired" }, true);
+sv("valid_report", "attestation", { kind: "report", about: fakeId("contract"), reasons: ["sending data to an outside host"] }, true);
+sv("report_without_reasons", "attestation", { kind: "report", about: fakeId("contract") }, false);
+sv("report_empty_reasons", "attestation", { kind: "report", about: fakeId("contract"), reasons: [] }, false);
+sv("valid_report_ruling_upheld", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld" }, true);
+sv("report_ruling_bad_verdict", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "for_principal" }, false);
+sv("report_ruling_without_verdict", "attestation", { kind: "report_ruling", about: fakeId("report") }, false);
 sv("correction_without_text", "attestation", { kind: "checkpoint_resolution", about: fakeId("cp"), verdict: "corrected" }, false);
 sv("ruling_without_fault", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "split" }, false);
 sv("settlement_accepted_without_cites", "settlement", { contract: fakeId("c"), basis: "accepted", escrow_released: credits(0), bond_returned: credits(0), bond_slashed: credits(0) }, false);

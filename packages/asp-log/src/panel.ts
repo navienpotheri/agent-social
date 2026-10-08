@@ -35,8 +35,8 @@ export async function findRejection(source: PanelSource, from: string | null): P
  * fixed once it does. The same inputs always produce the same panel, so anyone (including
  * EventLog.verify()'s replay) can recompute and check it without the draw itself being a record.
  */
-export async function drawPanel(source: PanelSource, opts: { principal: string; performer: string; seed: string; size?: number }): Promise<string[]> {
-  const parties = new Set([opts.principal, opts.performer]);
+export async function drawPanel(source: PanelSource, opts: { principal: string; performer: string; seed: string; size?: number; also?: string[] }): Promise<string[]> {
+  const parties = new Set([opts.principal, opts.performer, ...(opts.also ?? [])]);
   const candidates = (await source.activeJurors()).map((j) => j.did).filter((d) => !parties.has(d));
   // Sequential, not Promise.all: a PgTx wraps one client, which cannot run concurrent queries.
   const remaining: string[] = [];
