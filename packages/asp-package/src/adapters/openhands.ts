@@ -21,6 +21,7 @@ import { join } from "node:path";
 import { sha256Id } from "@agent-social/asp-core";
 import { copyInto, listFiles, sha256File, writeJson } from "../files.ts";
 import { deriveScopeForTool } from "../package.ts";
+import { scopeForShellCommand } from "./codex-actions.ts";
 import { asList, frontmatter } from "../frontmatter.ts";
 import type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter } from "../harness.ts";
 import { stripSecrets, toEnvRefs } from "../secrets.ts";
@@ -226,7 +227,8 @@ function checkOutputForAction(line: string): { scope: string; artifact?: { uri: 
   if (NO_SCOPE_OPENHANDS_TOOLS.has(o.tool_name)) return undefined;
   const action = o.action ?? {};
   const scope = o.tool_name === "terminal"
-    ? deriveScopeForTool("Bash", typeof action.command === "string" ? action.command : "")
+    // By what the command does (a read-only `ls` or `cat` is repo.read), as for Codex and Antigravity; checked live on OpenHands 1.16 with an open-weight model.
+    ? scopeForShellCommand(typeof action.command === "string" ? action.command : "")
     : o.tool_name === "file_editor"
       ? (action.command === "view" ? "repo.read" : "repo.write")
       : deriveScopeForTool(o.tool_name, "");

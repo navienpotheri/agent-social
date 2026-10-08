@@ -1671,6 +1671,15 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   // Under a contract, the live Mandate is read once up front: it drives the pre-call hook (an
   // out-of-scope call is blocked before it runs, where the adapter supports it) and the live check below.
   let local = v.contract ? await LocalLog.open(home) : undefined;
+  // A contract that is not running has no live Mandate to enforce: running the agent anyway would leave every call unchecked
+  // (found live: a demoted agent's job never reached Running, and the agent ran with no limits at all).
+  if (v.contract) {
+    const state = (await local!.log.chainInfo(v.contract))?.state;
+    if (state !== "Running" && state !== "Checkpoint") {
+      io.err(`refusing to run: contract ${v.contract} is ${state ?? "not in the log"}, not Running, so there is no live Mandate to enforce. Finish setting the job up (bond, then mandate) first.`);
+      return 1;
+    }
+  }
   const mandate = v.contract ? await local!.log.mandateOf(v.contract) : undefined;
   // The Mandate's irreversible policy: scopes that need the principal's approval first, or are forbidden.
   let gate: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number } | undefined;

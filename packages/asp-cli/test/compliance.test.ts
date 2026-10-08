@@ -128,10 +128,9 @@ test("asp run --contract kills the process when an out-of-scope call actually ra
   assert.match(coderBalance.out, /: 0 credits/);
 });
 
-test("asp run --contract without a live Mandate cannot run the kill switch, but still flags the violation after the fact", async () => {
+test("asp run --contract refuses to run when the contract has no live Mandate to enforce (it used to run unchecked)", async () => {
   const f = makeFixture();
-  // A contract id that isn't in the log at all: mandateOf finds nothing, so there is no live scope
-  // list to check calls against — the kill switch simply can't fire without one to check against.
+  // A contract id that isn't in the log at all: there is no live scope list to check calls against.
   const fakeContract = "sha256:" + "0".repeat(64);
   const pkg = join(f.root, "coder.aspkg");
   await asp(f, ["identity", "new", "--kind", "human", "--did", ALICE]);
@@ -141,9 +140,9 @@ test("asp run --contract without a live Mandate cannot run the kill switch, but 
 
   const run = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", "--contract", fakeContract],
     fakeClaude({ FAKE_CLAUDE_TOOL_USE: JSON.stringify([{ name: "Bash", input: { command: "rm -rf /tmp/whatever" } }]) }));
-  assert.doesNotMatch(run.err, /KILL SWITCH/);
-  assert.equal(run.code, 0, run.err);
-  assert.match(run.err, /COMPLIANCE VIOLATION/);
+  assert.equal(run.code, 1);
+  assert.match(run.err, /refusing to run: contract \S+ is not in the log, not Running/);
+  assert.doesNotMatch(run.err, /COMPLIANCE VIOLATION|KILL SWITCH/, "nothing ran, so nothing was flagged");
 });
 
 test("asp run --contract fingerprints the tool call's real input and stores the hash on the Action, not the input", async () => {

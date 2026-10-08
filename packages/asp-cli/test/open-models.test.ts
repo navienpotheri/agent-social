@@ -102,7 +102,7 @@ test("the kill switch works on OpenHands: an out-of-scope terminal action stops 
   const f = makeFixture();
   const { pkg, contractId } = await setup(f, ["repo.read"]);
   const run = await asp(f, ["run", pkg, "--backend", "openhands", "--project", f.project, "--prompt", "go", "--contract", contractId!],
-    fakeOpenHands({ FAKE_OH_ACTIONS: JSON.stringify([{ tool_name: "terminal", action: { command: "rm -rf /tmp/whatever" } }]) }));
+    fakeOpenHands({ FAKE_OH_ACTIONS: JSON.stringify([{ tool_name: "terminal", action: { command: "node build.js" } }]) }));
   assert.equal(run.code, 1);
   assert.match(run.err, /KILL SWITCH\s+shell\.exec/);
   assert.match(run.err, /kill-switch settlement: bond fully slashed/);
@@ -126,4 +126,31 @@ test("OpenHands' finish, think and task_tracker calls need no scope (seen live: 
     fakeOpenHands({ FAKE_OH_ACTIONS: JSON.stringify([{ tool_name: "think" }, { tool_name: "task_tracker" }, { tool_name: "finish", action: { message: "done" } }]) }));
   assert.equal(run.code, 0, run.err);
   assert.doesNotMatch(run.err, /KILL SWITCH/);
+});
+
+test("OpenHands read-only terminal commands (ls, cat) are repo.read, not shell.exec (found live: a read-only job was killed and slashed)", async () => {
+  const f = makeFixture();
+  const { pkg, contractId } = await setup(f, ["repo.read"]);
+  const run = await asp(f, ["run", pkg, "--backend", "openhands", "--project", f.project, "--prompt", "go", "--contract", contractId!],
+    fakeOpenHands({ FAKE_OH_ACTIONS: JSON.stringify([
+      { tool_name: "terminal", action: { command: "ls -la", is_input: false, timeout: null, reset: false } },
+      { tool_name: "terminal", action: { command: "cat notes.txt", is_input: false, timeout: null, reset: false } },
+      { tool_name: "finish", action: { message: "done" } },
+    ]) }));
+  assert.equal(run.code, 0, run.err);
+  assert.doesNotMatch(run.err, /KILL SWITCH/);
+  assert.match(run.err, /reported scopes: repo\.read/);
+});
+
+test("asp run refuses to run under a contract that is not Running: there is no live Mandate to enforce", async () => {
+  const f = makeFixture();
+  const { pkg } = await setup(f);
+  // A contract that exists but was never bonded or given a Mandate.
+  await asp(f, ["credits", "grant", "--to", ALICE, "--amount", "1000"]);
+  const intent = /^intent (\S+)/.exec((await asp(f, ["market", "intent", "--by", ALICE, "--purpose", "Fix it", "--budget", "1000", "--deadline", "2026-12-01T00:00:00Z"])).out)![1];
+  const offer = /^offer (\S+)/.exec((await asp(f, ["market", "offer", "--by", CODER, "--intent", intent, "--price", "1000", "--plan", "fix", "--eta", "2026-11-01T00:00:00Z"])).out)![1];
+  const contract = /^contract (\S+):/.exec((await asp(f, ["market", "contract", "--principal", ALICE, "--bank", BANK, "--intent", intent, "--offer", offer])).out)![1];
+  const run = await asp(f, ["run", pkg, "--backend", "openhands", "--project", f.project, "--prompt", "go", "--contract", contract], fakeOpenHands());
+  assert.equal(run.code, 1);
+  assert.match(run.err, /refusing to run: contract \S+ is Contracted, not Running/);
 });
