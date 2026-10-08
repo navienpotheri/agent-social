@@ -4,6 +4,7 @@ export { appendCheckpoint, findEquivocations, readCheckpoints, signCheckpoint, v
 export { finishPackage, packDirectory, resolvePackage, unpackToTemp, type ResolvedPackage } from "./archive.ts";
 export { codex, resolveCodexCommand, summarizeRollout, tomlValue } from "./adapters/codex.ts";
 export { openhands } from "./adapters/openhands.ts";
+export { antigravity } from "./adapters/antigravity.ts";
 export { toWslPath, wslEnvFor } from "./wsl.ts";
 export { listFiles, sha256File, treeHash } from "./files.ts";
 export { frontmatter } from "./frontmatter.ts";
@@ -18,7 +19,8 @@ export { redactSecrets, resolveSecrets, scanForSecrets, stripSecrets, toEnvRefs,
 import { claudeCode } from "./adapters/claude-code.ts";
 import { codex } from "./adapters/codex.ts";
 import { openhands } from "./adapters/openhands.ts";
+import { antigravity } from "./adapters/antigravity.ts";
 import type { RuntimeAdapter } from "./harness.ts";
 
 /** Runtime adapters by name. */
-export const ADAPTERS: Record<string, RuntimeAdapter> = { [claudeCode.name]: claudeCode, [codex.name]: codex, [openhands.name]: openhands };
+export const ADAPTERS: Record<string, RuntimeAdapter> = { [claudeCode.name]: claudeCode, [codex.name]: codex, [openhands.name]: openhands, [antigravity.name]: antigravity };
