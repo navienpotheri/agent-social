@@ -1090,6 +1090,38 @@
       "valid": false
     },
     {
+      "name": "valid_checkpoint_expires",
+      "schema": "checkpoint",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "kind": "before_irreversible",
+        "question": "May it run?",
+        "expires": "2026-10-05T10:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "checkpoint_bad_expires",
+      "schema": "checkpoint",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "kind": "before_irreversible",
+        "question": "May it run?",
+        "expires": "tomorrow"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_resolution_expired",
+      "schema": "attestation",
+      "instance": {
+        "kind": "checkpoint_resolution",
+        "about": "sha256:e44b4bd707c540bca8615b21f850fb41e02029701df241d179c1a5f3acbf5bf1",
+        "verdict": "expired"
+      },
+      "valid": true
+    },
+    {
       "name": "correction_without_text",
       "schema": "attestation",
       "instance": {

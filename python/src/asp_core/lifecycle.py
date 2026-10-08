@@ -20,7 +20,7 @@ class Job:
 
     _SNAPSHOT_FIELDS = (
         "state", "head", "last_issued_at", "length", "contract_id", "principal", "performer", "bank",
-        "review_deadline", "open_checkpoint", "latest_delivery", "acceptance", "ruling", "redeliveries",
+        "review_deadline", "open_checkpoint", "open_checkpoint_expires", "latest_delivery", "acceptance", "ruling", "redeliveries",
     )
 
     def __init__(self, resolve: KeyResolver | None = None, schemas: SchemaSet | None = None):
@@ -37,6 +37,7 @@ class Job:
         self.bank: str | None = None
         self.review_deadline: str | None = None
         self.open_checkpoint: str | None = None
+        self.open_checkpoint_expires: str | None = None
         self.latest_delivery: str | None = None
         self.acceptance: str | None = None
         self.ruling: str | None = None
@@ -147,6 +148,9 @@ class Job:
                 return r["subject"] == self.performer
             case "about_open_checkpoint":
                 return b.get("about") == self.open_checkpoint
+            case "checkpoint_expired":
+                return (self.open_checkpoint_expires is not None
+                        and datetime.fromisoformat(r["issued_at"]) >= datetime.fromisoformat(self.open_checkpoint_expires))
             case "about_latest_delivery":
                 return b.get("about") == self.latest_delivery
             case "about_contract":
@@ -169,8 +173,10 @@ class Job:
     def _record(self, t: dict[str, Any], rtype: str, r: Record) -> None:
         if rtype == "checkpoint":
             self.open_checkpoint = r["id"]
+            self.open_checkpoint_expires = r["body"].get("expires")
         if rtype == "attestation" and "Checkpoint" in t["from"]:
             self.open_checkpoint = None
+            self.open_checkpoint_expires = None
         if rtype == "delivery":
             self.latest_delivery = r["id"]
         for e in t.get("effects", []):

@@ -1,6 +1,7 @@
 import { after, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { cosign } from "@agent-social/asp-core";
+import { randomBytes } from "node:crypto";
+import { b64urlEncode, cosign, signerFromSeed, type Signer } from "@agent-social/asp-core";
 import { EventLog } from "../src/index.ts";
 import { alice, at, bank, codeOf, coder, memory, pgUrl, postgres, rec, registerParties, type Harness } from "./harness.ts";
 
@@ -58,6 +59,34 @@ async function settle(log: EventLog, contractId: string, prev: string, citesId: 
 for (const h of [memory, postgres] as Harness[]) {
   describe(`settlement-ruling consistency on ${h.name}`, { skip: h === postgres && !pgUrl && "set ASP_TEST_DATABASE_URL to run" }, () => {
     after(() => h.cleanup());
+
+    test("a ruling by drawn jurors pays them a panel fee (5% of the price), the loser's side bearing it", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      await log.mint(alice.did, 1000);
+      await log.mint(coder.did, 200);
+      const jurors = ["a", "b", "c"].map((n) => {
+        const did = `did:web:example.com:users:fee-juror-${n}`;
+        return { did, ...signerFromSeed(`${did}#key-1`, new Uint8Array(randomBytes(32))) } as { did: string; publicKey: Uint8Array } & Signer;
+      });
+      for (const j of jurors) {
+        await log.append(rec("passport", j, { did: j.did, kind: "human", keys: [{ id: j.kid, type: "Ed25519", public_key: b64urlEncode(j.publicKey) }] }, null, j.did));
+        await log.mint(j.did, 500);
+        await log.append(rec("juror", j, { did: j.did, stake: { value: 100, unit: "credit" } }, null));
+      }
+      const { contract, reject } = await disputed(log, 1000, 200);
+      assert.equal((await log.drawPanel(contract.id)).length, 3);
+      // Two of the three drawn jurors sign; the performer carries all the fault.
+      const ruling = cosign(rec("attestation", jurors[0], { kind: "ruling", about: contract.id, verdict: "for_principal", fault: { [coder.did]: 1000 } }, reject.id, contract.id), jurors[1]);
+      assert.equal(await codeOf(log.append(ruling)), undefined);
+      assert.equal(await settle(log, contract.id, ruling.id, ruling.id, 0, 0, 200), undefined);
+      // Fee 50 (5% of 1000) comes out of the slashed 200, split between the two signers.
+      assert.equal(await log.balance(alice.did), 1000 + 150, "escrow back, plus the slashed bond less the fee");
+      assert.equal(await log.balance(coder.did), 0);
+      assert.equal(await log.balance(jurors[0].did), 400 + 25);
+      assert.equal(await log.balance(jurors[1].did), 400 + 25);
+      assert.equal(await log.balance(jurors[2].did), 400, "a drawn juror who did not sign earns nothing");
+    });
 
     test("a settlement matching the ruling's fault exactly succeeds", async () => {
       const log = new EventLog(await h.make());

@@ -177,11 +177,12 @@ class Chain {
   mandate(by: Party = alice, subject: string = coder.did) {
     return this.add("mandate", by, mandateBody(this.contract), { subject });
   }
-  checkpoint() {
+  checkpoint(expires?: string) {
     return this.add("checkpoint", coder, {
       contract: this.contract, kind: "plan",
       question: "Plan: serialize cache writes behind a per-key lock. Proceed?",
       options: ["per-key lock", "retry with backoff"],
+      ...(expires ? { expires } : {}),
     }, { actor: `${coder.did}#node-3` });
   }
   resolve(about: string, by: Party = alice, verdict = "approved", extra: Record<string, unknown> = {}) {
@@ -320,6 +321,22 @@ lc("happy_path", "Contract, zero bond, mandate, plan checkpoint, delivery, accep
 {
   const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); const cp = c.checkpoint(); c.resolve(cp.id, coder);
   lc("checkpoint_self_resolved", "The performer cannot approve its own checkpoint", c, err("WRONG_ISSUER", 4));
+}
+{
+  const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); const cp = c.checkpoint(at(17)); c.resolve(cp.id, coder, "expired");
+  lc("checkpoint_expired", "The performer closes an unanswered checkpoint after its expiry; the job runs again", c, { state: "Running" });
+}
+{
+  const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); const cp = c.checkpoint(at(60)); c.resolve(cp.id, coder, "expired");
+  lc("checkpoint_expired_too_early", "A checkpoint cannot be expired before its expiry time", c, err("GUARD_FAILED", 4, "checkpoint_expired"));
+}
+{
+  const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); const cp = c.checkpoint(); c.resolve(cp.id, coder, "expired");
+  lc("checkpoint_expired_without_deadline", "A checkpoint with no expiry cannot be expired", c, err("GUARD_FAILED", 4, "checkpoint_expired"));
+}
+{
+  const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); const cp = c.checkpoint(at(17)); c.resolve(cp.id, alice, "expired");
+  lc("checkpoint_expired_by_principal", "Only the performer expires a checkpoint; the principal answers it", c, err("WRONG_ISSUER", 4));
 }
 {
   const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); c.checkpoint(); c.resolve(fakeId("elsewhere"));
@@ -534,6 +551,9 @@ sv("amount_fraction", "offer", { intent: intentId, price: { value: 1.5, unit: "c
 sv("amount_usd", "offer", { intent: intentId, price: { value: 1, unit: "usd" }, plan: "x", eta: "2026-10-02T12:00:00Z", bond_offered: credits(0) }, false);
 sv("rejection_without_reasons", "attestation", { kind: "acceptance", about: fakeId("d"), verdict: "rejected" }, false);
 sv("acceptance_bad_verdict", "attestation", { kind: "acceptance", about: fakeId("d"), verdict: "meh" }, false);
+sv("valid_checkpoint_expires", "checkpoint", { contract: fakeId("c"), kind: "before_irreversible", question: "May it run?", expires: "2026-10-05T10:00:00Z" }, true);
+sv("checkpoint_bad_expires", "checkpoint", { contract: fakeId("c"), kind: "before_irreversible", question: "May it run?", expires: "tomorrow" }, false);
+sv("valid_resolution_expired", "attestation", { kind: "checkpoint_resolution", about: fakeId("cp"), verdict: "expired" }, true);
 sv("correction_without_text", "attestation", { kind: "checkpoint_resolution", about: fakeId("cp"), verdict: "corrected" }, false);
 sv("ruling_without_fault", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "split" }, false);
 sv("settlement_accepted_without_cites", "settlement", { contract: fakeId("c"), basis: "accepted", escrow_released: credits(0), bond_returned: credits(0), bond_slashed: credits(0) }, false);

@@ -55,7 +55,7 @@
       "if": { "properties": { "kind": { "const": "checkpoint_resolution" } } },
       "then": {
         "required": ["verdict"],
-        "properties": { "verdict": { "enum": ["approved", "corrected", "picked"] } },
+        "properties": { "verdict": { "enum": ["approved", "corrected", "picked", "expired"] } },
         "if": { "properties": { "verdict": { "const": "corrected" } } },
         "then": { "required": ["correction"] }
       }

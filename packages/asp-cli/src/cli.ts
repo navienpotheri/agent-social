@@ -80,8 +80,8 @@
  *     call to one needs the principal's approval first (asp run holds the call, raises a Checkpoint, and
  *     waits for asp market resolve; --approval-wait <seconds>, default 600, then it is refused); with
  *     forbid it is blocked outright; with allow it is ungated. Needs a runtime with a pre-call hook.
- *   asp market checkpoint --contract <id> --by <performer> --question <text> [--kind before_irreversible|plan|high_impact|delivery] [--summary <proposed action>]
- *   asp market resolve --contract <id> --by <principal> --verdict approved|corrected|picked [--correction <text>] [--about <checkpoint id>]
+ *   asp market checkpoint --contract <id> --by <performer> --question <text> [--kind before_irreversible|plan|high_impact|delivery] [--summary <proposed action>] [--expires <iso>]
+ *   asp market resolve --contract <id> --by <principal> --verdict approved|corrected|picked|expired [--correction <text>] [--about <checkpoint id>]
  *     The principal's signed answer to an open Checkpoint; corrected (with the reason) is how a request is refused.
  *   asp market deliver --contract <id> --by <did> --summary <text> [--claim "<text>::<measured|simulated|predicted>[::<uri>=<sha256>]" ...]
  *     Also redelivers after a reject (the lifecycle's own redelivery_available guard applies; at
@@ -249,6 +249,7 @@ const OPTIONS = {
   gate: { type: "string", multiple: true },
   irreversible: { type: "string" },
   "approval-wait": { type: "string" },
+  expires: { type: "string" },
   correction: { type: "string" },
   question: { type: "string" },
   claim: { type: "string", multiple: true },
@@ -695,6 +696,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     if (!head) throw new Error(`contract ${contract} is not in the log`);
     const body: Record<string, unknown> = { contract, kind, question: need("question") };
     if (v.summary) body.proposed_action = v.summary;
+    if (v.expires) body.expires = v.expires;
     const record = createRecord({ type: "checkpoint", issuer: by, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
     io.out(`checkpoint ${res.id} on contract ${contract} (log seq ${res.seq}, state ${res.state})`);
@@ -705,7 +707,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const contract = need("contract");
     const by = need("by");
     const verdict = need("verdict");
-    if (!["approved", "corrected", "picked"].includes(verdict)) throw new UsageError("--verdict must be approved, corrected or picked");
+    if (!["approved", "corrected", "picked", "expired"].includes(verdict)) throw new UsageError("--verdict must be approved, corrected, picked or expired (expired: the performer closes a Checkpoint past its --expires)");
     if (verdict === "corrected" && !v.correction) throw new UsageError("--verdict corrected needs --correction <text>");
     const chain = await marketChain(local.log, contract);
     const head = chain.at(-1);
@@ -1077,7 +1079,7 @@ async function autoSettleOnKill(local: LocalLog, home: string, contract: string,
  * approved only for an `approved` resolution. Each request reopens the log fresh, because the principal
  * answers from another process, and requests are served one at a time (a job has one open Checkpoint).
  */
-function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; io: Io }) {
+function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; waitSeconds: number; io: Io }) {
   let stopped = false;
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const decide = (id: string, d: { approved: boolean; reason?: string }) => writeFileSync(join(o.dir, `${id}.decision.json`), JSON.stringify(d));
@@ -1097,15 +1099,22 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     const shown = masked.text.length > 300 ? masked.text.slice(0, 300) + "..." : masked.text;
     const head = (await marketChain(local.log, o.contract)).at(-1)!;
     const principal = ((await local.log.get(o.contract))!.record.body as { principal: string }).principal;
+    // The request expires when the hook gives up waiting; then the performer closes the Checkpoint itself, so the job is not stuck.
+    const expiresMs = Math.ceil((Date.now() + o.waitSeconds * 1000) / 1000) * 1000;
     const checkpoint = createRecord({
       type: "checkpoint", issuer: o.agent, subject: o.contract, prev: head.id, issued_at: now(),
-      body: { contract: o.contract, kind: "before_irreversible", question: `May ${o.agent} run ${req.tool} (${req.scope})?`, proposed_action: shown },
+      body: { contract: o.contract, kind: "before_irreversible", question: `May ${o.agent} run ${req.tool} (${req.scope})?`, proposed_action: shown,
+        expires: new Date(expiresMs).toISOString().replace(/\.\d{3}Z$/, "Z") },
     }, signer);
     await local.append(checkpoint);
     o.io.err(`  APPROVAL NEEDED  ${req.scope}: ${shown}${masked.redacted ? "  (secret-looking text was masked)" : ""}`);
     o.io.err(`    answer with: asp market resolve --contract ${o.contract} --by ${principal} --verdict approved`);
     for (;;) {
-      if (stopped) return;
+      // The run is over: wait out a nearly-expired request, but leave a far-off one open (it can be answered, or expired later).
+      if (stopped && expiresMs + 1000 - Date.now() > 10_000) {
+        o.io.err(`  note     the Checkpoint for ${req.scope} is still open; the principal can answer it, or ${o.agent} can close it after ${new Date(expiresMs).toISOString()} with asp market resolve --verdict expired`);
+        return;
+      }
       await sleep(o.pollMs);
       const fresh = await LocalLog.open(o.home);
       const chain = await marketChain(fresh.log, o.contract);
@@ -1114,7 +1123,16 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
         const b = x.record.body as { kind?: string; about?: string };
         return x.record.type === "asp.attestation/v0.2" && b.kind === "checkpoint_resolution" && b.about === checkpoint.id;
       });
-      if (!resolution) continue;
+      if (!resolution) {
+        if (Date.now() < expiresMs + 1000) continue;
+        const expired = createRecord({
+          type: "attestation", issuer: o.agent, subject: o.contract, prev: chain.at(-1)!.id, issued_at: now(),
+          body: { kind: "checkpoint_resolution", about: checkpoint.id, verdict: "expired" },
+        }, signer);
+        await fresh.append(expired);
+        o.io.err(`  approval expired for ${req.scope}: no answer in ${o.waitSeconds} s, so the call was refused and the job runs again`);
+        return decide(req.id, { approved: false, reason: `the principal did not answer within ${o.waitSeconds} seconds` });
+      }
       const b = resolution.record.body as { verdict: string; correction?: string };
       const approved = b.verdict === "approved";
       o.io.err(`  approval ${approved ? "granted" : "refused"} for ${req.scope}${b.correction ? `: ${b.correction}` : ""}`);
@@ -1224,7 +1242,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
     });
     let killTimer: NodeJS.Timeout | undefined;
     const approvals = plan.approvalsDir && v.contract
-      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, io })
+      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io })
       : undefined;
     const strike = (scope: string, how: string) => {
       strikes++;

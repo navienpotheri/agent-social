@@ -105,18 +105,31 @@ test("an approved call the runtime then refuses on its own is not counted as hav
   assert.deepEqual((await actionBody(f, res.err)).scopes_used, ["repo.read"]);
 });
 
-test("no answer in time is a refusal, never an approval; the Checkpoint stays open until the principal answers", async () => {
+test("no answer in time is a refusal, never an approval; the performer then closes the expired Checkpoint and the job runs again", async () => {
   const f = makeFixture();
   const job = await gatedJob(f, ["--gate", "shell.exec"]);
   const res = await run(f, job, [READ, SHELL], ["--approval-wait", "1"]);
   assert.equal(res.code, 0, res.err);
   assert.match(res.err, /gate\s+shell\.exec was not approved/);
+  assert.match(res.err, /approval expired for shell\.exec/);
   assert.doesNotMatch(res.err, /strike|KILL SWITCH/);
   assert.deepEqual((await actionBody(f, res.err)).scopes_used, ["repo.read"]);
-  assert.equal(await stateOf(f, job.id), "Checkpoint");
+  assert.equal(await stateOf(f, job.id), "Running", "the expiry closed the Checkpoint, so the job can go on to delivery");
   const late = await asp(f, ["market", "resolve", "--contract", job.id, "--by", ALICE, "--verdict", "approved"]);
-  assert.equal(late.code, 0, late.err);
-  assert.equal(await stateOf(f, job.id), "Running");
+  assert.equal(late.code, 1, "a late answer has no open Checkpoint to resolve");
+});
+
+test("a Checkpoint cannot be expired early, and only the performer can expire it", async () => {
+  const f = makeFixture();
+  const job = await gatedJob(f, ["--gate", "shell.exec"]);
+  const far = new Date(Date.now() + 3600_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+  assert.equal((await asp(f, ["market", "checkpoint", "--contract", job.id, "--by", CODER, "--question", "May I?", "--expires", far])).code, 0);
+  const early = await asp(f, ["market", "resolve", "--contract", job.id, "--by", CODER, "--verdict", "expired"]);
+  assert.equal(early.code, 1);
+  assert.match(early.err, /checkpoint_expired/);
+  const byPrincipal = await asp(f, ["market", "resolve", "--contract", job.id, "--by", ALICE, "--verdict", "expired"]);
+  assert.equal(byPrincipal.code, 1);
+  assert.equal(await stateOf(f, job.id), "Checkpoint");
 });
 
 test("policy forbid blocks a gated scope outright, and trying it is a strike", async () => {

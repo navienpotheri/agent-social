@@ -23,6 +23,8 @@ const RISK_PERMILLE_STRIKE_CAP = 200;
 const TIER_SPEND_LIMIT: Record<number, number> = { 1: 100, 2: 1000 };
 /** ...and how many parallel nodes (Mandate nodes.max_parallel) it may run. */
 const TIER_PARALLEL_LIMIT: Record<number, number> = { 1: 4, 2: 16 };
+/** Courts pay the jurors who signed a ruling: this share of the contract price, split among them. Loser pays. */
+const PANEL_FEE_PERMILLE = 50;
 const STRIKE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 type StrikeEntry = { at: string; count: number };
 /** Strikes at or after `since` (the Bond's own issued_at, so replay is deterministic). */
@@ -589,8 +591,38 @@ export class EventLog {
       }
     }
 
-    const escrowLeftover = escrow.escrowLocked - body.escrow_released.value - fees;
-    const bondLeftover = escrow.bondLocked - body.bond_returned.value - body.bond_slashed.value;
+    let escrowLeftover = escrow.escrowLocked - body.escrow_released.value - fees;
+    let bondLeftover = escrow.bondLocked - body.bond_returned.value - body.bond_slashed.value;
+    let slashedToPrincipal = body.bond_slashed.value;
+
+    // Courts fee: a ruling signed by drawn jurors pays them PANEL_FEE_PERMILLE of the price, split among
+    // the signers on the panel. The loser pays, out of what they have locked and the settlement leaves over:
+    // the performer's side (its fault share) from the bond left over, the principal's side from the escrow
+    // left over. Derived from the ruling and the ledger, never declared, so a bank cannot choose it.
+    if (body.basis === "ruling" && body.cites) {
+      const ruling = await tx.getRecord(body.cites);
+      const price = (contract!.record.body as { price?: { value: number } }).price?.value ?? 0;
+      const fee = Math.floor((price * PANEL_FEE_PERMILLE) / 1000);
+      const seed = ruling ? await findRejection(tx, ruling.record.prev) : undefined;
+      const panel = fee > 0 && ruling && seed ? await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: this.panelSize }) : [];
+      const signers = ruling ? [ruling.record.sig.kid, ...(ruling.record.cosigs ?? []).map((c) => c.kid)].map(didOf) : [];
+      const paid = [...new Set(signers.filter((d) => panel.includes(d)))];
+      if (fee > 0 && paid.length > 0) {
+        const performerFault = (ruling!.record.body as { fault?: Record<string, number> }).fault?.[cbody.performer] ?? 0;
+        // The performer's side can pay from its bond left over and from the slashed part (which would otherwise go to the principal).
+        const performerPool = bondLeftover + slashedToPrincipal;
+        let fromBond = Math.min(performerPool, Math.ceil((fee * performerFault) / 1000));
+        const fromEscrow = Math.min(escrowLeftover, fee - fromBond);
+        fromBond = Math.min(performerPool, fee - fromEscrow); // a short side is covered by the other, up to what is left
+        const total = fromBond + fromEscrow;
+        const fromLeftover = Math.min(bondLeftover, fromBond);
+        bondLeftover -= fromLeftover;
+        slashedToPrincipal -= fromBond - fromLeftover;
+        escrowLeftover -= fromEscrow;
+        const each = Math.floor(total / paid.length);
+        for (const [i, d] of paid.entries()) await this.credit(tx, d, each + (i === 0 ? total - each * paid.length : 0));
+      }
+    }
 
     // earnings_split: the performer's passport sets it (snapshotted at Bond time); a Settlement may
     // omit it or restate it, never contradict it. The agent keeps agent_permille of its pay, the rest
@@ -610,7 +642,7 @@ export class EventLog {
       await this.credit(tx, cbody.performer, body.escrow_released.value);
     }
     if (fees > 0) await this.credit(tx, PLATFORM_DID, fees);
-    await this.credit(tx, cbody.principal, escrowLeftover + body.bond_slashed.value);
+    await this.credit(tx, cbody.principal, escrowLeftover + slashedToPrincipal);
     await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover);
     if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer);
     await tx.putEscrow({ ...escrow, settled: true });

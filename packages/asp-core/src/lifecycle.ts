@@ -47,6 +47,7 @@ export interface JobSnapshot {
   bank?: string;
   reviewDeadline?: string;
   openCheckpoint?: string;
+  openCheckpointExpires?: string;
   latestDelivery?: string;
   acceptance?: string;
   ruling?: string;
@@ -64,6 +65,7 @@ export class Job {
   bank?: string;
   reviewDeadline?: string;
   openCheckpoint?: string;
+  openCheckpointExpires?: string;
   latestDelivery?: string;
   acceptance?: string;
   ruling?: string;
@@ -90,9 +92,9 @@ export class Job {
 
   snapshot(): JobSnapshot {
     const { state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline,
-      openCheckpoint, latestDelivery, acceptance, ruling, redeliveries } = this;
+      openCheckpoint, openCheckpointExpires, latestDelivery, acceptance, ruling, redeliveries } = this;
     return JSON.parse(JSON.stringify({ state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline,
-      openCheckpoint, latestDelivery, acceptance, ruling, redeliveries }));
+      openCheckpoint, openCheckpointExpires, latestDelivery, acceptance, ruling, redeliveries }));
   }
 
   /** Verifies the record (schema, id, signatures), then steps the lifecycle. */
@@ -171,6 +173,8 @@ export class Job {
       case "escrow_payer_is_principal": return b.escrow?.payer === this.principal;
       case "subject_is_performer": return r.subject === this.performer;
       case "about_open_checkpoint": return b.about === this.openCheckpoint;
+      case "checkpoint_expired":
+        return this.openCheckpointExpires !== undefined && Date.parse(r.issued_at) >= Date.parse(this.openCheckpointExpires);
       case "about_latest_delivery": return b.about === this.latestDelivery;
       case "about_contract": return b.about === this.contractId;
       case "not_yet_accepted": return this.acceptance === undefined;
@@ -185,8 +189,8 @@ export class Job {
   }
 
   private record(t: Transition, type: string, r: AspRecord): void {
-    if (type === "checkpoint") this.openCheckpoint = r.id;
-    if (type === "attestation" && t.from.includes("Checkpoint")) this.openCheckpoint = undefined;
+    if (type === "checkpoint") { this.openCheckpoint = r.id; this.openCheckpointExpires = (r.body as { expires?: string }).expires; }
+    if (type === "attestation" && t.from.includes("Checkpoint")) { this.openCheckpoint = undefined; this.openCheckpointExpires = undefined; }
     if (type === "delivery") this.latestDelivery = r.id;
     for (const e of t.effects ?? []) {
       if (e === "mark_accepted") this.acceptance = r.id;

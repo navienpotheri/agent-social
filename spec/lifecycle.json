@@ -33,6 +33,11 @@
       "guards": ["refs_contract"]
     },
     {
+      "from": ["Checkpoint"], "type": "attestation", "when": { "kind": "checkpoint_resolution", "verdict": "expired" }, "to": "Running",
+      "issuer": "performer",
+      "guards": ["about_open_checkpoint", "checkpoint_expired"]
+    },
+    {
       "from": ["Checkpoint"], "type": "attestation", "when": { "kind": "checkpoint_resolution" }, "to": "Running",
       "issuer": "principal",
       "guards": ["about_open_checkpoint"]
