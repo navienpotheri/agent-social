@@ -101,6 +101,16 @@ export class LocalLog {
     return res;
   }
 
+  /** Replays another operator's export (EventLog.importRecords) and persists the records that were new, so they survive the next `open`. */
+  async importRecords(items: { seq: number; record: AspRecord; appendedAt: string }[], expect?: { seq: number; logHash: string }) {
+    const before = (await this.log.head()).seq;
+    const res = await this.log.importRecords(items, expect);
+    for (const it of [...items].sort((a, b) => a.seq - b.seq)) {
+      if (it.seq > before) appendFileSync(this.file, JSON.stringify({ appendedAt: it.appendedAt, record: it.record }) + "\n");
+    }
+    return res;
+  }
+
   /** Grants credits (EventLog.mint) and persists the grant so it survives the next `open`. */
   async mint(did: string, amount: number): Promise<number> {
     const balance = await this.log.mint(did, amount);

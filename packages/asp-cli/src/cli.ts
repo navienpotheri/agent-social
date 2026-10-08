@@ -47,7 +47,17 @@
  *     agent, deduplicating identical lines and keeping conflicting ones side by side rather than
  *     silently discarding either. This is the spec's Learning-section pattern: "nodes only write
  *     experience... a consolidation step... produces one update to the person".
- *   asp log verify
+ *   asp log verify [--min-witnesses <n>]
+ *   asp log export --out <file> [--since <seq>]
+ *     Writes the log's records (and the minted-credit totals a replica needs) for another party to replay.
+ *   asp log import <file>
+ *     Replays an export into this log, re-verifying every record; refuses a log that has diverged.
+ *   asp log witness <export file> --as <witness did> [--out <file>]
+ *     A witness: imports the export into a replica log (<home>/replica), and only if the replay reproduces the exported head,
+ *     signs a checkpoint of it (saved in its checkpoints.ndjson, and to --out). Use a did:key identity.
+ *   asp log witnesses add <witness checkpoints file>
+ *     Keeps witness checkpoints beside this log. `log verify` re-checks each against an independent replay
+ *     (a witness that saw different history fails), and with --min-witnesses n needs n distinct witnesses.
  *   asp log checkpoint --as <did>
  *     Signs {seq, log_hash, signed_at} with <did>'s key and appends it to checkpoints.ndjson (decision
  *     D5): a portable, externally-checkable proof of the log's state at that point, published nowhere
@@ -146,7 +156,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
-  b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, passportKeysNotPublished, publicKeyFromSeed, randomSeed, sha256Id,
+  b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import {
@@ -190,6 +200,8 @@ const OPTIONS = {
   prompt: { type: "string" },
   "include-user": { type: "boolean" },
   "trust-unverified": { type: "boolean" },
+  since: { type: "string" },
+  "min-witnesses": { type: "string" },
   "dry-run": { type: "boolean" },
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
@@ -295,7 +307,11 @@ export async function main(argv: string[], io: Io): Promise<number> {
     if (cmd === "verify") return await verify(sub, v.json ?? false, io);
     if (cmd === "run") return await run(home, sub, v, need, io);
     if (cmd === "orchestrate") return await orchestrate(home, sub, v, need, io);
-    if (cmd === "log" && sub === "verify") return await logVerify(home, io);
+    if (cmd === "log" && sub === "verify") return await logVerify(home, v, io);
+    if (cmd === "log" && sub === "export") return await logExport(home, v, need, io);
+    if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
+    if (cmd === "log" && sub === "witness") return await logWitness(home, rest[0], v, need, io);
+    if (cmd === "log" && sub === "witnesses") return await logWitnessesAdd(home, rest[0] === "add" ? rest[1] : undefined, io);
     if (cmd === "log" && sub === "checkpoint") return await logCheckpoint(home, v, need, io);
     if (cmd === "credits" && sub === "grant") return await creditsGrant(home, v, need, io);
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
@@ -434,7 +450,71 @@ async function logCheckpoint(home: string, v: Values, need: Need, io: Io): Promi
 }
 
 /** Verifies the log, then re-verifies every stored checkpoint against an independent replay. */
-async function logVerify(home: string, io: Io): Promise<number> {
+async function logExport(home: string, v: Values, need: Need, io: Io): Promise<number> {
+  const out = need("out");
+  const since = v.since === undefined ? 0 : Math.trunc(Number(v.since));
+  if (!Number.isInteger(since) || since < 0) throw new UsageError("--since must be a whole number, 0 or more");
+  const local = await LocalLog.open(home);
+  const head = await local.log.head();
+  const lines: string[] = [JSON.stringify({ export: "asp.log/v1", head, since, mints: await local.log.mints() })];
+  let after = since, count = 0;
+  for (;;) {
+    const page = await local.log.since(after, 500);
+    if (!page.length) break;
+    for (const s of page) { lines.push(JSON.stringify({ seq: s.seq, appendedAt: s.appendedAt, record: s.record })); after = s.seq; count++; }
+  }
+  writeFileSync(out, lines.join("\n") + "\n");
+  io.out(`exported ${count} record(s) after seq ${since} to ${out} (head seq ${head.seq}, ${head.logHash})`);
+  return 0;
+}
+
+function readExport(file: string) {
+  const [first, ...rest] = readFileSync(file, "utf8").split("\n").filter((l) => l.trim());
+  const header = JSON.parse(first) as { export?: string; head: { seq: number; logHash: string }; mints: { did: string; amount: number }[] };
+  if (header.export !== "asp.log/v1") throw new UsageError(`${file} is not an asp log export`);
+  return { header, items: rest.map((l) => JSON.parse(l) as { seq: number; appendedAt: string; record: AspRecord }) };
+}
+
+/** Replays an export into the local log; credit totals are applied only to a fresh replica (they are not records, MOCKS.md #13). */
+async function importExport(local: LocalLog, file: string): Promise<{ imported: number; head: { seq: number; logHash: string } }> {
+  const { header, items } = readExport(file);
+  if ((await local.log.head()).seq === 0) for (const m of header.mints) await local.mint(m.did, m.amount);
+  return local.importRecords(items, header.head);
+}
+
+async function logImport(home: string, file: string | undefined, io: Io): Promise<number> {
+  if (!file) throw new UsageError("asp log import <file>");
+  const res = await importExport(await LocalLog.open(home), file);
+  io.out(`imported ${res.imported} record(s); head seq ${res.head.seq}, ${res.head.logHash}`);
+  return 0;
+}
+
+async function logWitness(home: string, file: string | undefined, v: Values, need: Need, io: Io): Promise<number> {
+  if (!file) throw new UsageError("asp log witness <export file> --as <witness did> [--out <file>]");
+  const did = need("as");
+  const signer = new Keystore(home).forDid(did);
+  if (!signer) throw new Error(`no key for ${did} in ${join(home, "keys")}; create one with: asp identity new --kind human --method did:key`);
+  // The replica is its own log under <home>/replica, apart from the witness's own identity log.
+  const local = await LocalLog.open(join(home, "replica"));
+  const res = await importExport(local, file);
+  const cp = signCheckpoint(res.head, signer);
+  appendCheckpoint(join(home, "checkpoints.ndjson"), cp);
+  if (v.out) appendCheckpoint(v.out, cp);
+  io.out(`witnessed: replayed ${res.imported} record(s) and reproduced head seq ${cp.seq} (${cp.logHash})`);
+  io.out(`  signed by ${cp.signer}${v.out ? `, written to ${v.out}` : ""}`);
+  return 0;
+}
+
+async function logWitnessesAdd(home: string, file: string | undefined, io: Io): Promise<number> {
+  if (!file) throw new UsageError("asp log witnesses add <witness checkpoints file>");
+  const cps = readCheckpoints(file);
+  if (!cps.length) throw new Error(`no checkpoints in ${file}`);
+  for (const cp of cps) appendCheckpoint(join(home, "witnesses.ndjson"), cp);
+  io.out(`added ${cps.length} witness checkpoint(s); asp log verify --min-witnesses <n> checks them`);
+  return 0;
+}
+
+async function logVerify(home: string, v: Values, io: Io): Promise<number> {
   const local = await LocalLog.open(home);
   const report = await local.log.verify();
   io.out(report.ok ? `log ok: ${report.records} records, head ${report.head.logHash}` : `log FAILED at seq ${report.error!.seq}: ${report.error!.message}`);
@@ -449,6 +529,32 @@ async function logVerify(home: string, io: Io): Promise<number> {
     if (!sigOk || !hashOk) allOk = false;
     const problem = [!sigOk && "bad signature", !hashOk && "hash mismatch"].filter(Boolean).join(", ");
     io.out(`  checkpoint seq ${cp.seq} (${cp.signedAt}, ${cp.signer}): ${sigOk && hashOk ? "ok" : `FAILED (${problem})`}`);
+  }
+
+  // Witnesses: other parties who replayed the log themselves and signed the head they reached. Their keys are
+  // taken from the log's passports or, for a did:key witness, from the DID itself.
+  const minWitnesses = v["min-witnesses"] === undefined ? 0 : Math.trunc(Number(v["min-witnesses"]));
+  if (!Number.isInteger(minWitnesses) || minWitnesses < 0) throw new UsageError("--min-witnesses must be a whole number, 0 or more");
+  const ownSigners = new Set(checkpoints.map((c) => didOf(c.signer)));
+  const good = new Map<string, number>(); // witness did -> highest seq it vouches for
+  for (const cp of readCheckpoints(join(home, "witnesses.ndjson"))) {
+    const wd = didOf(cp.signer);
+    let pub: Uint8Array | undefined;
+    const key = (await local.log.keys(wd)).find((k) => k.kid === cp.signer);
+    if (key) pub = b64urlDecode(key.publicKey);
+    else if (wd.startsWith("did:key:")) { try { pub = publicKeyFromDidKey(wd); } catch { /* not ed25519 */ } }
+    const sigOk = !!pub && verifyCheckpointSignature(cp, pub);
+    const hashOk = sigOk && await local.log.verifyCheckpoint({ seq: cp.seq, logHash: cp.logHash });
+    const same = ownSigners.has(wd);
+    if (!sigOk || !hashOk || same) allOk = false;
+    io.out(`  witness ${wd} at seq ${cp.seq}: ${sigOk && hashOk && !same ? "ok" : `FAILED (${[!sigOk && "unknown key or bad signature", sigOk && !hashOk && "it saw a different history", same && "same DID as the log owner"].filter(Boolean).join(", ")})`}`);
+    if (sigOk && hashOk && !same) good.set(wd, Math.max(good.get(wd) ?? 0, cp.seq));
+  }
+  if (good.size || minWitnesses) {
+    const head = await local.log.head();
+    const seqs = [...good.values()].sort((a, b) => b - a);
+    io.out(`  witnessed by ${good.size} independent witness(es)${seqs.length ? `; the log is vouched for up to seq ${seqs[Math.min(minWitnesses || 1, seqs.length) - 1]} of ${head.seq}` : ""}`);
+    if (good.size < minWitnesses) { io.out(`  FAILED: needs ${minWitnesses} witness(es), has ${good.size}`); return 1; }
   }
   return allOk ? 0 : 1;
 }

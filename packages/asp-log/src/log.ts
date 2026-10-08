@@ -873,6 +873,35 @@ export class EventLog {
     }
   }
 
+  /** Credits ever minted per DID (not records; a replica needs them to replay Bonds). Local bootstrap, MOCKS.md #13. */
+  async mints() { return (await this.store.allMints()).map((m) => ({ did: m.did, amount: m.balance })); }
+
+  /**
+   * Replays another operator's exported records into this log (a witness's replica). Every record is fully
+   * re-verified as it is appended, at its original time. Records this log already holds must be the same
+   * ones (else it has diverged); a gap is refused. If `expect` is given, the resulting head must match it.
+   */
+  async importRecords(items: { seq: number; record: AspRecord; appendedAt: string }[], expect?: { seq: number; logHash: string }): Promise<{ imported: number; head: { seq: number; logHash: string } }> {
+    let imported = 0;
+    for (const item of [...items].sort((a, b) => a.seq - b.seq)) {
+      const head = await this.head();
+      if (item.seq <= head.seq) {
+        const [mine] = await this.store.since(item.seq - 1, 1);
+        if (!mine || mine.id !== item.record.id) throw new AspError("BAD_PREV", `this log diverges from the export at seq ${item.seq}`);
+        continue;
+      }
+      if (item.seq !== head.seq + 1) throw new AspError("BAD_PREV", `the export jumps from seq ${head.seq} to ${item.seq}; export from --since ${head.seq}`);
+      const res = await this.appendAt(item.record, item.appendedAt);
+      if (res.seq !== item.seq) throw new AspError("BAD_PREV", `seq ${item.seq} replayed as ${res.seq}`);
+      imported++;
+    }
+    const head = await this.head();
+    if (expect && (head.seq !== expect.seq || head.logHash !== expect.logHash)) {
+      throw new AspError("BAD_PREV", `replayed head (seq ${head.seq}, ${head.logHash}) does not match the export's (seq ${expect.seq}, ${expect.logHash})`);
+    }
+    return { imported, head };
+  }
+
   /** A fleet's declaration and its current members. */
   async fleet(did: string) {
     const fleet = await this.store.getFleet(did);
