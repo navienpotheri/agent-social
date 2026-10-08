@@ -19,10 +19,13 @@ async function asp(f: Fixture, args: string[], env: NodeJS.ProcessEnv = {}) {
 }
 
 /** A fake Claude Code that makes its calls through the plugin's real pre-call hook, with fast polling. */
-const runtime = (calls: unknown[]) => ({
+const runtime = (calls: unknown[], graceMs = "20000") => ({
   GITHUB_TOKEN: "t", API_BASE: "x", ASP_CLAUDE_BIN: process.execPath,
   ASP_CLAUDE_SCRIPT: fileURLToPath(new URL("./fake-claude.mjs", import.meta.url)),
   FAKE_CLAUDE_HOOK_CALLS: JSON.stringify(calls), ASP_APPROVAL_POLL_MS: "100", ASP_HOOK_POLL_MS: "50",
+  // How long to wait for the runtime's post-call record before judging a call not run: generous, so a loaded machine
+  // cannot turn a call that ran into one that "did not run" (it only waits when the record is missing).
+  ASP_RAN_GRACE_MS: graceMs,
 });
 const READ = { name: "Read", input: { file_path: "README.md" } };
 const SHELL = { name: "Bash", input: { command: "echo spike > marker.txt" } };
@@ -48,11 +51,13 @@ async function gatedJob(f: Fixture, mandateFlags: string[] | null) {
   return { id, pkg };
 }
 const run = (f: Fixture, job: { id: string; pkg: string }, calls: unknown[], extra: string[] = []) =>
-  asp(f, ["run", job.pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", "--contract", job.id, ...extra], runtime(calls));
+  asp(f, ["run", job.pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", "--contract", job.id, ...extra],
+    // A call the runtime refuses never gets a record, so those tests must not wait out the generous grace period.
+    runtime(calls, JSON.stringify(calls).includes("runtimeRefuses") ? "500" : "20000"));
 
 /** What the principal does from another process: wait for the Checkpoint, then answer it. */
 async function answerWhenAsked(f: Fixture, id: string, verdict: string, correction?: string) {
-  for (let i = 0; i < 300; i++) {
+  for (let i = 0; i < 600; i++) {
     const local = await LocalLog.open(f.aspHome);
     if ((await local.log.chainInfo(id))?.state === "Checkpoint") {
       return asp(f, ["market", "resolve", "--contract", id, "--by", ALICE, "--verdict", verdict, ...(correction ? ["--correction", correction] : [])]);

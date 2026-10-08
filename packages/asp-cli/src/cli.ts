@@ -13,7 +13,7 @@
  *     own passport, key, ledger account and reputation, sponsored by the original's sponsor (whose key must be
  *     here), so one copy's slash or strike never touches another's balance. A copy starts at the original's
  *     CURRENT tier (a demoted agent cannot launder its record through copies; tier 0 cannot be copied).
- *   asp eval run [<scenario.json>] [--agents <n>] [--exploiters <n>] [--slash] [--out <report.json>]
+ *   asp eval run [<scenario.json>] [--agents <n>] [--exploiters <n>] [--spare] [--out <report.json>]
  *     The evaluation harness (docs/stage-3-plan.md M5): runs a scenario through the real commands against a FRESH
  *     log in a temp folder (never your own), on a simulated clock, then prints measures read back from the log.
  *     One scenario kind exists, swarm-exploit (see scenarios/swarm-exploit.json): scripted agents work in parallel, some
@@ -155,11 +155,12 @@
  *     A majority of the panel drawn for the report (asp market panel draw --report <id>) rules. Upheld: the
  *     deposit returns, the accused's bond pays the jurors and gives the reporter 20% of what is left, and the
  *     contract must settle with full fault (settle defaults to it). Dismissed: the deposit pays the jurors.
- *   asp market cohort-stop --report <upheld report id> [--min-agents <n>] [--window <seconds>] [--slash]
+ *   asp market cohort-stop --report <upheld report id> [--min-agents <n>] [--window <seconds>] [--spare]
  *     After an upheld report: finds the contagion clusters (asp watch) that include the reported contract and stops every
  *     running or checkpointed job in them with a revoked Settlement. The reported job settles with the full fault the
- *     ruling forces. The others stop without a ruling of their own, so by default their escrow returns to the principal
- *     and their bond is returned; --slash slashes their bonds too (a decision for the principal and the bank, who sign it).
+ *     ruling forces. The others stop without a ruling of their own: by default their escrow returns to the principal and
+ *     their bond is SLASHED (they were running the same flagged pattern; the principal and the bank sign this). --spare
+ *     returns their bonds instead.
  *     Needs each job's bank and principal keys here.
  *   asp market panel draw --contract <id> [--size <n>]
  *     Shows the panel a Disputed contract's ruling would draw — conflict-free (excludes the
@@ -256,7 +257,7 @@ const OPTIONS = {
   window: { type: "string" },
   "draft-by": { type: "string" },
   all: { type: "boolean" },
-  slash: { type: "boolean" },
+  spare: { type: "boolean" },
   blocked: { type: "string", multiple: true },
   report: { type: "string" },
   count: { type: "string" },
@@ -674,7 +675,7 @@ async function evalRun(file: string | undefined, v: Values, io: Io): Promise<num
   const sc: SwarmScenario = { ...DEFAULT_SWARM, ...loaded };
   if (v.agents !== undefined) sc.agents = Math.trunc(Number(v.agents));
   if (v.exploiters !== undefined) sc.exploiters = Math.trunc(Number(v.exploiters));
-  if (v.slash) sc.slashCohort = true;
+  if (v.spare) sc.slashCohort = false;
   if (!Number.isInteger(sc.agents) || sc.agents < 3 || sc.agents > 200) throw new UsageError("agents must be a whole number from 3 to 200");
   if (!Number.isInteger(sc.exploiters) || sc.exploiters < 1 || sc.exploiters > sc.agents) throw new UsageError("exploiters must be from 1 to the number of agents");
   const dir = mkdtempSync(join(tmpdir(), "asp-eval-"));
@@ -1254,11 +1255,11 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       const escrow = (await local.log.escrow(contract))!;
       const amounts = contract === report.contract
         ? [] // an upheld report already forces full fault, and settle defaults to it
-        : ["--escrow-released", "0", ...(v.slash ? ["--bond-slashed", String(escrow.bondLocked), "--bond-returned", "0"] : ["--bond-slashed", "0", "--bond-returned", String(escrow.bondLocked)]), "--pro-rata", "0"];
+        : ["--escrow-released", "0", ...(!v.spare ? ["--bond-slashed", String(escrow.bondLocked), "--bond-returned", "0"] : ["--bond-slashed", "0", "--bond-returned", String(escrow.bondLocked)]), "--pro-rata", "0"];
       const res = await main(["market", "settle", "--contract", contract, "--bank", cbody.bank, "--basis", "revoked", "--principal", cbody.principal, "--home", home, ...amounts],
         { out: () => {}, err: () => {}, env: io.env, cwd: io.cwd });
       stopped += res === 0 ? 1 : 0;
-      io.out(`  ${contract}: ${res === 0 ? (contract === report.contract ? "stopped, full fault (the upheld report)" : v.slash ? "stopped, bond slashed (--slash)" : "stopped, escrow back to the principal, bond returned") : "NOT stopped (the bank's or principal's key is not here, or it already settled)"}`);
+      io.out(`  ${contract}: ${res === 0 ? (contract === report.contract ? "stopped, full fault (the upheld report)" : !v.spare ? "stopped, bond slashed (use --spare to return it)" : "stopped, escrow back to the principal, bond returned (--spare)") : "NOT stopped (the bank's or principal's key is not here, or it already settled)"}`);
     }
     io.out(`${stopped}/${eligible} running contract(s) stopped`);
     return stopped === eligible ? 0 : 1;
@@ -1754,10 +1755,12 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
       return readFileSync(ranFile, "utf8").split(/\r?\n/).some((l) => { try { return JSON.parse(l).id === id; } catch { return false; } });
     };
     const confirmations: Promise<void>[] = [];
+    // How long a missing record is waited for (default 3 s; ASP_RAN_GRACE_MS raises it, e.g. on a heavily loaded machine).
+    const graceTicks = Math.max(1, Math.ceil((Number(io.env.ASP_RAN_GRACE_MS) > 0 ? Number(io.env.ASP_RAN_GRACE_MS) : 3000) / 100));
     const settle = (id: string, onRan: () => void, onNotRun: () => void) => {
       if (!ranFile || didRun(id)) { onRan(); return; } // no record kept for this runtime: assume it ran
       confirmations.push((async () => {
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < graceTicks; i++) {
           await new Promise((r) => setTimeout(r, 100));
           if (didRun(id)) { onRan(); return; }
         }

@@ -34,13 +34,13 @@ export interface SwarmScenario {
   windowSeconds: number;
   /** Cap on reports in one run. */
   maxReports: number;
-  /** Stop cohort members' bonds too (--slash). */
+  /** Slash the bonds of stopped cohort members (the default; false = --spare returns them). */
   slashCohort: boolean;
 }
 
 export const DEFAULT_SWARM: SwarmScenario = {
   name: "swarm-exploit", kind: "swarm-exploit", agents: 20, exploiters: 6, jurors: 3, price: 100, bond: 20, stepSeconds: 30,
-  firstExploitStep: 2, spreadEvery: 1, steps: 16, minAgents: 3, windowSeconds: 600, maxReports: 4, slashCohort: false,
+  firstExploitStep: 2, spreadEvery: 1, steps: 16, minAgents: 3, windowSeconds: 600, maxReports: 4, slashCohort: true,
 };
 
 export interface SwarmReport {
@@ -143,7 +143,7 @@ export async function runSwarm(sc: SwarmScenario, run: Runner, advance: (ms: num
     reports.push({ id: reportId, status: verdict, contract: target });
     log(`step ${step}: report on ${reportedAgent.slice(-8)} ${verdict}`);
     if (verdict === "upheld") {
-      const stop = await run(["market", "cohort-stop", "--report", reportId, "--min-agents", String(sc.minAgents), "--window", String(sc.windowSeconds), ...(sc.slashCohort ? ["--slash"] : [])]);
+      const stop = await run(["market", "cohort-stop", "--report", reportId, "--min-agents", String(sc.minAgents), "--window", String(sc.windowSeconds), ...(sc.slashCohort ? [] : ["--spare"])]);
       for (const c of stop.out.split("\n").filter((l) => /stopped/.test(l))) log(`  ${c.trim().slice(0, 120)}`);
     }
   }

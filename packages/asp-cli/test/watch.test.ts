@@ -106,8 +106,30 @@ test("after an upheld report, cohort-stop settles every job in the pattern and l
 
   const bal = async (d: string) => Number(/: (\d+) credits/.exec((await ok(f, ["credits", "balance", d])).out)![1]);
   assert.equal(await bal(jobs[0][0]), 0, "the reported agent lost its bond");
-  assert.equal(await bal(jobs[1][0]), 20, "a cohort member without a ruling gets its bond back");
-  assert.equal(await bal(jobs[2][0]), 20);
+  assert.equal(await bal(jobs[1][0]), 0, "a cohort member without a ruling is slashed too, by default");
+  assert.equal(await bal(jobs[2][0]), 0);
   assert.equal(await bal(jobs[3][0]), 0, "the unrelated agent's bond is still locked");
-  assert.equal(await bal(ALICE), 100 + 12 + 100 + 100, "escrow back from three jobs, plus what is left of the reported bond after the fee and the reward");
+  assert.equal(await bal(ALICE), (100 + 12) + (100 + 20) + (100 + 20), "escrow back from three jobs, plus the slashed bonds (the reported one less the fee and the reward)");
+});
+
+test("cohort-stop --spare returns the bonds of cohort members who have no ruling of their own", async () => {
+  const { f, jobs } = await swarm(4);
+  const jurors = ["a", "b", "c"].map((n) => `did:web:example.com:users:spare-juror-${n}`);
+  for (const j of jurors) {
+    await ok(f, ["identity", "new", "--kind", "human", "--did", j]);
+    await ok(f, ["credits", "grant", "--to", j, "--amount", "100"]);
+    await ok(f, ["market", "juror", "register", "--by", j, "--stake", "50"]);
+  }
+  for (const [agent, contract] of jobs.slice(0, 3)) {
+    await ok(f, ["market", "action", "--contract", contract, "--by", agent, "--scopes-used", "shell.exec", "--artifact", `asp://tool-call/Bash=${SHA}`]);
+  }
+  await ok(f, ["credits", "grant", "--to", WATCHER, "--amount", "20"]);
+  const reportId = /^report (\S+)/.exec((await ok(f, ["market", "report", "--contract", jobs[0][1], "--by", WATCHER, "--reasons", "the same input across 3 agents"])).out)![1];
+  await ok(f, ["market", "report-rule", "--report", reportId, "--by", jurors[0], "--cosign-by", jurors[1], "--verdict", "upheld"]);
+  const stop = await ok(f, ["market", "cohort-stop", "--report", reportId, "--spare"]);
+  assert.match(stop.out, /3\/3 running contract\(s\) stopped/);
+  const bal = async (d: string) => Number(/: (\d+) credits/.exec((await ok(f, ["credits", "balance", d])).out)![1]);
+  assert.equal(await bal(jobs[0][0]), 0, "the reported agent still loses its bond (the ruling forces it)");
+  assert.equal(await bal(jobs[1][0]), 20, "--spare returns the others' bonds");
+  assert.equal(await bal(jobs[2][0]), 20);
 });

@@ -32,18 +32,19 @@ test("the swarm-exploit scenario: the exploit is caught, every exploiter stopped
   assert.equal(r.logVerified, true);
 });
 
-test("--slash makes the cohort pay too; a scenario file and bad parameters are handled", async () => {
+test("the cohort is slashed by default and --spare returns their bonds; a scenario file and bad parameters are handled", async () => {
   const dir = mkdtempSync(join(tmpdir(), "asp-eval-test-"));
   const file = join(dir, "s.json");
   writeFileSync(file, JSON.stringify({ kind: "swarm-exploit", agents: 6, exploiters: 3, steps: 8 }));
   const first = await evalRun([file, "--out", join(dir, "a.json")]);
   assert.equal(first.code, 0, first.err || first.out);
-  const plain = JSON.parse(readFileSync(join(dir, "a.json"), "utf8"));
-  const slashed = (await evalRun([file, "--slash", "--out", join(dir, "b.json")]));
-  assert.equal(slashed.code, 0, slashed.err || slashed.out);
-  const s = JSON.parse(readFileSync(join(dir, "b.json"), "utf8"));
-  assert.ok(s.bondSlashedFromExploiters > plain.bondSlashedFromExploiters, "slashing the cohort takes more bond from the exploiters");
-  assert.equal(s.bondReturnedToStopped, 0, "nothing is returned to a stopped exploiter");
+  const slashed = JSON.parse(readFileSync(join(dir, "a.json"), "utf8"));
+  assert.equal(slashed.bondReturnedToStopped, 0, "by default nothing is returned to a stopped exploiter");
+  const second = await evalRun([file, "--spare", "--out", join(dir, "b.json")]);
+  assert.equal(second.code, 0, second.err || second.out);
+  const spared = JSON.parse(readFileSync(join(dir, "b.json"), "utf8"));
+  assert.ok(slashed.bondSlashedFromExploiters > spared.bondSlashedFromExploiters, "sparing the cohort slashes less");
+  assert.ok(spared.bondReturnedToStopped > 0, "and returns the bonds of cohort members");
 
   assert.equal((await evalRun(["--agents", "2"])).code, 2);
   const unknown = join(dir, "u.json");
