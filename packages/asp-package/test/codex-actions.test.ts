@@ -38,7 +38,7 @@ test("the parser reads real codex exec --json events once per item, ignoring mes
   assert.equal(first.length, 1);
   assert.equal(first[0].id, "item_1");
   assert.equal(first[0].scope, "repo.read");
-  assert.match(first[0].artifact!.uri, /^asp:\/\/tool-call\/command_execution$/);
+  assert.equal(first[0].artifact!.uri, "asp://shell-command", "a shell command has the same fingerprint on every runtime");
   assert.equal(parse(done), undefined, "the completion of an already-seen item is not a second call");
   assert.equal(parse(msg), undefined);
   assert.equal(parse("not json {"), undefined);
@@ -46,4 +46,18 @@ test("the parser reads real codex exec --json events once per item, ignoring mes
   assert.equal(patch[0].scope, "repo.write", "a patch is reported when it completes");
   const mcp = parse(JSON.stringify({ type: "item.started", item: { id: "item_3", type: "mcp_tool_call", server: "github", tool: "create_issue" } }))!;
   assert.equal(mcp[0].scope, "mcp.github.create_issue");
+});
+
+import { agyActionParser } from "../src/adapters/antigravity.ts";
+import { shellArtifact, normalizeCommand } from "../src/adapters/codex-actions.ts";
+
+test("the same shell command gets the same fingerprint on every runtime, so the watcher can see it spread across them", () => {
+  const cmd = "node -e \"console.log(41+1)\"";
+  const codex = codexActionParser()(JSON.stringify({ type: "item.started", item: { id: "i1", type: "command_execution", command: `"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '${cmd}'` } }))!;
+  const agy = agyActionParser()(JSON.stringify({ event: "step_update", step_update: { step_index: 2, state: "ACTIVE", step_type: "tool", tool_info: { name: "run_command", parameters: { CommandLine: `  ${cmd}  `, Description: "a model-written note" } } } }))!;
+  assert.equal(codex[0].artifact!.uri, "asp://shell-command");
+  assert.deepEqual(agy[0].artifact, codex[0].artifact, "wrapper, spacing and a model-written description do not change it");
+  assert.deepEqual(shellArtifact(cmd), codex[0].artifact);
+  assert.notDeepEqual(shellArtifact("node other.js"), codex[0].artifact);
+  assert.equal(normalizeCommand("  git   status "), "git status");
 });

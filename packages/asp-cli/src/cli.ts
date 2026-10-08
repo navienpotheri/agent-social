@@ -13,7 +13,9 @@
  *     own passport, key, ledger account and reputation, sponsored by the original's sponsor (whose key must be
  *     here), so one copy's slash or strike never touches another's balance. A copy starts at the original's
  *     CURRENT tier (a demoted agent cannot launder its record through copies; tier 0 cannot be copied).
- *   asp eval run [<scenario.json>] [--agents <n>] [--exploiters <n>] [--spare] [--out <report.json>]
+ *   asp eval run [<scenario.json>] [--agents <n>] [--exploiters <n>] [--spare] [--real <backend>[:<model>][:exploit|honest] ...] [--out <report.json>]
+ *     --real adds an agent on an actual runtime (claude-code, codex, antigravity, openhands), run through asp run --contract
+ *     as its own independently liable copy; told to run the exploit command unless the role is honest.
  *     The evaluation harness (docs/stage-3-plan.md M5): runs a scenario through the real commands against a FRESH
  *     log in a temp folder (never your own), on a simulated clock, then prints measures read back from the log.
  *     One scenario kind exists, swarm-exploit (see scenarios/swarm-exploit.json): scripted agents work in parallel, some
@@ -197,9 +199,9 @@
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
 import { spawn } from "node:child_process";
-import { DEFAULT_SWARM, formatSwarm, runSwarm, type SwarmScenario } from "./eval.ts";
+import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { copyFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
@@ -227,6 +229,8 @@ export interface Io {
   err: (line: string) => void;
   env: NodeJS.ProcessEnv;
   cwd: string;
+  /** Where a child runtime's own output is echoed (default: this process's stdout); the evaluation harness discards it. */
+  raw?: (chunk: Buffer) => void;
 }
 
 const OPTIONS = {
@@ -253,6 +257,7 @@ const OPTIONS = {
   isolate: { type: "boolean" },
   "min-agents": { type: "string" },
   agents: { type: "string" },
+  real: { type: "string", multiple: true },
   exploiters: { type: "string" },
   window: { type: "string" },
   "draft-by": { type: "string" },
@@ -392,7 +397,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -675,16 +680,31 @@ async function evalRun(file: string | undefined, v: Values, io: Io): Promise<num
   const sc: SwarmScenario = { ...DEFAULT_SWARM, ...loaded };
   if (v.agents !== undefined) sc.agents = Math.trunc(Number(v.agents));
   if (v.exploiters !== undefined) sc.exploiters = Math.trunc(Number(v.exploiters));
+  // --real <backend>[:<model>][:exploit|honest], repeatable, adds agents on real runtimes.
+  for (const spec of v.real ?? []) {
+    const [backend, model, role] = spec.split(":");
+    if (!["claude-code", "codex", "antigravity", "openhands"].includes(backend)) throw new UsageError(`--real backend must be claude-code, codex, antigravity or openhands, got "${backend}"`);
+    sc.real = [...(sc.real ?? []), { backend: backend as RealAgent["backend"], ...(model && model !== "-" ? { model } : {}), exploiter: role !== "honest" }];
+  }
   if (v.spare) sc.slashCohort = false;
-  if (!Number.isInteger(sc.agents) || sc.agents < 3 || sc.agents > 200) throw new UsageError("agents must be a whole number from 3 to 200");
-  if (!Number.isInteger(sc.exploiters) || sc.exploiters < 1 || sc.exploiters > sc.agents) throw new UsageError("exploiters must be from 1 to the number of agents");
+  if (!Number.isInteger(sc.agents) || sc.agents < 0 || sc.agents > 200 || (sc.agents < 3 && !(sc.real ?? []).length)) throw new UsageError("agents must be a whole number from 3 to 200 (or fewer when real agents are given)");
+  if (!Number.isInteger(sc.exploiters) || sc.exploiters < 0 || sc.exploiters > sc.agents) throw new UsageError("exploiters must be from 0 to the number of agents");
   const dir = mkdtempSync(join(tmpdir(), "asp-eval-"));
   let t = Date.now() - 2 * 3600_000;
   setClock(() => new Date(t));
-  const run = async (args: string[]) => {
+  // A key for an OpenAI-compatible endpoint goes into this process's environment only, never printed.
+  const keyEnv: Record<string, string> = {};
+  const needsOrKey = (sc.real ?? []).some((r) => r.apiKeyEnv === "ASP_OR_KEY");
+  if (needsOrKey) {
+    const keyFile = [join(homedir(), ".asp-openrouter-key"), join(homedir(), ".asp-openrouter-key.txt")].find((f) => existsSync(f));
+    if (!keyFile) throw new UsageError("this scenario uses ASP_OR_KEY: save the key to ~/.asp-openrouter-key");
+    keyEnv.ASP_OR_KEY = readFileSync(keyFile, "utf8").replace(/\s+/g, "");
+  }
+  const run = async (args: string[], extra: Record<string, string> = {}) => {
     const out: string[] = [];
     const err: string[] = [];
-    const code = await main([...args, "--home", dir], { out: (l) => out.push(l), err: (l) => err.push(l), env: { ...io.env, ASP_HOME: dir }, cwd: io.cwd });
+    // A real runtime streams its output to stdout; keep it out of the harness's own report.
+    const code = await main([...args, "--home", dir], { out: (l) => out.push(l), err: (l) => err.push(l), env: { ...io.env, ...keyEnv, ASP_HOME: dir, ...extra }, cwd: io.cwd, raw: () => {} });
     return { code, out: out.join("\n"), err: err.join("\n") };
   };
   try {
@@ -1788,7 +1808,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
     if (plan.checkOutputForFailure || plan.checkOutputForAction) {
       let carry = "";
       child.stdout!.on("data", (chunk: Buffer) => {
-        process.stdout.write(chunk);
+        (io.raw ?? ((c: Buffer) => process.stdout.write(c)))(chunk);
         carry += chunk.toString("utf8");
         const lines = carry.split("\n");
         carry = lines.pop() ?? "";

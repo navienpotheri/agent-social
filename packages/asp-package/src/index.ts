@@ -1,4 +1,5 @@
 export { claudeCode, findProjectDataDir, projectSlug, summarizeTranscript } from "./adapters/claude-code.ts";
+export { shellArtifact, normalizeCommand } from "./adapters/codex-actions.ts";
 export { findContagion, type Cluster, type WatchAction } from "./watch.ts";
 export { appendCheckpoint, findEquivocations, readCheckpoints, signCheckpoint, verifyCheckpointSignature, type LogCheckpoint } from "./checkpoint.ts";
 export { finishPackage, packDirectory, resolvePackage, unpackToTemp, type ResolvedPackage } from "./archive.ts";

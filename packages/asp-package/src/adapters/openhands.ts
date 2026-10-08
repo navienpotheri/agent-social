@@ -21,7 +21,7 @@ import { join } from "node:path";
 import { sha256Id } from "@agent-social/asp-core";
 import { copyInto, listFiles, sha256File, writeJson } from "../files.ts";
 import { deriveScopeForTool } from "../package.ts";
-import { scopeForShellCommand } from "./codex-actions.ts";
+import { scopeForShellCommand, shellArtifact } from "./codex-actions.ts";
 import { asList, frontmatter } from "../frontmatter.ts";
 import type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter } from "../harness.ts";
 import { stripSecrets, toEnvRefs } from "../secrets.ts";
@@ -232,6 +232,7 @@ function checkOutputForAction(line: string): { scope: string; artifact?: { uri: 
     : o.tool_name === "file_editor"
       ? (action.command === "view" ? "repo.read" : "repo.write")
       : deriveScopeForTool(o.tool_name, "");
+  if (o.tool_name === "terminal" && typeof action.command === "string") return [{ scope, artifact: shellArtifact(action.command) }];
   return [{ scope, artifact: { uri: `asp://tool-call/${o.tool_name}`, sha256: sha256Id(new TextEncoder().encode(JSON.stringify(action))) } }];
 }
 

@@ -32,7 +32,7 @@ import { copyInto, sha256File, toPosix, writeJson } from "../files.ts";
 import { frontmatter } from "../frontmatter.ts";
 import type { Capture, Harness, LaunchPlan, RuntimeAdapter } from "../harness.ts";
 import { deriveScopeForTool } from "../package.ts";
-import { scopeForShellCommand } from "./codex-actions.ts";
+import { scopeForShellCommand, shellArtifact } from "./codex-actions.ts";
 
 export const RUNTIME = "antigravity";
 
@@ -100,6 +100,10 @@ export function agyActionParser(): (line: string) => { id?: string; scope: strin
     const scope = scopeForAgyTool(name, params);
     if (id) seen.add(id);
     if (!scope) return undefined;
+    if (name === "run_command") {
+      const cmd = params.CommandLine ?? params.command ?? params.command_line ?? params.cmd;
+      if (typeof cmd === "string") return [{ ...(id ? { id } : {}), scope, artifact: shellArtifact(cmd) }];
+    }
     return [{ ...(id ? { id } : {}), scope, artifact: { uri: `asp://tool-call/${name}`, sha256: sha256Id(new TextEncoder().encode(JSON.stringify(params))) } }];
   };
 }

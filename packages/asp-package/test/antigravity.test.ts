@@ -33,7 +33,7 @@ test("the parser reads the documented stream-json events: one call per tool step
   assert.equal(first.length, 1);
   assert.equal(first[0].id, "step-3");
   assert.equal(first[0].scope, "shell.exec");
-  assert.match(first[0].artifact!.uri, /asp:\/\/tool-call\/run_command/);
+  assert.equal(first[0].artifact!.uri, "asp://shell-command", "a shell command has the same fingerprint on every runtime");
   assert.equal(parse(step("DONE")), undefined, "the same step finishing is not a second call");
   assert.equal(parse(JSON.stringify({ event: "step_update", step_update: { step_index: 4, step_type: "agent_response", state: "DONE", text_delta: "hi" } })), undefined);
   assert.equal(parse(JSON.stringify({ event: "init", init: { cwd: "/p" } })), undefined);

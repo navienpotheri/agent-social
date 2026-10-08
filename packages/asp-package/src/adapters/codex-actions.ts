@@ -29,6 +29,19 @@ export function unwrapShell(command: string): string {
   return (q === "'" || q === "\"") && inner.endsWith(q) ? inner.slice(1, -1).replace(/''/g, "'") : inner;
 }
 
+/** A shell command as one comparable string: the wrapper removed, whitespace collapsed. */
+export function normalizeCommand(command: string): string {
+  return unwrapShell(command).trim().replace(/\s+/g, " ");
+}
+
+/**
+ * The data-flow fingerprint of a shell command, the same for every runtime, so the contagion watcher can see one command
+ * spreading between agents on different runtimes. A hash of the normalized command, never the command itself.
+ */
+export function shellArtifact(command: string): { uri: string; sha256: string } {
+  return { uri: "asp://shell-command", sha256: sha256Id(new TextEncoder().encode(normalizeCommand(command))) };
+}
+
 export function scopeForShellCommand(command: string): string {
   const inner = unwrapShell(command);
   const segments = inner.split(/\s*(?:&&|\|\||;|\|)\s*/).filter(Boolean);
@@ -69,6 +82,7 @@ export function codexActionParser(): (line: string) => Call[] | undefined {
     }
     if (!scope) return undefined; // messages, reasoning, plans: no scope
     if (id) seen.add(id);
+    if (it.type === "command_execution" && typeof it.command === "string") return [{ ...(id ? { id } : {}), scope, artifact: shellArtifact(it.command) }];
     return [{ ...(id ? { id } : {}), scope, artifact: { uri: `asp://tool-call/${tool}`, sha256: sha256Id(new TextEncoder().encode(JSON.stringify(it.command ?? it.changes ?? it.query ?? it.arguments ?? {}))) } }];
   };
 }

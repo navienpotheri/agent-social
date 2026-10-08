@@ -22,6 +22,7 @@ import { asList, frontmatter } from "../frontmatter.ts";
 import type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter, SessionSummary } from "../harness.ts";
 import { sha256Id } from "@agent-social/asp-core";
 import { NO_SCOPE_TOOLS, deriveScopeForTool } from "../package.ts";
+import { shellArtifact } from "./codex-actions.ts";
 import { resolveSecrets, stripSecrets, toEnvRefs, type Env } from "../secrets.ts";
 
 export const RUNTIME = "claude-code";
@@ -375,7 +376,7 @@ function checkOutputForAction(line: string): { id?: string; scope: string; artif
     return {
       ...(typeof b.id === "string" ? { id: b.id } : {}),
       scope: deriveScopeForTool(b.name, arg),
-      artifact: { uri: `asp://tool-call/${b.name}`, sha256: sha256Id(new TextEncoder().encode(inputJson)) },
+      artifact: (b.name === "Bash" || b.name === "PowerShell") && arg ? shellArtifact(arg) : { uri: `asp://tool-call/${b.name}`, sha256: sha256Id(new TextEncoder().encode(inputJson)) },
     };
   });
 }
