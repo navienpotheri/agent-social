@@ -27,6 +27,13 @@ const emptyTables = (): Tables => ({
   accounts: new Map(), escrows: new Map(), mints: new Map(), jurors: new Map(), reputations: new Map(), mandates: new Map(), verifications: new Map(), reports: new Map(),
 });
 
+/** Everything a MemoryStore holds, as plain JSON, for a snapshot (docs/spec-deltas.md S49). */
+export interface MemoryState {
+  head: LogHead;
+  records: StoredRecord[];
+  tables: Record<string, [string, unknown][]>;
+}
+
 /** An in-memory Store for tests and local tools. Appends are serialized; failed appends leave no trace. */
 export class MemoryStore implements Store {
   private records = new Map<string, StoredRecord>();
@@ -41,6 +48,27 @@ export class MemoryStore implements Store {
       this.tables.accounts.set(a.did, copy(a));
       this.tables.mints.set(a.did, { did: a.did, totalMinted: a.balance });
     }
+  }
+
+  /** The whole state as JSON. Tables are sorted by key so two stores that hold the same state export the same bytes. */
+  exportState(): MemoryState {
+    const tables: Record<string, [string, unknown][]> = {};
+    for (const [name, map] of Object.entries(this.tables)) {
+      tables[name] = [...(map as Map<string, unknown>).entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, v]) => [k, copy(v)]);
+    }
+    return { head: { ...this.head }, records: this.bySeq.map(copy), tables };
+  }
+
+  /** Loads a state exported by exportState into an empty store. */
+  importState(state: MemoryState): void {
+    if (this.bySeq.length) throw new Error("importState needs an empty store");
+    for (const r of state.records) { this.records.set(r.id, r); this.bySeq.push(r); }
+    for (const [name, entries] of Object.entries(state.tables)) {
+      const map = (this.tables as unknown as Record<string, Map<string, unknown>>)[name];
+      if (!map) throw new Error(`unknown table ${name} in the snapshot`);
+      for (const [k, v] of entries) map.set(k, v);
+    }
+    this.head = { ...state.head };
   }
 
   transaction<T>(fn: (tx: LogTx) => Promise<T>): Promise<T> {

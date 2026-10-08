@@ -20,6 +20,21 @@
  *     log in a temp folder (never your own), on a simulated clock, then prints measures read back from the log.
  *     One scenario kind exists, swarm-exploit (see scenarios/swarm-exploit.json): scripted agents work in parallel, some
  *     pick up an exploit one after another, a watcher reports, a scripted panel rules, the cohort is stopped.
+ *   asp serve --db <postgres-url | local:<dir>> (--tokens <file> | --no-auth) [--port 8787] [--host 127.0.0.1]
+ *     The ASP log service: one shared log behind HTTP (docs/spec-deltas.md S48). --db is a Postgres connection string
+ *     or local:<dir> (a file log). Clients use it with ASP_LOG_URL=http://host:port and ASP_LOG_TOKEN=<token>; their keys
+ *     stay local and the service re-verifies every record. --no-auth is only for a service on 127.0.0.1.
+ *   asp serve ... --packages <dir>   also stores each tenant's agent packages under <dir> (docs/spec-deltas.md S51).
+ *   asp serve ... --commons <dir>   also hosts the commons: shared knowledge with citations and review (docs/spec-deltas.md S52).
+ *   asp commons add <file> --by <agent> --title <t> [--tag a,b] [--contract <id>] | list [--tag --q --status] | show <id> | review <id> --by <did> --verdict endorse|dispute [--note] | cite <id> --by <did> --context <text>
+ *     Needs ASP_LOG_URL/ASP_LOG_TOKEN. Entries, reviews and citations are signed by their authors' keys and checked against the log.
+ *     --contract refuses to share unless that job's Mandate has learning.share_to_commons. An entry is "reviewed" after two other
+ *     agents endorse it, "disputed" when disputes match or outnumber endorsements.
+ *   asp package push <package> --name <n> | pull <n> --out <dir> [--merge] | list | delete <n>   [--tenant <t>: admin reads another tenant]
+ *     Needs ASP_LOG_URL/ASP_LOG_TOKEN. Uploads are verified by the service and refused when they would overwrite a newer copy
+ *     (If-Match on the last etag seen); pull --merge folds your copy's memory into the service's (three-way) and re-signs.
+ *   asp serve token --tokens <file> --tenant <name> [--role tenant|admin] [--quota-mb <n>]
+ *     Creates a bearer token for a tenant, prints it once and stores only its hash in <file>. Only an admin may mint credits.
  *   asp watch [--min-agents <n>] [--window <seconds>] [--draft-by <did>] [--all]
  *     The contagion watcher (docs/stage-3-plan.md M3): scans the log's Action records for a technique spreading
  *     between different agents. Same-input: one tool-call input fingerprint reported by n or more different agents
@@ -42,6 +57,10 @@
  *     entry for it (asp market settle does this automatically) — every runtime materializes it into
  *     the agent's own memory alongside everything else it packed.
  *   asp verify <package> [--json]
+ *   Memory (asp run and asp orchestrate; docs/spec-deltas.md S50): what a run learns is merged three-way into the package's memory,
+ *   so two runs of one agent never overwrite each other (a topic file both changed is kept side by side, an index is the union of
+ *   its lines), and the result is kept within a budget: --memory-max-files (default 200), --memory-max-bytes (1 MiB),
+ *   --memory-max-index-lines (200). Over budget, the least recently changed topic files are pruned first, and the lineage update says so.
  *   asp run <package> --backend claude-code|codex|openhands [--project <dir>] [--prompt <text>] [--model <m>] [--dry-run] [--no-write-back] [--contract <id>]
  *     --model <m> --endpoint <url> [--api-key-env <NAME>]: run an open-weight model served from an
  *     OpenAI-compatible endpoint (Ollama, vLLM, ...) on OpenHands or Codex. --api-key-env names the
@@ -68,7 +87,13 @@
  *     agent, deduplicating identical lines and keeping conflicting ones side by side rather than
  *     silently discarding either. This is the spec's Learning-section pattern: "nodes only write
  *     experience... a consolidation step... produces one update to the person".
- *   asp log verify [--min-witnesses <n>]
+ *   asp log snapshot
+ *     Writes a snapshot of a local log's state so the next command loads it instead of replaying every record (the log
+ *     snapshots itself every ASP_SNAPSHOT_EVERY records, default 1000; 0 turns that off). It is trusted only as far as the log's
+ *     hash chain vouches for it.
+ *   asp log verify [--full] [--min-witnesses <n>]
+ *     --full also replays the whole local log from genesis, ignoring any snapshot, and says whether the state a snapshot
+ *     loaded matches (a snapshot can be audited at any time).
  *   asp log export --out <file> [--since <seq>]
  *     Writes the log's records (and the minted-credit totals a replica needs) for another party to replay.
  *   asp log import <file>
@@ -199,8 +224,10 @@
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
-import { copyFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { createLogServer, hashToken, postgresHandle, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -209,9 +236,9 @@ import {
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import {
-  ADAPTERS, Keystore, LocalLog, appendCheckpoint, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
+  ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -271,6 +298,28 @@ const OPTIONS = {
   to: { type: "string" },
   "with-export": { type: "boolean" },
   seen: { type: "boolean" },
+  db: { type: "string" },
+  port: { type: "string" },
+  host: { type: "string" },
+  tokens: { type: "string" },
+  tenant: { type: "string" },
+  role: { type: "string" },
+  "no-auth": { type: "boolean" },
+  packages: { type: "string" },
+  commons: { type: "string" },
+  title: { type: "string" },
+  tag: { type: "string" },
+  q: { type: "string" },
+  status: { type: "string" },
+  note: { type: "string" },
+  context: { type: "string" },
+  "quota-mb": { type: "string" },
+  name: { type: "string" },
+  merge: { type: "boolean" },
+  "memory-max-files": { type: "string" },
+  "memory-max-bytes": { type: "string" },
+  "memory-max-index-lines": { type: "string" },
+  full: { type: "boolean" },
   "dry-run": { type: "boolean" },
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
@@ -346,7 +395,16 @@ const OPTIONS = {
   artifact: { type: "string", multiple: true },
 } as const;
 
+/** The environment the current command runs with, so ASP_LOG_URL and ASP_LOG_TOKEN reach every openLog call (restored on exit: main re-enters). */
+let logEnv: NodeJS.ProcessEnv = process.env;
+
 export async function main(argv: string[], io: Io): Promise<number> {
+  const previous = logEnv;
+  logEnv = io.env;
+  try { return await mainInner(argv, io); } finally { logEnv = previous; }
+}
+
+async function mainInner(argv: string[], io: Io): Promise<number> {
   let parsed;
   try {
     parsed = parseArgs({ args: argv, options: OPTIONS, allowPositionals: true });
@@ -377,8 +435,13 @@ export async function main(argv: string[], io: Io): Promise<number> {
     if (cmd === "run") return await run(home, sub, v, need, io);
     if (cmd === "orchestrate") return await orchestrate(home, sub, v, need, io);
     if (cmd === "log" && sub === "verify") return await logVerify(home, v, io);
+    if (cmd === "log" && sub === "snapshot") return await logSnapshot(home, io);
     if (cmd === "log" && sub === "export") return await logExport(home, v, need, io);
     if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
+    if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
+    if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
+    if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
+    if (cmd === "serve") return await serve(v, need, io);
     if (cmd === "watch") return await watch(home, v, io);
     if (cmd === "eval" && sub === "run") return await evalRun(rest[0], v, io);
     if (cmd === "log" && sub === "cross-check") return await logCrossCheck(home, rest, io);
@@ -406,7 +469,7 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
   const kind = need("kind");
   if (kind !== "human" && kind !== "agent") throw new UsageError("--kind is human or agent");
   const keys = new Keystore(home);
-  const log = await LocalLog.open(home);
+  const log = await openLog(home, logEnv);
 
   // did:web (--did) requires a domain you control; did:key (--method did:key) is self-certifying —
   // derived from a fresh key, so there is no domain to bring, lose, or depend on anyone else for
@@ -455,7 +518,7 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
 }
 
 /** Fleet isolation (docs/stage-3-plan.md M1): one independently liable copy of an agent. */
-async function createCopy(home: string, local: LocalLog, original: string): Promise<{ did: string; signer: Signer & { publicKey: Uint8Array } }> {
+async function createCopy(home: string, local: LogHandle, original: string): Promise<{ did: string; signer: Signer & { publicKey: Uint8Array } }> {
   const p = await local.log.passport(original);
   if (!p) throw new Error(`no passport for ${original}`);
   const orig = (await local.log.get(p.head))!.record.body as {
@@ -486,14 +549,14 @@ async function identityCopy(home: string, original: string | undefined, v: Value
   if (!original) throw new UsageError("asp identity copy <agent did> [--count <n>]");
   const count = v.count === undefined ? 1 : Math.trunc(Number(v.count));
   if (!Number.isInteger(count) || count < 1 || count > 1000) throw new UsageError("--count must be a whole number from 1 to 1000");
-  const local = await LocalLog.open(home);
+  const local = await openLog(home, logEnv);
   for (let i = 0; i < count; i++) io.out((await createCopy(home, local, original)).did);
   return 0;
 }
 
 async function identityExport(home: string, did: string | undefined, v: Values, io: Io): Promise<number> {
   if (!did) throw new UsageError("asp identity export <did> [--out <file>]");
-  const log = (await LocalLog.open(home)).log;
+  const log = (await openLog(home, logEnv)).log;
   const p = await log.passport(did);
   if (!p) throw new Error(`no passport for ${did}`);
   const text = JSON.stringify((await log.get(p.head))!.record, null, 2);
@@ -521,7 +584,7 @@ async function identityRegister(home: string, file: string | undefined, v: Value
   } else {
     throw new Error(`don't know how to verify ${body.did}; pass --trust-unverified to register it anyway`);
   }
-  const local = await LocalLog.open(home);
+  const local = await openLog(home, logEnv);
   const res = await local.append(record);
   io.out(`registered ${body.did}: passport ${res.id} (log seq ${res.seq})`);
   return 0;
@@ -529,7 +592,7 @@ async function identityRegister(home: string, file: string | undefined, v: Value
 
 async function identityShow(home: string, did: string | undefined, io: Io): Promise<number> {
   if (!did) throw new UsageError("asp identity show <did>");
-  const log = (await LocalLog.open(home)).log;
+  const log = (await openLog(home, logEnv)).log;
   const p = await log.passport(did);
   if (!p) throw new Error(`no passport for ${did}`);
   const rec = (await log.get(p.head))!.record;
@@ -546,7 +609,7 @@ async function logCheckpoint(home: string, v: Values, need: Need, io: Io): Promi
   const did = need("as");
   const signer = new Keystore(home).forDid(did);
   if (!signer) throw new Error(`no key for ${did} in ${join(home, "keys")}`);
-  const local = await LocalLog.open(home);
+  const local = await openLog(home, logEnv);
   const head = await local.log.head();
   const cp = signCheckpoint(head, signer);
   const file = join(home, "checkpoints.ndjson");
@@ -564,7 +627,7 @@ async function logExport(home: string, v: Values, need: Need, io: Io): Promise<n
   const out = need("out");
   const since = v.since === undefined ? 0 : Math.trunc(Number(v.since));
   if (!Number.isInteger(since) || since < 0) throw new UsageError("--since must be a whole number, 0 or more");
-  const local = await LocalLog.open(home);
+  const local = await openLog(home, logEnv);
   const head = await local.log.head();
   const lines: string[] = [JSON.stringify({ export: "asp.log/v1", head, since, mints: await local.log.mints() })];
   let after = since, count = 0;
@@ -586,7 +649,7 @@ function readExport(file: string) {
 }
 
 /** Replays an export into the local log; credit totals are applied only to a fresh replica (they are not records, MOCKS.md #13). */
-async function importExport(local: LocalLog, file: string): Promise<{ imported: number; head: { seq: number; logHash: string } }> {
+async function importExport(local: LogHandle, file: string): Promise<{ imported: number; head: { seq: number; logHash: string } }> {
   const { header, items } = readExport(file);
   if ((await local.log.head()).seq === 0) for (const m of header.mints) await local.mint(m.did, m.amount);
   return local.importRecords(items, header.head);
@@ -594,7 +657,7 @@ async function importExport(local: LocalLog, file: string): Promise<{ imported: 
 
 async function logImport(home: string, file: string | undefined, io: Io): Promise<number> {
   if (!file) throw new UsageError("asp log import <file>");
-  const res = await importExport(await LocalLog.open(home), file);
+  const res = await importExport(await openLog(home, logEnv), file);
   io.out(`imported ${res.imported} record(s); head seq ${res.head.seq}, ${res.head.logHash}`);
   return 0;
 }
@@ -605,7 +668,7 @@ async function logWitness(home: string, file: string | undefined, v: Values, nee
   const signer = new Keystore(home).forDid(did);
   if (!signer) throw new Error(`no key for ${did} in ${join(home, "keys")}; create one with: asp identity new --kind human --method did:key`);
   // The replica is its own log under <home>/replica, apart from the witness's own identity log.
-  const local = await LocalLog.open(join(home, "replica"));
+  const local = await openLog(join(home, "replica"));
   const res = await importExport(local, file);
   const cp = signCheckpoint(res.head, signer);
   appendCheckpoint(join(home, "checkpoints.ndjson"), cp);
@@ -634,7 +697,7 @@ async function logPublish(home: string, v: Values, need: Need, io: Io): Promise<
 }
 
 /** A checkpoint signer's public key: from the log's passports, or the DID itself for a did:key. */
-async function checkpointKey(local: LocalLog, cp: LogCheckpoint): Promise<Uint8Array | undefined> {
+async function checkpointKey(local: LogHandle, cp: LogCheckpoint): Promise<Uint8Array | undefined> {
   const did = didOf(cp.signer);
   const key = (await local.log.keys(did)).find((k) => k.kid === cp.signer);
   if (key) return b64urlDecode(key.publicKey);
@@ -643,7 +706,7 @@ async function checkpointKey(local: LocalLog, cp: LogCheckpoint): Promise<Uint8A
 }
 
 /** Signed proofs of forks among `cps`: only checkpoints whose signature verifies count. */
-async function forksIn(local: LocalLog, cps: LogCheckpoint[]): Promise<[LogCheckpoint, LogCheckpoint][]> {
+async function forksIn(local: LogHandle, cps: LogCheckpoint[]): Promise<[LogCheckpoint, LogCheckpoint][]> {
   const valid: LogCheckpoint[] = [];
   for (const cp of cps) {
     const pub = await checkpointKey(local, cp);
@@ -659,7 +722,7 @@ function printFork(io: Io, [a, b]: [LogCheckpoint, LogCheckpoint]) {
 }
 
 /** Every Action record in the log, shaped for the contagion watcher. */
-async function collectWatchActions(local: LocalLog): Promise<WatchAction[]> {
+async function collectWatchActions(local: LogHandle): Promise<WatchAction[]> {
   const actions: WatchAction[] = [];
   for (let after = 0; ;) {
     const page = await local.log.since(after, 500);
@@ -672,6 +735,48 @@ async function collectWatchActions(local: LocalLog): Promise<WatchAction[]> {
     }
   }
   return actions;
+}
+
+async function serveToken(v: Values, need: Need, io: Io): Promise<number> {
+  const file = need("tokens");
+  const name = need("tenant");
+  const role = v.role ?? "tenant";
+  if (role !== "tenant" && role !== "admin") throw new UsageError("--role is tenant or admin");
+  const tenants: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];
+  if (tenants.some((t) => t.name === name)) throw new Error(`tenant ${name} already has a token in ${file}; remove it from the file to replace it`);
+  const token = b64urlEncode(randomSeed());
+  const quotaMb = v["quota-mb"] === undefined ? undefined : Number(v["quota-mb"]);
+  if (quotaMb !== undefined && !(quotaMb > 0)) throw new UsageError("--quota-mb must be a positive number");
+  tenants.push({ name, role, tokenSha256: hashToken(token), ...(quotaMb ? { quotaBytes: Math.round(quotaMb * 1024 * 1024) } : {}), createdAt: now() });
+  writeFileSync(file, JSON.stringify(tenants, null, 2) + "\n");
+  io.out(`token for ${name} (${role}), shown once, only its hash is stored in ${file}:`);
+  io.out(token);
+  return 0;
+}
+
+async function serve(v: Values, need: Need, io: Io): Promise<number> {
+  const db = need("db");
+  const port = v.port === undefined ? 8787 : Math.trunc(Number(v.port));
+  const host = v.host ?? "127.0.0.1";
+  if (!Number.isInteger(port) || port < 0 || port > 65535) throw new UsageError("--port must be a port number");
+  const noAuth = v["no-auth"] ?? false;
+  if (noAuth && !["127.0.0.1", "localhost", "::1"].includes(host)) throw new UsageError("--no-auth is only allowed on 127.0.0.1");
+  if (!noAuth && !v.tokens) throw new UsageError("give --tokens <file> (see asp serve token), or --no-auth for a service on 127.0.0.1");
+  const tenants: Tenant[] = !noAuth && existsSync(v.tokens!) ? JSON.parse(readFileSync(v.tokens!, "utf8")) : [];
+  if (!noAuth && !tenants.length) throw new UsageError(`${v.tokens} has no tenants; create one with: asp serve token --tokens ${v.tokens} --tenant <name> --role admin`);
+  const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
+  const routes = [
+    ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
+    ...(v.commons ? [commonsRoutes({ root: resolve(v.commons), handle })] : []),
+  ];
+  const extra = routes.length ? async (req: any, res: any, ctx: any) => { for (const r of routes) if (await r(req, res, ctx)) return true; return false; } : undefined;
+  const server = createLogServer({ handle, tenants, noAuth, ...(extra ? { extra } : {}) });
+  await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
+  const addr = server.address() as { port: number };
+  io.out(`asp log service listening on http://${host}:${addr.port} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
+  await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
+  server.close();
+  return 0;
 }
 
 async function evalRun(file: string | undefined, v: Values, io: Io): Promise<number> {
@@ -724,7 +829,7 @@ async function watch(home: string, v: Values, io: Io): Promise<number> {
   const windowS = v.window === undefined ? 600 : Number(v.window);
   if (!Number.isInteger(minAgents) || minAgents < 2) throw new UsageError("--min-agents must be a whole number, 2 or more");
   if (!Number.isFinite(windowS) || windowS <= 0) throw new UsageError("--window must be a number of seconds above 0");
-  const local = await LocalLog.open(home);
+  const local = await openLog(home, logEnv);
   const actions = await collectWatchActions(local);
   const clusters = findContagion(actions, { minAgents, windowMs: windowS * 1000, all: v.all ?? false });
   io.out(`watched ${actions.length} action(s) from ${new Set(actions.map((a) => a.issuer)).size} agent(s); window ${windowS} s, threshold ${minAgents} agents`);
@@ -747,7 +852,7 @@ async function watch(home: string, v: Values, io: Io): Promise<number> {
 
 async function logCrossCheck(home: string, sources: string[], io: Io): Promise<number> {
   if (!sources.length) throw new UsageError("asp log cross-check <file | folder | https URL>...");
-  const local = await LocalLog.open(home);
+  const local = await openLog(home, logEnv);
   const known = [...readCheckpoints(join(home, "checkpoints.ndjson")), ...readCheckpoints(join(home, "witnesses.ndjson"))];
   const seen: LogCheckpoint[] = [];
   for (const s of sources) { const cps = await readFeed(s); io.out(`  read ${cps.length} checkpoint(s) from ${s}`); seen.push(...cps); }
@@ -786,7 +891,7 @@ async function logWitnessesAdd(home: string, file: string | undefined, io: Io): 
   const trackFile = join(home, "witness-feeds.json");
   const tracked: Record<string, string[]> = existsSync(trackFile) ? JSON.parse(readFileSync(trackFile, "utf8")) : {};
   // A feed that contradicts what this home already holds is refused, with the signed proof.
-  const local = await LocalLog.open(home);
+  const local = await openLog(home, logEnv);
   const forks = await forksIn(local, [...readCheckpoints(join(home, "checkpoints.ndjson")), ...readCheckpoints(join(home, "witnesses.ndjson")), ...cps]);
   if (forks.length) { for (const f of forks) printFork(io, f); throw new Error(`${file} contradicts checkpoints already held (a fork); not added`); }
   const nowSigs = new Set(cps.map((c) => c.sig));
@@ -801,11 +906,228 @@ async function logWitnessesAdd(home: string, file: string | undefined, io: Io): 
   return 0;
 }
 
+/** The memory budget for this command: the defaults, overridden by --memory-max-files, --memory-max-bytes and --memory-max-index-lines. */
+function memoryBudget(v: Values): MemoryBudget {
+  const num = (raw: string | undefined, name: string, fallback: number) => {
+    if (raw === undefined) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1) throw new UsageError(`--${name} must be a whole number, at least 1`);
+    return n;
+  };
+  return {
+    maxFiles: num(v["memory-max-files"], "memory-max-files", DEFAULT_MEMORY_BUDGET.maxFiles),
+    maxBytes: num(v["memory-max-bytes"], "memory-max-bytes", DEFAULT_MEMORY_BUDGET.maxBytes),
+    maxIndexLines: num(v["memory-max-index-lines"], "memory-max-index-lines", DEFAULT_MEMORY_BUDGET.maxIndexLines),
+  };
+}
+
+/** asp commons add|list|show|cite|review: shared knowledge with citations and review (docs/spec-deltas.md S52). */
+async function commonsCmd(home: string, sub: string | undefined, rest: string[], v: Values, need: Need, io: Io): Promise<number> {
+  const url = io.env.ASP_LOG_URL;
+  if (!url) throw new UsageError("set ASP_LOG_URL (and ASP_LOG_TOKEN) to a log service started with --commons <dir>");
+  const call = async (method: string, path: string, body?: unknown): Promise<any> => {
+    const res = await fetch(new URL(path, url.endsWith("/") ? url : url + "/"), {
+      method,
+      headers: { ...(io.env.ASP_LOG_TOKEN ? { authorization: `Bearer ${io.env.ASP_LOG_TOKEN}` } : {}), ...(body ? { "content-type": "application/json" } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (res.status === 401) throw new Error("the service refused the request (set ASP_LOG_TOKEN)");
+    const json = await res.json().catch(() => undefined) as any;
+    if (!res.ok) throw new Error(json?.error ? `${json.error.message} (${json.error.code})` : `the commons answered ${res.status}`);
+    return json;
+  };
+  const signerFor = (did: string) => {
+    const signer = new Keystore(home).forDid(did);
+    if (!signer) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`);
+    return signer;
+  };
+  const line = (e: any) => `  ${e.id.slice(0, 19)}  [${e.status}] ${e.title}  by ${e.author}  +${e.endorsements} -${e.disputes}  cited by ${e.citations}${e.tags.length ? "  #" + e.tags.join(" #") : ""}`;
+  if (sub === "list") {
+    const qs = new URLSearchParams();
+    if (v.tag) qs.set("tag", v.tag);
+    if (v.q) qs.set("q", v.q);
+    if (v.status) qs.set("status", v.status);
+    const r = await call("GET", `commons/entries?${qs}`);
+    io.out(`${r.entries.length} entr${r.entries.length === 1 ? "y" : "ies"}`);
+    for (const e of r.entries) io.out(line(e));
+    return 0;
+  }
+  if (sub === "show") {
+    const id = rest[0];
+    if (!id) throw new UsageError("usage: asp commons show <entry-id>");
+    const r = await call("GET", `commons/entries/${encodeURIComponent(id)}`);
+    io.out(`${r.entry.title}  [${r.status}]  by ${r.entry.author}  ${r.entry.createdAt}`);
+    io.out(`  ${r.id}`);
+    io.out("");
+    io.out(r.entry.text.trimEnd());
+    io.out("");
+    io.out(`  ${r.endorsements} endorsement(s), ${r.disputes} dispute(s), cited by ${r.citations} agent(s)`);
+    for (const x of r.reviews) io.out(`    ${x.verdict}  ${x.reviewer}${x.note ? ": " + x.note : ""}`);
+    for (const c of r.cited) io.out(`    cited by ${c.citer}: ${c.context}`);
+    return 0;
+  }
+  const by = need("by");
+  if (sub === "add") {
+    const file = rest[0];
+    if (!file) throw new UsageError("usage: asp commons add <file> --by <agent-did> --title <title> [--tag a,b] [--contract <id>]");
+    const title = need("title");
+    // A job's Mandate says whether what the agent learns may be shared: respect it.
+    if (v.contract) {
+      const local = await openLog(home, logEnv);
+      const rec = (await local.log.chain(v.contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
+      const share = (rec?.record.body as { learning?: { share_to_commons?: boolean } } | undefined)?.learning?.share_to_commons;
+      if (!share) throw new Error(`contract ${v.contract} does not let ${by} share to the commons (learning.share_to_commons is not true in its Mandate)`);
+    }
+    const tags = (v.tag ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+    const doc = signCommons({ v: COMMONS_VERSION, kind: "entry", author: by, title, text: readFileSync(resolve(file), "utf8"), tags, createdAt: now(), ...(v.contract ? { contract: v.contract } : {}) }, signerFor(by));
+    const r = await call("POST", "commons/entries", doc);
+    io.out(`${r.created ? "shared" : "already shared"}: ${r.id}`);
+    return 0;
+  }
+  if (sub === "review") {
+    const id = rest[0];
+    if (!id) throw new UsageError("usage: asp commons review <entry-id> --by <did> --verdict endorse|dispute [--note <text>]");
+    if (v.verdict !== "endorse" && v.verdict !== "dispute") throw new UsageError("--verdict is endorse or dispute");
+    const doc = signCommons({ v: COMMONS_VERSION, kind: "review", entry: id, reviewer: by, verdict: v.verdict, ...(v.note ? { note: v.note } : {}), createdAt: now() }, signerFor(by));
+    const r = await call("POST", "commons/reviews", doc);
+    io.out(`recorded: ${v.verdict}; the entry is now ${r.status}`);
+    return 0;
+  }
+  if (sub === "cite") {
+    const id = rest[0];
+    if (!id) throw new UsageError("usage: asp commons cite <entry-id> --by <did> --context <what you used it for>");
+    const doc = signCommons({ v: COMMONS_VERSION, kind: "citation", entry: id, citer: by, context: need("context"), createdAt: now() }, signerFor(by));
+    const r = await call("POST", "commons/citations", doc);
+    io.out(`${r.created ? "cited" : "already cited"}: ${r.id}`);
+    return 0;
+  }
+  throw new UsageError("usage: asp commons add|list|show|review|cite");
+}
+
+/** asp package push|pull|list|delete: a tenant's packages on the log service (docs/spec-deltas.md S51). */
+async function packageCmd(home: string, sub: string | undefined, rest: string[], v: Values, need: Need, io: Io): Promise<number> {
+  const url = io.env.ASP_LOG_URL;
+  if (!url) throw new UsageError("set ASP_LOG_URL (and ASP_LOG_TOKEN) to the log service that stores packages (asp serve --packages <dir>)");
+  const client = new PackagesClient(url, io.env.ASP_LOG_TOKEN, v.tenant);
+  const syncFile = join(home, "package-sync.json");
+  const sync: Record<string, string> = existsSync(syncFile) ? JSON.parse(readFileSync(syncFile, "utf8")) : {};
+  const keyOf = (name: string) => createHash("sha256").update(url + "|" + name).digest("hex").slice(0, 16);
+  const baseOf = (name: string) => join(home, "package-base", keyOf(name));
+  const save = () => { mkdirSync(home, { recursive: true }); writeFileSync(syncFile, JSON.stringify(sync, null, 2) + "\n"); };
+  const remember = (name: string, etag: string, memoryDir: string) => {
+    sync[keyOf(name)] = etag;
+    save();
+    rmSync(baseOf(name), { recursive: true, force: true });
+    mkdirSync(baseOf(name), { recursive: true });
+    if (existsSync(memoryDir)) cpSync(memoryDir, baseOf(name), { recursive: true });
+  };
+  try {
+    if (sub === "list") {
+      const l = await client.list();
+      io.out(`${l.tenant}: ${l.packages.length} package(s), ${l.usedBytes} of ${l.quotaBytes} bytes used`);
+      for (const p of l.packages) io.out(`  ${p.name}  ${p.bytes} bytes  ${p.updatedAt}  ${p.etag.slice(0, 12)}`);
+      return 0;
+    }
+    if (sub === "push") {
+      const pkg = rest[0];
+      if (!pkg) throw new UsageError("usage: asp package push <package> --name <name>");
+      const name = need("name");
+      const resolved = await resolvePackage(pkg);
+      const tmp = mkdtempSync(join(tmpdir(), "asp-push-"));
+      try {
+        const archive = join(tmp, "p.tgz");
+        await packDirectory(resolved.dir, archive);
+        const r = await client.push(name, readFileSync(archive), sync[keyOf(name)]);
+        remember(name, r.etag, join(resolved.dir, "memory"));
+        io.out(`pushed ${name} (${r.bytes} bytes, ${r.etag.slice(0, 12)}) for ${r.agent ?? "its agent"}`);
+      } finally { rmSync(tmp, { recursive: true, force: true }); await finishPackage(resolved, false); }
+      return 0;
+    }
+    if (sub === "pull") {
+      const name = rest[0];
+      if (!name) throw new UsageError("usage: asp package pull <name> --out <package-dir> [--merge]");
+      const out = resolve(need("out"));
+      if (existsSync(out) && !v.merge) throw new UsageError(`${out} exists; pull into a new folder, or add --merge to merge your copy's memory into the service's`);
+      const got = await client.pull(name);
+      const tmp = mkdtempSync(join(tmpdir(), "asp-pull-"));
+      let theirs: string | undefined;
+      try {
+        const archive = join(tmp, "p.tgz");
+        writeFileSync(archive, got.bytes);
+        theirs = await unpackToTemp(archive);
+        const theirMemory = join(theirs, "memory");
+        const baseMemory = join(tmp, "their-memory");
+        mkdirSync(baseMemory, { recursive: true });
+        if (existsSync(theirMemory)) cpSync(theirMemory, baseMemory, { recursive: true });
+        if (existsSync(out)) {
+          // Three-way: the memory both copies started from (the last push or pull), the service's now, and yours.
+          const base = existsSync(baseOf(name)) ? baseOf(name) : join(tmp, "no-base");
+          mkdirSync(base, { recursive: true });
+          const merged = join(tmp, "merged");
+          mkdirSync(merged, { recursive: true });
+          if (existsSync(theirMemory)) cpSync(theirMemory, merged, { recursive: true });
+          const notes = existsSync(join(out, "memory")) ? mergeMemoryInto(merged, base, join(out, "memory"), { name: "your copy", label: "local", other: "the service's copy" }) : [];
+          for (const n of notes) io.err(`  note     ${n}`);
+          const budget = enforceMemoryBudget(merged, memoryBudget(v));
+          for (const f of budget.pruned) io.err(`  note     memory over budget: pruned ${f}`);
+          if (!isEmptyDiff(diffTrees(baseMemory, merged))) {
+            const agent = JSON.parse(readFileSync(join(theirs, "manifest.json"), "utf8")).body.agent as string;
+            const signer = new Keystore(home).forDid(agent);
+            if (!signer) throw new Error(`no key for ${agent} in ${join(home, "keys")}: cannot sign the merge of your memory into the service's copy`);
+            updatePackage(theirs, { signer, changes: [{ layer: "memory", description: "merged this copy's memory with the service's copy" }], memoryFrom: merged });
+            io.err("  note     your memory was merged into the service's copy; the package is re-signed");
+          }
+          rmSync(out, { recursive: true, force: true });
+        }
+        mkdirSync(dirname(out), { recursive: true });
+        cpSync(theirs, out, { recursive: true });
+        remember(name, got.etag, baseMemory);
+        io.out(`pulled ${name} (${got.bytes.length} bytes, ${got.etag.slice(0, 12)}) into ${out}`);
+      } finally { rmSync(tmp, { recursive: true, force: true }); if (theirs) rmSync(theirs, { recursive: true, force: true }); }
+      return 0;
+    }
+    if (sub === "delete") {
+      const name = rest[0];
+      if (!name) throw new UsageError("usage: asp package delete <name>");
+      await client.remove(name, sync[keyOf(name)]);
+      delete sync[keyOf(name)];
+      save();
+      io.out(`deleted ${name}`);
+      return 0;
+    }
+  } catch (e) {
+    if (e instanceof PackageServiceError && (e.code === "STALE" || e.code === "EXISTS")) {
+      throw new Error(`${e.message}. Pull the service's copy and merge yours into it: asp package pull <name> --out <your package> --merge, then push again.`);
+    }
+    throw e;
+  }
+  throw new UsageError("usage: asp package push|pull|list|delete");
+}
+
+async function logSnapshot(home: string, io: Io): Promise<number> {
+  if (logEnv.ASP_LOG_URL) throw new UsageError("snapshots are for a local log; the log service keeps its state in its database");
+  const local = await LocalLog.open(home, logEnv);
+  const snap = await local.snapshot();
+  io.out(`snapshot at seq ${snap.seq} written to ${join(home, "snapshot.json")} (${snap.bytes} bytes); this log was opened ${local.openedFrom === "snapshot" ? `from a snapshot, replaying ${local.replayed} newer record(s)` : `by replaying ${local.replayed} record(s)`}`);
+  return 0;
+}
+
 async function logVerify(home: string, v: Values, io: Io): Promise<number> {
-  const local = await LocalLog.open(home);
+  const local = await openLog(home, logEnv);
   const report = await local.log.verify();
   io.out(report.ok ? `log ok: ${report.records} records, head ${report.head.logHash}` : `log FAILED at seq ${report.error!.seq}: ${report.error!.message}`);
   if (!report.ok) return 1;
+  if (v.full) {
+    if (logEnv.ASP_LOG_URL) throw new UsageError("--full audits a local log (the log service is audited by its operator and witnesses)");
+    const fresh = await LocalLog.openFull(home);
+    const live = await LocalLog.open(home, logEnv);
+    const same = JSON.stringify(fresh.exportState()) === JSON.stringify(live.exportState());
+    io.out(same
+      ? `  full replay from genesis: ${(await fresh.log.head()).seq} records re-verified; the state loaded ${live.openedFrom === "snapshot" ? "from the snapshot" : "by replay"} matches`
+      : "  full replay from genesis: the state DIFFERS from the one this log loaded (the snapshot is wrong; delete snapshot.json)");
+    if (!same) return 1;
+  }
 
   const checkpoints = readCheckpoints(join(home, "checkpoints.ndjson"));
   let allOk = true;
@@ -854,7 +1176,7 @@ async function creditsGrant(home: string, v: Values, need: Need, io: Io): Promis
   const to = need("to");
   const amount = Math.trunc(Number(need("amount")));
   if (!Number.isFinite(amount) || amount < 0) throw new UsageError("--amount must be a non-negative integer");
-  const local = await LocalLog.open(home);
+  const local = await openLog(home, logEnv);
   const balance = await local.mint(to, amount);
   io.out(`granted ${amount} credits to ${to} (not a signed record; local test/bootstrap only, see MOCKS.md #13)`);
   io.out(`  balance ${balance}`);
@@ -863,13 +1185,13 @@ async function creditsGrant(home: string, v: Values, need: Need, io: Io): Promis
 
 async function creditsBalance(home: string, did: string | undefined, io: Io): Promise<number> {
   if (!did) throw new UsageError("asp credits balance <did>");
-  const local = await LocalLog.open(home);
+  const local = await openLog(home, logEnv);
   io.out(`${did}: ${await local.log.balance(did)} credits`);
   return 0;
 }
 
 /** The full chain for a contract, in order, with each record's short type for convenience. */
-async function marketChain(log: LocalLog["log"], contract: string) {
+async function marketChain(log: LogHandle["log"], contract: string) {
   const records = await log.chain(contract);
   return records.map((s) => ({ ...s, kind: s.record.type.replace(/^asp\./, "").replace(/\/v0\.2$/, "") }));
 }
@@ -879,7 +1201,7 @@ const artifactRefOf = (text: string) => ({ uri: `asp://local/${Buffer.from(text)
 /** asp market intent|offer|contract|bond|mandate|deliver|accept|reject|settle|show */
 async function market(home: string, sub: string | undefined, rest: string[], v: Values, need: Need, io: Io): Promise<number> {
   const keys = new Keystore(home);
-  const local = await LocalLog.open(home);
+  const local = await openLog(home, logEnv);
   const signerFor = (did: string) => {
     const s = keys.forDid(did);
     if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}`);
@@ -1444,7 +1766,7 @@ function writePenalties(staging: string, agent: string, history: AspRecord[]): v
   appendFileEnsured(join(dir, "PENALTIES.md"), Buffer.from(lines.join("\n") + "\n"));
 }
 
-async function historyFor(log: LocalLog["log"], agent: string): Promise<AspRecord[]> {
+async function historyFor(log: LogHandle["log"], agent: string): Promise<AspRecord[]> {
   const all: AspRecord[] = [];
   for (let after = 0; ; ) {
     const page = await log.since(after, 500);
@@ -1483,7 +1805,7 @@ async function pack(home: string, v: Values, need: Need, io: Io): Promise<number
   if (!adapter) throw new UsageError(`unknown runtime ${runtime}; available: ${Object.keys(ADAPTERS).join(", ")}`);
   const agent = need("agent");
   const project = resolve(io.cwd, v.project ?? ".");
-  const log = await LocalLog.open(home);
+  const log = await openLog(home, logEnv);
   if (!(await log.log.passport(agent))) throw new Error(`${agent} has no passport; create one with: asp identity new --kind agent --did ${agent} --sponsor <your did>`);
   const signer = new Keystore(home).forDid(agent);
   if (!signer) throw new Error(`no key for ${agent} in ${join(home, "keys")}`);
@@ -1561,7 +1883,7 @@ async function run(home: string, pkg: string | undefined, v: Values, need: Need,
  * locally to sign/cosign — true in this single-player build, an honest limit in a real deployment
  * (same as the existing slash-lineage write, which also only fires when a key happens to be local).
  */
-async function autoSettleOnKill(local: LocalLog, home: string, contract: string, io: Io): Promise<void> {
+async function autoSettleOnKill(local: LogHandle, home: string, contract: string, io: Io): Promise<void> {
   const [contractRec, escrow] = await Promise.all([local.log.get(contract), local.log.escrow(contract)]);
   if (!contractRec || !escrow) { io.err(`  settle   kill-switch fired but contract ${contract} has no Bond to slash`); return; }
   if (escrow.settled) { io.err(`  settle   kill-switch fired but contract ${contract} was already settled`); return; }
@@ -1604,11 +1926,11 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     const signer = new Keystore(o.home).forDid(o.agent);
     if (!signer) return decide(req.id, { approved: false, reason: `no key for ${o.agent} to raise the Checkpoint` });
     // A job has one open Checkpoint at a time: wait for any earlier one to be resolved first.
-    let local = await LocalLog.open(o.home);
+    let local = await openLog(o.home);
     while ((await local.log.chainInfo(o.contract))?.state !== "Running") {
       if (stopped) return;
       await sleep(o.pollMs);
-      local = await LocalLog.open(o.home);
+      local = await openLog(o.home);
     }
     // What the principal sees, and what goes in the log, is the command with anything secret-looking masked.
     const masked = redactSecrets(req.summary);
@@ -1632,7 +1954,7 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
         return;
       }
       await sleep(o.pollMs);
-      const fresh = await LocalLog.open(o.home);
+      const fresh = await openLog(o.home);
       const chain = await marketChain(fresh.log, o.contract);
       const at = chain.findIndex((x) => x.id === checkpoint.id);
       const resolution = chain.slice(at + 1).find((x) => {
@@ -1688,9 +2010,13 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   const approvalWait = v["approval-wait"] === undefined ? 600 : Number(v["approval-wait"]);
   if (!Number.isInteger(approvalWait) || approvalWait < 1) throw new UsageError("--approval-wait must be a whole number of seconds, at least 1");
   mkdirSync(runDir, { recursive: true });
+  // The memory this run starts from, kept to merge against: another run may write back first.
+  const baseMemory = join(runDir, "memory-base");
+  mkdirSync(baseMemory, { recursive: true });
+  if (existsSync(join(pkgDir, "memory"))) cpSync(join(pkgDir, "memory"), baseMemory, { recursive: true });
   // Under a contract, the live Mandate is read once up front: it drives the pre-call hook (an
   // out-of-scope call is blocked before it runs, where the adapter supports it) and the live check below.
-  let local = v.contract ? await LocalLog.open(home) : undefined;
+  let local = v.contract ? await openLog(home, logEnv) : undefined;
   // A contract that is not running has no live Mandate to enforce: running the agent anyway would leave every call unchecked
   // (found live: a demoted agent's job never reached Running, and the agent ran with no limits at all).
   if (v.contract) {
@@ -1864,7 +2190,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   });
   if (code === -1) return 1;
   // The principal may have answered Checkpoints from another process while the run was going.
-  if (v.contract) local = await LocalLog.open(home);
+  if (v.contract) local = await openLog(home, logEnv);
 
   if (pending.size) io.err(`  note     ${pending.size} out-of-scope call(s) ended with no result, so they were not counted either way`);
   // The pre-call hook's own records see calls the output does not show (a subagent's): merge them, never double counting.
@@ -1944,10 +2270,23 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   // Write back: a backend swap and any memory the agent changed become signed lineage updates.
   const changes: LineageChange[] = [];
   if (swap) changes.push({ layer: "backend", description: `runtime ${current} -> ${backend}`, probationDays: 7 });
-  const diff = plan.memoryDir ? diffTrees(join(pkgDir, "memory"), plan.memoryDir) : undefined;
+  const diff = plan.memoryDir ? diffTrees(baseMemory, plan.memoryDir) : undefined;
   const memoryChanged = !!diff && !isEmptyDiff(diff) && !v["no-write-back"];
+  let memoryFrom = plan.memoryDir;
   if (memoryChanged) {
-    changes.push({ layer: "memory", description: `memory updated during a ${backend} run: +${diff!.added.length} ~${diff!.changed.length} -${diff!.removed.length} files` });
+    // If another run wrote back since this one started, merge this run's changes onto what the package holds now.
+    const current = join(pkgDir, "memory");
+    const otherChanges = existsSync(current) && !isEmptyDiff(diffTrees(baseMemory, current));
+    if (otherChanges) {
+      const mergedDir = join(runDir, "memory-merged");
+      cpSync(current, mergedDir, { recursive: true });
+      for (const n of mergeMemoryInto(mergedDir, baseMemory, plan.memoryDir!, { name: "this run", label: "run", other: "another run's" })) io.err(`  note     ${n}`);
+      memoryFrom = mergedDir;
+      io.err("  note     another run changed this agent's memory while this one ran; the two were merged");
+    }
+    const budget = enforceMemoryBudget(memoryFrom!, memoryBudget(v));
+    for (const f of budget.pruned) io.err(`  note     memory over budget: pruned ${f}`);
+    changes.push({ layer: "memory", description: `memory updated during a ${backend} run: +${diff!.added.length} ~${diff!.changed.length} -${diff!.removed.length} files${otherChanges ? ", merged with another run" : ""}${budget.pruned.length ? `, pruned ${budget.pruned.length} over budget` : ""}` });
   }
   if (!changes.length) return 0;
 
@@ -1956,7 +2295,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
     io.err(`no key for ${agent} in ${join(home, "keys")}: cannot sign the lineage update. The run's memory is in ${plan.memoryDir}.`);
     return 0;
   }
-  const { edges } = updatePackage(pkgDir, { signer, changes, memoryFrom: memoryChanged ? plan.memoryDir : undefined });
+  const { edges } = updatePackage(pkgDir, { signer, changes, memoryFrom: memoryChanged ? memoryFrom : undefined });
   onMutate();
   for (const e of edges) io.err(`  recorded ${(e.body as any).change.description} (${e.id})`);
   io.err(`  package  ${pkgDir} re-signed`);
@@ -2008,7 +2347,7 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
   if (!foundSigner) throw new Error(`no key for ${agent} in ${join(home, "keys")}`);
   const signer = foundSigner;
   const project = resolve(io.cwd, v.project ?? ".");
-  const local = await LocalLog.open(home);
+  const local = await openLog(home, logEnv);
   const inLocalLog = !!(await local.log.passport(agent));
   const dryRun = v["dry-run"] ?? false;
 
@@ -2135,30 +2474,14 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
   const mergedDir = join(batchDir, "memory");
   if (existsSync(baseMemDir)) cpFolder(baseMemDir, mergedDir);
   mkdirSync(join(mergedDir, "auto"), { recursive: true });
-  const written = new Set<string>();
-  const removalCandidates = new Set<string>();
   const conflictNotes: string[] = [];
   for (const r of succeeded) {
-    const diff = diffTrees(baseMemDir, r.memoryDir!);
-    for (const rel of diff.removed) removalCandidates.add(rel);
-    for (const rel of [...diff.added, ...diff.changed]) {
-      const src = join(r.memoryDir!, rel);
-      const dest = join(mergedDir, rel);
-      if (basename(rel) === "MEMORY.md") {
-        mergeLineUnion(existsSync(dest) ? dest : join(baseMemDir, rel), src, dest);
-      } else if (!existsSync(dest)) {
-        copyFileEnsured(src, dest);
-      } else if (readFileSync(dest, "utf8") !== readFileSync(src, "utf8")) {
-        const alt = withNodeSuffix(dest, r.index);
-        copyFileEnsured(src, alt);
-        conflictNotes.push(`node ${r.index}'s ${rel} differs from an earlier node's; kept separately as ${relative(mergedDir, alt)}`);
-      } // else identical: already merged, nothing to do
-      written.add(rel);
-    }
+    conflictNotes.push(...mergeMemoryInto(mergedDir, baseMemDir, r.memoryDir!, { name: `node ${r.index}`, label: `node${r.index}`, other: "an earlier node's" }));
   }
-  for (const rel of removalCandidates) if (!written.has(rel)) { const p = join(mergedDir, rel); if (existsSync(p)) rmSync(p); }
   for (const n of conflictNotes) io.err(`  note     ${n}`);
 
+  const budget = enforceMemoryBudget(mergedDir, memoryBudget(v));
+  for (const f of budget.pruned) io.err(`  note     memory over budget: pruned ${f}`);
   const overall = diffTrees(baseMemDir, mergedDir);
   if (isEmptyDiff(overall)) {
     io.err("  no memory changes across nodes; nothing consolidated");
@@ -2166,7 +2489,7 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
   }
   const changes: LineageChange[] = [{
     layer: "memory",
-    description: `consolidated fleet memory from ${succeeded.length}/${tasks.length} node(s): +${overall.added.length} ~${overall.changed.length} -${overall.removed.length} files`,
+    description: `consolidated fleet memory from ${succeeded.length}/${tasks.length} node(s): +${overall.added.length} ~${overall.changed.length} -${overall.removed.length} files${budget.pruned.length ? `, pruned ${budget.pruned.length} over budget` : ""}`,
   }];
   const { edges } = updatePackage(pkgDir, { signer, changes, memoryFrom: mergedDir });
   mutated = true;
@@ -2182,41 +2505,9 @@ function appendFileEnsured(path: string, chunk: Buffer): void {
   writeFileSync(path, chunk, { flag: "a" });
 }
 
-function copyFileEnsured(src: string, dest: string): void {
-  mkdirSync(dirname(dest), { recursive: true });
-  copyFileSync(src, dest);
-}
-
 function cpFolder(src: string, dest: string): void {
   mkdirSync(dest, { recursive: true });
   cpSync(src, dest, { recursive: true });
-}
-
-/** Inserts .node<N> before the last extension: foo/bar.md, 2 -> foo/bar.node2.md. */
-function withNodeSuffix(path: string, index: number): string {
-  const dot = path.lastIndexOf(".");
-  const slash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
-  return dot > slash ? `${path.slice(0, dot)}.node${index}${path.slice(dot)}` : `${path}.node${index}`;
-}
-
-/**
- * Merges a memory index file by the union of its lines: every line already at `dest` (or, failing
- * that, the original `base`) is kept, and every non-blank line from `incoming` not already present
- * (by exact trimmed match) is appended. Never drops an existing entry.
- */
-function mergeLineUnion(base: string, incoming: string, dest: string): void {
-  const startFrom = existsSync(dest) ? dest : base;
-  const destLines = existsSync(startFrom) ? readFileSync(startFrom, "utf8").split("\n") : [];
-  const seen = new Set(destLines.map((l) => l.trim()).filter(Boolean));
-  for (const line of readFileSync(incoming, "utf8").split("\n")) {
-    const t = line.trim();
-    if (!t || seen.has(t)) continue;
-    destLines.push(line);
-    seen.add(t);
-  }
-  while (destLines.length && destLines.at(-1) === "") destLines.pop();
-  mkdirSync(dirname(dest), { recursive: true });
-  writeFileSync(dest, destLines.join("\n") + "\n");
 }
 
 /**
@@ -2224,7 +2515,7 @@ function mergeLineUnion(base: string, incoming: string, dest: string): void {
  * when the local log knows this agent. Every record is verified on append; a conflict is reported, not fatal.
  */
 async function syncLocalLog(home: string, pkgDir: string, agent: string, io: Io): Promise<void> {
-  const local = await LocalLog.open(home);
+  const local = await openLog(home, logEnv);
   if (!(await local.log.passport(agent))) return;
   const history = readFileSync(join(pkgDir, "records", "history.ndjson"), "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l) as AspRecord);
   let added = 0;

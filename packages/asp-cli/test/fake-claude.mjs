@@ -62,4 +62,16 @@ if (process.env.FAKE_CLAUDE_LEARN !== "0") {
   writeFileSync(join(mem, "refund-race.md"), "---\nname: refund-race\n---\nThe refund cache needs a per-key lock.\n");
   appendFileSync(join(mem, "MEMORY.md"), "- [Refund race](refund-race.md) — lock per key\n");
 }
+// FAKE_CLAUDE_OTHER_RUN = a package memory/auto directory: another run writes back there while this one is still going.
+if (process.env.FAKE_CLAUDE_OTHER_RUN) {
+  const other = process.env.FAKE_CLAUDE_OTHER_RUN;
+  writeFileSync(join(other, "from-the-other-run.md"), "---\nname: other\n---\nThe other run learned to run migrations first.\n");
+  appendFileSync(join(other, "MEMORY.md"), "- [Other run](from-the-other-run.md) - migrations first\n");
+}
+// FAKE_CLAUDE_LEARN_FILES = n: this run learns n extra topic files (to push memory over its budget).
+for (let i = 0; i < Number(process.env.FAKE_CLAUDE_LEARN_FILES ?? 0); i++) {
+  const name = "lesson-" + String(i).padStart(2, "0") + ".md";
+  writeFileSync(join(mem, name), "---\nname: lesson-" + i + "\n---\nLesson number " + i + ".\n");
+  appendFileSync(join(mem, "MEMORY.md"), "- [Lesson " + i + "](" + name + ") - lesson " + i + "\n");
+}
 process.exit(Number(process.env.FAKE_CLAUDE_EXIT ?? 0));
