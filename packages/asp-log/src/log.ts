@@ -543,9 +543,14 @@ export class EventLog {
         }
       }
     }
+    // Courts fee reserve: if jurors are registered, each side locks half the panel fee now, so a loser with
+    // nothing left over still pays (returned at Settlement unless a ruling uses it).
+    const contractRec = await tx.getRecord(body.contract);
+    const contractPrice = (contractRec?.record.body as { price?: { value: number } } | undefined)?.price?.value ?? 0;
+    const reserveEach = (await tx.activeJurors()).length > 0 ? Math.ceil(Math.floor((contractPrice * PANEL_FEE_PERMILLE) / 1000) / 2) : 0;
     const debits = new Map<string, number>();
-    debits.set(body.escrow.payer, (debits.get(body.escrow.payer) ?? 0) + body.escrow.amount.value);
-    debits.set(body.backer, (debits.get(body.backer) ?? 0) + body.amount.value);
+    debits.set(body.escrow.payer, (debits.get(body.escrow.payer) ?? 0) + body.escrow.amount.value + reserveEach);
+    debits.set(body.backer, (debits.get(body.backer) ?? 0) + body.amount.value + reserveEach);
     for (const [did, amount] of debits) await this.debit(tx, did, amount);
     // Snapshot the performer's passport earnings_split now, so a later passport edit can't change it.
     const performer = (await tx.getRecord(body.contract))?.record.body as { performer?: string } | undefined;
@@ -554,7 +559,7 @@ export class EventLog {
     const agentPermille = (ppRec?.record.body as { earnings_split?: { agent_permille: number } } | undefined)?.earnings_split?.agent_permille ?? null;
     await tx.putEscrow({
       contract: body.contract, escrowPayer: body.escrow.payer, escrowLocked: body.escrow.amount.value,
-      backer: body.backer, bondLocked: body.amount.value, agentPermille, settled: false,
+      backer: body.backer, bondLocked: body.amount.value, agentPermille, feeReservePrincipal: reserveEach, feeReserveBacker: reserveEach, settled: false,
     });
   }
 
@@ -604,6 +609,8 @@ export class EventLog {
     let escrowLeftover = escrow.escrowLocked - body.escrow_released.value - fees;
     let bondLeftover = escrow.bondLocked - body.bond_returned.value - body.bond_slashed.value;
     let slashedToPrincipal = body.bond_slashed.value;
+    let principalReserve = escrow.feeReservePrincipal;
+    let backerReserve = escrow.feeReserveBacker;
 
     // Courts fee: a ruling signed by drawn jurors pays them PANEL_FEE_PERMILLE of the price, split among
     // the signers on the panel. The loser pays, out of what they have locked and the settlement leaves over:
@@ -619,16 +626,22 @@ export class EventLog {
       const paid = [...new Set(signers.filter((d) => panel.includes(d)))];
       if (fee > 0 && paid.length > 0) {
         const performerFault = (ruling!.record.body as { fault?: Record<string, number> }).fault?.[cbody.performer] ?? 0;
-        // The performer's side can pay from its bond left over and from the slashed part (which would otherwise go to the principal).
-        const performerPool = bondLeftover + slashedToPrincipal;
+        // The performer's side pays from its fee reserve, then its bond left over, then the slashed part (which
+        // would otherwise go to the principal); the principal's side from its reserve, then its escrow left over.
+        const performerPool = backerReserve + bondLeftover + slashedToPrincipal;
+        const principalPool = principalReserve + escrowLeftover;
         let fromBond = Math.min(performerPool, Math.ceil((fee * performerFault) / 1000));
-        const fromEscrow = Math.min(escrowLeftover, fee - fromBond);
+        const fromEscrow = Math.min(principalPool, fee - fromBond);
         fromBond = Math.min(performerPool, fee - fromEscrow); // a short side is covered by the other, up to what is left
         const total = fromBond + fromEscrow;
-        const fromLeftover = Math.min(bondLeftover, fromBond);
+        const fromBackerReserve = Math.min(backerReserve, fromBond);
+        backerReserve -= fromBackerReserve;
+        const fromLeftover = Math.min(bondLeftover, fromBond - fromBackerReserve);
         bondLeftover -= fromLeftover;
-        slashedToPrincipal -= fromBond - fromLeftover;
-        escrowLeftover -= fromEscrow;
+        slashedToPrincipal -= fromBond - fromBackerReserve - fromLeftover;
+        const fromPrincipalReserve = Math.min(principalReserve, fromEscrow);
+        principalReserve -= fromPrincipalReserve;
+        escrowLeftover -= fromEscrow - fromPrincipalReserve;
         const each = Math.floor(total / paid.length);
         for (const [i, d] of paid.entries()) await this.credit(tx, d, each + (i === 0 ? total - each * paid.length : 0));
       }
@@ -652,8 +665,8 @@ export class EventLog {
       await this.credit(tx, cbody.performer, body.escrow_released.value);
     }
     if (fees > 0) await this.credit(tx, PLATFORM_DID, fees);
-    await this.credit(tx, cbody.principal, escrowLeftover + slashedToPrincipal);
-    await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover);
+    await this.credit(tx, cbody.principal, escrowLeftover + slashedToPrincipal + principalReserve);
+    await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover + backerReserve);
     if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer);
     await tx.putEscrow({ ...escrow, settled: true });
   }

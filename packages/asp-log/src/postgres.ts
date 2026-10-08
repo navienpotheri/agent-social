@@ -62,7 +62,8 @@ const toAccount = (a: any): AccountRow => ({ did: a.did, balance: Number(a.balan
 const toEscrow = (e: any): EscrowRow => ({
   contract: e.contract, escrowPayer: e.escrow_payer, escrowLocked: Number(e.escrow_locked),
   backer: e.backer, bondLocked: Number(e.bond_locked),
-  agentPermille: e.agent_permille === null ? null : Number(e.agent_permille), settled: e.settled,
+  agentPermille: e.agent_permille === null ? null : Number(e.agent_permille),
+  feeReservePrincipal: Number(e.fee_reserve_principal), feeReserveBacker: Number(e.fee_reserve_backer), settled: e.settled,
 });
 const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_minted) });
 const toJuror = (j: any): JurorRow => ({ did: j.did, head: j.head, staked: Number(j.staked) });
@@ -294,10 +295,11 @@ class PgTx implements LogTx {
   }
   async putEscrow(row: EscrowRow) {
     await this.c.query(
-      `INSERT INTO escrows (contract, escrow_payer, escrow_locked, backer, bond_locked, settled, agent_permille)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (contract) DO UPDATE SET escrow_payer = $2, escrow_locked = $3, backer = $4, bond_locked = $5, settled = $6, agent_permille = $7`,
-      [row.contract, row.escrowPayer, row.escrowLocked, row.backer, row.bondLocked, row.settled, row.agentPermille],
+      `INSERT INTO escrows (contract, escrow_payer, escrow_locked, backer, bond_locked, settled, agent_permille, fee_reserve_principal, fee_reserve_backer)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (contract) DO UPDATE SET escrow_payer = $2, escrow_locked = $3, backer = $4, bond_locked = $5, settled = $6, agent_permille = $7,
+         fee_reserve_principal = $8, fee_reserve_backer = $9`,
+      [row.contract, row.escrowPayer, row.escrowLocked, row.backer, row.bondLocked, row.settled, row.agentPermille, row.feeReservePrincipal, row.feeReserveBacker],
     );
   }
   async putMint(row: MintRow) {

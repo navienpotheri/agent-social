@@ -106,6 +106,9 @@ export interface EscrowRow {
   bondLocked: number;
   /** The performer's passport earnings_split at Bond time (permille the agent keeps); null = none. */
   agentPermille: number | null;
+  /** Half the panel fee each side locked at Bond time (0 when no jurors were registered). */
+  feeReservePrincipal: number;
+  feeReserveBacker: number;
   settled: boolean;
 }
 

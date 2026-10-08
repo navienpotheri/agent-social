@@ -188,3 +188,53 @@ test("publish --with-export writes the whole log for others to replay, and only 
   const replayer = makeFixture();
   assert.match((await ok(replayer, ["log", "import", join(full, "export.ndjson")])).out, /imported \d+ record/);
 });
+
+// ---- cross-checking ----
+import { Keystore, appendCheckpoint, readCheckpoints, signCheckpoint } from "@agent-social/asp-package";
+
+/** The operator signs a second, different history at the seq it already checkpointed: what a forking host would do. */
+async function forkedFeed(f: Fixture) {
+  const real = readCheckpoints(join(f.aspHome, "checkpoints.ndjson")).at(-1)!;
+  const signer = new Keystore(f.aspHome).forDid(ALICE)!;
+  const fork = signCheckpoint({ seq: real.seq, logHash: "sha256:" + "b".repeat(64) }, signer);
+  const dir = join(f.root, "reader-y");
+  appendCheckpoint(join(dir, "feed.ndjson"), fork);
+  return { real, fork, dir };
+}
+
+test("cross-check proves a fork: the same signer, the same seq, two different hashes", async () => {
+  const { f } = await operator();
+  const { dir } = await forkedFeed(f);
+  const res = await asp(f, ["log", "cross-check", dir]);
+  assert.equal(res.code, 1);
+  assert.match(res.out, /FORK .* signed two different histories at seq \d+/);
+  assert.match(res.out, /cross-check FAILED/);
+});
+
+test("cross-check passes when everyone saw the same history, and counts the signers", async () => {
+  const { f } = await operator();
+  const readerY = join(f.root, "reader-same");
+  await ok(f, ["log", "publish", "--to", readerY]);
+  const res = await asp(f, ["log", "cross-check", readerY]);
+  assert.equal(res.code, 0, res.out);
+  assert.match(res.out, /cross-check ok: \d+ checkpoint\(s\) from 1 signer\(s\), no fork/);
+});
+
+test("witnesses add refuses a feed that contradicts a checkpoint already held, with the signed proof", async () => {
+  const { f } = await operator();
+  const { dir } = await forkedFeed(f);
+  const res = await asp(f, ["log", "witnesses", "add", dir]);
+  assert.equal(res.code, 1);
+  assert.match(res.out, /FORK/);
+  assert.match(res.err, /contradicts checkpoints already held/);
+});
+
+test("publish --seen shares the witness checkpoints this home collected, so others can cross-check them", async () => {
+  const { f } = await operator();
+  const { w, feed } = await publishedWitness(f);
+  await ok(w, ["log", "publish", "--to", feed]);
+  await ok(f, ["log", "witnesses", "add", feed]);
+  const out = join(f.root, "seen-feed");
+  assert.match((await ok(f, ["log", "publish", "--to", out, "--seen"])).out, /published 2 new checkpoint/, "its own and the witness's");
+  assert.equal(readCheckpoints(join(out, "feed.ndjson")).length, 2);
+});

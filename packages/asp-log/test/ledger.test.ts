@@ -81,7 +81,7 @@ for (const h of [memory, postgres] as Harness[]) {
       assert.equal(await log.balance(alice.did), 0, "alice's escrow is locked, not spent");
       assert.equal(await log.balance(coder.did), 0, "coder's bond is locked");
       assert.deepEqual(await log.escrow(contract.id), {
-        contract: contract.id, escrowPayer: alice.did, escrowLocked: 1000, backer: coder.did, bondLocked: 200, agentPermille: null, settled: false,
+        contract: contract.id, escrowPayer: alice.did, escrowLocked: 1000, backer: coder.did, bondLocked: 200, agentPermille: null, feeReservePrincipal: 0, feeReserveBacker: 0, settled: false,
       });
     });
 

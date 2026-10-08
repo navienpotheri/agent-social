@@ -55,7 +55,13 @@
  *   asp log witness <export file> --as <witness did> [--out <file>]
  *     A witness: imports the export into a replica log (<home>/replica), and only if the replay reproduces the exported head,
  *     signs a checkpoint of it (saved in its checkpoints.ndjson, and to --out). Use a did:key identity.
- *   asp log publish --to <dir> [--with-export]
+ *   asp log cross-check <source>...
+ *     Compares every checkpoint this home holds (its own, its witnesses') with the feeds others saw (files,
+ *     folders, https URLs). The same signer with two different hashes at one seq is a signed proof of a fork
+ *     (a host or operator that showed different readers different histories): printed with both entries,
+ *     exit 1. `witnesses add` runs the same check before it accepts a feed.
+ *   asp log publish --to <dir> [--with-export] [--seen]
+ *     --seen also publishes the witness checkpoints this home collected, so others can cross-check what you saw.
  *     Copies this home's signed checkpoints that are not published yet into <dir>/feed.ndjson (append-only),
  *     for anyone to read: commit the folder to a public git repo, or serve it from any static host. A witness
  *     publishes its own the same way. --with-export also writes <dir>/export.ndjson, the whole log, so others
@@ -168,7 +174,7 @@ import {
 } from "@agent-social/asp-core";
 import {
   ADAPTERS, Keystore, LocalLog, appendCheckpoint, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
-  readCheckpoints, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
+  findEquivocations, readCheckpoints, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   verifyPackage, writePackage,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
@@ -211,6 +217,7 @@ const OPTIONS = {
   "min-witnesses": { type: "string" },
   to: { type: "string" },
   "with-export": { type: "boolean" },
+  seen: { type: "boolean" },
   "dry-run": { type: "boolean" },
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
@@ -318,6 +325,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "verify") return await logVerify(home, v, io);
     if (cmd === "log" && sub === "export") return await logExport(home, v, need, io);
     if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
+    if (cmd === "log" && sub === "cross-check") return await logCrossCheck(home, rest, io);
     if (cmd === "log" && sub === "publish") return await logPublish(home, v, need, io);
     if (cmd === "log" && sub === "witness") return await logWitness(home, rest[0], v, need, io);
     if (cmd === "log" && sub === "witnesses") return await logWitnessesAdd(home, rest[0] === "add" ? rest[1] : undefined, io);
@@ -517,7 +525,7 @@ async function logWitness(home: string, file: string | undefined, v: Values, nee
 /** Copies the home's signed checkpoints that the feed folder does not have yet into <dir>/feed.ndjson (append-only). */
 async function logPublish(home: string, v: Values, need: Need, io: Io): Promise<number> {
   const dir = need("to");
-  const mine = readCheckpoints(join(home, "checkpoints.ndjson"));
+  const mine = [...readCheckpoints(join(home, "checkpoints.ndjson")), ...(v.seen ? readCheckpoints(join(home, "witnesses.ndjson")) : [])];
   if (!mine.length) throw new Error("no checkpoints to publish; sign one with: asp log checkpoint --as <did>");
   const feed = join(dir, "feed.ndjson");
   const published = new Set(readCheckpoints(feed).map((c) => c.sig));
@@ -530,6 +538,54 @@ async function logPublish(home: string, v: Values, need: Need, io: Io): Promise<
   }
   io.out("  nothing was uploaded: commit this folder to a public git repo, or serve it from a static host.");
   return 0;
+}
+
+/** A checkpoint signer's public key: from the log's passports, or the DID itself for a did:key. */
+async function checkpointKey(local: LocalLog, cp: LogCheckpoint): Promise<Uint8Array | undefined> {
+  const did = didOf(cp.signer);
+  const key = (await local.log.keys(did)).find((k) => k.kid === cp.signer);
+  if (key) return b64urlDecode(key.publicKey);
+  if (did.startsWith("did:key:")) { try { return publicKeyFromDidKey(did); } catch { /* not ed25519 */ } }
+  return undefined;
+}
+
+/** Signed proofs of forks among `cps`: only checkpoints whose signature verifies count. */
+async function forksIn(local: LocalLog, cps: LogCheckpoint[]): Promise<[LogCheckpoint, LogCheckpoint][]> {
+  const valid: LogCheckpoint[] = [];
+  for (const cp of cps) {
+    const pub = await checkpointKey(local, cp);
+    if (pub && verifyCheckpointSignature(cp, pub)) valid.push(cp);
+  }
+  return findEquivocations(valid);
+}
+
+function printFork(io: Io, [a, b]: [LogCheckpoint, LogCheckpoint]) {
+  io.out(`  FORK  ${didOf(a.signer)} signed two different histories at seq ${a.seq}:`);
+  io.out(`          ${a.logHash}  (${a.signedAt})`);
+  io.out(`          ${b.logHash}  (${b.signedAt})`);
+}
+
+async function logCrossCheck(home: string, sources: string[], io: Io): Promise<number> {
+  if (!sources.length) throw new UsageError("asp log cross-check <file | folder | https URL>...");
+  const local = await LocalLog.open(home);
+  const known = [...readCheckpoints(join(home, "checkpoints.ndjson")), ...readCheckpoints(join(home, "witnesses.ndjson"))];
+  const seen: LogCheckpoint[] = [];
+  for (const s of sources) { const cps = await readFeed(s); io.out(`  read ${cps.length} checkpoint(s) from ${s}`); seen.push(...cps); }
+  const forks = await forksIn(local, [...known, ...seen]);
+  for (const f of forks) printFork(io, f);
+  // A checkpoint someone else holds that this log's own replay contradicts is also a fork, from this log's point of view.
+  let contradicted = 0;
+  for (const cp of seen) {
+    const pub = await checkpointKey(local, cp);
+    if (!pub || !verifyCheckpointSignature(cp, pub)) continue;
+    if (!(await local.log.verifyCheckpoint({ seq: cp.seq, logHash: cp.logHash })) && (await local.log.head()).seq >= cp.seq) {
+      contradicted++;
+      io.out(`  FORK  ${didOf(cp.signer)} signed ${cp.logHash} at seq ${cp.seq}, which this log does not have`);
+    }
+  }
+  const signers = new Set([...known, ...seen].map((c) => didOf(c.signer)));
+  io.out(forks.length || contradicted ? `cross-check FAILED: ${forks.length + contradicted} fork(s) among ${known.length + seen.length} checkpoint(s)` : `cross-check ok: ${known.length + seen.length} checkpoint(s) from ${signers.size} signer(s), no fork`);
+  return forks.length || contradicted ? 1 : 0;
 }
 
 /** Reads a witness feed: a local checkpoints file, a folder holding feed.ndjson, or an https URL of one. */
@@ -549,6 +605,10 @@ async function logWitnessesAdd(home: string, file: string | undefined, io: Io): 
   // Append-only: an entry seen from this source before must still be there.
   const trackFile = join(home, "witness-feeds.json");
   const tracked: Record<string, string[]> = existsSync(trackFile) ? JSON.parse(readFileSync(trackFile, "utf8")) : {};
+  // A feed that contradicts what this home already holds is refused, with the signed proof.
+  const local = await LocalLog.open(home);
+  const forks = await forksIn(local, [...readCheckpoints(join(home, "checkpoints.ndjson")), ...readCheckpoints(join(home, "witnesses.ndjson")), ...cps]);
+  if (forks.length) { for (const f of forks) printFork(io, f); throw new Error(`${file} contradicts checkpoints already held (a fork); not added`); }
   const nowSigs = new Set(cps.map((c) => c.sig));
   const vanished = (tracked[file] ?? []).filter((s) => !nowSigs.has(s));
   if (vanished.length) throw new Error(`${file} has rewritten its history: ${vanished.length} entry(ies) published before are gone; not updated`);

@@ -37,6 +37,22 @@ export function verifyCheckpointSignature(cp: LogCheckpoint, publicKey: Uint8Arr
   return verifyBytes(b64urlDecode(cp.sig), signingBytes(cp.seq, cp.logHash, cp.signedAt), publicKey);
 }
 
+/**
+ * Two checkpoints with the same signer and the same seq but different hashes: a signed proof that the signer
+ * showed different histories to different people (a fork). Both signatures must already have been verified.
+ */
+export function findEquivocations(cps: LogCheckpoint[]): [LogCheckpoint, LogCheckpoint][] {
+  const bySignerSeq = new Map<string, LogCheckpoint>();
+  const found: [LogCheckpoint, LogCheckpoint][] = [];
+  for (const cp of cps) {
+    const key = `${didOf(cp.signer)}@${cp.seq}`;
+    const prior = bySignerSeq.get(key);
+    if (!prior) bySignerSeq.set(key, cp);
+    else if (prior.logHash !== cp.logHash) found.push([prior, cp]);
+  }
+  return found;
+}
+
 export function appendCheckpoint(file: string, cp: LogCheckpoint): void {
   mkdirSync(dirname(file), { recursive: true });
   appendFileSync(file, JSON.stringify(cp) + "\n");

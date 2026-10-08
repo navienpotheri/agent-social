@@ -63,8 +63,9 @@ for (const h of [memory, postgres] as Harness[]) {
     test("a ruling by drawn jurors pays them a panel fee (5% of the price), the loser's side bearing it", async () => {
       const log = new EventLog(await h.make());
       await registerParties(log);
-      await log.mint(alice.did, 1000);
-      await log.mint(coder.did, 200);
+      // Jurors exist at Bond time, so each side also locks half the 50-credit fee (25) as a reserve.
+      await log.mint(alice.did, 1000 + 25);
+      await log.mint(coder.did, 200 + 25);
       const jurors = ["a", "b", "c"].map((n) => {
         const did = `did:web:example.com:users:fee-juror-${n}`;
         return { did, ...signerFromSeed(`${did}#key-1`, new Uint8Array(randomBytes(32))) } as { did: string; publicKey: Uint8Array } & Signer;
@@ -80,12 +81,36 @@ for (const h of [memory, postgres] as Harness[]) {
       const ruling = cosign(rec("attestation", jurors[0], { kind: "ruling", about: contract.id, verdict: "for_principal", fault: { [coder.did]: 1000 } }, reject.id, contract.id), jurors[1]);
       assert.equal(await codeOf(log.append(ruling)), undefined);
       assert.equal(await settle(log, contract.id, ruling.id, ruling.id, 0, 0, 200), undefined);
-      // Fee 50 (5% of 1000) comes out of the slashed 200, split between the two signers.
-      assert.equal(await log.balance(alice.did), 1000 + 150, "escrow back, plus the slashed bond less the fee");
+      // Fee 50 (5% of 1000): the performer's side pays it, its 25 reserve first, then 25 of the slashed 200.
+      assert.equal(await log.balance(alice.did), 1000 + 175 + 25, "escrow back, the slashed bond less 25, and her own untouched reserve");
       assert.equal(await log.balance(coder.did), 0);
       assert.equal(await log.balance(jurors[0].did), 400 + 25);
       assert.equal(await log.balance(jurors[1].did), 400 + 25);
       assert.equal(await log.balance(jurors[2].did), 400, "a drawn juror who did not sign earns nothing");
+    });
+
+    test("a loser with nothing left over still pays: the fee reserve covers it (principal loses after the whole price was released)", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      await log.mint(alice.did, 1000 + 25);
+      await log.mint(coder.did, 200 + 25);
+      const jurors = ["d", "e", "f"].map((n) => {
+        const did = `did:web:example.com:users:fee-juror-${n}`;
+        return { did, ...signerFromSeed(`${did}#key-1`, new Uint8Array(randomBytes(32))) } as { did: string; publicKey: Uint8Array } & Signer;
+      });
+      for (const j of jurors) {
+        await log.append(rec("passport", j, { did: j.did, kind: "human", keys: [{ id: j.kid, type: "Ed25519", public_key: b64urlEncode(j.publicKey) }] }, null, j.did));
+        await log.mint(j.did, 500);
+        await log.append(rec("juror", j, { did: j.did, stake: { value: 100, unit: "credit" } }, null));
+      }
+      const { contract, reject } = await disputed(log, 1000, 200);
+      const ruling = cosign(rec("attestation", jurors[0], { kind: "ruling", about: contract.id, verdict: "for_performer", fault: { [alice.did]: 1000 } }, reject.id, contract.id), jurors[1]);
+      assert.equal(await codeOf(log.append(ruling)), undefined);
+      assert.equal(await settle(log, contract.id, ruling.id, ruling.id, 1000, 200, 0), undefined);
+      // The principal lost and has no escrow left: it pays its 25 reserve; the performer's reserve covers the other 25.
+      assert.equal(await log.balance(alice.did), 0);
+      assert.equal(await log.balance(coder.did), 1000 + 200, "paid in full and the bond back, minus nothing: its reserve went to the panel");
+      assert.equal(await log.balance(jurors[0].did) + await log.balance(jurors[1].did) + await log.balance(jurors[2].did), 3 * 400 + 50);
     });
 
     test("a settlement matching the ruling's fault exactly succeeds", async () => {

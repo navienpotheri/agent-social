@@ -1,5 +1,5 @@
 export { claudeCode, findProjectDataDir, projectSlug, summarizeTranscript } from "./adapters/claude-code.ts";
-export { appendCheckpoint, readCheckpoints, signCheckpoint, verifyCheckpointSignature, type LogCheckpoint } from "./checkpoint.ts";
+export { appendCheckpoint, findEquivocations, readCheckpoints, signCheckpoint, verifyCheckpointSignature, type LogCheckpoint } from "./checkpoint.ts";
 export { finishPackage, packDirectory, resolvePackage, unpackToTemp, type ResolvedPackage } from "./archive.ts";
 export { codex, resolveCodexCommand, summarizeRollout, tomlValue } from "./adapters/codex.ts";
 export { openhands } from "./adapters/openhands.ts";
