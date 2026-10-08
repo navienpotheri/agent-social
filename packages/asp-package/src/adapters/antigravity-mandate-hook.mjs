@@ -149,6 +149,7 @@ async function main() {
   if (phase === "post") {
     appendFileSync(join(root, "executed-calls.ndjson"), JSON.stringify({
       at: new Date().toISOString(), id: `step-${event.stepIdx}`, tool: event.toolCall?.name, failed: !!event.error,
+      scope: scopeForAgyTool(event.toolCall?.name ?? "", event.toolCall?.args ?? {}),
     }) + "\n");
     answer({});
     return;

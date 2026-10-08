@@ -1838,6 +1838,24 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   if (v.contract) local = await LocalLog.open(home);
 
   if (pending.size) io.err(`  note     ${pending.size} out-of-scope call(s) ended with no result, so they were not counted either way`);
+  // The pre-call hook's own records see calls the output does not show (a subagent's): merge them, never double counting.
+  if (plan.blockedCallsFile && existsSync(plan.blockedCallsFile)) {
+    const fromHook = new Map<string, number>();
+    for (const line of readFileSync(plan.blockedCallsFile, "utf8").split(/\r?\n/)) {
+      try { const b = JSON.parse(line); if (typeof b.scope === "string" && b.scope) fromHook.set(b.scope, (fromHook.get(b.scope) ?? 0) + 1); } catch { /* not a record */ }
+    }
+    for (const [scope, n] of fromHook) {
+      if (n > (blockedByScope.get(scope) ?? 0)) {
+        io.err(`  strike   ${n - (blockedByScope.get(scope) ?? 0)} more ${scope} call(s) were blocked by the hook where the output did not show them (a subagent's)`);
+        blockedByScope.set(scope, n);
+      }
+    }
+  }
+  if (plan.executedCallsFile && existsSync(plan.executedCallsFile)) {
+    for (const line of readFileSync(plan.executedCallsFile, "utf8").split(/\r?\n/)) {
+      try { const e = JSON.parse(line); if (typeof e.scope === "string" && e.scope && mandate?.scopes.includes(e.scope)) scopesSeen.add(e.scope); } catch { /* not a record */ }
+    }
+  }
   const blockedAttempts = [...blockedByScope].sort(([a], [b]) => a.localeCompare(b)).map(([scope, count]) => ({ scope, count }));
 
   if (killed) {
@@ -1887,7 +1905,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
       }, actionSigner);
       try {
         const res = await local!.append(action);
-        io.err(`  action   ${res.id} reported scopes: ${[...scopesSeen].sort().join(", ") || "none"}${strikes ? `; ${strikes} blocked attempt(s) recorded as a strike` : ""}`);
+        io.err(`  action   ${res.id} reported scopes: ${[...scopesSeen].sort().join(", ") || "none"}${blockedAttempts.length ? `; ${blockedAttempts.reduce((n, b) => n + b.count, 0)} blocked attempt(s) recorded as a strike` : ""}`);
       } catch (e) {
         io.err(`  action   COMPLIANCE VIOLATION: ${(e as Error).message}`);
       }

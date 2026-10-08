@@ -145,3 +145,17 @@ test("a result with status ERROR fails the run even though agy exits 0", async (
   assert.equal(res.code, 1);
   assert.match(res.err, /agy reported ERROR: model quota exceeded/);
 });
+
+test("calls the hook blocked or let through inside the runtime (a subagent's) are merged into the Action from the hook's own records", async () => {
+  const { f, project, contract, pkg } = await packedJob(["repo.read", "tool.invoke_subagent"]);
+  const steps = [
+    { tool: "invoke_subagent", ran: true, scope: "tool.invoke_subagent" },
+    { tool: "view_file", hidden: undefined, ran: true, scope: "repo.read" },
+    { tool: "write_to_file", hidden: "repo.write" },
+    { tool: "run_command", hidden: "repo.write" },
+  ];
+  const res = await ok(f, ["run", pkg, "--backend", "antigravity", "--project", project, "--prompt", "delegate", "--contract", contract], fakeAgy({ FAKE_AGY_STEPS: JSON.stringify(steps) }));
+  assert.match(res.err, /strike {3}2 more repo\.write call\(s\) were blocked by the hook where the output did not show them/);
+  assert.match(res.err, /reported scopes: repo\.read, tool\.invoke_subagent; 2 blocked attempt\(s\) recorded as a strike/);
+  assert.doesNotMatch(res.err, /KILL SWITCH/);
+});

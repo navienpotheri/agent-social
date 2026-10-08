@@ -65,6 +65,7 @@ test("the script as agy runs it: allow and deny decisions, records of blocked an
 
   runHook(dir, "post", { toolCall: { name: "view_file", args: {} }, stepIdx: 2 });
   assert.match(readFileSync(join(dir, "executed-calls.ndjson"), "utf8"), /"id":"step-2"/);
+  assert.match(readFileSync(join(dir, "executed-calls.ndjson"), "utf8"), /"scope":"repo\.read"/, "the record carries the scope, so asp run can report what a subagent used");
 
   // Fail closed: garbled input, or a missing or corrupt Mandate file, is a denied call.
   assert.equal(runHook(dir, "pre", "not json").out.decision, "deny");
@@ -84,4 +85,11 @@ test("the result parser calls a hook-denied step blocked, whether it ends as ERR
   assert.deepEqual(parse(ev("ERROR", "denied by pre-tool hook", "subagent")), [{ id: "step-4", blocked: true }]);
   assert.equal(parse(ev("ACTIVE")), undefined);
   assert.equal(parse(JSON.stringify({ event: "step_update", step_update: { step_index: 5, state: "DONE", step_type: "agent_response" } })), undefined);
+});
+
+test("a hook path without spaces is used as it is, with no note (a regression: the space check once matched the letter s)", async () => {
+  const { hookPathFor } = await import("../src/adapters/antigravity.ts");
+  const notes: string[] = [];
+  assert.equal(hookPathFor("C:/Users/Navie/asp-home/runs/x/asp-hook/asp-mandate-hook.mjs", notes), "C:/Users/Navie/asp-home/runs/x/asp-hook/asp-mandate-hook.mjs");
+  assert.deepEqual(notes, []);
 });

@@ -99,6 +99,12 @@ export interface LaunchPlan {
    * call a violation only if it appears here, and a call without a line was not run.
    */
   executedCallsFile?: string;
+  /**
+   * A file the adapter's pre-call hook appends one JSON line `{tool, scope}` to for every call it blocked. Calls made inside
+   * the runtime where `asp run` cannot see them in the output (a subagent's) show up only here, so `asp run` merges it
+   * into the Action's blocked attempts, and the `scope` of each executed-calls line into its scopes used.
+   */
+  blockedCallsFile?: string;
   /** Reads a call's outcome from a line of output: `blocked` means the pre-call hook stopped it before it ran. */
   checkOutputForResult?: (line: string) => { id: string; blocked: boolean }[] | undefined;
 }

@@ -189,10 +189,10 @@ const MANDATE_HOOK = fileURLToPath(new URL("./antigravity-mandate-hook.mjs", imp
 /** The hook script's path as agy can run it unquoted (see materialize). */
 export function hookPathFor(path: string, notes: string[]): string {
   const posix = toPosix(path);
-  if (!/s/.test(posix) || process.platform !== "win32") return posix;
+  if (!/\s/.test(posix) || process.platform !== "win32") return posix;
   try {
     const short = execFileSync("cmd", ["/c", `for %I in ("${path}") do @echo %~sI`], { encoding: "utf8" }).trim();
-    if (short && !/s/.test(short)) return toPosix(short);
+    if (short && !/\s/.test(short)) return toPosix(short);
   } catch { /* fall through */ }
   notes.push(`the hook path ${posix} has spaces and no short form: agy cannot run the hook, so every call will be blocked (fail closed); use an ASP home without spaces`);
   return posix;
@@ -308,7 +308,7 @@ async function materialize(opts: {
   return {
     command: resolveAgy(opts.env), args: finalArgs, cwd: hooked ? workspace : project, env: {}, files, runDir, memoryDir: memDir, missingSecrets: [], notes,
     ...(opts.prompt !== undefined ? { checkOutputForAction: agyActionParser(), checkOutputForFailure: agyFailure } : {}),
-    ...(hooked ? { preventsCalls, checkOutputForResult: agyResultParser(), executedCallsFile: join(runDir, "executed-calls.ndjson"), ...(approvalsDir ? { approvalsDir } : {}) } : {}),
+    ...(hooked ? { preventsCalls, checkOutputForResult: agyResultParser(), executedCallsFile: join(runDir, "executed-calls.ndjson"), blockedCallsFile: join(runDir, "blocked-calls.ndjson"), ...(approvalsDir ? { approvalsDir } : {}) } : {}),
   };
 }
 
