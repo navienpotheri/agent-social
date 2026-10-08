@@ -118,3 +118,12 @@ test("OpenHands tool calls inside the Mandate are reported with a fingerprint, n
   assert.match(run.err, /reported scopes: repo\.read/);
   assert.doesNotMatch(run.err, /KILL SWITCH/);
 });
+
+test("OpenHands' finish, think and task_tracker calls need no scope (seen live: finish was killed as tool.finish)", async () => {
+  const f = makeFixture();
+  const { pkg, contractId } = await setup(f, ["repo.read"]);
+  const run = await asp(f, ["run", pkg, "--backend", "openhands", "--project", f.project, "--prompt", "go", "--contract", contractId!],
+    fakeOpenHands({ FAKE_OH_ACTIONS: JSON.stringify([{ tool_name: "think" }, { tool_name: "task_tracker" }, { tool_name: "finish", action: { message: "done" } }]) }));
+  assert.equal(run.code, 0, run.err);
+  assert.doesNotMatch(run.err, /KILL SWITCH/);
+});

@@ -28,6 +28,9 @@ import { onWindows, toWslPath, wslDistroArgs, wslEnvFor, wslHomeAsWindowsPath } 
 
 export const RUNTIME = "openhands";
 
+/** OpenHands tools with no side effects (seen live: a plain answer ends with a `finish` call). */
+const NO_SCOPE_OPENHANDS_TOOLS = new Set(["finish", "think", "task_tracker"]);
+
 /** Repo files OpenHands reads natively as context (third-party skill files). */
 const CONTEXT_FILES = ["AGENTS.md", "CLAUDE.md", "GEMINI.md", ".cursorrules"];
 /** Hook events OpenHands supports. */
@@ -219,6 +222,8 @@ function checkOutputForAction(line: string): { scope: string; artifact?: { uri: 
   let o: any;
   try { o = JSON.parse(line); } catch { return undefined; }
   if (o.kind !== "ActionEvent" || typeof o.tool_name !== "string") return undefined;
+  // The agent's own bookkeeping (ending its turn, thinking aloud, its task list) touches nothing: no scope, never a violation.
+  if (NO_SCOPE_OPENHANDS_TOOLS.has(o.tool_name)) return undefined;
   const action = o.action ?? {};
   const scope = o.tool_name === "terminal"
     ? deriveScopeForTool("Bash", typeof action.command === "string" ? action.command : "")

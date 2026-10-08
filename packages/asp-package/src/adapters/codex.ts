@@ -357,9 +357,9 @@ async function materialize(opts: {
   if (opts.endpoint && !model) notes.push("--endpoint has no effect without --model");
   if (model && opts.endpoint) {
     const p = "model_providers.asp_open";
-    overrides.push(["model_provider", "asp_open"], [`${p}.name`, "ASP open-weight endpoint"], [`${p}.base_url`, opts.endpoint], [`${p}.wire_api`, "chat"]);
+    overrides.push(["model_provider", "asp_open"], [`${p}.name`, "ASP open-weight endpoint"], [`${p}.base_url`, opts.endpoint], [`${p}.wire_api`, "responses"]);
     if (opts.apiKeyEnv) { need(opts.apiKeyEnv); overrides.push([`${p}.env_key`, opts.apiKeyEnv]); }
-    notes.push(`model served from ${opts.endpoint} through a custom Codex provider (chat completions)`);
+    notes.push(`model served from ${opts.endpoint} through a custom Codex provider (Responses API; current Codex no longer supports chat completions)`);
   }
 
   const { command, prefix } = resolveCodexCommand(opts.env);
