@@ -183,7 +183,7 @@ test("under --contract, the pre-call Mandate hook is installed with the Mandate'
   assert.equal(withContract.code, 0, withContract.err);
   assert.match(withContract.err, /pre-call Mandate hook active: calls outside repo\.read, tests\.run are blocked/);
   const plugin = join(runDirOf(withContract.err), "plugin");
-  assert.deepEqual(JSON.parse(readFileSync(join(plugin, "asp-mandate.json"), "utf8")), { scopes: ["repo.read", "tests.run"] });
+  assert.deepEqual(JSON.parse(readFileSync(join(plugin, "asp-mandate.json"), "utf8")), { scopes: ["repo.read", "tests.run"], memoryDir: join(runDirOf(withContract.err), "memory") });
   const hooks = JSON.parse(readFileSync(join(plugin, "hooks", "hooks.json"), "utf8")).hooks.PreToolUse;
   assert.equal(hooks[0].matcher, "*");
   assert.match(hooks[0].hooks[0].command, /asp-mandate\.mjs/);

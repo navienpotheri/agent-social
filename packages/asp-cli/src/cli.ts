@@ -152,7 +152,7 @@
  *   asp market bond --contract <id> --backer <did> --amount <n> --escrow-payer <did> --escrow-amount <n>
  *     Locks real credits: debits both the escrow payer and the backer for real (rejects with
  *     insufficient_balance rather than starting a job uncovered).
- *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow]
+ *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons]
  *     --gate names granted scopes the irreversible policy applies to: with checkpoint (the default) a
  *     call to one needs the principal's approval first (asp run holds the call, raises a Checkpoint, and
  *     waits for asp market resolve; --approval-wait <seconds>, default 600, then it is refused); with
@@ -316,6 +316,7 @@ const OPTIONS = {
   "quota-mb": { type: "string" },
   name: { type: "string" },
   merge: { type: "boolean" },
+  "share-to-commons": { type: "boolean" },
   "memory-max-files": { type: "string" },
   "memory-max-bytes": { type: "string" },
   "memory-max-index-lines": { type: "string" },
@@ -1377,7 +1378,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       },
       subcontract: { allowed: false },
       nodes: { max_parallel: 1 },
-      learning: { scope: "harness" as const, share_to_commons: false },
+      learning: { scope: "harness" as const, share_to_commons: v["share-to-commons"] ?? false },
       self_modification: "principal_approves" as const,
       overlay: null, checkpoints: [] as string[], expires: cbody.deadline, revocable: true as const,
     };
@@ -2089,7 +2090,8 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   const code = await new Promise<number>((done) => {
     const child = spawn(plan.command, plan.args, {
       cwd: plan.cwd, env: { ...io.env, ...plan.env },
-      stdio: (plan.checkOutputForFailure || plan.checkOutputForAction) ? ["inherit", "pipe", "inherit"] : "inherit",
+      // A run given a --prompt is headless: its stdin is closed, so a runtime that also reads stdin (Codex does when stdin is a pipe) cannot wait on it forever.
+      stdio: (plan.checkOutputForFailure || plan.checkOutputForAction) ? [v.prompt !== undefined ? "ignore" : "inherit", "pipe", "inherit"] : v.prompt !== undefined ? ["ignore", "inherit", "inherit"] : "inherit",
     });
     let killTimer: NodeJS.Timeout | undefined;
     const approvals = plan.approvalsDir && v.contract

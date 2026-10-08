@@ -21,7 +21,7 @@ import { copyInto, listFiles, readJsonIfExists, sha256File, writeJson } from "..
 import { asList, frontmatter } from "../frontmatter.ts";
 import type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter, SessionSummary } from "../harness.ts";
 import { sha256Id } from "@agent-social/asp-core";
-import { NO_SCOPE_TOOLS, deriveScopeForTool } from "../package.ts";
+import { NO_SCOPE_TOOLS, deriveScopeForTool, isOwnMemoryWrite } from "../package.ts";
 import { shellArtifact } from "./codex-actions.ts";
 import { resolveSecrets, stripSecrets, toEnvRefs, type Env } from "../secrets.ts";
 
@@ -296,6 +296,7 @@ async function materialize(opts: {
     const gate = opts.mandateGate && opts.mandateGate.scopes.length ? opts.mandateGate : undefined;
     put("plugin/asp-mandate.json", () => writeJson(join(plugin, "asp-mandate.json"), {
       scopes: [...opts.mandateScopes!].sort(),
+      memoryDir: join(runDir, "memory"),
       ...(gate ? { gate: { scopes: [...gate.scopes].sort(), mode: gate.mode, waitSeconds: gate.waitSeconds } } : {}),
     }));
     put("plugin/scripts/asp-mandate.mjs", () => copyInto(MANDATE_HOOK, join(plugin, "scripts", "asp-mandate.mjs")));
@@ -354,7 +355,7 @@ async function materialize(opts: {
   args.push("--plugin-dir", plugin, "--append-system-prompt-file", join(runDir, "instructions.md"), "--settings", join(runDir, "settings.json"));
   if (harness.skills.length) args.push("--add-dir", workspace);
 
-  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: r.missing.sort(), notes, checkOutputForAction, checkOutputForResult, ...(opts.mandateScopes ? { preventsCalls: true, executedCallsFile: join(runDir, "executed-calls.ndjson") } : {}),
+  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: r.missing.sort(), notes, checkOutputForAction: (line: string) => checkOutputForAction(line, memDir), checkOutputForResult, ...(opts.mandateScopes ? { preventsCalls: true, executedCallsFile: join(runDir, "executed-calls.ndjson") } : {}),
     ...(opts.mandateScopes && opts.mandateGate?.mode === "ask" && opts.mandateGate.scopes.length ? { approvalsDir: join(runDir, "approvals") } : {}) };
 }
 
@@ -364,11 +365,11 @@ async function materialize(opts: {
  * `summarizeTranscript` reads at pack time — so a live tool_use block is detectable the same way,
  * as it happens, not just after the fact from a finished transcript.
  */
-function checkOutputForAction(line: string): { id?: string; scope: string; artifact?: { uri: string; sha256: string } }[] | undefined {
+function checkOutputForAction(line: string, memoryDir?: string): { id?: string; scope: string; artifact?: { uri: string; sha256: string } }[] | undefined {
   let o: any;
   try { o = JSON.parse(line); } catch { return undefined; }
   if (o.type !== "assistant" || !Array.isArray(o.message?.content)) return undefined;
-  const calls = o.message.content.filter((b: any) => b.type === "tool_use" && !NO_SCOPE_TOOLS.includes(b.name));
+  const calls = o.message.content.filter((b: any) => b.type === "tool_use" && !NO_SCOPE_TOOLS.includes(b.name) && !isOwnMemoryWrite(b.name, b.input, memoryDir));
   if (!calls.length) return undefined;
   return calls.map((b: any) => {
     const arg = typeof b.input?.command === "string" ? b.input.command : "";

@@ -48,9 +48,20 @@ export function scopeOfCall(event) {
  * irreversible policy: a granted scope it names needs the principal's approval (`mode: "ask"`, the
  * call is held until a signed resolution answers it) or is forbidden outright (`mode: "deny"`).
  */
-export function decide(event, scopes, gate) {
+/** Copy of isOwnMemoryWrite in package.ts: a write into the agent's own memory folder for this run needs no scope. */
+export function isOwnMemoryWrite(tool, input, memoryDir) {
+  if (!memoryDir || !["Write", "Edit", "MultiEdit"].includes(tool)) return false;
+  const target = input?.file_path;
+  if (typeof target !== "string" || !target) return false;
+  const norm = (p) => resolve(p).replace(/\\/g, "/").toLowerCase();
+  const root = norm(memoryDir).replace(/\/$/, "") + "/";
+  return norm(target).startsWith(root);
+}
+
+export function decide(event, scopes, gate, memoryDir) {
   if (typeof event?.tool_name !== "string") return { allow: false, scope: "", reason: "ASP Mandate hook: the call has no tool_name" };
   if (NO_SCOPE_TOOLS.includes(event.tool_name)) return { allow: true, scope: "" };
+  if (isOwnMemoryWrite(event.tool_name, event.tool_input, memoryDir)) return { allow: true, scope: "" };
   const scope = scopeOfCall(event);
   if (scopes.includes(scope)) {
     if (gate?.scopes?.includes(scope)) {
@@ -109,7 +120,7 @@ async function main() {
   }
   const mandate = JSON.parse(readFileSync(join(pluginRoot, "asp-mandate.json"), "utf8"));
   if (!Array.isArray(mandate.scopes)) throw new Error("asp-mandate.json has no scopes list");
-  const d = decide(event, mandate.scopes, mandate.gate);
+  const d = decide(event, mandate.scopes, mandate.gate, typeof mandate.memoryDir === "string" ? mandate.memoryDir : undefined);
   if (d.allow && !d.ask) return;
   if (d.ask) {
     const answer = await askPrincipal(pluginRoot, event, d.scope, mandate.gate.waitSeconds ?? 600);

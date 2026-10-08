@@ -5,9 +5,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFil
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { NO_SCOPE_TOOLS, deriveScopeForTool } from "../src/index.ts";
+import { NO_SCOPE_TOOLS, deriveScopeForTool, isOwnMemoryWrite } from "../src/index.ts";
 // @ts-expect-error: plain .mjs without type declarations
-import { NO_SCOPE_TOOLS as HOOK_NO_SCOPE_TOOLS, decide, deriveScopeForTool as hookScope } from "../src/adapters/claude-code-mandate-hook.mjs";
+import { NO_SCOPE_TOOLS as HOOK_NO_SCOPE_TOOLS, decide, deriveScopeForTool as hookScope, isOwnMemoryWrite as hookOwnMemory } from "../src/adapters/claude-code-mandate-hook.mjs";
 
 const HOOK = fileURLToPath(new URL("../src/adapters/claude-code-mandate-hook.mjs", import.meta.url));
 
@@ -127,4 +127,22 @@ test("post-call events record the calls that ran, and nothing else does", () => 
   assert.equal(callHook(script, event("Bash", "rm -rf x")).status, 2);
   const lines = readFileSync(join(run, "executed-calls.ndjson"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
   assert.deepEqual(lines.map((l) => [l.id, l.failed]), [["toolu_A", false], ["toolu_B", true]]);
+});
+
+test("writing the agent's own memory needs no scope, anywhere else is still repo.write; both copies agree", () => {
+  const mem = join(tmpdir(), "run", "memory");
+  const inside = { file_path: join(mem, "auto", "note.md") };
+  const outside = { file_path: join(tmpdir(), "run", "project", "src.ts") };
+  const sneaky = { file_path: join(mem, "..", "project", "src.ts") };
+  for (const f of [isOwnMemoryWrite, hookOwnMemory]) {
+    assert.equal(f("Write", inside, mem), true);
+    assert.equal(f("Edit", inside, mem), true);
+    assert.equal(f("Write", outside, mem), false);
+    assert.equal(f("Write", sneaky, mem), false, "a .. path out of the memory folder is not memory");
+    assert.equal(f("Read", inside, mem), false);
+    assert.equal(f("Bash", { command: "echo > x" }, mem), false);
+    assert.equal(f("Write", inside, undefined), false);
+  }
+  assert.deepEqual(decide({ tool_name: "Write", tool_input: inside }, ["repo.read"], undefined, mem), { allow: true, scope: "" });
+  assert.equal(decide({ tool_name: "Write", tool_input: outside }, ["repo.read"], undefined, mem).allow, false);
 });

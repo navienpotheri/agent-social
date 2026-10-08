@@ -17,7 +17,7 @@ export { packageRoutes, type PackageServiceOptions } from "./packages-service.ts
 export { PackagesClient, PackageServiceError, type RemoteListing, type RemotePackage } from "./packages-client.ts";
 export type { LogHandle } from "@agent-social/asp-log";
 export {
-  HISTORY, MANIFEST, NO_SCOPE_TOOLS, deriveScopeForTool, deriveScopes, diffTrees, isEmptyDiff, updatePackage, verifyPackage, writePackage,
+  HISTORY, MANIFEST, NO_SCOPE_TOOLS, deriveScopeForTool, deriveScopes, diffTrees, isOwnMemoryWrite, isEmptyDiff, updatePackage, verifyPackage, writePackage,
   type Check, type LineageChange, type TreeDiff, type VerifyPackageReport, type WritePackageOptions,
 } from "./package.ts";
 export { redactSecrets, resolveSecrets, scanForSecrets, stripSecrets, toEnvRefs, type Env, type SecretFinding } from "./secrets.ts";

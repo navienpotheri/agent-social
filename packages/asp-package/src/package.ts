@@ -8,7 +8,7 @@
  *   experience/sessions.ndjson metadata-only index of past sessions
  */
 import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import Ajv2020Module from "ajv/dist/2020.js";
 import {
   AspError, SPEC_DIR, createRecord, type AspRecord, type Signer,
@@ -29,6 +29,20 @@ export const HISTORY = "records/history.ndjson";
  * or a strike. The pre-call hook script carries a copy of this list; a test keeps them in step.
  */
 export const NO_SCOPE_TOOLS = ["TodoWrite", "ExitPlanMode"];
+
+/**
+ * True when a file-writing tool call targets the agent's own memory for this run. Keeping its memory is
+ * how an agent learns, not a change to the project, so it needs no scope (like planning tools); anything
+ * outside the memory folder still maps to repo.write. The pre-call hook script carries a copy.
+ */
+export function isOwnMemoryWrite(tool: string, input: unknown, memoryDir: string | undefined): boolean {
+  if (!memoryDir || !["Write", "Edit", "MultiEdit"].includes(tool)) return false;
+  const target = (input as { file_path?: unknown } | undefined)?.file_path;
+  if (typeof target !== "string" || !target) return false;
+  const norm = (p: string) => resolve(p).replace(/\\/g, "/").toLowerCase();
+  const root = norm(memoryDir).replace(/\/$/, "") + "/";
+  return norm(target).startsWith(root);
+}
 
 /** One tool name plus its shell-like argument text (a permission rule's pattern, or a live call's command) → an ASP scope. */
 export function deriveScopeForTool(tool: string, arg: string): string {
