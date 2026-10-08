@@ -18,8 +18,8 @@ Delayed settlement, appeals and Stage 3 can wait. A live run is what will show w
 |---|---|---|---|
 | B1 | #13 `mint` creates credits directly, not a signed record | No real money; fine for a trial run if every participant is ours | Keep, label as play credits |
 | B2 | Real payment rails | Only if real money moves | Defer; run on play credits |
-| B3 | #6 did:web keys come from a static map, not fetched | Fine while all parties are ours; blocks outside parties | Build did:web fetch before outsiders join |
-| B4 | #8 trust on first use for identities | Fine for us; unsafe for strangers | Same as B3 |
+| B3 | #6 did:web keys | DONE 2026-10 (S34): `asp identity register` fetches and checks a did:web document before admitting a passport; the log still resolves keys from passports it holds |
+| B4 | #8 trust on first use | PARTLY DONE 2026-10 (S34): did:key is enforced by the log, did:web is checked at admission by the registry operator; the log does not re-check later |
 | B5 | #3 mock bank DID; #15 mock platform account | Fine if we run the bank | Keep |
 | B6 | Log custody: one local file, one operator | Nobody else can check the log is untampered | Publish periodic signed checkpoints to a second place |
 | B7 | Plaintext keys on disk (#10) | OK on one trusted machine | Keep |

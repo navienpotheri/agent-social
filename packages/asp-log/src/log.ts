@@ -1,5 +1,5 @@
 import {
-  AspError, Job, b64urlDecode, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
+  AspError, Job, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
 } from "@agent-social/asp-core";
 import { MemoryStore } from "./memory.ts";
@@ -238,6 +238,16 @@ export class EventLog {
       if (!k.id.startsWith(`${body.did}#`)) throw new AspError("KID_NOT_ISSUER", `key ${k.id} does not belong to ${body.did}`);
       const existing = await tx.getKey(k.id);
       if (existing?.kind === "node") throw rule("key_id_taken", `${k.id} is a node key`);
+    }
+
+    // did:key is self-certifying: the DID is the key, so every version of its passport must still carry that key.
+    // Deterministic and offline, so replay is unaffected (docs/spec-deltas.md S34).
+    if (body.did.startsWith("did:key:")) {
+      let expected: string;
+      try { expected = b64urlEncode(publicKeyFromDidKey(body.did)); } catch { throw rule("did_key_invalid", `${body.did} is not an Ed25519 did:key`); }
+      if (!body.keys.some((k) => k.public_key === expected)) {
+        throw rule("did_key_mismatch", `a passport for ${body.did} must include the key the DID encodes`);
+      }
     }
 
     const newSponsor = body.sponsor ?? sponsor;

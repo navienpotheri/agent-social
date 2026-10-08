@@ -8,6 +8,14 @@
  *     generates a fresh key and derives a self-certifying DID from it: no domain to bring, lose
  *     access to, or depend on anyone else for.
  *   asp identity show <did>
+ *   asp identity export <did> [--out <file>]
+ *     Writes the DID's current signed passport record, to send to a registry operator.
+ *   asp identity register <passport.json> [--trust-unverified]
+ *     Admits someone else's signed passport into this log. A did:web passport is accepted only if the
+ *     DID's own document (https://<domain>/.well-known/did.json, or the path form) publishes every key the
+ *     passport declares; a did:key passport is checked by the log itself (the DID is the key). The fetch is
+ *     an admission check here, never part of the log (replay stays offline). --trust-unverified skips it and
+ *     says so; other DID methods are refused without it.
  *     Includes `reputation` (tier, slash count) for an agent that's ever been slashed as a Bond's
  *     backer, or that has a declared tier to fall back on — derived, not itself a signed record.
  *   asp pack --runtime claude-code|codex|openhands --agent <did> [--project <dir>] [--include-user] [--out <dir>]
@@ -138,7 +146,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
-  b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, publicKeyFromSeed, randomSeed, sha256Id,
+  b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, passportKeysNotPublished, publicKeyFromSeed, randomSeed, sha256Id,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import {
@@ -181,6 +189,7 @@ const OPTIONS = {
   out: { type: "string" },
   prompt: { type: "string" },
   "include-user": { type: "boolean" },
+  "trust-unverified": { type: "boolean" },
   "dry-run": { type: "boolean" },
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
@@ -280,6 +289,8 @@ export async function main(argv: string[], io: Io): Promise<number> {
   try {
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
+    if (cmd === "identity" && sub === "export") return await identityExport(home, rest[0] ?? v.did, v, io);
+    if (cmd === "identity" && sub === "register") return await identityRegister(home, rest[0], v, io);
     if (cmd === "pack") return await pack(home, v, need, io);
     if (cmd === "verify") return await verify(sub, v.json ?? false, io);
     if (cmd === "run") return await run(home, sub, v, need, io);
@@ -351,6 +362,42 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
   io.out(`created ${kind} ${did}`);
   io.out(`  key      ${kid} (stored in ${join(home, "keys")})`);
   io.out(`  passport ${res.id} (log seq ${res.seq})`);
+  return 0;
+}
+
+async function identityExport(home: string, did: string | undefined, v: Values, io: Io): Promise<number> {
+  if (!did) throw new UsageError("asp identity export <did> [--out <file>]");
+  const log = (await LocalLog.open(home)).log;
+  const p = await log.passport(did);
+  if (!p) throw new Error(`no passport for ${did}`);
+  const text = JSON.stringify((await log.get(p.head))!.record, null, 2);
+  if (v.out) { writeFileSync(v.out, text + "\n"); io.out(`passport ${p.head} written to ${v.out}`); } else io.out(text);
+  return 0;
+}
+
+async function identityRegister(home: string, file: string | undefined, v: Values, io: Io): Promise<number> {
+  if (!file) throw new UsageError("asp identity register <passport.json> [--trust-unverified]");
+  const record = JSON.parse(readFileSync(file, "utf8")) as AspRecord;
+  if (record.type !== "asp.passport/v0.2") throw new UsageError(`${file} is not a passport record`);
+  const body = record.body as { did: string; keys: { id: string; public_key: string }[] };
+  const trust = v["trust-unverified"] ?? false;
+  if (body.did.startsWith("did:web:")) {
+    if (trust) io.err(`  warning  ${body.did} was NOT checked against its DID document (--trust-unverified)`);
+    else {
+      const missing = await passportKeysNotPublished(body.did, body.keys).catch((e: Error) => { throw new Error(`cannot verify ${body.did}: ${e.message}; fix the DID document or pass --trust-unverified`); });
+      if (missing.length) throw new Error(`${body.did}'s DID document does not publish: ${missing.join(", ")}; not registered`);
+      io.err(`  did:web  ${body.did}: every key is published by its DID document`);
+    }
+  } else if (body.did.startsWith("did:key:")) {
+    io.err(`  did:key  ${body.did}: self-certifying, checked by the log`);
+  } else if (trust) {
+    io.err(`  warning  ${body.did} was NOT verified (unknown DID method, --trust-unverified)`);
+  } else {
+    throw new Error(`don't know how to verify ${body.did}; pass --trust-unverified to register it anyway`);
+  }
+  const local = await LocalLog.open(home);
+  const res = await local.append(record);
+  io.out(`registered ${body.did}: passport ${res.id} (log seq ${res.seq})`);
   return 0;
 }
 
