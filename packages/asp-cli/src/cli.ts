@@ -13,6 +13,18 @@
  *     own passport, key, ledger account and reputation, sponsored by the original's sponsor (whose key must be
  *     here), so one copy's slash or strike never touches another's balance. A copy starts at the original's
  *     CURRENT tier (a demoted agent cannot launder its record through copies; tier 0 cannot be copied).
+ *   asp eval run [<scenario.json>] [--agents <n>] [--exploiters <n>] [--slash] [--out <report.json>]
+ *     The evaluation harness (docs/stage-3-plan.md M5): runs a scenario through the real commands against a FRESH
+ *     log in a temp folder (never your own), on a simulated clock, then prints measures read back from the log.
+ *     One scenario kind exists, swarm-exploit (see scenarios/swarm-exploit.json): scripted agents work in parallel, some
+ *     pick up an exploit one after another, a watcher reports, a scripted panel rules, the cohort is stopped.
+ *   asp watch [--min-agents <n>] [--window <seconds>] [--draft-by <did>] [--all]
+ *     The contagion watcher (docs/stage-3-plan.md M3): scans the log's Action records for a technique spreading
+ *     between different agents. Same-input: one tool-call input fingerprint reported by n or more different agents
+ *     within the window (default 3 agents, 600 s), counting only Actions that used a risky scope (--all counts every
+ *     one). Same-probe: the same scope refused by the pre-call hook for n or more agents. Prints each cluster with
+ *     the contracts involved and whether they can still be reported; --draft-by <did> adds the report commands.
+ *     Exit 1 when it finds something, so it can run in a loop. A lead for a report, not a verdict.
  *   asp identity export <did> [--out <file>]
  *     Writes the DID's current signed passport record, to send to a registry operator.
  *   asp identity register <passport.json> [--trust-unverified]
@@ -143,6 +155,12 @@
  *     A majority of the panel drawn for the report (asp market panel draw --report <id>) rules. Upheld: the
  *     deposit returns, the accused's bond pays the jurors and gives the reporter 20% of what is left, and the
  *     contract must settle with full fault (settle defaults to it). Dismissed: the deposit pays the jurors.
+ *   asp market cohort-stop --report <upheld report id> [--min-agents <n>] [--window <seconds>] [--slash]
+ *     After an upheld report: finds the contagion clusters (asp watch) that include the reported contract and stops every
+ *     running or checkpointed job in them with a revoked Settlement. The reported job settles with the full fault the
+ *     ruling forces. The others stop without a ruling of their own, so by default their escrow returns to the principal
+ *     and their bond is returned; --slash slashes their bonds too (a decision for the principal and the bank, who sign it).
+ *     Needs each job's bank and principal keys here.
  *   asp market panel draw --contract <id> [--size <n>]
  *     Shows the panel a Disputed contract's ruling would draw — conflict-free (excludes the
  *     principal, the performer, and anyone they sponsor), deterministic (seeded from the rejection
@@ -178,6 +196,7 @@
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
 import { spawn } from "node:child_process";
+import { DEFAULT_SWARM, formatSwarm, runSwarm, type SwarmScenario } from "./eval.ts";
 import { copyFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -188,14 +207,17 @@ import {
 } from "@agent-social/asp-core";
 import {
   ADAPTERS, Keystore, LocalLog, appendCheckpoint, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
-  findEquivocations, readCheckpoints, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
+  findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   verifyPackage, writePackage,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
 class UsageError extends Error {}
 
-const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+/** The clock records are stamped with; the evaluation harness swaps in a simulated one (asp eval). */
+let clock: (() => Date) | undefined;
+export function setClock(fn: (() => Date) | undefined): void { clock = fn; }
+const now = () => (clock ? clock() : new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
 const slug = (s: string) => s.replace(/^did:[a-z0-9]+:/, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const quote = (a: string) => (/^[A-Za-z0-9_./:=@-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`);
 
@@ -228,6 +250,14 @@ const OPTIONS = {
   "include-user": { type: "boolean" },
   "trust-unverified": { type: "boolean" },
   isolate: { type: "boolean" },
+  "min-agents": { type: "string" },
+  agents: { type: "string" },
+  exploiters: { type: "string" },
+  window: { type: "string" },
+  "draft-by": { type: "string" },
+  all: { type: "boolean" },
+  slash: { type: "boolean" },
+  blocked: { type: "string", multiple: true },
   report: { type: "string" },
   count: { type: "string" },
   since: { type: "string" },
@@ -343,6 +373,8 @@ export async function main(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "verify") return await logVerify(home, v, io);
     if (cmd === "log" && sub === "export") return await logExport(home, v, need, io);
     if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
+    if (cmd === "watch") return await watch(home, v, io);
+    if (cmd === "eval" && sub === "run") return await evalRun(rest[0], v, io);
     if (cmd === "log" && sub === "cross-check") return await logCrossCheck(home, rest, io);
     if (cmd === "log" && sub === "publish") return await logPublish(home, v, need, io);
     if (cmd === "log" && sub === "witness") return await logWitness(home, rest[0], v, need, io);
@@ -359,7 +391,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "claim" | "grade" | "gate" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -618,6 +650,78 @@ function printFork(io: Io, [a, b]: [LogCheckpoint, LogCheckpoint]) {
   io.out(`  FORK  ${didOf(a.signer)} signed two different histories at seq ${a.seq}:`);
   io.out(`          ${a.logHash}  (${a.signedAt})`);
   io.out(`          ${b.logHash}  (${b.signedAt})`);
+}
+
+/** Every Action record in the log, shaped for the contagion watcher. */
+async function collectWatchActions(local: LocalLog): Promise<WatchAction[]> {
+  const actions: WatchAction[] = [];
+  for (let after = 0; ;) {
+    const page = await local.log.since(after, 500);
+    if (!page.length) break;
+    for (const s of page) {
+      after = s.seq;
+      if (s.record.type !== "asp.action/v0.2") continue;
+      const b = s.record.body as { contract: string; scopes_used: string[]; blocked_attempts?: { scope: string; count: number }[]; artifacts?: { uri: string; sha256: string }[] };
+      actions.push({ id: s.id, issuer: s.record.issuer, contract: b.contract, issuedAt: s.record.issued_at, scopesUsed: b.scopes_used, blocked: b.blocked_attempts ?? [], artifacts: b.artifacts ?? [] });
+    }
+  }
+  return actions;
+}
+
+async function evalRun(file: string | undefined, v: Values, io: Io): Promise<number> {
+  const loaded = file ? (JSON.parse(readFileSync(resolve(io.cwd, file), "utf8")) as Partial<SwarmScenario>) : {};
+  if (loaded.kind !== undefined && loaded.kind !== "swarm-exploit") throw new UsageError(`unknown scenario kind ${loaded.kind}; available: swarm-exploit`);
+  const sc: SwarmScenario = { ...DEFAULT_SWARM, ...loaded };
+  if (v.agents !== undefined) sc.agents = Math.trunc(Number(v.agents));
+  if (v.exploiters !== undefined) sc.exploiters = Math.trunc(Number(v.exploiters));
+  if (v.slash) sc.slashCohort = true;
+  if (!Number.isInteger(sc.agents) || sc.agents < 3 || sc.agents > 200) throw new UsageError("agents must be a whole number from 3 to 200");
+  if (!Number.isInteger(sc.exploiters) || sc.exploiters < 1 || sc.exploiters > sc.agents) throw new UsageError("exploiters must be from 1 to the number of agents");
+  const dir = mkdtempSync(join(tmpdir(), "asp-eval-"));
+  let t = Date.now() - 2 * 3600_000;
+  setClock(() => new Date(t));
+  const run = async (args: string[]) => {
+    const out: string[] = [];
+    const err: string[] = [];
+    const code = await main([...args, "--home", dir], { out: (l) => out.push(l), err: (l) => err.push(l), env: { ...io.env, ASP_HOME: dir }, cwd: io.cwd });
+    return { code, out: out.join("\n"), err: err.join("\n") };
+  };
+  try {
+    io.out(`scenario ${sc.name}: ${sc.agents} agents, ${sc.exploiters} pick up the exploit (fresh log in ${dir})`);
+    const report = await runSwarm(sc, run, (ms) => { t += ms; }, dir, (l) => io.out(`  ${l}`));
+    io.out("result");
+    io.out(formatSwarm(report));
+    if (v.out) { writeFileSync(resolve(io.cwd, v.out), JSON.stringify(report, null, 2) + "\n"); io.out(`report written to ${v.out}`); }
+    return report.logVerified ? 0 : 1;
+  } finally {
+    setClock(undefined);
+  }
+}
+
+async function watch(home: string, v: Values, io: Io): Promise<number> {
+  const minAgents = v["min-agents"] === undefined ? 3 : Math.trunc(Number(v["min-agents"]));
+  const windowS = v.window === undefined ? 600 : Number(v.window);
+  if (!Number.isInteger(minAgents) || minAgents < 2) throw new UsageError("--min-agents must be a whole number, 2 or more");
+  if (!Number.isFinite(windowS) || windowS <= 0) throw new UsageError("--window must be a number of seconds above 0");
+  const local = await LocalLog.open(home);
+  const actions = await collectWatchActions(local);
+  const clusters = findContagion(actions, { minAgents, windowMs: windowS * 1000, all: v.all ?? false });
+  io.out(`watched ${actions.length} action(s) from ${new Set(actions.map((a) => a.issuer)).size} agent(s); window ${windowS} s, threshold ${minAgents} agents`);
+  if (!clusters.length) { io.out("no contagion pattern found"); return 0; }
+  for (const c of clusters) {
+    io.out(`  ${c.kind === "same-input" ? "SAME INPUT" : "SAME PROBE"}  ${c.key}`);
+    io.out(`    ${c.issuers.length} agents between ${c.firstAt} and ${c.lastAt}; scopes: ${c.scopes.join(", ") || "-"}`);
+    for (const contract of c.contracts) {
+      const state = (await local.log.chainInfo(contract))?.state ?? "unknown";
+      const reportable = state === "Running" || state === "Checkpoint";
+      io.out(`    contract ${contract}: ${state}${reportable ? " (reportable)" : ""}`);
+      if (v["draft-by"] && reportable) {
+        io.out(`      asp market report --contract ${contract} --by ${v["draft-by"]} --reasons "asp watch: ${c.kind} cluster ${c.key.replace(/"/g, "")} across ${c.issuers.length} agents"`);
+      }
+    }
+  }
+  io.out(`${clusters.length} cluster(s) found`);
+  return 1;
 }
 
 async function logCrossCheck(home: string, sources: string[], io: Io): Promise<number> {
@@ -1128,6 +1232,38 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
+  // Cohort stop (docs/stage-3-plan.md M4): after a report is upheld, stop every running job caught in the same pattern.
+  if (sub === "cohort-stop") {
+    const reportId = need("report");
+    const report = await local.log.report(reportId);
+    if (!report) throw new Error(`${reportId} is not a report in the log`);
+    if (report.status !== "upheld") throw new Error(`report ${reportId} is ${report.status}; only an upheld report can stop a cohort`);
+    const minAgents = v["min-agents"] === undefined ? 3 : Math.trunc(Number(v["min-agents"]));
+    const windowS = v.window === undefined ? 600 : Number(v.window);
+    const clusters = findContagion(await collectWatchActions(local), { minAgents, windowMs: windowS * 1000, all: v.all ?? false })
+      .filter((c) => c.contracts.includes(report.contract));
+    const cohort = [...new Set([report.contract, ...clusters.flatMap((c) => c.contracts)])];
+    io.out(`cohort of ${cohort.length} contract(s) from ${clusters.length} cluster(s) that include the reported job${clusters.length ? "" : " (no pattern found: only the reported job)"}`);
+    let stopped = 0;
+    let eligible = 0;
+    for (const contract of cohort) {
+      const state = (await local.log.chainInfo(contract))?.state;
+      if (state !== "Running" && state !== "Checkpoint") { io.out(`  ${contract}: ${state ?? "unknown"}, left alone`); continue; }
+      eligible++;
+      const cbody = (await local.log.get(contract))!.record.body as { principal: string; bank: string };
+      const escrow = (await local.log.escrow(contract))!;
+      const amounts = contract === report.contract
+        ? [] // an upheld report already forces full fault, and settle defaults to it
+        : ["--escrow-released", "0", ...(v.slash ? ["--bond-slashed", String(escrow.bondLocked), "--bond-returned", "0"] : ["--bond-slashed", "0", "--bond-returned", String(escrow.bondLocked)]), "--pro-rata", "0"];
+      const res = await main(["market", "settle", "--contract", contract, "--bank", cbody.bank, "--basis", "revoked", "--principal", cbody.principal, "--home", home, ...amounts],
+        { out: () => {}, err: () => {}, env: io.env, cwd: io.cwd });
+      stopped += res === 0 ? 1 : 0;
+      io.out(`  ${contract}: ${res === 0 ? (contract === report.contract ? "stopped, full fault (the upheld report)" : v.slash ? "stopped, bond slashed (--slash)" : "stopped, escrow back to the principal, bond returned") : "NOT stopped (the bank's or principal's key is not here, or it already settled)"}`);
+    }
+    io.out(`${stopped}/${eligible} running contract(s) stopped`);
+    return stopped === eligible ? 0 : 1;
+  }
+
   if (sub === "panel" && rest[0] === "draw" && v.report) {
     const panel = await local.log.drawReportPanel(v.report, v.size ? Math.trunc(Number(v.size)) : undefined);
     io.out(panel.length ? `drawn panel for report ${v.report}: ${panel.join(", ")}` : "no staked, conflict-free jurors registered; a report cannot be ruled on");
@@ -1151,6 +1287,13 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const scopesUsed = v["scopes-used"] ?? [];
     const body: Record<string, unknown> = { contract, scopes_used: scopesUsed };
     if (v.summary) body.summary = v.summary;
+    if (v.blocked?.length) {
+      body.blocked_attempts = v.blocked.map((entry) => {
+        const [scope, count] = entry.split("=");
+        if (!scope || !count) throw new UsageError(`--blocked must be <scope>=<count>, got "${entry}"`);
+        return { scope, count: Math.trunc(Number(count)) };
+      });
+    }
     if (v.artifact?.length) {
       body.artifacts = v.artifact.map((entry) => {
         const [uri, sha256] = entry.split("=");

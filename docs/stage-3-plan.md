@@ -25,7 +25,8 @@ M1 and M2 come first because everything else depends on liability being per copy
 ## Status
 - M1 fleet isolation: built 2026-10-08 (S39).
 - M2 whistleblower report: built 2026-10-08 (S40), with the agreed numbers (deposit = panel fee, reporter share 20%, running contracts only).
-- M3 to M5: not started.
+- M3 contagion watcher (S41), M4 cohort stop (S42), M5 swarm test on a reusable evaluation harness core (S43): built 2026-10-08.
+- Next: drive a few real agents (Claude Code, Codex) through the same scenario; a model matrix on the harness; Academy-style held-out scenarios.
 
 ## Decisions needed (answered 2026-10-08: scope confirmed, suggestions accepted)
 1. Is this the Stage 3 you meant? If your roadmap defines it differently (for example hosted multi-tenant network first), say so and I will re-plan.
