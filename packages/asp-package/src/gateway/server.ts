@@ -12,6 +12,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { lastUserText, replyText, type RunRecorder } from "./runlog.ts";
 import { commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
@@ -28,6 +29,8 @@ export interface GatewayOptions {
   scopes: string[];
   /** The hosts the Mandate's network scopes may reach (`network.hosts`); absent means no host limit. */
   hosts?: string[];
+  /** Keeps the run log (gap E2): requests, replies, tool calls and how the run ended, redacted, on this machine. */
+  runLog?: RunRecorder;
   knownBad?: KnownBadRef[];
   /** Blocked calls in one run that read as probing and stop the run (default 3). */
   maxStrikes?: number;
@@ -100,7 +103,18 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const pendingUsed = new Set<string>();
   const pendingBlocked = new Map<string, number>();
   const pendingArtifacts = new Map<string, { uri: string; sha256: string }>();
-  const tokens = { input: 0, output: 0 };
+  const tokens: { input: number; output: number; text: string } = { input: 0, output: 0, text: "" };
+  const rec = opts.runLog;
+  /** Records a model request in the run log and returns where the token counts stood, so the reply can be recorded with its own figures. */
+  const beginModelCall = (api: string, body: any) => {
+    rec?.event("model_request", { api, model: body?.model, stream: body?.stream === true, prompt: lastUserText(body), tools: Array.isArray(body?.tools) ? body.tools.length : 0 });
+    tokens.text = "";
+    return { input: tokens.input, output: tokens.output, at: Date.now() };
+  };
+  const endModelCall = (snap: { input: number; output: number; at: number }, text: string) => {
+    rec?.event("model_reply", { tokens_in: tokens.input - snap.input, tokens_out: tokens.output - snap.output, ms: Date.now() - snap.at, text });
+    tokens.text = "";
+  };
   // Totals at the last drain, and the models seen since, so each Action carries its own interval's figures.
   const last = { requests: 0, toolCalls: 0, input: 0, output: 0, at: Date.now() };
   const modelsSeen = new Map<string, { name: string; provider?: string }>();
@@ -113,7 +127,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   let requests = 0, unjudged = 0, strikes = 0, toolCalls = 0;
   let stopped: string | undefined;
 
-  const stop = (reason: string) => { if (!stopped) { stopped = reason; opts.onStop?.(reason); } };
+  const stop = (reason: string) => { if (!stopped) { stopped = reason; rec?.event("stopped", { reason }); opts.onStop?.(reason); } };
 
   /** Holds a gated call until the principal answers (a decision file), or the wait runs out, which is a refusal. */
   async function askPrincipal(call: ToolCall, scope: string): Promise<{ approved: boolean; reason?: string }> {
@@ -155,6 +169,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       }
     }
     opts.onCall?.({ tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}) });
+    rec?.event("tool_call", { tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(opts.gate?.scopes.includes(j.scope) ? { gated: true } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
     if (allow) {
       if (j.scope) { used.add(j.scope); pendingUsed.add(j.scope); }
       if (j.artifact) { artifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); pendingArtifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); }
@@ -203,19 +218,22 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
     noteModel(body.model, opts.openaiUpstream);
+    const snap = beginModelCall("chat.completions", body);
     if (!wantsStream) body.stream = false;
     if (wantsStream) body.stream_options = { ...(body.stream_options ?? {}), include_usage: true };
     const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/chat/completions`, { method: "POST", headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
       await relayOpenaiStream(up.body, res, decide, tokens);
+      endModelCall(snap, tokens.text);
       if (tokenCapHit()) stop("token cap reached");
       return;
     }
     const text = await up.text();
-    if (!up.ok) { res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
+    if (!up.ok) { rec?.event("model_error", { status: up.status, body: text.slice(0, 300) }); res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
     const reply = JSON.parse(text);
     tokens.input += reply.usage?.prompt_tokens ?? 0;
     tokens.output += reply.usage?.completion_tokens ?? 0;
+    endModelCall(snap, replyText(reply));
     const refused: { name: string; reason: string }[] = [];
     for (const choice of reply.choices ?? []) {
       const msg = choice.message;
@@ -243,17 +261,20 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
     noteModel(body.model, opts.openaiUpstream);
+    const snap = beginModelCall("responses", body);
     const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/responses`, { method: "POST", headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
       await relayResponsesStream(up.body, res, decide, tokens);
+      endModelCall(snap, tokens.text);
       if (tokenCapHit()) stop("token cap reached");
       return;
     }
     const text = await up.text();
-    if (!up.ok) { res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
+    if (!up.ok) { rec?.event("model_error", { status: up.status, body: text.slice(0, 300) }); res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
     const reply = JSON.parse(text);
     tokens.input += reply.usage?.input_tokens ?? 0;
     tokens.output += reply.usage?.output_tokens ?? 0;
+    endModelCall(snap, replyText(reply));
     if (Array.isArray(reply.output)) {
       const kept: any[] = [];
       const refused: { name: string; reason: string }[] = [];
@@ -278,18 +299,21 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
     noteModel(body.model, opts.anthropicUpstream);
+    const snap = beginModelCall("messages", body);
     if (!wantsStream) body.stream = false;
     const up = await f(`${opts.anthropicUpstream!.replace(/\/$/, "")}/v1/messages`, { method: "POST", headers: upstreamHeaders(req, opts.anthropicKey, "anthropic"), body: JSON.stringify(body) });
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
       await relayAnthropicStream(up.body, res, decide, tokens);
+      endModelCall(snap, tokens.text);
       if (tokenCapHit()) stop("token cap reached");
       return;
     }
     const text = await up.text();
-    if (!up.ok) { res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
+    if (!up.ok) { rec?.event("model_error", { status: up.status, body: text.slice(0, 300) }); res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
     const reply = JSON.parse(text);
     tokens.input += reply.usage?.input_tokens ?? 0;
     tokens.output += reply.usage?.output_tokens ?? 0;
+    endModelCall(snap, replyText(reply));
     if (Array.isArray(reply.content)) {
       const refused: { name: string; reason: string }[] = [];
       const kept: any[] = [];
@@ -368,7 +392,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
 
   function summary(): GatewaySummary {
     return {
-      requests, toolCalls, unjudgedRequests: unjudged, tokens: { ...tokens },
+      requests, toolCalls, unjudgedRequests: unjudged, tokens: { input: tokens.input, output: tokens.output },
       scopesUsed: [...used].sort(),
       blocked: [...blocked].map(([scope, count]) => ({ scope, count })),
       artifacts: [...artifacts.values()],

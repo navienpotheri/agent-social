@@ -270,7 +270,7 @@ import {
   b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
-import {
+import { RunRecorder, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
@@ -382,6 +382,7 @@ const OPTIONS = {
   "dry-run": { type: "boolean" },
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
+  "no-run-log": { type: "boolean" },
   help: { type: "boolean", short: "h" },
   task: { type: "string", multiple: true },
   "max-parallel": { type: "string" },
@@ -501,6 +502,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "canary") return await canaryCmd(home, sub, rest, v, io);
     if (cmd === "gateway") return await gatewayCmd(home, [sub, ...rest].filter((x): x is string => !!x), v, need, io);
     if (cmd === "known-bad") return await knownBadCmd(home, sub, v, need, io);
+    if (cmd === "run-log") return await runLogCmd(home, sub, rest, v, io);
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
@@ -1252,7 +1254,13 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const approvals = gate?.mode === "ask"
     ? serveApprovals({ dir: approvalsDir, home, contract, agent: by, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io })
     : undefined;
+  // The run log (E2): what the gateway sees, redacted, on this machine; the Actions commit to its hash.
+  const runLog = v["no-run-log"] ? undefined : new RunRecorder(join(gwRunDir, "run-log.ndjson"));
+  const gwHosts = (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
+  runLog?.event("run_start", { contract, agent: by, scopes: mandate.scopes, ...(gwHosts ? { hosts: gwHosts } : {}), command: command.join(" "), assurance: v.sandbox ? "sandbox" : "gateway" });
+  if (runLog) io.err(`  run log  ${runLog.path}`);
   const gw = createGateway({
+    ...(runLog ? { runLog } : {}),
     ...(gate ? { gate } : {}),
     mcp: { asp: { memoryDir: memDir, ...(commons ? { commons } : {}) }, upstreams },
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
@@ -1324,6 +1332,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       ...d.blocked.flatMap((b) => ["--blocked", `${b.scope}=${b.count}`]),
       ...d.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
       "--metrics", JSON.stringify(d.metrics),
+      ...(runLog ? (() => { const a = runLogArtifact(runLog.head()); return ["--artifact", `${a.uri}=${a.sha256}`]; })() : []),
       "--assurance", sandbox ? "sandbox_enforced" : s.toolCalls > 0 ? "gateway_enforced" : "gateway_observed", "--summary", `ASP gateway (${sandbox ? "sandbox-enforced: the agent ran in a sandbox whose only way out was the gateway" : s.toolCalls > 0 ? "gateway-enforced" : "gateway-observed: no structured tool calls passed through, so nothing could be enforced"}, ${why}): ${s.requests} request(s) so far, ${s.tokens.input + s.tokens.output} tokens, ${s.strikes} blocked${s.stopped ? `; stopped: ${s.stopped}` : ""}`];
     const out: string[] = [];
     const rc = await main(args, { out: (l) => out.push(l), err: (l) => out.push(l), env: io.env, cwd: io.cwd });
@@ -1391,6 +1400,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   clearInterval(watcher);
   clearInterval(flusher);
   if (approvals) await approvals.stop();
+  const sum0 = gw.summary();
+  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog.redactions });
   const rc = await flushAction("exit");
   const sum = gw.summary();
   await gw.close();
@@ -1429,6 +1440,62 @@ async function gatewayWriteBack(o: { home: string; pkgDir: string; agent: string
 /** The known-bad list this command line points at: the log service's when ASP_LOG_URL is set, else a file in the ASP home. */
 async function loadKnownBad(home: string, io: Io): Promise<KnownBadEntry[]> {
   return io.env.ASP_LOG_URL ? await fetchKnownBad(io.env.ASP_LOG_URL, io.env.ASP_LOG_TOKEN) : readKnownBad(join(home, "known-bad.json"));
+}
+
+/**
+ * asp run-log show|verify [<run-log file or gateway run folder>] [--contract <id>] [--json]: the redacted run log a gateway run kept (gap E2).
+ * show prints it as a timeline; verify checks every line's hash chain and, with --contract, that each Action's run-log artifact matches the log.
+ */
+async function runLogCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  if (sub !== "show" && sub !== "verify") throw new UsageError("usage: asp run-log show|verify [<run-log.ndjson | gateway run folder>] [--contract <id>] [--json]");
+  let target = rest[0];
+  if (!target) {
+    const runs = join(home, "runs");
+    const latest = existsSync(runs) ? readdirSync(runs).filter((d) => d.startsWith("gateway-") && existsSync(join(runs, d, "run-log.ndjson"))).sort().at(-1) : undefined;
+    if (!latest) throw new Error(`no gateway run with a run log in ${runs}; give the file or folder`);
+    target = join(runs, latest);
+  }
+  const file = target.endsWith(".ndjson") ? resolve(io.cwd, target) : join(resolve(io.cwd, target), "run-log.ndjson");
+  const check = readRunLog(file);
+  if (sub === "show") {
+    if (!check.ok) io.err(`warning  ${check.problem}`);
+    if (v.json) { for (const e of check.events) io.out(JSON.stringify(e)); return check.ok ? 0 : 1; }
+    const q = (t: unknown) => JSON.stringify(typeof t === "string" ? t.replace(/\s+/g, " ") : t);
+    for (const e of check.events) {
+      const d = e.data as Record<string, any>;
+      const time = e.at.slice(11, 19);
+      const text = e.kind === "run_start" ? `contract ${String(d.contract).slice(0, 19)} agent ${d.agent}; scopes ${(d.scopes ?? []).join(", ") || "none"}${d.hosts ? `; hosts ${d.hosts.join(", ")}` : ""}`
+        : e.kind === "model_request" ? `${d.model ?? "?"} (${d.api}) asked: ${q(d.prompt)}`
+        : e.kind === "model_reply" ? `${d.tokens_in} in / ${d.tokens_out} out, ${d.ms} ms${d.text ? `: ${q(d.text)}` : ""}`
+        : e.kind === "tool_call" ? `${d.allowed ? "allowed" : "REFUSED"} ${d.tool} -> ${d.scope || "no scope"}${d.reason ? ` (${d.reason})` : ""}${d.gated ? " [gated]" : ""}: ${q(d.input)}`
+        : e.kind === "model_error" ? `provider answered ${d.status}`
+        : e.kind === "stopped" ? `stopped: ${d.reason}`
+        : e.kind === "run_end" ? `exit ${d.exit_code}; ${d.requests} request(s), ${d.tool_calls} tool call(s), ${d.strikes} blocked, ${d.redactions} secret-like value(s) masked`
+        : JSON.stringify(d);
+      io.out(`${time}  ${e.kind.padEnd(13)} ${text}`);
+    }
+    io.out(`${check.events.length} event(s); head ${check.head.hash.slice(0, 19)}${check.ok ? "" : `; NOT VERIFIED: ${check.problem}`}`);
+    return check.ok ? 0 : 1;
+  }
+  if (!check.ok) { io.out(`run log NOT ok: ${check.problem}`); return 1; }
+  io.out(`run log ok: ${check.head.events} event(s), head ${check.head.hash}`);
+  if (!v.contract) return 0;
+  const local = await openLog(home, logEnv);
+  const actions = (await local.log.since(0, 100000)).filter((x) => x.record.type === "asp.action/v0.2" && (x.record.body as { contract: string }).contract === v.contract);
+  let checked = 0, bad = 0;
+  for (const a of actions) {
+    for (const art of ((a.record.body as { artifacts?: { uri: string; sha256: string }[] }).artifacts ?? [])) {
+      const m = /^asp:\/\/run-log\/(\d+)$/.exec(art.uri);
+      if (!m) continue;
+      const n = Number(m[1]);
+      checked++;
+      const want = n <= check.events.length ? hashAfter(check.events, n) : undefined;
+      if (want === art.sha256) io.out(`  action ${a.id.slice(0, 19)} commits to the first ${n} event(s): matches`);
+      else { bad++; io.out(`  action ${a.id.slice(0, 19)} commits to ${n} event(s) and ${want ? "the hash does not match" : "this file has fewer events"}`); }
+    }
+  }
+  io.out(checked ? `${checked - bad} of ${checked} Action commitment(s) match` : "no Action of this contract commits to a run log");
+  return bad ? 1 : 0;
 }
 
 /** asp known-bad add|list: command fingerprints that an upheld report found harmful (docs/spec-deltas.md S54). */

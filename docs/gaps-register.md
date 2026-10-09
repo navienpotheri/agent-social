@@ -6,7 +6,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 
 ## Partial: built in part, with work left
 
-19 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
+20 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
 
 | ID | Gap | Priority | What is left |
 |---|---|---|---|
@@ -26,6 +26,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | P5 | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) | B | Check or add per runtime |
 | P6 | No model matrix: which open models call tools reliably | B | Run the swarm scenario across models |
 | P7 | Weak models: malformed tool arguments, loops after a refusal | B | Measure and document per model |
+| E2 | The mail and dashboard need a redacted runtime log, which does not exist yet | A | Recorder in the gateway, local store **Done so far (S69): `asp gateway` keeps a redacted, hash-chained run log in the run folder (model requests and replies with token... |
 | E3 | Action's metrics are only a summary string | A | Structured metrics (see D8) **Done so far (S66): the Action has structured metrics. Left: the TypeScript and Python self-report SDKs do not send them.** |
 | CM3 | The matrix uses one agent loop (the reference agent) and free-tier models; results for a real runtime... | B | Matrix rows for real runtimes and paid models **Done so far:** Groq, Cerebras and Gemini rows added, S65; still the reference agent only |
 | CM5 | The full model matrix is waiting on OpenRouter: the free tier allows 50 requests a day per key and the card... | B | When the credit is on: set a $10 cap on a fresh key, save it to ~/.asp-openrouter-key, rerun `node evals/model-matrix.mjs`, add one or two cheap paid models, replace... |
@@ -133,8 +134,12 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | ID | Gap | Covered today by | Fix | Detail | Pri | Status |
 |---|---|---|---|---|---|---|
 | E1 | Full tracing: LLM calls and tool responses are not recorded with commitments in the log | Fingerprints only (D1: metadata only) | Spans in the operator's store with signed commitments; redaction and retention | backlog "Full tracing" | B | open |
-| E2 | The mail and dashboard need a redacted runtime log, which does not exist yet | Gateway sees traffic | Recorder in the gateway, local store | flow doc | A | open |
+| E2 | The mail and dashboard need a redacted runtime log, which does not exist yet | Gateway sees traffic | Recorder in the gateway, local store **Done so far (S69): `asp gateway` keeps a redacted, hash-chained run log in the run folder (model requests and replies with token counts, every tool call with its scope and verdict, how the run ended); Actions commit to its hash; `asp run-log show|verify`. Left: E4 to E8 (E4 is the existing secrets-masking row).** | flow doc | A | partial |
 | E3 | Action's metrics are only a summary string | `assurance` field exists | Structured metrics (see D8) **Done so far (S66): the Action has structured metrics. Left: the TypeScript and Python self-report SDKs do not send them.** |  | A | partial |
+| E5 | Only `asp gateway` runs keep a run log. `asp run` (Claude Code, Codex, Antigravity, OpenHands through their own adapters) and orchestrated runs do not, so the mail would have nothing to show for them | Actions and the runtime's own transcript | Route those runs through the gateway recorder, or write the same events from the adapters' streams | S69 | A | open |
+| E6 | The run log has no retention, no encryption at rest and no access rule: it is a file in the ASP home that anyone with the folder can read, and it holds prompts and replies (secrets masked, personal data not) | Secrets masked, text cut to 1200 characters, never sent to the log service | Retention period and deletion, encryption with the principal's key, who may read it (operator, principal, a Court panel) and a record of each read | S69, backlog "Full tracing" | A | open |
+| E7 | The run log leaves out tool results (what a command or file read returned), MCP call arguments and results, and any request text beyond the last user message, so the story of a run is incomplete | Tool calls with their inputs | Record tool results and MCP traffic, redacted and cut, with a link between a call and its result | S69 | B | open |
+| E8 | Nothing reads the run log yet: no dashboard view, no end-of-Mandate mail, no link from a mail to the run page | `asp run-log show` in the terminal | The mail and dashboard of beta flow 1 (U-series) | S69, flow doc | A | open |
 | E4 | Secrets masking is pattern-based; unusual shapes can get through | `redactSecrets`, secret scan at pack | Broader patterns, entropy checks | S25 | B | open |
 
 ## 8. Process

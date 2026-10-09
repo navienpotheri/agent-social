@@ -8,7 +8,8 @@ import type { ToolCall } from "./judge.ts";
 
 /** Returns a refusal reason, or undefined to allow. May take a long time (an approval hold). */
 export type Decide = (call: ToolCall) => Promise<string | undefined>;
-export interface Counters { input: number; output: number }
+/** Token counts, and (for the run log) the reply text collected from a stream. */
+export interface Counters { input: number; output: number; text?: string }
 
 export interface SseEvent { event?: string; data: string }
 
@@ -106,6 +107,7 @@ export async function relayOpenaiStream(body: ReadableStream<Uint8Array>, res: S
     base = { id: chunk.id, object: chunk.object, created: chunk.created, model: chunk.model };
     if (chunk.usage) { count.input += chunk.usage.prompt_tokens ?? 0; count.output += chunk.usage.completion_tokens ?? 0; }
     const choice = chunk.choices?.[0];
+    if (typeof choice?.delta?.content === "string" && count.text !== undefined) count.text += choice.delta.content;
     const tcs = choice?.delta?.tool_calls;
     if (Array.isArray(tcs)) {
       for (const t of tcs) {
@@ -161,6 +163,7 @@ export async function relayAnthropicStream(body: ReadableStream<Uint8Array>, res
         write(res, ev("content_block_start", { ...d, index: outIndex.get(d.index) }));
         break;
       case "content_block_delta": {
+        if (d.delta?.type === "text_delta" && typeof d.delta.text === "string" && count.text !== undefined) count.text += d.delta.text;
         const h = held.get(d.index);
         if (h) { if (d.delta?.type === "input_json_delta") h.json += d.delta.partial_json ?? ""; break; }
         write(res, ev("content_block_delta", { ...d, index: outIndex.get(d.index) ?? d.index }));
@@ -252,6 +255,7 @@ export async function relayResponsesStream(body: ReadableStream<Uint8Array>, res
     if (e.data === "[DONE]") break;
     let d: any;
     try { d = JSON.parse(e.data); } catch { continue; }
+    if (d.type === "response.output_text.delta" && typeof d.delta === "string" && count.text !== undefined) count.text += d.delta;
     const oi: number | undefined = typeof d.output_index === "number" ? d.output_index : undefined;
     if (d.type === "response.output_item.added" && CALL_ITEMS.has(d.item?.type)) { held.set(oi!, [d]); continue; }
     if (oi !== undefined && held.has(oi)) {

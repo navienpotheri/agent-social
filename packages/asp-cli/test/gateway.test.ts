@@ -1,7 +1,7 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { main, type Io } from "../src/cli.ts";
@@ -111,6 +111,39 @@ test("asp gateway: a Mandate that names hosts lets a fetch reach only those, and
   const action = (await (await LocalLog.open(f.aspHome)).log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2").at(-1)!.record.body as any;
   assert.deepEqual(action.scopes_used, ["web.read"]);
   assert.deepEqual(action.blocked_attempts, [{ scope: "web.read", count: 1 }]);
+});
+
+test("asp gateway keeps a redacted, hash-chained run log; the Action commits to it; asp run-log shows and verifies it", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f, ["repo.read"]);
+  const upstream = await provider();
+  const LEAKY = `
+const r = await fetch(process.env.OPENAI_BASE_URL + "/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer x" }, body: JSON.stringify({ model: "tiny-model", messages: [{ role: "user", content: "read notes.txt; my key is sk-ant-api03-abcdefghijklmnopqrstuvwx" }] }) });
+await r.json();
+`;
+  const run = await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--", process.execPath, "--input-type=module", "-e", LEAKY]);
+  assert.equal(run.code, 0, run.err);
+  const logPath = /run log {2}(\S+run-log\.ndjson)/.exec(run.err)![1];
+  const raw = readFileSync(logPath, "utf8");
+  assert.ok(!raw.includes("sk-ant-api03"), "the key the agent put in its prompt is not in the run log");
+  const shown = await ok(f, ["run-log", "show", logPath]);
+  assert.match(shown.out, /model_request +tiny-model \(chat\.completions\) asked: "read notes\.txt; my key is \[redacted\]"/);
+  assert.match(shown.out, /tool_call +allowed read_file -> repo\.read/);
+  assert.match(shown.out, /tool_call +REFUSED bash -> repo\.push/);
+  assert.match(shown.out, /run_end +exit 0; 1 request\(s\), 2 tool call\(s\), 1 blocked, \d+ secret-like value\(s\) masked/);
+  // The Action committed to the run log, and the log checks out against it.
+  const verified = await ok(f, ["run-log", "verify", logPath, "--contract", contract]);
+  assert.match(verified.out, /run log ok: \d+ event\(s\)/);
+  assert.match(verified.out, /Action\(s\)? commitment|commitment\(s\) match/);
+  assert.doesNotMatch(verified.out, /does not match|fewer events/);
+  // A change to the file is caught.
+  writeFileSync(logPath, raw.replace("read_file", "write_file"));
+  const tampered = await asp(f, ["run-log", "verify", logPath, "--contract", contract]);
+  assert.equal(tampered.code, 1);
+  assert.match(tampered.out, /run log NOT ok/);
+  // --no-run-log turns it off.
+  const off = await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--no-run-log", "--", process.execPath, "--input-type=module", "-e", AGENT]);
+  assert.doesNotMatch(off.err, /run log {2}/);
 });
 
 test("asp gateway refuses a contract that is not running, and needs an upstream", async () => {
