@@ -1,13 +1,34 @@
-| open (host limits added, S67; rate limits, swarm caps and detectors still missing) |
-| partly closed, S67: tier 1-2 Mandates must name hosts and the gateway refuses others; see H11-H13 for what is left |
-| open (partly closed, S66: structured metrics exist; the self-report SDKs do not send them yet) |
-| open (partly closed, S66: Actions carry structured metrics; no trend view yet) |
-| open (partly closed, S66: the model name and provider are recorded in the Action's metrics; no digest, and no probation on a change) |
 # Gaps register: everything the protocol and the network do not cover yet
 
 Started 2026-10-09. One place to track what is **not** covered, so we can come back to it. Every row says what protects us today, what would close the gap, and where the detail lives. When a gap is closed, change its status and add the spec-delta number; never delete a row.
 
 **Priority:** A = needed before outsiders join the live beta; B = needed for the first provider pilot; C = later. **Status:** open, designed (a design exists), partial (some of it is built), closed.
+
+## Partial: built in part, with work left
+
+19 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
+
+| ID | Gap | Priority | What is left |
+|---|---|---|---|
+| D1 | No canary or regression suite; `asp verify` has an empty canary check | A | A small fixed task set with checks, run on every memory update and runtime swap; pass/fail recorded |
+| D2 | No behavioural baseline or before/after comparison | A | Outcome series per agent and per principal, compared across each lineage edge |
+| D4 | Which model weights actually ran is not recorded; a name can point to different weights | A | Record model name, provider and digest in the passport or Action; a change opens probation **Done so far (S66): the model name and provider are recorded in each... |
+| D6 | No detection of prompt injection or goal hijacking | B | Injection tests in the canary; flag tool results that carry instructions |
+| D8 | Quality, cost and time trends are not tracked | A | A structured `metrics` field (tokens, requests, seconds) on the Action, and a trend view **Done so far (S66): Actions carry structured metrics (tokens, requests, tool... |
+| D11 | Shared lessons are not offered to runs automatically, and reviews are one-agent-one-vote | B | Offer reviewed lessons at run start; weight reviews by reputation; stake or slash bad entries |
+| H1 | A granted network scope can be used to hurt third parties (brute force, scanning, flooding); a swarm... | A | Baseline conduct rules with detectors; host-level allow lists; rate limits; fleet-wide caps **Done so far (S67, S68): named hosts are enforced by the gateway and two... |
+| H2 | No default-deny network for new or low-tier agents | A | Egress allowed by tier and by named hosts **Done so far (S67): a tier 1 or 2 Mandate must name hosts and the gateway refuses others. Left: see H11 to H14.** |
+| H8 | No sandbox level: what a tool does inside the machine is not bounded | B | Container or OS sandbox wrapper |
+| H10 | Actions an agent's own code takes outside the model loop are invisible to the gateway. Seen live: Aider saw... | A | Sandbox with egress rules (H8), network-level redirect through the gateway, and a list of known self-acting agents with their risky defaults |
+| H11 | The host limit is enforced by the gateway and, since S68, by the Claude Code and Antigravity pre-call hooks.... | B | Run Codex and OpenHands through the gateway (or a sandbox with host egress, H13) |
+| P1 | Only four runtimes have adapters (Claude Code, Codex, Antigravity, OpenHands) | A | Top 20 runtimes through the gateway, then deeper adapters for the few that matter |
+| P4 | Hosted and enterprise agents that cannot be wrapped | B | Self-report SDK (assurance level 1) |
+| P5 | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) | B | Check or add per runtime |
+| P6 | No model matrix: which open models call tools reliably | B | Run the swarm scenario across models |
+| P7 | Weak models: malformed tool arguments, loops after a refusal | B | Measure and document per model |
+| E3 | Action's metrics are only a summary string | A | Structured metrics (see D8) **Done so far (S66): the Action has structured metrics. Left: the TypeScript and Python self-report SDKs do not send them.** |
+| CM3 | The matrix uses one agent loop (the reference agent) and free-tier models; results for a real runtime... | B | Matrix rows for real runtimes and paid models **Done so far:** Groq, Cerebras and Gemini rows added, S65; still the reference agent only |
+| CM5 | The full model matrix is waiting on OpenRouter: the free tier allows 50 requests a day per key and the card... | B | When the credit is on: set a $10 cap on a fresh key, save it to ~/.asp-openrouter-key, rerun `node evals/model-matrix.mjs`, add one or two cheap paid models, replace... |
 
 ## 1. Agent drift and quality
 
@@ -16,11 +37,11 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | D1 | No canary or regression suite; `asp verify` has an empty canary check | Lineage edges say what changed; the Mandate bounds actions | A small fixed task set with checks, run on every memory update and runtime swap; pass/fail recorded | backlog "Drift and failure-mode testing" (S62: `asp canary` and canary/default-suite.json built; `asp verify`'s canary check is still empty and nothing runs the suite automatically on a memory update or runtime swap) | A | partial |
 | D2 | No behavioural baseline or before/after comparison | Reputation, strikes, outcomes are in the log | Outcome series per agent and per principal, compared across each lineage edge | `docs/continual-learning-loop.md` §7 (S62: reports can be saved as baselines and compared, flagging regression and drift; no per-principal outcome series from the log yet) | A | partial |
 | D3 | Memory loss is not detected | Memory hashes show that memory changed | Recall questions about earlier-known facts after each merge or prune | backlog | B | open |
-| D4 | Which model weights actually ran is not recorded; a name can point to different weights | Runtime swap is a lineage edge | Record model name, provider and digest in the passport or Action; a change opens probation | backlog "open models" (8) | A | open |
+| D4 | Which model weights actually ran is not recorded; a name can point to different weights | Runtime swap is a lineage edge | Record model name, provider and digest in the passport or Action; a change opens probation **Done so far (S66): the model name and provider are recorded in each Action's metrics. Left: no digest, and a model change does not open a probation.** | backlog "open models" (8) | A | partial |
 | D5 | Probation is recorded but changes no rule | Shown in the lineage | Make it raise the risk floor or require a canary pass | backlog | B | open |
 | D6 | No detection of prompt injection or goal hijacking | Mandate and gateway bound the actions that can follow | Injection tests in the canary; flag tool results that carry instructions | backlog (S62: the injection-in-file canary task measures whether a hidden instruction makes a model try a forbidden call; no detection of it) | B | partial |
 | D7 | No reasoning-trace monitoring | none | Local-only analysis of visible reasoning as an earlier-firing signal | backlog "reasoning traces" | C | open |
-| D8 | Quality, cost and time trends are not tracked | Actions carry a summary string | A structured `metrics` field (tokens, requests, seconds) on the Action, and a trend view | learning-loop doc | A | open |
+| D8 | Quality, cost and time trends are not tracked | Actions carry a summary string | A structured `metrics` field (tokens, requests, seconds) on the Action, and a trend view **Done so far (S66): Actions carry structured metrics (tokens, requests, tool calls, seconds). Left: no trend view.** | learning-loop doc | A | partial |
 | D9 | Lessons are not verified before they enter memory | Memory budget, merge, undo by lineage | Reflection proposes, a gate checks evidence, conflicts and an A/B replay | learning-loop doc §3 | A | designed |
 | D10 | The principal is not shown what was learned | Lineage records each memory edit | `asp learned`, then the mail section and dashboard with Keep, Edit, Undo | learning-loop doc §4 | A | designed |
 | D11 | Shared lessons are not offered to runs automatically, and reviews are one-agent-one-vote | Commons search through the gateway's MCP tools | Offer reviewed lessons at run start; weight reviews by reputation; stake or slash bad entries | backlog | B | partial |
@@ -31,8 +52,8 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 
 | ID | Gap | Covered today by | Fix | Detail | Pri | Status |
 |---|---|---|---|---|---|---|
-| H1 | A granted network scope can be used to hurt third parties (brute force, scanning, flooding); a swarm multiplies it | Contagion watcher (same input), strikes, kill switch | Baseline conduct rules with detectors; host-level allow lists; rate limits; fleet-wide caps | backlog "Harm that no Mandate names" | A | open |
-| H2 | No default-deny network for new or low-tier agents | Tier limits on spend and parallel nodes only | Egress allowed by tier and by named hosts | same | A | open |
+| H1 | A granted network scope can be used to hurt third parties (brute force, scanning, flooding); a swarm multiplies it | Contagion watcher (same input), strikes, kill switch | Baseline conduct rules with detectors; host-level allow lists; rate limits; fleet-wide caps **Done so far (S67, S68): named hosts are enforced by the gateway and two hooks. Left: rate limits, swarm-wide caps, detectors for brute-force signatures.** | backlog "Harm that no Mandate names" | A | partial |
+| H2 | No default-deny network for new or low-tier agents | Tier limits on spend and parallel nodes only | Egress allowed by tier and by named hosts **Done so far (S67): a tier 1 or 2 Mandate must name hosts and the gateway refuses others. Left: see H11 to H14.** | same | A | partial |
 | H3 | Third parties have no way to report | Reports need a passport and a deposit | Signed abuse report verified by proof of domain control | same | B | open |
 | H4 | Bond covers the principal, not third parties | none | Bond sizing for network scopes; insurance pool | same | B | open |
 | H5 | No outcome detectors (a secret was obtained or leaked) | Known-bad list needs a prior report | Detect secret-shaped output and credential use | same | B | open |
@@ -113,7 +134,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 |---|---|---|---|---|---|---|
 | E1 | Full tracing: LLM calls and tool responses are not recorded with commitments in the log | Fingerprints only (D1: metadata only) | Spans in the operator's store with signed commitments; redaction and retention | backlog "Full tracing" | B | open |
 | E2 | The mail and dashboard need a redacted runtime log, which does not exist yet | Gateway sees traffic | Recorder in the gateway, local store | flow doc | A | open |
-| E3 | Action's metrics are only a summary string | `assurance` field exists | Structured metrics (see D8) | | A | open |
+| E3 | Action's metrics are only a summary string | `assurance` field exists | Structured metrics (see D8) **Done so far (S66): the Action has structured metrics. Left: the TypeScript and Python self-report SDKs do not send them.** |  | A | partial |
 | E4 | Secrets masking is pattern-based; unusual shapes can get through | `redactSecrets`, secret scan at pack | Broader patterns, entropy checks | S25 | B | open |
 
 ## 8. Process
@@ -122,7 +143,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 |---|---|---|---|---|
 | X1 | Live runs so far are one person, one machine, a few models | Pilot with one enterprise and one open-source provider using the before/after measures | B | open |
 | X2 | Conformance exists for the records, not for runtime support levels | Per-runtime tests behind the support matrix | B | open |
-| X3 | This register is only as good as its upkeep | Review it at the start of every build session; add a row when anything is found or deferred | A | open |
+| X3 | This register is only as good as its upkeep | Review it at the start of every build session; add a row when anything is found or deferred; a spec-delta or checklist entry that says "not covered" gets a matching row; status is exactly open, designed, partial or closed, with what is done and what is left written in the row (never in the status), and the "Partial" table at the top is updated whenever a row becomes or stops being partial | A | open |
 
 
 Added 2026-10-09 (P4):
@@ -145,9 +166,9 @@ Added 2026-10-09 (canary and model matrix):
 |---|---|---|---|---|---|---|
 | CM1 | The canary suite is run by hand; nothing triggers it when memory is updated, the runtime is swapped, or a provider changes a model | `asp canary run --baseline` | Run it from `asp run` write-back and backend swap, and record the result as evidence on the lineage edge | S62; S63: built for `asp run` (memory update and runtime swap) with a per-agent, per-backend target; S64: the gateway and orchestrate paths and a first baseline are covered too (CM6); what remains is CM7 (certificates in the package) and CM2 to CM4 (a bigger suite) | A | closed |
 | CM2 | Six tasks are a smoke test, not coverage: no multi-step tasks, no memory-recall task, no tasks per Mandate scope, no adversarial suite | The default suite | Grow the suite; per-agent suites written by the principal; held-out tasks | S62 | B | open |
-| CM3 | The matrix uses one agent loop (the reference agent) and free-tier models; results for a real runtime (Claude Code, Codex) or paid models may differ | The canary can drive any agent that uses a model API | Matrix rows for real runtimes and paid models | S62 | B | open (Groq, Cerebras and Gemini rows added, S65; still the reference agent only) |
+| CM3 | The matrix uses one agent loop (the reference agent) and free-tier models; results for a real runtime (Claude Code, Codex) or paid models may differ | The canary can drive any agent that uses a model API | Matrix rows for real runtimes and paid models **Done so far:** Groq, Cerebras and Gemini rows added, S65; still the reference agent only | S62 | B | partial |
 | CM4 | Checks are regular expressions and counts; an answer can be correct but phrased unexpectedly, or wrong in a way a regex accepts | Several checks per task | A judge model or exact-answer tasks | S62 | B | open |
-| CM5 | The full model matrix is waiting on OpenRouter: the free tier allows 50 requests a day per key and the card for a $10 top-up is not accepted yet (it needs time). | A partial matrix (Nemotron 6/6, Laguna 4/6, two models with no data) in docs/model-matrix.md | When the credit is on: set a $10 cap on a fresh key, save it to ~/.asp-openrouter-key, rerun `node evals/model-matrix.mjs`, add one or two cheap paid models, replace docs/model-matrix.md | S62 | B | open (partly eased: Groq, Cerebras and Gemini free tiers added, S65) |
+| CM5 | The full model matrix is waiting on OpenRouter: the free tier allows 50 requests a day per key and the card for a $10 top-up is not accepted yet (it needs time). | A partial matrix (Nemotron 6/6, Laguna 4/6, two models with no data) in docs/model-matrix.md | When the credit is on: set a $10 cap on a fresh key, save it to ~/.asp-openrouter-key, rerun `node evals/model-matrix.mjs`, add one or two cheap paid models, replace docs/model-matrix.md **Done so far:** Groq, Cerebras and Gemini free tiers added, S65 | S62 | B | partial |
 
 | CM6 | The canary gate is not applied to memory written back by `asp gateway --package` or consolidated by `asp orchestrate`, and a new package has no baseline until its first change | `asp run` is gated | Gate the other two write-back paths; `asp canary baseline` on pack | S63; closed 2026-10-09 (S64): one function, applyChange, writes every change; asp run, asp gateway --package (backend name gateway) and asp orchestrate all go through it; asp canary setup --package takes the baseline at once | B | closed |
 | CM7 | The canary's certificate lives in the log, not in the package: a package alone shows that a change cites a certificate id but not its verdict | `asp canary evidence` reads the log; `asp verify` counts the citations | Carry the certificates in the package history | S63 | B | open |
