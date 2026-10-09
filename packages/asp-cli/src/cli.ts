@@ -53,11 +53,13 @@
  *     A report saved with --out is a baseline; running again with --baseline (or asp canary compare) flags a task that used to pass and does not
  *     (REGRESSION) and growth in tokens, tool calls, time or blocked attempts (drift). The default suite is canary/default-suite.json; the reference
  *     agent (src/reference-agent.mjs) lets any OpenAI-compatible model be tested: --target openrouter:<model>.
- *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--html] [--again] | pending [--to <address>]
+ *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--html] [--again] | pending | watch [--once] [--interval <s>] [--to <address>] | address set <did> <address> | address list
  *     The end-of-Mandate mail (docs/live-beta-flow-1.md step 8, gap E8): one mail per Mandate with the highlights from the log (what was asked, allowed, done,
  *     blocked, approved, what changed in memory, how it ended and what moved) and, when the gateway kept one, the checked run log. preview prints it (--html
  *     prints the HTML body); queue writes an .eml, .html and .txt to <home>/outbox and marks the Mandate as mailed (a second queue needs --again);
- *     pending lists ended Mandates not mailed yet. Nothing is sent: delivery to a mail provider is not built.
+ *     pending lists ended Mandates and alerts not mailed yet. watch queues them as they happen (once with --once): the end mail when a job settles, and an
+ *     alert mail at once for a kill (the kill switch's slashed settlement), an upheld report against the agent, or a Mandate that expired while the job still runs.
+ *     The mail goes to the address set for the principal (asp mail address set), or --to. Nothing is sent: delivery to a mail provider is not built.
  *   asp known-bad add --report <upheld-report> --by <did> [--fingerprint <asp://shell-command#sha256:...> | --all] [--note <text>] | list
  *     The list is the log service's (ASP_LOG_URL; adding needs an admin token) or <home>/known-bad.json. Without --fingerprint the
  *     candidates are the shell commands shared by 3+ agents (asp watch) that include the reported job. asp run --contract gives the
@@ -275,7 +277,7 @@ import {
   b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
-import { RunRecorder, buildMandateMail, collectMandateFacts, hashAfter, readRunLog, runLogArtifact,
+import { RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
@@ -389,6 +391,8 @@ const OPTIONS = {
   json: { type: "boolean" },
   "no-run-log": { type: "boolean" },
   "link-base": { type: "string" },
+  once: { type: "boolean" },
+  interval: { type: "string" },
   "run-log": { type: "string" },
   html: { type: "boolean" },
   again: { type: "boolean" },
@@ -512,7 +516,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "gateway") return await gatewayCmd(home, [sub, ...rest].filter((x): x is string => !!x), v, need, io);
     if (cmd === "known-bad") return await knownBadCmd(home, sub, v, need, io);
     if (cmd === "run-log") return await runLogCmd(home, sub, rest, v, io);
-    if (cmd === "mail") return await mailCmd(home, sub, v, io);
+    if (cmd === "mail") return await mailCmd(home, sub, rest, v, io);
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
@@ -1465,48 +1469,106 @@ function findRunLog(home: string, contract: string): string | undefined {
   return undefined;
 }
 
-/** asp mail preview|queue|pending: see the header. */
-async function mailCmd(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
-  if (sub !== "preview" && sub !== "queue" && sub !== "pending") throw new UsageError("usage: asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--html] [--again] | pending");
-  const local = await openLog(home, logEnv);
+/** asp mail preview|queue|pending|watch|address: see the header. */
+async function mailCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const USAGE = "usage: asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--html] [--again] | pending | watch [--once] [--interval <seconds>] [--to <address>] | address set <did> <address> | address list";
+  if (!["preview", "queue", "pending", "watch", "address"].includes(sub ?? "")) throw new UsageError(USAGE);
   const statePath = join(home, "mail-state.json");
-  const state: Record<string, { queuedAt: string; to: string; file: string }> = existsSync(statePath) ? JSON.parse(readFileSync(statePath, "utf8")) : {};
-  if (sub === "pending") {
-    const all = await local.log.since(0, 1_000_000);
-    const contracts = all.filter((s) => s.record.type === "asp.contract/v0.2").map((s) => s.id);
-    let n = 0;
-    for (const c of contracts) {
-      if ((await local.log.chainInfo(c))?.state !== "Settled" || state[c]) continue;
-      const f = await collectMandateFacts(local.log, c);
-      io.out(`  ${c}  ${f?.contract.purpose ?? ""}  (${f?.ending?.basis ?? "settled"}, principal ${f?.contract.principal})`);
-      n++;
+  const addressPath = join(home, "mail-addresses.json");
+  const readJson = <T,>(p: string, fallback: T): T => (existsSync(p) ? JSON.parse(readFileSync(p, "utf8")) : fallback);
+  const state: Record<string, { queuedAt: string; to: string; file: string }> = readJson(statePath, {});
+  const addresses: Record<string, string> = readJson(addressPath, {});
+
+  if (sub === "address") {
+    if (rest[0] === "list") {
+      for (const [did, a] of Object.entries(addresses)) io.out(`  ${did}  ${a}`);
+      io.out(`${Object.keys(addresses).length} address(es)`);
+      return 0;
     }
-    io.out(`${n} ended Mandate(s) not mailed yet`);
+    if (rest[0] !== "set" || !rest[1] || !rest[2]) throw new UsageError(USAGE);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rest[2])) throw new UsageError(`"${rest[2]}" does not look like an email address`);
+    addresses[rest[1]] = rest[2];
+    writeFileSync(addressPath, JSON.stringify(addresses, null, 2));
+    io.out(`mail for ${rest[1]} goes to ${rest[2]}`);
     return 0;
   }
+
+  const local = await openLog(home, logEnv);
+  const runLogFor = (contract: string) => {
+    const given = v["run-log"] ? resolve(io.cwd, v["run-log"]) : findRunLog(home, contract);
+    const file = given && !given.endsWith(".ndjson") ? join(given, "run-log.ndjson") : given;
+    return file && existsSync(file) ? { ...readRunLog(file), path: file } : undefined;
+  };
+  const linkBase = v["link-base"] ? { linkBase: v["link-base"] } : {};
+  const outbox = join(home, "outbox");
+  /** Writes the .eml, .html and .txt, and records that this key was mailed. */
+  const queueFiles = (key: string, label: string, mail: { eml: string; html: string; text: string }, to: string) => {
+    mkdirSync(outbox, { recursive: true });
+    const stem = join(outbox, `${label}-${key.replace(/[^A-Za-z0-9]/g, "").slice(-16)}${state[key] ? "-" + Date.now() : ""}`);
+    writeFileSync(stem + ".eml", mail.eml);
+    writeFileSync(stem + ".html", mail.html);
+    writeFileSync(stem + ".txt", mail.text);
+    state[key] = { queuedAt: now(), to, file: stem + ".eml" };
+    writeFileSync(statePath, JSON.stringify(state, null, 2));
+    return stem + ".eml";
+  };
+  /** Everything that should be mailed and has not been: ended Mandates, and alerts. */
+  const due = async () => {
+    const all = await local.log.since(0, 1_000_000);
+    const finals: string[] = [];
+    for (const c of all.filter((s) => s.record.type === "asp.contract/v0.2").map((s) => s.id)) {
+      if ((await local.log.chainInfo(c))?.state === "Settled" && !state[c]) finals.push(c);
+    }
+    const alerts = (await findAlerts(local.log)).filter((a) => !state[a.key]);
+    return { finals, alerts };
+  };
+
+  if (sub === "pending" || sub === "watch") {
+    const pass = async (): Promise<number> => {
+      const { finals, alerts } = await due();
+      let queued = 0;
+      const send = async (key: string, label: string, contract: string, build: (f: MandateFacts, to: string) => { eml: string; html: string; text: string; subject: string }) => {
+        const f = await collectMandateFacts(local.log, contract);
+        if (!f) return;
+        const to = v.to ?? addresses[f.contract.principal];
+        if (sub === "pending") { io.out(`  ${label.padEnd(13)} ${f.contract.purpose}  (${contract.slice(0, 19)}, principal ${f.contract.principal}${to ? ` -> ${to}` : ", NO ADDRESS"})`); return; }
+        if (!to) { io.err(`  skipped  ${label} for ${contract.slice(0, 19)}: no address for ${f.contract.principal} (asp mail address set <did> <address>)`); return; }
+        const mail = build(f, to);
+        io.out(`queued ${queueFiles(key, label, mail, to)} to ${to}: ${mail.subject}`);
+        queued++;
+      };
+      for (const a of alerts) await send(a.key, `alert-${a.kind}`, a.contract, (f, to) => buildAlertMail(a, f, { to, ...linkBase }));
+      for (const c of finals) await send(c, "end", c, (f, to) => buildMandateMail(f, { to, ...(runLogFor(c) ? { runLog: runLogFor(c)! } : {}), ...linkBase }));
+      if (sub === "pending") io.out(`${finals.length} ended Mandate(s) and ${alerts.length} alert(s) not mailed yet`);
+      return queued;
+    };
+    if (sub === "pending") { await pass(); return 0; }
+    io.err("  not sent: delivery to a mail provider is not built; mail is queued in the outbox");
+    const n = await pass();
+    if (v.once) { io.out(`${n} mail(s) queued`); return 0; }
+    const every = Number(v.interval) > 0 ? Number(v.interval) * 1000 : 30_000;
+    io.err(`  watching the log every ${every / 1000} s; Ctrl-C stops`);
+    const timer = setInterval(() => { void pass().catch((e) => io.err(`  watch    ${(e as Error).message}`)); }, every);
+    await new Promise<void>((resolveStop) => { process.once("SIGINT", resolveStop); process.once("SIGTERM", resolveStop); });
+    clearInterval(timer);
+    return 0;
+  }
+
   const contract = v.contract;
   if (!contract) throw new UsageError("--contract <id> is required");
   const facts = await collectMandateFacts(local.log, contract);
   if (!facts) throw new Error(`contract ${contract} is not in the log`);
-  const given = v["run-log"] ? resolve(io.cwd, v["run-log"]) : findRunLog(home, contract);
-  const runLogFile = given && !given.endsWith(".ndjson") ? join(given, "run-log.ndjson") : given;
-  const mail = buildMandateMail(facts, { to: v.to ?? "principal@localhost", ...(runLogFile && existsSync(runLogFile) ? { runLog: { ...readRunLog(runLogFile), path: runLogFile } } : {}), ...(v["link-base"] ? { linkBase: v["link-base"] } : {}) });
+  const runLog = runLogFor(contract);
+  const mail = buildMandateMail(facts, { to: v.to ?? addresses[facts.contract.principal] ?? "principal@localhost", ...(runLog ? { runLog } : {}), ...linkBase });
   if (sub === "preview") {
     io.out(v.html ? mail.html : mail.text);
     return 0;
   }
-  if (!v.to) throw new UsageError("--to <address> is required for queue");
+  const to = v.to ?? addresses[facts.contract.principal];
+  if (!to) throw new UsageError("--to <address> is required for queue (or set the principal's address with asp mail address set)");
   if (facts.state !== "Settled") throw new Error(`contract ${contract} is ${facts.state}, not ended: the mail goes out when the Mandate ends`);
   if (state[contract] && !v.again) throw new Error(`contract ${contract} was already mailed (queued ${state[contract].queuedAt} to ${state[contract].to}); one mail per Mandate. Use --again to queue it a second time.`);
-  const outbox = join(home, "outbox");
-  mkdirSync(outbox, { recursive: true });
-  const stem = join(outbox, contract.replace(/[^A-Za-z0-9]/g, "").slice(-16) + (state[contract] ? "-" + Date.now() : ""));
-  writeFileSync(stem + ".eml", mail.eml);
-  writeFileSync(stem + ".html", mail.html);
-  writeFileSync(stem + ".txt", mail.text);
-  state[contract] = { queuedAt: now(), to: v.to, file: stem + ".eml" };
-  writeFileSync(statePath, JSON.stringify(state, null, 2));
-  io.out(`queued ${stem}.eml to ${v.to}: ${mail.subject}`);
+  io.out(`queued ${queueFiles(contract, "end", mail, to)} to ${to}: ${mail.subject}`);
   io.out("  not sent: delivery to a mail provider is not built; the .eml is in the outbox");
   return 0;
 }

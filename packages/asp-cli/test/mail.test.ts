@@ -80,7 +80,7 @@ test("asp mail: the end-of-Mandate mail has the highlights from the log and the 
   await ok(f, ["market", "deliver", "--contract", contract, "--by", CODER, "--summary", "Fixed it"]);
   await ok(f, ["market", "accept", "--contract", contract, "--by", ALICE]);
   await ok(f, ["market", "settle", "--contract", contract, "--bank", BANK, "--basis", "accepted", "--escrow-released", "950", "--bond-returned", "200", "--bond-slashed", "0", "--fees", "50"]);
-  assert.match((await ok(f, ["mail", "pending"])).out, new RegExp(`${contract}[\\s\\S]*1 ended Mandate`));
+  assert.match((await ok(f, ["mail", "pending"])).out, /end +Fix the flaky test[\s\S]*1 ended Mandate/);
 
   const mail = (await ok(f, ["mail", "preview", "--contract", contract])).out;
   assert.match(mail, /Your agent finished: Fix the flaky test/);
@@ -130,4 +130,38 @@ test("asp mail: a job that was revoked says so, with the pro-rata share, and a r
   assert.match(mail, /No activity was reported/);
   assert.match(mail, /Nothing was blocked/);
   assert.match(mail, /No run log was kept for this job/);
+});
+
+test("asp mail watch: the end mail is queued when a job settles, once, to the address set for the principal; a kill also gets its own alert at once", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f);
+  // Still running: nothing to mail, no alert.
+  assert.match((await ok(f, ["mail", "watch", "--once"])).out, /0 mail\(s\) queued/);
+  // The kill switch settles the job as revoked with the whole bond slashed.
+  await ok(f, ["market", "settle", "--contract", contract, "--bank", BANK, "--basis", "revoked", "--principal", ALICE, "--escrow-released", "0", "--bond-slashed", "200", "--bond-returned", "0", "--pro-rata", "0"]);
+  // No address yet: skipped, and nothing is marked as mailed.
+  const noAddress = await ok(f, ["mail", "watch", "--once"]);
+  assert.match(noAddress.err, /skipped {2}alert-killed .*no address for did:web:example\.com:users:alice/);
+  assert.match(noAddress.out, /0 mail\(s\) queued/);
+  assert.equal((await asp(f, ["mail", "address", "set", ALICE, "not-an-address"])).code, 2);
+  await ok(f, ["mail", "address", "set", ALICE, "alice@example.com"]);
+  assert.match((await ok(f, ["mail", "address", "list"])).out, /alice@example\.com/);
+  assert.match((await ok(f, ["mail", "pending"])).out, /alert-killed[\s\S]*end +[\s\S]*1 ended Mandate\(s\) and 1 alert\(s\)/);
+
+  const watched = await ok(f, ["mail", "watch", "--once"]);
+  assert.match(watched.out, /2 mail\(s\) queued/);
+  const outbox = join(f.aspHome, "outbox");
+  const emls = readdirSync(outbox).filter((x) => x.endsWith(".eml")).sort();
+  assert.equal(emls.length, 2);
+  const alert = readFileSync(join(outbox, emls.find((x) => x.startsWith("alert-killed"))!), "utf8");
+  assert.match(alert, /\r\nTo: alice@example\.com\r\n/);
+  assert.match(alert, /X-ASP-Alert: killed/);
+  assert.match(alert, /Importance: high/);
+  assert.match(alert, /Subject: Your agent was stopped by the kill switch: Fix the flaky test/);
+  const alertText = readFileSync(join(outbox, emls.find((x) => x.startsWith("alert-killed"))!.replace(".eml", ".txt")), "utf8");
+  assert.match(alertText, /200 credit of the agent's bond was slashed and the escrow went back to you/);
+  assert.ok(emls.some((x) => x.startsWith("end-")));
+  // Again: nothing new.
+  assert.match((await ok(f, ["mail", "watch", "--once"])).out, /0 mail\(s\) queued/);
+  assert.match((await ok(f, ["mail", "pending"])).out, /0 ended Mandate\(s\) and 0 alert\(s\)/);
 });

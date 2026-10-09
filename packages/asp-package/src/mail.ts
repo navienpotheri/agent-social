@@ -16,7 +16,7 @@ export interface MailLog {
 export interface MandateFacts {
   contract: { id: string; purpose: string; principal: string; performer: string; price?: { value: number; unit: string }; deadline?: string };
   state: string;
-  mandate?: { id: string; issuedAt: string; scopes: string[]; hosts?: string[]; spendCap: number; unit: string; irreversible: string; gatedScopes: string[]; shareToCommons: boolean };
+  mandate?: { id: string; issuedAt: string; expires?: string; scopes: string[]; hosts?: string[]; spendCap: number; unit: string; irreversible: string; gatedScopes: string[]; shareToCommons: boolean };
   activity: {
     actions: number;
     scopesUsed: { scope: string; actions: number }[];
@@ -89,7 +89,7 @@ export async function collectMandateFacts(log: MailLog, contract: string): Promi
     contract: { id: contract, purpose: cb.purpose, principal: cb.principal, performer: cb.performer, ...(cb.price ? { price: cb.price } : {}), ...(cb.deadline ? { deadline: cb.deadline } : {}) },
     state: info?.state ?? "unknown",
     ...(mb ? { mandate: {
-      id: mandateRec!.id, issuedAt: mandateRec!.record.issued_at, scopes: mb.scopes ?? [], ...(mb.network?.hosts ? { hosts: mb.network.hosts } : {}),
+      id: mandateRec!.id, issuedAt: mandateRec!.record.issued_at, ...(mb.expires ? { expires: mb.expires } : {}), scopes: mb.scopes ?? [], ...(mb.network?.hosts ? { hosts: mb.network.hosts } : {}),
       spendCap: mb.spend?.cap ?? 0, unit: mb.spend?.unit ?? "credit", irreversible: mb.irreversible?.policy ?? "checkpoint", gatedScopes: mb.irreversible?.scopes ?? [], shareToCommons: !!mb.learning?.share_to_commons,
     } } : {}),
     activity: {
@@ -209,4 +209,71 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
     `--${boundary}--`, "",
   ].join("\r\n");
   return { subject, text, html, eml, highlights };
+}
+
+// ---------- alerts: the mails that do not wait for the end of the Mandate ----------
+
+export type AlertKind = "killed" | "report_upheld" | "expired";
+export interface MailAlert { key: string; kind: AlertKind; contract: string; at: string; detail: string; record: string }
+
+/**
+ * The events that get their own mail at once: a kill (the kill switch settles the job as revoked with the bond slashed), a report against the
+ * agent that a panel upheld, and a Mandate whose expiry has passed while the job is still running. Each has a stable key, so it is mailed once.
+ */
+export async function findAlerts(log: MailLog, nowMs: number = Date.now()): Promise<MailAlert[]> {
+  const all = await log.since(0, 1_000_000);
+  const out: MailAlert[] = [];
+  for (const s of all) {
+    const b = s.record.body;
+    if (s.record.type === "asp.settlement/v0.2" && b.basis === "revoked" && (b.bond_slashed?.value ?? 0) > 0) {
+      out.push({ key: `alert:killed:${b.contract}`, kind: "killed", contract: b.contract, at: s.record.issued_at, record: s.id,
+        detail: `The job was stopped by the kill switch: ${b.bond_slashed.value} ${b.bond_slashed.unit} of the agent's bond was slashed and the escrow went back to you.` });
+    }
+    if (s.record.type === "asp.attestation/v0.2" && b.kind === "report_ruling" && b.verdict === "upheld") {
+      const report = all.find((x) => x.id === b.about);
+      if (report) out.push({ key: `alert:report:${s.id}`, kind: "report_upheld", contract: report.record.body.about, at: s.record.issued_at, record: s.id,
+        detail: `A report against the agent was upheld by a panel: ${((report.record.body.reasons as string[] | undefined) ?? []).join("; ") || "no reasons recorded"}.` });
+    }
+  }
+  const latest = new Map<string, Stored>();
+  for (const s of all) if (s.record.type === "asp.mandate/v0.2") latest.set(s.record.body.contract, s);
+  for (const [contract, m] of latest) {
+    const expires = m.record.body.expires as string | undefined;
+    if (!expires || Date.parse(expires) > nowMs) continue;
+    const state = (await log.chainInfo(contract))?.state;
+    if (state === "Running" || state === "Checkpoint") out.push({ key: `alert:expired:${contract}`, kind: "expired", contract, at: expires, record: m.id,
+      detail: `The Mandate expired on ${expires.slice(0, 10)} and the job is still ${state.toLowerCase()}. The agent should not be acting under it any more.` });
+  }
+  return out;
+}
+
+const ALERT_TITLE: Record<AlertKind, string> = {
+  killed: "Your agent was stopped by the kill switch",
+  report_upheld: "A report against your agent was upheld",
+  expired: "Your agent's Mandate has expired",
+};
+
+/** A short mail for one alert: what happened, to which job, and what to check. Highlights only, like the end mail. */
+export function buildAlertMail(a: MailAlert, f: MandateFacts, o: Pick<MailOptions, "to" | "from" | "linkBase">): BuiltMail {
+  const subject = `${ALERT_TITLE[a.kind]}: ${f.contract.purpose}`;
+  const lines = [
+    a.detail,
+    `Job: ${f.contract.purpose}. Agent: ${f.contract.performer}.`,
+    ...(f.activity.blocked.length ? [`Before this, ${f.activity.strikes} attempt(s) were blocked: ${f.activity.blocked.map((b) => `${b.scope} x${b.count}`).join(", ")}.`] : []),
+    `Check it: record ${short(a.record)} on contract ${short(f.evidence.contractRecord)}; anyone can verify them against the log.`,
+    ...(o.linkBase ? [`Run page: ${o.linkBase.replace(/\/$/, "")}/jobs/${f.contract.id}`] : []),
+  ];
+  const text = [subject, "", ...lines.map((l) => `  ${l}`), "", "-- Agent Social. This is an alert; the end-of-job mail with the highlights follows when the job ends.", ""].join("\n");
+  const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const html = `<!doctype html><html><body style="margin:0;background:#f5f4ef;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1d1d1b"><div style="max-width:620px;margin:0 auto;padding:24px 16px"><div style="background:#fff;border:1px solid #e3e1d8;border-left:4px solid #b3261e;border-radius:12px;padding:24px"><h1 style="font-size:20px;margin:0 0 12px">${esc(subject)}</h1>${lines.map((l) => `<p style="margin:0 0 8px;font-size:15px;line-height:1.45">${esc(l)}</p>`).join("")}</div><p style="font-size:12px;color:#8a8980;margin:14px 4px">Agent Social. This is an alert; the end-of-job mail with the highlights follows when the job ends.</p></div></body></html>`;
+  const boundary = "asp-" + Buffer.from(a.key).toString("hex").slice(0, 16);
+  const b64 = (t: string) => Buffer.from(t).toString("base64").replace(/(.{76})/g, "$1\r\n");
+  const eml = [
+    `From: ${o.from ?? "Agent Social <noreply@localhost>"}`, `To: ${o.to}`, `Subject: ${subject.replace(/[\r\n]+/g, " ")}`, `Date: ${new Date().toUTCString()}`, "MIME-Version: 1.0",
+    `X-ASP-Contract: ${f.contract.id}`, `X-ASP-Alert: ${a.kind}`, "Importance: high", `Content-Type: multipart/alternative; boundary="${boundary}"`, "",
+    `--${boundary}`, 'Content-Type: text/plain; charset="utf-8"', "Content-Transfer-Encoding: base64", "", b64(text), "",
+    `--${boundary}`, 'Content-Type: text/html; charset="utf-8"', "Content-Transfer-Encoding: base64", "", b64(html), "",
+    `--${boundary}--`, "",
+  ].join("\r\n");
+  return { subject, text, html, eml, highlights: [a.detail] };
 }

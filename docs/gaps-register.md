@@ -6,7 +6,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 
 ## Partial: built in part, with work left
 
-21 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
+22 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
 
 | ID | Gap | Priority | What is left |
 |---|---|---|---|
@@ -29,6 +29,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | E2 | The mail and dashboard need a redacted runtime log, which does not exist yet | A | Recorder in the gateway, local store **Done so far (S69): `asp gateway` keeps a redacted, hash-chained run log in the run folder (model requests and replies with token... |
 | E3 | Action's metrics are only a summary string | A | Structured metrics (see D8) **Done so far (S66): the Action has structured metrics. Left: the TypeScript and Python self-report SDKs do not send them.** |
 | E8 | The end-of-Mandate mail and the dashboard do not exist yet; the run log has no reader for a person | A | The mail and dashboard of beta flow 1 (U-series) **Done so far (S70): `asp mail preview |
+| E10 | Nothing triggers the mail when a Mandate ends (`asp mail pending` is run by hand), an expired Mandate is not... | A | A watcher that queues the mail when a job settles, and a separate short alert mail for a kill or an upheld report **Done so far (S71): `asp mail watch` queues the end... |
 | CM3 | The matrix uses one agent loop (the reference agent) and free-tier models; results for a real runtime... | B | Matrix rows for real runtimes and paid models **Done so far:** Groq, Cerebras and Gemini rows added, S65; still the reference agent only |
 | CM5 | The full model matrix is waiting on OpenRouter: the free tier allows 50 requests a day per key and the card... | B | When the credit is on: set a $10 cap on a fresh key, save it to ~/.asp-openrouter-key, rerun `node evals/model-matrix.mjs`, add one or two cheap paid models, replace... |
 
@@ -142,9 +143,11 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | E7 | The run log leaves out tool results (what a command or file read returned), MCP call arguments and results, and any request text beyond the last user message, so the story of a run is incomplete | Tool calls with their inputs | Record tool results and MCP traffic, redacted and cut, with a link between a call and its result | S69 | B | open |
 | E8 | The end-of-Mandate mail and the dashboard do not exist yet; the run log has no reader for a person | `asp run-log show` in the terminal | The mail and dashboard of beta flow 1 (U-series) **Done so far (S70): `asp mail preview|queue|pending` builds the one mail per Mandate (highlights from the log, the checked run log, text and HTML, an .eml in an outbox, once per Mandate). Left: E9 to E12 for the mail, and the dashboard (U-series).** | S69, flow doc | A | partial |
 | E9 | The mail is never sent: it is written to an outbox folder as an .eml. There is no delivery to a mail provider, no address verification, no bounce handling and no unsubscribe | The .eml can be opened or sent by hand | A delivery step (SMTP or a provider API) behind the principal's confirmed address, with bounce handling; needs your approval before anything is sent | S70, flow doc step 8 | A | open |
-| E10 | Nothing triggers the mail when a Mandate ends (`asp mail pending` is run by hand), an expired Mandate is not a state of its own, and a kill or an upheld report does not get its immediate mail | `asp mail pending`, `asp mail queue` | A watcher that queues the mail when a job settles, and a separate short alert mail for a kill or an upheld report | S70, flow doc step 8 | A | open |
+| E10 | Nothing triggers the mail when a Mandate ends (`asp mail pending` is run by hand), an expired Mandate is not a state of its own, and a kill or an upheld report does not get its immediate mail | `asp mail pending`, `asp mail queue` | A watcher that queues the mail when a job settles, and a separate short alert mail for a kill or an upheld report **Done so far (S71): `asp mail watch` queues the end mail when a job settles and an alert mail at once for a kill, an upheld report or an expired Mandate, each once, to the principal's address (`asp mail address set`). Left: it is a command someone must keep running, not a service; see E13 and E14.** | S70, flow doc step 8 | A | partial |
 | E11 | The mail has no links: no run page, full report or hosted run log exist, so it names the run log's path on the machine that ran the job, or uses `--link-base` blindly | The path and the record ids to check | The dashboard run page and a way to fetch the run log for the principal, after they opt in (privacy rule D1) | S70 | A | open |
 | E12 | The memory section reads lineage edges from the log; it is untested with a real write-back, shows only edge descriptions, and a run that used `asp run` (no run log, E5) shows less than a gateway run | Lineage edges in the log | Test with a real memory update; list the files that changed, not just the count | S70 | B | open |
+| E13 | Alerts go only to the contract's principal. The agent's sponsor (who is liable for it), the reporter of an upheld report and the other parties get nothing, and the address book is a local file with no verification of the address | The principal's address in `mail-addresses.json` | Recipients by role; address verified by a confirmation mail (E9) and tied to the sign-in (U-series) | S71 | A | open |
+| E14 | Alert detection is by shape, not by event: a kill is any revoked settlement with a slashed bond (a principal's own revoke that slashes also counts), expiry is read from the Mandate's `expires` against this machine's clock, and the upheld-report path is tested with a fake log only, not a real Court flow | `findAlerts` over the log | A kill record or flag on the settlement; run the report and Court flow end to end and read the alert | S71 | B | open |
 | E4 | Secrets masking is pattern-based; unusual shapes can get through | `redactSecrets`, secret scan at pack | Broader patterns, entropy checks | S25 | B | open |
 
 ## 8. Process
@@ -154,6 +157,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | X1 | Live runs so far are one person, one machine, a few models | Pilot with one enterprise and one open-source provider using the before/after measures | B | open |
 | X2 | Conformance exists for the records, not for runtime support levels | Per-runtime tests behind the support matrix | B | open |
 | X3 | This register is only as good as its upkeep | Review it at the start of every build session; add a row when anything is found or deferred; a spec-delta or checklist entry that says "not covered" gets a matching row; status is exactly open, designed, partial or closed, with what is done and what is left written in the row (never in the status), and the "Partial" table at the top is updated whenever a row becomes or stops being partial | A | open |
+| X4 | The gateway test "stops the agent when the contract is revoked mid-run" is timing-sensitive: it passed alone 3 of 3 and failed in 2 of 4 full asp-cli runs (2026-10-09; the other 2 full runs passed 200 of 200) | Reruns pass | Make the test wait for the gateway's poll instead of sleeping a fixed time | S71 | C | open |
 
 
 Added 2026-10-09 (P4):
