@@ -51,7 +51,8 @@ jobs:
     continue-on-error: true
     services:
       postgres:
-        image: postgres:17
+        # The AWS public mirror of the official image: Docker Hub refuses anonymous pulls from shared runners once its rate limit is hit.
+        image: public.ecr.aws/docker/library/postgres:17
         env:
           POSTGRES_USER: asp
           POSTGRES_PASSWORD: asp-local-dev
