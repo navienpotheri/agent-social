@@ -1,5 +1,5 @@
 import {
-  AspError, Job, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
+  AspError, Job, isNetworkScope, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
 } from "@agent-social/asp-core";
 import { MemoryStore } from "./memory.ts";
@@ -424,6 +424,11 @@ export class EventLog {
       for (const [field, value] of [["cap", spend.cap], ["per_action_max", spend.per_action_max ?? 0]] as const) {
         if (value > spendLimit) throw rule("tier_limit_exceeded", `${r.subject} is tier ${rep.tier}: spend.${field} may not exceed ${spendLimit} credits (got ${value})`);
       }
+    }
+    // Default-deny egress: below tier 3 a network scope needs named hosts.
+    const granted = (r.body as { scopes?: string[]; network?: { hosts?: string[] } });
+    if (rep.tier < 3 && (granted.scopes ?? []).some(isNetworkScope) && !granted.network?.hosts?.length) {
+      throw rule("network_hosts_required", `${r.subject} is tier ${rep.tier}: a Mandate that grants a network scope (${(granted.scopes ?? []).filter(isNetworkScope).join(", ")}) must name the hosts it may reach (network.hosts)`);
     }
     const parallelLimit = TIER_PARALLEL_LIMIT[rep.tier];
     if (parallelLimit !== undefined && nodes.max_parallel > parallelLimit) {

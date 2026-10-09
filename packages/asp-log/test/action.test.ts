@@ -135,6 +135,28 @@ for (const h of [memory, postgres] as Harness[]) {
       assert.equal((await log.append(mandateWith({ cap: 100, per_action_max: 100 }))).state, "Running");
     });
 
+    test("a tier 1 agent's Mandate may grant a network scope only if it names the hosts (network_hosts_required)", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log); // coder is tier 1
+      const contract = cosign(rec("contract", alice, contractBody(), null, coder.did), coder);
+      await log.append(contract);
+      const bond = rec("bond", coder, {
+        contract: contract.id, backer: coder.did, amount: { value: 0, unit: "credit" as const },
+        escrow: { payer: alice.did, amount: { value: 0, unit: "credit" as const } }, slashing_conditions: ["lost_dispute" as const],
+      }, contract.id, contract.id);
+      await log.append(bond);
+      const mandateWith = (scopes: string[], network?: { hosts: string[] }) => rec("mandate", alice, {
+        contract: contract.id, purpose: "Fix the flaky test", floor: "asp.floor/v1", scopes, ...(network ? { network } : {}), forbidden_means: [],
+        spend: { unit: "credit" as const, cap: 10 }, irreversible: { policy: "checkpoint" as const },
+        subcontract: { allowed: false }, nodes: { max_parallel: 1 },
+        learning: { scope: "harness" as const, share_to_commons: false }, self_modification: "principal_approves" as const,
+        overlay: null, checkpoints: [], expires: "2026-10-04T00:00:00Z", revocable: true,
+      }, bond.id, coder.did);
+      await assert.rejects(log.append(mandateWith(["repo.read", "web.read"])), /must name the hosts/);
+      await assert.rejects(log.append(mandateWith(["shell.network"])), /must name the hosts/);
+      assert.equal((await log.append(mandateWith(["repo.read", "web.read"], { hosts: ["docs.python.org", "*.github.com"] }))).state, "Running");
+    });
+
     test("only the contract's own performer may report an action for it", async () => {
       const log = new EventLog(await h.make());
       await registerParties(log);

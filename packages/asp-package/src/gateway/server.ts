@@ -26,6 +26,8 @@ export interface GatewayOptions {
   anthropicKey?: string;
   /** The live Mandate's scopes. */
   scopes: string[];
+  /** The hosts the Mandate's network scopes may reach (`network.hosts`); absent means no host limit. */
+  hosts?: string[];
   knownBad?: KnownBadRef[];
   /** Blocked calls in one run that read as probing and stop the run (default 3). */
   maxStrikes?: number;
@@ -138,7 +140,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   /** Judges one call; records it. Returns the refusal reason when it is refused. */
   async function decide(call: ToolCall): Promise<string | undefined> {
     toolCalls++;
-    const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"));
+    const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"), opts.hosts);
     let allow = j.allow;
     let reason = j.reason;
     let strike = true;

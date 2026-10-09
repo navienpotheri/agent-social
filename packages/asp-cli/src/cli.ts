@@ -185,7 +185,7 @@
  *   asp market bond --contract <id> --backer <did> --amount <n> --escrow-payer <did> --escrow-amount <n>
  *     Locks real credits: debits both the escrow payer and the backer for real (rejects with
  *     insufficient_balance rather than starting a job uncovered).
- *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons]
+ *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--network-host <host> ...] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons]
  *     --gate names granted scopes the irreversible policy applies to: with checkpoint (the default) a
  *     call to one needs the principal's approval first (asp run holds the call, raises a Checkpoint, and
  *     waits for asp market resolve; --approval-wait <seconds>, default 600, then it is refused); with
@@ -411,6 +411,7 @@ const OPTIONS = {
   "escrow-payer": { type: "string" },
   "escrow-amount": { type: "string" },
   scopes: { type: "string", multiple: true },
+  "network-host": { type: "string", multiple: true },
   "spend-cap": { type: "string" },
   summary: { type: "string" },
   about: { type: "string" },
@@ -522,7 +523,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "mcp" | "sandbox-bind" | "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "mcp" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -1256,7 +1257,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     mcp: { asp: { memoryDir: memDir, ...(commons ? { commons } : {}) }, upstreams },
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
-    scopes: mandate.scopes, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
+    scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
     ...(v["token-cap"] ? { tokenCap: Math.trunc(Number(v["token-cap"])) } : {}),
     onCall: (e) => io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`),
@@ -1923,6 +1924,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const body = {
       contract, purpose: cbody.purpose, floor: "asp.floor/v1" as const,
       scopes: v.scopes?.length ? v.scopes : ["repo.read"],
+      ...(v["network-host"]?.length ? { network: { hosts: v["network-host"] } } : {}),
       forbidden_means: [] as string[],
       spend: { cap: Math.trunc(Number(v["spend-cap"] ?? "0")), unit: "credit" as const },
       irreversible: {

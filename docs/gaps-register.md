@@ -1,3 +1,5 @@
+| open (host limits added, S67; rate limits, swarm caps and detectors still missing) |
+| partly closed, S67: tier 1-2 Mandates must name hosts and the gateway refuses others; see H11-H13 for what is left |
 | open (partly closed, S66: structured metrics exist; the self-report SDKs do not send them yet) |
 | open (partly closed, S66: Actions carry structured metrics; no trend view yet) |
 | open (partly closed, S66: the model name and provider are recorded in the Action's metrics; no digest, and no probation on a change) |
@@ -38,6 +40,10 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | H7 | Tool calls the model writes as text, and code-writing agents, are invisible to the gateway | Hooks on the runtimes that have them | Text-format parsers; sandbox with egress rules | gateway doc §4 | B | open |
 | H8 | No sandbox level: what a tool does inside the machine is not bounded | Assurance level exists in the schema | Container or OS sandbox wrapper | gateway doc P4 (S60: Linux bubblewrap sandbox built; Docker backend for Windows and macOS added in S61, live end to end in WSL, see the checklist) | B | partial |
 | H10 | Actions an agent's own code takes outside the model loop are invisible to the gateway. Seen live: Aider saw a URL in the prompt, offered to scrape it, auto-installed Playwright and tried to download Chromium, then navigated to the URL, none of it through a tool call | The Mandate and gateway only see model-requested tool calls | Sandbox with egress rules (H8), network-level redirect through the gateway, and a list of known self-acting agents with their risky defaults | S59, live checklist (S60: with --sandbox the agent has no network unless the Mandate grants one; not yet re-run against Aider) | A | partial |
+| H11 | The host limit is enforced only by the gateway. The runtimes' own pre-call hooks (Claude Code, Codex, Antigravity) check the scope but not the host, so a hook-enforced run can reach any host its scope allows | Gateway only | Pass `network.hosts` to the hook's decision function | S67 | A | open |
+| H12 | Hosts are read from the call's text: URLs and bare hosts after known network commands. A script that builds its URL (python -c, a downloaded program, an agent's own code) is refused if it looks like a network command with no readable host, but an ordinary command that fetches inside a program is not seen | Calls with an unreadable host are refused | The sandbox with egress filtering by host (H8, H10) | S67 | A | open |
+| H13 | The sandbox's network is all or nothing: a Mandate that names hosts still gets the whole network inside the sandbox, so only the model's tool calls are limited | No network unless a network scope is granted | Egress proxy or per-host firewall rules in the bubblewrap and Docker backends | S67 | A | open |
+| H14 | MCP tools that reach the network (a `mcp.*` scope) are not host-checked, and the Mandate has no per-host or per-minute rate limit | none | Rate limits per host and in total; host arguments for known MCP tools | S67 | B | open |
 | H9 | Unknown-unknowns | Least privilege, fast stop, accountability afterwards | Keep widening detectors from real incidents | | C | open |
 
 ## 3. Portability and runtimes

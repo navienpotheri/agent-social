@@ -85,6 +85,34 @@ test("asp gateway: any command runs under the Mandate; the disallowed call never
   assert.match(action.summary, /ASP gateway/);
 });
 
+test("asp gateway: a Mandate that names hosts lets a fetch reach only those, and a tier 1 Mandate for web.read without hosts is refused by the log", async () => {
+  const f = makeFixture();
+  const server = createServer(async (req, res) => {
+    for await (const _ of req) { /* drain */ }
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ id: "c1", object: "chat.completion", created: 1, model: "m", usage: { prompt_tokens: 1, completion_tokens: 1 },
+      choices: [{ index: 0, finish_reason: "tool_calls", message: { role: "assistant", content: null, tool_calls: [
+        { id: "a", type: "function", function: { name: "web_fetch", arguments: JSON.stringify({ url: "https://docs.example.org/guide" }) } },
+        { id: "b", type: "function", function: { name: "web_fetch", arguments: JSON.stringify({ url: "https://login.victim.example/admin" }) } },
+      ] } }] }));
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  servers.push(server);
+  const upstream = `http://127.0.0.1:${(server.address() as { port: number }).port}/v1`;
+  // Without hosts the log refuses the Mandate for a tier 1 agent.
+  const nohosts = makeFixture();
+  await assert.rejects(runningContract(nohosts, ["web.read"]), /must name the hosts it may reach/);
+  const contract = await runningContract(f, ["web.read"], ["--network-host", "docs.example.org"]);
+  const run = await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--", process.execPath, "--input-type=module", "-e", AGENT]);
+  assert.equal(run.code, 0, run.err);
+  assert.match(run.err, /allowed {2}web_fetch -> web.read/);
+  assert.match(run.err, /REFUSED {2}web_fetch -> web.read: the host login.victim.example is not one this job's Mandate allows \(docs\.example\.org\)/);
+  const { LocalLog } = await import("@agent-social/asp-package");
+  const action = (await (await LocalLog.open(f.aspHome)).log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2").at(-1)!.record.body as any;
+  assert.deepEqual(action.scopes_used, ["web.read"]);
+  assert.deepEqual(action.blocked_attempts, [{ scope: "web.read", count: 1 }]);
+});
+
 test("asp gateway refuses a contract that is not running, and needs an upstream", async () => {
   const f = makeFixture();
   const missing = await asp(f, ["gateway", "--contract", "sha256:" + "0".repeat(64), "--by", CODER, "--openai-upstream", "http://127.0.0.1:1/v1", "--", process.execPath, "-e", "0"]);

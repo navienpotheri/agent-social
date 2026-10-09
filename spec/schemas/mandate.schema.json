@@ -20,6 +20,20 @@
       "items": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$" },
       "uniqueItems": true
     },
+    "network": {
+      "description": "Which hosts the network scopes (web.*, shell.network, net.*) may reach. A Mandate for a tier 1 or 2 agent that grants a network scope must name hosts (the log refuses it otherwise, network_hosts_required); tier 3 and above may leave it out, which means no host limit. A pattern is an exact name or a subdomain wildcard (*.example.com, which does not match example.com itself). Enforced where the gateway sees the call; a call whose host cannot be determined is refused.",
+      "type": "object",
+      "required": ["hosts"],
+      "additionalProperties": false,
+      "properties": {
+        "hosts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^(\\*\\.)?[a-z0-9]([a-z0-9.-]*[a-z0-9])?$" }
+        }
+      }
+    },
     "forbidden_means": {
       "type": "array",
       "items": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
