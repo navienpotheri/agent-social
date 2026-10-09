@@ -114,7 +114,50 @@ export function shellFingerprint(command) {
 }
 
 /** Exact membership, like the log's own check. `gate` is the Mandate's irreversible policy (see the Claude Code hook). */
-export function decide(event, scopes, gate, knownBad) {
+// ---- Default-deny egress (S67, H11): a copy of isNetworkScope and hostAllowed (asp-core network.ts) and hostsOf (gateway/judge.ts);
+// ---- a test keeps the copies in step. When the Mandate names hosts, a network call to any other host, or to one that cannot be read, is blocked.
+export function isNetworkScope(scope) {
+  return scope === "shell.network" || scope.startsWith("web.") || scope.startsWith("net.") || scope.startsWith("browser.");
+}
+export function hostAllowed(host, patterns) {
+  const h = host.toLowerCase().replace(/\.$/, "");
+  return patterns.some((p) => {
+    const q = p.toLowerCase();
+    return q.startsWith("*.") ? h.endsWith(q.slice(1)) && h.length > q.length - 1 : h === q;
+  });
+}
+const URL_RE = /\b[a-z][a-z0-9+.-]*:\/\/(?:[^\s\/@'"<>]*@)?(\[[0-9a-f:]+\]|[a-z0-9._-]+)/gi;
+const HOST_VERB_RE = /\b(?:curl|wget|nc|ncat|netcat|ssh|scp|sftp|rsync|telnet|ping|nslookup|dig)\b([^|;&\n]*)/gi;
+const BARE_HOST_RE = /^(?:[^@\s]+@)?((?:[a-z0-9-]+\.)+[a-z]{2,}|\d{1,3}(?:\.\d{1,3}){3}|localhost)(?::|$|\/)/i;
+/** The hosts a shell command or a URL argument would reach, as far as they can be read. */
+export function hostsOfText(text) {
+  const hosts = new Set();
+  const add = (h) => hosts.add(h.replace(/^\[|\]$/g, "").toLowerCase());
+  for (const m of text.matchAll(URL_RE)) add(m[1]);
+  for (const verb of text.matchAll(HOST_VERB_RE)) {
+    for (const tok of verb[1].trim().split(/\s+/)) {
+      if (tok.startsWith("-") || tok.includes("://")) continue;
+      const m = BARE_HOST_RE.exec(tok.replace(/^["']|["']$/g, ""));
+      if (m) add(m[1]);
+    }
+  }
+  return [...hosts];
+}
+/**
+ * The refusal reason for a network call under a Mandate that names hosts, or undefined. `command` is a shell command (scope shell.network);
+ * `urls` are the URL-like arguments of a web or browser tool. A call with neither (a web search) names no host and is not limited.
+ */
+export function hostRefusal(scope, command, urls, hosts) {
+  if (!hosts || !isNetworkScope(scope)) return undefined;
+  const texts = scope === "shell.network" ? [command ?? ""] : urls.filter((u) => typeof u === "string").map((u) => (/^[a-z][a-z0-9+.-]*:\/\//i.test(u) ? u : `https://${u}`));
+  if (scope !== "shell.network" && !texts.length) return undefined;
+  const found = [...new Set(texts.flatMap(hostsOfText))];
+  if (!found.length) return "this job's Mandate limits network access to named hosts and this call's host cannot be determined";
+  const outside = found.find((h) => !hostAllowed(h, hosts));
+  return outside ? `the host ${outside} is not one this job's Mandate allows (${hosts.join(", ")})` : undefined;
+}
+
+export function decide(event, scopes, gate, knownBad, hosts) {
   const call = event?.toolCall;
   if (typeof call?.name !== "string") return { allow: false, scope: "", reason: "ASP Mandate hook: the call has no tool name" };
   const scope = scopeForAgyTool(call.name, call.args ?? {});
@@ -125,6 +168,9 @@ export function decide(event, scopes, gate, knownBad) {
     if (hit) return { allow: false, scope, reason: `ASP Mandate: the known-bad list (an upheld report, ${hit.report}) marks this command harmful, so it was blocked before it ran` };
   }
   if (scopes.includes(scope)) {
+    const cmd = call.name === "run_command" ? (call.args?.CommandLine ?? call.args?.command ?? call.args?.command_line ?? call.args?.cmd) : undefined;
+    const refusal = hostRefusal(scope, typeof cmd === "string" ? cmd : undefined, [call.args?.Url, call.args?.url, call.args?.URL], hosts);
+    if (refusal) return { allow: false, scope, reason: `ASP Mandate: ${refusal}, so this call was blocked before it ran` };
     if (gate?.scopes?.includes(scope)) {
       if (gate.mode === "deny") return { allow: false, scope, reason: `ASP Mandate: the scope ${scope} is forbidden by this job's irreversible policy, so this call was blocked before it ran` };
       return { allow: true, ask: true, scope };
@@ -180,7 +226,7 @@ async function main() {
   }
   const mandate = JSON.parse(readFileSync(join(here, "asp-mandate.json"), "utf8"));
   if (!Array.isArray(mandate.scopes)) throw new Error("asp-mandate.json has no scopes list");
-  const d = decide(event, mandate.scopes, mandate.gate, Array.isArray(mandate.knownBad) ? mandate.knownBad : undefined);
+  const d = decide(event, mandate.scopes, mandate.gate, Array.isArray(mandate.knownBad) ? mandate.knownBad : undefined, Array.isArray(mandate.hosts) && mandate.hosts.length ? mandate.hosts : undefined);
   if (d.allow && !d.ask) { answer({ decision: "allow" }); return; }
   if (d.ask) {
     const a = await askPrincipal(root, event, d.scope, mandate.gate.waitSeconds ?? 600);

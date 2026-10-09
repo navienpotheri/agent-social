@@ -129,6 +129,8 @@ export interface RuntimeAdapter {
     mandateGate?: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number };
     /** Fingerprints an upheld report has marked harmful: the pre-call hook blocks them whatever the Mandate grants. */
     mandateKnownBad?: { fingerprint: string; report: string }[];
+    /** The hosts the Mandate's network scopes may reach (`network.hosts`); the pre-call hooks block any other. */
+    mandateHosts?: string[];
     /** An OpenAI-compatible base URL for an open-weight model (Ollama, vLLM, ...); needs `model`. */
     endpoint?: string;
     /** Name of the environment variable holding the endpoint's API key (a placeholder is used for local servers). */

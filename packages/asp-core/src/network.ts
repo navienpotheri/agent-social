@@ -3,9 +3,9 @@
  * low-tier agent must name the hosts it may reach (the Mandate's `network.hosts`) and everything else is refused.
  */
 
-/** Scopes that reach hosts outside the machine: web tools, shell commands that use the network, and anything named web.* or net.*. */
+/** Scopes that reach hosts outside the machine: web tools, shell commands that use the network, and anything named web.*, net.* or browser.*. */
 export function isNetworkScope(scope: string): boolean {
-  return scope === "shell.network" || scope.startsWith("web.") || scope.startsWith("net.");
+  return scope === "shell.network" || scope.startsWith("web.") || scope.startsWith("net.") || scope.startsWith("browser.");
 }
 
 /** A host pattern is an exact name (`api.example.com`) or a subdomain wildcard (`*.example.com`, which does not match `example.com` itself). */

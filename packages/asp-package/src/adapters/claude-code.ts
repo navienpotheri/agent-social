@@ -239,6 +239,7 @@ async function materialize(opts: {
   model?: string; sourceRuntime?: string; mandateScopes?: string[];
   mandateGate?: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number };
   mandateKnownBad?: { fingerprint: string; report: string }[];
+  mandateHosts?: string[];
 }): Promise<LaunchPlan> {
   const { pkgDir, harness, project, runDir } = opts;
   const h = join(pkgDir, "harness");
@@ -299,6 +300,7 @@ async function materialize(opts: {
       scopes: [...opts.mandateScopes!].sort(),
       memoryDir: join(runDir, "memory"),
       ...(opts.mandateKnownBad?.length ? { knownBad: opts.mandateKnownBad } : {}),
+      ...(opts.mandateHosts?.length ? { hosts: opts.mandateHosts } : {}),
       ...(gate ? { gate: { scopes: [...gate.scopes].sort(), mode: gate.mode, waitSeconds: gate.waitSeconds } } : {}),
     }));
     put("plugin/scripts/asp-mandate.mjs", () => copyInto(MANDATE_HOOK, join(plugin, "scripts", "asp-mandate.mjs")));
