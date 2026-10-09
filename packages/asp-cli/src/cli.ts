@@ -20,7 +20,7 @@
  *     log in a temp folder (never your own), on a simulated clock, then prints measures read back from the log.
  *     One scenario kind exists, swarm-exploit (see scenarios/swarm-exploit.json): scripted agents work in parallel, some
  *     pick up an exploit one after another, a watcher reports, a scripted panel rules, the cohort is stopped.
- *   asp serve --db <postgres-url | local:<dir>> (--tokens <file> | --no-auth) [--port 8787] [--host 127.0.0.1]
+ *   asp serve --db <postgres-url | local:<dir>> (--tokens <file> | --no-auth) [--port 8787] [--host 127.0.0.1] [--tls-cert <pem> --tls-key <pem>] [--rate-limit n] [--write-limit n] [--address-limit n] [--max-in-flight n] [--max-failed-auth n] [--trust-proxy] [--allow-plain-http]
  *     The ASP log service: one shared log behind HTTP (docs/spec-deltas.md S48). --db is a Postgres connection string
  *     or local:<dir> (a file log). Clients use it with ASP_LOG_URL=http://host:port and ASP_LOG_TOKEN=<token>; their keys
  *     stay local and the service re-verifies every record. --no-auth is only for a service on 127.0.0.1.
@@ -390,6 +390,15 @@ const OPTIONS = {
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
   "no-run-log": { type: "boolean" },
+  "tls-cert": { type: "string" },
+  "tls-key": { type: "string" },
+  "rate-limit": { type: "string" },
+  "write-limit": { type: "string" },
+  "address-limit": { type: "string" },
+  "max-in-flight": { type: "string" },
+  "max-failed-auth": { type: "string" },
+  "trust-proxy": { type: "boolean" },
+  "allow-plain-http": { type: "boolean" },
   "link-base": { type: "string" },
   once: { type: "boolean" },
   interval: { type: "string" },
@@ -843,6 +852,25 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   if (!noAuth && !v.tokens) throw new UsageError("give --tokens <file> (see asp serve token), or --no-auth for a service on 127.0.0.1");
   const tenants: Tenant[] = !noAuth && existsSync(v.tokens!) ? JSON.parse(readFileSync(v.tokens!, "utf8")) : [];
   if (!noAuth && !tenants.length) throw new UsageError(`${v.tokens} has no tenants; create one with: asp serve token --tokens ${v.tokens} --tenant <name> --role admin`);
+  // TLS (O1): with a certificate and key the service speaks HTTPS. Bound to anything but this machine it must, or it says so.
+  if (!!v["tls-cert"] !== !!v["tls-key"]) throw new UsageError("--tls-cert and --tls-key go together");
+  const tls = v["tls-cert"] ? { cert: readFileSync(resolve(io.cwd, v["tls-cert"])), key: readFileSync(resolve(io.cwd, v["tls-key"]!)) } : undefined;
+  const loopback = ["127.0.0.1", "localhost", "::1"].includes(host);
+  if (!tls && !loopback && !v["allow-plain-http"]) {
+    throw new UsageError(`bound to ${host} without TLS the service would send every tenant's token in the clear: give --tls-cert and --tls-key, or put it behind a proxy that terminates TLS and pass --allow-plain-http`);
+  }
+  // Limits (O2), on by default here: per tenant, per write, per address, in flight, and a lockout after failed sign-ins. 0 turns one off.
+  const num = (name: string, fallback: number) => {
+    const raw = v[name as "rate-limit"];
+    if (raw === undefined) return fallback;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 0) throw new UsageError(`--${name} must be a whole number, 0 or more`);
+    return n;
+  };
+  const limits = {
+    tenantPerMinute: num("rate-limit", 600), appendPerMinute: num("write-limit", 120), addressPerMinute: num("address-limit", 1200),
+    maxInFlight: num("max-in-flight", 16), failedAuthMax: num("max-failed-auth", 10),
+  };
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
   const routes = [
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
@@ -850,10 +878,12 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(v["known-bad"] ? [knownBadRoutes({ root: resolve(v["known-bad"]) })] : []),
   ];
   const extra = routes.length ? async (req: any, res: any, ctx: any) => { for (const r of routes) if (await r(req, res, ctx)) return true; return false; } : undefined;
-  const server = createLogServer({ handle, tenants, noAuth, ...(extra ? { extra } : {}) });
+  const server = createLogServer({ handle, tenants, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
-  io.out(`asp log service listening on http://${host}:${addr.port} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
+  io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
+  io.out(`  limits per minute: ${limits.tenantPerMinute || "no limit"} requests and ${limits.appendPerMinute || "no limit"} writes per tenant, ${limits.addressPerMinute || "no limit"} per address; ${limits.maxInFlight || "no"} in flight; lockout after ${limits.failedAuthMax || "never"} failed sign-ins`);
+  if (!tls && !loopback) io.out("  warning  plain HTTP on a network address: TLS must be terminated in front of this service");
   await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
   server.close();
   return 0;

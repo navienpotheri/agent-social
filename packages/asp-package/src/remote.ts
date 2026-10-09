@@ -21,15 +21,25 @@ export class RemoteLog implements LogHandle {
 
   private async call(target: "log" | "handle", method: string, args: unknown[]): Promise<any> {
     let res: Response;
-    try {
-      res = await fetch(`${this.url}/rpc`, {
-        method: "POST",
-        headers: { "content-type": "application/json", ...(this.token ? { authorization: `Bearer ${this.token}` } : {}) },
-        body: JSON.stringify({ target, method, args }),
-        signal: AbortSignal.timeout(60_000),
-      });
-    } catch (e) {
-      throw new Error(`cannot reach the log service at ${this.url}: ${(e as Error).message}`);
+    // A 429 means the service refused the call before running it, so it is safe to repeat after the wait it asks for (a few tries, short waits).
+    for (let attempt = 0; ; attempt++) {
+      try {
+        res = await fetch(`${this.url}/rpc`, {
+          method: "POST",
+          headers: { "content-type": "application/json", ...(this.token ? { authorization: `Bearer ${this.token}` } : {}) },
+          body: JSON.stringify({ target, method, args }),
+          signal: AbortSignal.timeout(60_000),
+        });
+      } catch (e) {
+        throw new Error(`cannot reach the log service at ${this.url}: ${(e as Error).message}`);
+      }
+      if (res.status !== 429 || attempt >= 3) break;
+      const wait = Math.min(Math.max(Number(res.headers.get("retry-after")) || 1, 1), 10);
+      await new Promise((r) => setTimeout(r, wait * 1000));
+    }
+    if (res.status === 429) {
+      const b: any = await res.json().catch(() => undefined);
+      throw new Error(`the log service is rate limiting this client: ${b?.error?.message ?? "too many requests"} (try again in ${res.headers.get("retry-after") ?? "a few"} seconds)`);
     }
     let body: any;
     try { body = await res.json(); } catch { throw new Error(`the log service at ${this.url} answered ${res.status} with no JSON`); }

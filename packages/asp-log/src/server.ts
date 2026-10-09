@@ -10,6 +10,8 @@
  */
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
+import { Limits, clientAddress, type LimitOptions, type Verdict } from "./limits.ts";
 import type { AppendResult } from "./log.ts";
 import type { EventLog } from "./log.ts";
 import type { AspRecord } from "@agent-social/asp-core";
@@ -29,6 +31,8 @@ export interface Tenant {
   role: "tenant" | "admin";
   /** Bytes of package storage this tenant may use (the package service falls back to its default). */
   quotaBytes?: number;
+  /** Requests per minute for this tenant, replacing the service's default. */
+  rateLimitPerMinute?: number;
   createdAt?: string;
 }
 
@@ -49,6 +53,12 @@ export interface ServerOptions {
   noAuth?: boolean;
   /** Largest request body, bytes (default 4 MB). */
   maxBody?: number;
+  /** Serve HTTPS with this certificate and key (PEM). Without it the service speaks plain HTTP: keep it on 127.0.0.1 or behind something that terminates TLS. */
+  tls?: { cert: string | Buffer; key: string | Buffer };
+  /** Limits per tenant and per address (O2). Absent means none; `asp serve` turns the defaults on. */
+  limits?: Limits | LimitOptions;
+  /** Read the client's address from X-Forwarded-For (only behind a proxy you control, or anyone can pick their own address). */
+  trustProxy?: boolean;
   /** Extra routes, e.g. package storage: return true when handled. */
   extra?: (req: IncomingMessage, res: ServerResponse, ctx: { tenant: Tenant }) => Promise<boolean>;
 }
@@ -84,13 +94,35 @@ export function authenticate(req: IncomingMessage, opts: Pick<ServerOptions, "te
   return undefined;
 }
 
+function tooMany(res: ServerResponse, v: Verdict) {
+  const retryAfterSec = v.retryAfterSec ?? 1;
+  const text = JSON.stringify({ ok: false, error: { code: "RATE_LIMITED", message: v.why ?? "too many requests", retryAfterSec } });
+  res.writeHead(429, { "content-type": "application/json", "content-length": Buffer.byteLength(text), "retry-after": String(retryAfterSec) });
+  res.end(text);
+}
+
 export function createLogServer(opts: ServerOptions): Server {
   const maxBody = opts.maxBody ?? 4 * 1024 * 1024;
-  const server = createServer(async (req, res) => {
+  const limits = opts.limits instanceof Limits ? opts.limits : opts.limits ? new Limits(opts.limits) : undefined;
+  const handler = async (req: IncomingMessage, res: ServerResponse) => {
+    let leave: (() => void) | undefined;
     try {
+      if (opts.tls) res.setHeader("strict-transport-security", "max-age=31536000");
+      const address = clientAddress(req, !!opts.trustProxy);
+      if (limits) { const v = limits.checkAddress(address); if (!v.ok) return tooMany(res, v); }
       if (req.method === "GET" && req.url === "/health") return json(res, 200, { ok: true });
       const tenant = authenticate(req, opts);
-      if (!tenant) return json(res, 401, { ok: false, error: { code: "UNAUTHORIZED", message: "a valid bearer token is required" } });
+      if (!tenant) {
+        limits?.authFailed(address);
+        return json(res, 401, { ok: false, error: { code: "UNAUTHORIZED", message: "a valid bearer token is required" } });
+      }
+      if (limits) {
+        const v = limits.checkTenant(tenant.name, tenant.rateLimitPerMinute);
+        if (!v.ok) return tooMany(res, v);
+        leave = limits.enter(tenant.name);
+        if (!leave) return tooMany(res, { ok: false, retryAfterSec: 1, why: "this tenant has too many requests in flight" });
+        res.on("close", leave);
+      }
       if (opts.extra && (await opts.extra(req, res, { tenant }))) return;
       if (req.method !== "POST" || req.url !== "/rpc") return json(res, 404, { ok: false, error: { code: "NOT_FOUND", message: "POST /rpc, GET /health" } });
       let call: { target?: string; method?: string; args?: unknown[] };
@@ -100,6 +132,10 @@ export function createLogServer(opts: ServerOptions): Server {
       const { target, method } = call;
       const args = Array.isArray(call.args) ? call.args : [];
       let fn: ((...a: unknown[]) => unknown) | undefined;
+      if (limits && target === "handle" && typeof method === "string" && TENANT_HANDLE_METHODS.has(method)) {
+        const v = limits.checkWrite(tenant.name);
+        if (!v.ok) return tooMany(res, v);
+      }
       if (target === "log" && typeof method === "string" && LOG_METHODS.has(method)) fn = (opts.handle.log as any)[method]?.bind(opts.handle.log);
       else if (target === "handle" && typeof method === "string" && TENANT_HANDLE_METHODS.has(method)) fn = (opts.handle as any)[method]?.bind(opts.handle);
       else if (target === "handle" && typeof method === "string" && ADMIN_HANDLE_METHODS.has(method)) {
@@ -118,7 +154,8 @@ export function createLogServer(opts: ServerOptions): Server {
       const status = (e as { status?: number }).status ?? 500;
       if (!res.headersSent) json(res, status, { ok: false, error: { code: "SERVER_ERROR", message: (e as Error).message } });
     }
-  });
+  };
+  const server = (opts.tls ? createHttpsServer({ cert: opts.tls.cert, key: opts.tls.key }, handler) : createServer(handler)) as unknown as Server;
   server.requestTimeout = 60_000;
   server.headersTimeout = 15_000;
   return server;

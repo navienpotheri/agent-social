@@ -6,7 +6,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 
 ## Partial: built in part, with work left
 
-26 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
+27 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
 
 | ID | Gap | Priority | What is left |
 |---|---|---|---|
@@ -26,6 +26,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | P5 | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) | B | Check or add per runtime |
 | P6 | No model matrix: which open models call tools reliably | B | Run the swarm scenario across models |
 | P7 | Weak models: malformed tool arguments, loops after a refusal | B | Measure and document per model |
+| O2 | Per-tenant and per-address limits exist; invite codes, shared limits across processes and abuse handling do... | A | Invite codes or a sign-up path (the beta flow's Gmail sign-in is the real one); limits shared across several service processes and kept over a restart; a quota on... |
 | O12 | Branch protection on main is not set, and the Postgres job is not yet required | A | Set branch protection on main requiring the node and python jobs; make the postgres job required (remove continue-on-error) after a few more green runs; this needs the... |
 | E2 | The mail and dashboard need a redacted runtime log, which does not exist yet | A | Recorder in the gateway, local store **Done so far (S69): `asp gateway` keeps a redacted, hash-chained run log in the run folder (model requests and replies with token... |
 | E3 | Action's metrics are only a summary string | A | Structured metrics (see D8) **Done so far (S66): the Action has structured metrics. Left: the TypeScript and Python self-report SDKs do not send them.** |
@@ -123,8 +124,10 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 
 | ID | Gap | Covered today by | Fix | Detail | Pri | Status |
 |---|---|---|---|---|---|---|
-| O1 | No TLS on the log service | Run behind a proxy | Terminate TLS in front or in the service | backlog | A | open |
-| O2 | No per-tenant rate limits or abuse controls | Quotas on package storage | Rate limits per tenant and per address; invite codes | backlog | A | open |
+| O1 | The log service had no TLS: tokens and records crossed the network in the clear unless a proxy was put in front | Behind a proxy | Done 2026-10-10 (S77): `asp serve --tls-cert --tls-key` serves HTTPS with HSTS; bound to a network address without TLS it refuses to start unless `--allow-plain-http` says a proxy terminates TLS. Tested over HTTPS in-process and end to end with a self-signed certificate. See O15 for certificate handling. | backlog | A | closed |
+| O2 | Per-tenant and per-address limits exist; invite codes, shared limits across processes and abuse handling do not | Quotas on package storage; in memory, per process: a token bucket per tenant and a smaller one for writes, a cap on requests in flight, a per-address cap, and an address lockout after repeated failed sign-ins (S77) | Invite codes or a sign-up path (the beta flow's Gmail sign-in is the real one); limits shared across several service processes and kept over a restart; a quota on records and bytes in the log per tenant; a way to suspend a tenant or block an address; tuning from real traffic. **Done so far (S77): the limits and the client waiting out a 429. Left: the rest of this cell, and O16.** | backlog | A | partial |
+| O15 | Certificates are the operator's problem: the service reads the files once at start (a renewed certificate needs a restart), there is no ACME or renewal, and a client of a service with a self-signed or private-CA certificate must set `NODE_EXTRA_CA_CERTS` for the whole process (there is no `ASP_LOG_CA`) | `--tls-cert`, `--tls-key`; a proxy such as Caddy or nginx can do it all | Reload on SIGHUP; a documented Caddy recipe; a per-client CA setting; client certificates for tenants if tokens are not enough | S77 | B | open |
+| O16 | Only the log client waits out a 429. The clients of package storage, the commons and the known-bad list report an error at once, and the gateway and `asp mail` are local and not limited | `RemoteLog` retries up to 3 times, waiting Retry-After (at most 10 s) | The same wait in the other clients | S77 | B | open |
 | O3 | One log for all tenants; no partitioning | Tenants isolate packages only | Per-tenant partitioning of the log | backlog | C | open |
 | O4 | No garbage collection of old package versions | none | Retention policy | backlog | C | open |
 | O5 | No read replica for heavy readers | Snapshots speed up opening | Replica | backlog | C | open |
