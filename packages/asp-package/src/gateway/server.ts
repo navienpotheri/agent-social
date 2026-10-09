@@ -46,6 +46,8 @@ export interface GatewayOptions {
 
 export interface GatewaySummary {
   requests: number;
+  /** Tool calls the gateway judged. Zero means the agent never used structured tool calls through it, so nothing could have been enforced. */
+  toolCalls: number;
   unjudgedRequests: number;
   tokens: { input: number; output: number };
   scopesUsed: string[];
@@ -85,7 +87,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const pendingBlocked = new Map<string, number>();
   const pendingArtifacts = new Map<string, { uri: string; sha256: string }>();
   const tokens = { input: 0, output: 0 };
-  let requests = 0, unjudged = 0, strikes = 0;
+  let requests = 0, unjudged = 0, strikes = 0, toolCalls = 0;
   let stopped: string | undefined;
 
   const stop = (reason: string) => { if (!stopped) { stopped = reason; opts.onStop?.(reason); } };
@@ -114,6 +116,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
 
   /** Judges one call; records it. Returns the refusal reason when it is refused. */
   async function decide(call: ToolCall): Promise<string | undefined> {
+    toolCalls++;
     const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"));
     let allow = j.allow;
     let reason = j.reason;
@@ -339,7 +342,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
 
   function summary(): GatewaySummary {
     return {
-      requests, unjudgedRequests: unjudged, tokens: { ...tokens },
+      requests, toolCalls, unjudgedRequests: unjudged, tokens: { ...tokens },
       scopesUsed: [...used].sort(),
       blocked: [...blocked].map(([scope, count]) => ({ scope, count })),
       artifacts: [...artifacts.values()],

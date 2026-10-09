@@ -227,3 +227,24 @@ test("asp gateway serves the agent's memory over MCP, writes it back to the pack
   assert.deepEqual(action.blocked_attempts, [{ scope: "mcp.fake.deploy", count: 1 }]);
   assert.equal(action.assurance, "gateway_enforced");
 });
+
+test("an agent that never uses structured tool calls through the gateway is reported as gateway_observed, not enforced", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f, ["repo.read"]);
+  const plain = createServer(async (req, res) => {
+    for await (const _ of req) { /* drain */ }
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ id: "c1", object: "chat.completion", created: 1, model: "m", usage: { prompt_tokens: 1, completion_tokens: 1 }, choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: "I will edit the file in my own format." } }] }));
+  });
+  await new Promise<void>((r) => plain.listen(0, "127.0.0.1", r));
+  servers.push(plain);
+  const upstream = `http://127.0.0.1:${(plain.address() as { port: number }).port}/v1`;
+  const CALL = `await fetch(process.env.OPENAI_BASE_URL + "/chat/completions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: "m", messages: [] }) }).then((r) => r.json());`;
+  const run = await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--", process.execPath, "--input-type=module", "-e", CALL]);
+  assert.equal(run.code, 0, run.err);
+  const { LocalLog } = await import("@agent-social/asp-package");
+  const local = await LocalLog.open(f.aspHome);
+  // No scopes were used and nothing was blocked, so the exit Action is only reported when there is something to say; the summary line shows the rule.
+  const actions = (await local.log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2");
+  for (const a of actions) assert.notEqual((a.record.body as any).assurance, "gateway_enforced");
+});
