@@ -181,3 +181,49 @@ writeFileSync(process.env.AGENT_OUT, "NEVER STOPPED");
   const actions = (await local.log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2");
   assert.equal((actions.at(-1)!.record.body as any).assurance, "gateway_enforced");
 });
+
+// ---- P2: MCP and memory ----
+const MCP_AGENT = `
+import { writeFileSync } from "node:fs";
+const rpc = async (server, method, params) => (await (await fetch(process.env.ASP_GATEWAY_URL + "/mcp/" + server, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) })).json());
+const cfg = JSON.parse((await import("node:fs")).readFileSync(process.env.ASP_MCP_CONFIG, "utf8"));
+const out = { servers: Object.keys(cfg.mcpServers) };
+out.init = (await rpc("asp", "initialize", { protocolVersion: "2025-06-18" })).result.instructions.includes("asp_memory_list");
+out.saved = (await rpc("asp", "tools/call", { name: "asp_memory_write", arguments: { name: "deploy-order", description: "migrate before deploy", content: "Run migrations before deploying." } })).result.content[0].text;
+out.echo = (await rpc("fake", "tools/call", { name: "echo", arguments: { x: 1 } })).result.content[0].text;
+const dep = (await rpc("fake", "tools/call", { name: "deploy", arguments: {} })).result;
+out.deployRefused = dep.isError === true && dep.content[0].text.includes("was not run");
+writeFileSync(process.env.AGENT_OUT, JSON.stringify(out));
+`;
+
+test("asp gateway serves the agent's memory over MCP, writes it back to the package as a signed lineage update, and judges its other MCP servers", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f, ["mcp.fake.echo"]);
+  const pkg = join(f.root, "coder.aspkg");
+  await ok(f, ["pack", "--runtime", "claude-code", "--agent", CODER, "--project", f.project, "--user-home", f.home, "--out", pkg]);
+  const upstream = await provider();
+  const out = outFile();
+  const fake = new URL("../../asp-package/test/fake-mcp-server.mjs", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+  const run = await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--package", pkg, "--openai-upstream", upstream, "--mcp", `fake=stdio:"${process.execPath}" "${fake}"`, "--", process.execPath, "--input-type=module", "-e", MCP_AGENT], { AGENT_OUT: out });
+  assert.equal(run.code, 0, run.err);
+  const got = JSON.parse(readFileSync(out, "utf8"));
+  assert.deepEqual(got.servers, ["asp", "fake"]);
+  assert.equal(got.init, true);
+  assert.equal(got.saved, "Saved deploy-order.md.");
+  assert.equal(got.echo, 'echo ran with {"x":1}');
+  assert.equal(got.deployRefused, true);
+
+  // What it saved is in the package, signed, as a lineage update; the package still verifies.
+  assert.match(readFileSync(join(pkg, "memory", "auto", "deploy-order.md"), "utf8"), /Run migrations before deploying/);
+  assert.match(readFileSync(join(pkg, "memory", "auto", "MEMORY.md"), "utf8"), /\[deploy-order\]\(deploy-order\.md\) - migrate before deploy/);
+  assert.match(run.err, /memory updated during a gateway run: \+\d+/);
+  assert.equal((await asp(f, ["verify", pkg])).code, 0);
+
+  // The Action: the echo was used, the deploy was a blocked attempt, assurance says how it was enforced.
+  const { LocalLog } = await import("@agent-social/asp-package");
+  const local = await LocalLog.open(f.aspHome);
+  const action = (await local.log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2").at(-1)!.record.body as any;
+  assert.deepEqual(action.scopes_used, ["mcp.fake.echo"]);
+  assert.deepEqual(action.blocked_attempts, [{ scope: "mcp.fake.deploy", count: 1 }]);
+  assert.equal(action.assurance, "gateway_enforced");
+});

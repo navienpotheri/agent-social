@@ -31,6 +31,10 @@
  *     ANTHROPIC_BASE_URL point at a local proxy that removes tool calls the Mandate does not allow from the model's reply before the
  *     agent sees them (streams are relayed live, each tool call held until it is judged), holds calls on gated scopes for the principal's signed
  *     answer, counts strikes, stops on probing or when the contract ends or is revoked, and reports the Action (assurance gateway_enforced) when it finishes.
+ *     P2: the gateway also serves MCP at <url>/mcp/asp (asp_memory_list/read/write/search, and asp_commons_search/show/cite when
+ *     ASP_LOG_URL points at a service with a commons) and writes mcp.json for the agent (ASP_MCP_CONFIG). --package <dir> loads the agent's
+ *     memory from its package and writes what it saves back, merged and budgeted, as a signed lineage update. --mcp <name>=<https url> |
+ *     <name>=stdio:<command> [args] (repeatable) puts the agent's other MCP servers behind the gateway: every tools/call is judged as mcp.<name>.<tool>.
  *   asp known-bad add --report <upheld-report> --by <did> [--fingerprint <asp://shell-command#sha256:...> | --all] [--note <text>] | list
  *     The list is the log service's (ASP_LOG_URL; adding needs an admin token) or <home>/known-bad.json. Without --fingerprint the
  *     candidates are the shell commands shared by 3+ agents (asp watch) that include the reported job. asp run --contract gives the
@@ -249,7 +253,7 @@ import {
 import {
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -326,6 +330,8 @@ const OPTIONS = {
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
   assurance: { type: "string" },
+  mcp: { type: "string", multiple: true },
+  package: { type: "string" },
   title: { type: "string" },
   tag: { type: "string" },
   q: { type: "string" },
@@ -482,7 +488,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "mcp" | "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -967,13 +973,47 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const mandateRecord = (await local.log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
   const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
   const gateOn = !!irreversible?.scopes?.length && irreversible.policy !== "allow";
-  const approvalsDir = join(home, "runs", `gateway-${now().replace(/:/g, "")}`, "approvals");
+  const gwRunDir = join(home, "runs", `gateway-${now().replace(/:/g, "")}`);
+  const approvalsDir = join(gwRunDir, "approvals");
+  // Memory: the agent's notes are served to it by the gateway's own MCP server (asp_memory_*), from a copy that is written back after the run.
+  const pkgDir = v.package ? resolve(io.cwd, v.package) : undefined;
+  if (pkgDir) {
+    const report = await verifyPackage(pkgDir);
+    if (!report.ok) throw new Error(`the package does not verify (${report.checks.filter((c) => c.status === "fail").map((c) => c.name).join(", ")}); run asp verify for details`);
+    if (report.agent !== by) throw new UsageError(`--by must be the package's agent, ${report.agent}`);
+  }
+  const memDir = join(gwRunDir, "memory");
+  const baseMemory = join(gwRunDir, "memory-base");
+  mkdirSync(join(memDir, "auto"), { recursive: true });
+  mkdirSync(baseMemory, { recursive: true });
+  if (pkgDir && existsSync(join(pkgDir, "memory"))) { cpSync(join(pkgDir, "memory"), memDir, { recursive: true }); cpSync(join(pkgDir, "memory"), baseMemory, { recursive: true }); }
+  // The agent's other MCP servers, put behind the gateway so every call is judged: --mcp name=https://host/mcp or --mcp name=stdio:command args
+  const upstreams: Record<string, McpUpstream> = {};
+  for (const spec of v.mcp ?? []) {
+    const eq = spec.indexOf("=");
+    const name = spec.slice(0, eq);
+    const target = spec.slice(eq + 1);
+    if (eq < 1 || !/^[A-Za-z0-9_-]+$/.test(name) || name === "asp" || !target) throw new UsageError(`--mcp must be <name>=<https url> or <name>=stdio:<command> [args], got "${spec}"`);
+    if (target.startsWith("stdio:")) { const parts = [...target.slice(6).matchAll(/"([^"]*)"|(\S+)/g)].map((m) => m[1] ?? m[2]); upstreams[name] = stdioUpstream(parts[0], parts.slice(1), io.env, io.cwd); }
+    else upstreams[name] = httpUpstream(target);
+  }
+  const commonsUrl = io.env.ASP_LOG_URL;
+  const citerKey = new Keystore(home).forDid(by);
+  const commons = commonsUrl ? {
+    url: commonsUrl, token: io.env.ASP_LOG_TOKEN,
+    ...(citerKey ? { cite: async (entry: string, context: string) => {
+      const doc = signCommons({ v: COMMONS_VERSION, kind: "citation", entry, citer: by, context, createdAt: now() }, citerKey);
+      const res = await fetch(new URL("commons/citations", commonsUrl.endsWith("/") ? commonsUrl : commonsUrl + "/"), { method: "POST", headers: { "content-type": "application/json", ...(io.env.ASP_LOG_TOKEN ? { authorization: `Bearer ${io.env.ASP_LOG_TOKEN}` } : {}) }, body: JSON.stringify(doc) });
+      if (!res.ok) throw new Error(((await res.json().catch(() => undefined)) as any)?.error?.message ?? `the commons answered ${res.status}`);
+    } } : {}),
+  } : undefined;
   const gate = gateOn ? { scopes: irreversible!.scopes!, mode: (irreversible!.policy === "forbid" ? "deny" : "ask") as "ask" | "deny", waitSeconds: approvalWait, approvalsDir } : undefined;
   const approvals = gate?.mode === "ask"
     ? serveApprovals({ dir: approvalsDir, home, contract, agent: by, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io })
     : undefined;
   const gw = createGateway({
     ...(gate ? { gate } : {}),
+    mcp: { asp: { memoryDir: memDir, ...(commons ? { commons } : {}) }, upstreams },
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
     scopes: mandate.scopes, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
@@ -984,6 +1024,9 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   });
   const port = await gw.listen(v.port === undefined ? 0 : Math.trunc(Number(v.port)));
   const base = `http://127.0.0.1:${port}`;
+  const mcpConfig = join(gwRunDir, "mcp.json");
+  writeFileSync(mcpConfig, JSON.stringify({ mcpServers: Object.fromEntries(["asp", ...Object.keys(upstreams)].map((n) => [n, { type: "http", url: `${base}/mcp/${n}` }])) }, null, 2));
+  io.err(`  mcp      ${mcpConfig}  (servers: ${["asp", ...Object.keys(upstreams)].join(", ")}; the child gets it as ASP_MCP_CONFIG)`);
   io.err(`  gateway  ${base}  Mandate scopes: ${mandate.scopes.join(", ") || "none"}${knownBad.length ? `; ${knownBad.length} known-bad fingerprint(s)` : ""}`);
   // A contract that is revoked, killed or settled stops the gateway, and so the agent.
   // Actions are reported while the run goes on, not only at the end: a contract revoked or settled mid-run can no longer take one.
@@ -1016,7 +1059,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     code = await new Promise<number>((done) => {
       const child = spawn(command[0], command.slice(1), {
         cwd: io.cwd, stdio: "inherit",
-        env: { ...io.env, OPENAI_BASE_URL: `${base}/v1`, OPENAI_API_BASE: `${base}/v1`, ANTHROPIC_BASE_URL: base, ...(v["openai-key-env"] ? { OPENAI_API_KEY: "asp-gateway" } : {}), ...(v["anthropic-key-env"] ? { ANTHROPIC_API_KEY: "asp-gateway" } : {}) },
+        env: { ...io.env, ASP_MCP_CONFIG: mcpConfig, ASP_GATEWAY_URL: base, OPENAI_BASE_URL: `${base}/v1`, OPENAI_API_BASE: `${base}/v1`, ANTHROPIC_BASE_URL: base, ...(v["openai-key-env"] ? { OPENAI_API_KEY: "asp-gateway" } : {}), ...(v["anthropic-key-env"] ? { ANTHROPIC_API_KEY: "asp-gateway" } : {}) },
       });
       child.on("error", (e) => { io.err(`could not start ${command[0]}: ${e.message}`); done(-1); });
       child.on("exit", (c) => done(c ?? 1));
@@ -1030,8 +1073,34 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const rc = await flushAction("exit");
   const sum = gw.summary();
   await gw.close();
+  if (pkgDir && !v["no-write-back"]) await gatewayWriteBack({ home, pkgDir, agent: by, memDir, baseMemory, gwRunDir, v, io });
   io.err(`  summary  ${JSON.stringify({ requests: sum.requests, unjudged: sum.unjudgedRequests, tokens: sum.tokens, scopesUsed: sum.scopesUsed, blocked: sum.blocked, strikes: sum.strikes })}`);
   return rc !== 0 ? rc : code;
+}
+
+/** After a gateway run, the agent's memory goes back into its package the way `asp run` does it: diffed, merged with any other run's, kept in budget, signed. */
+async function gatewayWriteBack(o: { home: string; pkgDir: string; agent: string; memDir: string; baseMemory: string; gwRunDir: string; v: Values; io: Io }): Promise<void> {
+  const { home, pkgDir, agent, memDir, baseMemory, gwRunDir, v, io } = o;
+  const diff = diffTrees(baseMemory, memDir);
+  if (isEmptyDiff(diff)) return;
+  let memoryFrom = memDir;
+  const current = join(pkgDir, "memory");
+  const otherChanges = existsSync(current) && !isEmptyDiff(diffTrees(baseMemory, current));
+  if (otherChanges) {
+    const mergedDir = join(gwRunDir, "memory-merged");
+    cpSync(current, mergedDir, { recursive: true });
+    for (const n of mergeMemoryInto(mergedDir, baseMemory, memDir, { name: "this run", label: "run", other: "another run's" })) io.err(`  note     ${n}`);
+    memoryFrom = mergedDir;
+    io.err("  note     another run changed this agent's memory while this one ran; the two were merged");
+  }
+  const budget = enforceMemoryBudget(memoryFrom, memoryBudget(v));
+  for (const f of budget.pruned) io.err(`  note     memory over budget: pruned ${f}`);
+  const signer = new Keystore(home).forDid(agent);
+  if (!signer) { io.err(`no key for ${agent} in ${join(home, "keys")}: cannot sign the lineage update. The run's memory is in ${memDir}.`); return; }
+  const { edges } = updatePackage(pkgDir, { signer, memoryFrom, changes: [{ layer: "memory", description: `memory updated during a gateway run: +${diff.added.length} ~${diff.changed.length} -${diff.removed.length} files${otherChanges ? ", merged with another run" : ""}${budget.pruned.length ? `, pruned ${budget.pruned.length} over budget` : ""}` }] });
+  for (const e of edges) io.err(`  recorded ${(e.body as any).change.description} (${e.id})`);
+  io.err(`  package  ${pkgDir} re-signed`);
+  await syncLocalLog(home, pkgDir, agent, io);
 }
 
 /** The known-bad list this command line points at: the log service's when ASP_LOG_URL is set, else a file in the ASP home. */

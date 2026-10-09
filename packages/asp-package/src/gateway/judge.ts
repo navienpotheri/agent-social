@@ -52,7 +52,9 @@ export function classify(call: ToolCall): { scope: string; artifact?: { uri: str
 }
 
 /** Exact scope membership, like the log's own check, plus the known-bad list (blocked even when the scope is granted). */
-export function judge(call: ToolCall, scopes: readonly string[], knownBad: readonly KnownBadRef[] = []): Judgement {
+export function judge(call: ToolCall, scopes: readonly string[], knownBad: readonly KnownBadRef[] = [], ownTools: (name: string) => boolean = () => false): Judgement {
+  // The gateway's own memory and commons tools are the agent's bookkeeping, like a planning tool: no scope.
+  if (ownTools(call.name)) return { allow: true, scope: "" };
   const c = classify(call);
   if (c.scope === "") return { allow: true, scope: "" };
   if (c.shell !== undefined && c.artifact) {

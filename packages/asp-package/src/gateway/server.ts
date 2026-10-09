@@ -5,7 +5,8 @@
  *
  * P1: streams are relayed live (text as it arrives, each tool call held until complete, judged, then forwarded or
  * dropped); calls on gated scopes are held for the principal's signed answer, or refused when forbidden. Other paths
- * (for example /v1/responses) pass through unjudged and are counted as unjudged requests; MCP is a later phase.
+ * (for example /v1/responses) pass through unjudged and are counted as unjudged requests.
+ * P2: MCP at /mcp/<name>: the `asp` server (memory and commons tools) and a judging proxy for each of the agent's MCP servers.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
@@ -13,6 +14,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
 import { anthropicEvents, openaiChunks, relayAnthropicStream, relayOpenaiStream } from "./stream.ts";
+import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
 
 export interface GatewayOptions {
   /** Base URL of the OpenAI-compatible API, up to and including /v1 (for example https://api.openai.com/v1). */
@@ -32,6 +34,8 @@ export interface GatewayOptions {
    * through request and decision files in approvalsDir, the same protocol the pre-call hooks use) or refused (mode "deny").
    */
   gate?: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number; approvalsDir?: string };
+  /** MCP endpoints on the gateway: the agent's memory and commons tools, and proxies for its other MCP servers. */
+  mcp?: { asp?: AspToolsOptions; upstreams?: Record<string, McpUpstream> };
   /** Stops the run when input plus output tokens pass this. */
   tokenCap?: number;
   fetch?: typeof fetch;
@@ -110,7 +114,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
 
   /** Judges one call; records it. Returns the refusal reason when it is refused. */
   async function decide(call: ToolCall): Promise<string | undefined> {
-    const j = judge(call, opts.scopes, opts.knownBad ?? []);
+    const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"));
     let allow = j.allow;
     let reason = j.reason;
     let strike = true;
@@ -262,6 +266,23 @@ export function createGateway(opts: GatewayOptions): Gateway {
     res.end(buf);
   }
 
+  // ---------- MCP ----------
+  const mcpHandlers = new Map<string, McpHandler>();
+  if (opts.mcp?.asp) mcpHandlers.set("asp", aspHandler(opts.mcp.asp));
+  for (const [name, up] of Object.entries(opts.mcp?.upstreams ?? {})) mcpHandlers.set(name, proxyHandler(name, up, (tool, args) => decide({ name: tool, args })));
+
+  async function mcpRoute(req: IncomingMessage, res: ServerResponse, name: string, rawBody: Buffer) {
+    const h = mcpHandlers.get(name);
+    if (!h) return json(res, 404, { error: { message: `ASP gateway: no MCP server called ${name}` } });
+    if (req.method === "DELETE") { res.writeHead(200); res.end(); return; }
+    if (req.method !== "POST") { res.writeHead(405, { allow: "POST" }); res.end(); return; }
+    let msg: unknown;
+    try { msg = JSON.parse(rawBody.toString("utf8")); } catch { return json(res, 400, { jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse error" } }); }
+    const answers = (await Promise.all((Array.isArray(msg) ? msg : [msg]).map((m) => handleRpc(m, h)))).filter((x) => x !== undefined);
+    if (!answers.length) { res.writeHead(202); res.end(); return; }
+    return json(res, 200, Array.isArray(msg) ? answers : answers[0]);
+  }
+
   const server = createServer(async (req, res) => {
     try {
       const path = (req.url ?? "/").split("?")[0];
@@ -271,6 +292,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (stopped) return json(res, 403, stoppedBody(style));
       requests++;
       const rawBody = await readBody(req);
+      if (path.startsWith("/mcp/")) return await mcpRoute(req, res, path.slice("/mcp/".length), rawBody);
       if (req.method === "POST" && /\/chat\/completions$/.test(path) && opts.openaiUpstream) return await openaiChat(req, res, rawBody);
       if (req.method === "POST" && /\/v1\/messages$/.test(path) && opts.anthropicUpstream) return await anthropicMessages(req, res, rawBody);
       return await passthrough(req, res, rawBody, path.includes("/messages") || path.startsWith("/v1/complete") ? "anthropic" : "openai");
@@ -299,6 +321,6 @@ export function createGateway(opts: GatewayOptions): Gateway {
       pendingUsed.clear(); pendingBlocked.clear(); pendingArtifacts.clear();
       return out;
     },
-    close: () => new Promise((resolve) => { server.close(() => resolve()); server.closeAllConnections?.(); }),
+    close: () => new Promise((resolve) => { for (const u of Object.values(opts.mcp?.upstreams ?? {})) u.close(); server.close(() => resolve()); server.closeAllConnections?.(); }),
   };
 }
