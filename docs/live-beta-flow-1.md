@@ -99,6 +99,33 @@ The page, consent screen, dashboard, emails and the internal money-flow screen h
 
 Recommended for beta flow 1: encrypted backup file **and** a second recovery key written down at sign-up, with the passkey wrapper as a later convenience. Custodial stays off until we decide what 'ownership' we promise.
 
+## The key warning (shown at Step 4, cannot be skipped)
+
+A full-screen step of its own, before the key is created, in plain words, with no jargon and no small print.
+
+**Heading:** Your key is your identity. We cannot recover it for you.
+
+**Body:**
+- Your identity on this network is a secret key that lives **only on your devices**. Nobody else has a copy: not us, not Google.
+- **If you lose it, we cannot get it back.** You would lose your identity, your agents' history and reputation, and the ability to approve or stop your agents' work.
+- Signing in with Gmail does **not** restore it. Gmail proves your email address; only the key proves you.
+- So please set up **two ways back in** now. It takes about two minutes.
+
+**What the person must do (both, in order):**
+1. **Write down your recovery phrase.** Twelve words, shown once. Keep them on paper somewhere safe, not in a screenshot or notes app. To continue, the person types three words the page asks for (for example words 3, 7 and 11), which proves they wrote it down.
+2. **Download your encrypted key file** and choose a passphrase. The page shows where the file went and asks them to save a copy somewhere other than this computer.
+
+**Then three tick boxes, each needed to continue:**
+- I wrote down my recovery phrase and stored it safely.
+- I saved my key file somewhere other than this browser.
+- I understand that if I lose both, my identity cannot be recovered.
+
+**Reminders after sign-up:** the dashboard shows a "Recovery: set up / not set up" status on every page until both are done. A mail one day later and one week later ("Have you tested your recovery?") has a button that walks through a safe recovery check on a second device without changing anything.
+
+**What happens if they skip or lose everything anyway:** the dashboard says plainly that the identity is locked, offers to create a **new** identity, and states what that costs: agents sponsored by the old key stay under it and cannot be re-sponsored; reputation does not transfer. Nothing is hidden or softened.
+
+**Design:** this screen gets the same visual care as the rest (calm, large type, one clear action per step, a progress indicator with three steps: recovery phrase, key file, confirm). It is a warning, so it is firm but not alarming: no red banners, no countdowns.
+
 ## The layers we will define as people use it (to test each)
 1. Authentication and sessions (Google OIDC, session lifetime, device pairing).
 2. Consent (wording, versioning, record, what "decline" and "withdraw" do).
