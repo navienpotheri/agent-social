@@ -92,3 +92,56 @@ test("the gateway writes the run log for streamed and whole replies on the chat 
   const calls = events.filter((e) => e.kind === "tool_call").map((e) => e.data as any);
   assert.deepEqual(calls.map((c) => [c.tool, c.allowed]), [["read_file", true], ["write_file", false], ["read_file", true], ["write_file", false]]);
 });
+
+test("Claude Code and Codex output lines become run-log events: text, calls with inputs, results, how it ended", async () => {
+  const { claudeCodeRunLogEvents, codexRunLogEvents } = await import("../src/index.ts");
+  const j = (o: unknown) => JSON.stringify(o);
+  assert.deepEqual(claudeCodeRunLogEvents(j({ type: "assistant", message: { content: [{ type: "text", text: "Reading." }, { type: "tool_use", id: "t1", name: "Bash", input: { command: "ls -la" } }] } })),
+    [{ kind: "assistant_text", data: { text: "Reading." } }, { kind: "tool_call", data: { tool: "Bash", id: "t1", input: "ls -la" } }]);
+  assert.deepEqual(claudeCodeRunLogEvents(j({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: [{ type: "text", text: "file.txt" }] }] } })),
+    [{ kind: "tool_result", data: { id: "t1", text: "file.txt" } }]);
+  const blocked = claudeCodeRunLogEvents(j({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t2", is_error: true, content: "ASP Mandate: the scope shell.exec is not granted" }] } }));
+  assert.deepEqual(blocked[0].data, { id: "t2", text: "ASP Mandate: the scope shell.exec is not granted", error: true, blocked: true });
+  assert.deepEqual(claudeCodeRunLogEvents(j({ type: "result", subtype: "success", num_turns: 3, duration_ms: 900, usage: { input_tokens: 10, output_tokens: 4 }, total_cost_usd: 0.01 })),
+    [{ kind: "run_result", data: { status: "success", turns: 3, ms: 900, tokens_in: 10, tokens_out: 4, cost_usd: 0.01 } }]);
+  assert.deepEqual(claudeCodeRunLogEvents("not json"), []);
+  assert.deepEqual(claudeCodeRunLogEvents(j({ type: "system", subtype: "init" })), []);
+
+  assert.deepEqual(codexRunLogEvents(j({ type: "item.started", item: { id: "i1", type: "command_execution", command: "ls" } })), [], "only completed items are kept");
+  const cmd = codexRunLogEvents(j({ type: "item.completed", item: { id: "i1", type: "command_execution", command: "npm test", aggregated_output: "1 failing", exit_code: 1 } }));
+  assert.deepEqual(cmd.map((e) => e.kind), ["tool_call", "tool_result"]);
+  assert.deepEqual(cmd[1].data, { id: "i1", text: "1 failing", error: true, exit_code: 1 });
+  assert.deepEqual(codexRunLogEvents(j({ type: "item.completed", item: { id: "i2", type: "agent_message", text: "Done." } })), [{ kind: "assistant_text", data: { text: "Done." } }]);
+  assert.equal(codexRunLogEvents(j({ type: "item.completed", item: { id: "i3", type: "mcp_tool_call", server: "gh", tool: "issues", arguments: { n: 1 }, result: { content: [{ text: "ok" }] } } }))[0].data.tool, "mcp__gh__issues");
+  assert.deepEqual(codexRunLogEvents(j({ type: "turn.completed", usage: { input_tokens: 5, output_tokens: 2 } })), [{ kind: "run_result", data: { tokens_in: 5, tokens_out: 2 } }]);
+});
+
+test("tool results are read out of the three API shapes, and the gateway keeps each once with the MCP calls it served", async () => {
+  const { toolResultsIn, createGateway, RunRecorder: Rec } = await import("../src/index.ts");
+  assert.deepEqual(toolResultsIn({ messages: [{ role: "user", content: "q" }, { role: "tool", tool_call_id: "a", content: "out-a" }] }), [{ id: "a", text: "out-a" }]);
+  assert.deepEqual(toolResultsIn({ messages: [{ role: "user", content: [{ type: "tool_result", tool_use_id: "b", content: [{ type: "text", text: "out-b" }] }] }] }), [{ id: "b", text: "out-b" }]);
+  assert.deepEqual(toolResultsIn({ input: [{ type: "function_call_output", call_id: "c", output: "out-c" }] }), [{ id: "c", text: "out-c" }]);
+
+  const { createServer } = await import("node:http");
+  const server = createServer(async (req, res) => { for await (const _ of req) { /* drain */ } res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ id: "c", object: "chat.completion", created: 1, model: "m", usage: { prompt_tokens: 1, completion_tokens: 1 }, choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: "ok" } }] })); });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  const path = fresh();
+  const rec = new Rec(path);
+  const g = createGateway({ openaiUpstream: `http://127.0.0.1:${(server.address() as { port: number }).port}/v1`, scopes: ["repo.read"], runLog: rec, mcp: { asp: { memoryDir: mkdtempSync(join(tmpdir(), "asp-mem-")) }, upstreams: {} } });
+  const url = `http://127.0.0.1:${await g.listen()}`;
+  const chat = (messages: unknown[]) => fetch(`${url}/v1/chat/completions`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: "m", messages }) }).then((r) => r.text());
+  await chat([{ role: "user", content: "go" }, { role: "assistant", content: null }, { role: "tool", tool_call_id: "a", content: "first result" }]);
+  await chat([{ role: "user", content: "go" }, { role: "tool", tool_call_id: "a", content: "first result" }, { role: "tool", tool_call_id: "b", content: "second result with sk-ant-api03-abcdefghijklmnopqrstuvwx" }]);
+  const rpc = (body: unknown) => fetch(`${url}/mcp/asp`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+  await rpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "asp_memory_write", arguments: { name: "n", description: "d", content: "remember this" } } });
+  await g.close();
+  server.close();
+  const events = readRunLog(path).events;
+  const results = events.filter((e) => e.kind === "tool_result").map((e) => e.data as any);
+  assert.deepEqual(results.map((r) => r.id), ["a", "b"], "a result in the history is recorded once");
+  assert.ok(!readFileSync(path, "utf8").includes("sk-ant-api03"));
+  const mcp = events.filter((e) => e.kind === "mcp_call").map((e) => e.data as any);
+  assert.equal(mcp.length, 1);
+  assert.deepEqual([mcp[0].server, mcp[0].tool], ["asp", "asp_memory_write"]);
+  assert.match(mcp[0].result, /Saved n\.md/);
+});

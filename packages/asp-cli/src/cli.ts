@@ -1434,7 +1434,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   if (soon) clearTimeout(soon);
   if (approvals) await approvals.stop();
   const sum0 = gw.summary();
-  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog.redactions });
+  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
   const rc = await flushAction("exit");
   const sum = gw.summary();
   await gw.close();
@@ -1479,7 +1479,7 @@ async function loadKnownBad(home: string, io: Io): Promise<KnownBadEntry[]> {
 function findRunLog(home: string, contract: string): string | undefined {
   const runs = join(home, "runs");
   if (!existsSync(runs)) return undefined;
-  for (const d of readdirSync(runs).filter((x) => x.startsWith("gateway-")).sort().reverse()) {
+  for (const d of readdirSync(runs).sort((a, b) => (a.match(/\d{4}-\d\d-\d\dT\d+Z$/)?.[0] ?? a).localeCompare(b.match(/\d{4}-\d\d-\d\dT\d+Z$/)?.[0] ?? b)).reverse()) {
     const file = join(runs, d, "run-log.ndjson");
     if (!existsSync(file)) continue;
     const first = readFileSync(file, "utf8").split("\n", 1)[0];
@@ -1601,8 +1601,9 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
   let target = rest[0];
   if (!target) {
     const runs = join(home, "runs");
-    const latest = existsSync(runs) ? readdirSync(runs).filter((d) => d.startsWith("gateway-") && existsSync(join(runs, d, "run-log.ndjson"))).sort().at(-1) : undefined;
-    if (!latest) throw new Error(`no gateway run with a run log in ${runs}; give the file or folder`);
+    const stamp = (d: string) => d.match(/\d{4}-\d\d-\d\dT\d+Z$/)?.[0] ?? d;
+    const latest = existsSync(runs) ? readdirSync(runs).filter((d) => existsSync(join(runs, d, "run-log.ndjson"))).sort((a, b) => stamp(a).localeCompare(stamp(b))).at(-1) : undefined;
+    if (!latest) throw new Error(`no run with a run log in ${runs}; give the file or folder`);
     target = join(runs, latest);
   }
   const file = target.endsWith(".ndjson") ? resolve(io.cwd, target) : join(resolve(io.cwd, target), "run-log.ndjson");
@@ -1617,10 +1618,17 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
       const text = e.kind === "run_start" ? `contract ${String(d.contract).slice(0, 19)} agent ${d.agent}; scopes ${(d.scopes ?? []).join(", ") || "none"}${d.hosts ? `; hosts ${d.hosts.join(", ")}` : ""}`
         : e.kind === "model_request" ? `${d.model ?? "?"} (${d.api}) asked: ${q(d.prompt)}`
         : e.kind === "model_reply" ? `${d.tokens_in} in / ${d.tokens_out} out, ${d.ms} ms${d.text ? `: ${q(d.text)}` : ""}`
-        : e.kind === "tool_call" ? `${d.allowed ? "allowed" : "REFUSED"} ${d.tool} -> ${d.scope || "no scope"}${d.reason ? ` (${d.reason})` : ""}${d.gated ? " [gated]" : ""}: ${q(d.input)}`
+        : e.kind === "tool_call" ? `${d.allowed === undefined ? "" : d.allowed ? "allowed " : "REFUSED "}${d.tool}${d.scope !== undefined ? ` -> ${d.scope || "no scope"}` : ""}${d.reason ? ` (${d.reason})` : ""}${d.gated ? " [gated]" : ""}: ${q(d.input)}`
         : e.kind === "model_error" ? `provider answered ${d.status}`
         : e.kind === "stopped" ? `stopped: ${d.reason}`
         : e.kind === "run_end" ? `exit ${d.exit_code}; ${d.requests} request(s), ${d.tool_calls} tool call(s), ${d.strikes} blocked, ${d.redactions} secret-like value(s) masked`
+        : e.kind === "assistant_text" ? q(d.text)
+        : e.kind === "tool_result" ? `${d.blocked ? "BLOCKED " : d.error ? "failed " : ""}${q(d.text)}`
+        : e.kind === "mcp_call" ? `${d.server}/${d.tool}${d.error ? " (error)" : ""}: ${q(d.input)} -> ${q(d.result)}`
+        : e.kind === "call_judged" ? `${d.scope} ${d.granted ? "granted" : "NOT granted"}${d.gated ? " [gated]" : ""}${d.known_bad ? " [known bad]" : ""}`
+        : e.kind === "strike" ? `${d.scope} was ${d.how} (${d.strikes} of ${d.max})`
+        : e.kind === "kill" ? `${d.reason}: ${q(d.message)}`
+        : e.kind === "run_result" ? `${[d.status, d.turns !== undefined ? `${d.turns} turn(s)` : "", d.tokens_in !== undefined ? `${d.tokens_in} in / ${d.tokens_out} out` : ""].filter(Boolean).join(", ")}`
         : JSON.stringify(d);
       io.out(`${time}  ${e.kind.padEnd(13)} ${text}`);
     }
@@ -2861,6 +2869,11 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   // when an out-of-scope call actually executed (the hook missing, failing open, or timing out).
   // Each out-of-scope call waits for its outcome (checkOutputForResult) before it is judged.
   const KILL_GRACE_MS = 3000;
+  // The run log (E5): what the runtime's output shows, redacted, in the run folder; the Actions commit to its hash. Needs the output piped, which every
+  // adapter that reads it asks for; an interactive run with no prompt has no stream to read and keeps none.
+  const runLog = (v["no-run-log"] || !(plan.checkOutputForAction || plan.checkOutputForFailure)) ? undefined : new RunRecorder(join(runDir, "run-log.ndjson"));
+  runLog?.event("run_start", { contract: v.contract, agent, backend, scopes: mandate?.scopes, ...(mandateHosts ? { hosts: mandateHosts } : {}), command: [plan.command, ...plan.args].join(" "), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed" });
+  if (runLog) io.err(`  run log  ${runLog.path}`);
   let hiddenFailure: string | undefined;
   const scopesSeen = new Set<string>();
   const artifactsSeen: { uri: string; sha256: string }[] = [];
@@ -2887,6 +2900,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
       : undefined;
     const strike = (scope: string, how: string) => {
       strikes++;
+      runLog?.event("strike", { scope, how, strikes, max: maxStrikes });
       blockedByScope.set(scope, (blockedByScope.get(scope) ?? 0) + 1);
       io.err(`  strike   ${scope} was ${how} (${strikes} of ${maxStrikes})`);
       if (strikes >= maxStrikes) halt({ scope, reason: "probing" }, `${strikes} blocked attempts reached the limit of ${maxStrikes}; stopping ${backend} now.`);
@@ -2915,6 +2929,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
     const halt = (k: { scope: string; reason: "violation" | "probing" }, message: string) => {
       if (killed) return;
       killed = k;
+      runLog?.event("kill", { scope: k.scope, reason: k.reason, message });
       io.err(`  KILL SWITCH  ${message}`);
       child.kill("SIGTERM");
       killTimer = setTimeout(() => {
@@ -2930,11 +2945,13 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
         carry = lines.pop() ?? "";
         for (const line of lines) {
           hiddenFailure ??= plan.checkOutputForFailure?.(line);
+          if (runLog) for (const e of plan.describeOutput?.(line) ?? []) runLog.event(e.kind, e.data);
           for (const call of plan.checkOutputForAction?.(line) ?? []) {
             const outside = !!mandate && (!mandate.scopes.includes(call.scope) || forbiddenScopes.has(call.scope));
             const held = !outside && !!plan.approvalsDir && gatedScopes.has(call.scope);
             // A listed command is blocked by the hook though its scope is granted: judge it by its outcome like an out-of-scope call.
             const listed = !outside && !held && !!call.artifact && knownBadSet.has(`${call.artifact.uri}#${call.artifact.sha256}`);
+            runLog?.event("call_judged", { ...(call.id ? { id: call.id } : {}), scope: call.scope, granted: !outside, ...(held ? { gated: true } : {}), ...(listed ? { known_bad: true } : {}) });
             if (prevents && (outside || held || listed) && call.id) {
               pending.set(call.id, { scope: call.scope, artifact: call.artifact, gated: held });
               continue;
@@ -3007,6 +3024,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
     }
   }
   const blockedAttempts = [...blockedByScope].sort(([a], [b]) => a.localeCompare(b)).map(([scope, count]) => ({ scope, count }));
+  runLog?.event("run_end", { exit_code: code, scopes_used: [...scopesSeen].sort(), blocked: blockedAttempts, strikes, ...(killed ? { killed: killed.reason } : {}), ...(hiddenFailure ? { failure: hiddenFailure } : {}), redactions: runLog?.redactions });
 
   if (killed) {
     // A refused Action record for the offending scope, purely for the paper trail (it will be
@@ -3021,7 +3039,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
         body: {
           contract: v.contract!, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", summary: `${backend} run, ${runDir}, killed mid-run`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
-          ...(artifactsSeen.length ? { artifacts: artifactsSeen } : {}),
+          ...(artifactsSeen.length || runLog ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : [])] } : {}),
         },
       }, actionSigner);
       try { await local!.append(action); } catch (e) { io.err(`  action   COMPLIANCE VIOLATION: ${(e as Error).message}`); }
@@ -3042,7 +3060,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   // contract's live Mandate, before the agent gets to write up a clean Delivery. Self-reported by
   // this same CLI process (not the runtime), so it can't be skipped by a runtime that doesn't know
   // about it, but it's still only as honest as the tool-call parsing that produced scopesSeen.
-  if (v.contract && (scopesSeen.size || blockedAttempts.length)) {
+  if (v.contract && (scopesSeen.size || blockedAttempts.length || runLog)) {
     const actionSigner = new Keystore(home).forDid(agent);
     if (actionSigner) {
       const action = createRecord({
@@ -3050,7 +3068,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
         body: {
           contract: v.contract, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", summary: `${backend} run, ${runDir}`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
-          ...(artifactsSeen.length ? { artifacts: artifactsSeen } : {}),
+          ...(artifactsSeen.length || runLog ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : [])] } : {}),
         },
       }, actionSigner);
       try {

@@ -13,6 +13,7 @@
  *
  * File locations follow https://code.claude.com/docs/en/claude-directory (checked 2026-09-27).
  */
+import { claudeCodeRunLogEvents } from "./run-log-lines.ts";
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
@@ -359,7 +360,7 @@ async function materialize(opts: {
   args.push("--plugin-dir", plugin, "--append-system-prompt-file", join(runDir, "instructions.md"), "--settings", join(runDir, "settings.json"));
   if (harness.skills.length) args.push("--add-dir", workspace);
 
-  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: r.missing.sort(), notes, checkOutputForAction: (line: string) => checkOutputForAction(line, memDir), checkOutputForResult, ...(opts.mandateScopes ? { preventsCalls: true, executedCallsFile: join(runDir, "executed-calls.ndjson") } : {}),
+  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: r.missing.sort(), notes, checkOutputForAction: (line: string) => checkOutputForAction(line, memDir), checkOutputForResult, describeOutput: claudeCodeRunLogEvents, ...(opts.mandateScopes ? { preventsCalls: true, executedCallsFile: join(runDir, "executed-calls.ndjson") } : {}),
     ...(opts.mandateScopes && opts.mandateGate?.mode === "ask" && opts.mandateGate.scopes.length ? { approvalsDir: join(runDir, "approvals") } : {}) };
 }
 

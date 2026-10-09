@@ -107,6 +107,19 @@ export function lastUserText(body: any): string {
   return "";
 }
 
+/** The tool results a model request carries (the answers to earlier tool calls), in any of the three API shapes: [{ id, text }]. */
+export function toolResultsIn(body: any): { id: string; text: string }[] {
+  const textOf = (c: unknown): string => (typeof c === "string" ? c : Array.isArray(c) ? c.map((p: any) => (typeof p === "string" ? p : typeof p?.text === "string" ? p.text : "")).filter(Boolean).join("\n") : c == null ? "" : JSON.stringify(c));
+  const out: { id: string; text: string }[] = [];
+  const items: any[] = Array.isArray(body?.messages) ? body.messages : Array.isArray(body?.input) ? body.input : [];
+  for (const m of items) {
+    if (m?.role === "tool") out.push({ id: String(m.tool_call_id ?? ""), text: textOf(m.content) });
+    else if (m?.type === "function_call_output" || m?.type === "custom_tool_call_output") out.push({ id: String(m.call_id ?? ""), text: textOf(m.output) });
+    else if (Array.isArray(m?.content)) for (const b of m.content) if (b?.type === "tool_result") out.push({ id: String(b.tool_use_id ?? ""), text: textOf(b.content) });
+  }
+  return out;
+}
+
 /** The reply text of a non-streamed response in any of the three shapes. */
 export function replyText(reply: any): string {
   const chat = reply?.choices?.[0]?.message?.content;

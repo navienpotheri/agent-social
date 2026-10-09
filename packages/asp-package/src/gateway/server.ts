@@ -12,7 +12,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { lastUserText, replyText, type RunRecorder } from "./runlog.ts";
+import { lastUserText, replyText, toolResultsIn, type RunRecorder } from "./runlog.ts";
 import { commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
@@ -105,8 +105,11 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const pendingArtifacts = new Map<string, { uri: string; sha256: string }>();
   const tokens: { input: number; output: number; text: string } = { input: 0, output: 0, text: "" };
   const rec = opts.runLog;
+  const seenResults = new Set<string>();
   /** Records a model request in the run log and returns where the token counts stood, so the reply can be recorded with its own figures. */
   const beginModelCall = (api: string, body: any) => {
+    // The answers to earlier tool calls arrive in the next request; each is kept once (a request carries the whole history).
+    if (rec) for (const r of toolResultsIn(body)) if (!seenResults.has(r.id || r.text.slice(0, 80))) { seenResults.add(r.id || r.text.slice(0, 80)); rec.event("tool_result", { id: r.id, text: r.text }); }
     rec?.event("model_request", { api, model: body?.model, stream: body?.stream === true, prompt: lastUserText(body), tools: Array.isArray(body?.tools) ? body.tools.length : 0 });
     tokens.text = "";
     return { input: tokens.input, output: tokens.output, at: Date.now() };
@@ -365,7 +368,14 @@ export function createGateway(opts: GatewayOptions): Gateway {
     if (req.method !== "POST") { res.writeHead(405, { allow: "POST" }); res.end(); return; }
     let msg: unknown;
     try { msg = JSON.parse(rawBody.toString("utf8")); } catch { return json(res, 400, { jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse error" } }); }
-    const answers = (await Promise.all((Array.isArray(msg) ? msg : [msg]).map((m) => handleRpc(m, h)))).filter((x) => x !== undefined);
+    const sent = Array.isArray(msg) ? msg : [msg];
+    const answers = (await Promise.all(sent.map((m) => handleRpc(m, h)))).filter((x) => x !== undefined);
+    if (rec) for (const m of sent as any[]) {
+      if (m?.method !== "tools/call") continue;
+      const a = (answers as any[]).find((x) => x?.id === m.id);
+      const text = Array.isArray(a?.result?.content) ? a.result.content.map((c: any) => c?.text ?? "").join("\n") : a?.error?.message ?? "";
+      rec.event("mcp_call", { server: name, tool: m.params?.name, input: JSON.stringify(m.params?.arguments ?? {}), result: text, ...(a?.result?.isError || a?.error ? { error: true } : {}) });
+    }
     if (!answers.length) { res.writeHead(202); res.end(); return; }
     return json(res, 200, Array.isArray(msg) ? answers : answers[0]);
   }

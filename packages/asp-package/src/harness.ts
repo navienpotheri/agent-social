@@ -105,6 +105,12 @@ export interface LaunchPlan {
    * into the Action's blocked attempts, and the `scope` of each executed-calls line into its scopes used.
    */
   blockedCallsFile?: string;
+  /**
+   * What a line of the runtime's output says about the run, as run-log events (E5, E7): the text the agent wrote, each tool call with its
+   * input, each tool's result, how the run ended. Absent for a runtime whose output format is not read; `asp run` then keeps only the
+   * calls the compliance bridge saw.
+   */
+  describeOutput?: (line: string) => { kind: string; data: Record<string, unknown> }[];
   /** Reads a call's outcome from a line of output: `blocked` means the pre-call hook stopped it before it ran. */
   checkOutputForResult?: (line: string) => { id: string; blocked: boolean }[] | undefined;
 }

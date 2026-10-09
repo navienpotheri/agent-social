@@ -14,6 +14,7 @@
  * reaches the model as a developer message; skills load only from .agents/skills dirs (skills.config
  * paths and HOME overrides do not add skills), so they are listed in the prompt instead.
  */
+import { codexRunLogEvents } from "./run-log-lines.ts";
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, delimiter, join, resolve } from "node:path";
@@ -372,7 +373,7 @@ async function materialize(opts: {
 
   return {
     command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: [...missing].sort(), notes,
-    ...(opts.prompt !== undefined ? { checkOutputForAction: codexActionParser() } : {}),
+    ...(opts.prompt !== undefined ? { checkOutputForAction: codexActionParser(), describeOutput: codexRunLogEvents } : {}),
   };
 }
 

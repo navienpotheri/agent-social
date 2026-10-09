@@ -160,8 +160,11 @@ test("asp run --contract fingerprints the tool call's real input and stores the 
   const local = await LocalLog.open(f.aspHome);
   const stored = await local.log.get(actionId);
   const body = stored!.record.body as { artifacts?: { uri: string; sha256: string }[] };
-  assert.equal(body.artifacts?.length, 1);
-  assert.match(body.artifacts![0].sha256, /^sha256:[0-9a-f]{64}$/);
+  // The tool call's fingerprint, and the commitment to the run log (S74).
+  const fingerprints = body.artifacts!.filter((a) => !a.uri.startsWith("asp://run-log/"));
+  assert.equal(fingerprints.length, 1);
+  assert.equal(body.artifacts!.length - fingerprints.length, 1, "one commitment to the run log");
+  assert.match(fingerprints[0].sha256, /^sha256:[0-9a-f]{64}$/);
   // The fingerprint is a hash, never the file path or content it stood for.
   assert.doesNotMatch(JSON.stringify(body.artifacts), /secret|plan\.md/);
 });
