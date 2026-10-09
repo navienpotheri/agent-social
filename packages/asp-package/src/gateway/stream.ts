@@ -197,3 +197,93 @@ export async function relayAnthropicStream(body: ReadableStream<Uint8Array>, res
   }
   res.end();
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// OpenAI Responses API (what current Codex speaks)
+
+const CALL_ITEMS = new Set(["function_call", "local_shell_call", "custom_tool_call"]);
+
+/** A tool call out of a Responses output item. */
+export function callOfItem(item: any): ToolCall {
+  if (item.type === "local_shell_call") return { id: item.call_id ?? item.id, name: "local_shell", args: { command: item.action?.command ?? [] } };
+  if (item.type === "custom_tool_call") return { id: item.call_id ?? item.id, name: item.name ?? "custom", args: parseArgs(typeof item.input === "string" ? item.input : "") };
+  return { id: item.call_id ?? item.id, name: item.name ?? "", args: parseArgs(item.arguments ?? "") };
+}
+
+const refusalItem = (n: number, text: string) => ({ id: `msg_asp_${n}`, type: "message", status: "completed", role: "assistant", content: [{ type: "output_text", text, annotations: [] }] });
+
+/** Responses events built from a whole response (a stand-in provider for tests). */
+export function responsesEvents(response: any): string[] {
+  const out: string[] = [];
+  let seq = 0;
+  const ev = (o: any) => out.push(`event: ${o.type}\ndata: ${JSON.stringify({ ...o, sequence_number: seq++ })}\n\n`);
+  ev({ type: "response.created", response: { ...response, status: "in_progress", output: [] } });
+  (response.output ?? []).forEach((item: any, i: number) => {
+    ev({ type: "response.output_item.added", output_index: i, item: { ...item, status: "in_progress" } });
+    if (item.type === "function_call") {
+      const half = Math.ceil((item.arguments ?? "").length / 2);
+      for (const part of [(item.arguments ?? "").slice(0, half), (item.arguments ?? "").slice(half)]) ev({ type: "response.function_call_arguments.delta", output_index: i, item_id: item.id, delta: part });
+      ev({ type: "response.function_call_arguments.done", output_index: i, item_id: item.id, arguments: item.arguments });
+    } else if (item.type === "message") {
+      (item.content ?? []).forEach((c: any, ci: number) => {
+        ev({ type: "response.content_part.added", output_index: i, item_id: item.id, content_index: ci, part: { ...c, text: "" } });
+        ev({ type: "response.output_text.delta", output_index: i, item_id: item.id, content_index: ci, delta: c.text });
+        ev({ type: "response.content_part.done", output_index: i, item_id: item.id, content_index: ci, part: c });
+      });
+    }
+    ev({ type: "response.output_item.done", output_index: i, item });
+  });
+  ev({ type: "response.completed", response });
+  return out;
+}
+
+/** Judges a Responses stream: other items flow through, each tool call is held until its item is done, judged, then forwarded or dropped. */
+export async function relayResponsesStream(body: ReadableStream<Uint8Array>, res: ServerResponse, decide: Decide, count: Counters): Promise<void> {
+  res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+  let seq = 0;
+  const send = (o: any) => { write(res, `event: ${o.type}\ndata: ${JSON.stringify({ ...o, sequence_number: seq++ })}\n\n`); };
+  const outIndex = new Map<number, number>();
+  let next = 0;
+  const mapIdx = (i: number) => { if (!outIndex.has(i)) outIndex.set(i, next++); return outIndex.get(i)!; };
+  const held = new Map<number, any[]>();
+  const refusedIdx = new Set<number>();
+  const refused: { name: string; reason: string }[] = [];
+  for await (const e of readSse(body)) {
+    if (e.data === "[DONE]") break;
+    let d: any;
+    try { d = JSON.parse(e.data); } catch { continue; }
+    const oi: number | undefined = typeof d.output_index === "number" ? d.output_index : undefined;
+    if (d.type === "response.output_item.added" && CALL_ITEMS.has(d.item?.type)) { held.set(oi!, [d]); continue; }
+    if (oi !== undefined && held.has(oi)) {
+      const buf = held.get(oi)!;
+      buf.push(d);
+      if (d.type !== "response.output_item.done") continue;
+      held.delete(oi);
+      const call = callOfItem(d.item);
+      const reason = await decide(call);
+      if (reason) { refused.push({ name: call.name, reason }); refusedIdx.add(oi); continue; }
+      for (const b of buf) send({ ...b, output_index: mapIdx(oi) });
+      continue;
+    }
+    if (d.type === "response.completed" || d.type === "response.incomplete" || d.type === "response.failed") {
+      const r = d.response ?? {};
+      count.input += r.usage?.input_tokens ?? 0;
+      count.output += r.usage?.output_tokens ?? 0;
+      const output = (r.output ?? []).filter((_: any, i: number) => !refusedIdx.has(i));
+      if (refused.length) {
+        const i = next++;
+        const item = refusalItem(i, refusalText(refused));
+        send({ type: "response.output_item.added", output_index: i, item: { ...item, status: "in_progress", content: [] } });
+        send({ type: "response.content_part.added", output_index: i, item_id: item.id, content_index: 0, part: { type: "output_text", text: "", annotations: [] } });
+        send({ type: "response.output_text.delta", output_index: i, item_id: item.id, content_index: 0, delta: item.content[0].text });
+        send({ type: "response.content_part.done", output_index: i, item_id: item.id, content_index: 0, part: item.content[0] });
+        send({ type: "response.output_item.done", output_index: i, item });
+        output.push(item);
+      }
+      send({ ...d, response: { ...r, output } });
+      continue;
+    }
+    send(oi !== undefined ? { ...d, output_index: mapIdx(oi) } : d);
+  }
+  res.end();
+}

@@ -13,7 +13,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
-import { anthropicEvents, openaiChunks, relayAnthropicStream, relayOpenaiStream } from "./stream.ts";
+import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
 
 export interface GatewayOptions {
@@ -211,6 +211,40 @@ export function createGateway(opts: GatewayOptions): Gateway {
   }
 
 
+  // ---------- OpenAI Responses (current Codex) ----------
+  async function openaiResponses(req: IncomingMessage, res: ServerResponse, rawBody: Buffer) {
+    const body = JSON.parse(rawBody.toString("utf8"));
+    const wantsStream = body.stream === true;
+    const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/responses`, { method: "POST", headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
+    if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
+      await relayResponsesStream(up.body, res, decide, tokens);
+      if (tokenCapHit()) stop("token cap reached");
+      return;
+    }
+    const text = await up.text();
+    if (!up.ok) { res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
+    const reply = JSON.parse(text);
+    tokens.input += reply.usage?.input_tokens ?? 0;
+    tokens.output += reply.usage?.output_tokens ?? 0;
+    if (Array.isArray(reply.output)) {
+      const kept: any[] = [];
+      const refused: { name: string; reason: string }[] = [];
+      for (const item of reply.output) {
+        if (!["function_call", "local_shell_call", "custom_tool_call"].includes(item?.type)) { kept.push(item); continue; }
+        const call = callOfItem(item);
+        const reason = await decide(call);
+        if (reason) refused.push({ name: call.name, reason }); else kept.push(item);
+      }
+      if (refused.length) {
+        kept.push({ id: "msg_asp_0", type: "message", status: "completed", role: "assistant", content: [{ type: "output_text", annotations: [], text: refused.map((c) => `[ASP] The action "${c.name}" was not run: ${c.reason}. Continue without it.`).join("\n") }] });
+        reply.output = kept;
+      }
+    }
+    if (tokenCapHit()) stop("token cap reached");
+    if (!wantsStream) return json(res, 200, reply);
+    sse(res, responsesEvents(reply));
+  }
+
   // ---------- Anthropic Messages ----------
   async function anthropicMessages(req: IncomingMessage, res: ServerResponse, rawBody: Buffer) {
     const body = JSON.parse(rawBody.toString("utf8"));
@@ -294,6 +328,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       const rawBody = await readBody(req);
       if (path.startsWith("/mcp/")) return await mcpRoute(req, res, path.slice("/mcp/".length), rawBody);
       if (req.method === "POST" && /\/chat\/completions$/.test(path) && opts.openaiUpstream) return await openaiChat(req, res, rawBody);
+      if (req.method === "POST" && /\/responses$/.test(path) && opts.openaiUpstream) return await openaiResponses(req, res, rawBody);
       if (req.method === "POST" && /\/v1\/messages$/.test(path) && opts.anthropicUpstream) return await anthropicMessages(req, res, rawBody);
       return await passthrough(req, res, rawBody, path.includes("/messages") || path.startsWith("/v1/complete") ? "anthropic" : "openai");
     } catch (e) {
