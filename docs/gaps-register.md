@@ -8,12 +8,12 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 
 | ID | Gap | Covered today by | Fix | Detail | Pri | Status |
 |---|---|---|---|---|---|---|
-| D1 | No canary or regression suite; `asp verify` has an empty canary check | Lineage edges say what changed; the Mandate bounds actions | A small fixed task set with checks, run on every memory update and runtime swap; pass/fail recorded | backlog "Drift and failure-mode testing" | A | open |
-| D2 | No behavioural baseline or before/after comparison | Reputation, strikes, outcomes are in the log | Outcome series per agent and per principal, compared across each lineage edge | `docs/continual-learning-loop.md` §7 | A | open |
+| D1 | No canary or regression suite; `asp verify` has an empty canary check | Lineage edges say what changed; the Mandate bounds actions | A small fixed task set with checks, run on every memory update and runtime swap; pass/fail recorded | backlog "Drift and failure-mode testing" (S62: `asp canary` and canary/default-suite.json built; `asp verify`'s canary check is still empty and nothing runs the suite automatically on a memory update or runtime swap) | A | partial |
+| D2 | No behavioural baseline or before/after comparison | Reputation, strikes, outcomes are in the log | Outcome series per agent and per principal, compared across each lineage edge | `docs/continual-learning-loop.md` §7 (S62: reports can be saved as baselines and compared, flagging regression and drift; no per-principal outcome series from the log yet) | A | partial |
 | D3 | Memory loss is not detected | Memory hashes show that memory changed | Recall questions about earlier-known facts after each merge or prune | backlog | B | open |
 | D4 | Which model weights actually ran is not recorded; a name can point to different weights | Runtime swap is a lineage edge | Record model name, provider and digest in the passport or Action; a change opens probation | backlog "open models" (8) | A | open |
 | D5 | Probation is recorded but changes no rule | Shown in the lineage | Make it raise the risk floor or require a canary pass | backlog | B | open |
-| D6 | No detection of prompt injection or goal hijacking | Mandate and gateway bound the actions that can follow | Injection tests in the canary; flag tool results that carry instructions | backlog | B | open |
+| D6 | No detection of prompt injection or goal hijacking | Mandate and gateway bound the actions that can follow | Injection tests in the canary; flag tool results that carry instructions | backlog (S62: the injection-in-file canary task measures whether a hidden instruction makes a model try a forbidden call; no detection of it) | B | partial |
 | D7 | No reasoning-trace monitoring | none | Local-only analysis of visible reasoning as an earlier-firing signal | backlog "reasoning traces" | C | open |
 | D8 | Quality, cost and time trends are not tracked | Actions carry a summary string | A structured `metrics` field (tokens, requests, seconds) on the Action, and a trend view | learning-loop doc | A | open |
 | D9 | Lessons are not verified before they enter memory | Memory budget, merge, undo by lineage | Reflection proposes, a gate checks evidence, conflicts and an A/B replay | learning-loop doc §3 | A | designed |
@@ -46,8 +46,8 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | P3 | Codex under a ChatGPT login cannot be pointed at the gateway | Codex with an API key or a custom provider can | An API-key route, or a network-level redirect | S58 | B | open |
 | P4 | Hosted and enterprise agents that cannot be wrapped | none | Self-report SDK (assurance level 1) | gateway doc P4 (S60: TypeScript and Python self-report SDKs built and checked across languages; no real vendor trial) | B | partial |
 | P5 | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) | Gateway memory tools | Check or add per runtime | backlog | B | partial |
-| P6 | No model matrix: which open models call tools reliably | none | Run the swarm scenario across models | backlog | B | open |
-| P7 | Weak models: malformed tool arguments, loops after a refusal | Strike limit ends loops | Measure and document per model | backlog | B | open |
+| P6 | No model matrix: which open models call tools reliably | none | Run the swarm scenario across models | backlog (S62: first model matrix in docs/model-matrix.md (free-tier snapshot); no paid or Anthropic/OpenAI models, one agent loop) | B | partial |
+| P7 | Weak models: malformed tool arguments, loops after a refusal | Strike limit ends loops | Measure and document per model | backlog (S62: the survives-a-refusal task measures looping after a refusal per model) | B | partial |
 | P8 | No public support matrix and no per-runtime conformance test | none | Matrix: runtime by assurance level, with a test each | gateway doc P5 | B | open |
 | P10 | OpenCode 1.18.35 starts but fails under the gateway with an unexplained server error (run config via `opencode.json` and `-m asp/<model>`); not yet working | Goose, Codex and Claude Code work through the gateway | Debug OpenCode's server mode and its provider config | S59 | B | open |
 | P11 | Gemini CLI 0.63.0 installed but not checked: it talks the Gemini API (not judged) and needs a Gemini API key, not the subscription login | none | Gemini API support in the gateway and a key | S59 | B | open |
@@ -128,3 +128,13 @@ Added 2026-10-09 (P4):
 | SB6 | The Docker backend runs the agent inside a Linux image, so the agent's program must exist in that image; host-installed agents (Windows binaries, tools under the home folder) cannot run in it | Linux and WSL hosts use bubblewrap with the host's programs | Prebuilt images per common agent (Goose, Aider, OpenCode, Codex) | S61 | B | open |
 | SB7 | The Docker relay container and the internal network are removed when the agent exits normally; a crash of `asp` itself could leave them behind | Names carry a run id; `docker ps -a` shows them | A sweep command | S61 | C | open |
 | X4 | The live evaluations were scripts outside the repo, so nobody else could rerun them | Recorded in the live-run checklist | Moved into `evals/` as parameterised, self-checking evaluations with a runner (`npm run evals`) | evals/README.md | A | closed |
+
+
+Added 2026-10-09 (canary and model matrix):
+
+| ID | Gap | Covered today by | Fix | Detail | Pri | Status |
+|---|---|---|---|---|---|---|
+| CM1 | The canary suite is run by hand; nothing triggers it when memory is updated, the runtime is swapped, or a provider changes a model | `asp canary run --baseline` | Run it from `asp run` write-back and backend swap, and record the result as evidence on the lineage edge | S62 | A | open |
+| CM2 | Six tasks are a smoke test, not coverage: no multi-step tasks, no memory-recall task, no tasks per Mandate scope, no adversarial suite | The default suite | Grow the suite; per-agent suites written by the principal; held-out tasks | S62 | B | open |
+| CM3 | The matrix uses one agent loop (the reference agent) and free-tier models; results for a real runtime (Claude Code, Codex) or paid models may differ | The canary can drive any agent that uses a model API | Matrix rows for real runtimes and paid models | S62 | B | open |
+| CM4 | Checks are regular expressions and counts; an answer can be correct but phrased unexpectedly, or wrong in a way a regex accepts | Several checks per task | A judge model or exact-answer tasks | S62 | B | open |

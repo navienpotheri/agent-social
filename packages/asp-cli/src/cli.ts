@@ -31,6 +31,7 @@
  *     ANTHROPIC_BASE_URL point at a local proxy that removes tool calls the Mandate does not allow from the model's reply before the
  *     agent sees them (streams are relayed live, each tool call held until it is judged), holds calls on gated scopes for the principal's signed
  *     answer, counts strikes, stops on probing or when the contract ends or is revoked, and reports the Action (assurance gateway_enforced) when it finishes.
+ *     --capture <file> writes the agent's standard output to a file (used by asp canary).
  *     P4: --sandbox [--sandbox-backend auto|bwrap|docker] [--sandbox-image <image>] [--project <dir>] [--sandbox-bind <path>[:rw] ...] runs the command in a sandbox
  *     (bubblewrap on Linux and WSL; Docker elsewhere, where the command runs inside --sandbox-image, default python:3.13-alpine, and must exist in it):
  *     no network unless the Mandate grants shell.network or web.read (it reaches the gateway through a relay), the system read-only, home hidden,
@@ -40,6 +41,11 @@
  *     ASP_LOG_URL points at a service with a commons) and writes mcp.json for the agent (ASP_MCP_CONFIG). --package <dir> loads the agent's
  *     memory from its package and writes what it saves back, merged and budgeted, as a signed lineage update. --mcp <name>=<https url> |
  *     <name>=stdio:<command> [args] (repeatable) puts the agent's other MCP servers behind the gateway: every tools/call is judged as mcp.<name>.<tool>.
+ *   asp canary run --target <file | openrouter:<model>> [--suite <file>] [--trials n] [--only id,id] [--out report.json] [--baseline report.json] | compare <baseline> <current> | list
+ *     The canary suite (docs/gaps-register.md D1, D2): small fixed tasks with checks, run against an agent through the gateway in a throwaway home.
+ *     A report saved with --out is a baseline; running again with --baseline (or asp canary compare) flags a task that used to pass and does not
+ *     (REGRESSION) and growth in tokens, tool calls, time or blocked attempts (drift). The default suite is canary/default-suite.json; the reference
+ *     agent (src/reference-agent.mjs) lets any OpenAI-compatible model be tested: --target openrouter:<model>.
  *   asp known-bad add --report <upheld-report> --by <did> [--fingerprint <asp://shell-command#sha256:...> | --all] [--note <text>] | list
  *     The list is the log service's (ASP_LOG_URL; adding needs an admin token) or <home>/known-bad.json. Without --fingerprint the
  *     candidates are the shell commands shared by 3+ agents (asp watch) that include the reported job. asp run --contract gives the
@@ -245,11 +251,13 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
+import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { createLogServer, hashToken, postgresHandle, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
   b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
@@ -339,6 +347,12 @@ const OPTIONS = {
   sandbox: { type: "boolean" },
   "sandbox-bind": { type: "string", multiple: true },
   "sandbox-backend": { type: "string" },
+  capture: { type: "string" },
+  target: { type: "string" },
+  suite: { type: "string" },
+  trials: { type: "string" },
+  baseline: { type: "string" },
+  only: { type: "string" },
   "sandbox-image": { type: "string" },
   package: { type: "string" },
   title: { type: "string" },
@@ -473,6 +487,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "snapshot") return await logSnapshot(home, io);
     if (cmd === "log" && sub === "export") return await logExport(home, v, need, io);
     if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
+    if (cmd === "canary") return await canaryCmd(sub, rest, v, io);
     if (cmd === "gateway") return await gatewayCmd(home, [sub, ...rest].filter((x): x is string => !!x), v, need, io);
     if (cmd === "known-bad") return await knownBadCmd(home, sub, v, need, io);
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
@@ -960,6 +975,59 @@ function memoryBudget(v: Values): MemoryBudget {
 }
 
 /**
+ * asp canary run|compare|list: a fixed set of small tasks with checks, run against an agent configuration so that a model swap, a memory update or a
+ * new runtime shows up as a measured difference (packages/asp-cli/src/canary.ts, canary/default-suite.json).
+ */
+async function canaryCmd(sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const load = <T>(file: string): T => JSON.parse(readFileSync(resolve(io.cwd, file), "utf8")) as T;
+  const suitePath = v.suite ?? fileURLToPath(new URL("../../../canary/default-suite.json", import.meta.url));
+  if (sub === "list") {
+    const suite = load<CanarySuite>(suitePath);
+    io.out(`${suite.name}: ${suite.tasks.length} tasks`);
+    for (const t of suite.tasks) io.out(`  ${t.id.padEnd(22)} ${t.probes ?? ""}  (${t.checks.length} checks, scopes ${(t.scopes ?? ["repo.read"]).join(",")}, ${t.trials ?? 3} trials)`);
+    return 0;
+  }
+  if (sub === "compare") {
+    if (rest.length < 2) throw new UsageError("usage: asp canary compare <baseline.json> <current.json>");
+    const cmp = compareReports(load<CanaryReport>(rest[0]), load<CanaryReport>(rest[1]));
+    io.out(formatComparison(cmp));
+    return cmp.regressions.length ? 1 : 0;
+  }
+  if (sub !== "run") throw new UsageError("usage: asp canary run --target <file | openrouter:<model>> [--suite <file>] [--trials n] [--only id,id] [--out report.json] [--baseline report.json] | compare <baseline> <current> | list");
+  const t = v.target;
+  if (!t) throw new UsageError("--target is a JSON file describing the agent, or openrouter:<model> for the reference agent on that model");
+  let target: CanaryTarget;
+  if (t.startsWith("openrouter:")) {
+    const key = io.env.ASP_OR_KEY ?? io.env.OPENROUTER_API_KEY;
+    if (!key) throw new UsageError("openrouter targets need the key in ASP_OR_KEY or OPENROUTER_API_KEY");
+    const model = t.slice("openrouter:".length);
+    target = { name: model, command: ["{node}", "{reference-agent}", "--model", model, "--prompt", "{prompt}"], env: { ASP_OR_KEY: key }, gatewayFlags: ["--openai-upstream", "https://openrouter.ai/api/v1", "--openai-key-env", "ASP_OR_KEY"] };
+  } else target = load<CanaryTarget>(t);
+  const suite = load<CanarySuite>(suitePath);
+  const trials = v.trials === undefined ? undefined : Math.trunc(Number(v.trials));
+  if (trials !== undefined && (!Number.isInteger(trials) || trials < 1)) throw new UsageError("--trials must be a whole number, at least 1");
+  io.err(`canary ${suite.name} on ${target.name}`);
+  const report = await runCanary({
+    suite, target, trials, only: v.only?.split(",").map((x) => x.trim()),
+    run: async (args, env, cwd) => {
+      const out: string[] = [], err: string[] = [];
+      const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env: { ...io.env, ...env }, cwd, raw: () => {} });
+      return { code, out: out.join("\n"), err: err.join("\n") };
+    },
+    log: (l) => io.err(l),
+  });
+  io.out(formatReport(report));
+  if (v.out) { writeFileSync(resolve(io.cwd, v.out), JSON.stringify(report, null, 2) + "\n"); io.out(`report written to ${v.out}`); }
+  if (v.baseline) {
+    const cmp = compareReports(load<CanaryReport>(v.baseline), report);
+    io.out("");
+    io.out(formatComparison(cmp));
+    return cmp.regressions.length ? 1 : 0;
+  }
+  return report.totals.passedTasks === report.totals.tasks ? 0 : 1;
+}
+
+/**
  * asp gateway: runs any agent process under a contract's Mandate through the ASP gateway (docs/gateway-design.md, P0).
  * The agent is pointed at the gateway with OPENAI_BASE_URL / ANTHROPIC_BASE_URL; tool calls the Mandate does not allow
  * are removed from the model's reply before the agent sees them. Without a command it serves until interrupted.
@@ -1141,10 +1209,16 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         }
         io.err(`  sandbox  docker (${sandboxImage}): ${sandboxNet ? "network kept (the Mandate grants a network scope)" : "internal network; a relay container is the only way out, to the gateway"}; project ${mandate.scopes.includes("repo.write") ? "writable" : "read-only"}; read-only root; capabilities dropped; environment is only what the gateway sets`);
       }
-      const child = spawn(program, programArgs, { cwd: io.cwd, stdio: "inherit", env: spawnEnv });
+      // --capture <file> keeps the agent's standard output (and still shows it), for evaluations that check what the agent said.
+      const capturing = !!v.capture;
+      const child = spawn(program, programArgs, { cwd: io.cwd, stdio: capturing ? ["ignore", "pipe", "inherit"] : "inherit", env: spawnEnv });
       child.on("close", () => { for (const c of dockerRun?.cleanup ?? []) spawnSync("docker", c, { stdio: "ignore" }); });
       child.on("error", (e) => { io.err(`could not start ${command[0]}: ${e.message}`); done(-1); });
-      child.on("exit", (c) => done(c ?? 1));
+      if (capturing) {
+        const chunks: Buffer[] = [];
+        child.stdout!.on("data", (c: Buffer) => { chunks.push(c); (io.raw ?? ((b: Buffer) => process.stdout.write(b)))(c); });
+        child.on("close", (c) => { writeFileSync(v.capture!, Buffer.concat(chunks)); done(c ?? 1); });
+      } else child.on("exit", (c) => done(c ?? 1));
     });
   } else {
     await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });

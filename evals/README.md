@@ -24,6 +24,8 @@ node evals/swarm.mjs                   # or any one of them directly
 | `gateway-claude-code.mjs` | 5 | Real Claude Code, streaming, no hook installed: the curl call is refused before it receives it. | `claude` |
 | `gateway-claude-memory.mjs` | 4 | A note saved in one Claude Code session through the gateway's MCP tools is written back to the package as a signed lineage update, and a fresh session answers from it. | `claude` |
 | `known-bad.mjs` | 3 | An upheld report lists a command; a real agent with the scope granted is blocked from running it, and it counts as a strike. | `claude` |
+| `canary-suite.mjs` | P | The default canary suite on one model, compared with a stored baseline in `evals/baselines/` (`--save-baseline` creates it): a task that used to pass and does not is a failure; cost or blocked-attempt growth is drift. | OpenRouter key |
+| `model-matrix.mjs` | P | The canary suite across several open-weight models; writes `docs/model-matrix.md`. Slow (minutes per model); not in `run-all` by default. | OpenRouter key |
 | `service-two-machines.mjs` | 1, 4, 6 | A shared log service, two tenants, three homes; concurrent real runs of one agent; a stale push is refused and a merge keeps both lessons; the commons across tenants; credits conserved; the service restarts without loss. Set `ASP_EVAL_DATABASE_URL` for Postgres. | `claude` |
 | `trial-three-jobs.mjs` | 2 | A gated approval with a strike, settlement on silence, and a ruled dispute with a drawn panel and a slash, with real Claude Code and Codex; credits conserved. | `claude`, `codex` |
 
@@ -45,4 +47,4 @@ An evaluation with a model or a real agent is probabilistic. `?` means the agent
 
 ## What is not here yet
 
-The canary and regression suite, the model matrix, the before/after comparison for a provider, scale through the service and a per-runtime support matrix (rows D1, D2, P6, P8, O6, X1 of the gaps register). New evaluations should use `lib/common.mjs`: `session` for a throwaway home driven through the real CLI, `Eval` for named checks, `gateway` for a run under the gateway.
+The before/after comparison for a provider, scale through the service, a per-runtime support matrix, and triggering the canary automatically (rows CM1, P8, O6, X1 of the gaps register). New evaluations should use `lib/common.mjs`: `session` for a throwaway home driven through the real CLI, `Eval` for named checks, `gateway` for a run under the gateway.
