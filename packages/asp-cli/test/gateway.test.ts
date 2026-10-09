@@ -1,7 +1,7 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { main, type Io } from "../src/cli.ts";
@@ -220,17 +220,23 @@ test("asp gateway stops the agent when the contract is revoked mid-run, and reco
 import { writeFileSync } from "node:fs";
 for (let i = 0; i < 100; i++) {
   const r = await fetch(process.env.OPENAI_BASE_URL + "/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer x" }, body: JSON.stringify({ model: "m", messages: [] }) });
+  if (i === 2) writeFileSync(process.env.AGENT_STARTED, "up");
   if (r.status === 403) { writeFileSync(process.env.AGENT_OUT, "STOPPED after " + i + " requests: " + (await r.json()).error.message); process.exit(0); }
   await new Promise((r) => setTimeout(r, 150));
 }
 writeFileSync(process.env.AGENT_OUT, "NEVER STOPPED");
 `;
+  // Revoke once the agent is really running (it has made three requests), not after a fixed wait: how long the gateway takes to start depends on the machine's load.
+  const started = join(mkdtempSync(join(tmpdir(), "gw-started-")), "started");
   const revoke = (async () => {
-    await new Promise((r) => setTimeout(r, 1200));
+    for (let waited = 0; !existsSync(started); waited += 50) {
+      if (waited > 60_000) throw new Error("the agent never got going");
+      await new Promise((r) => setTimeout(r, 50));
+    }
     return asp(f, ["market", "settle", "--contract", contract, "--bank", BANK, "--basis", "revoked", "--principal", ALICE, "--escrow-released", "0", "--bond-slashed", "0", "--bond-returned", "200", "--pro-rata", "0"]);
   })();
   const [run, settled] = await Promise.all([
-    asp(f, ["gateway", "--contract", contract, "--by", CODER, "--max-strikes", "1000", "--openai-upstream", upstream, "--", process.execPath, "--input-type=module", "-e", LOOP], { AGENT_OUT: out, ASP_GATEWAY_POLL_MS: "200", ASP_GATEWAY_FLUSH_MS: "300" }),
+    asp(f, ["gateway", "--contract", contract, "--by", CODER, "--max-strikes", "1000", "--openai-upstream", upstream, "--", process.execPath, "--input-type=module", "-e", LOOP], { AGENT_OUT: out, AGENT_STARTED: started, ASP_GATEWAY_POLL_MS: "200", ASP_GATEWAY_FLUSH_MS: "300" }),
     revoke,
   ]);
   assert.equal(settled.code, 0, settled.err);
@@ -247,8 +253,14 @@ writeFileSync(process.env.AGENT_OUT, "NEVER STOPPED");
   assert.ok(metrics.some((m) => m.models.some((x: any) => x.name === "m")), "the model name is recorded");
   const requests = metrics.reduce((n, m) => n + m.requests, 0);
   assert.ok(requests >= 2);
-  assert.equal(metrics.reduce((n, m) => n + m.tokens_in, 0), 7 * requests);
-  assert.equal(metrics.reduce((n, m) => n + m.tokens_out, 0), 3 * requests);
+  const reported = { in: metrics.reduce((n, m) => n + m.tokens_in, 0), out: metrics.reduce((n, m) => n + m.tokens_out, 0) };
+  assert.equal(reported.in * 3, reported.out * 7, "only whole replies are counted");
+  // A settled job takes no more Actions, so replies that finished after the last Action was recorded before the revoke are missing from the Actions (how many depends on how far the reports lagged); the run log has every reply.
+  const { readRunLog } = await import("@agent-social/asp-package");
+  const logged = readRunLog(/run log {2}(\S+run-log\.ndjson)/.exec(run.err)![1]).events.filter((e) => e.kind === "model_reply").map((e) => e.data as any);
+  assert.ok(logged.length >= 2);
+  assert.equal(logged.reduce((n, d) => n + d.tokens_in, 0), 7 * logged.length);
+  assert.ok(reported.in >= 7 && reported.in <= 7 * logged.length, "the Actions hold at least the first reply and never more than the run log");
 });
 
 // ---- P2: MCP and memory ----

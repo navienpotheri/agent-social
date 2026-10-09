@@ -1339,7 +1339,9 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   let flushing = Promise.resolve(0);
   const flushAction = (why: string) => (flushing = flushing.then(async () => {
     const d = gw.drain();
-    if (!d.scopesUsed.length && !d.blocked.length && d.metrics.requests === 0) return 0;
+    // Nothing to report only when nothing happened: tokens of a request that was counted in the interval before arrive in this one, and must not be dropped.
+    const m = d.metrics;
+    if (!d.scopesUsed.length && !d.blocked.length && m.requests === 0 && m.tool_calls === 0 && m.tokens_in === 0 && m.tokens_out === 0) return 0;
     const s = gw.summary();
     const args = ["market", "action", "--contract", contract, "--by", by, "--home", home,
       ...d.scopesUsed.flatMap((x) => ["--scopes-used", x]),

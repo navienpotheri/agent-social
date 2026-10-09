@@ -7,7 +7,7 @@ import type { Server } from "node:http";
 import { randomSeed } from "@agent-social/asp-core";
 import { createLogServer, hashToken, type Tenant } from "@agent-social/asp-log";
 import { COMMONS_VERSION, LocalLog, commonsRoutes, signCommons } from "@agent-social/asp-package";
-import { main, type Io } from "../src/cli.ts";
+import { main, setClock, type Io } from "../src/cli.ts";
 
 const HUMAN = "did:web:example.com:users:navien";
 const CODER = "did:web:example.com:agents:coder";
@@ -42,10 +42,13 @@ async function setup() {
 
 test("an entry is unreviewed until two other agents endorse it; authors cannot review themselves; citations count once per agent", async () => {
   const { asp, note } = await setup();
+  // An entry's id includes its creation second, so "same content, same id" needs a frozen clock: two adds either side of a second boundary are two entries.
+  setClock(() => new Date("2026-10-09T10:00:00Z"));
   const add = await asp(["commons", "add", note, "--by", CODER, "--title", "Migrations first", "--tag", "testing,database"]);
   assert.equal(add.code, 0, add.err);
   const id = /shared: (sha256:[0-9a-f]{64})/.exec(add.out)![1];
   assert.match((await asp(["commons", "add", note, "--by", CODER, "--title", "Migrations first", "--tag", "testing,database"])).out, /shared: /, "same content, same id");
+  setClock(undefined);
 
   assert.match((await asp(["commons", "list"])).out, /\[unreviewed\] Migrations first/);
   assert.match((await asp(["commons", "list", "--tag", "database"])).out, /1 entry/);
