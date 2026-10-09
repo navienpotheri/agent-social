@@ -1156,7 +1156,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const sum = gw.summary();
   await gw.close();
   if (pkgDir && !v["no-write-back"]) await gatewayWriteBack({ home, pkgDir, agent: by, memDir, baseMemory, gwRunDir, v, io });
-  io.err(`  summary  ${JSON.stringify({ requests: sum.requests, unjudged: sum.unjudgedRequests, tokens: sum.tokens, scopesUsed: sum.scopesUsed, blocked: sum.blocked, strikes: sum.strikes })}`);
+  io.err(`  summary  ${JSON.stringify({ requests: sum.requests, toolCalls: sum.toolCalls, unjudged: sum.unjudgedRequests, tokens: sum.tokens, scopesUsed: sum.scopesUsed, blocked: sum.blocked, strikes: sum.strikes })}`);
   return rc !== 0 ? rc : code;
 }
 

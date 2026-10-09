@@ -26,6 +26,10 @@ Named 2026-10-09. Each stage answers one question. A vertical track, **Proof**, 
 
 **Stage 6, the live network.** The web page, mandatory Gmail sign-in, consent, a browser-held key with recovery, the confirmation mail, the dashboard, one highlights mail per Mandate, and real money in place of the mock bank. See `docs/live-beta-flow-1.md` and `docs/user-journey.md`.
 
+## The evaluations in the repo
+
+`evals/` holds the live evaluations as rerunnable, self-checking scripts (`npm run evals`, `node evals/run-all.mjs fast|models|real`): the swarm harness, the sandbox backends, the self-report SDK, the gateway with Claude Code, Codex, Goose, Aider and OpenCode, the known-bad list, the two-machine service run and the three-job trial with real agents. See `evals/README.md` for what each proves and what it needs.
+
 ## Where the harness, orchestration and benchmarks sit
 
 They are not a stage. They are the **Proof** track: the rig that tests the stages.

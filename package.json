@@ -10,7 +10,9 @@
     "test": "npm test --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "vectors": "node conformance/generate.ts",
-    "asp": "node packages/asp-cli/src/cli.ts"
+    "asp": "node packages/asp-cli/src/cli.ts",
+    "evals": "node evals/run-all.mjs",
+    "evals:fast": "node evals/run-all.mjs fast"
   },
   "engines": {
     "node": ">=22.18"
