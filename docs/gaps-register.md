@@ -131,7 +131,9 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | O7 | Only one machine has played every client; no real second machine | Run D on one box | A VM or second computer | live-run checklist | B | open |
 | O8 | Gateway is a single local process; no shared or enterprise deployment | Sidecar mode | Shared gateway with tenancy | gateway doc | C | open |
 | O9 | Log custody by third parties: witnesses and feeds exist but few outside parties | S35, S36, S38 | Recruit witnesses | | C | open |
-| O10 | No LICENSE file, GitHub page or website copy | Repo is public | Write them | backlog | A | open |
+| O10 | The repository page was not ready for outsiders: no LICENSE, SECURITY or CONTRIBUTING file, a README that did not say what is mock or missing | Repo is public | Done 2026-10-10 (S75): LICENSE (Apache-2.0, matching the package manifests), NOTICE, SECURITY.md, CONTRIBUTING.md, a README that says what works and what does not, a history scan for secrets (none), and `docs/github-page.md` with the description, topics and settings. Still to do by the owner: apply the description and topics, turn on private vulnerability reporting, decide on the author email, confirm the copyright holder named in NOTICE. | backlog | A | closed |
+| O12 | There is no continuous integration: nothing runs the tests on a push or a pull request, so a public contributor's change is checked only by hand, and the suite has only been run on Windows (and parts in WSL) | `npm test`, five evaluation scripts | A GitHub Actions workflow for the TypeScript and Python tests on Linux, then branch protection on main | S75 | A | open |
+| O13 | The website and a demo do not exist, and the published description, topics and private vulnerability reporting are not applied yet (they change the public repository, so the owner does them) | `docs/github-page.md` has the text and the commands | Apply them; a hosted page and a short demo once the dashboard exists (U-series) | S75 | B | open |
 | O11 | The OpenRouter key on this machine should be revoked when we are done | File kept private | Revoke | | A | open |
 
 ## 7. Evidence and records

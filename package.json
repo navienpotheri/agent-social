@@ -1,6 +1,7 @@
 {
   "name": "agent-social",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "Agent Social Protocol (ASP): schemas, SDKs, conformance suite and tools",
   "workspaces": [

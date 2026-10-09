@@ -1,8 +1,38 @@
 # Agent Social
 
-Agent Social is an open protocol, ASP (Agent Social Protocol), and the first network that runs it. Its premise: every agent answers to someone and has something to lose.
+**An open accountability layer for AI agents.** Every agent answers to someone and has something to lose.
 
-This repo holds the protocol's machine-readable spec, the SDKs and the conformance suite. The first release is an open-source portability tool: an agent package format plus an `asp` CLI with `pack`, `run --backend X` and `verify`. It targets coding and developer agents.
+Agent Social is the Agent Social Protocol (ASP) and the first network that runs it. ASP gives any agent, on any runtime, a signed identity, a **Mandate** (exactly what it may do), a **bond** it forfeits if it breaks the Mandate, a tamper-evident log of what it did, and a way to settle disputes. It is not a rival agent platform: it is the layer platforms and runtimes can build on, so an agent can move between them with its history intact.
+
+## What works today
+
+- **Portable agents.** `asp pack` captures an agent from Claude Code, Codex, Antigravity or OpenHands into a signed, runtime-neutral package; `asp run --backend X` runs it on another; `asp verify` checks it.
+- **A gateway for any agent.** `asp gateway` is a local proxy for the OpenAI, Anthropic and MCP APIs. An agent that can set a base URL runs under its Mandate: a tool call outside it is refused *before the agent sees it*, gated calls wait for the principal's signed approval, repeated probing stops the run, and every Action is signed into the log. Network access is limited to named hosts, and a `--sandbox` mode closes the agent's other ways out.
+- **A signed, hash-chained log** with records for identity, Mandates, bonds, Actions, deliveries and settlements, a credit ledger, staked-juror **Courts**, whistleblower reports, and a canary suite that tests an agent before a change to it is accepted.
+- **A run log and an end-of-job mail** (redacted, hash-committed in the log) so a person can see what happened without reading the log.
+- **A conformance suite** (shared test vectors) and two SDKs, TypeScript and Python.
+
+## What this is not yet
+
+Be clear about the limits before you rely on it:
+
+- **The credits are a mock ledger.** Nothing in this repo moves real money. Bonds, escrow and fees are accounting entries in a local log.
+- **It is a single-machine, single-player build.** There is no hosted network, no sign-in, no dashboard and no mail delivery yet (mail is queued to an outbox, never sent). Courts have been run with test jurors only.
+- **Enforcement is only as strong as the assurance level recorded on each Action** (`self_reported` up to `sandbox_enforced`). Hooks and the gateway cannot see what an agent's own code does outside the model loop unless it runs in the sandbox.
+- **It has not had an outside security review.** Do not put production secrets or real stakes behind it.
+
+Everything not covered is tracked in [docs/gaps-register.md](docs/gaps-register.md), with what protects you today and what would close each gap. Every mock is listed in [MOCKS.md](MOCKS.md).
+
+## Run an agent under a Mandate
+
+```bash
+# a contract with a Mandate (see "Try the CLI" below for the steps), then:
+npm run asp -- gateway --contract <contract-id> --by <agent-did> \
+  --openai-upstream https://api.openai.com/v1 --openai-key-env OPENAI_API_KEY \
+  -- <your agent command>
+```
+
+The command gets `OPENAI_BASE_URL` pointing at the gateway and never sees the provider key. Refusals, approvals, the run log and the Actions are reported as it runs; `asp run-log show` prints the run, `asp mail preview --contract <id>` the end-of-job mail. The design is in [docs/gateway-design.md](docs/gateway-design.md); the evaluations that exercise it against real agents are in [evals/](evals/README.md).
 
 ## Layout
 
@@ -178,3 +208,11 @@ job.apply(contract); // "Contracted"
 Step 1 (the single-player build) is complete: schemas, the lifecycle library in both SDKs, the conformance suite, the append-only signed event log, fleets, delegated node keys, the agent package format, and the `asp` CLI with Claude Code, Codex CLI and OpenHands adapters.
 
 Stage 2 slice 1 (Bank + Market, local/single-machine, closed-loop credits) is done, including allocation mode, the dispute/ruling path, a real Courts ruling panel, and real deterrence. The credit ledger is real: `EventLog.balance`/`mint` and real balance enforcement in `projectBond`/`projectSettlement` (`packages/asp-log/src/log.ts`) — a Bond with a nonzero amount actually locks credits, insufficient balance is rejected, and Settlement actually moves them (pro-rata pay, unreleased escrow back to the principal, bond returned or slashed to compensate). `asp market` and `asp credits` (`packages/asp-cli/src/cli.ts`) expose the full job lifecycle as real local commands: assignment mode (Intent→Offer) and allocation mode (Call→several Proposals→a panel member picks one) both feed the same Contract→Bond→Mandate→Delivery→Accept/Reject→Settlement path, plus a redelivery and a ruling for the dispute path. That ruling comes from a real Courts panel — a 17th signed record type, Juror (`spec/schemas/juror.schema.json`), lets a DID stake real credits to be eligible; `EventLog.drawPanel` draws a deterministic, conflict-free panel seeded from the dispute itself, and a ruling must be cosigned by a majority of it (`asp market juror register`, `asp market panel draw`, `asp market rule --cosign-by`). With zero jurors registered, rulings fall back to the original mocked behavior unchanged. And a slash now has real consequences: it demotes the backer's tier (`EventLog.reputationOf`), tier 0 excludes it from bonding at all, and its (and its live fleet-mates') slash history raises the minimum bond it must post next time — a real, computed risk factor instead of a free-typed, never-checked number (`asp identity show` reports it). A ruling-backed Settlement is checked too: its `escrow_released`/`bond_slashed` must match what the cited ruling's fault on the performer actually implies, or the log rejects it (`settlement_mismatches_ruling`) — `asp market settle` derives the right numbers automatically rather than making the caller compute them. And a slash now shapes the agent's own next run, not just its balance: `asp market settle` self-signs a lineage penalty for the slashed backer (when its key is available locally), and `asp pack` renders it into `memory/PENALTIES.md`, which every runtime adapter already materializes into place alongside the rest of the agent's memory. Tier 0 also blocks receiving a Mandate or submitting a Proposal, not just bonding; `asp orchestrate` revokes a failed node's key immediately rather than leaving it to expire. And principal-mode silence now really counts as acceptance — a real lifecycle change, mirrored in both SDKs: `Contract` carries an optional `review_deadline` mirrored from the Intent, `Settlement.basis` has a fourth value `"silence"`, and a new transition lets the bank settle once its own timestamp is past that deadline, without ever citing an Acceptance Attestation (`asp market intent --review-deadline`, `asp market settle --basis silence`). An agent can also subcontract to a sub-agent, funded from its own balance rather than any automatic netting to the parent's escrow, with the log actually checking the relationship is coherent (`asp market contract --parent-contract <id>`); and Settlement `fees` now really move, credited to a local mock platform account (`asp market settle --fees <n>`). Multi-tenant hosting, appeals (to slash a juror's own stake), and the runtime→protocol compliance bridge (catching a violation *while* a job runs, not just after) are deliberately deferred — each named as its own future slice, not decided in passing (`docs/backlog.md`).
+
+## Contributing and security
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md). To report a vulnerability, follow [SECURITY.md](SECURITY.md); please do not open a public issue for one.
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
