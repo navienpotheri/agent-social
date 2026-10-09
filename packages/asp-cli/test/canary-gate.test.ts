@@ -39,7 +39,7 @@ test("the canary gates a change: the first becomes the baseline, a regression is
   writeFileSync(target, JSON.stringify({ name: "stub", command: ["{node}", fileURLToPath(new URL("./canary-stub.mjs", import.meta.url)), "{package}", "{prompt}"], gatewayFlags: ["--openai-upstream", "http://127.0.0.1:1/v1"] }));
 
   const setup = await ok(f, ["canary", "setup", "--agent", AGENT, "--backend", "claude-code", "--target", target, "--suite", suite, "--canary-gate", "block", "--trials", "1"]);
-  assert.match(setup.out, /gate block; no baseline yet/);
+  assert.match(setup.out, /gate block[\s\S]*no baseline yet/);
   const run = (extra: string[] = [], env: NodeJS.ProcessEnv = {}) => asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", ...extra], fake(env));
 
   // 1. A harmless memory update: the canary runs, there is no baseline, so this run becomes it; the edge cites a certificate.
@@ -92,4 +92,79 @@ test("the canary gates a change: the first becomes the baseline, a regression is
   assert.equal(skipped.code, 0, skipped.err);
   assert.doesNotMatch(skipped.err, /canary/);
   assert.equal(existsSync(join(f.aspHome, "canary")), true);
+});
+
+async function setupAgent() {
+  const f = makeFixture();
+  await ok(f, ["identity", "new", "--kind", "human", "--did", HUMAN]);
+  await ok(f, ["identity", "new", "--kind", "agent", "--did", AGENT, "--sponsor", HUMAN]);
+  const pkg = join(f.root, "coder.aspkg");
+  await ok(f, ["pack", "--runtime", "claude-code", "--agent", AGENT, "--project", f.project, "--user-home", f.home, "--out", pkg]);
+  const suite = join(f.root, "suite.json");
+  const target = join(f.root, "target.json");
+  writeFileSync(suite, JSON.stringify({ name: "gate-test", tasks: [{ id: "answers-ok", prompt: "say ok", trials: 1, checks: [{ kind: "exit_ok" }, { kind: "answer_matches", pattern: "^OK$" }] }] }));
+  writeFileSync(target, JSON.stringify({ name: "stub", command: ["{node}", fileURLToPath(new URL("./canary-stub.mjs", import.meta.url)), "{package}", "{prompt}"], gatewayFlags: ["--openai-upstream", "http://127.0.0.1:1/v1"] }));
+  return { f, pkg, suite, target };
+}
+
+test("setup --package takes the baseline now, so the very first change is compared instead of becoming the baseline", async () => {
+  const { f, pkg, suite, target } = await setupAgent();
+  const setup = await ok(f, ["canary", "setup", "--agent", AGENT, "--backend", "claude-code", "--target", target, "--suite", suite, "--canary-gate", "block", "--trials", "1", "--package", pkg]);
+  assert.match(setup.out, /baseline saved for/);
+  const blocked = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi"], fake({ FAKE_CLAUDE_LEARN_FILES: "1" }));
+  assert.equal(blocked.code, 0, blocked.err);
+  assert.doesNotMatch(blocked.err, /no baseline for/);
+  assert.match(blocked.err, /REGRESSION answers-ok/);
+  assert.match(blocked.err, /the change was NOT written back/);
+  assert.equal(topics(pkg).includes("lesson-00.md"), false, "the first change was already refused");
+});
+
+test("asp orchestrate consolidates fleet memory only if the canary allows it", async () => {
+  const { f, pkg, suite, target } = await setupAgent();
+  await ok(f, ["canary", "setup", "--agent", AGENT, "--backend", "claude-code", "--target", target, "--suite", suite, "--canary-gate", "block", "--trials", "1", "--package", pkg]);
+  const edgesBefore = lineage(pkg).length;
+  const res = await asp(f, ["orchestrate", pkg, "--backend", "claude-code", "--project", f.project, "--task", "task one", "--task", "task two"], fake({ FAKE_CLAUDE_LEARN_FILES: "1" }));
+  assert.equal(res.code, 0, res.err);
+  assert.match(res.err, /REGRESSION answers-ok/);
+  assert.match(res.err, /the change was NOT written back/);
+  assert.equal(lineage(pkg).length, edgesBefore, "no consolidation edge was recorded");
+  assert.equal(topics(pkg).includes("lesson-00.md"), false);
+
+  // Without the gate (or with warn) the same consolidation goes through and cites its certificate.
+  const warned = await asp(f, ["orchestrate", pkg, "--backend", "claude-code", "--project", f.project, "--task", "task one", "--task", "task two", "--canary-gate", "warn"], fake({ FAKE_CLAUDE_LEARN_FILES: "1" }));
+  assert.equal(warned.code, 0, warned.err);
+  assert.match(warned.err, /recorded consolidated fleet memory.*; canary regressed/);
+  assert.equal(lineage(pkg).at(-1)!.body.change.gates.length, 1);
+});
+
+test("memory written back by asp gateway --package is tested too, under the backend name gateway", async () => {
+  const { f, pkg, suite, target } = await setupAgent();
+  await ok(f, ["canary", "setup", "--agent", AGENT, "--backend", "gateway", "--target", target, "--suite", suite, "--canary-gate", "block", "--trials", "1", "--package", pkg]);
+  // A contract and an upstream for the gateway; the "agent" saves a note through the gateway's memory tool, which the stub treats as confusing if it is named lesson-*.
+  const { createServer } = await import("node:http");
+  const upstream = createServer((req, res) => { req.resume(); res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ id: "c", object: "chat.completion", created: 1, model: "m", choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: "ok" } }] })); });
+  await new Promise<void>((r) => upstream.listen(0, "127.0.0.1", r));
+  try {
+    const bank = "did:web:example.com:bank";
+    await ok(f, ["identity", "new", "--kind", "human", "--did", bank]);
+    await ok(f, ["credits", "grant", "--to", HUMAN, "--amount", "1200"]);
+    await ok(f, ["credits", "grant", "--to", AGENT, "--amount", "300"]);
+    const intent = /^intent (\S+)/.exec((await ok(f, ["market", "intent", "--by", HUMAN, "--purpose", "gateway canary", "--budget", "1000", "--deadline", "2099-01-01T00:00:00Z"])).out)![1];
+    const offer = /^offer (\S+)/.exec((await ok(f, ["market", "offer", "--by", AGENT, "--intent", intent, "--price", "1000", "--plan", "x", "--eta", "2098-01-01T00:00:00Z"])).out)![1];
+    const contract = /^contract (\S+):/.exec((await ok(f, ["market", "contract", "--principal", HUMAN, "--bank", bank, "--intent", intent, "--offer", offer])).out)![1];
+    await ok(f, ["market", "bond", "--contract", contract, "--backer", AGENT, "--amount", "200", "--escrow-payer", HUMAN, "--escrow-amount", "1000"]);
+    await ok(f, ["market", "mandate", "--contract", contract, "--principal", HUMAN, "--performer", AGENT, "--scopes", "repo.read"]);
+    const port = (upstream.address() as { port: number }).port;
+    const SAVE = `
+      const base = process.env.ASP_GATEWAY_URL + "/mcp/asp";
+      const call = (name, args) => fetch(base, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }) }).then((r) => r.json());
+      await call("asp_memory_write", { name: "lesson-00", description: "a lesson", content: "Something that confuses the agent." });`;
+    const edgesBefore = lineage(pkg).length;
+    const run = await asp(f, ["gateway", "--contract", contract, "--by", AGENT, "--package", pkg, "--openai-upstream", `http://127.0.0.1:${port}/v1`, "--", process.execPath, "--input-type=module", "-e", SAVE]);
+    assert.equal(run.code, 0, run.err);
+    assert.match(run.err, /REGRESSION answers-ok/);
+    assert.match(run.err, /the change was NOT written back/);
+    assert.equal(lineage(pkg).length, edgesBefore);
+    assert.equal(topics(pkg).includes("lesson-00.md"), false);
+  } finally { upstream.close(); }
 });
