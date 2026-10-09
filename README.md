@@ -76,7 +76,7 @@ docker compose up -d --wait
 ASP_TEST_DATABASE_URL=postgres://asp:asp-local-dev@127.0.0.1:54329/asp npm test
 ```
 
-Without Docker, use PGlite (Postgres 17 in WebAssembly) served over the wire protocol. Start the server in one terminal:
+Without Docker, PGlite (Postgres 17 in WebAssembly) served over the wire protocol can stand in. **Known problem:** on 2026-10-10 this route failed with connection resets (gaps register O14); use Docker until it is fixed. Start the server in one terminal:
 
 ```bash
 node packages/asp-log/scripts/pglite-server.ts 54330

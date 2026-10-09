@@ -19,3 +19,7 @@ Node 22.18+ runs the TypeScript directly, with no build step. After changing `sp
 - Anything not covered or not live-verified is written down: a row in [docs/gaps-register.md](docs/gaps-register.md) (status is exactly open, designed, partial or closed; never delete a row) and, for what was only tested with stand-ins, an entry in [docs/live-run-checklist.md](docs/live-run-checklist.md).
 - Keep tests honest: a test that depends on timing or on the clock should wait for the condition or freeze the clock, not sleep.
 - By contributing you agree your work is licensed under the Apache License 2.0 (see [LICENSE](LICENSE)).
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs the typecheck, every package's tests, the conformance-vector check, the Python SDK's tests and (not required yet) the log against Postgres. Run the first three locally before you push; the Postgres job is allowed to fail until it has been seen passing (gaps register O12).

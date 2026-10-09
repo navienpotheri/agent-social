@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main, event-log]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # The TypeScript packages: typecheck, every package's tests, and the conformance vectors are the ones the generator produces.
+  node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Conformance vectors are up to date
+        run: |
+          npm run vectors
+          git diff --exit-code conformance/vectors
+
+  # The Python SDK runs the same vectors.
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e "./python[dev]"
+      - run: python -m pytest
+        working-directory: python
+
+  # The event log against real Postgres, the reference store. Not required to pass yet: this job has not run on a hosted runner (docs/gaps-register.md O12).
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: asp
+          POSTGRES_PASSWORD: asp-local-dev
+          POSTGRES_DB: asp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U asp -d asp"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      ASP_TEST_DATABASE_URL: postgres://asp:asp-local-dev@127.0.0.1:5432/asp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test -w @agent-social/asp-log
+      - run: npm test -w @agent-social/asp-cli

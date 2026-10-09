@@ -6,7 +6,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 
 ## Partial: built in part, with work left
 
-25 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
+26 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
 
 | ID | Gap | Priority | What is left |
 |---|---|---|---|
@@ -26,6 +26,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | P5 | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) | B | Check or add per runtime |
 | P6 | No model matrix: which open models call tools reliably | B | Run the swarm scenario across models |
 | P7 | Weak models: malformed tool arguments, loops after a refusal | B | Measure and document per model |
+| O12 | CI exists but has not run on a hosted runner: nothing has shown the workflow passes on GitHub, and branch... | A | Push, read the first run, fix what a hosted runner finds; make the Postgres job required once it passes; set branch protection on main. **Done so far (S76): the... |
 | E2 | The mail and dashboard need a redacted runtime log, which does not exist yet | A | Recorder in the gateway, local store **Done so far (S69): `asp gateway` keeps a redacted, hash-chained run log in the run folder (model requests and replies with token... |
 | E3 | Action's metrics are only a summary string | A | Structured metrics (see D8) **Done so far (S66): the Action has structured metrics. Left: the TypeScript and Python self-report SDKs do not send them.** |
 | E5 | Only `asp gateway` runs keep a run log. `asp run` (Claude Code, Codex, Antigravity, OpenHands through their... | A | Route those runs through the gateway recorder, or write the same events from the adapters' streams **Done so far (S74): `asp run` keeps a run log... |
@@ -132,7 +133,8 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | O8 | Gateway is a single local process; no shared or enterprise deployment | Sidecar mode | Shared gateway with tenancy | gateway doc | C | open |
 | O9 | Log custody by third parties: witnesses and feeds exist but few outside parties | S35, S36, S38 | Recruit witnesses | | C | open |
 | O10 | The repository page was not ready for outsiders: no LICENSE, SECURITY or CONTRIBUTING file, a README that did not say what is mock or missing | Repo is public | Done 2026-10-10 (S75): LICENSE (Apache-2.0, matching the package manifests), NOTICE, SECURITY.md, CONTRIBUTING.md, a README that says what works and what does not, a history scan for secrets (none), and `docs/github-page.md` with the description, topics and settings. Still to do by the owner: apply the description and topics, turn on private vulnerability reporting, decide on the author email, confirm the copyright holder named in NOTICE. | backlog | A | closed |
-| O12 | There is no continuous integration: nothing runs the tests on a push or a pull request, so a public contributor's change is checked only by hand, and the suite has only been run on Windows (and parts in WSL) | `npm test`, five evaluation scripts | A GitHub Actions workflow for the TypeScript and Python tests on Linux, then branch protection on main | S75 | A | open |
+| O12 | CI exists but has not run on a hosted runner: nothing has shown the workflow passes on GitHub, and branch protection on main is not set | `.github/workflows/ci.yml` (Node typecheck, tests and a vectors-up-to-date check; Python tests; Postgres 17 for the log and CLI tests, allowed to fail for now). The same tests, run from a clean `git archive` in WSL Ubuntu (Linux, Node 24, `npm ci`), passed 203 + 170 + 129 + 83, with and without bubblewrap | Push, read the first run, fix what a hosted runner finds; make the Postgres job required once it passes; set branch protection on main. **Done so far (S76): the workflow, and the Linux run above.** | S75 | A | partial |
+| O14 | What CI does not cover: Windows and macOS (the author's machine is Windows), Node 22.18 (the declared minimum; only 24 was run), the Python SDK on Linux (no Linux Python environment was available to test it), the real-agent evaluations (they need installed agents and paid keys), and the PGlite route in the README, which failed with connection resets when tried on 2026-10-10 | Windows runs by hand; the Linux run in WSL | Add a Windows job and a Node 22.18 job; fix or remove the PGlite instructions; run the evaluations on a schedule with a repository secret | S76 | B | open |
 | O13 | The website and a demo do not exist, and the published description, topics and private vulnerability reporting are not applied yet (they change the public repository, so the owner does them) | `docs/github-page.md` has the text and the commands | Apply them; a hosted page and a short demo once the dashboard exists (U-series) | S75 | B | open |
 | O11 | The OpenRouter key on this machine should be revoked when we are done | File kept private | Revoke | | A | open |
 
