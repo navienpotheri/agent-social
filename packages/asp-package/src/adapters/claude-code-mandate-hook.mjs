@@ -7,7 +7,7 @@
 // Claude Code treats any other failure of a hook as "do not block", so this hook fails CLOSED: any
 // error at all (bad input, a missing or corrupt Mandate file) blocks. It makes no network calls.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -48,6 +48,25 @@ export function scopeOfCall(event) {
  * irreversible policy: a granted scope it names needs the principal's approval (`mode: "ask"`, the
  * call is held until a signed resolution answers it) or is forbidden outright (`mode: "deny"`).
  */
+
+/**
+ * The known-bad check: a shell command whose fingerprint an upheld report has marked harmful is blocked even
+ * when its scope is granted. Copy of unwrapShell/normalizeCommand/shellArtifact in codex-actions.ts (a test keeps them in step).
+ */
+function unwrapShell(command) {
+  const m = /^\s*"?[^"]*?(?:powershell|pwsh)(?:\.exe)?"?\s+(?:-\w+\s+)*-Command\s+(.+)$/is.exec(command)
+    ?? /^\s*"?[^"]*?(?:bash|sh|zsh)(?:\.exe)?"?\s+-\w*c\s+(.+)$/is.exec(command)
+    ?? /^\s*"?[^"]*?cmd(?:\.exe)?"?\s+\/c\s+(.+)$/is.exec(command);
+  if (!m) return command.trim();
+  const inner = m[1].trim();
+  const q = inner[0];
+  return (q === "'" || q === "\"") && inner.endsWith(q) ? inner.slice(1, -1).replace(/''/g, "'") : inner;
+}
+export function shellFingerprint(command) {
+  const normalized = unwrapShell(command).trim().replace(/\s+/g, " ");
+  return `asp://shell-command#sha256:${createHash("sha256").update(normalized, "utf8").digest("hex")}`;
+}
+
 /** Copy of isOwnMemoryWrite in package.ts: a write into the agent's own memory folder for this run needs no scope. */
 export function isOwnMemoryWrite(tool, input, memoryDir) {
   if (!memoryDir || !["Write", "Edit", "MultiEdit"].includes(tool)) return false;
@@ -58,11 +77,15 @@ export function isOwnMemoryWrite(tool, input, memoryDir) {
   return norm(target).startsWith(root);
 }
 
-export function decide(event, scopes, gate, memoryDir) {
+export function decide(event, scopes, gate, memoryDir, knownBad) {
   if (typeof event?.tool_name !== "string") return { allow: false, scope: "", reason: "ASP Mandate hook: the call has no tool_name" };
   if (NO_SCOPE_TOOLS.includes(event.tool_name)) return { allow: true, scope: "" };
   if (isOwnMemoryWrite(event.tool_name, event.tool_input, memoryDir)) return { allow: true, scope: "" };
   const scope = scopeOfCall(event);
+  if (knownBad?.length && (event.tool_name === "Bash" || event.tool_name === "PowerShell") && typeof event.tool_input?.command === "string") {
+    const hit = knownBad.find((k) => k.fingerprint === shellFingerprint(event.tool_input.command));
+    if (hit) return { allow: false, scope, reason: `ASP Mandate: the known-bad list (an upheld report, ${hit.report}) marks this command harmful, so it was blocked before it ran` };
+  }
   if (scopes.includes(scope)) {
     if (gate?.scopes?.includes(scope)) {
       if (gate.mode === "deny") return { allow: false, scope, reason: `ASP Mandate: the scope ${scope} is forbidden by this job's irreversible policy, so this call was blocked before it ran` };
@@ -120,7 +143,7 @@ async function main() {
   }
   const mandate = JSON.parse(readFileSync(join(pluginRoot, "asp-mandate.json"), "utf8"));
   if (!Array.isArray(mandate.scopes)) throw new Error("asp-mandate.json has no scopes list");
-  const d = decide(event, mandate.scopes, mandate.gate, typeof mandate.memoryDir === "string" ? mandate.memoryDir : undefined);
+  const d = decide(event, mandate.scopes, mandate.gate, typeof mandate.memoryDir === "string" ? mandate.memoryDir : undefined, Array.isArray(mandate.knownBad) ? mandate.knownBad : undefined);
   if (d.allow && !d.ask) return;
   if (d.ask) {
     const answer = await askPrincipal(pluginRoot, event, d.scope, mandate.gate.waitSeconds ?? 600);

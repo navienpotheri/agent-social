@@ -173,6 +173,7 @@ describe("Postgres-only guarantees", { skip: !pgUrl && "set ASP_TEST_DATABASE_UR
     // A fresh chain rooted at the same contract is impossible (duplicate), so use a new contract.
     const fresh = cosign(createRecord({ ...contract, type: "contract", issued_at: "2026-11-01T00:00:00Z" }, alice), coder);
     await log.append(fresh);
+    await log.mint(alice.did, 100); // the escrow each bond locks must be covered, or every one fails for that reason
     const bodies = [1, 2, 3, 4].map((n) => createRecord({
       type: "bond", issuer: coder.did, subject: fresh.id, prev: fresh.id, issued_at: "2026-11-01T00:05:00Z",
       body: { contract: fresh.id, backer: coder.did, amount: { value: 0, unit: "credit" },

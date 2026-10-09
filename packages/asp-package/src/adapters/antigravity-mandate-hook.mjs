@@ -8,7 +8,7 @@
 // command that headless agy would refuse is still refused). agy treats a hook that crashes as a denied call (checked
 // the same way), and this script also answers deny for any error of its own, so it fails CLOSED. It makes no network calls.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -94,12 +94,36 @@ export function scopeForAgyTool(name, params = {}) {
   return `tool.${name.toLowerCase().replace(/[^a-z0-9_]/g, "_")}`;
 }
 
+
+/**
+ * The known-bad check: a shell command whose fingerprint an upheld report has marked harmful is blocked even
+ * when its scope is granted. Copy of unwrapShell/normalizeCommand/shellArtifact in codex-actions.ts (a test keeps them in step).
+ */
+function unwrapShellForFingerprint(command) {
+  const m = /^\s*"?[^"]*?(?:powershell|pwsh)(?:\.exe)?"?\s+(?:-\w+\s+)*-Command\s+(.+)$/is.exec(command)
+    ?? /^\s*"?[^"]*?(?:bash|sh|zsh)(?:\.exe)?"?\s+-\w*c\s+(.+)$/is.exec(command)
+    ?? /^\s*"?[^"]*?cmd(?:\.exe)?"?\s+\/c\s+(.+)$/is.exec(command);
+  if (!m) return command.trim();
+  const inner = m[1].trim();
+  const q = inner[0];
+  return (q === "'" || q === "\"") && inner.endsWith(q) ? inner.slice(1, -1).replace(/''/g, "'") : inner;
+}
+export function shellFingerprint(command) {
+  const normalized = unwrapShellForFingerprint(command).trim().replace(/\s+/g, " ");
+  return `asp://shell-command#sha256:${createHash("sha256").update(normalized, "utf8").digest("hex")}`;
+}
+
 /** Exact membership, like the log's own check. `gate` is the Mandate's irreversible policy (see the Claude Code hook). */
-export function decide(event, scopes, gate) {
+export function decide(event, scopes, gate, knownBad) {
   const call = event?.toolCall;
   if (typeof call?.name !== "string") return { allow: false, scope: "", reason: "ASP Mandate hook: the call has no tool name" };
   const scope = scopeForAgyTool(call.name, call.args ?? {});
   if (scope === undefined) return { allow: true, scope: "" };
+  if (knownBad?.length && call.name === "run_command") {
+    const cmd = call.args?.CommandLine ?? call.args?.command ?? call.args?.command_line ?? call.args?.cmd;
+    const hit = typeof cmd === "string" ? knownBad.find((k) => k.fingerprint === shellFingerprint(cmd)) : undefined;
+    if (hit) return { allow: false, scope, reason: `ASP Mandate: the known-bad list (an upheld report, ${hit.report}) marks this command harmful, so it was blocked before it ran` };
+  }
   if (scopes.includes(scope)) {
     if (gate?.scopes?.includes(scope)) {
       if (gate.mode === "deny") return { allow: false, scope, reason: `ASP Mandate: the scope ${scope} is forbidden by this job's irreversible policy, so this call was blocked before it ran` };
@@ -156,7 +180,7 @@ async function main() {
   }
   const mandate = JSON.parse(readFileSync(join(here, "asp-mandate.json"), "utf8"));
   if (!Array.isArray(mandate.scopes)) throw new Error("asp-mandate.json has no scopes list");
-  const d = decide(event, mandate.scopes, mandate.gate);
+  const d = decide(event, mandate.scopes, mandate.gate, Array.isArray(mandate.knownBad) ? mandate.knownBad : undefined);
   if (d.allow && !d.ask) { answer({ decision: "allow" }); return; }
   if (d.ask) {
     const a = await askPrincipal(root, event, d.scope, mandate.gate.waitSeconds ?? 600);

@@ -25,6 +25,12 @@
  *     or local:<dir> (a file log). Clients use it with ASP_LOG_URL=http://host:port and ASP_LOG_TOKEN=<token>; their keys
  *     stay local and the service re-verifies every record. --no-auth is only for a service on 127.0.0.1.
  *   asp serve ... --packages <dir>   also stores each tenant's agent packages under <dir> (docs/spec-deltas.md S51).
+ *   asp serve ... --known-bad <dir>   also holds the known-bad list (docs/spec-deltas.md S54): command fingerprints an upheld report found harmful.
+ *   asp known-bad add --report <upheld-report> --by <did> [--fingerprint <asp://shell-command#sha256:...> | --all] [--note <text>] | list
+ *     The list is the log service's (ASP_LOG_URL; adding needs an admin token) or <home>/known-bad.json. Without --fingerprint the
+ *     candidates are the shell commands shared by 3+ agents (asp watch) that include the reported job. asp run --contract gives the
+ *     list to the pre-call hook (Claude Code, Antigravity), which blocks a matching command before it runs and counts it as a blocked
+ *     attempt. Codex and OpenHands have no pre-call hook: the list is not enforced there, and the run says so.
  *   asp serve ... --commons <dir>   also hosts the commons: shared knowledge with citations and review (docs/spec-deltas.md S52).
  *   asp commons add <file> --by <agent> --title <t> [--tag a,b] [--contract <id>] | list [--tag --q --status] | show <id> | review <id> --by <did> --verdict endorse|dispute [--note] | cite <id> --by <did> --context <text>
  *     Needs ASP_LOG_URL/ASP_LOG_TOKEN. Entries, reviews and citations are signed by their authors' keys and checked against the log.
@@ -238,7 +244,7 @@ import {
 import {
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -307,6 +313,8 @@ const OPTIONS = {
   "no-auth": { type: "boolean" },
   packages: { type: "string" },
   commons: { type: "string" },
+  "known-bad": { type: "string" },
+  fingerprint: { type: "string" },
   title: { type: "string" },
   tag: { type: "string" },
   q: { type: "string" },
@@ -439,6 +447,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "snapshot") return await logSnapshot(home, io);
     if (cmd === "log" && sub === "export") return await logExport(home, v, need, io);
     if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
+    if (cmd === "known-bad") return await knownBadCmd(home, sub, v, need, io);
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
@@ -769,6 +778,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const routes = [
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
     ...(v.commons ? [commonsRoutes({ root: resolve(v.commons), handle })] : []),
+    ...(v["known-bad"] ? [knownBadRoutes({ root: resolve(v["known-bad"]) })] : []),
   ];
   const extra = routes.length ? async (req: any, res: any, ctx: any) => { for (const r of routes) if (await r(req, res, ctx)) return true; return false; } : undefined;
   const server = createLogServer({ handle, tenants, noAuth, ...(extra ? { extra } : {}) });
@@ -920,6 +930,56 @@ function memoryBudget(v: Values): MemoryBudget {
     maxBytes: num(v["memory-max-bytes"], "memory-max-bytes", DEFAULT_MEMORY_BUDGET.maxBytes),
     maxIndexLines: num(v["memory-max-index-lines"], "memory-max-index-lines", DEFAULT_MEMORY_BUDGET.maxIndexLines),
   };
+}
+
+/** The known-bad list this command line points at: the log service's when ASP_LOG_URL is set, else a file in the ASP home. */
+async function loadKnownBad(home: string, io: Io): Promise<KnownBadEntry[]> {
+  return io.env.ASP_LOG_URL ? await fetchKnownBad(io.env.ASP_LOG_URL, io.env.ASP_LOG_TOKEN) : readKnownBad(join(home, "known-bad.json"));
+}
+
+/** asp known-bad add|list: command fingerprints that an upheld report found harmful (docs/spec-deltas.md S54). */
+async function knownBadCmd(home: string, sub: string | undefined, v: Values, need: Need, io: Io): Promise<number> {
+  if (sub === "list") {
+    const list = await loadKnownBad(home, io);
+    io.out(`${list.length} known-bad fingerprint(s)`);
+    for (const e of list) io.out(`  ${e.fingerprint}  report ${e.report.slice(0, 19)}  added ${e.addedAt} by ${e.addedBy}${e.note ? "  " + e.note : ""}`);
+    return 0;
+  }
+  if (sub !== "add") throw new UsageError("usage: asp known-bad add --report <id> --by <did> [--fingerprint <fp> | --all] [--note <text>] | list");
+  const reportId = need("report");
+  const by = need("by");
+  const local = await openLog(home, logEnv);
+  const report = await local.log.report(reportId);
+  if (!report) throw new Error(`${reportId} is not a report in the log`);
+  if (report.status !== "upheld") throw new Error(`report ${reportId} is ${report.status}; only an upheld report can put a command on the known-bad list`);
+  const actions = await collectWatchActions(local);
+  const ran = new Set(actions.filter((a) => a.contract === report.contract).flatMap((a) => a.artifacts.filter((f) => f.uri === "asp://shell-command").map((f) => `${f.uri}#${f.sha256}`)));
+  let chosen: string[];
+  if (v.fingerprint) {
+    if (!isKnownBadFingerprint(v.fingerprint)) throw new UsageError("--fingerprint looks like asp://shell-command#sha256:<64 hex digits> (see asp watch)");
+    if (!ran.has(v.fingerprint)) throw new Error(`the reported job ${report.contract} never ran a command with that fingerprint`);
+    chosen = [v.fingerprint];
+  } else {
+    const minAgents = v["min-agents"] === undefined ? 3 : Math.trunc(Number(v["min-agents"]));
+    const windowS = v.window === undefined ? 600 : Number(v.window);
+    const clusters = findContagion(actions, { minAgents, windowMs: windowS * 1000, all: v.all ?? false })
+      .filter((c) => c.kind === "same-input" && c.contracts.includes(report.contract) && ran.has(c.key));
+    chosen = [...new Set(clusters.map((c) => c.key))];
+    if (!chosen.length) throw new Error(`no shell command shared by ${minAgents}+ agents includes the reported job; name one with --fingerprint (the reported job ran ${ran.size} shell command(s))`);
+    if (chosen.length > 1 && !v.all) {
+      io.err(`${chosen.length} candidate fingerprints; pick one with --fingerprint, or add them all with --all:`);
+      for (const f of chosen) io.err(`  ${f}`);
+      return 2;
+    }
+  }
+  let added = 0;
+  for (const fingerprint of chosen) {
+    const entry: KnownBadEntry = { fingerprint, report: reportId, contract: report.contract, addedAt: now(), addedBy: by, ...(v.note ? { note: v.note } : {}) };
+    const created = io.env.ASP_LOG_URL ? await postKnownBad(io.env.ASP_LOG_URL, io.env.ASP_LOG_TOKEN, entry) : addKnownBad(join(home, "known-bad.json"), entry);
+    io.out(`${created ? "listed" : "already listed"}: ${fingerprint}`);
+    added += created ? 1 : 0;
+  }
+  return 0;
 }
 
 /** asp commons add|list|show|cite|review: shared knowledge with citations and review (docs/spec-deltas.md S52). */
@@ -2037,11 +2097,17 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
       gate = { scopes: irreversible.scopes, mode: irreversible.policy === "forbid" ? "deny" : "ask", waitSeconds: approvalWait };
     }
   }
+  // Commands an upheld report found harmful are blocked before they run, whatever the Mandate grants (S54).
+  let knownBad: KnownBadEntry[] = [];
+  if (v.contract) {
+    try { knownBad = await loadKnownBad(home, io); } catch (e) { io.err(`  warning  could not read the known-bad list, so it is not enforced: ${(e as Error).message}`); }
+  }
   const plan = await adapter.materialize({
     pkgDir, harness, project: resolve(io.cwd, v.project ?? "."), runDir, agentName: basename(agent.replace(/:/g, "/")), prompt: v.prompt, env: io.env,
-    mandateScopes: mandate?.scopes, mandateGate: gate, model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
+    mandateScopes: mandate?.scopes, mandateGate: gate, mandateKnownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })), model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
   });
 
+  if (knownBad.length) io.err(plan.preventsCalls ? `  note     ${knownBad.length} known-bad command fingerprint(s) are enforced by the pre-call hook` : `  note     the known-bad list (${knownBad.length}) is not enforced: this runtime has no pre-call hook`);
   // The run's own report goes to stderr, so a -p run's stdout stays the runtime's stream alone.
   const current = currentRuntime(pkgDir, manifest);
   const swap = current !== backend;
@@ -2084,6 +2150,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   if (gate?.mode === "ask" && !plan.approvalsDir) {
     io.err(`  note     ${backend} cannot hold a call for approval, so ${gate.scopes.join(", ")} are NOT gated on this run`);
   }
+  const knownBadSet = new Set(knownBad.map((e) => e.fingerprint));
   const blockedByScope = new Map<string, number>();
   let strikes = 0;
   let killed: { scope: string; reason: "violation" | "probing" } | undefined;
@@ -2145,7 +2212,9 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
           for (const call of plan.checkOutputForAction?.(line) ?? []) {
             const outside = !!mandate && (!mandate.scopes.includes(call.scope) || forbiddenScopes.has(call.scope));
             const held = !outside && !!plan.approvalsDir && gatedScopes.has(call.scope);
-            if (prevents && (outside || held) && call.id) {
+            // A listed command is blocked by the hook though its scope is granted: judge it by its outcome like an out-of-scope call.
+            const listed = !outside && !held && !!call.artifact && knownBadSet.has(`${call.artifact.uri}#${call.artifact.sha256}`);
+            if (prevents && (outside || held || listed) && call.id) {
               pending.set(call.id, { scope: call.scope, artifact: call.artifact, gated: held });
               continue;
             }
@@ -2164,8 +2233,11 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
               else settle(res.id, ran, () => io.err(`  gate     ${call.scope} was approved, but the runtime did not run the call`));
               continue;
             }
-            if (res.blocked) strike(call.scope, "blocked before it ran");
-            else {
+            if (res.blocked) strike(call.scope, call.artifact && knownBadSet.has(`${call.artifact.uri}#${call.artifact.sha256}`) && mandate!.scopes.includes(call.scope) ? "a known-bad command, blocked before it ran" : "blocked before it ran");
+            else if (mandate!.scopes.includes(call.scope) && call.artifact && knownBadSet.has(`${call.artifact.uri}#${call.artifact.sha256}`)) {
+              // In scope, on the list, and not blocked: the hook did not stop it. It is reported as what it was, a call that ran.
+              settle(res.id, () => { ran(); io.err("  warning  a known-bad command ran: the pre-call hook did not block it"); }, () => strike(call.scope, "refused by the runtime before it ran"));
+            } else {
               // No hook blocked it. It is only a violation if the runtime says it ran: its own permissions may
               // have refused the call, which did no harm and is a strike, never a slash.
               settle(res.id,
