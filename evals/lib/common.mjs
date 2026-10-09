@@ -91,7 +91,7 @@ export async function session(dir, extraEnv = {}) {
       return { principal, bank, agents };
     },
     /** Intent, offer, contract, bond and Mandate; returns the contract id. */
-    async job({ principal, bank, agent, scopes, gates = [], shareToCommons = false, reviewDeadline, purpose = "Evaluation job", price = 1000, bond = 200 }) {
+    async job({ principal, bank, agent, scopes, gates = [], shareToCommons = false, reviewDeadline, purpose = `Evaluation job ${Math.random().toString(36).slice(2, 8)}`, price = 1000, bond = 200 }) {
       await s.must(["credits", "grant", "--to", principal, "--amount", String(price + 200)]);
       await s.must(["credits", "grant", "--to", agent, "--amount", String(bond + 200)]);
       const intent = s.grab(/^intent (\S+)/, (await s.must(["market", "intent", "--by", principal, "--purpose", purpose, "--budget", String(price), "--deadline", "2099-01-01T00:00:00Z", ...(reviewDeadline ? ["--verification", "principal", "--review-deadline", reviewDeadline] : [])])).out);

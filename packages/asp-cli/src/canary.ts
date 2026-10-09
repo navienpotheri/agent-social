@@ -7,7 +7,7 @@
  * gateway (tool calls, blocked attempts, tokens, requests) and from the agent's captured answer. A report can be saved as a baseline and a later
  * report compared with it: a task that used to pass and now does not is a regression; cost, tool-use or blocked-attempt growth is drift.
  */
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -63,6 +63,8 @@ export interface CanaryReport {
 }
 
 export const REFERENCE_AGENT = fileURLToPath(new URL("./reference-agent.mjs", import.meta.url));
+/** The asp command line itself, so a target can run an agent package: {node} {asp} run {package} ... */
+export const ASP_BIN = fileURLToPath(new URL("../bin/asp.mjs", import.meta.url));
 
 // ---------------------------------------------------------------------------------------------------------------
 // Pure parts
@@ -149,8 +151,25 @@ export function formatComparison(c: Comparison): string {
   return lines.join("\n");
 }
 
-export function expandCommand(command: string[], vars: { prompt: string; project: string }): string[] {
-  return command.map((c) => c.replaceAll("{prompt}", vars.prompt).replaceAll("{project}", vars.project).replaceAll("{node}", process.execPath).replaceAll("{reference-agent}", REFERENCE_AGENT));
+export function expandCommand(command: string[], vars: { prompt: string; project: string; package?: string }): string[] {
+  return command.map((c) => c.replaceAll("{prompt}", vars.prompt).replaceAll("{project}", vars.project).replaceAll("{package}", vars.package ?? "").replaceAll("{node}", process.execPath).replaceAll("{reference-agent}", REFERENCE_AGENT).replaceAll("{asp}", ASP_BIN));
+}
+
+/**
+ * The agent's answer out of what it printed. Plain text is the answer; a runtime that streams JSON events (Claude Code's stream-json, Codex's --json)
+ * is read for its final message, so a canary can run a real runtime and not only a plain agent.
+ */
+export function extractAnswer(raw: string): string {
+  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  const events: any[] = [];
+  for (const l of lines) { if (!l.startsWith("{")) continue; try { events.push(JSON.parse(l)); } catch { /* not JSON */ } }
+  if (!events.length || events.length < lines.length / 2) return raw.trim();
+  const result = events.filter((e) => e.type === "result" && typeof e.result === "string").at(-1);
+  if (result) return String(result.result).trim();
+  const codex = events.filter((e) => e.type === "item.completed" && e.item?.type === "agent_message" && typeof e.item.text === "string").at(-1);
+  if (codex) return String(codex.item.text).trim();
+  const assistant = events.filter((e) => e.type === "assistant" && Array.isArray(e.message?.content)).map((e) => e.message.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("")).filter(Boolean).at(-1);
+  return (assistant ?? "").trim();
 }
 
 /** Reads the gateway's one-line summary out of `asp gateway`'s report on standard error. */
@@ -166,7 +185,7 @@ export function parseGatewaySummary(err: string): { requests: number; toolCalls:
 
 export type RunCli = (args: string[], env: Record<string, string>, cwd: string) => Promise<{ code: number; out: string; err: string }>;
 
-export async function runCanary(o: { suite: CanarySuite; target: CanaryTarget; run: RunCli; trials?: number; only?: string[]; log?: (line: string) => void }): Promise<CanaryReport> {
+export async function runCanary(o: { suite: CanarySuite; target: CanaryTarget; run: RunCli; trials?: number; only?: string[]; log?: (line: string) => void; /** The package under test, for targets that use {package}. */ packageDir?: string }): Promise<CanaryReport> {
   const log = o.log ?? (() => {});
   const scratch = mkdtempSync(join(tmpdir(), "asp-canary-"));
   const home = join(scratch, "asp");
@@ -196,18 +215,18 @@ export async function runCanary(o: { suite: CanarySuite; target: CanaryTarget; r
         for (const [name, text] of Object.entries(task.files ?? {})) { mkdirSync(dirname(join(project, name)), { recursive: true }); writeFileSync(join(project, name), text); }
         await cli(["credits", "grant", "--to", principal, "--amount", "1100"]);
         await cli(["credits", "grant", "--to", agent, "--amount", "300"]);
-        const intent = grab(/^intent (\S+)/, (await cli(["market", "intent", "--by", principal, "--purpose", task.id, "--budget", "1000", "--deadline", "2099-01-01T00:00:00Z"])).out);
+        const intent = grab(/^intent (\S+)/, (await cli(["market", "intent", "--by", principal, "--purpose", `${task.id} trial ${i} ${randomUUID().slice(0, 8)}`, "--budget", "1000", "--deadline", "2099-01-01T00:00:00Z"])).out);
         const offer = grab(/^offer (\S+)/, (await cli(["market", "offer", "--by", agent, "--intent", intent, "--price", "1000", "--plan", "canary", "--eta", "2098-01-01T00:00:00Z"])).out);
         const contract = grab(/^contract (\S+):/, (await cli(["market", "contract", "--principal", principal, "--bank", bank, "--intent", intent, "--offer", offer])).out);
         await cli(["market", "bond", "--contract", contract, "--backer", agent, "--amount", "200", "--escrow-payer", principal, "--escrow-amount", "1000"]);
         await cli(["market", "mandate", "--contract", contract, "--principal", principal, "--performer", agent, ...(task.scopes ?? ["repo.read"]).flatMap((s) => ["--scopes", s])]);
         const capture = join(scratch, `out-${task.id}-${i}.txt`);
-        const command = expandCommand(o.target.command, { prompt: task.prompt, project });
+        const command = expandCommand(o.target.command, { prompt: task.prompt, project, package: o.packageDir });
         const t0 = Date.now();
         const r = await o.run(["gateway", "--contract", contract, "--by", agent, "--capture", capture, "--max-strikes", "10", ...o.target.gatewayFlags, "--", ...command], env, project);
         const seconds = (Date.now() - t0) / 1000;
         let answer = "";
-        try { answer = readFileSync(capture, "utf8").trim(); } catch { /* the agent produced nothing */ }
+        try { answer = extractAnswer(readFileSync(capture, "utf8")); } catch { /* the agent produced nothing */ }
         const g = parseGatewaySummary(r.err);
         const metrics: TrialMetrics = { ...g, seconds, exitCode: r.code, answer };
         const checks = evaluateChecks(task, metrics);

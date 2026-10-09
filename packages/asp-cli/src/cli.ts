@@ -41,6 +41,11 @@
  *     ASP_LOG_URL points at a service with a commons) and writes mcp.json for the agent (ASP_MCP_CONFIG). --package <dir> loads the agent's
  *     memory from its package and writes what it saves back, merged and budgeted, as a signed lineage update. --mcp <name>=<https url> |
  *     <name>=stdio:<command> [args] (repeatable) puts the agent's other MCP servers behind the gateway: every tools/call is judged as mcp.<name>.<tool>.
+ *   asp canary setup --agent <did> --backend <runtime> --target <file | package:claude-code> [--canary-gate warn|block] [--trials n] [--suite file] | baseline --agent <did> --backend <runtime> --package <pkg> | evidence <package>
+ *     The canary as a gate (docs/gaps-register.md CM1): with a target set up for an agent and a backend, asp run applies its memory update or runtime swap to a copy of the
+ *     package, runs the canary suite on the copy and compares it with the baseline; the result is recorded in the log as a certificate attestation about the new memory
+ *     and cited in the lineage edge (change.gates). With --canary-gate block a regression stops the change from being written back. --no-canary skips it. asp verify shows how many
+ *     recorded changes cite a canary result; asp canary evidence <package> lists them with their verdicts. Targets use {package} so the canary sees the agent's memory.
  *   asp canary run --target <file | openrouter:<model>> [--suite <file>] [--trials n] [--only id,id] [--out report.json] [--baseline report.json] | compare <baseline> <current> | list
  *     The canary suite (docs/gaps-register.md D1, D2): small fixed tasks with checks, run against an agent through the gateway in a throwaway home.
  *     A report saved with --out is a baseline; running again with --baseline (or asp canary compare) flags a task that used to pass and does not
@@ -251,7 +256,7 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget } from "./canary.ts";
+import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { createLogServer, hashToken, postgresHandle, type Tenant } from "@agent-social/asp-log";
@@ -266,7 +271,7 @@ import {
 import {
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -353,6 +358,8 @@ const OPTIONS = {
   trials: { type: "string" },
   baseline: { type: "string" },
   only: { type: "string" },
+  "no-canary": { type: "boolean" },
+  "canary-gate": { type: "string" },
   "sandbox-image": { type: "string" },
   package: { type: "string" },
   title: { type: "string" },
@@ -487,7 +494,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "snapshot") return await logSnapshot(home, io);
     if (cmd === "log" && sub === "export") return await logExport(home, v, need, io);
     if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
-    if (cmd === "canary") return await canaryCmd(sub, rest, v, io);
+    if (cmd === "canary") return await canaryCmd(home, sub, rest, v, io);
     if (cmd === "gateway") return await gatewayCmd(home, [sub, ...rest].filter((x): x is string => !!x), v, need, io);
     if (cmd === "known-bad") return await knownBadCmd(home, sub, v, need, io);
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
@@ -978,9 +985,129 @@ function memoryBudget(v: Values): MemoryBudget {
  * asp canary run|compare|list: a fixed set of small tasks with checks, run against an agent configuration so that a model swap, a memory update or a
  * new runtime shows up as a measured difference (packages/asp-cli/src/canary.ts, canary/default-suite.json).
  */
-async function canaryCmd(sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+/** What `asp run` does after a change: per agent, a target for each backend and what to do with a regression. Kept in the ASP home. */
+interface CanaryConfig { agent: string; gate: "warn" | "block"; trials?: number; suite?: string; targets: Record<string, CanaryTarget> }
+const canaryConfigPath = (home: string, agent: string) => join(home, "canary", `${slug(agent)}.json`);
+const canaryBaselinePath = (home: string, agent: string, backend: string) => join(home, "canary", `${slug(agent)}.${backend}.baseline.json`);
+const readCanaryConfig = (home: string, agent: string): CanaryConfig | undefined => (existsSync(canaryConfigPath(home, agent)) ? JSON.parse(readFileSync(canaryConfigPath(home, agent), "utf8")) : undefined);
+const DEFAULT_SUITE_PATH = fileURLToPath(new URL("../../../canary/default-suite.json", import.meta.url));
+/** The runner the canary uses to call asp itself (the gateway, the identity commands) in a throwaway home. */
+const canaryRunCli = (io: Io): RunCli => async (args, env, cwd) => {
+  const out: string[] = [], err: string[] = [];
+  const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env: { ...io.env, ...env }, cwd, raw: () => {} });
+  return { code, out: out.join("\n"), err: err.join("\n") };
+};
+
+/**
+ * The canary as a gate on a change (docs/gaps-register.md CM1): the change is applied to a copy of the package, the canary suite is run on the copy,
+ * and the result is compared with the baseline for this backend and recorded in the log as a certificate attestation about the new memory. The caller
+ * cites its id in the lineage edge (`change.gates`). With gate "block" a regression stops the change from being written back.
+ */
+async function canaryGateForChange(o: { home: string; io: Io; agent: string; signer: Signer; cfg: CanaryConfig; backend: string; pkgDir: string; changes: LineageChange[]; memoryFrom?: string; gate?: string }): Promise<{ blocked: boolean; gates: string[]; note: string }> {
+  const { io, home, agent, backend } = o;
+  const target = o.cfg.targets[backend];
+  const suite = JSON.parse(readFileSync(resolve(o.cfg.suite ?? DEFAULT_SUITE_PATH), "utf8")) as CanarySuite;
+  const cand = mkdtempSync(join(tmpdir(), "asp-canary-cand-"));
+  let report: CanaryReport;
+  let about: string;
+  try {
+    cpSync(o.pkgDir, cand, { recursive: true });
+    updatePackage(cand, { signer: o.signer, changes: o.changes, memoryFrom: o.memoryFrom });
+    about = treeHash(join(cand, "memory"));
+    io.err(`  canary   running ${suite.tasks.length} task(s) on the changed package (${backend})`);
+    report = await runCanary({ suite, target, packageDir: cand, trials: o.cfg.trials, run: canaryRunCli(io), log: (l) => io.err(l) });
+  } finally { rmSync(cand, { recursive: true, force: true }); }
+  const basePath = canaryBaselinePath(home, agent, backend);
+  let verdict: "passed" | "regressed" | "baseline_set";
+  let cmp: ReturnType<typeof compareReports> | undefined;
+  if (existsSync(basePath)) {
+    cmp = compareReports(JSON.parse(readFileSync(basePath, "utf8")) as CanaryReport, report);
+    verdict = cmp.regressions.length ? "regressed" : "passed";
+  } else {
+    mkdirSync(dirname(basePath), { recursive: true });
+    writeFileSync(basePath, JSON.stringify(report, null, 2) + "\n");
+    verdict = "baseline_set";
+    io.err(`  canary   no baseline for ${backend} yet: this run is now the baseline`);
+  }
+  const summary = `canary ${verdict}: ${report.totals.passedTasks}/${report.totals.tasks} tasks pass${cmp?.drift.length ? `, ${cmp.drift.length} drift warning(s)` : ""}`;
+  io.err(`  canary   ${summary}`);
+  for (const r of cmp?.regressions ?? []) io.err(`  canary   REGRESSION ${r}`);
+  // The evidence: a certificate attestation about the new memory, signed by the agent's key, in the log.
+  let gates: string[] = [];
+  try {
+    const reasons = [formatReport(report).split("\n").slice(0, 1)[0], ...(cmp?.regressions ?? []), ...(cmp?.drift ?? []), `suite ${report.suite.name} ${report.suite.hash}, target ${report.target.name}`];
+    const cert = createRecord({ type: "attestation", issuer: agent, subject: agent, prev: null, issued_at: now(), body: { kind: "certificate", about, verdict, score: Math.round(report.totals.passRate * 1000), skill: `canary:${report.suite.hash}`, reasons } }, o.signer);
+    const local = await openLog(home, logEnv);
+    const res = await local.append(cert);
+    gates = [res.id];
+    io.err(`  canary   certificate ${res.id}`);
+  } catch (e) { io.err(`  warning  the canary result could not be recorded in the log (${(e as Error).message}); the change will not cite it`); }
+  const gate = (o.gate ?? o.cfg.gate ?? "warn") as "warn" | "block";
+  return { blocked: verdict === "regressed" && gate === "block", gates, note: summary };
+}
+
+async function canaryCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
   const load = <T>(file: string): T => JSON.parse(readFileSync(resolve(io.cwd, file), "utf8")) as T;
-  const suitePath = v.suite ?? fileURLToPath(new URL("../../../canary/default-suite.json", import.meta.url));
+  const suitePath = v.suite ?? DEFAULT_SUITE_PATH;
+  if (sub === "setup") {
+    const agent = v.agent;
+    const backend = v.backend;
+    if (!agent || !backend) throw new UsageError("usage: asp canary setup --agent <did> --backend <runtime> --target <file | package:claude-code> [--canary-gate warn|block] [--trials n] [--suite file]");
+    const t = v.target;
+    if (!t) throw new UsageError("--target is a JSON file whose command uses {package}, or package:claude-code");
+    const target = t === "package:claude-code"
+      ? { name: "package-claude-code", command: ["{node}", "{asp}", "run", "{package}", "--backend", "claude-code", "--project", "{project}", "--prompt", "{prompt}", "--no-write-back", "--no-canary"], gatewayFlags: ["--anthropic-upstream", "https://api.anthropic.com"] } as CanaryTarget
+      : load<CanaryTarget>(t);
+    if (!target.command.some((c) => c.includes("{package}"))) throw new UsageError("a target for a package has to use {package} in its command, or the canary cannot see the package's memory");
+    const gate = v["canary-gate"] ?? "warn";
+    if (gate !== "warn" && gate !== "block") throw new UsageError("--canary-gate is warn or block");
+    const cfg: CanaryConfig = readCanaryConfig(home, agent) ?? { agent, gate: "warn", targets: {} };
+    cfg.gate = gate;
+    if (v.trials) cfg.trials = Math.trunc(Number(v.trials));
+    if (v.suite) cfg.suite = resolve(io.cwd, v.suite);
+    cfg.targets[backend] = target;
+    mkdirSync(dirname(canaryConfigPath(home, agent)), { recursive: true });
+    writeFileSync(canaryConfigPath(home, agent), JSON.stringify(cfg, null, 2) + "\n");
+    io.out(`canary set up for ${agent} on ${backend}: gate ${gate}; ${existsSync(canaryBaselinePath(home, agent, backend)) ? "a baseline exists" : `no baseline yet: run asp canary baseline --agent ${agent} --backend ${backend} --package <package>, or the first change becomes the baseline`}`);
+    return 0;
+  }
+  if (sub === "baseline") {
+    const agent = v.agent, backend = v.backend, pkg = v.package;
+    if (!agent || !backend || !pkg) throw new UsageError("usage: asp canary baseline --agent <did> --backend <runtime> --package <package>");
+    const cfg = readCanaryConfig(home, agent);
+    if (!cfg?.targets[backend]) throw new Error(`no canary target for ${agent} on ${backend}: run asp canary setup first`);
+    const suite = JSON.parse(readFileSync(resolve(cfg.suite ?? DEFAULT_SUITE_PATH), "utf8")) as CanarySuite;
+    const report = await runCanary({ suite, target: cfg.targets[backend], packageDir: resolve(io.cwd, pkg), trials: cfg.trials, run: canaryRunCli(io), log: (l) => io.err(l) });
+    io.out(formatReport(report));
+    mkdirSync(dirname(canaryBaselinePath(home, agent, backend)), { recursive: true });
+    writeFileSync(canaryBaselinePath(home, agent, backend), JSON.stringify(report, null, 2) + "\n");
+    io.out(`baseline saved for ${agent} on ${backend}`);
+    return 0;
+  }
+  if (sub === "evidence") {
+    const pkg = rest[0];
+    if (!pkg) throw new UsageError("usage: asp canary evidence <package>");
+    const resolved = await resolvePackage(resolve(io.cwd, pkg));
+    try {
+      const agent = (JSON.parse(readFileSync(join(resolved.dir, "manifest.json"), "utf8")) as AspRecord).body as { agent: string };
+      const history = readFileSync(join(resolved.dir, "records", "history.ndjson"), "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l) as AspRecord);
+      const edges = history.filter((r) => r.type === "asp.lineage/v0.2" && (r.body as any).child === agent.agent && (r.body as any).edge === "update");
+      const local = await openLog(home, logEnv);
+      io.out(`${edges.length} recorded change(s) for ${agent.agent}`);
+      for (const e of edges) {
+        const ch = (e.body as any).change;
+        const gates: string[] = ch.gates ?? [];
+        io.out(`  ${e.issued_at}  ${ch.layer.padEnd(8)} ${ch.description}`);
+        if (!gates.length) io.out("      no canary result cited");
+        for (const g of gates) {
+          const rec = await local.log.get(g);
+          const b = rec?.record.body as { verdict?: string; score?: number; reasons?: string[] } | undefined;
+          io.out(rec ? `      canary ${b?.verdict}, ${Math.round((b?.score ?? 0) / 10)}% of trials; ${b?.reasons?.[0] ?? ""}  (${g.slice(0, 19)})` : `      cites ${g.slice(0, 19)}, which is not in this log`);
+        }
+      }
+    } finally { await finishPackage(resolved, false); }
+    return 0;
+  }
   if (sub === "list") {
     const suite = load<CanarySuite>(suitePath);
     io.out(`${suite.name}: ${suite.tasks.length} tasks`);
@@ -1009,11 +1136,7 @@ async function canaryCmd(sub: string | undefined, rest: string[], v: Values, io:
   io.err(`canary ${suite.name} on ${target.name}`);
   const report = await runCanary({
     suite, target, trials, only: v.only?.split(",").map((x) => x.trim()),
-    run: async (args, env, cwd) => {
-      const out: string[] = [], err: string[] = [];
-      const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env: { ...io.env, ...env }, cwd, raw: () => {} });
-      return { code, out: out.join("\n"), err: err.join("\n") };
-    },
+    run: canaryRunCli(io), packageDir: v.package ? resolve(io.cwd, v.package) : undefined,
     log: (l) => io.err(l),
   });
   io.out(formatReport(report));
@@ -2700,7 +2823,20 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
     io.err(`no key for ${agent} in ${join(home, "keys")}: cannot sign the lineage update. The run's memory is in ${plan.memoryDir}.`);
     return 0;
   }
-  const { edges } = updatePackage(pkgDir, { signer, changes, memoryFrom: memoryChanged ? memoryFrom : undefined });
+  // The canary as a gate (gaps register CM1): when this agent has a canary target for this backend, the change is tested before it is written back.
+  let gates: string[] = [];
+  let canaryNote = "";
+  const canaryCfg = v["no-canary"] ? undefined : readCanaryConfig(home, agent);
+  if (canaryCfg?.targets[backend]) {
+    const outcome = await canaryGateForChange({ home, io, agent, signer, cfg: canaryCfg, backend, pkgDir, changes, memoryFrom: memoryChanged ? memoryFrom : undefined, gate: v["canary-gate"] });
+    if (outcome.blocked) {
+      io.err(`  canary   the change was NOT written back: it regressed the canary suite and the gate is "block". The run's memory is in ${plan.memoryDir}. Rerun with --canary-gate warn or --no-canary to keep it anyway.`);
+      return 0;
+    }
+    gates = outcome.gates;
+    canaryNote = outcome.note;
+  }
+  const { edges } = updatePackage(pkgDir, { signer, changes: changes.map((c) => ({ ...c, ...(canaryNote ? { description: `${c.description}; ${canaryNote}` } : {}), ...(gates.length ? { gates } : {}) })), memoryFrom: memoryChanged ? memoryFrom : undefined });
   onMutate();
   for (const e of edges) io.err(`  recorded ${(e.body as any).change.description} (${e.id})`);
   io.err(`  package  ${pkgDir} re-signed`);

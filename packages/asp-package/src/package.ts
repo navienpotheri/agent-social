@@ -148,6 +148,8 @@ export interface LineageChange {
   layer: "memory" | "harness" | "adapter" | "backend" | "self_modification";
   description: string;
   probationDays?: number;
+  /** Ids of the records that show this change passed its canaries (a certificate attestation in the log). */
+  gates?: string[];
 }
 
 /**
@@ -178,6 +180,7 @@ export function updatePackage(dir: string, opts: {
   for (const c of opts.changes) {
     const change: Record<string, unknown> = { layer: c.layer, description: c.description };
     if (c.layer === "memory") change.artifact = { uri: "memory/", sha256: treeHash(join(dir, "memory")) };
+    if (c.gates?.length) change.gates = c.gates;
     const edgeBody: Record<string, unknown> = { edge: "update", child: agent, parents: [agent], change };
     if (c.probationDays) edgeBody.probation_until = stamp(new Date(Date.parse(issuedAt) + c.probationDays * 86_400_000));
     const edge = createRecord({ type: "lineage", issuer: agent, subject: agent, prev, body: edgeBody, issued_at: issuedAt }, opts.signer);
@@ -281,8 +284,12 @@ export async function verifyPackage(dir: string): Promise<VerifyPackageReport> {
     fail("secrets", [...findings.map((f) => `${f.kind} at ${f.file}:${f.line}`), ...literal.map((k) => `literal value for ${k}`)].join("; "));
   } else pass("secrets", "no secret-like strings; env values are placeholders");
 
-  // 6. Canary suite: not built yet.
-  checks.push({ name: "canary", status: "skip", detail: "no canary suite yet" });
+  // 6. Canary evidence: which recorded changes cite a canary result (asp canary; the result itself is a certificate attestation in the log).
+  const edges = history.filter((r) => r.type === "asp.lineage/v0.2" && (r.body as any).child === body.agent && (r.body as any).edge === "update" && ["memory", "backend", "harness", "adapter"].includes((r.body as any).change?.layer));
+  const gated = edges.filter((r) => ((r.body as any).change?.gates ?? []).length > 0);
+  if (!edges.length) checks.push({ name: "canary", status: "skip", detail: "no recorded changes to test" });
+  else if (!gated.length) checks.push({ name: "canary", status: "skip", detail: `none of the ${edges.length} recorded change(s) cites a canary result (asp canary setup)` });
+  else pass("canary", `${gated.length} of ${edges.length} recorded change(s) cite a canary result`);
   return done(body.agent);
 }
 

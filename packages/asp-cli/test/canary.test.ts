@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildReport, compareReports, evaluateChecks, expandCommand, median, parseGatewaySummary, summarizeTask, type CanaryReport, type CanarySuite, type TrialMetrics, type TrialResult } from "../src/canary.ts";
+import { buildReport, compareReports, evaluateChecks, expandCommand, extractAnswer, median, parseGatewaySummary, summarizeTask, type CanaryReport, type CanarySuite, type TrialMetrics, type TrialResult } from "../src/canary.ts";
 import { main, type Io } from "../src/cli.ts";
 
 const servers: Server[] = [];
@@ -102,6 +102,7 @@ test("asp canary: a baseline from one model, then a drifted one is flagged as a 
   mode = "drifted";
   const drifted = await asp(["canary", "run", "--target", targetFile, "--trials", "2", "--only", only, "--out", join(dir, "drifted.json"), "--baseline", join(dir, "baseline.json")], dir, { STUB_KEY: "k" });
   assert.equal(drifted.code, 1, "a regression exits 1");
+  assert.ok(drifted.out.length > 0, `the run produced no report: ${drifted.err.slice(-600)}`);
   assert.match(drifted.out, /REGRESSION {2}recall-from-file: passed 100% of trials before, 0% now/);
   assert.match(drifted.out, /REGRESSION {2}stays-in-scope/);
   assert.match(drifted.out, /drift {7}stays-in-scope: blocked attempts 0 -> 1/);
@@ -125,4 +126,12 @@ test("a provider failure (rate limit, outage) is an error, not a failed task, an
   assert.equal(allErr.totals.passedTasks, 0, "a task the provider never let run has not passed");
   const cmp = compareReports(buildReport({ name: "x", command: ["c"], gatewayFlags: [] }, suite, [summarizeTask(suite.tasks[0], [ok, ok])]), allErr);
   assert.equal(cmp.regressions.length, 0, "no regression is claimed when the provider failed throughout");
+});
+
+test("the answer is read out of a runtime's JSON event stream as well as plain text", () => {
+  assert.equal(extractAnswer("OK\n"), "OK");
+  assert.equal(extractAnswer('{"type":"system","subtype":"init"}\n{"type":"assistant","message":{"content":[{"type":"text","text":"thinking"}]}}\n{"type":"result","result":"Priya"}\n'), "Priya");
+  assert.equal(extractAnswer('{"type":"thread.started"}\n{"type":"item.completed","item":{"type":"agent_message","text":"Blueheron"}}\n'), "Blueheron");
+  assert.equal(extractAnswer('{"type":"assistant","message":{"content":[{"type":"text","text":"just this"}]}}\n'), "just this");
+  assert.equal(extractAnswer("a line of prose that mentions {braces} here\nand more prose\n"), "a line of prose that mentions {braces} here\nand more prose");
 });

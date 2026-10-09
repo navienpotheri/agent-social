@@ -26,6 +26,7 @@ node evals/swarm.mjs                   # or any one of them directly
 | `known-bad.mjs` | 3 | An upheld report lists a command; a real agent with the scope granted is blocked from running it, and it counts as a strike. | `claude` |
 | `canary-suite.mjs` | P | The default canary suite on one model, compared with a stored baseline in `evals/baselines/` (`--save-baseline` creates it): a task that used to pass and does not is a failure; cost or blocked-attempt growth is drift. | OpenRouter key |
 | `model-matrix.mjs` | P | The canary suite across several open-weight models; writes `docs/model-matrix.md`. Slow (minutes per model); not in `run-all` by default. | OpenRouter key |
+| `canary-gate-claude.mjs` | 1, 4, P | A real Claude Code memory update is tested by the canary before it is written back: baseline, certificate in the log, cited by the lineage edge, shown by `asp verify` and `asp canary evidence`. | `claude` |
 | `service-two-machines.mjs` | 1, 4, 6 | A shared log service, two tenants, three homes; concurrent real runs of one agent; a stale push is refused and a merge keeps both lessons; the commons across tenants; credits conserved; the service restarts without loss. Set `ASP_EVAL_DATABASE_URL` for Postgres. | `claude` |
 | `trial-three-jobs.mjs` | 2 | A gated approval with a strike, settlement on silence, and a ruled dispute with a drawn panel and a slash, with real Claude Code and Codex; credits conserved. | `claude`, `codex` |
 
