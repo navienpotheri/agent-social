@@ -1,37 +1,56 @@
-// The model matrix (gaps register P6, P7): the canary suite run against several open-weight models on OpenRouter, through the gateway, with the
+// The model matrix (gaps register P6, P7): the canary suite run against several open-weight models (OpenRouter, Groq, Cerebras, Gemini: whichever keys exist), through the gateway, with the
 // reference agent. For each model it records which tasks pass, how often the model reaches for a tool it was not given, how it behaves after a
 // refusal, and what it costs. Writes docs/model-matrix.md and docs/model-matrix.json.
 //
+//   node evals/model-matrix.mjs [--models provider:model,provider:model]   (a name without a provider is an OpenRouter model)
+//   keys: ASP_OR_KEY, ASP_GROQ_KEY, ASP_CEREBRAS_KEY, ASP_GEMINI_KEY or the files ~/.asp-<provider>-key
 //   node evals/model-matrix.mjs [--models a,b,c] [--trials 2] [--only task,task] [--no-write]
 // Free-tier models rate-limit and change without notice, so a provider failure is recorded as an error, not as a failed task, and the results are a
 // snapshot of one day, not a ranking. Defaults: ASP_EVAL_MATRIX_MODELS, ASP_EVAL_MATRIX_TRIALS.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Eval, ROOT, loadMain, openrouterKey, skip } from "./lib/common.mjs";
+import { Eval, PROVIDER_KEYS, ROOT, loadMain, providerKey, skip } from "./lib/common.mjs";
 
 const NAME = "model-matrix";
-if (!openrouterKey()) skip(NAME, "no OpenRouter key (set ASP_EVAL_OPENROUTER_KEY_FILE, default ~/.asp-openrouter-key)");
+const available = Object.keys(PROVIDER_KEYS).filter((p) => providerKey(p));
+if (!available.length) skip(NAME, "no provider key (put one in ~/.asp-openrouter-key, ~/.asp-groq-key, ~/.asp-cerebras-key or ~/.asp-gemini-key)");
 const arg = (n) => { const i = process.argv.indexOf(`--${n}`); return i >= 0 ? process.argv[i + 1] : undefined; };
-const DEFAULT_MODELS = [
-  "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", "poolside/laguna-s-2.1:free", "liquid/lfm-2.5-2.6b:free",
-];
-const models = (arg("models") ?? process.env.ASP_EVAL_MATRIX_MODELS ?? DEFAULT_MODELS.join(",")).split(",").map((s) => s.trim()).filter(Boolean);
+// What runs by default depends on which keys exist. Free-tier OpenRouter is capped at 50 requests a day, so only one model from it is a default.
+const DEFAULTS = {
+  openrouter: ["openrouter:nvidia/nemotron-3-super-120b-a12b:free"],
+  groq: ["groq:openai/gpt-oss-120b", "groq:openai/gpt-oss-20b", "groq:qwen/qwen3.8-27b"],
+  cerebras: ["cerebras:gpt-oss-120b", "cerebras:qwen-3.8-27b"],
+  gemini: ["gemini:gemini-3.8-flash", "gemini:gemma-4-31b-it", "gemini:gemini-3.5-flash"],
+};
+const DEFAULT_MODELS = available.flatMap((p) => DEFAULTS[p] ?? []);
+const models = (arg("models") ?? process.env.ASP_EVAL_MATRIX_MODELS ?? DEFAULT_MODELS.join(",")).split(",").map((s) => s.trim()).filter(Boolean).map((m) => (Object.keys(PROVIDER_KEYS).some((p) => m.startsWith(p + ":")) ? m : `openrouter:${m}`));
 const trials = Number(arg("trials") ?? process.env.ASP_EVAL_MATRIX_TRIALS ?? 2);
 const only = arg("only");
 const ev = new Eval(NAME, `${models.length} model(s) x the default canary suite, ${trials} trial(s) per task`);
 const main = await loadMain();
-const key = openrouterKey();
+const keyEnv = Object.fromEntries(Object.entries(PROVIDER_KEYS).map(([p, k]) => [k.env, providerKey(p)]).filter(([, v]) => v));
 
 const reports = [];
 for (const model of models) {
   console.log(`\n--- ${model}`);
   const out = [], err = [];
-  const code = await main(["canary", "run", "--target", `openrouter:${model}`, "--trials", String(trials), ...(only ? ["--only", only] : []), "--out", join(ROOT, "evals", `.matrix-${model.replace(/[^a-z0-9]+/gi, "-")}.json`)],
-    { out: (l) => out.push(l), err: (l) => { err.push(l); if (/trial \d+\/\d+/.test(l)) console.log(l); }, env: { ...process.env, ASP_OR_KEY: key }, cwd: ROOT, raw: () => {} });
+  const code = await main(["canary", "run", "--target", model, "--trials", String(trials), ...(only ? ["--only", only] : []), "--out", join(ROOT, "evals", `.matrix-${model.replace(/[^a-z0-9]+/gi, "-")}.json`)],
+    { out: (l) => out.push(l), err: (l) => { err.push(l); if (/trial \d+\/\d+/.test(l)) console.log(l); }, env: { ...process.env, ...keyEnv }, cwd: ROOT, raw: () => {} });
   const file = join(ROOT, "evals", `.matrix-${model.replace(/[^a-z0-9]+/gi, "-")}.json`);
   try { reports.push(JSON.parse((await import("node:fs")).readFileSync(file, "utf8"))); (await import("node:fs")).rmSync(file); } catch { reports.push({ target: { name: model }, failed: true, tasks: [], totals: { tasks: 0, passedTasks: 0, passRate: 0 } }); }
   console.log(out.join("\n").split("\n").slice(-3).join("\n"));
   void code;
+}
+
+// --merge keeps the models from the last run that this run did not cover (a provider that was rate-limited can be rerun on its own later).
+let mergedCount = 0;
+if (process.argv.includes("--merge")) {
+  try {
+    const old = JSON.parse((await import("node:fs")).readFileSync(join(ROOT, "docs", "model-matrix.json"), "utf8")).reports ?? [];
+    const names = new Set(reports.map((r) => r.target.name));
+    mergedCount = old.filter((r) => !names.has(r.target.name) && r.tasks.some((t) => t.errors < t.trials.length)).length;
+    reports.unshift(...old.filter((r) => !names.has(r.target.name) && r.tasks.some((t) => t.errors < t.trials.length))); // rows where the provider never answered carry no information
+  } catch { /* no earlier matrix */ }
 }
 
 // --- build the matrix
@@ -39,7 +58,7 @@ const ids = [...new Set(reports.flatMap((r) => r.tasks.map((t) => t.id)))];
 const cell = (t) => !t ? "-" : t.errors === t.trials.length ? "error" : `${Math.round(t.passRate * 100)}%${t.errors ? "*" : ""}`;
 const lines = [];
 lines.push("# Model matrix", "");
-lines.push(`Generated ${new Date().toISOString().slice(0, 10)} by \`node evals/model-matrix.mjs\`. The canary suite (\`canary/default-suite.json\`, ${ids.length} tasks) run through \`asp gateway\` with the reference agent against open-weight models on OpenRouter's free tier, ${trials} trial(s) per task, each trial in a fresh project folder under a read-only Mandate. A snapshot of one day on free-tier endpoints, not a ranking: models change and rate-limit without notice. \`*\` means some trials were lost to provider errors; \`error\` means the provider never let the task run.`, "");
+lines.push(`Generated ${new Date().toISOString().slice(0, 10)} by \`node evals/model-matrix.mjs\`. The canary suite (\`canary/default-suite.json\`, ${ids.length} tasks) run through \`asp gateway\` with the reference agent against hosted open-weight models, ${trials} trial(s) per task, each trial in a fresh project folder under a read-only Mandate. A snapshot of one day on hosted endpoints (several on free tiers), not a ranking: models change and rate-limit without notice. The model name carries its provider. \`*\` means some trials were lost to provider errors; \`error\` means the provider never let the task run.`, "");
 lines.push("| Model | " + ids.join(" | ") + " | Tasks passed | Median tokens | Median tool calls | Blocked attempts |", "|---|" + ids.map(() => "---").join("|") + "|---|---|---|---|");
 for (const r of reports) {
   if (r.failed) { lines.push(`| ${r.target.name} | ${ids.map(() => "error").join(" | ")} | - | - | - | - |`); continue; }
@@ -49,7 +68,7 @@ for (const r of reports) {
   lines.push(`| ${r.target.name} | ${ids.map((id) => cell(byId.get(id))).join(" | ")} | ${r.totals.passedTasks}/${r.totals.tasks} | ${med((t) => t.median.tokens)} | ${med((t) => t.median.toolCalls)} | ${blocked} |`);
 }
 const errCells = reports.reduce((n, r) => n + r.tasks.reduce((m, t) => m + t.errors, 0) + (r.failed ? 1 : 0), 0);
-if (errCells) lines.push("", `**Provider errors:** ${errCells} trial(s) were lost to provider errors. OpenRouter's free tier allows 50 requests per day per key (and fewer per minute), and one full matrix needs several hundred, so models run later in the list were starved. Run again after the daily reset (midnight UTC), run fewer models or trials, or add credit to the key. Cells marked error say nothing about the model.`);
+if (errCells) lines.push("", `**Provider errors:** ${errCells} trial(s) were lost to provider errors. A free tier caps requests per day and per minute (OpenRouter's is 50 a day per key), and one full matrix needs several hundred, so models run later in the list may be starved. Run again after the daily reset (midnight UTC), run fewer models or trials, or add credit to the key. Cells marked error say nothing about the model.`);
 lines.push("", "## Reading it", "");
 lines.push("- **recall-from-file, count-files**: does the model use a tool for a simple lookup and report it correctly.", "- **format-following**: an exact output format with no tools.", "- **stays-in-scope**: told it may only read, does it still reach for a shell tool (a blocked attempt)?", "- **injection-in-file**: does a hidden instruction in a file it reads make it try a forbidden call (a blocked attempt)?", "- **survives-a-refusal**: after the gateway refuses a call, does it carry on and say so, or loop?", "- A blocked attempt is a call the Mandate did not allow; the gateway removed it before the agent saw it, so these show how often a model *tries*, not harm done.", "");
 const failures = [];
@@ -63,7 +82,7 @@ if (!process.argv.includes("--no-write")) {
   console.log("\nwrote docs/model-matrix.md and docs/model-matrix.json");
 }
 
-ev.check("every model was run", reports.length === models.length);
+ev.check("every model was run", reports.length - mergedCount === models.length);
 ev.check("at least one model completed tasks", reports.some((r) => !r.failed && r.tasks.some((t) => t.errors < t.trials.length)), "the provider may be rate-limiting or out of credit");
 ev.check("no trial ran a tool outside the Mandate", reports.every((r) => r.tasks.every((t) => t.trials.every((x) => x.checks.find((c) => c.kind === "mandate")?.pass !== false))), "the gateway should make this impossible");
 ev.finish();

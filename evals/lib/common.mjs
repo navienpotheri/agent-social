@@ -25,6 +25,14 @@ export function have(cmd) {
   const r = spawnSync(process.platform === "win32" ? "where" : "which", [cmd], { stdio: "ignore" });
   return r.status === 0;
 }
+/** Providers the evaluations can use for a model: the key lives in an environment variable or a file in the home folder (see PROVIDERS in canary.ts). */
+export const PROVIDER_KEYS = {
+  openrouter: { env: "ASP_OR_KEY", file: process.env.ASP_EVAL_OPENROUTER_KEY_FILE ?? join(homedir(), ".asp-openrouter-key") },
+  groq: { env: "ASP_GROQ_KEY", file: join(homedir(), ".asp-groq-key") },
+  cerebras: { env: "ASP_CEREBRAS_KEY", file: join(homedir(), ".asp-cerebras-key") },
+  gemini: { env: "ASP_GEMINI_KEY", file: join(homedir(), ".asp-gemini-key") },
+};
+export const providerKey = (name) => { const p = PROVIDER_KEYS[name]; return process.env[p.env] ?? (existsSync(p.file) ? readFileSync(p.file, "utf8").trim() : undefined); };
 export const openrouterKey = () => (existsSync(KEY_FILE) ? readFileSync(KEY_FILE, "utf8").trim() : undefined);
 export const toolPath = (...p) => join(TOOLS, ...p);
 

@@ -62,6 +62,23 @@ export interface CanaryReport {
   totals: { tasks: number; passedTasks: number; passRate: number };
 }
 
+/**
+ * Model providers with an OpenAI-compatible API, so a canary target (or the model matrix) can name a model as `<provider>:<model>`. The key is read from the
+ * environment variable `envKey`, or from the file `~/<keyFile>`; it goes only to the gateway, never to the agent.
+ */
+export const PROVIDERS: Record<string, { base: string; envKey: string; keyFile: string }> = {
+  openrouter: { base: "https://openrouter.ai/api/v1", envKey: "ASP_OR_KEY", keyFile: ".asp-openrouter-key" },
+  groq: { base: "https://api.groq.com/openai/v1", envKey: "ASP_GROQ_KEY", keyFile: ".asp-groq-key" },
+  cerebras: { base: "https://api.cerebras.ai/v1", envKey: "ASP_CEREBRAS_KEY", keyFile: ".asp-cerebras-key" },
+  gemini: { base: "https://generativelanguage.googleapis.com/v1beta/openai", envKey: "ASP_GEMINI_KEY", keyFile: ".asp-gemini-key" },
+};
+
+/** A canary target that runs the reference agent on `model` at `provider`, with the key passed to the gateway only. */
+export function providerTarget(provider: string, model: string, key: string): CanaryTarget {
+  const p = PROVIDERS[provider];
+  return { name: `${provider}:${model}`, command: ["{node}", "{reference-agent}", "--model", model, "--prompt", "{prompt}"], env: { [p.envKey]: key }, gatewayFlags: ["--openai-upstream", p.base, "--openai-key-env", p.envKey] };
+}
+
 export const REFERENCE_AGENT = fileURLToPath(new URL("./reference-agent.mjs", import.meta.url));
 /** The asp command line itself, so a target can run an agent package: {node} {asp} run {package} ... */
 export const ASP_BIN = fileURLToPath(new URL("../bin/asp.mjs", import.meta.url));

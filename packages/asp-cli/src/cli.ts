@@ -48,7 +48,7 @@
  *     package, runs the canary suite on the copy and compares it with the baseline; the result is recorded in the log as a certificate attestation about the new memory
  *     and cited in the lineage edge (change.gates). With --canary-gate block a regression stops the change from being written back. --no-canary skips it. asp verify shows how many
  *     recorded changes cite a canary result; asp canary evidence <package> lists them with their verdicts. Targets use {package} so the canary sees the agent's memory.
- *   asp canary run --target <file | openrouter:<model>> [--suite <file>] [--trials n] [--only id,id] [--out report.json] [--baseline report.json] | compare <baseline> <current> | list
+ *   asp canary run --target <file | openrouter:<model> | groq:<model> | cerebras:<model> | gemini:<model>> [--suite <file>] [--trials n] [--only id,id] [--out report.json] [--baseline report.json] | compare <baseline> <current> | list
  *     The canary suite (docs/gaps-register.md D1, D2): small fixed tasks with checks, run against an agent through the gateway in a throwaway home.
  *     A report saved with --out is a baseline; running again with --baseline (or asp canary compare) flags a task that used to pass and does not
  *     (REGRESSION) and growth in tokens, tool calls, time or blocked attempts (drift). The default suite is canary/default-suite.json; the reference
@@ -258,7 +258,7 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli } from "./canary.ts";
+import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { createLogServer, hashToken, postgresHandle, type Tenant } from "@agent-social/asp-log";
@@ -1159,13 +1159,15 @@ async function canaryCmd(home: string, sub: string | undefined, rest: string[], 
   }
   if (sub !== "run") throw new UsageError("usage: asp canary run --target <file | openrouter:<model>> [--suite <file>] [--trials n] [--only id,id] [--out report.json] [--baseline report.json] | compare <baseline> <current> | list");
   const t = v.target;
-  if (!t) throw new UsageError("--target is a JSON file describing the agent, or openrouter:<model> for the reference agent on that model");
+  if (!t) throw new UsageError("--target is a JSON file describing the agent, or <provider>:<model> (openrouter, groq, cerebras, gemini) for the reference agent on that model");
   let target: CanaryTarget;
-  if (t.startsWith("openrouter:")) {
-    const key = io.env.ASP_OR_KEY ?? io.env.OPENROUTER_API_KEY;
-    if (!key) throw new UsageError("openrouter targets need the key in ASP_OR_KEY or OPENROUTER_API_KEY");
-    const model = t.slice("openrouter:".length);
-    target = { name: model, command: ["{node}", "{reference-agent}", "--model", model, "--prompt", "{prompt}"], env: { ASP_OR_KEY: key }, gatewayFlags: ["--openai-upstream", "https://openrouter.ai/api/v1", "--openai-key-env", "ASP_OR_KEY"] };
+  const provider = Object.keys(PROVIDERS).find((p) => t.startsWith(`${p}:`));
+  if (provider) {
+    const spec = PROVIDERS[provider];
+    const keyFile = join(homedir(), spec.keyFile);
+    const key = io.env[spec.envKey] ?? (provider === "openrouter" ? io.env.OPENROUTER_API_KEY : undefined) ?? (existsSync(keyFile) ? readFileSync(keyFile, "utf8").trim() : undefined);
+    if (!key) throw new UsageError(`${provider} targets need the key in ${spec.envKey} or in ${keyFile}`);
+    target = providerTarget(provider, t.slice(provider.length + 1), key);
   } else target = load<CanaryTarget>(t);
   const suite = load<CanarySuite>(suitePath);
   const trials = v.trials === undefined ? undefined : Math.trunc(Number(v.trials));
