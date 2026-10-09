@@ -2,6 +2,8 @@
 
 Drafted 2026-10-09. Goal: any agent, from any provider, can run under the protocol without us writing an adapter for it, with the strongest enforcement its structure allows. Per-runtime adapters then only raise the assurance level.
 
+**Status 2026-10-09:** P0 built and checked live with an open-weight model (see S55 in `docs/spec-deltas.md`): `asp gateway`, the OpenAI-compatible and Anthropic proxies, refusal by rewrite, synthesized streams, strikes, stop on contract end, one Action at exit. P1 onward not started.
+
 ## 1. The idea in one paragraph
 Almost every agent works the same way: a model is called over an API, the model's reply asks for tools ("run this command", "call this MCP tool", "edit this file"), and the agent's own code carries them out. If the agent's model traffic passes through a local **gateway** we control, the gateway sees every requested tool call *before the agent receives it* and can remove the ones the Mandate does not allow. The agent never sees a tool call it may not make. That works for any agent that lets us set a model base URL or an MCP server, with no hooks, plugins or cooperation from the agent.
 

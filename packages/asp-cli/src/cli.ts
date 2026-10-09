@@ -26,6 +26,10 @@
  *     stay local and the service re-verifies every record. --no-auth is only for a service on 127.0.0.1.
  *   asp serve ... --packages <dir>   also stores each tenant's agent packages under <dir> (docs/spec-deltas.md S51).
  *   asp serve ... --known-bad <dir>   also holds the known-bad list (docs/spec-deltas.md S54): command fingerprints an upheld report found harmful.
+ *   asp gateway --contract <id> --by <agent did> (--openai-upstream <base url> | --anthropic-upstream <origin>) [--openai-key-env NAME] [--anthropic-key-env NAME] [--max-strikes n] [--token-cap n] [--port n] [-- <command> ...]
+ *     Gateway P0 (docs/gateway-design.md): runs any agent command under the contract's Mandate. The command's OPENAI_BASE_URL and
+ *     ANTHROPIC_BASE_URL point at a local proxy that removes tool calls the Mandate does not allow from the model's reply before the
+ *     agent sees them, counts strikes, stops on probing or when the contract ends, and reports the Action when it finishes.
  *   asp known-bad add --report <upheld-report> --by <did> [--fingerprint <asp://shell-command#sha256:...> | --all] [--note <text>] | list
  *     The list is the log service's (ASP_LOG_URL; adding needs an admin token) or <home>/known-bad.json. Without --fingerprint the
  *     candidates are the shell commands shared by 3+ agents (asp watch) that include the reported job. asp run --contract gives the
@@ -244,7 +248,7 @@ import {
 import {
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -315,6 +319,11 @@ const OPTIONS = {
   commons: { type: "string" },
   "known-bad": { type: "string" },
   fingerprint: { type: "string" },
+  "openai-upstream": { type: "string" },
+  "anthropic-upstream": { type: "string" },
+  "openai-key-env": { type: "string" },
+  "anthropic-key-env": { type: "string" },
+  "token-cap": { type: "string" },
   title: { type: "string" },
   tag: { type: "string" },
   q: { type: "string" },
@@ -447,6 +456,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "snapshot") return await logSnapshot(home, io);
     if (cmd === "log" && sub === "export") return await logExport(home, v, need, io);
     if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
+    if (cmd === "gateway") return await gatewayCmd(home, [sub, ...rest].filter((x): x is string => !!x), v, need, io);
     if (cmd === "known-bad") return await knownBadCmd(home, sub, v, need, io);
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
@@ -930,6 +940,70 @@ function memoryBudget(v: Values): MemoryBudget {
     maxBytes: num(v["memory-max-bytes"], "memory-max-bytes", DEFAULT_MEMORY_BUDGET.maxBytes),
     maxIndexLines: num(v["memory-max-index-lines"], "memory-max-index-lines", DEFAULT_MEMORY_BUDGET.maxIndexLines),
   };
+}
+
+/**
+ * asp gateway: runs any agent process under a contract's Mandate through the ASP gateway (docs/gateway-design.md, P0).
+ * The agent is pointed at the gateway with OPENAI_BASE_URL / ANTHROPIC_BASE_URL; tool calls the Mandate does not allow
+ * are removed from the model's reply before the agent sees them. Without a command it serves until interrupted.
+ */
+async function gatewayCmd(home: string, command: string[], v: Values, need: Need, io: Io): Promise<number> {
+  const contract = need("contract");
+  const by = need("by");
+  if (!v["openai-upstream"] && !v["anthropic-upstream"]) throw new UsageError("give --openai-upstream <base url up to /v1> and/or --anthropic-upstream <origin>");
+  const local = await openLog(home, logEnv);
+  const state = (await local.log.chainInfo(contract))?.state;
+  if (state !== "Running" && state !== "Checkpoint") throw new Error(`contract ${contract} is ${state ?? "not in the log"}, not Running, so there is no live Mandate to enforce`);
+  const mandate = await local.log.mandateOf(contract);
+  if (!mandate) throw new Error(`contract ${contract} has no Mandate`);
+  let knownBad: KnownBadEntry[] = [];
+  try { knownBad = await loadKnownBad(home, io); } catch (e) { io.err(`  warning  could not read the known-bad list, so it is not enforced: ${(e as Error).message}`); }
+  const keyFrom = (name: string | undefined) => (name ? io.env[name] : undefined);
+  const gw = createGateway({
+    openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
+    openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
+    scopes: mandate.scopes, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
+    maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
+    ...(v["token-cap"] ? { tokenCap: Math.trunc(Number(v["token-cap"])) } : {}),
+    onCall: (e) => io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`),
+    onStop: (r) => io.err(`  stopped  ${r}`),
+  });
+  const port = await gw.listen(v.port === undefined ? 0 : Math.trunc(Number(v.port)));
+  const base = `http://127.0.0.1:${port}`;
+  io.err(`  gateway  ${base}  Mandate scopes: ${mandate.scopes.join(", ") || "none"}${knownBad.length ? `; ${knownBad.length} known-bad fingerprint(s)` : ""}`);
+  // A contract that is revoked, killed or settled stops the gateway, and so the agent.
+  const watcher = setInterval(async () => {
+    try {
+      const st = (await local.log.chainInfo(contract))?.state;
+      if (st !== "Running" && st !== "Checkpoint") gw.stop(`the contract is now ${st}`);
+    } catch { /* keep the last known state */ }
+  }, 2000);
+  let code = 0;
+  if (command.length) {
+    code = await new Promise<number>((done) => {
+      const child = spawn(command[0], command.slice(1), {
+        cwd: io.cwd, stdio: "inherit",
+        env: { ...io.env, OPENAI_BASE_URL: `${base}/v1`, OPENAI_API_BASE: `${base}/v1`, ANTHROPIC_BASE_URL: base, ...(v["openai-key-env"] ? { OPENAI_API_KEY: "asp-gateway" } : {}), ...(v["anthropic-key-env"] ? { ANTHROPIC_API_KEY: "asp-gateway" } : {}) },
+      });
+      child.on("error", (e) => { io.err(`could not start ${command[0]}: ${e.message}`); done(-1); });
+      child.on("exit", (c) => done(c ?? 1));
+    });
+  } else {
+    await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
+  }
+  clearInterval(watcher);
+  const sum = gw.summary();
+  await gw.close();
+  const args = ["market", "action", "--contract", contract, "--by", by, "--home", home,
+    ...sum.scopesUsed.flatMap((x) => ["--scopes-used", x]),
+    ...sum.blocked.flatMap((b) => ["--blocked", `${b.scope}=${b.count}`]),
+    ...sum.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
+    "--summary", `ASP gateway (P0, gateway-enforced): ${sum.requests} request(s), ${sum.tokens.input + sum.tokens.output} tokens, ${sum.strikes} blocked${sum.stopped ? `; stopped: ${sum.stopped}` : ""}`];
+  const out: string[] = [];
+  const rc = await main(args, { out: (l) => out.push(l), err: (l) => out.push(l), env: io.env, cwd: io.cwd });
+  io.err(`  action   ${out.join(" ").slice(0, 200)}`);
+  io.err(`  summary  ${JSON.stringify({ requests: sum.requests, unjudged: sum.unjudgedRequests, tokens: sum.tokens, scopesUsed: sum.scopesUsed, blocked: sum.blocked, strikes: sum.strikes })}`);
+  return rc !== 0 ? rc : code;
 }
 
 /** The known-bad list this command line points at: the log service's when ASP_LOG_URL is set, else a file in the ASP home. */

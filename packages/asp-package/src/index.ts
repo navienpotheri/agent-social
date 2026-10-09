@@ -32,3 +32,4 @@ import type { RuntimeAdapter } from "./harness.ts";
 export const ADAPTERS: Record<string, RuntimeAdapter> = { [claudeCode.name]: claudeCode, [codex.name]: codex, [openhands.name]: openhands, [antigravity.name]: antigravity };
 export { COMMONS_VERSION, commonsId, commonsRoutes, signCommons, verifyCommonsSignature, type CommonsBody, type CommonsCitationBody, type CommonsEntryBody, type CommonsReviewBody, type EntryStatus, type EntryView, type Signed } from "./commons.ts";
 export { addKnownBad, fetchKnownBad, isKnownBadFingerprint, knownBadRoutes, postKnownBad, readKnownBad, type KnownBadEntry } from "./known-bad.ts";
+export * from "./gateway/index.ts";
