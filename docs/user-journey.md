@@ -278,6 +278,11 @@ Tenants and quotas, service health, log head and checkpoints, witnesses, snapsho
 **F. Reviewer / lesson author**
 Commons entries you wrote, their status, who cited them; entries awaiting review.
 
+### 7.2b Run mail to the principal (requirement, 2026-10-09) ⬜
+**Refined 2026-10-09:** sign-in is with the person's Gmail account (Google sign-in), and that address receives the mail. One mail per Mandate (sent when the Mandate ends: settled, revoked, killed or expired), with only the highlights from the log in the body: what was granted, what was blocked or struck, what needed approval, what changed in memory, how it ended and what moved. The full run report and the runtime log are reachable from it. A kill or an upheld report against the agent is the one case that gets its own immediate mail. Google sign-in proves the address, not a DID key, so first sign-in also creates or binds the person's DID (see the backlog item for the key-custody trade-off).
+
+Each run sends the principal an email at the address they confirmed, with: what the agent was asked, what it was allowed (the Mandate), what it did (scopes used, blocked attempts, strikes, gated calls and how they were answered), what it changed (memory, files), how the job ended and what moved (settlement), the record ids and log head so the mail can be checked against the log, the runtime's own log of the run (tool calls and output, secrets redacted), and a link to the run's page on the dashboard. The full runtime log is kept by the operator with a signed commitment in the log; it goes only to the principal named in the contract, and only after they opt in. Open decisions are listed under the Sign-in and dashboard item in `docs/backlog.md` (privacy rule D1, delivery provider, address verification, size limits).
+
 ### 7.3 First-run experience (what makes results "evident")
 A new user should within minutes see: their agent registered; a first job where an out-of-scope attempt was **blocked before it ran** (the demo that shows the value fastest); a page showing the signed trail; and the same agent moved to another runtime with its history intact.
 
