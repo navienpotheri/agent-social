@@ -53,6 +53,11 @@
  *     A report saved with --out is a baseline; running again with --baseline (or asp canary compare) flags a task that used to pass and does not
  *     (REGRESSION) and growth in tokens, tool calls, time or blocked attempts (drift). The default suite is canary/default-suite.json; the reference
  *     agent (src/reference-agent.mjs) lets any OpenAI-compatible model be tested: --target openrouter:<model>.
+ *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--html] [--again] | pending [--to <address>]
+ *     The end-of-Mandate mail (docs/live-beta-flow-1.md step 8, gap E8): one mail per Mandate with the highlights from the log (what was asked, allowed, done,
+ *     blocked, approved, what changed in memory, how it ended and what moved) and, when the gateway kept one, the checked run log. preview prints it (--html
+ *     prints the HTML body); queue writes an .eml, .html and .txt to <home>/outbox and marks the Mandate as mailed (a second queue needs --again);
+ *     pending lists ended Mandates not mailed yet. Nothing is sent: delivery to a mail provider is not built.
  *   asp known-bad add --report <upheld-report> --by <did> [--fingerprint <asp://shell-command#sha256:...> | --all] [--note <text>] | list
  *     The list is the log service's (ASP_LOG_URL; adding needs an admin token) or <home>/known-bad.json. Without --fingerprint the
  *     candidates are the shell commands shared by 3+ agents (asp watch) that include the reported job. asp run --contract gives the
@@ -270,7 +275,7 @@ import {
   b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
-import { RunRecorder, hashAfter, readRunLog, runLogArtifact,
+import { RunRecorder, buildMandateMail, collectMandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
@@ -383,6 +388,10 @@ const OPTIONS = {
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
   "no-run-log": { type: "boolean" },
+  "link-base": { type: "string" },
+  "run-log": { type: "string" },
+  html: { type: "boolean" },
+  again: { type: "boolean" },
   help: { type: "boolean", short: "h" },
   task: { type: "string", multiple: true },
   "max-parallel": { type: "string" },
@@ -503,6 +512,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "gateway") return await gatewayCmd(home, [sub, ...rest].filter((x): x is string => !!x), v, need, io);
     if (cmd === "known-bad") return await knownBadCmd(home, sub, v, need, io);
     if (cmd === "run-log") return await runLogCmd(home, sub, rest, v, io);
+    if (cmd === "mail") return await mailCmd(home, sub, v, io);
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
@@ -1440,6 +1450,65 @@ async function gatewayWriteBack(o: { home: string; pkgDir: string; agent: string
 /** The known-bad list this command line points at: the log service's when ASP_LOG_URL is set, else a file in the ASP home. */
 async function loadKnownBad(home: string, io: Io): Promise<KnownBadEntry[]> {
   return io.env.ASP_LOG_URL ? await fetchKnownBad(io.env.ASP_LOG_URL, io.env.ASP_LOG_TOKEN) : readKnownBad(join(home, "known-bad.json"));
+}
+
+/** The gateway run folder whose run log belongs to this contract (the newest), or undefined. */
+function findRunLog(home: string, contract: string): string | undefined {
+  const runs = join(home, "runs");
+  if (!existsSync(runs)) return undefined;
+  for (const d of readdirSync(runs).filter((x) => x.startsWith("gateway-")).sort().reverse()) {
+    const file = join(runs, d, "run-log.ndjson");
+    if (!existsSync(file)) continue;
+    const first = readFileSync(file, "utf8").split("\n", 1)[0];
+    try { if (JSON.parse(first)?.data?.contract === contract) return file; } catch { /* not a run log */ }
+  }
+  return undefined;
+}
+
+/** asp mail preview|queue|pending: see the header. */
+async function mailCmd(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  if (sub !== "preview" && sub !== "queue" && sub !== "pending") throw new UsageError("usage: asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--html] [--again] | pending");
+  const local = await openLog(home, logEnv);
+  const statePath = join(home, "mail-state.json");
+  const state: Record<string, { queuedAt: string; to: string; file: string }> = existsSync(statePath) ? JSON.parse(readFileSync(statePath, "utf8")) : {};
+  if (sub === "pending") {
+    const all = await local.log.since(0, 1_000_000);
+    const contracts = all.filter((s) => s.record.type === "asp.contract/v0.2").map((s) => s.id);
+    let n = 0;
+    for (const c of contracts) {
+      if ((await local.log.chainInfo(c))?.state !== "Settled" || state[c]) continue;
+      const f = await collectMandateFacts(local.log, c);
+      io.out(`  ${c}  ${f?.contract.purpose ?? ""}  (${f?.ending?.basis ?? "settled"}, principal ${f?.contract.principal})`);
+      n++;
+    }
+    io.out(`${n} ended Mandate(s) not mailed yet`);
+    return 0;
+  }
+  const contract = v.contract;
+  if (!contract) throw new UsageError("--contract <id> is required");
+  const facts = await collectMandateFacts(local.log, contract);
+  if (!facts) throw new Error(`contract ${contract} is not in the log`);
+  const given = v["run-log"] ? resolve(io.cwd, v["run-log"]) : findRunLog(home, contract);
+  const runLogFile = given && !given.endsWith(".ndjson") ? join(given, "run-log.ndjson") : given;
+  const mail = buildMandateMail(facts, { to: v.to ?? "principal@localhost", ...(runLogFile && existsSync(runLogFile) ? { runLog: { ...readRunLog(runLogFile), path: runLogFile } } : {}), ...(v["link-base"] ? { linkBase: v["link-base"] } : {}) });
+  if (sub === "preview") {
+    io.out(v.html ? mail.html : mail.text);
+    return 0;
+  }
+  if (!v.to) throw new UsageError("--to <address> is required for queue");
+  if (facts.state !== "Settled") throw new Error(`contract ${contract} is ${facts.state}, not ended: the mail goes out when the Mandate ends`);
+  if (state[contract] && !v.again) throw new Error(`contract ${contract} was already mailed (queued ${state[contract].queuedAt} to ${state[contract].to}); one mail per Mandate. Use --again to queue it a second time.`);
+  const outbox = join(home, "outbox");
+  mkdirSync(outbox, { recursive: true });
+  const stem = join(outbox, contract.replace(/[^A-Za-z0-9]/g, "").slice(-16) + (state[contract] ? "-" + Date.now() : ""));
+  writeFileSync(stem + ".eml", mail.eml);
+  writeFileSync(stem + ".html", mail.html);
+  writeFileSync(stem + ".txt", mail.text);
+  state[contract] = { queuedAt: now(), to: v.to, file: stem + ".eml" };
+  writeFileSync(statePath, JSON.stringify(state, null, 2));
+  io.out(`queued ${stem}.eml to ${v.to}: ${mail.subject}`);
+  io.out("  not sent: delivery to a mail provider is not built; the .eml is in the outbox");
+  return 0;
 }
 
 /**
