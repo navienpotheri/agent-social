@@ -1282,7 +1282,10 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
     ...(v["token-cap"] ? { tokenCap: Math.trunc(Number(v["token-cap"])) } : {}),
-    onCall: (e) => io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`),
+    onCall: (e) => {
+      io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`);
+      reportSoon(e.allowed ? eagerMs : 20);
+    },
     onStop: (r) => io.err(`  stopped  ${r}`),
   });
   // The sandbox level: the agent runs where its only way out is the gateway, unless the Mandate grants a network scope.
@@ -1334,6 +1337,19 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   writeFileSync(mcpConfig, JSON.stringify({ mcpServers: Object.fromEntries(["asp", ...Object.keys(upstreams)].map((n) => [n, { type: "http", url: `${base}/mcp/${n}` }])) }, null, 2));
   io.err(`  mcp      ${mcpConfig}  (servers: ${["asp", ...Object.keys(upstreams)].join(", ")}; the child gets it as ASP_MCP_CONFIG)`);
   io.err(`  gateway  ${base}  Mandate scopes: ${mandate.scopes.join(", ") || "none"}${knownBad.length ? `; ${knownBad.length} known-bad fingerprint(s)` : ""}`);
+  // Reports follow the activity instead of waiting for the next interval (E15): a settled job takes no more Actions, so whatever has not been
+  // reported when a revoke or kill lands is lost from the log's Actions. A blocked attempt is reported at once (the evidence a kill rests on), other
+  // activity within `ASP_GATEWAY_EAGER_MS` (default 2 s) of its first call. flushAction is defined below; these only run once it is.
+  const eagerMs = Number(io.env.ASP_GATEWAY_EAGER_MS) >= 0 && io.env.ASP_GATEWAY_EAGER_MS !== undefined ? Number(io.env.ASP_GATEWAY_EAGER_MS) : 2000;
+  let soon: NodeJS.Timeout | undefined;
+  let soonDue = Infinity;
+  const reportSoon = (ms: number) => {
+    const due = Date.now() + ms;
+    if (soon && soonDue <= due) return;
+    if (soon) clearTimeout(soon);
+    soonDue = due;
+    soon = setTimeout(() => { soon = undefined; soonDue = Infinity; void flushAction("activity"); }, ms);
+  };
   // A contract that is revoked, killed or settled stops the gateway, and so the agent.
   // Actions are reported while the run goes on, not only at the end: a contract revoked or settled mid-run can no longer take one.
   let flushing = Promise.resolve(0);
@@ -1415,6 +1431,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   }
   clearInterval(watcher);
   clearInterval(flusher);
+  if (soon) clearTimeout(soon);
   if (approvals) await approvals.stop();
   const sum0 = gw.summary();
   runLog?.event("run_end", { exit_code: code, requests: sum0.requests, tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog.redactions });

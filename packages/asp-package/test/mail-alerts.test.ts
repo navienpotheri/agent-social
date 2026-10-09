@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildAlertMail, collectMandateFacts, findAlerts, type MailLog } from "../src/index.ts";
+import { buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MailLog } from "../src/index.ts";
 
 type Rec = { id: string; seq: number; record: { type: string; issuer: string; subject?: string | null; issued_at: string; body: any } };
 const rec = (seq: number, id: string, type: string, issued_at: string, body: any): Rec => ({ id, seq, record: { type, issuer: "did:x", issued_at, body } });
@@ -40,4 +40,16 @@ test("findAlerts: a Mandate past its expiry while the job still runs gets an ale
   assert.match(alerts[0].detail, /expired on 2026-10-05 and the job is still running/);
   assert.equal((await findAlerts(fakeLog([contract, mandate("2026-10-05T00:00:00Z")], { c1: "Settled" }), now)).length, 0);
   assert.equal((await findAlerts(fakeLog([contract, mandate("2026-12-05T00:00:00Z")], { c1: "Running" }), now)).length, 0);
+});
+
+test("the end mail says when the run log holds events from after the last report that could be recorded", async () => {
+  const action = (events: number) => rec(3, "a1", "asp.action/v0.2", "2026-10-02T00:00:00Z", { contract: "c1", scopes_used: ["repo.read"], artifacts: [{ uri: `asp://run-log/${events}`, sha256: "sha256:" + "a".repeat(64) }] });
+  const log = fakeLog([contract, mandate("2027-01-01T00:00:00Z"), action(3)], { c1: "Settled" });
+  const f = (await collectMandateFacts(log, "c1"))!;
+  assert.equal(f.activity.runLogCommittedEvents, 3);
+  const check = (events: number) => ({ ok: true, events: [], head: { events, hash: "sha256:" + "b".repeat(64) }, path: "run-log.ndjson" });
+  const late = buildMandateMail(f, { to: "a@b.co", runLog: check(5) });
+  assert.match(late.text, /2 event\(s\) at the end of the run log came after the last report the agent could record/);
+  const complete = buildMandateMail(f, { to: "a@b.co", runLog: check(3) });
+  assert.doesNotMatch(complete.text, /came after the last report/);
 });

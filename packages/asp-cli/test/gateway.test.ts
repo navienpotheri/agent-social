@@ -146,6 +146,44 @@ await r.json();
   assert.doesNotMatch(off.err, /run log {2}/);
 });
 
+test("asp gateway reports a blocked attempt at once, not at the next interval, so a stop that follows cannot lose it (E15)", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f, ["repo.read"]);
+  const upstream = await provider();
+  const dir = mkdtempSync(join(tmpdir(), "gw-eager-"));
+  const release = join(dir, "release");
+  const seen = join(dir, "seen");
+  // The agent makes one request (one allowed call, one blocked) and then holds the run open until the test lets it go.
+  const HOLD = `
+import { existsSync, writeFileSync } from "node:fs";
+await (await fetch(process.env.OPENAI_BASE_URL + "/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer x" }, body: JSON.stringify({ model: "m", messages: [] }) })).json();
+writeFileSync(process.env.AGENT_SEEN, "asked");
+for (let i = 0; i < 600 && !existsSync(process.env.AGENT_RELEASE); i++) await new Promise((r) => setTimeout(r, 50));
+`;
+  const { LocalLog } = await import("@agent-social/asp-package");
+  const reported = (async () => {
+    // With the interval set to a minute, the only way the Action can be in the log while the agent is still running is the eager report.
+    for (let waited = 0; waited < 20_000; waited += 100) {
+      if (existsSync(seen)) {
+        const actions = (await (await LocalLog.open(f.aspHome)).log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2");
+        const a = actions.find((x) => (x.record.body as any).blocked_attempts?.length);
+        if (a) { writeFileSync(release, "go"); return a.record.body as any; }
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    writeFileSync(release, "go");
+    return undefined;
+  })();
+  const [run, body] = await Promise.all([
+    asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--", process.execPath, "--input-type=module", "-e", HOLD], { AGENT_SEEN: seen, AGENT_RELEASE: release, ASP_GATEWAY_FLUSH_MS: "600000", ASP_GATEWAY_EAGER_MS: "300" }),
+    reported,
+  ]);
+  assert.equal(run.code, 0, run.err);
+  assert.ok(body, "the Action was in the log while the agent was still running, long before the 10-minute interval");
+  assert.deepEqual(body.blocked_attempts, [{ scope: "repo.push", count: 1 }]);
+  assert.deepEqual(body.scopes_used, ["repo.read"]);
+});
+
 test("asp gateway refuses a contract that is not running, and needs an upstream", async () => {
   const f = makeFixture();
   const missing = await asp(f, ["gateway", "--contract", "sha256:" + "0".repeat(64), "--by", CODER, "--openai-upstream", "http://127.0.0.1:1/v1", "--", process.execPath, "-e", "0"]);

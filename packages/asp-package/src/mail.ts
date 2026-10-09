@@ -25,6 +25,8 @@ export interface MandateFacts {
     metrics: { requests: number; toolCalls: number; tokensIn: number; tokensOut: number; seconds: number; models: string[] };
     assurance: string[];
     runLogCommitments: number;
+    /** The most run-log events any Action committed to; the run log may hold more, from after the last report that could be recorded. */
+    runLogCommittedEvents: number;
   };
   approvals: { kind: string; question: string; proposed?: string; answer: "approved" | "corrected" | "picked" | "refused (no answer in time)" | "no answer"; correction?: string }[];
   memory: { description: string; at: string }[];
@@ -52,6 +54,7 @@ export async function collectMandateFacts(log: MailLog, contract: string): Promi
   const metrics = { requests: 0, toolCalls: 0, tokensIn: 0, tokensOut: 0, seconds: 0, models: new Set<string>() };
   const assurance = new Set<string>();
   let commitments = 0;
+  let committedEvents = 0;
   for (const a of actions) {
     const b = a.record.body;
     for (const s of b.scopes_used ?? []) used.set(s, (used.get(s) ?? 0) + 1);
@@ -62,7 +65,10 @@ export async function collectMandateFacts(log: MailLog, contract: string): Promi
       for (const x of m.models ?? []) metrics.models.add(x.provider ? `${x.name} (${x.provider})` : x.name);
     }
     if (b.assurance) assurance.add(b.assurance);
-    commitments += (b.artifacts ?? []).filter((x: any) => /^asp:\/\/run-log\//.test(x.uri)).length;
+    for (const x of b.artifacts ?? []) {
+      const m = /^asp:\/\/run-log\/(\d+)$/.exec(x.uri);
+      if (m) { commitments++; committedEvents = Math.max(committedEvents, Number(m[1])); }
+    }
   }
 
   const approvals: MandateFacts["approvals"] = [];
@@ -100,6 +106,7 @@ export async function collectMandateFacts(log: MailLog, contract: string): Promi
       metrics: { ...metrics, models: [...metrics.models].sort() },
       assurance: [...assurance].sort((a, b) => STRENGTH.indexOf(b) - STRENGTH.indexOf(a)),
       runLogCommitments: commitments,
+      runLogCommittedEvents: committedEvents,
     },
     approvals,
     memory,
@@ -184,7 +191,10 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
     check.push(o.runLog.ok
       ? `The run log has ${o.runLog.head.events} event(s) and checks out${toolCalls !== undefined ? ` (${toolCalls} tool call(s) in it)` : ""}${masked ? `; ${masked} secret-like value(s) were masked` : ""}. ${a.runLogCommitments} of the agent's reports commit to it.`
       : `The run log did NOT check out: ${o.runLog.problem}.`);
-    check.push(o.linkBase ? `Full run log: ${o.linkBase.replace(/\/$/, "")}/run-log` : `Full run log, kept on the machine that ran the job: ${o.runLog.path}`);
+    if (o.runLog.ok && a.runLogCommitments > 0 && o.runLog.head.events > a.runLogCommittedEvents) {
+      check.push(`${o.runLog.head.events - a.runLogCommittedEvents} event(s) at the end of the run log came after the last report the agent could record (a job that has ended takes no more reports), so the figures above may leave them out; the run log has them.`);
+    }
+    check.push(o.linkBase ? `Full run log:${o.linkBase.replace(/\/$/, "")}/run-log` : `Full run log, kept on the machine that ran the job: ${o.runLog.path}`);
   } else check.push("No run log was kept for this job.");
   if (o.linkBase) check.push(`Run page: ${o.linkBase.replace(/\/$/, "")}/jobs/${f.contract.id}`);
   sections.push({ title: "Check it", lines: check });
