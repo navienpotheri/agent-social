@@ -534,6 +534,8 @@ sv("action_missing_contract", "action", { scopes_used: ["repo.read"] }, false);
 sv("valid_action_with_blocked_attempts", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], blocked_attempts: [{ scope: "shell.exec", count: 2 }] }, true);
 sv("action_blocked_attempt_zero_count", "action", { contract: fakeId("c"), scopes_used: [], blocked_attempts: [{ scope: "shell.exec", count: 0 }] }, false);
 sv("action_blocked_attempt_missing_count", "action", { contract: fakeId("c"), scopes_used: [], blocked_attempts: [{ scope: "shell.exec" }] }, false);
+sv("valid_action_with_assurance", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], assurance: "gateway_enforced" }, true);
+sv("action_unknown_assurance", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], assurance: "trust_me" }, false);
 sv("action_bad_scope_format", "action", { contract: fakeId("c"), scopes_used: ["Repo Read"] }, false);
 
 const m = mandateBody(fakeId("c"));

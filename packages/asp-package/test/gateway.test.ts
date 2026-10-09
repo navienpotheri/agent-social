@@ -1,7 +1,10 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
-import { createGateway, judge, shellArtifact, type Gateway } from "../src/index.ts";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { anthropicEvents, createGateway, judge, openaiChunks, shellArtifact, type Gateway } from "../src/index.ts";
 
 const servers: Server[] = [];
 const gateways: Gateway[] = [];
@@ -16,6 +19,13 @@ async function fakeUpstream(replies: unknown[]) {
     const text = Buffer.concat(chunks).toString("utf8");
     seen.push({ path: req.url ?? "", headers: req.headers, body: text ? JSON.parse(text) : undefined });
     const reply = replies.length > 1 ? replies.shift() : replies[0];
+    const r: any = reply;
+    if (seen.at(-1)!.body?.stream === true && (r.choices || r.content)) {
+      res.writeHead(200, { "content-type": "text/event-stream" });
+      for (const e of r.choices ? openaiChunks(r) : anthropicEvents(r)) res.write(e);
+      res.end();
+      return;
+    }
     const out = JSON.stringify(reply);
     res.writeHead(200, { "content-type": "application/json" });
     res.end(out);
@@ -88,7 +98,7 @@ test("OpenAI chat: when every call is refused the reply ends the turn; a streami
   assert.ok(text.endsWith("data: [DONE]\n\n"));
   const chunks = text.split("\n\n").filter((l) => l.startsWith("data: {")).map((l) => JSON.parse(l.slice(6)));
   assert.ok(!chunks.some((c) => c.choices[0].delta.tool_calls), "no tool call reaches the agent");
-  assert.match(chunks[0].choices[0].delta.content, /The action "write_file" was not run/);
+  assert.ok(chunks.some((c) => /The action "write_file" was not run/.test(c.choices[0].delta.content ?? "")));
   assert.equal(chunks.at(-1).choices[0].finish_reason, "stop");
   assert.equal(up.seen[0].headers.authorization, "Bearer provider-key", "the agent's placeholder is replaced by the gateway's key");
   assert.equal(g.summary().strikes, 1);
@@ -156,4 +166,73 @@ test("other paths pass through unjudged and are counted; a provider error comes 
   const over = await post(`${capped.url}/v1/chat/completions`, { model: "m", messages: [] });
   assert.equal(over.status, 403, "30 tokens spent against a cap of 20");
   assert.match(capped.g.summary().stopped!, /token cap/);
+});
+
+test("live streaming: text arrives as it is sent, a tool call split over several chunks is reassembled whole, and a refused one is dropped", async () => {
+  const up = await fakeUpstream([openaiToolReply([{ name: "read_file", args: { path: "notes.txt", note: "x".repeat(40) } }, { name: "write_file", args: { path: "y" } }], "Looking.")]);
+  const { g, url } = await gateway(up);
+  const res = await post(`${url}/v1/chat/completions`, { model: "m", stream: true, messages: [] });
+  const chunks = (await res.text()).split("\n\n").filter((l) => l.startsWith("data: {")).map((l) => JSON.parse(l.slice(6)));
+  assert.equal(chunks[0].choices[0].delta.content, "Looking.", "the text is forwarded first, before any tool call is judged");
+  const calls = chunks.flatMap((c) => c.choices[0].delta.tool_calls ?? []);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(JSON.parse(calls[0].function.arguments), { path: "notes.txt", note: "x".repeat(40) });
+  assert.equal(chunks.at(-1).choices[0].finish_reason, "tool_calls");
+  assert.equal(up.seen[0].body.stream, true, "the provider is streamed, not fetched whole");
+  assert.deepEqual(g.summary().blocked, [{ scope: "repo.write", count: 1 }]);
+
+  const upA = await fakeUpstream([anthropicToolReply([{ name: "Read", input: { file_path: "a", pad: "z".repeat(30) } }])]);
+  const a = await gateway(upA);
+  const stream = await post(`${a.url}/v1/messages`, { model: "m", max_tokens: 10, stream: true, messages: [] });
+  const body = await stream.text();
+  const deltas = body.split("\n\n").filter(Boolean).map((e) => JSON.parse(/^data: (.*)$/m.exec(e)![1])).filter((d) => d.delta?.type === "input_json_delta");
+  assert.equal(JSON.parse(deltas.map((d) => d.delta.partial_json).join("")).pad, "z".repeat(30));
+});
+
+test("approval gates: a gated call is held until the principal answers; approved runs, refused or silent does not, and a gate is not a strike", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "gw-approvals-"));
+  const answer = async (approved: boolean, reason?: string) => {
+    for (let i = 0; i < 100; i++) {
+      const req = readdirSync(dir).find((f) => f.endsWith(".request.json"));
+      if (req) {
+        const id = req.replace(".request.json", "");
+        writeFileSync(join(dir, `${id}.decision.json`), JSON.stringify({ approved, ...(reason ? { reason } : {}) }));
+        return JSON.parse(readFileSync(join(dir, req), "utf8"));
+      }
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    throw new Error("no approval request appeared");
+  };
+  const up = await fakeUpstream([openaiToolReply([{ name: "bash", args: { command: "node deploy.js" } }])]);
+  const { g, url } = await gateway(up, { scopes: ["repo.read", "shell.exec"], gate: { scopes: ["shell.exec"], mode: "ask", waitSeconds: 5, approvalsDir: dir } });
+
+  const pending = post(`${url}/v1/chat/completions`, { model: "m", messages: [] }).then((r) => r.json());
+  const asked: any = await answer(true);
+  assert.equal(asked.scope, "shell.exec");
+  assert.equal(asked.summary, "node deploy.js");
+  const approved: any = await pending;
+  assert.equal(approved.choices[0].message.tool_calls.length, 1, "approved: the call reaches the agent");
+
+  const dir2 = mkdtempSync(join(tmpdir(), "gw-approvals-"));
+  const second = await gateway(up, { scopes: ["shell.exec"], gate: { scopes: ["shell.exec"], mode: "ask", waitSeconds: 5, approvalsDir: dir2 } });
+  const refusedP = post(`${second.url}/v1/chat/completions`, { model: "m", messages: [] }).then((r) => r.json());
+  for (let i = 0; i < 100 && !readdirSync(dir2).some((f) => f.endsWith(".request.json")); i++) await new Promise((r) => setTimeout(r, 20));
+  const id = readdirSync(dir2).find((f) => f.endsWith(".request.json"))!.replace(".request.json", "");
+  writeFileSync(join(dir2, `${id}.decision.json`), JSON.stringify({ approved: false, reason: "not now" }));
+  const refused: any = await refusedP;
+  assert.equal(refused.choices[0].message.tool_calls, undefined);
+  assert.match(refused.choices[0].message.content, /needs the principal's approval and it was not given: not now/);
+  assert.equal(second.g.summary().strikes, 0, "a refused gate is not a strike");
+  assert.deepEqual(second.g.summary().blocked, []);
+
+  const silent = await gateway(up, { scopes: ["shell.exec"], gate: { scopes: ["shell.exec"], mode: "ask", waitSeconds: 1, approvalsDir: mkdtempSync(join(tmpdir(), "gw-approvals-")) } });
+  const t0 = Date.now();
+  const none: any = await (await post(`${silent.url}/v1/chat/completions`, { model: "m", messages: [] })).json();
+  assert.ok(Date.now() - t0 >= 900);
+  assert.match(none.choices[0].message.content, /no answer within 1 seconds/);
+
+  const deny = await gateway(up, { scopes: ["shell.exec"], gate: { scopes: ["shell.exec"], mode: "deny", waitSeconds: 1 } });
+  const denied: any = await (await post(`${deny.url}/v1/chat/completions`, { model: "m", messages: [] })).json();
+  assert.match(denied.choices[0].message.content, /forbidden by this job's irreversible policy/);
+  void g;
 });

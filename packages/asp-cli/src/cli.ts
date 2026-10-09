@@ -26,10 +26,11 @@
  *     stay local and the service re-verifies every record. --no-auth is only for a service on 127.0.0.1.
  *   asp serve ... --packages <dir>   also stores each tenant's agent packages under <dir> (docs/spec-deltas.md S51).
  *   asp serve ... --known-bad <dir>   also holds the known-bad list (docs/spec-deltas.md S54): command fingerprints an upheld report found harmful.
- *   asp gateway --contract <id> --by <agent did> (--openai-upstream <base url> | --anthropic-upstream <origin>) [--openai-key-env NAME] [--anthropic-key-env NAME] [--max-strikes n] [--token-cap n] [--port n] [-- <command> ...]
- *     Gateway P0 (docs/gateway-design.md): runs any agent command under the contract's Mandate. The command's OPENAI_BASE_URL and
+ *   asp gateway --contract <id> --by <agent did> (--openai-upstream <base url> | --anthropic-upstream <origin>) [--openai-key-env NAME] [--anthropic-key-env NAME] [--max-strikes n] [--token-cap n] [--approval-wait s] [--port n] [-- <command> ...]
+ *     Gateway P1 (docs/gateway-design.md): runs any agent command under the contract's Mandate. The command's OPENAI_BASE_URL and
  *     ANTHROPIC_BASE_URL point at a local proxy that removes tool calls the Mandate does not allow from the model's reply before the
- *     agent sees them, counts strikes, stops on probing or when the contract ends, and reports the Action when it finishes.
+ *     agent sees them (streams are relayed live, each tool call held until it is judged), holds calls on gated scopes for the principal's signed
+ *     answer, counts strikes, stops on probing or when the contract ends or is revoked, and reports the Action (assurance gateway_enforced) when it finishes.
  *   asp known-bad add --report <upheld-report> --by <did> [--fingerprint <asp://shell-command#sha256:...> | --all] [--note <text>] | list
  *     The list is the log service's (ASP_LOG_URL; adding needs an admin token) or <home>/known-bad.json. Without --fingerprint the
  *     candidates are the shell commands shared by 3+ agents (asp watch) that include the reported job. asp run --contract gives the
@@ -324,6 +325,7 @@ const OPTIONS = {
   "openai-key-env": { type: "string" },
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
+  assurance: { type: "string" },
   title: { type: "string" },
   tag: { type: "string" },
   q: { type: "string" },
@@ -959,7 +961,19 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   let knownBad: KnownBadEntry[] = [];
   try { knownBad = await loadKnownBad(home, io); } catch (e) { io.err(`  warning  could not read the known-bad list, so it is not enforced: ${(e as Error).message}`); }
   const keyFrom = (name: string | undefined) => (name ? io.env[name] : undefined);
+  // The Mandate's irreversible policy: gated scopes are held for the principal's signed answer, or refused.
+  const approvalWait = v["approval-wait"] === undefined ? 600 : Number(v["approval-wait"]);
+  if (!Number.isInteger(approvalWait) || approvalWait < 1) throw new UsageError("--approval-wait must be a whole number of seconds, at least 1");
+  const mandateRecord = (await local.log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
+  const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
+  const gateOn = !!irreversible?.scopes?.length && irreversible.policy !== "allow";
+  const approvalsDir = join(home, "runs", `gateway-${now().replace(/:/g, "")}`, "approvals");
+  const gate = gateOn ? { scopes: irreversible!.scopes!, mode: (irreversible!.policy === "forbid" ? "deny" : "ask") as "ask" | "deny", waitSeconds: approvalWait, approvalsDir } : undefined;
+  const approvals = gate?.mode === "ask"
+    ? serveApprovals({ dir: approvalsDir, home, contract, agent: by, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io })
+    : undefined;
   const gw = createGateway({
+    ...(gate ? { gate } : {}),
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
     scopes: mandate.scopes, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
@@ -972,12 +986,31 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const base = `http://127.0.0.1:${port}`;
   io.err(`  gateway  ${base}  Mandate scopes: ${mandate.scopes.join(", ") || "none"}${knownBad.length ? `; ${knownBad.length} known-bad fingerprint(s)` : ""}`);
   // A contract that is revoked, killed or settled stops the gateway, and so the agent.
+  // Actions are reported while the run goes on, not only at the end: a contract revoked or settled mid-run can no longer take one.
+  let flushing = Promise.resolve(0);
+  const flushAction = (why: string) => (flushing = flushing.then(async () => {
+    const d = gw.drain();
+    if (!d.scopesUsed.length && !d.blocked.length) return 0;
+    const s = gw.summary();
+    const args = ["market", "action", "--contract", contract, "--by", by, "--home", home,
+      ...d.scopesUsed.flatMap((x) => ["--scopes-used", x]),
+      ...d.blocked.flatMap((b) => ["--blocked", `${b.scope}=${b.count}`]),
+      ...d.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
+      "--assurance", "gateway_enforced", "--summary", `ASP gateway (gateway-enforced, ${why}): ${s.requests} request(s) so far, ${s.tokens.input + s.tokens.output} tokens, ${s.strikes} blocked${s.stopped ? `; stopped: ${s.stopped}` : ""}`];
+    const out: string[] = [];
+    const rc = await main(args, { out: (l) => out.push(l), err: (l) => out.push(l), env: io.env, cwd: io.cwd });
+    io.err(rc === 0 ? `  action   ${out.join(" ").slice(0, 200)}` : `  warning  could not record an Action (${why}): ${out.join(" ").slice(0, 200)}`);
+    return rc;
+  }));
+  const flusher = setInterval(() => { void flushAction("interval"); }, Number(io.env.ASP_GATEWAY_FLUSH_MS) > 0 ? Number(io.env.ASP_GATEWAY_FLUSH_MS) : 30_000);
+  const pollMs = Number(io.env.ASP_GATEWAY_POLL_MS) > 0 ? Number(io.env.ASP_GATEWAY_POLL_MS) : 2000;
   const watcher = setInterval(async () => {
     try {
-      const st = (await local.log.chainInfo(contract))?.state;
+      // A local log is read once when it is opened, so reopen it to see records another process has added.
+      const st = (await (await openLog(home, logEnv)).log.chainInfo(contract))?.state;
       if (st !== "Running" && st !== "Checkpoint") gw.stop(`the contract is now ${st}`);
     } catch { /* keep the last known state */ }
-  }, 2000);
+  }, pollMs);
   let code = 0;
   if (command.length) {
     code = await new Promise<number>((done) => {
@@ -992,16 +1025,11 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
   }
   clearInterval(watcher);
+  clearInterval(flusher);
+  if (approvals) await approvals.stop();
+  const rc = await flushAction("exit");
   const sum = gw.summary();
   await gw.close();
-  const args = ["market", "action", "--contract", contract, "--by", by, "--home", home,
-    ...sum.scopesUsed.flatMap((x) => ["--scopes-used", x]),
-    ...sum.blocked.flatMap((b) => ["--blocked", `${b.scope}=${b.count}`]),
-    ...sum.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
-    "--summary", `ASP gateway (P0, gateway-enforced): ${sum.requests} request(s), ${sum.tokens.input + sum.tokens.output} tokens, ${sum.strikes} blocked${sum.stopped ? `; stopped: ${sum.stopped}` : ""}`];
-  const out: string[] = [];
-  const rc = await main(args, { out: (l) => out.push(l), err: (l) => out.push(l), env: io.env, cwd: io.cwd });
-  io.err(`  action   ${out.join(" ").slice(0, 200)}`);
   io.err(`  summary  ${JSON.stringify({ requests: sum.requests, unjudged: sum.unjudgedRequests, tokens: sum.tokens, scopesUsed: sum.scopesUsed, blocked: sum.blocked, strikes: sum.strikes })}`);
   return rc !== 0 ? rc : code;
 }
@@ -1764,6 +1792,10 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const by = need("by");
     const scopesUsed = v["scopes-used"] ?? [];
     const body: Record<string, unknown> = { contract, scopes_used: scopesUsed };
+    if (v.assurance) {
+      if (!["self_reported", "runtime_observed", "gateway_observed", "gateway_enforced", "hook_enforced", "sandbox_enforced"].includes(v.assurance)) throw new UsageError("--assurance is self_reported, runtime_observed, gateway_observed, gateway_enforced, hook_enforced or sandbox_enforced");
+      body.assurance = v.assurance;
+    }
     if (v.summary) body.summary = v.summary;
     if (v.blocked?.length) {
       body.blocked_attempts = v.blocked.map((entry) => {
@@ -2372,7 +2404,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
       const action = createRecord({
         type: "action", issuer: agent, subject: v.contract!, prev: null, issued_at: now(),
         body: {
-          contract: v.contract!, scopes_used: [...scopesSeen].sort(), summary: `${backend} run, ${runDir}, killed mid-run`,
+          contract: v.contract!, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", summary: `${backend} run, ${runDir}, killed mid-run`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
           ...(artifactsSeen.length ? { artifacts: artifactsSeen } : {}),
         },
@@ -2401,7 +2433,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
       const action = createRecord({
         type: "action", issuer: agent, subject: v.contract, prev: null, issued_at: now(),
         body: {
-          contract: v.contract, scopes_used: [...scopesSeen].sort(), summary: `${backend} run, ${runDir}`,
+          contract: v.contract, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", summary: `${backend} run, ${runDir}`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
           ...(artifactsSeen.length ? { artifacts: artifactsSeen } : {}),
         },

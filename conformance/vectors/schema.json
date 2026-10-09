@@ -493,6 +493,30 @@
       "valid": false
     },
     {
+      "name": "valid_action_with_assurance",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "assurance": "gateway_enforced"
+      },
+      "valid": true
+    },
+    {
+      "name": "action_unknown_assurance",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "assurance": "trust_me"
+      },
+      "valid": false
+    },
+    {
       "name": "action_bad_scope_format",
       "schema": "action",
       "instance": {

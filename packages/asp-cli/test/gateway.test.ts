@@ -1,6 +1,9 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { main, type Io } from "../src/cli.ts";
 import { makeFixture, type Fixture } from "./fixture.ts";
 
@@ -20,7 +23,7 @@ async function asp(f: Fixture, args: string[], env: NodeJS.ProcessEnv = {}) {
 }
 const ok = async (f: Fixture, args: string[]) => { const r = await asp(f, args); assert.equal(r.code, 0, `${args.join(" ")}: ${r.err || r.out}`); return r; };
 
-async function runningContract(f: Fixture, scopes: string[]) {
+async function runningContract(f: Fixture, scopes: string[], extra: string[] = []) {
   await ok(f, ["identity", "new", "--kind", "human", "--did", ALICE]);
   await ok(f, ["identity", "new", "--kind", "agent", "--did", CODER, "--sponsor", ALICE, "--purpose", "Fix the flaky test"]);
   await ok(f, ["identity", "new", "--kind", "human", "--did", BANK]);
@@ -30,7 +33,7 @@ async function runningContract(f: Fixture, scopes: string[]) {
   const offer = /^offer (\S+)/.exec((await ok(f, ["market", "offer", "--by", CODER, "--intent", intent, "--price", "1000", "--plan", "fix", "--eta", "2026-11-01T00:00:00Z"])).out)![1];
   const contract = /^contract (\S+):/.exec((await ok(f, ["market", "contract", "--principal", ALICE, "--bank", BANK, "--intent", intent, "--offer", offer])).out)![1];
   await ok(f, ["market", "bond", "--contract", contract, "--backer", CODER, "--amount", "200", "--escrow-payer", ALICE, "--escrow-amount", "1000"]);
-  await ok(f, ["market", "mandate", "--contract", contract, "--principal", ALICE, "--performer", CODER, ...scopes.flatMap((s) => ["--scopes", s])]);
+  await ok(f, ["market", "mandate", "--contract", contract, "--principal", ALICE, "--performer", CODER, ...scopes.flatMap((s) => ["--scopes", s]), ...extra]);
   return contract;
 }
 
@@ -89,4 +92,92 @@ test("asp gateway refuses a contract that is not running, and needs an upstream"
   assert.match(missing.err, /not Running|not in the log/);
   const none = await asp(f, ["gateway", "--contract", "x", "--by", CODER, "--", process.execPath, "-e", "0"]);
   assert.equal(none.code, 2);
+});
+
+// ---- P1: gates, live revoke, assurance ----
+const SHELL_AGENT = `
+import { writeFileSync } from "node:fs";
+const r = await fetch(process.env.OPENAI_BASE_URL + "/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer x" }, body: JSON.stringify({ model: "m", messages: [] }) });
+const j = await r.json();
+const m = j.choices[0].message;
+writeFileSync(process.env.AGENT_OUT, "GOT:" + JSON.stringify((m.tool_calls ?? []).map((t) => t.function.name)) + " SAW:" + (m.content ?? ""));
+`;
+async function shellProvider() {
+  const server = createServer(async (req, res) => {
+    for await (const _ of req) { /* drain */ }
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ id: "c1", object: "chat.completion", created: 1, model: "m", usage: { prompt_tokens: 1, completion_tokens: 1 },
+      choices: [{ index: 0, finish_reason: "tool_calls", message: { role: "assistant", content: null, tool_calls: [{ id: "s1", type: "function", function: { name: "bash", arguments: JSON.stringify({ command: "node deploy.js" }) } }] } }] }));
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  servers.push(server);
+  return `http://127.0.0.1:${(server.address() as { port: number }).port}/v1`;
+}
+const outFile = () => join(mkdtempSync(join(tmpdir(), "gw-out-")), "agent.txt");
+
+async function answerWhenAsked(f: Fixture, id: string, verdict: string) {
+  const extra = verdict === "corrected" ? ["--correction", "not that command"] : [];
+  const { LocalLog } = await import("@agent-social/asp-package");
+  for (let i = 0; i < 400; i++) {
+    const local = await LocalLog.open(f.aspHome);
+    if ((await local.log.chainInfo(id))?.state === "Checkpoint") return asp(f, ["market", "resolve", "--contract", id, "--by", ALICE, "--verdict", verdict, ...extra]);
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  throw new Error("no Checkpoint appeared");
+}
+
+test("asp gateway holds a gated call for the principal's signed answer: approved reaches the agent, refused does not, and neither is a strike", async () => {
+  const upstream = await shellProvider();
+  for (const verdict of ["approved", "corrected"]) {
+    const f = makeFixture();
+    const contract = await runningContract(f, ["repo.read", "shell.exec"], ["--gate", "shell.exec"]);
+    const out = outFile();
+    const [run] = await Promise.all([
+      asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--approval-wait", "20", "--", process.execPath, "--input-type=module", "-e", SHELL_AGENT], { AGENT_OUT: out, ASP_APPROVAL_POLL_MS: "100" }),
+      answerWhenAsked(f, contract, verdict),
+    ]);
+    assert.equal(run.code, 0, run.err);
+    assert.match(run.err, /APPROVAL NEEDED {2}shell\.exec: node deploy\.js/);
+    const got = readFileSync(out, "utf8");
+    if (verdict === "approved") {
+      assert.match(got, /^GOT:\["bash"\]/);
+      assert.match(run.err, /approval granted for shell\.exec/);
+    } else {
+      assert.match(got, /^GOT:\[\] SAW:\[ASP\] The action "bash" was not run: .*needs the principal's approval and it was not given/);
+      assert.match(run.err, /approval refused for shell\.exec/);
+    }
+    assert.doesNotMatch(run.err, /stopped {2}/, "a gate is not probing");
+  }
+});
+
+test("asp gateway stops the agent when the contract is revoked mid-run, and records gateway_enforced on the Action", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f, ["repo.read"]);
+  const upstream = await provider();
+  const out = outFile();
+  const LOOP = `
+import { writeFileSync } from "node:fs";
+for (let i = 0; i < 100; i++) {
+  const r = await fetch(process.env.OPENAI_BASE_URL + "/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer x" }, body: JSON.stringify({ model: "m", messages: [] }) });
+  if (r.status === 403) { writeFileSync(process.env.AGENT_OUT, "STOPPED after " + i + " requests: " + (await r.json()).error.message); process.exit(0); }
+  await new Promise((r) => setTimeout(r, 150));
+}
+writeFileSync(process.env.AGENT_OUT, "NEVER STOPPED");
+`;
+  const revoke = (async () => {
+    await new Promise((r) => setTimeout(r, 1200));
+    return asp(f, ["market", "settle", "--contract", contract, "--bank", BANK, "--basis", "revoked", "--principal", ALICE, "--escrow-released", "0", "--bond-slashed", "0", "--bond-returned", "200", "--pro-rata", "0"]);
+  })();
+  const [run, settled] = await Promise.all([
+    asp(f, ["gateway", "--contract", contract, "--by", CODER, "--max-strikes", "1000", "--openai-upstream", upstream, "--", process.execPath, "--input-type=module", "-e", LOOP], { AGENT_OUT: out, ASP_GATEWAY_POLL_MS: "200", ASP_GATEWAY_FLUSH_MS: "300" }),
+    revoke,
+  ]);
+  assert.equal(settled.code, 0, settled.err);
+  assert.match(readFileSync(out, "utf8"), /^STOPPED after \d+ requests: ASP gateway: this run was stopped \(the contract is now Settled\)/);
+  assert.match(run.err, /stopped {2}the contract is now Settled/);
+  // Actions were reported while it ran, so the evidence from before the revoke is in the log; each says how strongly it was enforced.
+  const { LocalLog } = await import("@agent-social/asp-package");
+  const local = await LocalLog.open(f.aspHome);
+  const actions = (await local.log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2");
+  assert.equal((actions.at(-1)!.record.body as any).assurance, "gateway_enforced");
 });

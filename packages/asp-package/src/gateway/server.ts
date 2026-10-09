@@ -3,12 +3,16 @@
  * Anthropic Messages API. Every reply is read for the tool calls the model asks for; calls the Mandate does not
  * allow are removed from the reply BEFORE the agent receives it, so the agent never sees a call it may not make.
  *
- * P0 limits: replies are fetched whole from the provider (a client that asked for a stream gets one synthesized
- * from the whole reply); other paths (for example /v1/responses) pass through unjudged and are counted as
- * unjudged requests; approval gates, MCP and the Action's assurance field come in later phases.
+ * P1: streams are relayed live (text as it arrives, each tool call held until complete, judged, then forwarded or
+ * dropped); calls on gated scopes are held for the principal's signed answer, or refused when forbidden. Other paths
+ * (for example /v1/responses) pass through unjudged and are counted as unjudged requests; MCP is a later phase.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { judge, type KnownBadRef, type ToolCall } from "./judge.ts";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
+import { anthropicEvents, openaiChunks, relayAnthropicStream, relayOpenaiStream } from "./stream.ts";
 
 export interface GatewayOptions {
   /** Base URL of the OpenAI-compatible API, up to and including /v1 (for example https://api.openai.com/v1). */
@@ -23,6 +27,11 @@ export interface GatewayOptions {
   knownBad?: KnownBadRef[];
   /** Blocked calls in one run that read as probing and stop the run (default 3). */
   maxStrikes?: number;
+  /**
+   * The Mandate's irreversible policy: calls on these granted scopes are held for the principal's answer (mode "ask",
+   * through request and decision files in approvalsDir, the same protocol the pre-call hooks use) or refused (mode "deny").
+   */
+  gate?: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number; approvalsDir?: string };
   /** Stops the run when input plus output tokens pass this. */
   tokenCap?: number;
   fetch?: typeof fetch;
@@ -46,6 +55,8 @@ export interface Gateway {
   server: Server;
   listen(port?: number, host?: string): Promise<number>;
   summary(): GatewaySummary;
+  /** What happened since the last drain (scopes used, blocked attempts, fingerprints), and starts a new interval, so Actions can be reported while the run goes on. */
+  drain(): { scopesUsed: string[]; blocked: { scope: string; count: number }[]; artifacts: { uri: string; sha256: string }[] };
   /** Refuses every further request (the contract was revoked, killed or settled). */
   stop(reason: string): void;
   close(): Promise<void>;
@@ -66,25 +77,66 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const used = new Set<string>();
   const blocked = new Map<string, number>();
   const artifacts = new Map<string, { uri: string; sha256: string }>();
+  const pendingUsed = new Set<string>();
+  const pendingBlocked = new Map<string, number>();
+  const pendingArtifacts = new Map<string, { uri: string; sha256: string }>();
   const tokens = { input: 0, output: 0 };
   let requests = 0, unjudged = 0, strikes = 0;
   let stopped: string | undefined;
 
   const stop = (reason: string) => { if (!stopped) { stopped = reason; opts.onStop?.(reason); } };
 
+  /** Holds a gated call until the principal answers (a decision file), or the wait runs out, which is a refusal. */
+  async function askPrincipal(call: ToolCall, scope: string): Promise<{ approved: boolean; reason?: string }> {
+    const g = opts.gate!;
+    const dir = g.approvalsDir!;
+    mkdirSync(dir, { recursive: true });
+    const id = String(call.id ?? randomUUID()).replace(/[^A-Za-z0-9_-]/g, "_");
+    const summary = commandOf(call.args) ?? JSON.stringify(call.args);
+    const tmp = join(dir, `${id}.request.tmp`);
+    writeFileSync(tmp, JSON.stringify({ id, tool: call.name, scope, summary: summary.length > 2000 ? summary.slice(0, 2000) + "..." : summary, requested_at: new Date().toISOString() }));
+    renameSync(tmp, join(dir, `${id}.request.json`));
+    const decisionFile = join(dir, `${id}.decision.json`);
+    const deadline = Date.now() + g.waitSeconds * 1000;
+    while (Date.now() < deadline && !stopped) {
+      if (existsSync(decisionFile)) {
+        const d = JSON.parse(readFileSync(decisionFile, "utf8"));
+        return d.approved === true ? { approved: true } : { approved: false, reason: d.reason };
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return { approved: false, reason: stopped ? "the run was stopped" : `no answer within ${g.waitSeconds} seconds` };
+  }
+
   /** Judges one call; records it. Returns the refusal reason when it is refused. */
-  function decide(call: ToolCall): string | undefined {
+  async function decide(call: ToolCall): Promise<string | undefined> {
     const j = judge(call, opts.scopes, opts.knownBad ?? []);
-    opts.onCall?.({ tool: call.name, scope: j.scope, allowed: j.allow, ...(j.reason ? { reason: j.reason } : {}) });
-    if (j.allow) {
-      if (j.scope) used.add(j.scope);
-      if (j.artifact) artifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact);
+    let allow = j.allow;
+    let reason = j.reason;
+    let strike = true;
+    // A gate is not a violation: a forbidden or unanswered call is refused without a strike.
+    if (allow && j.scope && opts.gate?.scopes.includes(j.scope)) {
+      strike = false;
+      if (opts.gate.mode === "deny") { allow = false; reason = `the scope ${j.scope} is forbidden by this job's irreversible policy`; }
+      else if (!opts.gate.approvalsDir) { allow = false; reason = `the scope ${j.scope} needs the principal's approval and this run cannot ask for it`; }
+      else {
+        const a = await askPrincipal(call, j.scope);
+        if (!a.approved) { allow = false; reason = `the scope ${j.scope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`; }
+      }
+    }
+    opts.onCall?.({ tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}) });
+    if (allow) {
+      if (j.scope) { used.add(j.scope); pendingUsed.add(j.scope); }
+      if (j.artifact) { artifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); pendingArtifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); }
       return undefined;
     }
-    blocked.set(j.scope, (blocked.get(j.scope) ?? 0) + 1);
-    strikes++;
-    if (strikes >= maxStrikes) stop(`${strikes} blocked attempts in one run read as probing`);
-    return j.reason ?? "outside the Mandate";
+    if (strike) {
+      blocked.set(j.scope, (blocked.get(j.scope) ?? 0) + 1);
+      pendingBlocked.set(j.scope, (pendingBlocked.get(j.scope) ?? 0) + 1);
+      strikes++;
+      if (strikes >= maxStrikes) stop(`${strikes} blocked attempts in one run read as probing`);
+    }
+    return reason ?? "outside the Mandate";
   }
 
   function json(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) {
@@ -120,9 +172,14 @@ export function createGateway(opts: GatewayOptions): Gateway {
   async function openaiChat(req: IncomingMessage, res: ServerResponse, rawBody: Buffer) {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
-    body.stream = false;
-    delete body.stream_options;
+    if (!wantsStream) body.stream = false;
+    if (wantsStream) body.stream_options = { ...(body.stream_options ?? {}), include_usage: true };
     const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/chat/completions`, { method: "POST", headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
+    if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
+      await relayOpenaiStream(up.body, res, decide, tokens);
+      if (tokenCapHit()) stop("token cap reached");
+      return;
+    }
     const text = await up.text();
     if (!up.ok) { res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
     const reply = JSON.parse(text);
@@ -135,7 +192,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       const kept: unknown[] = [];
       for (const tc of msg.tool_calls) {
         const name = tc.function?.name ?? "";
-        const reason = decide({ id: tc.id, name, args: parseArgs(tc.function?.arguments) });
+        const reason = await decide({ id: tc.id, name, args: parseArgs(tc.function?.arguments) });
         if (reason) refused.push({ name, reason }); else kept.push(tc);
       }
       if (kept.length !== msg.tool_calls.length) {
@@ -149,26 +206,18 @@ export function createGateway(opts: GatewayOptions): Gateway {
     sse(res, openaiChunks(reply));
   }
 
-  function openaiChunks(reply: any): string[] {
-    const out: string[] = [];
-    const base = { id: reply.id, object: "chat.completion.chunk", created: reply.created, model: reply.model };
-    const choice = reply.choices?.[0] ?? { message: {}, finish_reason: "stop" };
-    const m = choice.message ?? {};
-    out.push(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { role: "assistant", ...(m.content ? { content: m.content } : { content: "" }) }, finish_reason: null }] })}\n\n`);
-    (m.tool_calls ?? []).forEach((tc: any, i: number) => {
-      out.push(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { tool_calls: [{ index: i, id: tc.id, type: "function", function: { name: tc.function?.name, arguments: tc.function?.arguments ?? "" } }] }, finish_reason: null }] })}\n\n`);
-    });
-    out.push(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: {}, finish_reason: choice.finish_reason ?? "stop" }], ...(reply.usage ? { usage: reply.usage } : {}) })}\n\n`);
-    out.push("data: [DONE]\n\n");
-    return out;
-  }
 
   // ---------- Anthropic Messages ----------
   async function anthropicMessages(req: IncomingMessage, res: ServerResponse, rawBody: Buffer) {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
-    body.stream = false;
+    if (!wantsStream) body.stream = false;
     const up = await f(`${opts.anthropicUpstream!.replace(/\/$/, "")}/v1/messages`, { method: "POST", headers: upstreamHeaders(req, opts.anthropicKey, "anthropic"), body: JSON.stringify(body) });
+    if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
+      await relayAnthropicStream(up.body, res, decide, tokens);
+      if (tokenCapHit()) stop("token cap reached");
+      return;
+    }
     const text = await up.text();
     if (!up.ok) { res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
     const reply = JSON.parse(text);
@@ -176,12 +225,12 @@ export function createGateway(opts: GatewayOptions): Gateway {
     tokens.output += reply.usage?.output_tokens ?? 0;
     if (Array.isArray(reply.content)) {
       const refused: { name: string; reason: string }[] = [];
-      const kept = reply.content.filter((b: any) => {
-        if (b?.type !== "tool_use") return true;
-        const reason = decide({ id: b.id, name: b.name, args: parseArgs(b.input) });
-        if (reason) { refused.push({ name: b.name, reason }); return false; }
-        return true;
-      });
+      const kept: any[] = [];
+      for (const b of reply.content) {
+        if (b?.type !== "tool_use") { kept.push(b); continue; }
+        const reason = await decide({ id: b.id, name: b.name, args: parseArgs(b.input) });
+        if (reason) refused.push({ name: b.name, reason }); else kept.push(b);
+      }
       if (refused.length) {
         kept.push({ type: "text", text: refusalText(refused) });
         reply.content = kept;
@@ -191,31 +240,6 @@ export function createGateway(opts: GatewayOptions): Gateway {
     if (tokenCapHit()) stop("token cap reached");
     if (!wantsStream) return json(res, 200, reply);
     sse(res, anthropicEvents(reply), true);
-  }
-
-  function anthropicEvents(reply: any): string[] {
-    const ev = (name: string, data: unknown) => `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`;
-    const out: string[] = [];
-    out.push(ev("message_start", { type: "message_start", message: { id: reply.id, type: "message", role: "assistant", model: reply.model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: reply.usage?.input_tokens ?? 0, output_tokens: 0 } } }));
-    (reply.content ?? []).forEach((b: any, i: number) => {
-      if (b.type === "tool_use") {
-        out.push(ev("content_block_start", { type: "content_block_start", index: i, content_block: { type: "tool_use", id: b.id, name: b.name, input: {} } }));
-        out.push(ev("content_block_delta", { type: "content_block_delta", index: i, delta: { type: "input_json_delta", partial_json: JSON.stringify(b.input ?? {}) } }));
-      } else if (b.type === "thinking") {
-        out.push(ev("content_block_start", { type: "content_block_start", index: i, content_block: { type: "thinking", thinking: "" } }));
-        out.push(ev("content_block_delta", { type: "content_block_delta", index: i, delta: { type: "thinking_delta", thinking: b.thinking ?? "" } }));
-        if (b.signature) out.push(ev("content_block_delta", { type: "content_block_delta", index: i, delta: { type: "signature_delta", signature: b.signature } }));
-      } else if (b.type === "text") {
-        out.push(ev("content_block_start", { type: "content_block_start", index: i, content_block: { type: "text", text: "" } }));
-        out.push(ev("content_block_delta", { type: "content_block_delta", index: i, delta: { type: "text_delta", text: b.text ?? "" } }));
-      } else {
-        out.push(ev("content_block_start", { type: "content_block_start", index: i, content_block: b }));
-      }
-      out.push(ev("content_block_stop", { type: "content_block_stop", index: i }));
-    });
-    out.push(ev("message_delta", { type: "message_delta", delta: { stop_reason: reply.stop_reason ?? "end_turn", stop_sequence: reply.stop_sequence ?? null }, usage: { output_tokens: reply.usage?.output_tokens ?? 0 } }));
-    out.push(ev("message_stop", { type: "message_stop" }));
-    return out;
   }
 
   function sse(res: ServerResponse, events: string[], _anthropic = false) {
@@ -270,6 +294,11 @@ export function createGateway(opts: GatewayOptions): Gateway {
     server,
     listen: (port = 0, host = "127.0.0.1") => new Promise((resolve, reject) => { server.once("error", reject); server.listen(port, host, () => resolve((server.address() as { port: number }).port)); }),
     summary, stop,
+    drain: () => {
+      const out = { scopesUsed: [...pendingUsed].sort(), blocked: [...pendingBlocked].map(([scope, count]) => ({ scope, count })), artifacts: [...pendingArtifacts.values()] };
+      pendingUsed.clear(); pendingBlocked.clear(); pendingArtifacts.clear();
+      return out;
+    },
     close: () => new Promise((resolve) => { server.close(() => resolve()); server.closeAllConnections?.(); }),
   };
 }
