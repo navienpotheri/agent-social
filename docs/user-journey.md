@@ -251,6 +251,8 @@ The promise: **the agent gets better, or at least safer, with every job, and wha
 
 Everything below is read from the log and signed by the user's key. The dashboard is a viewer plus a way to relay signed actions; it holds no authority of its own.
 
+> **Live beta flow 1** (page, mandatory Gmail login, consent, browser-held key, confirmation mail with dashboard link, first run) is defined step by step in `docs/live-beta-flow-1.md`.
+
 ### 7.1 Sign-in
 Challenge-and-sign with the user's key (browser key, passkey, hardware key or `asp login`), producing a session scoped to the DIDs the key controls. Organisations add roles.
 
