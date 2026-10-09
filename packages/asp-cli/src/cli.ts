@@ -350,6 +350,7 @@ const OPTIONS = {
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
   assurance: { type: "string" },
+  metrics: { type: "string" },
   mcp: { type: "string", multiple: true },
   sandbox: { type: "boolean" },
   "sandbox-bind": { type: "string", multiple: true },
@@ -1315,12 +1316,13 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   let flushing = Promise.resolve(0);
   const flushAction = (why: string) => (flushing = flushing.then(async () => {
     const d = gw.drain();
-    if (!d.scopesUsed.length && !d.blocked.length) return 0;
+    if (!d.scopesUsed.length && !d.blocked.length && d.metrics.requests === 0) return 0;
     const s = gw.summary();
     const args = ["market", "action", "--contract", contract, "--by", by, "--home", home,
       ...d.scopesUsed.flatMap((x) => ["--scopes-used", x]),
       ...d.blocked.flatMap((b) => ["--blocked", `${b.scope}=${b.count}`]),
       ...d.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
+      "--metrics", JSON.stringify(d.metrics),
       "--assurance", sandbox ? "sandbox_enforced" : s.toolCalls > 0 ? "gateway_enforced" : "gateway_observed", "--summary", `ASP gateway (${sandbox ? "sandbox-enforced: the agent ran in a sandbox whose only way out was the gateway" : s.toolCalls > 0 ? "gateway-enforced" : "gateway-observed: no structured tool calls passed through, so nothing could be enforced"}, ${why}): ${s.requests} request(s) so far, ${s.tokens.input + s.tokens.output} tokens, ${s.strikes} blocked${s.stopped ? `; stopped: ${s.stopped}` : ""}`];
     const out: string[] = [];
     const rc = await main(args, { out: (l) => out.push(l), err: (l) => out.push(l), env: io.env, cwd: io.cwd });
@@ -2186,6 +2188,9 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       body.assurance = v.assurance;
     }
     if (v.summary) body.summary = v.summary;
+    if (v.metrics) {
+      try { body.metrics = JSON.parse(v.metrics); } catch { throw new UsageError("--metrics must be a JSON object, e.g. '{\"tokens_in\":1200,\"tokens_out\":340,\"models\":[{\"name\":\"gpt-oss-120b\"}]}'"); }
+    }
     if (v.blocked?.length) {
       body.blocked_attempts = v.blocked.map((entry) => {
         const [scope, count] = entry.split("=");

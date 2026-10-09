@@ -180,6 +180,14 @@ writeFileSync(process.env.AGENT_OUT, "NEVER STOPPED");
   const local = await LocalLog.open(f.aspHome);
   const actions = (await local.log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2");
   assert.equal((actions.at(-1)!.record.body as any).assurance, "gateway_enforced");
+  // Each Action carries its own interval's metrics: the model that ran, and counts that add up across Actions to the requests made (the upstream reports 7 in and 3 out per request).
+  const metrics = actions.map((x) => (x.record.body as any).metrics);
+  assert.ok(metrics.every(Boolean), "every gateway Action has metrics");
+  assert.ok(metrics.some((m) => m.models.some((x: any) => x.name === "m")), "the model name is recorded");
+  const requests = metrics.reduce((n, m) => n + m.requests, 0);
+  assert.ok(requests >= 2);
+  assert.equal(metrics.reduce((n, m) => n + m.tokens_in, 0), 7 * requests);
+  assert.equal(metrics.reduce((n, m) => n + m.tokens_out, 0), 3 * requests);
 });
 
 // ---- P2: MCP and memory ----

@@ -18,6 +18,32 @@
       "description": "How strong the evidence behind this Action is, the strongest mechanism that applied: self_reported (the agent signed its own report), runtime_observed (the run's output was parsed as it happened; a violation is detected and stopped, not prevented), gateway_observed (a gateway saw the traffic but could not refuse), gateway_enforced (tool calls were checked and refused before the agent received them), hook_enforced (the runtime's own pre-call hook blocked disallowed calls), sandbox_enforced (the process ran in a sandbox with egress rules). Absent means unspecified. Lets a principal or a Court weigh the Action.",
       "enum": ["self_reported", "runtime_observed", "gateway_observed", "gateway_enforced", "hook_enforced", "sandbox_enforced"]
     },
+    "metrics": {
+      "description": "What this stretch of the run cost and what ran, measured by whoever observed it (see assurance): the models the agent called, how many model requests and tool calls, tokens in and out, and seconds. A gateway counts from the traffic it relayed; a self-report is the agent's own figure. Counts are for this Action only (the interval since the previous Action of the run), so a trend adds them up. The model name is what the provider was asked for; a digest is recorded only when the provider reports one.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "models": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "provider": { "type": "string" },
+              "digest": { "type": "string" }
+            }
+          }
+        },
+        "requests": { "type": "integer", "minimum": 0 },
+        "tool_calls": { "type": "integer", "minimum": 0 },
+        "tokens_in": { "type": "integer", "minimum": 0 },
+        "tokens_out": { "type": "integer", "minimum": 0 },
+        "seconds": { "type": "integer", "minimum": 0 }
+      }
+    },
     "blocked_attempts": {
       "description": "Calls the runtime stopped before they ran because their scope wasn't in the Mandate. A signed strike: nothing out of scope executed, so these are not in scopes_used and are not checked against the Mandate.",
       "type": "array",

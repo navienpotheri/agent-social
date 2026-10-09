@@ -44,6 +44,16 @@ export interface GatewayOptions {
   onStop?: (reason: string) => void;
 }
 
+/** What one interval of a run cost and which models ran: the Action's `metrics` field. */
+export interface ActionMetrics {
+  models: { name: string; provider?: string }[];
+  requests: number;
+  tool_calls: number;
+  tokens_in: number;
+  tokens_out: number;
+  seconds: number;
+}
+
 export interface GatewaySummary {
   requests: number;
   /** Tool calls the gateway judged. Zero means the agent never used structured tool calls through it, so nothing could have been enforced. */
@@ -64,7 +74,7 @@ export interface Gateway {
   listenUnix(path: string): Promise<void>;
   summary(): GatewaySummary;
   /** What happened since the last drain (scopes used, blocked attempts, fingerprints), and starts a new interval, so Actions can be reported while the run goes on. */
-  drain(): { scopesUsed: string[]; blocked: { scope: string; count: number }[]; artifacts: { uri: string; sha256: string }[] };
+  drain(): { scopesUsed: string[]; blocked: { scope: string; count: number }[]; artifacts: { uri: string; sha256: string }[]; metrics: ActionMetrics };
   /** Refuses every further request (the contract was revoked, killed or settled). */
   stop(reason: string): void;
   close(): Promise<void>;
@@ -89,6 +99,15 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const pendingBlocked = new Map<string, number>();
   const pendingArtifacts = new Map<string, { uri: string; sha256: string }>();
   const tokens = { input: 0, output: 0 };
+  // Totals at the last drain, and the models seen since, so each Action carries its own interval's figures.
+  const last = { requests: 0, toolCalls: 0, input: 0, output: 0, at: Date.now() };
+  const modelsSeen = new Map<string, { name: string; provider?: string }>();
+  const noteModel = (name: unknown, upstream: string | undefined) => {
+    if (typeof name !== "string" || !name) return;
+    let provider: string | undefined;
+    try { provider = upstream ? new URL(upstream).host : undefined; } catch { /* not a URL */ }
+    modelsSeen.set(`${provider ?? ""}|${name}`, { name, ...(provider ? { provider } : {}) });
+  };
   let requests = 0, unjudged = 0, strikes = 0, toolCalls = 0;
   let stopped: string | undefined;
 
@@ -181,6 +200,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   async function openaiChat(req: IncomingMessage, res: ServerResponse, rawBody: Buffer) {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
+    noteModel(body.model, opts.openaiUpstream);
     if (!wantsStream) body.stream = false;
     if (wantsStream) body.stream_options = { ...(body.stream_options ?? {}), include_usage: true };
     const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/chat/completions`, { method: "POST", headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
@@ -220,6 +240,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   async function openaiResponses(req: IncomingMessage, res: ServerResponse, rawBody: Buffer) {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
+    noteModel(body.model, opts.openaiUpstream);
     const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/responses`, { method: "POST", headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
       await relayResponsesStream(up.body, res, decide, tokens);
@@ -254,6 +275,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   async function anthropicMessages(req: IncomingMessage, res: ServerResponse, rawBody: Buffer) {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
+    noteModel(body.model, opts.anthropicUpstream);
     if (!wantsStream) body.stream = false;
     const up = await f(`${opts.anthropicUpstream!.replace(/\/$/, "")}/v1/messages`, { method: "POST", headers: upstreamHeaders(req, opts.anthropicKey, "anthropic"), body: JSON.stringify(body) });
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
@@ -358,7 +380,11 @@ export function createGateway(opts: GatewayOptions): Gateway {
     listen: (port = 0, host = "127.0.0.1") => new Promise((resolve, reject) => { server.once("error", reject); server.listen(port, host, () => resolve((server.address() as { port: number }).port)); }),
     summary, stop,
     drain: () => {
-      const out = { scopesUsed: [...pendingUsed].sort(), blocked: [...pendingBlocked].map(([scope, count]) => ({ scope, count })), artifacts: [...pendingArtifacts.values()] };
+      const now = Date.now();
+      const metrics: ActionMetrics = { models: [...modelsSeen.values()], requests: requests - last.requests, tool_calls: toolCalls - last.toolCalls, tokens_in: tokens.input - last.input, tokens_out: tokens.output - last.output, seconds: Math.round((now - last.at) / 1000) };
+      Object.assign(last, { requests, toolCalls, input: tokens.input, output: tokens.output, at: now });
+      modelsSeen.clear();
+      const out = { scopesUsed: [...pendingUsed].sort(), blocked: [...pendingBlocked].map(([scope, count]) => ({ scope, count })), artifacts: [...pendingArtifacts.values()], metrics };
       pendingUsed.clear(); pendingBlocked.clear(); pendingArtifacts.clear();
       return out;
     },

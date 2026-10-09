@@ -1,3 +1,6 @@
+| open (partly closed, S66: structured metrics exist; the self-report SDKs do not send them yet) |
+| open (partly closed, S66: Actions carry structured metrics; no trend view yet) |
+| open (partly closed, S66: the model name and provider are recorded in the Action's metrics; no digest, and no probation on a change) |
 # Gaps register: everything the protocol and the network do not cover yet
 
 Started 2026-10-09. One place to track what is **not** covered, so we can come back to it. Every row says what protects us today, what would close the gap, and where the detail lives. When a gap is closed, change its status and add the spec-delta number; never delete a row.

@@ -517,6 +517,70 @@
       "valid": false
     },
     {
+      "name": "valid_action_with_metrics",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "metrics": {
+          "models": [
+            {
+              "name": "gpt-oss-120b",
+              "provider": "api.groq.com"
+            }
+          ],
+          "requests": 3,
+          "tool_calls": 2,
+          "tokens_in": 1200,
+          "tokens_out": 340,
+          "seconds": 9
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "action_metrics_negative_tokens",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [],
+        "metrics": {
+          "tokens_in": -1
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "action_metrics_unknown_field",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [],
+        "metrics": {
+          "dollars": 2
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "action_metrics_model_without_name",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [],
+        "metrics": {
+          "models": [
+            {
+              "provider": "x"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
       "name": "action_bad_scope_format",
       "schema": "action",
       "instance": {
