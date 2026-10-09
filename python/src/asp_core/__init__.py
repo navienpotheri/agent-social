@@ -27,3 +27,6 @@ __all__ = [
     "resolver_from_passports", "sha256_id", "short_type", "signing_bytes", "static_resolver",
     "unsigned_view", "verify_record",
 ]
+from .reporter import ASSURANCE, AgentReporter, MandateRefusal  # noqa: E402
+
+__all__ += ["ASSURANCE", "AgentReporter", "MandateRefusal"]

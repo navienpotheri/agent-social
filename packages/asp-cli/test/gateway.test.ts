@@ -248,3 +248,19 @@ test("an agent that never uses structured tool calls through the gateway is repo
   const actions = (await local.log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2");
   for (const a of actions) assert.notEqual((a.record.body as any).assurance, "gateway_enforced");
 });
+
+test("the provider key the gateway holds never reaches the agent's environment, and --sandbox says why it cannot run where bubblewrap is missing", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f, ["repo.read"]);
+  const upstream = await provider();
+  const out = outFile();
+  const PEEK = `import { writeFileSync } from "node:fs"; writeFileSync(process.env.AGENT_OUT, JSON.stringify({ key: process.env.MY_PROVIDER_KEY ?? null, placeholder: process.env.OPENAI_API_KEY ?? null }));`;
+  const run = await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--openai-key-env", "MY_PROVIDER_KEY", "--", process.execPath, "--input-type=module", "-e", PEEK], { MY_PROVIDER_KEY: "sk-real-provider-key", AGENT_OUT: out });
+  assert.equal(run.code, 0, run.err);
+  assert.deepEqual(JSON.parse(readFileSync(out, "utf8")), { key: null, placeholder: "asp-gateway" });
+  if (process.platform !== "linux") {
+    const sb = await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--sandbox", "--", process.execPath, "-e", "0"]);
+    assert.notEqual(sb.code, 0);
+    assert.match(sb.err, /--sandbox: the sandbox level needs Linux/);
+  }
+});

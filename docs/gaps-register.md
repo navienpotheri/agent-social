@@ -33,8 +33,8 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | H5 | No outcome detectors (a secret was obtained or leaked) | Known-bad list needs a prior report | Detect secret-shaped output and credential use | same | B | open |
 | H6 | Known-bad list is exact-match, shell commands only, has no expiry | Fingerprint of normalized command | Pattern-level matching; expiry and removal; other tool types | S54 | B | open |
 | H7 | Tool calls the model writes as text, and code-writing agents, are invisible to the gateway | Hooks on the runtimes that have them | Text-format parsers; sandbox with egress rules | gateway doc §4 | B | open |
-| H8 | No sandbox level: what a tool does inside the machine is not bounded | Assurance level exists in the schema | Container or OS sandbox wrapper | gateway doc P4 | B | open |
-| H10 | Actions an agent's own code takes outside the model loop are invisible to the gateway. Seen live: Aider saw a URL in the prompt, offered to scrape it, auto-installed Playwright and tried to download Chromium, then navigated to the URL, none of it through a tool call | The Mandate and gateway only see model-requested tool calls | Sandbox with egress rules (H8), network-level redirect through the gateway, and a list of known self-acting agents with their risky defaults | S59, live checklist | A | open |
+| H8 | No sandbox level: what a tool does inside the machine is not bounded | Assurance level exists in the schema | Container or OS sandbox wrapper | gateway doc P4 (S60: Linux bubblewrap sandbox built; no Windows or macOS backend, no live run through asp gateway yet) | B | partial |
+| H10 | Actions an agent's own code takes outside the model loop are invisible to the gateway. Seen live: Aider saw a URL in the prompt, offered to scrape it, auto-installed Playwright and tried to download Chromium, then navigated to the URL, none of it through a tool call | The Mandate and gateway only see model-requested tool calls | Sandbox with egress rules (H8), network-level redirect through the gateway, and a list of known self-acting agents with their risky defaults | S59, live checklist (S60: with --sandbox the agent has no network unless the Mandate grants one; not yet re-run against Aider) | A | partial |
 | H9 | Unknown-unknowns | Least privilege, fast stop, accountability afterwards | Keep widening detectors from real incidents | | C | open |
 
 ## 3. Portability and runtimes
@@ -44,7 +44,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | P1 | Only four runtimes have adapters (Claude Code, Codex, Antigravity, OpenHands) | The gateway reaches any agent that can set a base URL or an MCP server | Top 20 runtimes through the gateway, then deeper adapters for the few that matter | backlog "Portability", `docs/gateway-design.md` | A | partial |
 | P2 | Gemini API and non-OpenAI-compatible local APIs are not judged | OpenAI chat, Responses and Anthropic are | Gemini adapter in the gateway; Ollama native | backlog | B | open |
 | P3 | Codex under a ChatGPT login cannot be pointed at the gateway | Codex with an API key or a custom provider can | An API-key route, or a network-level redirect | S58 | B | open |
-| P4 | Hosted and enterprise agents that cannot be wrapped | none | Self-report SDK (assurance level 1) | gateway doc P4 | B | open |
+| P4 | Hosted and enterprise agents that cannot be wrapped | none | Self-report SDK (assurance level 1) | gateway doc P4 (S60: TypeScript and Python self-report SDKs built and checked across languages; no real vendor trial) | B | partial |
 | P5 | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) | Gateway memory tools | Check or add per runtime | backlog | B | partial |
 | P6 | No model matrix: which open models call tools reliably | none | Run the swarm scenario across models | backlog | B | open |
 | P7 | Weak models: malformed tool arguments, loops after a refusal | Strike limit ends loops | Measure and document per model | backlog | B | open |
@@ -114,3 +114,14 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | X1 | Live runs so far are one person, one machine, a few models | Pilot with one enterprise and one open-source provider using the before/after measures | B | open |
 | X2 | Conformance exists for the records, not for runtime support levels | Per-runtime tests behind the support matrix | B | open |
 | X3 | This register is only as good as its upkeep | Review it at the start of every build session; add a row when anything is found or deferred | A | open |
+
+
+Added 2026-10-09 (P4):
+
+| ID | Gap | Covered today by | Fix | Detail | Pri | Status |
+|---|---|---|---|---|---|---|
+| SB1 | No container backend for the sandbox level, so Windows and macOS hosts cannot reach `sandbox_enforced` (Docker Desktop is installed here but its engine would not start) | WSL on Windows runs the bubblewrap backend | Docker backend with an internal network and a relay | S60 | B | open |
+| SB2 | `asp gateway --sandbox` has not been run end to end: the gateway is Node and WSL has no Node; the sandbox and relay were checked with a stand-in gateway | Unit tests of the policy, live check of isolation | Install Node in WSL, or run the whole CLI in a Linux container | S60 | B | open |
+| SB3 | The sandbox policy is coarse: network is all or nothing from the scopes; no per-host allow list; the agent's tools must be bound in by hand with `--sandbox-bind` | Gateway judges what the model asks for | Host-level egress rules through the relay | S60 | B | open |
+| SB4 | Before S60, the gateway passed the operator's own environment to the agent, including a provider key held in an environment variable named by `--openai-key-env` (the live runs of 2026-10-09 up to P3 leaked it to the child process) | none | Fixed in S60; revoke the OpenRouter key because of it | S60 | A | closed |
+| SB5 | Self-report is only as good as the agent: an agent that omits an action is not caught | Mandate, bond, strikes and reports still apply; the log refuses claims outside the Mandate | Cross-check with the gateway or provider logs where available; random audits | S60 | B | open |

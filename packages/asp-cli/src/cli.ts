@@ -31,6 +31,10 @@
  *     ANTHROPIC_BASE_URL point at a local proxy that removes tool calls the Mandate does not allow from the model's reply before the
  *     agent sees them (streams are relayed live, each tool call held until it is judged), holds calls on gated scopes for the principal's signed
  *     answer, counts strikes, stops on probing or when the contract ends or is revoked, and reports the Action (assurance gateway_enforced) when it finishes.
+ *     P4: --sandbox [--project <dir>] [--sandbox-bind <path>[:rw] ...] (Linux, needs bubblewrap; on Windows run inside WSL) runs the command in a sandbox:
+ *     no network unless the Mandate grants shell.network or web.read (it reaches the gateway through a relay), the system read-only, home hidden,
+ *     project read-only unless the Mandate grants repo.write, environment cleared; the Action then carries assurance sandbox_enforced.
+ *     The provider keys named by --openai-key-env / --anthropic-key-env are always removed from the agent's environment.
  *     P2: the gateway also serves MCP at <url>/mcp/asp (asp_memory_list/read/write/search, and asp_commons_search/show/cite when
  *     ASP_LOG_URL points at a service with a commons) and writes mcp.json for the agent (ASP_MCP_CONFIG). --package <dir> loads the agent's
  *     memory from its package and writes what it saves back, merged and budgeted, as a signed lineage update. --mcp <name>=<https url> |
@@ -253,7 +257,7 @@ import {
 import {
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, AgentReporter,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -331,6 +335,8 @@ const OPTIONS = {
   "token-cap": { type: "string" },
   assurance: { type: "string" },
   mcp: { type: "string", multiple: true },
+  sandbox: { type: "boolean" },
+  "sandbox-bind": { type: "string", multiple: true },
   package: { type: "string" },
   title: { type: "string" },
   tag: { type: "string" },
@@ -488,7 +494,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "mcp" | "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "mcp" | "sandbox-bind" | "task" | "criteria" | "scopes" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -1022,8 +1028,25 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     onCall: (e) => io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`),
     onStop: (r) => io.err(`  stopped  ${r}`),
   });
-  const port = await gw.listen(v.port === undefined ? 0 : Math.trunc(Number(v.port)));
-  const base = `http://127.0.0.1:${port}`;
+  // The sandbox level: a Linux sandbox whose only way out is the gateway, unless the Mandate grants a network scope.
+  const sandbox = v.sandbox ?? false;
+  if (sandbox) {
+    const avail = sandboxAvailable();
+    if (!avail.ok) throw new Error(`--sandbox: ${avail.reason}`);
+  }
+  const sandboxNet = sandbox && policyNeedsNetwork(mandate.scopes);
+  const socketDir = join(gwRunDir, "sock");
+  const RELAY_PORT = 18080;
+  let base: string;
+  if (sandbox && !sandboxNet) {
+    mkdirSync(socketDir, { recursive: true });
+    writeFileSync(join(socketDir, "relay.py"), RELAY_PY);
+    writeFileSync(join(socketDir, "relay.cjs"), RELAY_JS);
+    await gw.listenUnix(join(socketDir, "gw.sock"));
+    base = `http://127.0.0.1:${RELAY_PORT}`;
+  } else {
+    base = `http://127.0.0.1:${await gw.listen(v.port === undefined ? 0 : Math.trunc(Number(v.port)))}`;
+  }
   const mcpConfig = join(gwRunDir, "mcp.json");
   writeFileSync(mcpConfig, JSON.stringify({ mcpServers: Object.fromEntries(["asp", ...Object.keys(upstreams)].map((n) => [n, { type: "http", url: `${base}/mcp/${n}` }])) }, null, 2));
   io.err(`  mcp      ${mcpConfig}  (servers: ${["asp", ...Object.keys(upstreams)].join(", ")}; the child gets it as ASP_MCP_CONFIG)`);
@@ -1039,7 +1062,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       ...d.scopesUsed.flatMap((x) => ["--scopes-used", x]),
       ...d.blocked.flatMap((b) => ["--blocked", `${b.scope}=${b.count}`]),
       ...d.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
-      "--assurance", s.toolCalls > 0 ? "gateway_enforced" : "gateway_observed", "--summary", `ASP gateway (${s.toolCalls > 0 ? "gateway-enforced" : "gateway-observed: no structured tool calls passed through, so nothing could be enforced"}, ${why}): ${s.requests} request(s) so far, ${s.tokens.input + s.tokens.output} tokens, ${s.strikes} blocked${s.stopped ? `; stopped: ${s.stopped}` : ""}`];
+      "--assurance", sandbox ? "sandbox_enforced" : s.toolCalls > 0 ? "gateway_enforced" : "gateway_observed", "--summary", `ASP gateway (${sandbox ? "sandbox-enforced: the agent ran in a sandbox whose only way out was the gateway" : s.toolCalls > 0 ? "gateway-enforced" : "gateway-observed: no structured tool calls passed through, so nothing could be enforced"}, ${why}): ${s.requests} request(s) so far, ${s.tokens.input + s.tokens.output} tokens, ${s.strikes} blocked${s.stopped ? `; stopped: ${s.stopped}` : ""}`];
     const out: string[] = [];
     const rc = await main(args, { out: (l) => out.push(l), err: (l) => out.push(l), env: io.env, cwd: io.cwd });
     io.err(rc === 0 ? `  action   ${out.join(" ").slice(0, 200)}` : `  warning  could not record an Action (${why}): ${out.join(" ").slice(0, 200)}`);
@@ -1057,10 +1080,25 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   let code = 0;
   if (command.length) {
     code = await new Promise<number>((done) => {
-      const child = spawn(command[0], command.slice(1), {
-        cwd: io.cwd, stdio: "inherit",
-        env: { ...io.env, ASP_MCP_CONFIG: mcpConfig, ASP_GATEWAY_URL: base, OPENAI_BASE_URL: `${base}/v1`, OPENAI_API_BASE: `${base}/v1`, ANTHROPIC_BASE_URL: base, ...(v["openai-key-env"] ? { OPENAI_API_KEY: "asp-gateway" } : {}), ...(v["anthropic-key-env"] ? { ANTHROPIC_API_KEY: "asp-gateway" } : {}) },
-      });
+      // The provider keys the gateway holds are removed from the agent's environment: it gets a placeholder and the gateway adds the real key.
+      const childBase: NodeJS.ProcessEnv = { ...io.env };
+      for (const k of [v["openai-key-env"], v["anthropic-key-env"]]) if (k) delete childBase[k];
+      const agentEnv: Record<string, string> = {
+        ASP_MCP_CONFIG: mcpConfig, ASP_GATEWAY_URL: base, OPENAI_BASE_URL: `${base}/v1`, OPENAI_API_BASE: `${base}/v1`, ANTHROPIC_BASE_URL: base,
+        ...(v["openai-key-env"] ? { OPENAI_API_KEY: "asp-gateway" } : {}), ...(v["anthropic-key-env"] ? { ANTHROPIC_API_KEY: "asp-gateway" } : {}),
+      };
+      let program = command[0];
+      let programArgs = command.slice(1);
+      let spawnEnv: NodeJS.ProcessEnv = { ...childBase, ...agentEnv };
+      if (sandbox) {
+        const projectDir = resolve(io.cwd, v.project ?? ".");
+        const extraBinds = (v["sandbox-bind"] ?? []).map((b) => (b.endsWith(":rw") ? { path: resolve(io.cwd, b.slice(0, -3)), writable: true } : { path: resolve(io.cwd, b) }));
+        program = "bwrap";
+        programArgs = bwrapArgs({ projectDir, projectWritable: mandate.scopes.includes("repo.write"), network: sandboxNet, memoryDir: memDir, socketDir, relayPort: RELAY_PORT, extraBinds, env: agentEnv, home: homedir() }, command, childBase);
+        spawnEnv = childBase;
+        io.err(`  sandbox  bubblewrap: ${sandboxNet ? "network kept (the Mandate grants a network scope)" : "no network; the gateway is the only way out"}; project ${mandate.scopes.includes("repo.write") ? "writable" : "read-only"}; home hidden; environment cleared`);
+      }
+      const child = spawn(program, programArgs, { cwd: io.cwd, stdio: "inherit", env: spawnEnv });
       child.on("error", (e) => { io.err(`could not start ${command[0]}: ${e.message}`); done(-1); });
       child.on("exit", (c) => done(c ?? 1));
     });

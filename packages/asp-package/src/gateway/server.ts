@@ -60,6 +60,8 @@ export interface GatewaySummary {
 export interface Gateway {
   server: Server;
   listen(port?: number, host?: string): Promise<number>;
+  /** Listens on a Unix socket instead, for an agent in a sandbox with no network (a relay forwards to it). */
+  listenUnix(path: string): Promise<void>;
   summary(): GatewaySummary;
   /** What happened since the last drain (scopes used, blocked attempts, fingerprints), and starts a new interval, so Actions can be reported while the run goes on. */
   drain(): { scopesUsed: string[]; blocked: { scope: string; count: number }[]; artifacts: { uri: string; sha256: string }[] };
@@ -352,6 +354,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
 
   return {
     server,
+    listenUnix: (path) => new Promise((resolve, reject) => { server.once("error", reject); server.listen(path, () => resolve()); }),
     listen: (port = 0, host = "127.0.0.1") => new Promise((resolve, reject) => { server.once("error", reject); server.listen(port, host, () => resolve((server.address() as { port: number }).port)); }),
     summary, stop,
     drain: () => {
