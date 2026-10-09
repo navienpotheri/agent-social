@@ -31,7 +31,8 @@
  *     ANTHROPIC_BASE_URL point at a local proxy that removes tool calls the Mandate does not allow from the model's reply before the
  *     agent sees them (streams are relayed live, each tool call held until it is judged), holds calls on gated scopes for the principal's signed
  *     answer, counts strikes, stops on probing or when the contract ends or is revoked, and reports the Action (assurance gateway_enforced) when it finishes.
- *     P4: --sandbox [--project <dir>] [--sandbox-bind <path>[:rw] ...] (Linux, needs bubblewrap; on Windows run inside WSL) runs the command in a sandbox:
+ *     P4: --sandbox [--sandbox-backend auto|bwrap|docker] [--sandbox-image <image>] [--project <dir>] [--sandbox-bind <path>[:rw] ...] runs the command in a sandbox
+ *     (bubblewrap on Linux and WSL; Docker elsewhere, where the command runs inside --sandbox-image, default python:3.13-alpine, and must exist in it):
  *     no network unless the Mandate grants shell.network or web.read (it reaches the gateway through a relay), the system read-only, home hidden,
  *     project read-only unless the Mandate grants repo.write, environment cleared; the Action then carries assurance sandbox_enforced.
  *     The provider keys named by --openai-key-env / --anthropic-key-env are always removed from the agent's environment.
@@ -242,8 +243,8 @@
  *
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
-import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { spawn, spawnSync } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { createLogServer, hashToken, postgresHandle, type Tenant } from "@agent-social/asp-log";
@@ -257,7 +258,7 @@ import {
 import {
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, AgentReporter,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -337,6 +338,8 @@ const OPTIONS = {
   mcp: { type: "string", multiple: true },
   sandbox: { type: "boolean" },
   "sandbox-bind": { type: "string", multiple: true },
+  "sandbox-backend": { type: "string" },
+  "sandbox-image": { type: "string" },
   package: { type: "string" },
   title: { type: "string" },
   tag: { type: "string" },
@@ -1028,24 +1031,50 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     onCall: (e) => io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`),
     onStop: (r) => io.err(`  stopped  ${r}`),
   });
-  // The sandbox level: a Linux sandbox whose only way out is the gateway, unless the Mandate grants a network scope.
+  // The sandbox level: the agent runs where its only way out is the gateway, unless the Mandate grants a network scope.
+  // Two backends: bubblewrap (Linux, WSL) and Docker (any host with Docker, for agents that run in a Linux image).
   const sandbox = v.sandbox ?? false;
+  const requested = v["sandbox-backend"] ?? "auto";
+  if (!["auto", "bwrap", "docker"].includes(requested)) throw new UsageError("--sandbox-backend is auto, bwrap or docker");
+  let backend: "bwrap" | "docker" | undefined;
   if (sandbox) {
-    const avail = sandboxAvailable();
-    if (!avail.ok) throw new Error(`--sandbox: ${avail.reason}`);
+    const bw = sandboxAvailable();
+    const dockerOk = () => spawnSync("docker", ["version", "--format", "{{.Server.Version}}"], { stdio: "ignore" }).status === 0;
+    if (requested === "bwrap" || (requested === "auto" && bw.ok)) {
+      if (!bw.ok) throw new Error(`--sandbox: ${bw.reason}`);
+      backend = "bwrap";
+    } else {
+      if (!dockerOk()) throw new Error(`--sandbox: ${requested === "auto" ? `${bw.reason}; and ` : ""}Docker is not available (is Docker Desktop running?)`);
+      backend = "docker";
+    }
   }
   const sandboxNet = sandbox && policyNeedsNetwork(mandate.scopes);
   const socketDir = join(gwRunDir, "sock");
   const RELAY_PORT = 18080;
+  const sandboxImage = v["sandbox-image"] ?? "python:3.13-alpine";
   let base: string;
-  if (sandbox && !sandboxNet) {
+  let dockerRun: ReturnType<typeof dockerPlan> | undefined;
+  if (backend === "bwrap" && !sandboxNet) {
     mkdirSync(socketDir, { recursive: true });
     writeFileSync(join(socketDir, "relay.py"), RELAY_PY);
     writeFileSync(join(socketDir, "relay.cjs"), RELAY_JS);
     await gw.listenUnix(join(socketDir, "gw.sock"));
     base = `http://127.0.0.1:${RELAY_PORT}`;
   } else {
-    base = `http://127.0.0.1:${await gw.listen(v.port === undefined ? 0 : Math.trunc(Number(v.port)))}`;
+    const gwPort = await gw.listen(v.port === undefined ? 0 : Math.trunc(Number(v.port)));
+    base = `http://127.0.0.1:${gwPort}`;
+    if (backend === "docker") {
+      mkdirSync(gwRunDir, { recursive: true });
+      const relayScriptPath = join(gwRunDir, "relay-tcp.py");
+      writeFileSync(relayScriptPath, RELAY_TCP_PY);
+      const mcpFile = join(gwRunDir, "mcp.json");
+      const extraBinds = (v["sandbox-bind"] ?? []).map((x) => (x.endsWith(":rw") ? { path: resolve(io.cwd, x.slice(0, -3)), writable: true } : { path: resolve(io.cwd, x) }));
+      dockerRun = dockerPlan({
+        id: randomUUID().slice(0, 8), image: sandboxImage, projectDir: resolve(io.cwd, v.project ?? "."), projectWritable: mandate.scopes.includes("repo.write"),
+        network: sandboxNet, gatewayPort: gwPort, relayPort: RELAY_PORT, relayScriptPath, env: {}, extraBinds, files: [{ host: mcpFile, container: "/asp/mcp.json" }],
+      });
+      base = dockerRun.agentBase;
+    }
   }
   const mcpConfig = join(gwRunDir, "mcp.json");
   writeFileSync(mcpConfig, JSON.stringify({ mcpServers: Object.fromEntries(["asp", ...Object.keys(upstreams)].map((n) => [n, { type: "http", url: `${base}/mcp/${n}` }])) }, null, 2));
@@ -1090,7 +1119,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       let program = command[0];
       let programArgs = command.slice(1);
       let spawnEnv: NodeJS.ProcessEnv = { ...childBase, ...agentEnv };
-      if (sandbox) {
+      if (backend === "bwrap") {
         const projectDir = resolve(io.cwd, v.project ?? ".");
         const extraBinds = (v["sandbox-bind"] ?? []).map((b) => (b.endsWith(":rw") ? { path: resolve(io.cwd, b.slice(0, -3)), writable: true } : { path: resolve(io.cwd, b) }));
         program = "bwrap";
@@ -1098,7 +1127,22 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         spawnEnv = childBase;
         io.err(`  sandbox  bubblewrap: ${sandboxNet ? "network kept (the Mandate grants a network scope)" : "no network; the gateway is the only way out"}; project ${mandate.scopes.includes("repo.write") ? "writable" : "read-only"}; home hidden; environment cleared`);
       }
+      if (backend === "docker" && dockerRun) {
+        const dockerEnv = { ...agentEnv, ASP_MCP_CONFIG: "/asp/mcp.json" };
+        const envArgs = Object.entries(dockerEnv).flatMap(([k, val]) => ["-e", `${k}=${val}`]);
+        // dockerPlan put the image last; the agent's command goes after it, and its environment before it.
+        const i = dockerRun.agent.length - 1;
+        programArgs = [...dockerRun.agent.slice(0, i), ...envArgs, dockerRun.agent[i], ...command];
+        program = "docker";
+        spawnEnv = childBase;
+        for (const step of dockerRun.setup) {
+          const r = spawnSync("docker", step, { encoding: "utf8" });
+          if (r.status !== 0) { io.err(`could not set up the container sandbox (docker ${step.slice(0, 2).join(" ")}): ${(r.stderr || r.stdout || "").trim().slice(0, 300)}`); for (const c of dockerRun.cleanup) spawnSync("docker", c, { stdio: "ignore" }); return done(-1); }
+        }
+        io.err(`  sandbox  docker (${sandboxImage}): ${sandboxNet ? "network kept (the Mandate grants a network scope)" : "internal network; a relay container is the only way out, to the gateway"}; project ${mandate.scopes.includes("repo.write") ? "writable" : "read-only"}; read-only root; capabilities dropped; environment is only what the gateway sets`);
+      }
       const child = spawn(program, programArgs, { cwd: io.cwd, stdio: "inherit", env: spawnEnv });
+      child.on("close", () => { for (const c of dockerRun?.cleanup ?? []) spawnSync("docker", c, { stdio: "ignore" }); });
       child.on("error", (e) => { io.err(`could not start ${command[0]}: ${e.message}`); done(-1); });
       child.on("exit", (c) => done(c ?? 1));
     });

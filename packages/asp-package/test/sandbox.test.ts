@@ -41,3 +41,34 @@ test("the sandbox says plainly when it cannot run here", () => {
   if (process.platform !== "linux") { assert.equal(a.ok, false); assert.match(a.reason!, /needs Linux/); }
   else assert.equal(typeof a.ok, "boolean");
 });
+
+import { dockerPlan } from "../src/index.ts";
+
+const dp = { id: "t1", image: "python:3.13-alpine", projectDir: "C:/work/proj", projectWritable: false, network: false, gatewayPort: 5555, relayPort: 18080, relayScriptPath: "C:/run/relay-tcp.py", env: { OPENAI_API_KEY: "asp-gateway" } };
+
+test("the Docker backend: an internal network, a relay as the only route to the gateway, a hardened read-only agent container", () => {
+  const p = dockerPlan(dp);
+  assert.deepEqual(p.setup[0], ["network", "create", "--internal", "asp-net-t1"]);
+  const create = p.setup[1];
+  assert.ok(has(create, "--network", "asp-net-t1") && has(create, "--network-alias", "gateway"));
+  assert.deepEqual(create.slice(-5), ["python", "/relay.py", "18080", "host.docker.internal", "5555"]);
+  assert.deepEqual(p.setup[2], ["network", "connect", "bridge", "asp-relay-t1"], "only the relay can reach the host");
+  assert.deepEqual(p.setup[3], ["start", "asp-relay-t1"]);
+  assert.deepEqual(p.cleanup, [["rm", "-f", "asp-relay-t1"], ["network", "rm", "asp-net-t1"]]);
+  assert.equal(p.agentBase, "http://gateway:18080");
+  const a = p.agent;
+  assert.ok(has(a, "--network", "asp-net-t1"), "the agent is on the internal network only");
+  assert.ok(a.includes("--read-only") && has(a, "--cap-drop", "ALL") && has(a, "--security-opt", "no-new-privileges") && has(a, "--user", "65534:65534"));
+  assert.ok(has(a, "-v", "C:/work/proj:/work:ro") && has(a, "-w", "/work"));
+  assert.ok(has(a, "-e", "OPENAI_API_KEY=asp-gateway") && has(a, "-e", "HOME=/tmp"));
+  assert.equal(a.at(-1), "python:3.13-alpine", "the agent's command is appended after the image");
+});
+
+test("the Docker backend with a network scope uses the default network and the host's address; repo.write and binds are honoured", () => {
+  const p = dockerPlan({ ...dp, network: true, projectWritable: true, extraBinds: [{ path: "C:/tools", writable: false }, { path: "C:/cache", writable: true }], files: [{ host: "C:/run/mcp.json", container: "/asp/mcp.json" }] });
+  assert.deepEqual(p.setup, []);
+  assert.deepEqual(p.cleanup, []);
+  assert.equal(p.agentBase, "http://host.docker.internal:5555");
+  assert.ok(has(p.agent, "--add-host", "host.docker.internal:host-gateway") && !p.agent.includes("--internal"));
+  assert.ok(has(p.agent, "-v", "C:/work/proj:/work:rw") && has(p.agent, "-v", "C:/tools:/bind/0:ro") && has(p.agent, "-v", "C:/cache:/bind/1:rw") && has(p.agent, "-v", "C:/run/mcp.json:/asp/mcp.json:ro"));
+});

@@ -91,3 +91,98 @@ export function bwrapArgs(p: SandboxPolicy, command: string[], parentEnv: NodeJS
   a.push("--", "sh", "-c", relay, "sh", ...command);
   return a;
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// The container backend (Docker): the same promise on hosts without bubblewrap (Windows, macOS). The agent runs in a Linux
+// container on an internal network, which has no route to the internet; a relay container sits on that network and on the
+// default one and forwards to the gateway on the host. With a network scope granted the agent uses the default network.
+
+/** Forwards a TCP port to another host and port (the relay container's whole job). */
+export const RELAY_TCP_PY = `import socket, sys, threading
+listen, host, port = int(sys.argv[1]), sys.argv[2], int(sys.argv[3])
+def pump(a, b):
+    try:
+        while True:
+            d = a.recv(65536)
+            if not d: break
+            b.sendall(d)
+    except OSError: pass
+    finally:
+        for s in (a, b):
+            try: s.shutdown(socket.SHUT_RDWR)
+            except OSError: pass
+srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+srv.bind(("0.0.0.0", listen)); srv.listen(64)
+while True:
+    c, _ = srv.accept()
+    try: u = socket.create_connection((host, port), timeout=10)
+    except OSError: c.close(); continue
+    threading.Thread(target=pump, args=(c, u), daemon=True).start()
+    threading.Thread(target=pump, args=(u, c), daemon=True).start()
+`;
+
+export interface DockerPolicy {
+  /** Short unique id for this run, used in container and network names. */
+  id: string;
+  /** The image the agent runs in; it must contain the agent's program. */
+  image: string;
+  projectDir: string;
+  projectWritable: boolean;
+  network: boolean;
+  /** The gateway's TCP port on the host. */
+  gatewayPort: number;
+  relayPort: number;
+  /** Where the relay script was written on the host. */
+  relayScriptPath: string;
+  /** Variables the agent is given. */
+  env: Record<string, string>;
+  extraBinds?: { path: string; writable?: boolean }[];
+  /** Extra files to mount read-only, by host path and container path (for example the MCP config). */
+  files?: { host: string; container: string }[];
+}
+
+export interface DockerPlan {
+  /** Docker commands to run, in order, before the agent. */
+  setup: string[][];
+  /** The agent's own docker command (run attached, with the terminal). */
+  agent: string[];
+  /** Run afterwards, whatever happened. */
+  cleanup: string[][];
+  /** Where the agent finds the gateway. */
+  agentBase: string;
+}
+
+export function dockerPlan(p: DockerPolicy): DockerPlan {
+  const net = `asp-net-${p.id}`;
+  const relay = `asp-relay-${p.id}`;
+  const hardening = ["--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges"];
+  const setup: string[][] = [];
+  const cleanup: string[][] = [];
+  let agentNet: string[];
+  let agentBase: string;
+  if (p.network) {
+    agentNet = ["--add-host", "host.docker.internal:host-gateway"];
+    agentBase = `http://host.docker.internal:${p.gatewayPort}`;
+  } else {
+    setup.push(
+      ["network", "create", "--internal", net],
+      ["create", "--name", relay, "--network", net, "--network-alias", "gateway", ...hardening, "--user", "65534:65534", "-v", `${p.relayScriptPath}:/relay.py:ro`, p.image, "python", "/relay.py", String(p.relayPort), "host.docker.internal", String(p.gatewayPort)],
+      // The relay is the only container with a route to the host; the agent's network is internal and has none.
+      ["network", "connect", "bridge", relay],
+      ["start", relay],
+    );
+    cleanup.push(["rm", "-f", relay], ["network", "rm", net]);
+    agentNet = ["--network", net];
+    agentBase = `http://gateway:${p.relayPort}`;
+  }
+  const binds: string[] = [];
+  (p.extraBinds ?? []).forEach((b, i) => binds.push("-v", `${b.path}:/bind/${i}:${b.writable ? "rw" : "ro"}`));
+  for (const f of p.files ?? []) binds.push("-v", `${f.host}:${f.container}:ro`);
+  const env: string[] = [];
+  for (const [k, v] of Object.entries({ HOME: "/tmp", ...p.env })) env.push("-e", `${k}=${v}`);
+  const agent = [
+    "run", "--rm", "--init", "--name", `asp-agent-${p.id}`, ...agentNet, ...hardening, "--tmpfs", "/tmp", "--user", "65534:65534",
+    "--pids-limit", "512", "--memory", "2g", "-w", "/work", "-v", `${p.projectDir}:/work:${p.projectWritable ? "rw" : "ro"}`, ...binds, ...env, p.image,
+  ];
+  return { setup, agent, cleanup, agentBase };
+}

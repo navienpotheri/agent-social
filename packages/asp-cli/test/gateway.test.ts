@@ -259,7 +259,7 @@ test("the provider key the gateway holds never reaches the agent's environment, 
   assert.equal(run.code, 0, run.err);
   assert.deepEqual(JSON.parse(readFileSync(out, "utf8")), { key: null, placeholder: "asp-gateway" });
   if (process.platform !== "linux") {
-    const sb = await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--sandbox", "--", process.execPath, "-e", "0"]);
+    const sb = await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--sandbox", "--sandbox-backend", "bwrap", "--", process.execPath, "-e", "0"]);
     assert.notEqual(sb.code, 0);
     assert.match(sb.err, /--sandbox: the sandbox level needs Linux/);
   }
