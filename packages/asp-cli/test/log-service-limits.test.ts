@@ -20,7 +20,7 @@ const tenants: Tenant[] = [
 
 const servers: Server[] = [];
 after(() => { for (const s of servers) s.close(); });
-async function start(opts: Parameters<typeof createLogServer>[0] extends infer O ? Partial<O> : never) {
+async function start(opts: Partial<Parameters<typeof createLogServer>[0]>) {
   const server = createLogServer({ handle: await LocalLog.open(mkdtempSync(join(tmpdir(), "asp-limits-"))), tenants, ...opts } as Parameters<typeof createLogServer>[0]);
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   servers.push(server);
@@ -194,4 +194,60 @@ test("asp serve over TLS end to end: a client that trusts the certificate (NODE_
   } finally {
     server.kill();
   }
+});
+
+// ---------- the other clients wait out a 429 too (O16) ----------
+
+test("fetchRetry waits the Retry-After the service asks, sends the same body again, and gives up with the 429 after its tries", async () => {
+  const { fetchRetry } = await import("@agent-social/asp-package");
+  const { createServer } = await import("node:http");
+  const seen: string[] = [];
+  let calls = 0;
+  const server = createServer(async (req, res) => {
+    const chunks: Buffer[] = []; for await (const c of req) chunks.push(c as Buffer);
+    seen.push(Buffer.concat(chunks).toString("utf8"));
+    calls++;
+    if (req.url === "/always" || calls === 1) { res.writeHead(429, { "retry-after": "1", "content-type": "application/json" }); res.end(JSON.stringify({ ok: false, error: { code: "RATE_LIMITED" } })); return; }
+    res.writeHead(200); res.end("done");
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  servers.push(server);
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  const started = Date.now();
+  const res = await fetchRetry(`${base}/once`, { method: "POST", body: JSON.stringify({ n: 1 }) });
+  assert.equal(res.status, 200);
+  assert.ok(Date.now() - started >= 900, "it waited the second it was told to");
+  assert.deepEqual(seen, ['{"n":1}', '{"n":1}'], "the body went again");
+  calls = 5;
+  const gave = await fetchRetry(`${base}/always`, { method: "POST", body: "x" }, 1);
+  assert.equal(gave.status, 429, "after its tries the last answer comes back for the caller to report");
+});
+
+test("the package, known-bad and commons clients all wait out a rate limit instead of failing at once", async () => {
+  const { PackagesClient, fetchKnownBad, packageRoutes, knownBadRoutes, commonsRoutes } = await import("@agent-social/asp-package");
+  const root = mkdtempSync(join(tmpdir(), "asp-o16-"));
+  const handle = await LocalLog.open(join(root, "log"));
+  const extras = [packageRoutes({ root: join(root, "packages") }), knownBadRoutes({ root: join(root, "kb") }), commonsRoutes({ root: join(root, "commons"), handle })];
+  const url = await start({
+    handle, limits: { tenantPerMinute: 120, appendPerMinute: 0, maxInFlight: 0, addressPerMinute: 0, failedAuthMax: 0 },
+    extra: async (req: any, res: any, ctx: any) => { for (const r of extras) if (await r(req, res, ctx)) return true; return false; },
+  });
+  const exhaust = async () => { for (let i = 0; i < 300; i++) if ((await rpc(url, TOKEN)).status === 429) return; throw new Error("never limited"); };
+
+  await exhaust();
+  let t = Date.now();
+  const listing = await new PackagesClient(url, TOKEN).list();
+  assert.equal(listing.packages.length, 0);
+  assert.ok(Date.now() - t >= 900, "the package client waited");
+
+  await exhaust();
+  t = Date.now();
+  assert.deepEqual(await fetchKnownBad(url, TOKEN), []);
+  assert.ok(Date.now() - t >= 900, "the known-bad client waited");
+
+  await exhaust();
+  t = Date.now();
+  const res = await (await import("@agent-social/asp-package")).fetchRetry(new URL("commons/entries", url + "/"), { headers: { authorization: `Bearer ${TOKEN}` } });
+  assert.equal(res.status, 200, "the commons route answers after the wait");
+  assert.ok(Date.now() - t >= 900);
 });

@@ -7,6 +7,7 @@
  * runs, whatever the Mandate grants. Held in a file (`<home>/known-bad.json`) or, for a shared network, by the log
  * service (`GET /known-bad` for any tenant, `POST /known-bad` for an admin).
  */
+import { fetchRetry } from "./http-retry.ts";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -72,13 +73,13 @@ export function knownBadRoutes(opts: { root: string }) {
 
 /** The list a shared log service holds. */
 export async function fetchKnownBad(url: string, token?: string): Promise<KnownBadEntry[]> {
-  const res = await fetch(new URL("known-bad", url.endsWith("/") ? url : url + "/"), { headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(30_000) });
+  const res = await fetchRetry(new URL("known-bad", url.endsWith("/") ? url : url + "/"), { headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(30_000) });
   if (!res.ok) throw new Error(`the log service answered ${res.status} for the known-bad list`);
   return ((await res.json()) as { entries: KnownBadEntry[] }).entries;
 }
 
 export async function postKnownBad(url: string, token: string | undefined, entry: KnownBadEntry): Promise<boolean> {
-  const res = await fetch(new URL("known-bad", url.endsWith("/") ? url : url + "/"), {
+  const res = await fetchRetry(new URL("known-bad", url.endsWith("/") ? url : url + "/"), {
     method: "POST", headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(entry), signal: AbortSignal.timeout(30_000),
   });
   const body = (await res.json().catch(() => undefined)) as { created?: boolean; error?: { message: string } } | undefined;

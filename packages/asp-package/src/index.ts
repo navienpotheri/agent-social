@@ -38,3 +38,4 @@ export { NETWORK_SCOPES, RELAY_JS, RELAY_PY, bwrapArgs, policyNeedsNetwork, sand
 export { RELAY_TCP_PY, dockerPlan, type DockerPlan, type DockerPolicy } from "./sandbox.ts";
 export { buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type AlertKind, type BuiltMail, type MailAlert, type MailLog, type MailOptions, type MandateFacts } from "./mail.ts";
 export { claudeCodeRunLogEvents, codexRunLogEvents, type LineEvent } from "./adapters/run-log-lines.ts";
+export { fetchRetry } from "./http-retry.ts";

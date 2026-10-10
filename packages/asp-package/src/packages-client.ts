@@ -1,4 +1,5 @@
 /** Client for the package routes of the log service (packages-service.ts; docs/spec-deltas.md S51). */
+import { fetchRetry } from "./http-retry.ts";
 
 /** A refusal from the package service: `code` is its error code (STALE, EXISTS, QUOTA, INVALID_PACKAGE, ...). */
 export class PackageServiceError extends Error {
@@ -19,7 +20,7 @@ export class PackagesClient {
   private async call(method: string, path: string, init: { body?: Buffer; headers?: Record<string, string> } = {}) {
     const u = new URL(path, this.url.endsWith("/") ? this.url : this.url + "/");
     if (this.tenant) u.searchParams.set("tenant", this.tenant);
-    const res = await fetch(u, {
+    const res = await fetchRetry(u, {
       method,
       headers: { ...(this.token ? { authorization: `Bearer ${this.token}` } : {}), ...init.headers },
       ...(init.body ? { body: new Uint8Array(init.body) } : {}),

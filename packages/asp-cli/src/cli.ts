@@ -277,7 +277,7 @@ import {
   b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
-import { RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
+import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
@@ -1290,7 +1290,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     url: commonsUrl, token: io.env.ASP_LOG_TOKEN,
     ...(citerKey ? { cite: async (entry: string, context: string) => {
       const doc = signCommons({ v: COMMONS_VERSION, kind: "citation", entry, citer: by, context, createdAt: now() }, citerKey);
-      const res = await fetch(new URL("commons/citations", commonsUrl.endsWith("/") ? commonsUrl : commonsUrl + "/"), { method: "POST", headers: { "content-type": "application/json", ...(io.env.ASP_LOG_TOKEN ? { authorization: `Bearer ${io.env.ASP_LOG_TOKEN}` } : {}) }, body: JSON.stringify(doc) });
+      const res = await fetchRetry(new URL("commons/citations", commonsUrl.endsWith("/") ? commonsUrl : commonsUrl + "/"), { method: "POST", headers: { "content-type": "application/json", ...(io.env.ASP_LOG_TOKEN ? { authorization: `Bearer ${io.env.ASP_LOG_TOKEN}` } : {}) }, body: JSON.stringify(doc) });
       if (!res.ok) throw new Error(((await res.json().catch(() => undefined)) as any)?.error?.message ?? `the commons answered ${res.status}`);
     } } : {}),
   } : undefined;
@@ -1736,7 +1736,7 @@ async function commonsCmd(home: string, sub: string | undefined, rest: string[],
   const url = io.env.ASP_LOG_URL;
   if (!url) throw new UsageError("set ASP_LOG_URL (and ASP_LOG_TOKEN) to a log service started with --commons <dir>");
   const call = async (method: string, path: string, body?: unknown): Promise<any> => {
-    const res = await fetch(new URL(path, url.endsWith("/") ? url : url + "/"), {
+    const res = await fetchRetry(new URL(path, url.endsWith("/") ? url : url + "/"), {
       method,
       headers: { ...(io.env.ASP_LOG_TOKEN ? { authorization: `Bearer ${io.env.ASP_LOG_TOKEN}` } : {}), ...(body ? { "content-type": "application/json" } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}),
