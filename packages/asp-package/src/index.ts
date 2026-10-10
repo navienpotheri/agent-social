@@ -43,3 +43,4 @@ export { dashboardAgent, type AgentView, dashboardAlerts, dashboardHome, dashboa
 export { packageMeta, packageMetaOf, scanPackages, type FoundPackage, type PackageMeta } from "./package-meta.ts";
 export { EXPORT_VERSION, RETAIN_MONTHS, accountData, accountRoutes, closeAccount, tombstoneOf, type AccountOptions } from "./account.ts";
 export { commonsOfDids, purgeCommons } from "./commons.ts";
+export { claimStarter, starterStatus } from "./account.ts";

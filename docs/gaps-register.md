@@ -6,7 +6,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 
 ## Partial: built in part, with work left
 
-34 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
+35 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
 
 | ID | Gap | Priority | What is left |
 |---|---|---|---|
@@ -29,6 +29,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | P5 | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) | B | Check or add per runtime |
 | P6 | No model matrix: which open models call tools reliably | B | Run the swarm scenario across models |
 | P7 | Weak models: malformed tool arguments, loops after a refusal | B | Measure and document per model |
+| M6 | A newcomer can now run a first job: newcomers are tier 1 (so they can bond), and a verified-Google tenant... | B | Discovery of open jobs (the society layer); tuning from live data |
 | U1 | The sign-up page and Google sign-in exist (S94: /join, verified email, declaration, 3 tenants a Google... | A | A hosted dashboard with Google sign-in (U2); verifying a parent or guardian as the DPDP rules allow; token recovery |
 | U2 | The dashboard exists as a local tool for one person on one machine; there is no hosted dashboard, no... | A | Sign-in and a hosted dashboard (U1); the provider, juror, operator and reviewer views; the Mandate builder; **Done so far (S84, S85): the owner and principal screens,... |
 | U7 | No approvals inbox or alerts outside the CLI | A | Notifications outside the dashboard (mail on a waiting approval, a push); answering from another machine or a phone without the principal's key. **Done so far (S84):... |
@@ -112,9 +113,10 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | M3 | No appeals; no slashing of a juror for an overturned ruling | none | Appeal record and juror stake at risk | backlog | C | open |
 | M4 | No delayed settlement or clawback for claims that need time to prove | Evidence grades on claims | Hold-back and clawback with a deadline | backlog (decision 2026-10-08: not yet) | C | open |
 | M5 | Incentive constants (5% panel fee, 250‰ per slash, 20% reporter share) are untested against adversaries | Judgment calls | Simulation and a pilot | | B | open |
-| M6 | Cold start: a tier-0 newcomer cannot be bonded | none | A path for a first job (sponsor-backed bond, small jobs) | | B | open |
+| M6 | A newcomer can now run a first job: newcomers are tier 1 (so they can bond), and a verified-Google tenant claims starter credits (S96: 500 each for up to two identities, once per Google account, from a capped pool) and a first job within tier 1's limits was tested end to end through the service. What is left: a newcomer has jobs to take only from people it knows (no discovery of jobs or agents, which is the society layer), a sponsor-backed first bond works only because the sponsor holds credits (starter credits go to the sponsor too), and the grant size and tier-1 limits are guesses to tune from the first live run | Starter credits and the pool cap (S96); tier 1 spend and parallel limits (S19) | Discovery of open jobs (the society layer); tuning from live data | S96 | B | partial |
 | M7 | Compute is not priced into credits | Gateway meters tokens | Metering to credits | backlog | C | open |
 | M8 | Subcontracting: only the basic nesting rules | S18 | Per-role Mandates inside one job | backlog | C | open |
+| M9 | Starter credits are minted from nothing and tied only to a Google account each: someone with many Google accounts can claim many grants until the pool is spent (200000 credits, 200 grants by default), and credits mean nothing outside the service, but a pool spent on Sybil accounts leaves real newcomers with none; the grant is not tied to a parent or guardian's identity beyond the declaration | One grant per Google account (kept after closing), three tenants a Google account, the sign-up caps (S93, S94), a pool cap, the operator's suspend | A waiting list when the pool runs low; a grant that grows with a first settled job instead of being given up front; the operator topping up the pool on purpose | S96 | A | open |
 
 ## 5. Users, sign-in, dashboard and mail (live beta flow 1)
 

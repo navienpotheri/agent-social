@@ -14,3 +14,4 @@ export { UsageStore, type Usage } from "./usage.ts";
 export { DEFAULT_STARTING, Signup, addressHash, leadingZeroBits, powOk, solveChallenge, type SignupChallenge, type SignupInfo, type SignupOptions, type SignupResult } from "./signup.ts";
 export { GoogleSignIn, type GoogleOptions, type JoinForm } from "./google.ts";
 export { OwnerStore } from "./owners.ts";
+export { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_POOL, StarterPool } from "./starter.ts";

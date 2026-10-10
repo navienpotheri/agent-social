@@ -278,7 +278,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget, runtimeTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, UsageStore, type Tenant } from "@agent-social/asp-log";
+import { createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, UsageStore, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -430,6 +430,7 @@ const OPTIONS = {
   "accept-terms": { type: "boolean" },
   confirm: { type: "string" },
   "skip-export": { type: "boolean" },
+  "starter-pool": { type: "string" },
   "allow-plain-http": { type: "boolean" },
   "link-base": { type: "string" },
   once: { type: "boolean" },
@@ -917,6 +918,15 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io): Promise<n
     io.out(`tenant ${a.tenant.name} (${a.tenant.role})${a.tenant.signup?.google?.email ? `, signed up with ${a.tenant.signup.google.email}` : ""}`);
     io.out(`  records written: ${a.usage?.records ?? 0} (${a.usage?.bytes ?? 0} bytes); agent identities written as: ${a.dids.length ? a.dids.join(", ") : "none"}`);
     io.out(`  packages: ${a.packages.length}; commons: ${a.commons.entries} entries, ${a.commons.reviews} reviews, ${a.commons.citations} citations`);
+    io.out(`  starter credits: ${a.starter.state === "claimed" ? `claimed (${a.starter.amount})` : a.starter.state === "available" ? `available: ${a.starter.perDid} each for up to ${a.starter.maxDids} of your identities (asp account starter --did <principal>,<agent>)` : `not available: ${a.starter.reason}`}`);
+    return 0;
+  }
+  if (sub === "starter") {
+    const dids = (v.did ?? "").split(",").map((d) => d.trim()).filter(Boolean);
+    if (!dids.length) throw new UsageError("asp account starter --did <did>[,<did>]: the identities (up to two, for example your principal and your agent) that get the starter credits; they must be identities you created through the service");
+    const r = await json("account/starter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dids }) });
+    for (const g of r.granted) io.out(`${g.did}: +${g.credits} credits (balance ${g.balance})`);
+    io.out(r.note);
     return 0;
   }
   const exportTo = async (dir: string) => {
@@ -962,7 +972,7 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io): Promise<n
     io.out(`kept ${r.stays.retained}`);
     return 0;
   }
-  throw new UsageError("usage: asp account show | export [--out <dir>] | close --confirm <tenant name> [--skip-export] [--out <dir>]");
+  throw new UsageError("usage: asp account show | starter --did <did>[,<did>] | export [--out <dir>] | close --confirm <tenant name> [--skip-export] [--out <dir>]");
 }
 
 /** asp signup --service <url> --name <name> --accept-terms [--contact <line>]: gets a tenant and its token from a service that offers sign-up. */
@@ -1173,8 +1183,16 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   }
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
   // A tenant's own data (blocker 1): look at it, export it, close the account. The tenants file is rewritten whole, so a tenant an operator added meanwhile is kept.
+  const starter = !noAuth ? new StarterPool(`${v.tokens}.starter.json`, num("starter-pool", STARTER_POOL)) : undefined;
   const accountRoute = !noAuth ? accountRoutes({
-    handle, owners, usage, ...(v.packages ? { packagesRoot: resolve(v.packages) } : {}), ...(v.commons ? { commonsRoot: resolve(v.commons) } : {}), tenants: tenantSource!,
+    handle, owners, usage, ...(starter ? { starter } : {}),
+    updateTenant: (name, patch) => {
+      const file = v.tokens!;
+      const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];
+      const tmp = `${file}.${process.pid}.tmp`;
+      writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n");
+      renameSync(tmp, file);
+    }, ...(v.packages ? { packagesRoot: resolve(v.packages) } : {}), ...(v.commons ? { commonsRoot: resolve(v.commons) } : {}), tenants: tenantSource!,
     closeTenant: (name, tombstone) => {
       const file = v.tokens!;
       const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];

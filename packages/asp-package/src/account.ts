@@ -14,7 +14,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import type { LogHandle, OwnerStore, Tenant, UsageStore } from "@agent-social/asp-log";
+import { STARTER_MAX_DIDS, STARTER_PER_DID, type LogHandle, type OwnerStore, type StarterPool, type Tenant, type UsageStore } from "@agent-social/asp-log";
 import { commonsOfDids, purgeCommons } from "./commons.ts";
 
 export const EXPORT_VERSION = "asp.account-export/v1";
@@ -32,6 +32,10 @@ export interface AccountOptions {
   commonsRoot?: string;
   /** The tenants now, so an admin can close another tenant's account by name (the operator answering an erasure request). */
   tenants: () => Tenant[];
+  /** The starter-credit pool; without one no starter grants are offered. */
+  starter?: StarterPool;
+  /** Saves a change to a tenant's entry (the starter grant it claimed). */
+  updateTenant?: (name: string, patch: Partial<Tenant>) => void;
   /** Turns the tenant into a tombstone in the tenants file; called once the data is deleted. */
   closeTenant: (name: string, tombstone: Tenant) => void;
   now?: () => number;
@@ -62,9 +66,42 @@ export function tombstoneOf(t: Tenant, now: Date): Tenant {
   const at = now.toISOString().replace(/\.\d{3}Z$/, "Z");
   return {
     name: t.name, role: "tenant", tokenSha256: "", ...(t.createdAt ? { createdAt: t.createdAt } : {}),
+    ...(t.starter ? { starter: { at: t.starter.at, amount: t.starter.amount } } : {}),
     ...(t.signup ? { signup: { at: t.signup.at, addressHash: t.signup.addressHash, termsVersion: t.signup.termsVersion, ...(t.signup.google ? { google: { sub: t.signup.google.sub, email: "" } } : {}) } } : {}),
     closed: { at, retainUntil: until.toISOString().replace(/\.\d{3}Z$/, "Z") },
   };
+}
+
+/** What a tenant can do about starter credits: already claimed, available, or why not. */
+export function starterStatus(o: AccountOptions, t: Tenant): { state: "claimed" | "available" | "unavailable"; amount?: number; reason?: string; perDid: number; maxDids: number; poolLeft?: number } {
+  const base = { perDid: STARTER_PER_DID, maxDids: STARTER_MAX_DIDS, ...(o.starter ? { poolLeft: o.starter.left } : {}) };
+  if (!o.starter || !o.updateTenant) return { state: "unavailable", reason: "this service does not offer starter credits", ...base };
+  if (t.starter) return { state: "claimed", amount: t.starter.amount, ...base };
+  if (t.role === "admin") return { state: "unavailable", reason: "admins mint credits directly", ...base };
+  if (!t.signup?.google) return { state: "unavailable", reason: "starter credits go to tenants that signed up with a verified Google account; ask the operator", ...base };
+  const earlier = o.tenants().find((x) => x.name !== t.name && x.starter && x.signup?.google?.sub === t.signup!.google!.sub);
+  if (earlier) return { state: "unavailable", reason: "this Google account has already claimed its starter credits", ...base };
+  if (o.starter.left < STARTER_PER_DID) return { state: "unavailable", reason: "the starter pool is used up for now; ask the operator", ...base };
+  return { state: "available", amount: STARTER_PER_DID * STARTER_MAX_DIDS, ...base };
+}
+
+/** Claims the starter grant: STARTER_PER_DID credits to each of up to STARTER_MAX_DIDS identities the tenant has written as. Once per tenant and per Google account. */
+export async function claimStarter(o: AccountOptions, t: Tenant, asked: unknown[]): Promise<[number, unknown]> {
+  const fail2 = (status: number, code: string, message: string): [number, unknown] => [status, { ok: false, error: { code, message } }];
+  const st = starterStatus(o, t);
+  if (st.state === "claimed") return fail2(409, "ALREADY_CLAIMED", "this tenant has already claimed its starter credits");
+  if (st.state === "unavailable") return fail2(403, "STARTER_UNAVAILABLE", st.reason ?? "starter credits are not available");
+  const dids = [...new Set(asked.filter((d): d is string => typeof d === "string"))];
+  if (!dids.length || dids.length > STARTER_MAX_DIDS) return fail2(400, "BAD_DIDS", `name one or two of your identities (up to ${STARTER_MAX_DIDS}), for example your principal and your agent`);
+  const mine = new Set(o.owners.of(t.name));
+  const stranger = dids.find((d) => !mine.has(d));
+  if (stranger) return fail2(400, "NOT_YOURS", `${stranger} is not an identity this tenant has written as; create it through the service first`);
+  const total = dids.length * STARTER_PER_DID;
+  if (!o.starter!.take(total)) return fail2(503, "POOL_EMPTY", "the starter pool is used up for now; ask the operator");
+  const balances: Record<string, number> = {};
+  try { for (const d of dids) balances[d] = await o.handle.mint(d, STARTER_PER_DID); } catch (e) { o.starter!.give(total); return fail2(500, "MINT_FAILED", (e as Error).message); }
+  o.updateTenant!(t.name, { starter: { at: new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z"), amount: total, dids } });
+  return [200, { ok: true, granted: dids.map((d) => ({ did: d, credits: STARTER_PER_DID, balance: balances[d] })), total, note: "Credits are accounting entries in the protocol, not money. A first job within a newcomer's limits (tier 1: spend up to 100 credits) is covered by this grant." }];
 }
 
 /** Everything the service holds for a tenant (and deletes on closing), counted. Shared by the routes and the operator's `asp serve close-tenant`. */
@@ -106,7 +143,16 @@ export function accountRoutes(o: AccountOptions) {
     const method = req.method ?? "GET";
     if (method === "GET" && url.pathname === "/account") {
       const d = await accountData(o, me);
-      send(res, 200, { ok: true, tenant: tenantView(me), usage: d.usage, dids: d.dids, packages: d.packages, commons: { entries: d.commons.entries.length, reviews: d.commons.reviews.length, citations: d.commons.citations.length } });
+      send(res, 200, {
+        ok: true, tenant: tenantView(me), usage: d.usage, dids: d.dids, packages: d.packages, commons: { entries: d.commons.entries.length, reviews: d.commons.reviews.length, citations: d.commons.citations.length },
+        starter: starterStatus(o, me),
+      });
+      return true;
+    }
+
+    if (method === "POST" && url.pathname === "/account/starter") {
+      const body = (await readJson(req)) as { dids?: unknown } | undefined;
+      send(res, ...(await claimStarter(o, me, Array.isArray(body?.dids) ? (body!.dids as unknown[]) : [])));
       return true;
     }
 

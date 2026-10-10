@@ -48,6 +48,8 @@ export interface Tenant {
   signup?: { at: string; addressHash: string; termsVersion: string; contact?: string; google?: { sub: string; email: string }; declaration?: "adult_or_guardian" };
   /** Set when the tenant closed its account: the token is gone and so is everything personal except what is kept for abuse handling until `retainUntil`. */
   closed?: { at: string; retainUntil: string };
+  /** The starter credits this tenant claimed (src/starter.ts): when and how many; kept in a tombstone too, so closing and signing up again does not earn a second grant. */
+  starter?: { at: string; amount: number; dids?: string[] };
 }
 
 export const hashToken = (token: string): string => createHash("sha256").update(token).digest("hex");

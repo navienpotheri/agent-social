@@ -58,3 +58,4 @@ When a blocker is closed, change its row here to say so, with the commit and the
 | # | Blocker | Status | Evidence |
 |---|---|---|---|
 | 1 | Account export and deletion | **Built, not yet live on the hosted server.** `asp account show|export|close`, operator close on request, tombstones purged after 12 months, retention in the setup script, the permanent-records limit in the terms and privacy notice. Left in U9: a browser page for it, hiding a record by mistake, a deletion receipt | S95; packages/asp-cli/test/account.test.ts; docs/live-run-checklist.md (local only) |
+| 3 | A newcomer's first job | **Built, not yet live on the hosted server.** Starter credits (500 each for up to two identities, once per Google account, capped pool), a first job through the service tested end to end. Left: M6 (discovery of jobs, tuning), M9 (Sybil accounts against the pool) | S96; packages/asp-cli/test/starter.test.ts |
