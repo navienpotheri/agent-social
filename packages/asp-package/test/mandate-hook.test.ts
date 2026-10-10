@@ -6,8 +6,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NO_SCOPE_TOOLS, deriveScopeForTool, isOwnMemoryWrite, judge, shellArtifact } from "../src/index.ts";
+import { RateLimiter } from "../src/gateway/rate.ts";
 // @ts-expect-error: plain .mjs without type declarations
-import { NO_SCOPE_TOOLS as HOOK_NO_SCOPE_TOOLS, decide, deriveScopeForTool as hookScope, isOwnMemoryWrite as hookOwnMemory, shellFingerprint as hookFingerprint } from "../src/adapters/claude-code-mandate-hook.mjs";
+import { NO_SCOPE_TOOLS as HOOK_NO_SCOPE_TOOLS, decide, rateRefusal, deriveScopeForTool as hookScope, isOwnMemoryWrite as hookOwnMemory, shellFingerprint as hookFingerprint } from "../src/adapters/claude-code-mandate-hook.mjs";
 
 const HOOK = fileURLToPath(new URL("../src/adapters/claude-code-mandate-hook.mjs", import.meta.url));
 
@@ -51,6 +52,28 @@ function pluginRun(mandate: string | undefined) {
 }
 const callHook = (script: string, stdin: string) => spawnSync(process.execPath, [script], { input: stdin, encoding: "utf8" });
 const event = (tool_name: string, command?: string) => JSON.stringify({ tool_name, tool_input: command ? { command } : {}, session_id: "s" });
+
+test("rate limits: the hook refuses a network call over the per-host limit without a strike, counting from a file across calls; the file's count agrees with the gateway's limiter", () => {
+  const { run, script } = pluginRun(JSON.stringify({ scopes: ["web.read"], hosts: ["docs.example.org", "api.example.org"], rate: { per_host_per_minute: 2 } }));
+  const fetchOf = (host: string) => JSON.stringify({ tool_name: "WebFetch", tool_input: { url: `https://${host}/x` }, tool_use_id: "t", session_id: "s" });
+  assert.deepEqual([callHook(script, fetchOf("docs.example.org")).status, callHook(script, fetchOf("docs.example.org")).status], [0, 0]);
+  const third = callHook(script, fetchOf("docs.example.org"));
+  assert.equal(third.status, 2);
+  assert.match(third.stderr, /ASP rate limit: the host docs\.example\.org was called 2 times in the last minute; this job's Mandate allows 2 a minute to any one host/);
+  assert.doesNotMatch(third.stderr, /ASP Mandate/, "a rate limit is not read as a Mandate violation, so asp run does not count a strike");
+  assert.equal(callHook(script, fetchOf("api.example.org")).status, 0, "another host has its own count");
+  assert.ok(!existsSync(join(run, "blocked-calls.ndjson")), "not a blocked attempt");
+  assert.equal(readFileSync(join(run, "rate-limited.ndjson"), "utf8").trim().split("\n").length, 1);
+  // The same limits, the same answers as the gateway's limiter, for one table of calls.
+  const ledger = join(run, "table.ndjson");
+  const table = ["a.example", "a.example", "b.example", "a.example", "c.example", "b.example", "b.example"];
+  const rate = { per_host_per_minute: 2, total_per_minute: 5 };
+  const lim = new RateLimiter(() => 1_000);
+  for (const h of table) {
+    const mine = rateRefusal("web.read", undefined, [`https://${h}/`], rate, ledger, 1_000) === undefined;
+    assert.equal(mine, lim.take([h], rate).ok, h);
+  }
+});
 
 test("the hook script exits 0 for a granted call and 2 with a reason for a blocked one, and records the block", () => {
   const { run, script } = pluginRun(JSON.stringify({ scopes: ["repo.read"] }));

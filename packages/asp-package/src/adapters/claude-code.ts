@@ -241,6 +241,7 @@ async function materialize(opts: {
   mandateGate?: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number };
   mandateKnownBad?: { fingerprint: string; report: string }[];
   mandateHosts?: string[];
+  mandateRate?: { per_host_per_minute?: number; total_per_minute?: number };
 }): Promise<LaunchPlan> {
   const { pkgDir, harness, project, runDir } = opts;
   const h = join(pkgDir, "harness");
@@ -302,6 +303,7 @@ async function materialize(opts: {
       memoryDir: join(runDir, "memory"),
       ...(opts.mandateKnownBad?.length ? { knownBad: opts.mandateKnownBad } : {}),
       ...(opts.mandateHosts?.length ? { hosts: opts.mandateHosts } : {}),
+      ...(opts.mandateRate ? { rate: opts.mandateRate } : {}),
       ...(gate ? { gate: { scopes: [...gate.scopes].sort(), mode: gate.mode, waitSeconds: gate.waitSeconds } } : {}),
     }));
     put("plugin/scripts/asp-mandate.mjs", () => copyInto(MANDATE_HOOK, join(plugin, "scripts", "asp-mandate.mjs")));
@@ -360,7 +362,7 @@ async function materialize(opts: {
   args.push("--plugin-dir", plugin, "--append-system-prompt-file", join(runDir, "instructions.md"), "--settings", join(runDir, "settings.json"));
   if (harness.skills.length) args.push("--add-dir", workspace);
 
-  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: r.missing.sort(), notes, checkOutputForAction: (line: string) => checkOutputForAction(line, memDir), checkOutputForResult, describeOutput: claudeCodeRunLogEvents, ...(opts.mandateScopes ? { preventsCalls: true, executedCallsFile: join(runDir, "executed-calls.ndjson") } : {}),
+  return { command, args, cwd: project, env, files, runDir, memoryDir: memDir, missingSecrets: r.missing.sort(), notes, checkOutputForAction: (line: string) => checkOutputForAction(line, memDir), checkOutputForResult, describeOutput: claudeCodeRunLogEvents, ...(opts.mandateScopes ? { preventsCalls: true, executedCallsFile: join(runDir, "executed-calls.ndjson"), rateLimitedFile: join(runDir, "rate-limited.ndjson") } : {}),
     ...(opts.mandateScopes && opts.mandateGate?.mode === "ask" && opts.mandateGate.scopes.length ? { approvalsDir: join(runDir, "approvals") } : {}) };
 }
 

@@ -41,7 +41,8 @@
         "tool_calls": { "type": "integer", "minimum": 0 },
         "tokens_in": { "type": "integer", "minimum": 0 },
         "tokens_out": { "type": "integer", "minimum": 0 },
-        "seconds": { "type": "integer", "minimum": 0 }
+        "seconds": { "type": "integer", "minimum": 0 },
+        "rate_limited": { "description": "Network calls refused in this interval because they were over the Mandate's rate limit (network.rate). Not strikes.", "type": "integer", "minimum": 0 }
       }
     },
     "late": {

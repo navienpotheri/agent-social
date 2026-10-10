@@ -222,6 +222,7 @@ async function materialize(opts: {
   mandateGate?: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number };
   mandateKnownBad?: { fingerprint: string; report: string }[];
   mandateHosts?: string[];
+  mandateRate?: { per_host_per_minute?: number; total_per_minute?: number };
 }): Promise<LaunchPlan> {
   const { pkgDir, harness, project, runDir } = opts;
   // Under a contract agy runs in a scratch workspace holding the hook; the project is an added directory.
@@ -282,7 +283,7 @@ async function materialize(opts: {
     mkdirSync(join(workspace, ".agents"), { recursive: true });
     copyInto(MANDATE_HOOK, join(hookDir, "asp-mandate-hook.mjs"));
     const gate = opts.mandateGate && opts.mandateGate.scopes.length ? opts.mandateGate : undefined;
-    writeJson(join(hookDir, "asp-mandate.json"), { scopes: [...opts.mandateScopes!].sort(), ...(gate ? { gate } : {}), ...(opts.mandateKnownBad?.length ? { knownBad: opts.mandateKnownBad } : {}), ...(opts.mandateHosts?.length ? { hosts: opts.mandateHosts } : {}) });
+    writeJson(join(hookDir, "asp-mandate.json"), { scopes: [...opts.mandateScopes!].sort(), ...(gate ? { gate } : {}), ...(opts.mandateKnownBad?.length ? { knownBad: opts.mandateKnownBad } : {}), ...(opts.mandateHosts?.length ? { hosts: opts.mandateHosts } : {}), ...(opts.mandateRate ? { rate: opts.mandateRate } : {}) });
     // agy runs hook commands through cmd and mangles quoted paths (checked live): plain `node` from PATH and an unquoted
     // script path, which on Windows must have no spaces, so a folder name with spaces is turned into its 8.3 short form.
     const script = hookPathFor(join(hookDir, "asp-mandate-hook.mjs"), notes);
@@ -314,7 +315,7 @@ async function materialize(opts: {
   return {
     command: resolveAgy(opts.env), args: finalArgs, cwd: hooked ? workspace : project, env: {}, files, runDir, memoryDir: memDir, missingSecrets: [], notes,
     ...(opts.prompt !== undefined ? { checkOutputForAction: agyActionParser(), checkOutputForFailure: agyFailure } : {}),
-    ...(hooked ? { preventsCalls, checkOutputForResult: agyResultParser(), executedCallsFile: join(runDir, "executed-calls.ndjson"), blockedCallsFile: join(runDir, "blocked-calls.ndjson"), ...(approvalsDir ? { approvalsDir } : {}) } : {}),
+    ...(hooked ? { preventsCalls, checkOutputForResult: agyResultParser(), executedCallsFile: join(runDir, "executed-calls.ndjson"), blockedCallsFile: join(runDir, "blocked-calls.ndjson"), rateLimitedFile: join(runDir, "rate-limited.ndjson"), ...(approvalsDir ? { approvalsDir } : {}) } : {}),
   };
 }
 

@@ -16,12 +16,14 @@ export interface MailLog {
 export interface MandateFacts {
   contract: { id: string; purpose: string; principal: string; performer: string; price?: { value: number; unit: string }; deadline?: string };
   state: string;
-  mandate?: { id: string; issuedAt: string; expires?: string; scopes: string[]; hosts?: string[]; spendCap: number; unit: string; irreversible: string; gatedScopes: string[]; shareToCommons: boolean };
+  mandate?: { id: string; issuedAt: string; expires?: string; scopes: string[]; hosts?: string[]; rate?: { perHostPerMinute?: number; totalPerMinute?: number }; spendCap: number; unit: string; irreversible: string; gatedScopes: string[]; shareToCommons: boolean };
   activity: {
     actions: number;
     scopesUsed: { scope: string; actions: number }[];
     blocked: { scope: string; count: number }[];
     strikes: number;
+    /** Network calls refused for going over the Mandate's rate limit (not strikes). */
+    rateLimited: number;
     metrics: { requests: number; toolCalls: number; tokensIn: number; tokensOut: number; seconds: number; models: string[] };
     assurance: string[];
     runLogCommitments: number;
@@ -58,6 +60,7 @@ export async function collectMandateFacts(log: MailLog, contract: string): Promi
   let commitments = 0;
   let committedEvents = 0;
   let lateActions = 0;
+  let rateLimited = 0;
   for (const a of actions) {
     const b = a.record.body;
     for (const s of b.scopes_used ?? []) used.set(s, (used.get(s) ?? 0) + 1);
@@ -69,6 +72,7 @@ export async function collectMandateFacts(log: MailLog, contract: string): Promi
     }
     if (b.assurance) assurance.add(b.assurance);
     if (b.late) lateActions++;
+    rateLimited += b.metrics?.rate_limited ?? 0;
     for (const x of b.artifacts ?? []) {
       const m = /^asp:\/\/run-log\/(\d+)$/.exec(x.uri);
       if (m) { commitments++; committedEvents = Math.max(committedEvents, Number(m[1])); }
@@ -99,7 +103,7 @@ export async function collectMandateFacts(log: MailLog, contract: string): Promi
     contract: { id: contract, purpose: cb.purpose, principal: cb.principal, performer: cb.performer, ...(cb.price ? { price: cb.price } : {}), ...(cb.deadline ? { deadline: cb.deadline } : {}) },
     state: info?.state ?? "unknown",
     ...(mb ? { mandate: {
-      id: mandateRec!.id, issuedAt: mandateRec!.record.issued_at, ...(mb.expires ? { expires: mb.expires } : {}), scopes: mb.scopes ?? [], ...(mb.network?.hosts ? { hosts: mb.network.hosts } : {}),
+      id: mandateRec!.id, issuedAt: mandateRec!.record.issued_at, ...(mb.expires ? { expires: mb.expires } : {}), scopes: mb.scopes ?? [], ...(mb.network?.hosts ? { hosts: mb.network.hosts } : {}), ...(mb.network?.rate ? { rate: { ...(mb.network.rate.per_host_per_minute ? { perHostPerMinute: mb.network.rate.per_host_per_minute } : {}), ...(mb.network.rate.total_per_minute ? { totalPerMinute: mb.network.rate.total_per_minute } : {}) } } : {}),
       spendCap: mb.spend?.cap ?? 0, unit: mb.spend?.unit ?? "credit", irreversible: mb.irreversible?.policy ?? "checkpoint", gatedScopes: mb.irreversible?.scopes ?? [], shareToCommons: !!mb.learning?.share_to_commons,
     } } : {}),
     activity: {
@@ -107,6 +111,7 @@ export async function collectMandateFacts(log: MailLog, contract: string): Promi
       scopesUsed: [...used].sort().map(([scope, n]) => ({ scope, actions: n })),
       blocked: [...blocked].sort().map(([scope, count]) => ({ scope, count })),
       strikes: [...blocked.values()].reduce((n, c) => n + c, 0),
+      rateLimited,
       metrics: { ...metrics, models: [...metrics.models].sort() },
       assurance: [...assurance].sort((a, b) => STRENGTH.indexOf(b) - STRENGTH.indexOf(a)),
       runLogCommitments: commitments,
@@ -159,6 +164,7 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
     sections.push({ title: "What it was allowed", lines: [
       `Scopes: ${m.scopes.join(", ") || "none"}.`,
       ...(m.hosts ? [`Network access only to: ${m.hosts.join(", ")}.`] : []),
+      ...(m.rate ? [`Network calls limited to ${[m.rate.perHostPerMinute ? `${m.rate.perHostPerMinute} a minute to any one host` : "", m.rate.totalPerMinute ? `${m.rate.totalPerMinute} a minute in all` : ""].filter(Boolean).join(" and ")}.`] : []),
       `Spend cap: ${num(m.spendCap)} ${m.unit}.`,
       m.gatedScopes.length ? `Needed your approval first (${m.irreversible}): ${m.gatedScopes.join(", ")}.` : "Nothing needed your approval first.",
       m.shareToCommons ? "Lessons it learned could be shared to the commons." : "Lessons it learned stayed private.",
@@ -175,6 +181,7 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
   const stopped: string[] = [];
   if (a.blocked.length) stopped.push(`${a.strikes} attempt(s) were blocked before they ran: ${a.blocked.map((b) => `${b.scope} x${b.count}`).join(", ")}.`);
   else stopped.push("Nothing was blocked.");
+  if (a.rateLimited) stopped.push(`${a.rateLimited} network call(s) were refused for going over the rate limit (not counted as strikes).`);
   if (firstRefusal) stopped.push(`First blocked call: ${firstRefusal.tool} (${firstRefusal.scope || "no scope"}), ${firstRefusal.reason ?? "outside the Mandate"}.`);
   sections.push({ title: "What was blocked", lines: stopped });
 

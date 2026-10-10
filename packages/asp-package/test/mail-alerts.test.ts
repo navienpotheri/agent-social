@@ -64,3 +64,15 @@ test("the end mail says when the run log holds events from after the last report
   const complete = buildMandateMail(f, { to: "a@b.co", runLog: check(3) });
   assert.doesNotMatch(complete.text, /came after the last report/);
 });
+
+test("the end mail and the facts say what the rate limit was and how many calls it refused", async () => {
+  const withRate = rec(2, "m1", "asp.mandate/v0.2", "2026-10-01T00:01:00Z", { contract: "c1", scopes: ["web.read"], network: { hosts: ["docs.example.org"], rate: { per_host_per_minute: 30, total_per_minute: 100 } }, spend: { cap: 5, unit: "credit" }, irreversible: { policy: "checkpoint" }, learning: { share_to_commons: false }, expires: "2027-01-01T00:00:00Z" });
+  const action = rec(3, "a1", "asp.action/v0.2", "2026-10-02T00:00:00Z", { contract: "c1", scopes_used: ["web.read"], metrics: { requests: 2, tool_calls: 9, rate_limited: 4 } });
+  const f = (await collectMandateFacts(fakeLog([contract, withRate, action], { c1: "Settled" }), "c1"))!;
+  assert.deepEqual(f.mandate!.rate, { perHostPerMinute: 30, totalPerMinute: 100 });
+  assert.equal(f.activity.rateLimited, 4);
+  const mail = buildMandateMail(f, { to: "a@b.co" });
+  assert.match(mail.text, /Network calls limited to 30 a minute to any one host and 100 a minute in all\./);
+  assert.match(mail.text, /4 network call\(s\) were refused for going over the rate limit \(not counted as strikes\)\./);
+  assert.match(mail.text, /Nothing was blocked\./, "a rate limit is not a block");
+});

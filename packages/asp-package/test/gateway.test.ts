@@ -53,6 +53,32 @@ async function gateway(upstream: { url: string }, extra: Record<string, unknown>
 const post = (url: string, body: unknown, headers: Record<string, string> = {}) =>
   fetch(url, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
 
+test("rate limits: calls to one host over the Mandate's per-minute limit are refused with no strike, counted in the metrics, and the first ones still go through", async () => {
+  const fetches = (n: number, host = "docs.example.org") => openaiToolReply(Array.from({ length: n }, (_, i) => ({ name: "web_fetch", args: { url: `https://${host}/page${i}` } })));
+  const up = await fakeUpstream([fetches(5)]);
+  const { g, url } = await gateway(up, { scopes: ["repo.read", "web.read"], hosts: ["docs.example.org", "api.example.org"], rate: { per_host_per_minute: 3 } });
+  const reply: any = await (await post(`${url}/v1/chat/completions`, { model: "m", messages: [] })).json();
+  assert.equal(reply.choices[0].message.tool_calls.length, 3, "the first three calls reach the agent");
+  assert.match(reply.choices[0].message.content, /docs.example.org was called 3 times in the last minute/);
+  const s = g.summary();
+  assert.equal(s.strikes, 0, "a rate limit is not a strike");
+  assert.deepEqual(s.blocked, []);
+  const d = g.drain();
+  assert.equal(d.metrics.rate_limited, 2);
+  assert.equal(d.metrics.tool_calls, 5);
+  assert.equal(g.drain().metrics.rate_limited, undefined, "counted once");
+
+  // Another host is not held back by the first one's count; the total caps both.
+  const up2 = await fakeUpstream([openaiToolReply([...[1, 2, 3].map((i) => ({ name: "web_fetch", args: { url: `https://docs.example.org/${i}` } })), ...[1, 2, 3].map((i) => ({ name: "web_fetch", args: { url: `https://api.example.org/${i}` } }))])]);
+  const two = await gateway(up2, { scopes: ["web.read"], hosts: ["docs.example.org", "api.example.org"], rate: { per_host_per_minute: 3, total_per_minute: 4 } });
+  const r2: any = await (await post(`${two.url}/v1/chat/completions`, { model: "m", messages: [] })).json();
+  assert.equal(r2.choices[0].message.tool_calls.length, 4, "three to one host and one to the other, then the total of four");
+  assert.match(r2.choices[0].message.content, /allows 4 network calls a minute and 4 were made/);
+  // Without a rate in the Mandate, nothing is limited.
+  const none = await gateway(await fakeUpstream([fetches(9)]), { scopes: ["web.read"] });
+  assert.equal(((await (await post(`${none.url}/v1/chat/completions`, { model: "m", messages: [] })).json()) as any).choices[0].message.tool_calls.length, 9);
+});
+
 test("default-deny egress: with named hosts, a fetch or a shell command to any other host is refused, and so is one whose host cannot be read", () => {
   const hosts = ["docs.python.org", "*.github.com"];
   const scopes = ["repo.read", "web.read", "shell.network"];

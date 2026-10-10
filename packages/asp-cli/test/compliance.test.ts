@@ -30,7 +30,7 @@ const fakeClaude = (extra: NodeJS.ProcessEnv = {}) => ({
 });
 
 /** Sets up identities and a job in Running, with the given Mandate scopes, returning its contract id. */
-async function runningContract(f: Fixture, scopes: string[]) {
+async function runningContract(f: Fixture, scopes: string[], extra: string[] = []) {
   assert.equal((await asp(f, ["identity", "new", "--kind", "human", "--did", ALICE])).code, 0);
   assert.equal((await asp(f, ["identity", "new", "--kind", "agent", "--did", CODER, "--sponsor", ALICE, "--purpose", "Fix the flaky test"])).code, 0);
   assert.equal((await asp(f, ["identity", "new", "--kind", "human", "--did", BANK])).code, 0);
@@ -43,7 +43,7 @@ async function runningContract(f: Fixture, scopes: string[]) {
   const contract = await asp(f, ["market", "contract", "--principal", ALICE, "--bank", BANK, "--intent", intentId, "--offer", offerId]);
   const contractId = /^contract (\S+):/.exec(contract.out)![1];
   await asp(f, ["market", "bond", "--contract", contractId, "--backer", CODER, "--amount", "200", "--escrow-payer", ALICE, "--escrow-amount", "1000"]);
-  const mandate = await asp(f, ["market", "mandate", "--contract", contractId, "--principal", ALICE, "--performer", CODER, ...scopes.flatMap((s) => ["--scopes", s])]);
+  const mandate = await asp(f, ["market", "mandate", "--contract", contractId, "--principal", ALICE, "--performer", CODER, ...scopes.flatMap((s) => ["--scopes", s]), ...extra]);
   assert.equal(mandate.code, 0, mandate.err);
   return contractId;
 }
@@ -332,4 +332,21 @@ test("asp run: a job settled while the run was going is reported as a late Actio
   assert.equal(actions.length, 1);
   assert.ok(actions[0].late.activity_ended);
   assert.deepEqual(actions[0].scopes_used, ["repo.read"]);
+});
+
+test("asp run: the pre-call hook refuses network calls over the Mandate's rate limit without a strike, and the Action's metrics count them", async () => {
+  const f = makeFixture();
+  const contractId = await runningContract(f, ["web.read"], ["--network-host", "docs.example.org", "--network-rate-per-host", "2"]);
+  const pkg = join(f.root, "coder.aspkg");
+  const pack = await asp(f, ["pack", "--runtime", "claude-code", "--agent", CODER, "--project", f.project, "--user-home", f.home, "--out", pkg]);
+  assert.equal(pack.code, 0, pack.err);
+  const call = { name: "WebFetch", input: { url: "https://docs.example.org/page" } };
+  const run = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", "--contract", contractId],
+    fakeClaude({ FAKE_CLAUDE_HOOK_CALLS: JSON.stringify([call, call, call, call]) }));
+  assert.equal(run.code, 0, run.err);
+  assert.doesNotMatch(run.err, /strike|KILL SWITCH/);
+  const local = await LocalLog.open(f.aspHome);
+  const body = (await local.log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2").at(-1)!.record.body as any;
+  assert.equal(body.metrics.rate_limited, 2);
+  assert.equal(body.blocked_attempts, undefined);
 });

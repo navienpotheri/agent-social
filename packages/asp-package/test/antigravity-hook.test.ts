@@ -125,3 +125,20 @@ test("default-deny egress: the agy hook blocks a host the Mandate does not name"
   assert.equal(hook.decide(call("run_command", { CommandLine: "curl $TARGET" }), scopes, undefined, undefined, hosts).allow, false);
   assert.equal(hook.decide(call("read_url_content", { Url: "https://evil.example/x" }), scopes).allow, true, "no hosts list, no limit");
 });
+
+test("rate limits: the agy hook refuses a network call over the per-host limit without a strike", () => {
+  const dir = mkdtempSync(join(tmpdir(), "agy-hook-rate-"));
+  mkdirSync(join(dir, "asp-hook"));
+  writeFileSync(join(dir, "asp-hook", "asp-mandate-hook.mjs"), readFileSync(HOOK));
+  writeFileSync(join(dir, "asp-hook", "asp-mandate.json"), JSON.stringify({ scopes: ["web.read", "shell.network"], hosts: ["docs.example.org"], rate: { per_host_per_minute: 2 } }));
+  const read = (n: number) => runHook(dir, "pre", { toolCall: { name: "read_url_content", args: { Url: "https://docs.example.org/page" } }, stepIdx: n }).out;
+  assert.deepEqual([read(1), read(2)], [{ decision: "allow" }, { decision: "allow" }]);
+  const third = read(3);
+  assert.equal(third.decision, "deny");
+  assert.match(third.reason, /ASP rate limit: the host docs\.example\.org was called 2 times in the last minute/);
+  assert.doesNotMatch(third.reason, /ASP Mandate/);
+  // A shell command to the same host counts against the same limit.
+  assert.equal(runHook(dir, "pre", { toolCall: { name: "run_command", args: { CommandLine: "curl https://docs.example.org/x" } }, stepIdx: 4 }).out.decision, "deny");
+  assert.ok(!existsSync(join(dir, "blocked-calls.ndjson")), "not a blocked attempt");
+  assert.equal(readFileSync(join(dir, "rate-limited.ndjson"), "utf8").trim().split("\n").length, 2);
+});

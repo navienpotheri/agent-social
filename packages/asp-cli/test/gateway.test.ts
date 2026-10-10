@@ -422,3 +422,30 @@ test("the provider key the gateway holds never reaches the agent's environment, 
     assert.match(sb.err, /--sandbox: the sandbox level needs Linux/);
   }
 });
+
+test("asp gateway: a Mandate with a rate limit refuses the calls over it, without a strike, and the Action's metrics count them", async () => {
+  const f = makeFixture();
+  const server = createServer(async (req, res) => {
+    for await (const _ of req) { /* drain */ }
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ id: "c1", object: "chat.completion", created: 1, model: "m", usage: { prompt_tokens: 1, completion_tokens: 1 },
+      choices: [{ index: 0, finish_reason: "tool_calls", message: { role: "assistant", content: null, tool_calls: [1, 2, 3, 4].map((i) => ({ id: "c" + i, type: "function", function: { name: "web_fetch", arguments: JSON.stringify({ url: "https://docs.example.org/p" + i }) } })) } }] }));
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  servers.push(server);
+  const upstream = `http://127.0.0.1:${(server.address() as { port: number }).port}/v1`;
+  const contract = await runningContract(f, ["web.read"], ["--network-host", "docs.example.org", "--network-rate-per-host", "2"]);
+  const run = await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--", process.execPath, "--input-type=module", "-e", AGENT]);
+  assert.equal(run.code, 0, run.err);
+  assert.equal((run.err.match(/allowed {2}web_fetch -> web\.read/g) ?? []).length, 2);
+  assert.match(run.err, /REFUSED {2}web_fetch -> web\.read: the host docs\.example\.org was called 2 times in the last minute/);
+  const { LocalLog } = await import("@agent-social/asp-package");
+  const actions = (await (await LocalLog.open(f.aspHome)).log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2").map((x) => x.record.body as any);
+  assert.equal(actions.reduce((n, a) => n + (a.metrics?.rate_limited ?? 0), 0), 2, "two of the four calls were over the limit");
+  assert.ok(actions.every((a) => !a.blocked_attempts), "they are not blocked attempts, so not strikes");
+  assert.equal((await asp(f, ["market", "show", contract])).code, 0);
+  // The Mandate says so, and a bad number is a usage error.
+  const bad = await asp(f, ["market", "mandate", "--contract", contract, "--principal", ALICE, "--performer", CODER, "--network-rate-per-host", "0"]);
+  assert.equal(bad.code, 2);
+  assert.match(bad.err, /--network-rate-per-host must be a whole number, 1 or more/);
+});

@@ -105,6 +105,8 @@ export interface LaunchPlan {
    * into the Action's blocked attempts, and the `scope` of each executed-calls line into its scopes used.
    */
   blockedCallsFile?: string;
+  /** A file the pre-call hook appends one JSON line to for every network call it refused for being over the rate limit (not strikes). */
+  rateLimitedFile?: string;
   /**
    * What a line of the runtime's output says about the run, as run-log events (E5, E7): the text the agent wrote, each tool call with its
    * input, each tool's result, how the run ended. Absent for a runtime whose output format is not read; `asp run` then keeps only the
@@ -137,6 +139,8 @@ export interface RuntimeAdapter {
     mandateKnownBad?: { fingerprint: string; report: string }[];
     /** The hosts the Mandate's network scopes may reach (`network.hosts`); the pre-call hooks block any other. */
     mandateHosts?: string[];
+    /** The Mandate's `network.rate`: the pre-call hooks refuse a network call over it. */
+    mandateRate?: { per_host_per_minute?: number; total_per_minute?: number };
     /** An OpenAI-compatible base URL for an open-weight model (Ollama, vLLM, ...); needs `model`. */
     endpoint?: string;
     /** Name of the environment variable holding the endpoint's API key (a placeholder is used for local servers). */

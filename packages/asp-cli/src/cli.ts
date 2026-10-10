@@ -200,7 +200,7 @@
  *   asp market bond --contract <id> --backer <did> --amount <n> --escrow-payer <did> --escrow-amount <n>
  *     Locks real credits: debits both the escrow payer and the backer for real (rejects with
  *     insufficient_balance rather than starting a job uncovered).
- *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--network-host <host> ...] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons]
+ *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--network-host <host> ...] [--network-rate-per-host <n>] [--network-rate-total <n>] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons]
  *     --gate names granted scopes the irreversible policy applies to: with checkpoint (the default) a
  *     call to one needs the principal's approval first (asp run holds the call, raises a Checkpoint, and
  *     waits for asp market resolve; --approval-wait <seconds>, default 600, then it is refused); with
@@ -451,6 +451,8 @@ const OPTIONS = {
   "escrow-amount": { type: "string" },
   scopes: { type: "string", multiple: true },
   "network-host": { type: "string", multiple: true },
+  "network-rate-per-host": { type: "string" },
+  "network-rate-total": { type: "string" },
   "spend-cap": { type: "string" },
   summary: { type: "string" },
   about: { type: "string" },
@@ -570,6 +572,22 @@ type Values = {
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
+
+/** The Mandate's `network` object from `--network-host` and `--network-rate-per-host` / `--network-rate-total`. */
+function networkOf(v: Values): { hosts?: string[]; rate?: { per_host_per_minute?: number; total_per_minute?: number } } {
+  const whole = (name: "network-rate-per-host" | "network-rate-total"): number | undefined => {
+    if (v[name] === undefined) return undefined;
+    const n = Number(v[name]);
+    if (!Number.isInteger(n) || n < 1) throw new UsageError(`--${name} must be a whole number, 1 or more (calls a minute)`);
+    return n;
+  };
+  const perHost = whole("network-rate-per-host");
+  const total = whole("network-rate-total");
+  return {
+    ...(v["network-host"]?.length ? { hosts: v["network-host"] } : {}),
+    ...(perHost !== undefined || total !== undefined ? { rate: { ...(perHost !== undefined ? { per_host_per_minute: perHost } : {}), ...(total !== undefined ? { total_per_minute: total } : {}) } } : {}),
+  };
+}
 
 async function identityNew(home: string, v: Values, need: Need, io: Io): Promise<number> {
   const kind = need("kind");
@@ -1401,7 +1419,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     mcp: { asp: { memoryDir: memDir, ...(commons ? { commons } : {}) }, upstreams },
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
-    scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
+    scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
     ...(v["token-cap"] ? { tokenCap: Math.trunc(Number(v["token-cap"])) } : {}),
     onCall: (e) => {
@@ -2305,7 +2323,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const body = {
       contract, purpose: cbody.purpose, floor: "asp.floor/v1" as const,
       scopes: v.scopes?.length ? v.scopes : ["repo.read"],
-      ...(v["network-host"]?.length ? { network: { hosts: v["network-host"] } } : {}),
+      ...(v["network-host"]?.length || v["network-rate-per-host"] !== undefined || v["network-rate-total"] !== undefined ? { network: networkOf(v) } : {}),
       forbidden_means: [] as string[],
       spend: { cap: Math.trunc(Number(v["spend-cap"] ?? "0")), unit: "credit" as const },
       irreversible: {
@@ -2982,10 +3000,12 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   // The Mandate's irreversible policy: scopes that need the principal's approval first, or are forbidden.
   let gate: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number } | undefined;
   let mandateHosts: string[] | undefined;
+  let mandateRate: { per_host_per_minute?: number; total_per_minute?: number } | undefined;
   if (v.contract && mandate) {
     const mandateRecord = (await local!.log.chain(v.contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
     const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
     mandateHosts = (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
+    mandateRate = (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate;
     if (irreversible?.scopes?.length && irreversible.policy !== "allow") {
       gate = { scopes: irreversible.scopes, mode: irreversible.policy === "forbid" ? "deny" : "ask", waitSeconds: approvalWait };
     }
@@ -2997,7 +3017,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
   }
   const plan = await adapter.materialize({
     pkgDir, harness, project: resolve(io.cwd, v.project ?? "."), runDir, agentName: basename(agent.replace(/:/g, "/")), prompt: v.prompt, env: io.env,
-    mandateScopes: mandate?.scopes, mandateHosts, mandateGate: gate, mandateKnownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })), model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
+    mandateScopes: mandate?.scopes, mandateHosts, mandateRate, mandateGate: gate, mandateKnownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })), model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
   });
 
   if (knownBad.length) io.err(plan.preventsCalls ? `  note     ${knownBad.length} known-bad command fingerprint(s) are enforced by the pre-call hook` : `  note     the known-bad list (${knownBad.length}) is not enforced: this runtime has no pre-call hook`);
@@ -3188,6 +3208,8 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
     }
   }
   const blockedAttempts = [...blockedByScope].sort(([a], [b]) => a.localeCompare(b)).map(([scope, count]) => ({ scope, count }));
+  // Network calls the pre-call hook refused for being over the rate limit: not strikes, but counted in the Action's metrics (H1).
+  const rateLimited = plan.rateLimitedFile && existsSync(plan.rateLimitedFile) ? readFileSync(plan.rateLimitedFile, "utf8").split(/\r?\n/).filter(Boolean).length : 0;
   runLog?.event("run_end", { exit_code: code, scopes_used: [...scopesSeen].sort(), blocked: blockedAttempts, strikes, ...(killed ? { killed: killed.reason } : {}), ...(hiddenFailure ? { failure: hiddenFailure } : {}), redactions: runLog?.redactions });
 
   if (killed) {
@@ -3204,6 +3226,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
           contract: v.contract!, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", summary: `${backend} run, ${runDir}, killed mid-run`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
           ...(artifactsSeen.length || runLog ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : [])] } : {}),
+          ...(rateLimited ? { metrics: { rate_limited: rateLimited } } : {}),
         },
       }, actionSigner);
       try { await local!.append(action); } catch (e) { io.err(`  action   COMPLIANCE VIOLATION: ${(e as Error).message}`); }
@@ -3233,6 +3256,7 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
           contract: v.contract, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", summary: `${backend} run, ${runDir}`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
           ...(artifactsSeen.length || runLog ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : [])] } : {}),
+          ...(rateLimited ? { metrics: { rate_limited: rateLimited } } : {}),
         },
       }, actionSigner);
       try {

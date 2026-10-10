@@ -13,6 +13,9 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { lastUserText, replyText, toolResultsIn, type RunRecorder } from "./runlog.ts";
+import { RateLimiter, type NetworkRate } from "./rate.ts";
+import { hostsOf } from "./judge.ts";
+import { isNetworkScope } from "@agent-social/asp-core";
 import { commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
@@ -29,6 +32,8 @@ export interface GatewayOptions {
   scopes: string[];
   /** The hosts the Mandate's network scopes may reach (`network.hosts`); absent means no host limit. */
   hosts?: string[];
+  /** How many network calls a minute may go to any one host and in all (`network.rate`); a call over a limit is refused, without a strike. */
+  rate?: NetworkRate;
   /** Keeps the run log (gap E2): requests, replies, tool calls and how the run ended, redacted, on this machine. */
   runLog?: RunRecorder;
   knownBad?: KnownBadRef[];
@@ -57,6 +62,8 @@ export interface ActionMetrics {
   tokens_in: number;
   tokens_out: number;
   seconds: number;
+  /** Network calls refused in this interval for being over the rate limit. */
+  rate_limited?: number;
 }
 
 export interface GatewaySummary {
@@ -106,6 +113,9 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const tokens: { input: number; output: number; text: string } = { input: 0, output: 0, text: "" };
   const rec = opts.runLog;
   let lastActivity = Date.now();
+  const limiter = new RateLimiter();
+  let rateLimitedTotal = 0;
+  let rateLimitedSince = 0;
   const seenResults = new Set<string>();
   /** Records a model request in the run log and returns where the token counts stood, so the reply can be recorded with its own figures. */
   const beginModelCall = (api: string, body: any) => {
@@ -174,8 +184,14 @@ export function createGateway(opts: GatewayOptions): Gateway {
         if (!a.approved) { allow = false; reason = `the scope ${j.scope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`; }
       }
     }
+    // A rate limit is not a violation either (like a gate): the call is refused, with no strike, and counted.
+    let rateLimited = false;
+    if (allow && opts.rate && j.scope && isNetworkScope(j.scope)) {
+      const v = limiter.take(hostsOf(call, j.scope), opts.rate);
+      if (!v.ok) { allow = false; reason = v.reason; strike = false; rateLimited = true; rateLimitedTotal++; rateLimitedSince++; }
+    }
     opts.onCall?.({ tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}) });
-    rec?.event("tool_call", { tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(opts.gate?.scopes.includes(j.scope) ? { gated: true } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
+    rec?.event("tool_call", { tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(opts.gate?.scopes.includes(j.scope) ? { gated: true } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
     if (allow) {
       if (j.scope) { used.add(j.scope); pendingUsed.add(j.scope); }
       if (j.artifact) { artifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); pendingArtifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); }
@@ -424,6 +440,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       const metrics: ActionMetrics = { models: [...modelsSeen.values()], requests: requests - last.requests, tool_calls: toolCalls - last.toolCalls, tokens_in: tokens.input - last.input, tokens_out: tokens.output - last.output, seconds: Math.round((now - last.at) / 1000) };
       Object.assign(last, { requests, toolCalls, input: tokens.input, output: tokens.output, at: now });
       modelsSeen.clear();
+      if (rateLimitedSince) { metrics.rate_limited = rateLimitedSince; rateLimitedSince = 0; }
       const out = { scopesUsed: [...pendingUsed].sort(), blocked: [...pendingBlocked].map(([scope, count]) => ({ scope, count })), artifacts: [...pendingArtifacts.values()], metrics, lastActivityAt: new Date(lastActivity).toISOString().replace(/\.\d{3}Z$/, "Z") };
       pendingUsed.clear(); pendingBlocked.clear(); pendingArtifacts.clear();
       return out;

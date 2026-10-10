@@ -157,6 +157,41 @@ export function hostRefusal(scope, command, urls, hosts) {
   return outside ? `the host ${outside} is not one this job's Mandate allows (${hosts.join(", ")})` : undefined;
 }
 
+// ---- Rate limits on network calls (H1): a copy of RateLimiter (gateway/rate.ts). A hook is a new process for every call, so the calls of the last minute are
+// ---- kept in a file (one line a call) and counted from it. Calls that run at the same moment can each see the count before the other's line is written.
+const RATE_WINDOW_MS = 60_000;
+/** The refusal reason for a network call over the Mandate's rate limit, or undefined (and the call is counted). */
+export function rateRefusal(scope, command, urls, rate, ledgerPath, now = Date.now()) {
+  if (!rate || !isNetworkScope(scope)) return undefined;
+  const texts = scope === "shell.network" ? [command ?? ""] : urls.filter((u) => typeof u === "string").map((u) => (/^[a-z][a-z0-9+.-]*:\/\//i.test(u) ? u : `https://${u}`));
+  const hosts = [...new Set(texts.flatMap(hostsOfText))];
+  const recent = [];
+  if (existsSync(ledgerPath)) {
+    for (const line of readFileSync(ledgerPath, "utf8").split("\n")) {
+      if (!line) continue;
+      try { const e = JSON.parse(line); if (e.t > now - RATE_WINDOW_MS) recent.push(e); } catch { /* a half-written line is not a call yet */ }
+    }
+  }
+  if (rate.total_per_minute !== undefined && recent.length >= rate.total_per_minute) {
+    return `this job's Mandate allows ${rate.total_per_minute} network calls a minute and ${recent.length} were made in the last minute`;
+  }
+  if (rate.per_host_per_minute !== undefined) {
+    for (const h of hosts) {
+      const n = recent.filter((e) => e.hosts.includes(h)).length;
+      if (n >= rate.per_host_per_minute) return `the host ${h} was called ${n} times in the last minute; this job's Mandate allows ${rate.per_host_per_minute} a minute to any one host`;
+    }
+  }
+  appendFileSync(ledgerPath, JSON.stringify({ t: now, hosts }) + "\n");
+  return undefined;
+}
+
+/** Counts a network call that is going to run against the Mandate's rate limit; the refusal reason, or undefined. */
+function rateCheck(event, d, mandate, root) {
+  const call = event.toolCall ?? {};
+  const cmd = call.name === "run_command" ? (call.args?.CommandLine ?? call.args?.command ?? call.args?.command_line ?? call.args?.cmd) : undefined;
+  return rateRefusal(d.scope, typeof cmd === "string" ? cmd : undefined, [call.args?.Url, call.args?.url, call.args?.URL], mandate.rate, join(root, "rate-calls.ndjson"));
+}
+
 export function decide(event, scopes, gate, knownBad, hosts) {
   const call = event?.toolCall;
   if (typeof call?.name !== "string") return { allow: false, scope: "", reason: "ASP Mandate hook: the call has no tool name" };
@@ -228,10 +263,22 @@ async function main() {
   const mandate = JSON.parse(readFileSync(join(here, "asp-mandate.json"), "utf8"));
   if (!Array.isArray(mandate.scopes)) throw new Error("asp-mandate.json has no scopes list");
   const d = decide(event, mandate.scopes, mandate.gate, Array.isArray(mandate.knownBad) ? mandate.knownBad : undefined, Array.isArray(mandate.hosts) && mandate.hosts.length ? mandate.hosts : undefined);
-  if (d.allow && !d.ask) { answer({ decision: "allow" }); return; }
+  const refuseRate = (reason) => {
+    try { appendFileSync(join(root, "rate-limited.ndjson"), JSON.stringify({ at: new Date().toISOString(), tool: event.toolCall?.name, scope: d.scope }) + "\n"); } catch { /* the refusal does not depend on the record of it */ }
+    answer({ decision: "deny", reason: `ASP rate limit: ${reason}, so this call was not run` });
+  };
+  if (d.allow && !d.ask) {
+    const slow = rateCheck(event, d, mandate, root);
+    if (slow) refuseRate(slow); else answer({ decision: "allow" });
+    return;
+  }
   if (d.ask) {
     const a = await askPrincipal(root, event, d.scope, mandate.gate.waitSeconds ?? 600);
-    if (a.approved) { answer({ decision: "allow" }); return; }
+    if (a.approved) {
+      const slow = rateCheck(event, d, mandate, root);
+      if (slow) refuseRate(slow); else answer({ decision: "allow" });
+      return;
+    }
     d.reason = `ASP Mandate: the scope ${d.scope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`;
   }
   try {
