@@ -99,14 +99,14 @@ export async function session(dir, extraEnv = {}) {
       return { principal, bank, agents };
     },
     /** Intent, offer, contract, bond and Mandate; returns the contract id. */
-    async job({ principal, bank, agent, scopes, gates = [], shareToCommons = false, reviewDeadline, purpose = `Evaluation job ${Math.random().toString(36).slice(2, 8)}`, price = 1000, bond = 200 }) {
+    async job({ principal, bank, agent, scopes, gates = [], mandateFlags = [], shareToCommons = false, reviewDeadline, purpose = `Evaluation job ${Math.random().toString(36).slice(2, 8)}`, price = 1000, bond = 200 }) {
       await s.must(["credits", "grant", "--to", principal, "--amount", String(price + 200)]);
       await s.must(["credits", "grant", "--to", agent, "--amount", String(bond + 200)]);
       const intent = s.grab(/^intent (\S+)/, (await s.must(["market", "intent", "--by", principal, "--purpose", purpose, "--budget", String(price), "--deadline", "2099-01-01T00:00:00Z", ...(reviewDeadline ? ["--verification", "principal", "--review-deadline", reviewDeadline] : [])])).out);
       const offer = s.grab(/^offer (\S+)/, (await s.must(["market", "offer", "--by", agent, "--intent", intent, "--price", String(price), "--plan", "do it", "--eta", "2098-01-01T00:00:00Z"])).out);
       const contract = s.grab(/^contract (\S+):/, (await s.must(["market", "contract", "--principal", principal, "--bank", bank, "--intent", intent, "--offer", offer])).out);
       await s.must(["market", "bond", "--contract", contract, "--backer", agent, "--amount", String(bond), "--escrow-payer", principal, "--escrow-amount", String(price)]);
-      await s.must(["market", "mandate", "--contract", contract, "--principal", principal, "--performer", agent, ...scopes.flatMap((x) => ["--scopes", x]), ...gates.flatMap((g) => ["--gate", g]), ...(shareToCommons ? ["--share-to-commons"] : [])]);
+      await s.must(["market", "mandate", "--contract", contract, "--principal", principal, "--performer", agent, ...scopes.flatMap((x) => ["--scopes", x]), ...gates.flatMap((g) => ["--gate", g]), ...(shareToCommons ? ["--share-to-commons"] : []), ...mandateFlags]);
       return contract;
     },
     /** Every Action in the log, newest last. */

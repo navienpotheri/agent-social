@@ -1,7 +1,7 @@
 // Runs the evaluations and prints one table. Usage: node evals/run-all.mjs [fast|models|real|all] [--only name,name] [--list]
 //   fast    no model, no account: swarm, self-report-sdk, sandbox-bwrap, sandbox-docker
 //   models  an open-weight model on OpenRouter (needs the key): canary-suite, gateway-open-model, gateway-codex, gateway-agents goose|aider|opencode
-//   real    real agents on your own logins: canary-gate-claude, gateway-claude-code, gateway-claude-memory, known-bad, service-two-machines, trial-three-jobs
+//   real    real agents on your own logins: canary-gate-claude, gateway-claude-code, gateway-claude-memory, known-bad, rate-limit, service-two-machines, trial-three-jobs
 // An evaluation whose prerequisites are missing is skipped, not failed. The exit code is 1 if any evaluation fails.
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
@@ -13,7 +13,7 @@ const here = fileURLToPath(new URL(".", import.meta.url));
 const GROUPS = {
   fast: [["swarm"], ["self-report-sdk"], ["sandbox-bwrap"], ["sandbox-docker"]],
   models: [["canary-suite"], ["gateway-open-model"], ["gateway-codex"], ["gateway-agents", "goose"], ["gateway-agents", "aider"], ["gateway-agents", "opencode"]],
-  real: [["canary-gate-claude"], ["gateway-claude-code"], ["gateway-claude-memory"], ["known-bad"], ["service-two-machines"], ["trial-three-jobs"]],
+  real: [["canary-gate-claude"], ["gateway-claude-code"], ["gateway-claude-memory"], ["known-bad"], ["rate-limit"], ["service-two-machines"], ["trial-three-jobs"]],
 };
 GROUPS.all = [...GROUPS.fast, ...GROUPS.models, ...GROUPS.real];
 const args = process.argv.slice(2);
