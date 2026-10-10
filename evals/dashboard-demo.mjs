@@ -3,7 +3,7 @@
 //
 //   node evals/dashboard-demo.mjs [folder]      then      ASP_HOME=<folder>/asp node packages/asp-cli/src/cli.ts dashboard
 import { createServer } from "node:http";
-import { D, session, workdir } from "./lib/common.mjs";
+import { D, loadPackage, session, workdir } from "./lib/common.mjs";
 
 const dir = process.argv[2] ? process.argv[2].replace(/\\/g, "/") : workdir("dashboard-demo");
 const s = await session(dir);
@@ -52,6 +52,18 @@ const SUMMARISER = D("agents:summariser");
 await s.must(["identity", "new", "--kind", "agent", "--did", SUMMARISER, "--sponsor", DANA, "--purpose", "Summarise text for its owner"]);
 const running = await s.job({ principal: DANA, bank: BANK, agent: SUMMARISER, scopes: ["repo.read"], purpose: "Summarise this week's support tickets", price: 250, bond: 50 });
 await s.must(["market", "action", "--contract", running, "--by", SUMMARISER, "--scopes-used", "repo.read", "--summary", "read 40 tickets"]);
+// The coder agent has changed: a memory update that passed the canary, and a copy of it in its fleet.
+{
+  const { LocalLog, Keystore } = await loadPackage();
+  const { createRecord } = await import("../packages/asp-core/src/index.ts");
+  const handle = await LocalLog.open(s.home);
+  const signer = new Keystore(s.home).forDid(CODER);
+  const iso = (ms) => new Date(Date.now() + ms).toISOString().replace(/.d{3}Z$/, "Z");
+  const cert = createRecord({ type: "attestation", issuer: CODER, subject: CODER, prev: null, issued_at: iso(1000), body: { kind: "certificate", about: "sha256:" + "c".repeat(64), verdict: "passed", score: 1000, skill: "canary:default" } }, signer);
+  await handle.append(cert);
+  await handle.append(createRecord({ type: "lineage", issuer: CODER, subject: CODER, prev: null, issued_at: iso(2000), body: { edge: "update", child: CODER, parents: [CODER], change: { layer: "memory", description: "memory updated during a gateway run: +2 files (retry-patterns, test-flakiness)", gates: [cert.id] } } }, signer));
+  await s.must(["identity", "copy", CODER, "--count", "2"]);
+}
 provider.close();
 console.log(`\ndemo home: ${s.home}\n  ASP_HOME=${s.home} node packages/asp-cli/src/cli.ts dashboard`);
 console.log(`  jobs: accepted ${done.slice(0, 19)}  killed ${killed.slice(0, 19)}  waiting ${waiting.slice(0, 19)}  running ${running.slice(0, 19)}`);

@@ -16,6 +16,11 @@ export interface DashboardLog extends MailLog {
   escrow(contract: string): Promise<{ escrowPayer: string; escrowLocked: number; backer: string; bondLocked: number; settled: boolean } | undefined>;
   mints(): Promise<{ did: string; amount: number }[]>;
   reputationOf(did: string): Promise<{ tier: number; slashCount: number; strikes: number } | undefined | null>;
+  report(id: string): Promise<{ status: string } | undefined | null>;
+  passport(did: string): Promise<{ did: string; sponsor: string | null; fleet: string | null } | undefined | null>;
+  keys(did: string): Promise<{ kid: string; kind: string; revokedAt: string | null; expiresAt: string | null }[]>;
+  fleet(did: string): Promise<{ did: string; org: string; name: string } | undefined | null>;
+  probation(did: string): Promise<{ did: string; until: string; setBy: string } | undefined | null>;
   chainInfo(contract: string): Promise<{ state: string | null; snapshot?: { openCheckpoint?: string; openCheckpointExpires?: string; principal?: string; performer?: string } | null } | undefined | null>;
 }
 
@@ -140,6 +145,134 @@ export async function dashboardJob(log: DashboardLog, contract: string, runLog?:
   return {
     facts, chain, money: (await log.escrow(contract)) ?? null, flows: flowsOf(all, contract), ...(openCheckpoint ? { openCheckpoint } : {}), actions,
     ...(runLog ? { runLog: { path: runLog.path, ok: runLog.ok, ...(runLog.problem ? { problem: runLog.problem } : {}), events: runLog.head.events, head: runLog.head.hash, shown: runLog.events.slice(-maxEvents), truncated: Math.max(0, runLog.events.length - maxEvents) } } : {}),
+  };
+}
+
+export interface AgentView {
+  did: string;
+  kind: string;
+  purpose?: string;
+  declaredTier?: number;
+  shape?: Record<string, unknown>;
+  earningsSplitPermille?: number;
+  sponsor?: string;
+  sponsored: { did: string; kind: string; tier?: number }[];
+  fleet?: { name: string; org: string; copies: string[] };
+  /** The agent this one was copied from (a fork edge in its passport), and the copies made from it. */
+  copiedFrom?: string;
+  copies: string[];
+  credits: number;
+  tier?: number;
+  strikes?: number;
+  slashCount?: number;
+  probation?: { until: string; active: boolean; setBy: string };
+  keys: { id: string; kind: string; revoked: boolean; revokedAt?: string; expiresAt?: string }[];
+  versions: { id: string; at: string; keys: number }[];
+  lineage: { id: string; at: string; edge: string; layer?: string; description?: string; reverts?: string; probationUntil?: string; gates: { id: string; verdict?: string; scorePercent?: number; skill?: string }[] }[];
+  record: { asPerformer: number; settled: number; accepted: number; revoked: number; slashed: number; paid: number; blocked: number; scopesUsed: string[]; scopesBlocked: string[]; models: string[]; tokens: number; lateReports: number };
+  jobs: { id: string; purpose: string; role: "performer" | "principal"; counterparty: string; state: string; blocked: number; at: string }[];
+  reports: { id: string; contract: string; purpose: string; status: string; reasons: string[]; at: string }[];
+}
+
+/** One person's page: who they are, their keys and lineage, and what they have done. Agents and humans both. */
+export async function dashboardAgent(log: DashboardLog, did: string): Promise<AgentView | undefined> {
+  const passport = await log.passport(did);
+  const all = await everything(log);
+  const versions = all.filter((s) => s.record.type === "asp.passport/v0.2" && s.record.body.did === did);
+  if (!passport && !versions.length) return undefined;
+  const latest = versions.at(-1)?.record.body ?? {};
+  const rep = await log.reputationOf(did);
+  const probation = await log.probation(did);
+  const keyRows = await log.keys(did);
+  const byId = new Map(all.map((s) => [s.id, s]));
+
+  const lineage = all.filter((s) => s.record.type === "asp.lineage/v0.2" && s.record.body.child === did).map((s) => {
+    const b = s.record.body;
+    return {
+      id: s.id, at: s.record.issued_at, edge: b.edge as string, ...(b.change?.layer ? { layer: b.change.layer as string } : {}), ...(b.change?.description ? { description: b.change.description as string } : {}),
+      ...(b.change?.reverts ? { reverts: b.change.reverts as string } : {}), ...(b.probation_until ? { probationUntil: b.probation_until as string } : {}),
+      gates: ((b.change?.gates as string[] | undefined) ?? []).map((g) => {
+        const c = byId.get(g)?.record.body;
+        return { id: g, ...(c?.verdict ? { verdict: c.verdict as string } : {}), ...(typeof c?.score === "number" ? { scorePercent: Math.round(c.score / 10) } : {}), ...(c?.skill ? { skill: String(c.skill) } : {}) };
+      }),
+    };
+  });
+
+  const contracts = all.filter((s) => s.record.type === "asp.contract/v0.2" && (s.record.body.performer === did || s.record.body.principal === did));
+  const purposeOf = new Map(contracts.map((c) => [c.id, c.record.body.purpose as string]));
+  const jobs: AgentView["jobs"] = [];
+  const rec: AgentView["record"] = { asPerformer: 0, settled: 0, accepted: 0, revoked: 0, slashed: 0, paid: 0, blocked: 0, scopesUsed: [], scopesBlocked: [], models: [], tokens: 0, lateReports: 0 };
+  const used = new Set<string>(), blockedScopes = new Set<string>(), models = new Set<string>();
+  for (const c of contracts) {
+    const b = c.record.body;
+    const role = b.performer === did ? "performer" : "principal";
+    const info = await log.chainInfo(c.id);
+    let blocked = 0;
+    for (const a of all) {
+      if (a.record.type !== "asp.action/v0.2" || a.record.body.contract !== c.id) continue;
+      for (const x of a.record.body.blocked_attempts ?? []) { blocked += x.count; blockedScopes.add(x.scope); }
+      if (role === "performer") {
+        for (const s of a.record.body.scopes_used ?? []) used.add(s);
+        for (const m of a.record.body.metrics?.models ?? []) models.add(m.name);
+        rec.tokens += (a.record.body.metrics?.tokens_in ?? 0) + (a.record.body.metrics?.tokens_out ?? 0);
+        if (a.record.body.late) rec.lateReports++;
+      }
+    }
+    jobs.push({ id: c.id, purpose: b.purpose, role, counterparty: role === "performer" ? b.principal : b.performer, state: info?.state ?? "unknown", blocked, at: c.record.issued_at });
+    if (role === "performer") {
+      rec.asPerformer++;
+      rec.blocked += blocked;
+      const st = all.find((s) => s.record.type === "asp.settlement/v0.2" && s.record.body.contract === c.id);
+      if (st) {
+        rec.settled++;
+        if (st.record.body.basis === "accepted" || st.record.body.basis === "silence" || st.record.body.basis === "ruling") rec.accepted += st.record.body.basis === "ruling" && (st.record.body.bond_slashed?.value ?? 0) > 0 ? 0 : 1;
+        if (st.record.body.basis === "revoked") rec.revoked++;
+        rec.slashed += st.record.body.bond_slashed?.value ?? 0;
+        rec.paid += st.record.body.escrow_released?.value ?? 0;
+      }
+    }
+  }
+  rec.scopesUsed = [...used].sort(); rec.scopesBlocked = [...blockedScopes].sort(); rec.models = [...models].sort();
+  jobs.sort((a, b) => b.at.localeCompare(a.at));
+
+  const reports: AgentView["reports"] = [];
+  for (const s of all) {
+    if (s.record.type !== "asp.attestation/v0.2" || s.record.body.kind !== "report") continue;
+    const contract = all.find((c) => c.id === s.record.body.about);
+    if (!contract || contract.record.body.performer !== did) continue;
+    const row = await log.report(s.id);
+    reports.push({ id: s.id, contract: contract.id, purpose: contract.record.body.purpose, status: row?.status ?? "open", reasons: s.record.body.reasons ?? [], at: s.record.issued_at });
+  }
+
+  const sponsored: AgentView["sponsored"] = [];
+  for (const p of all.filter((s) => s.record.type === "asp.passport/v0.2" && s.record.body.sponsor === did)) {
+    if (sponsored.some((x) => x.did === p.record.body.did)) continue;
+    const r = await log.reputationOf(p.record.body.did);
+    sponsored.push({ did: p.record.body.did, kind: p.record.body.kind, ...(r ? { tier: r.tier } : {}) });
+  }
+
+  let fleet: AgentView["fleet"];
+  if (passport?.fleet) {
+    const fl = await log.fleet(passport.fleet);
+    const copies = all.filter((s) => s.record.type === "asp.passport/v0.2" && s.record.body.fleet === passport.fleet).map((s) => s.record.body.did as string);
+    if (fl) fleet = { name: fl.name, org: fl.org, copies: [...new Set(copies)].filter((d) => d !== did) };
+  }
+
+  // `asp identity copy` records where a copy came from only in the copy's purpose text ("... (independent copy of <did>)"), not as a signed edge (gaps register P15),
+  // so that text is what the page reads.
+  const COPY_OF = /\(independent copy of (did:[^\s)]+)\)/;
+  const forkParent = COPY_OF.exec(String(latest.purpose ?? ""))?.[1];
+  const copies = [...new Set(all.filter((x) => x.record.type === "asp.passport/v0.2" && COPY_OF.exec(String(x.record.body.purpose ?? ""))?.[1] === did).map((x) => x.record.body.did as string))];
+  return {
+    ...(forkParent ? { copiedFrom: forkParent } : {}), copies,
+    did, kind: latest.kind ?? "human", ...(latest.purpose ? { purpose: latest.purpose } : {}), ...(typeof latest.tier === "number" ? { declaredTier: latest.tier } : {}), ...(latest.shape ? { shape: latest.shape } : {}),
+    ...(latest.earnings_split ? { earningsSplitPermille: latest.earnings_split.agent_permille } : {}),
+    ...(passport?.sponsor ? { sponsor: passport.sponsor } : latest.sponsor ? { sponsor: latest.sponsor } : {}), sponsored, ...(fleet ? { fleet } : {}),
+    credits: await log.balance(did), ...(rep ? { tier: rep.tier, strikes: rep.strikes, slashCount: rep.slashCount } : {}),
+    ...(probation ? { probation: { until: probation.until, active: Date.parse(probation.until) > Date.now(), setBy: probation.setBy } } : {}),
+    keys: keyRows.map((k) => ({ id: k.kid, kind: k.kind, revoked: !!k.revokedAt, ...(k.revokedAt ? { revokedAt: k.revokedAt } : {}), ...(k.expiresAt ? { expiresAt: k.expiresAt } : {}) })),
+    versions: versions.map((s) => ({ id: s.id, at: s.record.issued_at, keys: (s.record.body.keys ?? []).length })),
+    lineage, record: rec, jobs, reports,
   };
 }
 

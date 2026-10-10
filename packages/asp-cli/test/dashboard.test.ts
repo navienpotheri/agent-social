@@ -187,3 +187,71 @@ test("verify replays the whole log", async () => {
   assert.equal(v.ok, true);
   assert.ok(v.records > 20);
 });
+
+test("the page's script compiles (a syntax error in it would blank every screen)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const html = readFileSync(new URL("../src/dashboard-ui.html", import.meta.url), "utf8");
+  const script = /<script>([\s\S]*?)<\/script>/.exec(html)![1];
+  assert.doesNotThrow(() => new Function(script));
+  // Anything an agent or a person can write shows up through esc(), never as raw markup.
+  assert.match(script, /const esc = /);
+});
+
+test("an agent's page: who stands behind it, keys, what it did and was blocked from, jobs, the penalty its kill left in its lineage, and its tier", async () => {
+  const { get, ids } = await setup();
+  const o = (await get(`/api/agent?did=${encodeURIComponent(OTHER)}`)).body;
+  assert.equal(o.kind, "agent");
+  assert.equal(o.sponsor, ALICE);
+  assert.equal(o.tier, 0, "stopped by the kill switch, so tier 0");
+  assert.equal(o.slashCount, 1);
+  assert.equal(o.record.slashed, 100);
+  assert.deepEqual([o.record.asPerformer, o.record.settled, o.record.revoked, o.record.accepted], [1, 1, 1, 0]);
+  assert.equal(o.keys.length, 1);
+  assert.equal(o.keys[0].revoked, false);
+  assert.deepEqual(o.jobs.map((j: any) => [j.id, j.role, j.state, j.counterparty]), [[ids.killed, "performer", "Settled", ALICE]]);
+  assert.equal(o.lineage.length, 1);
+  assert.deepEqual([o.lineage[0].edge, o.lineage[0].layer], ["update", "memory"]);
+  assert.match(o.lineage[0].description, /^Penalized: bond slashed 100 credits/);
+  assert.equal(o.credits, 400, "500 granted, 100 bond forfeited");
+
+  const c = (await get(`/api/agent?did=${encodeURIComponent(CODER)}`)).body;
+  assert.deepEqual([c.record.asPerformer, c.record.accepted, c.record.paid], [3, 1, 450]);
+  assert.deepEqual(c.record.scopesUsed, ["repo.read"]);
+  assert.deepEqual(c.record.scopesBlocked, ["shell.exec"]);
+  assert.equal(c.record.blocked, 2);
+  assert.equal(c.strikes, 2);
+  assert.deepEqual(c.lineage, []);
+  assert.equal((await get(`/api/agent?did=${encodeURIComponent("did:web:example.com:agents:nobody")}`)).status, 404);
+});
+
+test("a person's page lists the agents they sponsor and the jobs they hired for; a canary certificate on a lineage edge shows as a verdict", async () => {
+  const { f, get } = await setup();
+  const a = (await get(`/api/agent?did=${encodeURIComponent(ALICE)}`)).body;
+  assert.equal(a.kind, "human");
+  assert.deepEqual(a.sponsored.map((s: any) => s.did).sort(), [CODER, OTHER].sort());
+  assert.ok(a.jobs.every((j: any) => j.role === "principal"));
+  assert.equal(a.jobs.length, 4);
+
+  // A change to the agent with the canary's certificate cited as its gate.
+  const { createRecord } = await import("@agent-social/asp-core");
+  const handle = await openLog(f.aspHome, {});
+  const signer = new Keystore(f.aspHome).forDid(CODER)!;
+  const cert = createRecord({ type: "attestation", issuer: CODER, subject: CODER, prev: null, issued_at: "2026-10-10T00:00:00Z", body: { kind: "certificate", about: "sha256:" + "a".repeat(64), verdict: "passed", score: 1000, skill: "canary:default" } }, signer);
+  await handle.append(cert);
+  await handle.append(createRecord({ type: "lineage", issuer: CODER, subject: CODER, prev: null, issued_at: "2026-10-10T00:00:05Z", body: { edge: "update", child: CODER, parents: [CODER], change: { layer: "memory", description: "memory updated: +2 files", gates: [cert.id] } } }, signer));
+  const c = (await get(`/api/agent?did=${encodeURIComponent(CODER)}`)).body;
+  assert.equal(c.lineage.length, 1);
+  assert.deepEqual(c.lineage[0].gates, [{ id: cert.id, verdict: "passed", scorePercent: 100, skill: "canary:default" }]);
+});
+
+test("a copy's page says what it was copied from, and the original lists its copies", async () => {
+  const { f, get } = await setup();
+  const out = (await ok(f, ["identity", "copy", CODER, "--count", "2"])).out.split("\n").filter((l) => /^did:/.test(l.trim())).map((l) => l.trim().split(/\s+/)[0]);
+  assert.equal(out.length, 2, `two copies were made: ${out.join(", ")}`);
+  const c = (await get(`/api/agent?did=${encodeURIComponent(out[0])}`)).body;
+  assert.equal(c.copiedFrom, CODER, "the page says which agent it was copied from");
+  assert.equal(c.sponsor, ALICE, "a copy has the same sponsor");
+  assert.equal(c.credits, 0, "a copy has its own account, not its parent's");
+  const parent = (await get(`/api/agent?did=${encodeURIComponent(CODER)}`)).body;
+  assert.deepEqual([...parent.copies].sort(), [...out].sort(), "the parent lists its copies");
+});

@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { timingSafeEqual } from "node:crypto";
 import { createRecord, type Signer } from "@agent-social/asp-core";
 import {
-  dashboardAlerts, dashboardHome, dashboardInbox, dashboardJob, dashboardMoney, readRunLog, type DashboardLog,
+  dashboardAgent, dashboardAlerts, dashboardHome, dashboardInbox, dashboardJob, dashboardMoney, readRunLog, type DashboardLog,
 } from "@agent-social/asp-package";
 import type { LogHandle } from "@agent-social/asp-package";
 
@@ -80,6 +80,11 @@ export function createDashboard(opts: DashboardOptions): Server {
       if (req.method === "GET" && url.pathname === "/api/verify") {
         const r = await handle.log.verify();
         return send(res, 200, { ok: r.ok, records: r.records, head: r.head, ...(r.error ? { error: r.error } : {}) });
+      }
+      if (req.method === "GET" && url.pathname === "/api/agent") {
+        const did = url.searchParams.get("did") ?? "";
+        const view = await dashboardAgent(log, did);
+        return view ? send(res, 200, view) : send(res, 404, { error: `${did} has no passport in the log` });
       }
       if (req.method === "GET" && url.pathname === "/api/job") {
         const id = url.searchParams.get("id") ?? "";

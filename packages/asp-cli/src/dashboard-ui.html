@@ -133,6 +133,7 @@
   const nf = (n) => Number(n || 0).toLocaleString("en-US");
   const shortId = (id) => (id && id.length > 22 ? id.slice(0, 19) + "…" : id || "");
   const name = (did) => { const m = /([^:]+)$/.exec(did || ""); return m ? m[1] : did || ""; };
+  const who = (did) => did ? `<a href="#/agent/${encodeURIComponent(did)}" onclick="event.stopPropagation()">${esc(name(did))}</a>` : "";
   const when = (iso) => { const d = new Date(iso); return isNaN(d) ? esc(iso) : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
   const ago = (iso) => { const s = (Date.now() - Date.parse(iso)) / 1000; if (!(s >= 0)) return when(iso); if (s < 90) return "just now"; if (s < 5400) return Math.round(s / 60) + " min ago"; if (s < 129600) return Math.round(s / 3600) + " h ago"; return Math.round(s / 86400) + " d ago"; };
 
@@ -163,7 +164,7 @@
     const [h, inbox] = await Promise.all([api("/api/home"), api("/api/inbox")]);
     const c = h.counts;
     const jobRows = h.jobs.slice(0, 40).map((j) => `<tr class="link" onclick="location.hash='#/job/${esc(j.id)}'"><td><strong>${esc(j.purpose)}</strong><div class="faint small">${esc(name(j.performer))} · for ${esc(name(j.principal))}</div></td><td>${stateChip(j.state)}</td><td class="num">${j.blocked ? `<span class="chip bad">${nf(j.blocked)} blocked</span>` : '<span class="faint">none</span>'}</td><td class="num faint">${ago(j.lastAt)}</td></tr>`).join("");
-    const agentCards = h.agents.map((a) => `<div class="card"><h3>${esc(name(a.did))}</h3><div class="faint small mono">${esc(a.did)}</div>
+    const agentCards = h.agents.map((a) => `<div class="card"><h3>${who(a.did)}</h3><div class="faint small mono">${esc(a.did)}</div>
       <dl class="kv" style="margin-top:12px"><dt>sponsor</dt><dd>${esc(name(a.sponsor || "—"))}</dd><dt>tier</dt><dd>${a.tier ?? "—"}</dd><dt>credits</dt><dd>${nf(a.credits)}</dd><dt>jobs</dt><dd>${nf(a.jobs)} · ${nf(a.running)} running</dd><dt>blocked</dt><dd>${a.blocked ? `<span class="chip bad">${nf(a.blocked)} before they ran</span>` : "nothing so far"}${a.strikes ? ` · ${nf(a.strikes)} strike(s)` : ""}</dd></dl></div>`).join("");
     return `<h1>Your agents</h1><div class="muted">Everything here is read from the signed log on this machine.</div>
       <div class="grid g4" style="margin-top:20px">
@@ -207,7 +208,7 @@
     const flows = j.flows.map((x) => `<div style="margin-top:10px"><div class="faint small">${when(x.at)} · ${esc(x.kind)}</div>${x.lines.map((l) => `<div class="flow"><span>${esc(l.label)}${l.from ? ` <span class="faint">from ${esc(name(l.from))}</span>` : ""}${l.to ? ` <span class="faint">to ${esc(name(l.to))}</span>` : ""}</span><strong>${nf(l.amount)} ${esc(l.unit)}</strong></div>`).join("")}</div>`).join("");
     return `<div class="crumbs"><a href="#/">Home</a> / job</div>
       <h1>${esc(f.contract.purpose)}</h1>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0 18px">${stateChip(f.state, f.ending && f.ending.basis)}<span class="muted">${esc(name(f.contract.performer))} for ${esc(name(f.contract.principal))}</span><span class="mono faint">${esc(shortId(f.contract.id))}</span></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0 18px">${stateChip(f.state, f.ending && f.ending.basis)}<span class="muted">${who(f.contract.performer)} for ${who(f.contract.principal)}</span><span class="mono faint">${esc(shortId(f.contract.id))}</span></div>
       ${waiting}
       <div class="grid g2">
         <div class="card"><h3>What it was allowed</h3>${m ? `<dl class="kv"><dt>scopes</dt><dd>${m.scopes.map((s) => `<span class="chip ok" style="margin:0 4px 4px 0">${esc(s)}</span>`).join("") || "none"}</dd>${m.hosts ? `<dt>network</dt><dd>only ${m.hosts.map(esc).join(", ")}</dd>` : ""}<dt>spend cap</dt><dd>${nf(m.spendCap)} ${esc(m.unit)}</dd><dt>needs approval</dt><dd>${m.gatedScopes.length ? m.gatedScopes.map(esc).join(", ") + ` (${esc(m.irreversible)})` : "nothing"}</dd></dl>` : '<div class="faint">No Mandate yet: the agent cannot act.</div>'}</div>
@@ -222,6 +223,43 @@
       <h2>Check it yourself</h2><div class="card small"><dl class="kv"><dt>contract</dt><dd class="mono">${esc(f.evidence.contractRecord)}</dd>${f.evidence.mandateRecord ? `<dt>mandate</dt><dd class="mono">${esc(f.evidence.mandateRecord)}</dd>` : ""}${f.evidence.settlementRecord ? `<dt>settlement</dt><dd class="mono">${esc(f.evidence.settlementRecord)}</dd>` : ""}<dt>last record</dt><dd class="mono">${esc(f.evidence.lastRecord)}</dd><dt>command</dt><dd class="mono">asp market show ${esc(f.contract.id)}</dd></dl></div>`;
   }
 
+  async function viewAgent(did) {
+    const a = await api("/api/agent?did=" + encodeURIComponent(did));
+    const r = a.record;
+    const isAgent = a.kind === "agent";
+    const chips = [`<span class="chip">${esc(a.kind)}</span>`, a.tier !== undefined ? `<span class="chip ${a.tier === 0 ? "bad" : "ok"}">tier ${a.tier}</span>` : "",
+      a.strikes ? `<span class="chip warn">${nf(a.strikes)} strike(s) this month</span>` : "", a.slashCount ? `<span class="chip bad">slashed ${nf(a.slashCount)}×</span>` : "",
+      a.probation ? `<span class="chip ${a.probation.active ? "warn" : ""}">${a.probation.active ? "on probation until " : "probation ended "}${when(a.probation.until)}</span>` : ""].join(" ");
+    const gate = (g) => g.verdict ? `<span class="chip ${g.verdict === "passed" ? "ok" : g.verdict === "regressed" ? "bad" : ""}" title="${esc(g.skill || "")}">canary ${esc(g.verdict.replace(/_/g, " "))}${g.scorePercent !== undefined ? " " + g.scorePercent + "%" : ""}</span>` : `<span class="chip mono">${esc(shortId(g.id))}</span>`;
+    const lin = a.lineage.length ? a.lineage.map((l, i) => `<li class="${i === a.lineage.length - 1 ? "now" : ""}"><strong>${esc(l.layer ? l.layer.replace(/_/g, " ") : l.edge)}</strong> <span class="faint small">· ${esc(l.edge)} · ${when(l.at)}</span>${l.description ? `<div>${esc(l.description)}</div>` : ""}<div style="margin-top:4px">${l.gates.map(gate).join(" ")}${l.probationUntil ? ` <span class="chip warn">probation until ${when(l.probationUntil)}</span>` : ""}${l.reverts ? ` <span class="chip">reverts ${esc(shortId(l.reverts))}</span>` : ""}</div></li>`).join("") : "";
+    const jobs = a.jobs.map((j) => `<tr class="link" onclick="location.hash='#/job/${esc(j.id)}'"><td><strong>${esc(j.purpose)}</strong><div class="faint small">${j.role === "performer" ? "worked for" : "hired"} ${who(j.counterparty)}</div></td><td>${stateChip(j.state)}</td><td class="num">${j.blocked ? `<span class="chip bad">${nf(j.blocked)} blocked</span>` : '<span class="faint">none</span>'}</td><td class="num faint">${ago(j.at)}</td></tr>`).join("");
+    const keys = a.keys.map((k) => `<tr><td class="mono">${esc(k.id)}</td><td>${esc(k.kind)}</td><td>${k.revoked ? `<span class="chip bad">revoked ${when(k.revokedAt)}</span>` : '<span class="chip ok">in use</span>'}${k.expiresAt ? ` <span class="faint small">expires ${when(k.expiresAt)}</span>` : ""}</td></tr>`).join("");
+    const reports = a.reports.map((x) => `<tr class="link" onclick="location.hash='#/job/${esc(x.contract)}'"><td class="faint small">${when(x.at)}</td><td>${esc(x.purpose)}</td><td>${esc(x.reasons.join("; "))}</td><td><span class="chip ${x.status === "upheld" ? "bad" : x.status === "dismissed" ? "ok" : "warn"}">${esc(x.status)}</span></td></tr>`).join("");
+    const sponsored = a.sponsored.map((s) => `<div class="flow"><span>${who(s.did)} <span class="faint small">${esc(s.kind)}</span></span>${s.tier !== undefined ? `<span class="chip ${s.tier === 0 ? "bad" : ""}">tier ${s.tier}</span>` : ""}</div>`).join("");
+    return `<div class="crumbs"><a href="#/">Home</a> / ${esc(a.kind)}</div>
+      <h1>${esc(name(a.did))}</h1>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 6px">${chips}</div>
+      <div class="mono faint">${esc(a.did)}</div>
+      ${a.purpose ? `<p class="muted" style="margin:10px 0 0">${esc(a.purpose)}</p>` : ""}
+      <div class="grid g4" style="margin-top:20px">
+        <div class="card stat"><div class="n">${nf(a.credits)}</div><div class="l">credits</div></div>
+        <div class="card stat"><div class="n">${nf(r.asPerformer)}</div><div class="l">jobs worked${r.settled ? " · " + nf(r.settled) + " ended" : ""}</div></div>
+        <div class="card stat ${r.slashed ? "alert" : ""}"><div class="n">${nf(r.slashed)}</div><div class="l">bond forfeited · ${nf(r.paid)} earned</div></div>
+        <div class="card stat ${r.blocked ? "alert" : ""}"><div class="n">${nf(r.blocked)}</div><div class="l">calls blocked before they ran</div></div>
+      </div>
+      <div class="grid g2" style="margin-top:14px">
+        <div class="card"><h3>Who stands behind it</h3><dl class="kv"><dt>sponsor</dt><dd>${a.sponsor ? who(a.sponsor) : "none: a person's own identity"}</dd>${a.copiedFrom ? `<dt>copied from</dt><dd>${who(a.copiedFrom)} <span class="faint small">its own liability, its own record</span></dd>` : ""}${a.copies.length ? `<dt>copies</dt><dd>${a.copies.map(who).join(", ")}</dd>` : ""}${a.earningsSplitPermille !== undefined ? `<dt>earnings split</dt><dd>keeps ${a.earningsSplitPermille / 10}%</dd>` : ""}${a.fleet ? `<dt>fleet</dt><dd>${esc(a.fleet.name)} (${esc(a.fleet.org)})${a.fleet.copies.length ? "<div class='small'>" + a.fleet.copies.map(who).join(", ") + "</div>" : ""}</dd>` : ""}${a.declaredTier !== undefined ? `<dt>declared tier</dt><dd>${a.declaredTier}</dd>` : ""}${a.shape ? `<dt>says it</dt><dd class="small">${Object.entries(a.shape).map(([k, v]) => esc(k.replace(/_/g, " ")) + ": " + esc(Array.isArray(v) ? v.join(", ") : v)).join(" · ")}</dd>` : ""}</dl></div>
+        <div class="card"><h3>What it has done</h3><dl class="kv"><dt>used</dt><dd>${r.scopesUsed.map((s) => `<span class="chip ok" style="margin:0 4px 4px 0">${esc(s)}</span>`).join("") || '<span class="faint">nothing reported</span>'}</dd><dt>tried, blocked</dt><dd>${r.scopesBlocked.map((s) => `<span class="chip bad" style="margin:0 4px 4px 0">${esc(s)}</span>`).join("") || '<span class="faint">nothing</span>'}</dd><dt>models</dt><dd>${esc(r.models.map((m) => m.split(" (")[0]).join(", ")) || "—"}</dd><dt>tokens</dt><dd>${nf(r.tokens)}${r.lateReports ? ` · ${nf(r.lateReports)} late report(s)` : ""}</dd></dl></div>
+      </div>
+      ${isAgent ? `<h2>Lineage: how it has changed</h2>${lin ? `<div class="card"><ul class="tl">${lin}</ul></div>` : empty("No changes recorded", "Every memory update, runtime move or penalty is a signed step in the agent's history; none has been recorded yet.")}` : ""}
+      <h2>Jobs</h2>${a.jobs.length ? `<div class="card"><div class="table-wrap"><table><thead><tr><th>Job</th><th>State</th><th class="num">Blocked</th><th class="num">When</th></tr></thead><tbody>${jobs}</tbody></table></div></div>` : empty("No jobs yet", "Jobs this identity worked on or hired for appear here.")}
+      ${isAgent ? `<h2>Reports against it</h2>${a.reports.length ? `<div class="card"><div class="table-wrap"><table><thead><tr><th>When</th><th>Job</th><th>Why</th><th>Status</th></tr></thead><tbody>${reports}</tbody></table></div></div>` : empty("No reports", "Nobody has reported this agent.")}` : ""}
+      ${a.sponsored.length ? `<h2>Agents it sponsors</h2><div class="card">${sponsored}</div>` : ""}
+      <h2>Keys</h2><div class="card"><div class="table-wrap"><table><thead><tr><th>Key</th><th>Kind</th><th>Status</th></tr></thead><tbody>${keys || '<tr><td colspan="3" class="faint">No keys.</td></tr>'}</tbody></table></div>
+      <details style="margin-top:10px"><summary>${a.versions.length} passport version(s)</summary>${a.versions.map((v) => `<div class="flow"><span class="mono">${esc(shortId(v.id))}</span><span class="faint small">${when(v.at)} · ${v.keys} key(s)</span></div>`).join("")}</details></div>
+      <p class="faint small" style="margin-top:20px">Check it: <span class="mono">asp identity show ${esc(a.did)}</span></p>`;
+  }
+
   async function viewInbox() {
     const r = await api("/api/inbox");
     if (!r.waiting.length) return `<h1>Approvals</h1><div class="muted" style="margin-bottom:18px">Calls an agent wants to make that need your say-so.</div>` + empty("Nothing is waiting", "When an agent asks to do something your Mandate gates, it shows up here and the agent waits for your answer.");
@@ -232,7 +270,7 @@
     const r = await api("/api/alerts");
     const KIND = { killed: ["bad", "Stopped by the kill switch"], report_upheld: ["bad", "Report upheld"], expired: ["warn", "Mandate expired"] };
     const al = r.alerts.map((a) => `<div class="callout ${KIND[a.kind][0] === "bad" ? "bad" : ""}" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><strong>${esc(KIND[a.kind][1])}</strong><span class="faint small">${when(a.at)}</span></div><div>${esc(a.detail)}</div><div class="small" style="margin-top:6px"><a href="#/job/${esc(a.contract)}">${esc(a.purpose || shortId(a.contract))}</a></div></div>`).join("");
-    const bl = r.blocked.map((b) => `<tr class="link" onclick="location.hash='#/job/${esc(b.contract)}'"><td class="faint small">${when(b.at)}</td><td>${esc(name(b.agent))}</td><td><span class="chip bad">${esc(b.scope)}</span></td><td class="num">${nf(b.count)}</td><td class="muted">${esc(b.purpose)}</td></tr>`).join("");
+    const bl = r.blocked.map((b) => `<tr class="link" onclick="location.hash='#/job/${esc(b.contract)}'"><td class="faint small">${when(b.at)}</td><td>${who(b.agent)}</td><td><span class="chip bad">${esc(b.scope)}</span></td><td class="num">${nf(b.count)}</td><td class="muted">${esc(b.purpose)}</td></tr>`).join("");
     return `<h1>Alerts</h1><div class="muted" style="margin-bottom:18px">Things that stopped an agent or need a look.</div>${r.alerts.length ? al : empty("No alerts", "A kill, an upheld report or an expired Mandate would appear here.")}
       <h2>Calls blocked before they ran</h2>${r.blocked.length ? `<div class="card"><div class="table-wrap"><table><thead><tr><th>When</th><th>Agent</th><th>Tried to use</th><th class="num">Times</th><th>Job</th></tr></thead><tbody>${bl}</tbody></table></div></div>` : empty("Nothing blocked yet", "When an agent reaches for something its Mandate does not grant, the call is refused before it runs and the attempt appears here.")}`;
   }
@@ -240,7 +278,7 @@
   async function viewMoney() {
     const m = await api("/api/money");
     const max = Math.max(1, ...m.accounts.map((a) => a.balance));
-    const rows = m.accounts.map((a) => `<tr><td>${esc(name(a.did))}<div class="mono faint">${esc(a.did)}</div></td><td class="num">${nf(a.balance)}</td><td style="width:34%"><div class="bar2"><i style="width:${Math.round((a.balance / max) * 100)}%"></i></div></td><td class="num faint">${a.minted ? "+" + nf(a.minted) + " granted" : ""}</td></tr>`).join("");
+    const rows = m.accounts.map((a) => `<tr><td>${who(a.did)}<div class="mono faint">${esc(a.did)}</div></td><td class="num">${nf(a.balance)}</td><td style="width:34%"><div class="bar2"><i style="width:${Math.round((a.balance / max) * 100)}%"></i></div></td><td class="num faint">${a.minted ? "+" + nf(a.minted) + " granted" : ""}</td></tr>`).join("");
     const locked = m.locked.map((l) => `<tr class="link" onclick="location.hash='#/job/${esc(l.contract)}'"><td>${esc(l.purpose)}</td><td class="num">${nf(l.escrow)}</td><td class="num">${nf(l.bond)}</td><td class="faint small">${esc(name(l.payer))} / ${esc(name(l.backer))}</td></tr>`).join("");
     const feed = m.feed.map((x) => `<div style="padding:10px 0;border-bottom:1px solid var(--line)"><div class="faint small">${when(x.at)} · ${esc(x.kind)} · ${esc(x.purpose)}</div>${x.lines.map((l) => `<div class="flow"><span>${esc(l.label)}${l.from ? ` <span class="faint">from ${esc(name(l.from))}</span>` : ""}${l.to ? ` <span class="faint">to ${esc(name(l.to))}</span>` : ""}</span><strong>${nf(l.amount)}</strong></div>`).join("")}</div>`).join("");
     return `<h1>Money</h1><div class="muted" style="margin-bottom:18px">A mock ledger: no real money moves. This is where every credit is, and the check that none appeared or vanished.</div>
@@ -255,7 +293,7 @@
   let counts = { inbox: 0, alerts: 0 };
   function renderNav() {
     const cur = location.hash || "#/";
-    $("#nav").innerHTML = ROUTES.map(([h, l]) => `<a href="${h}" class="${cur === h || (h === "#/" && cur.startsWith("#/job")) ? "on" : ""}">${l}${h === "#/inbox" && counts.inbox ? `<span class="badge soft">${counts.inbox}</span>` : ""}${h === "#/alerts" && counts.alerts ? `<span class="badge">${counts.alerts}</span>` : ""}</a>`).join("");
+    $("#nav").innerHTML = ROUTES.map(([h, l]) => `<a href="${h}" class="${cur === h || (h === "#/" && (cur.startsWith("#/job") || cur.startsWith("#/agent"))) ? "on" : ""}">${l}${h === "#/inbox" && counts.inbox ? `<span class="badge soft">${counts.inbox}</span>` : ""}${h === "#/alerts" && counts.alerts ? `<span class="badge">${counts.alerts}</span>` : ""}</a>`).join("");
   }
   async function route(quiet) {
     const h = location.hash || "#/";
@@ -263,7 +301,7 @@
     const app = $("#app");
     if (quiet !== true) app.innerHTML = '<div class="skeleton" style="margin-top:28px"></div>';
     try {
-      app.innerHTML = h.startsWith("#/job/") ? await viewJob(decodeURIComponent(h.slice(6))) : h === "#/inbox" ? await viewInbox() : h === "#/alerts" ? await viewAlerts() : h === "#/money" ? await viewMoney() : await viewHome();
+      app.innerHTML = h.startsWith("#/agent/") ? await viewAgent(decodeURIComponent(h.slice(8))) : h.startsWith("#/job/") ? await viewJob(decodeURIComponent(h.slice(6))) : h === "#/inbox" ? await viewInbox() : h === "#/alerts" ? await viewAlerts() : h === "#/money" ? await viewMoney() : await viewHome();
       document.title = (app.querySelector("h1")?.textContent || "Agent Social") + " · Agent Social";
       if (quiet !== true) window.scrollTo(0, 0);
     } catch (e) {
@@ -292,7 +330,7 @@
   });
   window.addEventListener("hashchange", () => route());
   route(); verify();
-  setInterval(() => { if (!document.hidden && !(location.hash || "").startsWith("#/job")) route(true); else if (!document.hidden) refreshCounts(); }, 15000);
+  setInterval(() => { if (!document.hidden && !(location.hash || "").startsWith("#/job") && !(location.hash || "").startsWith("#/agent")) route(true); else if (!document.hidden) refreshCounts(); }, 15000);
 })();
 </script>
 </body>
