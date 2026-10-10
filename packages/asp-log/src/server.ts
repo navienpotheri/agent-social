@@ -77,6 +77,8 @@ export interface ServerOptions {
   blocked?: () => string[];
   /** Counts of what each tenant has written, and the defaults a tenant without its own quota gets (0 for none). Without a store nothing is counted. */
   usage?: UsageStore;
+  /** A service policy checked before a write runs: a message refuses it (the court's rules, src/court-guard.ts). */
+  guard?: (c: { tenant: Tenant; method: string; args: unknown[] }) => string | undefined | Promise<string | undefined>;
   /** Which DIDs each tenant has written as, learned from the records it appends (src/owners.ts). */
   owners?: OwnerStore;
   defaultRecordQuota?: number;
@@ -222,6 +224,10 @@ export function createLogServer(opts: ServerOptions): Server {
       if (limits && isWrite) {
         const v = limits.checkWrite(tenant.name);
         if (!v.ok) return tooMany(res, v);
+      }
+      if (opts.guard && isWrite) {
+        const refused = await opts.guard({ tenant, method: String(method), args });
+        if (refused) return json(res, 200, { ok: false, error: { code: "POLICY", message: refused } });
       }
       // A tenant's quota on what it has written (admins have none): refused before the call runs, and not worth repeating.
       const incoming = isWrite ? { records: method === "importRecords" ? ((args[0] as unknown[] | undefined)?.length ?? 0) : 1, bytes: JSON.stringify(args).length } : undefined;

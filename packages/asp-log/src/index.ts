@@ -15,3 +15,4 @@ export { DEFAULT_STARTING, Signup, addressHash, leadingZeroBits, powOk, solveCha
 export { GoogleSignIn, type GoogleOptions, type JoinForm } from "./google.ts";
 export { OwnerStore } from "./owners.ts";
 export { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_POOL, StarterPool } from "./starter.ts";
+export { courtGuard, type CourtGuardOptions } from "./court-guard.ts";

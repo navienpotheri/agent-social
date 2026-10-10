@@ -278,7 +278,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget, runtimeTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, UsageStore, type Tenant } from "@agent-social/asp-log";
+import { courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, UsageStore, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -431,6 +431,9 @@ const OPTIONS = {
   confirm: { type: "string" },
   "skip-export": { type: "boolean" },
   "starter-pool": { type: "string" },
+  jurors: { type: "string" },
+  "juror-min-stake": { type: "string" },
+  base: { type: "string" },
   "allow-plain-http": { type: "boolean" },
   "link-base": { type: "string" },
   once: { type: "boolean" },
@@ -569,6 +572,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "signup") return await signupCmd(v, io);
     if (cmd === "account") return await accountCmd(sub, v, io);
+    if (cmd === "court") return await courtCmd(home, sub, v, io);
     if (cmd === "serve") return await serve(v, need, io);
     if (cmd === "watch") return await watch(home, v, io);
     if (cmd === "eval" && sub === "run") return await evalRun(rest[0], v, io);
@@ -895,6 +899,104 @@ async function collectWatchActions(local: LogHandle): Promise<WatchAction[]> {
   return actions;
 }
 
+/** Every juror registered in the log (the identities that signed a juror record), and what each has at stake now. */
+async function jurorsIn(log: LogHandle["log"]): Promise<{ did: string; staked: number }[]> {
+  const dids = new Set<string>();
+  let after = 0;
+  for (;;) {
+    const page = await log.since(after, 500);
+    if (!page.length) break;
+    for (const s of page) { after = s.seq; if (s.record.type.startsWith("asp.juror/")) dids.add((s.record.body as { did: string }).did); }
+    if (page.length < 500) break;
+  }
+  const out: { did: string; staked: number }[] = [];
+  for (const did of dids) out.push({ did, staked: (await log.juror(did))?.staked ?? 0 });
+  return out;
+}
+
+/**
+ * asp court seat [--count 3] [--stake 500] [--base did:web:<host>:court] | status | docket | rule --contract <id> --verdict ... --fault <did>=<permille> ...
+ * The operator's court for the beta (launch blocker 4). The service refuses juror registrations from tenants (--jurors operator-only), so the operator seats the panel with an
+ * admin token and keeps the jurors' keys on their own machine; `rule` signs a drawn panel's ruling with the keys the operator holds. Run against the service (ASP_LOG_URL, ASP_LOG_TOKEN of an admin).
+ */
+async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const log = (await openLog(home, logEnv)).log;
+  if (sub === "seat") {
+    const count = Math.trunc(Number(v.count ?? "3")), stake = Math.trunc(Number(v.stake ?? "500"));
+    if (!(count >= 1 && count <= 15) || !(stake >= 1)) throw new UsageError("asp court seat [--count 1..15] [--stake n] [--base did:web:<host>:court]");
+    const base = v.base ?? "did:web:log.thedeeptransformation.com:court";
+    const quiet: Io = { ...io, out: () => {}, err: () => {} };
+    for (let i = 1; i <= count; i++) {
+      const did = `${base}:juror-${i}`;
+      if ((await log.juror(did))?.staked) { io.out(`${did} is already seated (${(await log.juror(did))!.staked} staked)`); continue; }
+      if (!new Keystore(home).forDid(did)) {
+        const r = await main(["identity", "new", "--kind", "human", "--did", did], quiet);
+        if (r) throw new Error(`could not create ${did}: ${r}`);
+      }
+      if (await main(["credits", "grant", "--to", did, "--amount", String(stake)], quiet)) throw new Error(`could not fund ${did} (an admin token is needed)`);
+      if (await main(["market", "juror", "register", "--by", did, "--stake", String(stake)], quiet)) throw new Error(`could not register ${did} as a juror`);
+      io.out(`seated ${did} with ${stake} credits staked`);
+    }
+    io.out("the jurors' keys are in this machine's ASP home: back it up, and keep it off the server");
+    return 0;
+  }
+  if (sub === "status") {
+    const jurors = await jurorsIn(log);
+    const keys = new Keystore(home);
+    for (const j of jurors) io.out(`  ${j.did}  ${j.staked ? `staked ${j.staked}` : "not seated"}  ${keys.forDid(j.did) ? "key held here" : "key NOT held here"}`);
+    const seated = jurors.filter((j) => j.staked > 0);
+    io.out(`${seated.length} juror(s) seated, ${seated.filter((j) => keys.forDid(j.did)).length} with keys on this machine`);
+    if (seated.length < 3) io.out("warning: fewer than 3 jurors are seated, so a panel is smaller than the usual three (and when none is seated no ruling is accepted); asp court seat --count 3");
+    return seated.length >= 3 ? 0 : 1;
+  }
+  const open = async () => {
+    const found: { contract: string; principal: string; performer: string; panel: string[] }[] = [];
+    let after = 0;
+    const seen = new Set<string>();
+    for (;;) {
+      const page = await log.since(after, 500);
+      if (!page.length) break;
+      for (const s of page) {
+        after = s.seq;
+        const b = s.record.body as { kind?: string; verdict?: string };
+        if (!s.record.type.startsWith("asp.attestation/") || b.kind !== "acceptance" || b.verdict !== "rejected") continue;
+        const contract = s.record.subject as string;
+        if (seen.has(contract)) continue;
+        seen.add(contract);
+        const chain = await log.chain(contract);
+        const last = chain.at(-1);
+        const lb = last?.record.body as { kind?: string; verdict?: string } | undefined;
+        if (!last || last.record.type !== "asp.attestation/v0.2" || lb?.kind !== "acceptance" || lb.verdict !== "rejected") continue; // already ruled, settled or moved on
+        const cb = (await log.get(contract))?.record.body as { principal: string; performer: string };
+        found.push({ contract, principal: cb.principal, performer: cb.performer, panel: await log.drawPanel(contract).catch(() => []) });
+      }
+      if (page.length < 500) break;
+    }
+    return found;
+  };
+  if (sub === "docket") {
+    const cases = await open();
+    const keys = new Keystore(home);
+    for (const c of cases) io.out(`${c.contract}: ${c.principal} v ${c.performer}; panel ${c.panel.length ? c.panel.map((d) => `${d}${keys.forDid(d) ? " (key held)" : ""}`).join(", ") : "none can be drawn"}`);
+    io.out(`${cases.length} open dispute(s)`);
+    return 0;
+  }
+  if (sub === "rule") {
+    const contract = v.contract;
+    if (!contract || !v.verdict) throw new UsageError("asp court rule --contract <id> --verdict for_performer|for_principal|split --fault <did>=<permille> [--fault ...]");
+    const panel = await log.drawPanel(contract);
+    if (!panel.length) throw new Error("no panel can be drawn for this dispute; seat jurors first (asp court seat)");
+    const keys = new Keystore(home);
+    const mine = panel.filter((d) => keys.forDid(d));
+    const quorum = Math.ceil(panel.length / 2);
+    if (mine.length < quorum) throw new Error(`the drawn panel is ${panel.join(", ")}; this machine holds the keys of ${mine.length}, and ${quorum} are needed`);
+    const signers = mine.slice(0, Math.max(quorum, 1));
+    const args = ["market", "rule", "--contract", contract, "--by", signers[0], ...signers.slice(1).flatMap((d) => ["--cosign-by", d]), "--verdict", v.verdict, ...(v.fault ?? []).flatMap((f) => ["--fault", f])];
+    return await main(args, io);
+  }
+  throw new UsageError("usage: asp court seat [--count n] [--stake n] [--base did:web:<host>:court] | status | docket | rule --contract <id> --verdict ... --fault <did>=<permille>");
+}
+
 /**
  * asp account show | export [--out <dir>] | close --confirm <tenant> [--skip-export] [--out <dir>] (an admin adds --tenant <name>): a tenant's own data on the service named by
  * ASP_LOG_URL and ASP_LOG_TOKEN. Export writes account.json, records.ndjson, commons.json, the packages and a README; close exports first (unless --skip-export), then deletes.
@@ -1208,7 +1310,10 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(v["known-bad"] ? [knownBadRoutes({ root: resolve(v["known-bad"]) })] : []),
   ];
   const extra = routes.length ? async (req: any, res: any, ctx: any) => { for (const r of routes) if (await r(req, res, ctx)) return true; return false; } : undefined;
-  const server = createLogServer({ handle, owners, ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+    const jurorMode = v.jurors ?? "operator-only";
+  if (jurorMode !== "operator-only" && jurorMode !== "verified") throw new UsageError("--jurors is operator-only (the beta's default: the operator seats the court) or verified");
+  const guard = !noAuth ? courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }) : undefined;
+  const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
   io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
