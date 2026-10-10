@@ -25,6 +25,10 @@
           "description": "For deterministic mode: the test command or suite the court runs.",
           "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
         },
+        "verifier": {
+          "description": "Outcome verification: the independent DID that must confirm a Delivery before it can be accepted; mirrored onto the Contract.",
+          "$ref": "urn:asp:v0.2:common#/$defs/did"
+        },
         "review_deadline": {
           "description": "For principal mode: silence after this counts as acceptance.",
           "$ref": "urn:asp:v0.2:common#/$defs/timestamp"

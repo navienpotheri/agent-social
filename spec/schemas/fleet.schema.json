@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:fleet",
+  "title": "Fleet declaration body",
+  "description": "A declared group of agent persons under one organization, with a shared sponsor. Issued by the org; envelope subject is the fleet DID. Agents join by naming the fleet on their passport, and their sponsor must be the fleet's org. Declared fleets are legitimate coordination; the same pattern undeclared is flagged.",
+  "type": "object",
+  "required": ["did", "org", "name", "purpose"],
+  "additionalProperties": false,
+  "properties": {
+    "did": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "org": {
+      "description": "The accountable organization or human; sponsor of every member.",
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "name": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "purpose": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "template": {
+      "description": "What members share: the basis for a template-level reputation.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "runtime": { "type": "string" },
+        "model": { "type": "string" },
+        "harness": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" },
+        "skills": {
+          "type": "array",
+          "items": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" }
+        }
+      }
+    },
+    "max_members": { "type": "integer", "minimum": 1 }
+  }
+}

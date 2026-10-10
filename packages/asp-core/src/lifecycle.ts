@@ -35,23 +35,47 @@ export interface JobOptions {
  * A job chain: verifies each record, checks the hash link, and applies the lifecycle.
  * Records must arrive in chain order, starting with the Contract.
  */
-export class Job {
-  state: JobState | null = null;
-  readonly records: AspRecord[] = [];
+/** Everything a Job needs to resume without replaying its chain. Plain JSON. */
+export interface JobSnapshot {
+  state: JobState | null;
+  head: string | null;
+  lastIssuedAt: string | null;
+  length: number;
   contractId?: string;
   principal?: string;
   performer?: string;
   bank?: string;
+  reviewDeadline?: string;
   openCheckpoint?: string;
+  openCheckpointExpires?: string;
+  latestDelivery?: string;
+  acceptance?: string;
+  ruling?: string;
+  redeliveries: number;
+}
+
+export class Job {
+  state: JobState | null = null;
+  head: string | null = null;
+  lastIssuedAt: string | null = null;
+  length = 0;
+  contractId?: string;
+  principal?: string;
+  performer?: string;
+  bank?: string;
+  reviewDeadline?: string;
+  openCheckpoint?: string;
+  openCheckpointExpires?: string;
   latestDelivery?: string;
   acceptance?: string;
   ruling?: string;
   redeliveries = 0;
 
-  private readonly resolve: KeyResolver;
+  private readonly resolve?: KeyResolver;
   private readonly schemas: SchemaSet;
 
-  constructor(opts: JobOptions) {
+  /** `resolve` is needed only for apply(); step() takes records that were already verified. */
+  constructor(opts: Partial<JobOptions> = {}) {
     this.resolve = opts.resolve;
     this.schemas = opts.schemas ?? defaultSchemas();
   }
@@ -62,17 +86,28 @@ export class Job {
     return job;
   }
 
-  get head(): string | null {
-    return this.records.at(-1)?.id ?? null;
+  static fromSnapshot(s: JobSnapshot, opts: Partial<JobOptions> = {}): Job {
+    return Object.assign(new Job(opts), s);
   }
 
-  apply(raw: unknown): JobState {
-    const r = verifyRecord(raw, this.resolve, this.schemas);
+  snapshot(): JobSnapshot {
+    const { state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline,
+      openCheckpoint, openCheckpointExpires, latestDelivery, acceptance, ruling, redeliveries } = this;
+    return JSON.parse(JSON.stringify({ state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline,
+      openCheckpoint, openCheckpointExpires, latestDelivery, acceptance, ruling, redeliveries }));
+  }
 
-    const last = this.records.at(-1);
-    if (r.prev !== (last?.id ?? null)) throw new AspError("BAD_PREV", `prev should be ${last?.id ?? null}`);
-    if (last && Date.parse(r.issued_at) < Date.parse(last.issued_at)) {
-      throw new AspError("TIME_REVERSED", `${r.issued_at} is before ${last.issued_at}`);
+  /** Verifies the record (schema, id, signatures), then steps the lifecycle. */
+  apply(raw: unknown): JobState {
+    if (!this.resolve) throw new Error("Job.apply needs a key resolver; use step() for verified records");
+    return this.step(verifyRecord(raw, this.resolve, this.schemas));
+  }
+
+  /** Steps the lifecycle with a record whose schema and signatures were already verified. */
+  step(r: AspRecord): JobState {
+    if (r.prev !== this.head) throw new AspError("BAD_PREV", `prev should be ${this.head}`);
+    if (this.lastIssuedAt && Date.parse(r.issued_at) < Date.parse(this.lastIssuedAt)) {
+      throw new AspError("TIME_REVERSED", `${r.issued_at} is before ${this.lastIssuedAt}`);
     }
 
     if (this.state && LIFECYCLE.terminal.includes(this.state)) {
@@ -93,22 +128,25 @@ export class Job {
       }
     } catch (e) {
       // A rejected record leaves the job unchanged.
-      if (type === "contract") this.contractId = this.principal = this.performer = this.bank = undefined;
+      if (type === "contract") this.contractId = this.principal = this.performer = this.bank = this.reviewDeadline = undefined;
       throw e;
     }
 
     this.record(t, type, r);
     this.state = t.to;
-    this.records.push(r);
+    this.head = r.id;
+    this.lastIssuedAt = r.issued_at;
+    this.length++;
     return t.to;
   }
 
   private bindContract(r: AspRecord): void {
-    const b = r.body as { principal: string; performer: string; bank: string };
+    const b = r.body as { principal: string; performer: string; bank: string; review_deadline?: string };
     this.contractId = r.id;
     this.principal = b.principal;
     this.performer = b.performer;
     this.bank = b.bank;
+    this.reviewDeadline = b.review_deadline;
   }
 
   private checkIssuer(role: Role, r: AspRecord): void {
@@ -135,6 +173,8 @@ export class Job {
       case "escrow_payer_is_principal": return b.escrow?.payer === this.principal;
       case "subject_is_performer": return r.subject === this.performer;
       case "about_open_checkpoint": return b.about === this.openCheckpoint;
+      case "checkpoint_expired":
+        return this.openCheckpointExpires !== undefined && Date.parse(r.issued_at) >= Date.parse(this.openCheckpointExpires);
       case "about_latest_delivery": return b.about === this.latestDelivery;
       case "about_contract": return b.about === this.contractId;
       case "not_yet_accepted": return this.acceptance === undefined;
@@ -142,13 +182,15 @@ export class Job {
       case "no_ruling_yet": return this.ruling === undefined;
       case "cites_acceptance": return b.cites !== undefined && b.cites === this.acceptance;
       case "cites_ruling": return b.cites !== undefined && b.cites === this.ruling;
+      case "past_review_deadline":
+        return this.reviewDeadline !== undefined && Date.parse(r.issued_at) > Date.parse(this.reviewDeadline);
       default: throw new Error(`unknown guard ${name}`);
     }
   }
 
   private record(t: Transition, type: string, r: AspRecord): void {
-    if (type === "checkpoint") this.openCheckpoint = r.id;
-    if (type === "attestation" && t.from.includes("Checkpoint")) this.openCheckpoint = undefined;
+    if (type === "checkpoint") { this.openCheckpoint = r.id; this.openCheckpointExpires = (r.body as { expires?: string }).expires; }
+    if (type === "attestation" && t.from.includes("Checkpoint")) { this.openCheckpoint = undefined; this.openCheckpointExpires = undefined; }
     if (type === "delivery") this.latestDelivery = r.id;
     for (const e of t.effects ?? []) {
       if (e === "mark_accepted") this.acceptance = r.id;

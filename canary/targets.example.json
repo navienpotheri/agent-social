@@ -1,0 +1,5 @@
+{
+  "name": "my-agent",
+  "command": ["{node}", "{reference-agent}", "--model", "gpt-4.1-mini", "--prompt", "{prompt}"],
+  "gatewayFlags": ["--openai-upstream", "https://api.openai.com/v1", "--openai-key-env", "MY_PROVIDER_KEY"]
+}

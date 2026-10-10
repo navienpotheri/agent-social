@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import {
-  b64urlEncode, cosign, createRecord, fullType, publicKeyFromSeed, sha256Id, signingBytes,
+  b64urlEncode, cosign, createRecord, didKeyFromPublicKey, fullType, publicKeyFromSeed, sha256Id, signingBytes,
   type AspRecord, type RecordType, type Signer,
 } from "../packages/asp-core/src/index.ts";
 import { signBytes } from "../packages/asp-core/src/crypto.ts";
@@ -42,6 +42,7 @@ const keysFile = {
     kid: p.kid,
     seed_hex: Buffer.from(p.seed).toString("hex"),
     public_key: b64urlEncode(publicKeyFromSeed(p.seed)),
+    did_key: didKeyFromPublicKey(publicKeyFromSeed(p.seed)),
   })),
 };
 
@@ -73,10 +74,25 @@ const clone = <T>(v: T): T => structuredClone(v);
 
 // ---------- bodies ----------
 
-const intentId = fakeId("intent:fix-flaky-test");
-const offerId = fakeId("offer:fix-flaky-test");
+// MOCKS.md #5 (resolved): single-player has no market, but a Contract's basis can still point at
+// genuine signed Intent and Offer records the two parties issue themselves, instead of fake ids.
+const intentRecord = createRecord({
+  type: "intent", issuer: alice.did, subject: null, prev: null, issued_at: at(-10),
+  body: {
+    purpose: "Keep the payments service test suite green without weakening any test",
+    acceptance_criteria: ["test_refund_idempotency passes 50 runs in a row", "no test is skipped or deleted"],
+    budget: credits(0), deadline: "2026-10-03T18:00:00Z",
+    verification: { mode: "deterministic", tests: "pytest tests/test_refunds.py -k idempotency --count 50" },
+  },
+}, alice);
+const offerRecord = createRecord({
+  type: "offer", issuer: coder.did, subject: intentRecord.id, prev: null, issued_at: at(-5),
+  body: { intent: intentRecord.id, price: credits(0), plan: "Reproduce, isolate the race, fix, prove 50/50", eta: "2026-10-02T12:00:00Z", bond_offered: credits(0) },
+}, coder);
+const intentId = intentRecord.id;
+const offerId = offerRecord.id;
 
-function contractBody() {
+function contractBody(overrides: Record<string, unknown> = {}) {
   return {
     principal: alice.did,
     performer: coder.did,
@@ -87,6 +103,7 @@ function contractBody() {
     verification: "deterministic",
     deadline: "2026-10-03T18:00:00Z",
     basis: { intent: intentId, offer: offerId },
+    ...overrides,
   };
 }
 
@@ -145,8 +162,8 @@ class Chain {
 
   private recordsSubject() { return this.records.length ? this.contract : null; }
 
-  contractRec(opts: { by?: Party; cosigners?: Party[] } = {}) {
-    return this.add("contract", opts.by ?? alice, contractBody(), { subject: coder.did, cosigners: opts.cosigners ?? [coder] });
+  contractRec(opts: { by?: Party; cosigners?: Party[]; body?: Record<string, unknown> } = {}) {
+    return this.add("contract", opts.by ?? alice, contractBody(opts.body), { subject: coder.did, cosigners: opts.cosigners ?? [coder] });
   }
   bond(overrides: Record<string, unknown> = {}) {
     // Single-player: zero-value bond and escrow (see MOCKS.md).
@@ -160,11 +177,12 @@ class Chain {
   mandate(by: Party = alice, subject: string = coder.did) {
     return this.add("mandate", by, mandateBody(this.contract), { subject });
   }
-  checkpoint() {
+  checkpoint(expires?: string) {
     return this.add("checkpoint", coder, {
       contract: this.contract, kind: "plan",
       question: "Plan: serialize cache writes behind a per-key lock. Proceed?",
       options: ["per-key lock", "retry with backoff"],
+      ...(expires ? { expires } : {}),
     }, { actor: `${coder.did}#node-3` });
   }
   resolve(about: string, by: Party = alice, verdict = "approved", extra: Record<string, unknown> = {}) {
@@ -186,7 +204,7 @@ class Chain {
       reasons: ["fix was correct but the acceptance criterion was ambiguous about CI retries"],
     });
   }
-  settle(basis: "accepted" | "ruling" | "revoked", cites?: string, opts: { by?: Party; cosigners?: Party[] } = {}) {
+  settle(basis: "accepted" | "ruling" | "revoked" | "silence", cites?: string, opts: { by?: Party; cosigners?: Party[] } = {}) {
     const body: Record<string, unknown> = {
       contract: this.contract, basis,
       escrow_released: credits(0), bond_returned: credits(0), bond_slashed: credits(0),
@@ -244,6 +262,21 @@ lc("happy_path", "Contract, zero bond, mandate, plan checkpoint, delivery, accep
   lc("revoked_while_running", "Principal revokes; the bank settles pro rata with the principal's cosignature", c, { state: "Settled" });
 }
 {
+  // Contract at t=0 (09:00), bond t=5, mandate t=10, deliver t=15, settle t=20 — review_deadline
+  // (09:12) falls between mandate and delivery, so it has passed by the time the bank settles.
+  const c = new Chain(); c.contractRec({ body: { review_deadline: "2026-10-01T09:12:00Z" } }); c.bond(); c.mandate();
+  c.deliver();
+  c.settle("silence");
+  lc("silence_after_deadline", "Principal-mode silence past review_deadline counts as acceptance", c, { state: "Settled" });
+}
+{
+  // Same shape, but review_deadline is a day after the bank's settlement attempt.
+  const c = new Chain(); c.contractRec({ body: { review_deadline: "2026-10-02T00:00:00Z" } }); c.bond(); c.mandate();
+  c.deliver();
+  c.settle("silence");
+  lc("settle_before_deadline", "A silence settlement before review_deadline has passed is refused", c, err("GUARD_FAILED", 4, "past_review_deadline"));
+}
+{
   const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); c.deliver();
   lc("node_actor", "Records may be issued by a person and acted by one of its nodes", c, { state: "Delivered" });
 }
@@ -288,6 +321,22 @@ lc("happy_path", "Contract, zero bond, mandate, plan checkpoint, delivery, accep
 {
   const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); const cp = c.checkpoint(); c.resolve(cp.id, coder);
   lc("checkpoint_self_resolved", "The performer cannot approve its own checkpoint", c, err("WRONG_ISSUER", 4));
+}
+{
+  const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); const cp = c.checkpoint(at(17)); c.resolve(cp.id, coder, "expired");
+  lc("checkpoint_expired", "The performer closes an unanswered checkpoint after its expiry; the job runs again", c, { state: "Running" });
+}
+{
+  const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); const cp = c.checkpoint(at(60)); c.resolve(cp.id, coder, "expired");
+  lc("checkpoint_expired_too_early", "A checkpoint cannot be expired before its expiry time", c, err("GUARD_FAILED", 4, "checkpoint_expired"));
+}
+{
+  const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); const cp = c.checkpoint(); c.resolve(cp.id, coder, "expired");
+  lc("checkpoint_expired_without_deadline", "A checkpoint with no expiry cannot be expired", c, err("GUARD_FAILED", 4, "checkpoint_expired"));
+}
+{
+  const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); const cp = c.checkpoint(at(17)); c.resolve(cp.id, alice, "expired");
+  lc("checkpoint_expired_by_principal", "Only the performer expires a checkpoint; the principal answers it", c, err("WRONG_ISSUER", 4));
 }
 {
   const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); c.checkpoint(); c.resolve(fakeId("elsewhere"));
@@ -360,6 +409,8 @@ const rec = (name: string, description: string, record: unknown, expect: "ok" | 
 
 const h = happy().records;
 for (const r of h) rec(`ok_${r.type.slice(4, -5)}_${h.indexOf(r)}`, "Valid record from the happy path", r, "ok");
+rec("ok_intent", "An Intent, referenced (not chained) from a Contract's basis", intentRecord, "ok");
+rec("ok_offer", "An Offer against that Intent, referenced from the same Contract's basis", offerRecord, "ok");
 
 const agentPassport = createRecord({
   type: "passport", issuer: alice.did, subject: coder.did, prev: null, issued_at: at(0),
@@ -399,6 +450,23 @@ const pkg = createRecord({
   },
 }, coder);
 rec("ok_package", "An agent package manifest", pkg, "ok");
+
+const fleetDid = "did:web:example.com:fleets:payments";
+const fleetBody = {
+  did: fleetDid, org: alice.did, name: "Payments test fleet",
+  purpose: "Keep the payments services' test suites green",
+  template: { runtime: "example-runtime", model: "example-model-1" }, max_members: 30,
+};
+const fleetRec = createRecord({ type: "fleet", issuer: alice.did, subject: fleetDid, prev: null, issued_at: at(3), body: fleetBody }, alice);
+rec("ok_fleet", "A fleet declared by its org", fleetRec, "ok");
+
+const nodeBody = {
+  node: `${coder.did}#node-7`, public_key: b64urlEncode(publicKeyFromSeed(seedFor("coder-node-7"))),
+  expires: "2026-10-01T21:00:00Z", mandate: h[2].id, purpose: "parallel attempt on the flaky test",
+  runtime: { name: "example-runtime", model: "example-model-1" },
+};
+const nodeRec = createRecord({ type: "node", issuer: coder.did, subject: h[2].id, prev: null, issued_at: at(4), body: nodeBody }, coder);
+rec("ok_node", "A node key delegated by its person under a Mandate", nodeRec, "ok");
 
 {
   const r = clone(h[2]); (r.body as any).purpose = "Anything goes";
@@ -461,12 +529,46 @@ sv("valid_intent", "intent", {
 sv("valid_offer", "offer", { intent: intentId, price: credits(0), plan: "Reproduce, isolate the race, fix, prove 50/50", eta: "2026-10-02T12:00:00Z", bond_offered: credits(0) }, true);
 sv("valid_call", "call", { purpose: "Cut CI time in half", budget: credits(5000), evaluation_criteria: ["median CI minutes"], panel: [panel.did], deadline: "2026-11-01T00:00:00Z" }, true);
 sv("valid_proposal", "proposal", { call: fakeId("call"), plan: "Shard and cache", team: [coder.did], budget_asked: credits(1200), milestones: [{ description: "sharding", due: "2026-10-15T00:00:00Z" }] }, true);
+sv("valid_action", "action", { contract: fakeId("c"), scopes_used: ["repo.read", "tests.run"], summary: "read the repo, ran the test suite" }, true);
+sv("action_missing_contract", "action", { scopes_used: ["repo.read"] }, false);
+sv("valid_action_with_blocked_attempts", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], blocked_attempts: [{ scope: "shell.exec", count: 2 }] }, true);
+sv("action_blocked_attempt_zero_count", "action", { contract: fakeId("c"), scopes_used: [], blocked_attempts: [{ scope: "shell.exec", count: 0 }] }, false);
+sv("action_blocked_attempt_missing_count", "action", { contract: fakeId("c"), scopes_used: [], blocked_attempts: [{ scope: "shell.exec" }] }, false);
+sv("valid_action_with_assurance", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], assurance: "gateway_enforced" }, true);
+sv("action_unknown_assurance", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], assurance: "trust_me" }, false);
+sv("valid_action_with_metrics", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], metrics: { models: [{ name: "gpt-oss-120b", provider: "api.groq.com" }], requests: 3, tool_calls: 2, tokens_in: 1200, tokens_out: 340, seconds: 9 } }, true);
+sv("action_metrics_negative_tokens", "action", { contract: fakeId("c"), scopes_used: [], metrics: { tokens_in: -1 } }, false);
+sv("action_metrics_unknown_field", "action", { contract: fakeId("c"), scopes_used: [], metrics: { dollars: 2 } }, false);
+sv("action_metrics_model_without_name", "action", { contract: fakeId("c"), scopes_used: [], metrics: { models: [{ provider: "x" }] } }, false);
+sv("valid_passport_fork", "passport", { did: "did:web:example.com:agents:copy", kind: "agent", sponsor: "did:web:example.com:users:alice", tier: 1, shape: { keeps_learning: true }, keys: [{ id: "did:web:example.com:agents:copy#key-1", type: "Ed25519", public_key: "A".repeat(43) }], lineage: [{ edge: "fork", parent: "did:web:example.com:agents:coder" }] }, true);
+sv("passport_fork_without_parent", "passport", { did: "did:web:example.com:agents:copy", kind: "agent", sponsor: "did:web:example.com:users:alice", tier: 1, shape: { keeps_learning: true }, keys: [{ id: "did:web:example.com:agents:copy#key-1", type: "Ed25519", public_key: "A".repeat(43) }], lineage: [{ edge: "fork" }] }, false);
+sv("valid_action_late", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], late: { activity_ended: "2026-10-05T10:00:00Z" } }, true);
+sv("action_late_without_activity_ended", "action", { contract: fakeId("c"), scopes_used: [], late: {} }, false);
+sv("action_late_bad_timestamp", "action", { contract: fakeId("c"), scopes_used: [], late: { activity_ended: "yesterday" } }, false);
+sv("action_late_unknown_field", "action", { contract: fakeId("c"), scopes_used: [], late: { activity_ended: "2026-10-05T10:00:00Z", reason: "slow" } }, false);
+sv("action_late_not_an_object", "action", { contract: fakeId("c"), scopes_used: [], late: true }, false);
+sv("action_bad_scope_format", "action", { contract: fakeId("c"), scopes_used: ["Repo Read"] }, false);
 
 const m = mandateBody(fakeId("c"));
 sv("mandate_floor_v2", "mandate", { ...m, floor: "asp.floor/v2" }, false);
 sv("mandate_learning_weights", "mandate", { ...m, learning: { scope: "weights", share_to_commons: false } }, false);
 sv("mandate_not_revocable", "mandate", { ...m, revocable: false }, false);
 sv("mandate_missing_purpose", "mandate", (({ purpose: _p, ...rest }) => rest)(m), false);
+sv("valid_mandate_network_rate", "mandate", { ...m, scopes: ["repo.read", "web.read"], network: { hosts: ["docs.python.org"], rate: { per_host_per_minute: 30, total_per_minute: 120 } } }, true);
+sv("valid_mandate_network_rate_only", "mandate", { ...m, scopes: ["repo.read", "web.read"], network: { rate: { per_host_per_minute: 10 } } }, true);
+sv("mandate_network_rate_zero", "mandate", { ...m, network: { hosts: ["example.com"], rate: { per_host_per_minute: 0 } } }, false);
+sv("mandate_network_rate_empty", "mandate", { ...m, network: { hosts: ["example.com"], rate: {} } }, false);
+sv("mandate_network_rate_unknown_field", "mandate", { ...m, network: { hosts: ["example.com"], rate: { per_second: 2 } } }, false);
+sv("mandate_network_empty", "mandate", { ...m, network: {} }, false);
+sv("valid_action_rate_limited", "action", { contract: fakeId("c"), scopes_used: ["web.read"], metrics: { requests: 4, tool_calls: 40, rate_limited: 12 } }, true);
+sv("valid_mandate_network_hosts", "mandate", { ...m, scopes: ["repo.read", "web.read"], network: { hosts: ["docs.python.org", "*.github.com"] } }, true);
+sv("mandate_network_empty_hosts", "mandate", { ...m, network: { hosts: [] } }, false);
+sv("mandate_network_bare_wildcard", "mandate", { ...m, network: { hosts: ["*"] } }, false);
+sv("mandate_network_host_with_path", "mandate", { ...m, network: { hosts: ["example.com/login"] } }, false);
+sv("mandate_network_unknown_field", "mandate", { ...m, network: { hosts: ["example.com"], rate: 5 } }, false);
+sv("valid_mandate_gated", "mandate", { ...m, irreversible: { policy: "checkpoint", scopes: ["pr.open"] } }, true);
+sv("mandate_gate_bad_scope", "mandate", { ...m, irreversible: { policy: "checkpoint", scopes: ["Pr Open"] } }, false);
+sv("mandate_gate_duplicate_scope", "mandate", { ...m, irreversible: { policy: "checkpoint", scopes: ["pr.open", "pr.open"] } }, false);
 sv("mandate_bad_scope", "mandate", { ...m, scopes: ["Repo Read"] }, false);
 sv("mandate_bad_timestamp", "mandate", { ...m, expires: "next tuesday" }, false);
 sv("mandate_float_cap", "mandate", { ...m, spend: { cap: 2.5, unit: "credit" } }, false);
@@ -474,6 +576,15 @@ sv("amount_fraction", "offer", { intent: intentId, price: { value: 1.5, unit: "c
 sv("amount_usd", "offer", { intent: intentId, price: { value: 1, unit: "usd" }, plan: "x", eta: "2026-10-02T12:00:00Z", bond_offered: credits(0) }, false);
 sv("rejection_without_reasons", "attestation", { kind: "acceptance", about: fakeId("d"), verdict: "rejected" }, false);
 sv("acceptance_bad_verdict", "attestation", { kind: "acceptance", about: fakeId("d"), verdict: "meh" }, false);
+sv("valid_checkpoint_expires", "checkpoint", { contract: fakeId("c"), kind: "before_irreversible", question: "May it run?", expires: "2026-10-05T10:00:00Z" }, true);
+sv("checkpoint_bad_expires", "checkpoint", { contract: fakeId("c"), kind: "before_irreversible", question: "May it run?", expires: "tomorrow" }, false);
+sv("valid_resolution_expired", "attestation", { kind: "checkpoint_resolution", about: fakeId("cp"), verdict: "expired" }, true);
+sv("valid_report", "attestation", { kind: "report", about: fakeId("contract"), reasons: ["sending data to an outside host"] }, true);
+sv("report_without_reasons", "attestation", { kind: "report", about: fakeId("contract") }, false);
+sv("report_empty_reasons", "attestation", { kind: "report", about: fakeId("contract"), reasons: [] }, false);
+sv("valid_report_ruling_upheld", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld" }, true);
+sv("report_ruling_bad_verdict", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "for_principal" }, false);
+sv("report_ruling_without_verdict", "attestation", { kind: "report_ruling", about: fakeId("report") }, false);
 sv("correction_without_text", "attestation", { kind: "checkpoint_resolution", about: fakeId("cp"), verdict: "corrected" }, false);
 sv("ruling_without_fault", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "split" }, false);
 sv("settlement_accepted_without_cites", "settlement", { contract: fakeId("c"), basis: "accepted", escrow_released: credits(0), bond_returned: credits(0), bond_slashed: credits(0) }, false);
@@ -487,10 +598,28 @@ sv("lineage_transfer_without_sponsor", "lineage", { edge: "transfer", child: cod
 sv("lineage_rebirth", "lineage", { edge: "rebirth", child: coder.did, parents: [coder.did] }, false);
 sv("contract_mixed_basis", "contract", { ...contractBody(), basis: { intent: intentId, proposal: fakeId("p") } }, false);
 sv("forecast_over_1000", "delivery", (() => { const d: any = deliveryBody(fakeId("c")); d.evidence.forecasts[0].p_permille = 1001; return d; })(), false);
+const claimsDelivery = (claims: unknown) => { const d: any = deliveryBody(fakeId("c")); d.result.claims = claims; return d; };
+sv("valid_delivery_with_claims", "delivery", claimsDelivery([
+  { claim: "the band gap is 2.35 eV", grade: "predicted", evidence: { uri: "asp://trace/span-12", sha256: fakeId("s") } },
+  { claim: "all 50 test runs pass", grade: "measured" },
+]), true);
+sv("delivery_claim_bad_grade", "delivery", claimsDelivery([{ claim: "it works", grade: "probably" }]), false);
+sv("delivery_claim_missing_grade", "delivery", claimsDelivery([{ claim: "it works" }]), false);
+sv("valid_verification", "attestation", { kind: "verification", about: fakeId("d"), verdict: "partly_confirmed", claims: [{ index: 0, grade: "simulated" }, { index: 1, grade: "measured" }] }, true);
+sv("verification_bad_verdict", "attestation", { kind: "verification", about: fakeId("d"), verdict: "accepted" }, false);
+sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
+sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
+sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
 sv("delivery_without_trace", "delivery", (() => { const d: any = deliveryBody(fakeId("c")); delete d.evidence.trace; return d; })(), false);
 sv("envelope_bad_type", "envelope", { ...h[0], type: "asp.contract/v1" }, false);
 sv("envelope_extra_field", "envelope", { ...h[0], note: "hi" }, false);
 sv("envelope_bad_did", "envelope", { ...h[0], issuer: "alice" }, false);
+sv("fleet_without_org", "fleet", (({ org: _o, ...rest }) => rest)(fleetBody), false);
+sv("fleet_zero_members", "fleet", { ...fleetBody, max_members: 0 }, false);
+sv("node_minimal", "node", { node: nodeBody.node, public_key: nodeBody.public_key, expires: nodeBody.expires }, true);
+sv("node_without_expiry", "node", (({ expires: _e, ...rest }) => rest)(nodeBody), false);
+sv("node_id_not_did_url", "node", { ...nodeBody, node: coder.did }, false);
+sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
 
 // ---------- canonicalization vectors ----------
 

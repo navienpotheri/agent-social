@@ -13,6 +13,10 @@
       "description": "The DID whose Settlement records close this job.",
       "$ref": "urn:asp:v0.2:common#/$defs/did"
     },
+    "verifier": {
+      "description": "Outcome verification: the independent DID that re-checks a Delivery before it can be accepted. Never the principal, the performer, or anyone either of them sponsors.",
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
     "purpose": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
     "acceptance_criteria": {
       "type": "array",
@@ -21,6 +25,10 @@
     "price": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
     "verification": { "$ref": "urn:asp:v0.2:common#/$defs/verificationMode" },
     "deadline": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "review_deadline": {
+      "description": "Principal-mode verification only, mirrored from the Intent: silence past this counts as acceptance.",
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
     "basis": {
       "oneOf": [
         {

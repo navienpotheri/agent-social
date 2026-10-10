@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from typing import Any, Iterable
 
@@ -17,16 +18,26 @@ class Job:
     Records must arrive in chain order, starting with the Contract.
     """
 
-    def __init__(self, resolve: KeyResolver, schemas: SchemaSet | None = None):
+    _SNAPSHOT_FIELDS = (
+        "state", "head", "last_issued_at", "length", "contract_id", "principal", "performer", "bank",
+        "review_deadline", "open_checkpoint", "open_checkpoint_expires", "latest_delivery", "acceptance", "ruling", "redeliveries",
+    )
+
+    def __init__(self, resolve: KeyResolver | None = None, schemas: SchemaSet | None = None):
+        # `resolve` is needed only for apply(); step() takes records that were already verified.
         self._resolve = resolve
         self._schemas = schemas or default_schemas()
         self.state: str | None = None
-        self.records: list[Record] = []
+        self.head: str | None = None
+        self.last_issued_at: str | None = None
+        self.length = 0
         self.contract_id: str | None = None
         self.principal: str | None = None
         self.performer: str | None = None
         self.bank: str | None = None
+        self.review_deadline: str | None = None
         self.open_checkpoint: str | None = None
+        self.open_checkpoint_expires: str | None = None
         self.latest_delivery: str | None = None
         self.acceptance: str | None = None
         self.ruling: str | None = None
@@ -39,19 +50,32 @@ class Job:
             job.apply(r)
         return job
 
-    @property
-    def head(self) -> str | None:
-        return self.records[-1]["id"] if self.records else None
+    @classmethod
+    def from_snapshot(cls, snapshot: dict[str, Any], resolve: KeyResolver | None = None,
+                      schemas: SchemaSet | None = None) -> Job:
+        """Restores a Job from snapshot(). Accepts the camelCase keys the TypeScript SDK writes."""
+        job = cls(resolve, schemas)
+        for f in cls._SNAPSHOT_FIELDS:
+            camel = re.sub(r"_([a-z])", lambda m: m.group(1).upper(), f)
+            if f in snapshot or camel in snapshot:
+                setattr(job, f, snapshot.get(f, snapshot.get(camel)))
+        return job
+
+    def snapshot(self) -> dict[str, Any]:
+        return {f: getattr(self, f) for f in self._SNAPSHOT_FIELDS}
 
     def apply(self, raw: Any) -> str:
-        r = verify_record(raw, self._resolve, self._schemas)
+        """Verifies the record (schema, id, signatures), then steps the lifecycle."""
+        if self._resolve is None:
+            raise ValueError("Job.apply needs a key resolver; use step() for verified records")
+        return self.step(verify_record(raw, self._resolve, self._schemas))
 
-        last = self.records[-1] if self.records else None
-        expected_prev = last["id"] if last else None
-        if r["prev"] != expected_prev:
-            raise AspError("BAD_PREV", f"prev should be {expected_prev}")
-        if last and datetime.fromisoformat(r["issued_at"]) < datetime.fromisoformat(last["issued_at"]):
-            raise AspError("TIME_REVERSED", f"{r['issued_at']} is before {last['issued_at']}")
+    def step(self, r: Record) -> str:
+        """Steps the lifecycle with a record whose schema and signatures were already verified."""
+        if r["prev"] != self.head:
+            raise AspError("BAD_PREV", f"prev should be {self.head}")
+        if self.last_issued_at and datetime.fromisoformat(r["issued_at"]) < datetime.fromisoformat(self.last_issued_at):
+            raise AspError("TIME_REVERSED", f"{r['issued_at']} is before {self.last_issued_at}")
 
         if self.state in LIFECYCLE["terminal"]:
             raise AspError("TERMINAL_STATE", f"job is {self.state}")
@@ -72,6 +96,7 @@ class Job:
             self.contract_id, self.principal, self.performer, self.bank = (
                 r["id"], b["principal"], b["performer"], b["bank"],
             )
+            self.review_deadline = b.get("review_deadline")
         try:
             self._check_issuer(t["issuer"], r)
             for g in t.get("guards", []):
@@ -80,12 +105,14 @@ class Job:
         except AspError:
             # A rejected record leaves the job unchanged.
             if rtype == "contract":
-                self.contract_id = self.principal = self.performer = self.bank = None
+                self.contract_id = self.principal = self.performer = self.bank = self.review_deadline = None
             raise
 
         self._record(t, rtype, r)
         self.state = t["to"]
-        self.records.append(r)
+        self.head = r["id"]
+        self.last_issued_at = r["issued_at"]
+        self.length += 1
         return self.state
 
     def _check_issuer(self, role: str, r: Record) -> None:
@@ -121,6 +148,9 @@ class Job:
                 return r["subject"] == self.performer
             case "about_open_checkpoint":
                 return b.get("about") == self.open_checkpoint
+            case "checkpoint_expired":
+                return (self.open_checkpoint_expires is not None
+                        and datetime.fromisoformat(r["issued_at"]) >= datetime.fromisoformat(self.open_checkpoint_expires))
             case "about_latest_delivery":
                 return b.get("about") == self.latest_delivery
             case "about_contract":
@@ -135,13 +165,18 @@ class Job:
                 return b.get("cites") is not None and b.get("cites") == self.acceptance
             case "cites_ruling":
                 return b.get("cites") is not None and b.get("cites") == self.ruling
+            case "past_review_deadline":
+                return (self.review_deadline is not None
+                        and datetime.fromisoformat(r["issued_at"]) > datetime.fromisoformat(self.review_deadline))
         raise ValueError(f"unknown guard {name}")
 
     def _record(self, t: dict[str, Any], rtype: str, r: Record) -> None:
         if rtype == "checkpoint":
             self.open_checkpoint = r["id"]
+            self.open_checkpoint_expires = r["body"].get("expires")
         if rtype == "attestation" and "Checkpoint" in t["from"]:
             self.open_checkpoint = None
+            self.open_checkpoint_expires = None
         if rtype == "delivery":
             self.latest_delivery = r["id"]
         for e in t.get("effects", []):

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:juror",
+  "title": "Juror body",
+  "description": "Self-registration to be randomly drawn onto a Courts ruling panel, with real credits staked. Self-issued: issuer and envelope subject are both the registering DID. A later record chained onto the first (prev = its id) updates the stake — locking more, returning some, or withdrawing entirely.",
+  "type": "object",
+  "required": ["did", "stake"],
+  "additionalProperties": false,
+  "properties": {
+    "did": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "stake": { "$ref": "urn:asp:v0.2:common#/$defs/amount" }
+  }
+}

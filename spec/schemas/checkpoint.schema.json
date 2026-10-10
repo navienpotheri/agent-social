@@ -11,6 +11,10 @@
     "kind": { "enum": ["plan", "before_irreversible", "high_impact", "delivery"] },
     "question": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
     "proposed_action": { "type": "string" },
+    "expires": {
+      "description": "After this time the performer may close an unanswered Checkpoint with a checkpoint_resolution of verdict expired; the request counts as refused.",
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
     "options": {
       "type": "array",
       "items": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }

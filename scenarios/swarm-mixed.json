@@ -1,0 +1,27 @@
+{
+  "name": "swarm-mixed",
+  "kind": "swarm-exploit",
+  "agents": 6,
+  "exploiters": 3,
+  "jurors": 3,
+  "price": 100,
+  "bond": 20,
+  "stepSeconds": 30,
+  "firstExploitStep": 6,
+  "spreadEvery": 1,
+  "steps": 12,
+  "minAgents": 3,
+  "windowSeconds": 900,
+  "maxReports": 4,
+  "slashCohort": true,
+  "exploitCommand": "node -e \"console.log(41+1)\"",
+  "realFirstStep": 0,
+  "realEvery": 1,
+  "real": [
+    { "backend": "claude-code", "model": "claude-haiku-5-5", "exploiter": true },
+    { "backend": "codex", "exploiter": true },
+    { "backend": "antigravity", "model": "gemini-3.8-flash-low", "exploiter": true },
+    { "backend": "antigravity", "model": "gpt-oss-120b-medium", "exploiter": false },
+    { "backend": "openhands", "model": "openai/nvidia/nemotron-3-super-120b-a12b:free", "endpoint": "https://openrouter.ai/api/v1", "apiKeyEnv": "ASP_OR_KEY", "exploiter": true }
+  ]
+}

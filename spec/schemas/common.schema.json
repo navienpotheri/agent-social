@@ -59,6 +59,10 @@
         "media_type": { "type": "string" }
       }
     },
+    "evidenceGrade": {
+      "description": "How well established a claim is: measured in the real world, simulated, or only predicted.",
+      "enum": ["measured", "simulated", "predicted"]
+    },
     "verificationMode": {
       "enum": ["deterministic", "principal", "panel", "outcome"]
     },

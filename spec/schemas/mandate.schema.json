@@ -20,6 +20,29 @@
       "items": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$" },
       "uniqueItems": true
     },
+    "network": {
+      "description": "Which hosts the network scopes (web.*, browser.*, shell.network, net.*) may reach. A Mandate for a tier 1 or 2 agent that grants a network scope must name hosts (the log refuses it otherwise, network_hosts_required); tier 3 and above may leave it out, which means no host limit. A pattern is an exact name or a subdomain wildcard (*.example.com, which does not match example.com itself). Enforced where the gateway sees the call; a call whose host cannot be determined is refused. `rate` limits how many network calls a minute may go to any one host and in all (a flood, a brute force or a scan is many calls to few hosts): a call over the limit is refused, without a strike, and counted in the Action's metrics as rate_limited. A Mandate for a tier 1 or 2 agent that grants a network scope must also carry rate.per_host_per_minute (the log refuses it otherwise, network_rate_required).",
+      "type": "object",
+      "anyOf": [{ "required": ["hosts"] }, { "required": ["rate"] }],
+      "additionalProperties": false,
+      "properties": {
+        "rate": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "per_host_per_minute": { "type": "integer", "minimum": 1 },
+            "total_per_minute": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "hosts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^(\\*\\.)?[a-z0-9]([a-z0-9.-]*[a-z0-9])?$" }
+        }
+      }
+    },
     "forbidden_means": {
       "type": "array",
       "items": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
@@ -40,6 +63,12 @@
       "additionalProperties": false,
       "properties": {
         "policy": { "enum": ["checkpoint", "forbid", "allow"] },
+        "scopes": {
+          "description": "The granted scopes this policy applies to: with checkpoint, a call needs the principal's approval (a Checkpoint resolved by a signed checkpoint_resolution) before it runs; with forbid, it is blocked; with allow, it is ungated. Each must also be in the Mandate's scopes.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$" },
+          "uniqueItems": true
+        },
         "examples": { "type": "array", "items": { "type": "string" } }
       }
     },

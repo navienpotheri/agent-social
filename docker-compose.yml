@@ -1,0 +1,21 @@
+# Local development database for the ASP event log.
+# Credentials are for local use only.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: asp
+      POSTGRES_PASSWORD: asp-local-dev
+      POSTGRES_DB: asp
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - asp-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asp -d asp"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  asp-pg:
