@@ -278,7 +278,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget, runtimeTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { createLogServer, hashToken, postgresHandle, Signup, solveChallenge, UsageStore, type Tenant } from "@agent-social/asp-log";
+import { createLogServer, GoogleSignIn, hashToken, postgresHandle, Signup, solveChallenge, UsageStore, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -416,6 +416,10 @@ const OPTIONS = {
   "max-failed-auth": { type: "string" },
   "trust-proxy": { type: "boolean" },
   signup: { type: "boolean" },
+  "signup-require-google": { type: "boolean" },
+  "google-client-id": { type: "string" },
+  "google-redirect-uri": { type: "string" },
+  "public-url": { type: "string" },
   "signup-terms-url": { type: "string" },
   "signup-terms-version": { type: "string" },
   "signup-difficulty": { type: "string" },
@@ -1056,6 +1060,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const defaultByteQuota = Math.round((v["byte-quota-mb"] === undefined ? DEFAULT_BYTE_QUOTA_MB : Number(v["byte-quota-mb"])) * 1024 * 1024);
   if (!(defaultRecordQuota >= 0) || !(defaultByteQuota >= 0)) throw new UsageError("--record-quota and --byte-quota-mb must be 0 or more (0 for no limit)");
   let signup: Signup | undefined;
+  let google: GoogleSignIn | undefined;
   if (v.signup) {
     if (noAuth) throw new UsageError("--signup needs --tokens: a service with no auth has no tenants to sign up");
     if (!v["signup-terms-url"]) throw new UsageError("--signup needs --signup-terms-url: the address of the terms a person accepts when they sign up");
@@ -1074,7 +1079,15 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       },
       termsVersion: v["signup-terms-version"] ?? "2026-10", termsUrl: v["signup-terms-url"],
       difficulty: num("signup-difficulty", 20), perAddressPerDay: num("signup-per-address", 3), dailyCap: num("signup-daily-cap", 200),
+      anonymous: !v["signup-require-google"], ...(v["public-url"] ? { joinUrl: `${v["public-url"]}/join` } : {}),
     });
+    // Sign in with Google (the /join page): the client id is a flag, the secret is read from the environment (GOOGLE_CLIENT_SECRET), never from a flag or a file in the repo.
+    if (v["google-client-id"]) {
+      const secret = io.env.GOOGLE_CLIENT_SECRET;
+      if (!secret) throw new UsageError("--google-client-id needs the client secret in the environment variable GOOGLE_CLIENT_SECRET");
+      if (!v["google-redirect-uri"]) throw new UsageError("--google-client-id needs --google-redirect-uri (the authorized redirect URI of the client, for example https://log.example.org/auth/callback)");
+      google = new GoogleSignIn({ clientId: v["google-client-id"], clientSecret: secret, redirectUri: v["google-redirect-uri"] });
+    } else if (v["signup-require-google"]) throw new UsageError("--signup-require-google needs --google-client-id");
   }
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
   const routes = [
@@ -1083,12 +1096,13 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(v["known-bad"] ? [knownBadRoutes({ root: resolve(v["known-bad"]) })] : []),
   ];
   const extra = routes.length ? async (req: any, res: any, ctx: any) => { for (const r of routes) if (await r(req, res, ctx)) return true; return false; } : undefined;
-  const server = createLogServer({ handle, ...(signup ? { signup } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  const server = createLogServer({ handle, ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
   io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
   io.out(`  limits per minute: ${limits.tenantPerMinute || "no limit"} requests and ${limits.appendPerMinute || "no limit"} writes per tenant, ${limits.addressPerMinute || "no limit"} per address; ${limits.maxInFlight || "no"} in flight; lockout after ${limits.failedAuthMax || "never"} failed sign-ins`);
   io.out(`  quota per tenant (admins have none): ${defaultRecordQuota || "no limit"} records, ${defaultByteQuota ? `${Math.round(defaultByteQuota / 1048576)} MB` : "no limit"} of records; suspend, resume, block and unblock take effect without a restart (asp serve usage shows the counts)`);
+  if (google) io.out(`  sign-in   Google: the sign-up page is /join${v["signup-require-google"] ? " and it is the only way to sign up" : ", and the proof-of-work route stays open too"}`);
   if (signup) io.out(`  sign-up   open at /signup: proof of work (${num("signup-difficulty", 20)} bits), ${num("signup-per-address", 3)} per address and ${num("signup-daily-cap", 200)} a day, terms ${v["signup-terms-version"] ?? "2026-10"} at ${v["signup-terms-url"]}; close it with: asp serve signup-close --tokens ${v.tokens}`);
   if (!tls && !loopback) io.out("  warning  plain HTTP on a network address: TLS must be terminated in front of this service");
   await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });

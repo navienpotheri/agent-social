@@ -32,6 +32,12 @@ export interface SignupOptions {
   starting?: { recordQuota: number; byteQuota: number; quotaBytes: number; rateLimitPerMinute: number };
   /** Read on each request: lets an operator close sign-up or change the day's cap without a restart. */
   control?: () => { open?: boolean; dailyCap?: number; reason?: string } | undefined;
+  /** False closes the anonymous route (the CLI's proof of work): sign-up is then only through a verified Google account (the /join page). */
+  anonymous?: boolean;
+  /** Where the browser sign-up is, for the message the anonymous route gives when it is closed. */
+  joinUrl?: string;
+  /** Tenants one Google account may hold (default 3). */
+  perGoogleAccount?: number;
   /** Only for tests. */
   secret?: Buffer;
   now?: () => number;
@@ -112,17 +118,41 @@ export class Signup {
     return { ok: false, status, code, message, ...(retryAfterSec ? { retryAfterSec } : {}) };
   }
 
+  /** The checks every sign-up route shares: open, the day's cap, the terms, the name and the contact line. */
+  private precheck(b: Record<string, unknown>): { error: SignupResult } | { name: string; contact?: string } {
+    const c = this.o.control?.();
+    if (!this.isOpen()) return { error: this.fail(503, "SIGNUP_CLOSED", `sign-up is closed${c?.reason ? `: ${c.reason}` : ""}`) };
+    if (this.today() >= this.cap()) return { error: this.fail(503, "SIGNUP_FULL", "today's sign-ups are used up; try again tomorrow", 3600) };
+    if (b.accept_terms !== true || b.terms_version !== this.o.termsVersion) return { error: this.fail(400, "TERMS_NOT_ACCEPTED", `accept the terms (version ${this.o.termsVersion}${this.o.termsUrl ? `, at ${this.o.termsUrl}` : ""}) with accept_terms: true and terms_version`) };
+    const name = typeof b.name === "string" ? b.name : "";
+    if (!NAME_RE.test(name)) return { error: this.fail(400, "BAD_NAME", "the name is 3 to 32 characters: a lower-case letter first, then lower-case letters, digits and hyphens") };
+    if (RESERVED.has(name)) return { error: this.fail(400, "NAME_TAKEN", `the name ${name} is not available`) };
+    const contact = b.contact === undefined ? undefined : typeof b.contact === "string" && b.contact.length <= 120 && !/[\u0000-\u001f]/.test(b.contact) ? b.contact : null;
+    if (contact === null) return { error: this.fail(400, "BAD_CONTACT", "contact is a line of at most 120 characters") };
+    return { name, ...(contact ? { contact } : {}) };
+  }
+
+  /**
+   * Sign-up with a verified Google account (the browser flow, src/google.ts): no proof of work, because a Google account is the cost, but the same terms, name,
+   * address and day limits, and at most `perGoogleAccount` tenants for one Google account (a parent may hold one for each child). The person has declared that
+   * they are an adult, or a parent or guardian signing up for a young person.
+   */
+  registerVerified(address: string, body: unknown, google: { sub: string; email: string }): SignupResult {
+    const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+    const p = this.precheck(b);
+    if ("error" in p) return p.error;
+    if (b.declaration !== "adult_or_guardian") return this.fail(400, "DECLARATION_MISSING", "confirm that you are an adult, or a parent or guardian signing up for a young person");
+    const limit = this.o.perGoogleAccount ?? 3;
+    if (this.o.tenants().filter((t) => t.signup?.google?.sub === google.sub).length >= limit) return this.fail(429, "GOOGLE_LIMIT", `one Google account may hold at most ${limit} tenants`);
+    return this.issue(address, p.name, p.contact, { google, declaration: "adult_or_guardian" });
+  }
+
   register(address: string, body: unknown): SignupResult {
     const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
-    const c = this.o.control?.();
-    if (!this.isOpen()) return this.fail(503, "SIGNUP_CLOSED", `sign-up is closed${c?.reason ? `: ${c.reason}` : ""}`);
-    if (this.today() >= this.cap()) return this.fail(503, "SIGNUP_FULL", "today's sign-ups are used up; try again tomorrow", 3600);
-    if (b.accept_terms !== true || b.terms_version !== this.o.termsVersion) return this.fail(400, "TERMS_NOT_ACCEPTED", `accept the terms (version ${this.o.termsVersion}${this.o.termsUrl ? `, at ${this.o.termsUrl}` : ""}) with accept_terms: true and terms_version`);
-    const name = typeof b.name === "string" ? b.name : "";
-    if (!NAME_RE.test(name)) return this.fail(400, "BAD_NAME", "the name is 3 to 32 characters: a lower-case letter first, then lower-case letters, digits and hyphens");
-    if (RESERVED.has(name)) return this.fail(400, "NAME_TAKEN", `the name ${name} is not available`);
-    const contact = b.contact === undefined ? undefined : typeof b.contact === "string" && b.contact.length <= 120 && !/[\u0000-\u001f]/.test(b.contact) ? b.contact : null;
-    if (contact === null) return this.fail(400, "BAD_CONTACT", "contact is a line of at most 120 characters");
+    if (this.o.anonymous === false) return this.fail(403, "GOOGLE_REQUIRED", `sign-up needs a verified Google account: open ${this.o.joinUrl ?? "the service's /join page"} in a browser`);
+    const pre = this.precheck(b);
+    if ("error" in pre) return pre.error;
+    const { name, contact } = pre;
     // The proof of work: the challenge must be ours, for this address, unexpired and not used before, and the nonce must solve it.
     const m = /^([0-9a-f]{24})\.(\d+)\.([0-9a-f]{64})$/.exec(typeof b.challenge === "string" ? b.challenge : "");
     if (!m) return this.fail(400, "BAD_CHALLENGE", "fetch a challenge first (GET /signup/challenge) and send it back with the nonce");
@@ -136,16 +166,22 @@ export class Signup {
     this.used.set(salt, expires);
     for (const [k, e] of this.used) if (e < this.now()) this.used.delete(k);
 
+    return this.issue(address, name, contact, {});
+  }
+
+  /** The last checks (this address, the name) and the tenant itself, with its token shown once. */
+  private issue(address: string, name: string, contact: string | undefined, extra: { google?: { sub: string; email: string }; declaration?: "adult_or_guardian" }): SignupResult {
     const hash = addressHash(address);
     if (this.sinceDay().filter((t) => t.signup!.addressHash === hash).length >= this.perAddress) return this.fail(429, "ADDRESS_LIMIT", `at most ${this.perAddress} sign-ups a day from one address`, 3600);
     if (this.o.tenants().some((t) => t.name === name)) return this.fail(409, "NAME_TAKEN", `the name ${name} is not available`);
 
     const token = randomBytes(32).toString("base64url");
     const starting = { ...DEFAULT_STARTING, ...this.o.starting };
+    const at = new Date(this.now()).toISOString().replace(/\.\d{3}Z$/, "Z");
     this.o.add({
       name, role: "tenant", tokenSha256: hashToken(token), quotaBytes: starting.quotaBytes, recordQuota: starting.recordQuota, byteQuota: starting.byteQuota,
-      rateLimitPerMinute: starting.rateLimitPerMinute, createdAt: new Date(this.now()).toISOString().replace(/\.\d{3}Z$/, "Z"),
-      signup: { at: new Date(this.now()).toISOString().replace(/\.\d{3}Z$/, "Z"), addressHash: hash, termsVersion: this.o.termsVersion, ...(contact ? { contact } : {}) },
+      rateLimitPerMinute: starting.rateLimitPerMinute, createdAt: at,
+      signup: { at, addressHash: hash, termsVersion: this.o.termsVersion, ...(contact ? { contact } : {}), ...(extra.google ? { google: extra.google } : {}), ...(extra.declaration ? { declaration: extra.declaration } : {}) },
     });
     return { ok: true, tenant: name, token, quotas: starting, termsVersion: this.o.termsVersion };
   }

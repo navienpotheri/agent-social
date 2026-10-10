@@ -12,3 +12,4 @@ export { postgresHandle } from "./postgres-handle.ts";
 export { Limits, clientAddress, type LimitOptions, type Verdict } from "./limits.ts";
 export { UsageStore, type Usage } from "./usage.ts";
 export { DEFAULT_STARTING, Signup, addressHash, leadingZeroBits, powOk, solveChallenge, type SignupChallenge, type SignupInfo, type SignupOptions, type SignupResult } from "./signup.ts";
+export { GoogleSignIn, type GoogleOptions, type JoinForm } from "./google.ts";

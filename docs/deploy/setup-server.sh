@@ -6,6 +6,8 @@
 #   DOMAIN   the name the service answers on (default log.thedeeptransformation.com; its DNS A record must point at this server first)
 #   BRANCH   the git branch to deploy (default event-log)
 #   SIGNUP_DAILY_CAP  sign-ups a day in all (default 100)
+#   GOOGLE_CLIENT_ID  the Google OAuth client id: turns on sign-up with Google at /join, and makes it the only way to sign up. The client secret is NOT passed here:
+#                     put it in /etc/asp/asp.env as GOOGLE_CLIENT_SECRET=... (see docs/deploy/README.md), then run this script again.
 set -euo pipefail
 
 DOMAIN="${DOMAIN:-log.thedeeptransformation.com}"
@@ -100,6 +102,15 @@ if [ ! -f "$DATA/tokens.json" ]; then
   echo
 fi
 
+GOOGLE_FLAGS=""
+if [ -n "${GOOGLE_CLIENT_ID:-}" ]; then
+  if grep -q '^GOOGLE_CLIENT_SECRET=.\+' "$ETC/asp.env"; then
+    GOOGLE_FLAGS="--google-client-id $GOOGLE_CLIENT_ID --google-redirect-uri https://$DOMAIN/auth/callback --signup-require-google"
+  else
+    echo "NOTE: GOOGLE_CLIENT_ID is set but $ETC/asp.env has no GOOGLE_CLIENT_SECRET, so sign-up with Google is NOT turned on yet"
+  fi
+fi
+
 echo "==> systemd service"
 cat > /etc/systemd/system/asp-log.service <<UNIT
 [Unit]
@@ -114,7 +125,8 @@ WorkingDirectory=$APP
 EnvironmentFile=$ETC/asp.env
 ExecStart=/usr/bin/node $APP/packages/asp-cli/bin/asp.mjs serve --db \${DATABASE_URL} --tokens $DATA/tokens.json --host 127.0.0.1 --port 8787 --trust-proxy \\
   --packages $DATA/packages --commons $DATA/commons --known-bad $DATA/known-bad \\
-  --signup --signup-terms-url https://$DOMAIN/terms --signup-terms-version 2026-10 --signup-daily-cap $SIGNUP_DAILY_CAP
+  --signup --signup-terms-url https://$DOMAIN/terms --signup-terms-version 2026-10 --signup-daily-cap $SIGNUP_DAILY_CAP \\
+  --public-url https://$DOMAIN $GOOGLE_FLAGS
 Restart=always
 RestartSec=3
 NoNewPrivileges=true
@@ -149,6 +161,7 @@ $DOMAIN {
 		rewrite * /privacy.html
 		file_server
 	}
+	redir / /join 302
 	handle {
 		reverse_proxy 127.0.0.1:8787
 	}

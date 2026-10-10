@@ -14,6 +14,8 @@ import { createServer as createHttpsServer } from "node:https";
 import { Limits, clientAddress, type LimitOptions, type Verdict } from "./limits.ts";
 import { UsageStore } from "./usage.ts";
 import type { Signup } from "./signup.ts";
+import type { GoogleSignIn } from "./google.ts";
+import { joinDone, joinError, joinForm } from "./join-page.ts";
 import type { AppendResult } from "./log.ts";
 import type { EventLog } from "./log.ts";
 import type { AspRecord } from "@agent-social/asp-core";
@@ -42,7 +44,7 @@ export interface Tenant {
   suspended?: { at: string; reason?: string };
   createdAt?: string;
   /** Set on a tenant that signed itself up (src/signup.ts): when, a hash of the address, the terms it accepted and an unverified contact line. */
-  signup?: { at: string; addressHash: string; termsVersion: string; contact?: string };
+  signup?: { at: string; addressHash: string; termsVersion: string; contact?: string; google?: { sub: string; email: string }; declaration?: "adult_or_guardian" };
 }
 
 export const hashToken = (token: string): string => createHash("sha256").update(token).digest("hex");
@@ -59,6 +61,10 @@ export interface ServerOptions {
   handle: LogHandle;
   /** Self-serve sign-up (GET /signup, GET /signup/challenge, POST /signup), open to anyone who can reach the service. Absent means no sign-up. */
   signup?: Signup;
+  /** The browser sign-up with a verified Google account (/join and /auth/callback); needs `signup`. */
+  google?: GoogleSignIn;
+  /** The service's public address (https://log.example.org), for the pages and the terms links. */
+  publicUrl?: string;
   tenants?: Tenant[];
   /** Where to read the tenants from on each request, instead of `tenants`: lets an operator suspend or add a tenant without a restart. */
   tenantSource?: () => Tenant[];
@@ -131,6 +137,42 @@ export function createLogServer(opts: ServerOptions): Server {
       if (opts.blocked?.().includes(address)) return json(res, 403, { ok: false, error: { code: "BLOCKED", message: "this address is blocked by the operator" } });
       if (limits) { const v = limits.checkAddress(address); if (!v.ok) return tooMany(res, v); }
       if (req.method === "GET" && req.url === "/health") return json(res, 200, { ok: true });
+      if (opts.signup && opts.google && (req.url === "/join" || (req.url ?? "").startsWith("/auth/callback"))) {
+        const secure = !!opts.tls || !!opts.trustProxy;
+        const page = (status: number, body: string, extra: Record<string, string> = {}) => {
+          res.writeHead(status, {
+            "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff",
+            "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://accounts.google.com; base-uri 'none'; frame-ancestors 'none'", ...extra,
+          });
+          res.end(body);
+        };
+        const info = opts.signup.info();
+        const base = opts.publicUrl ?? "";
+        const termsUrl = info.termsUrl, privacyUrl = termsUrl ? termsUrl.replace(/\/terms$/, "/privacy") : undefined;
+        const form = (extra: { error?: string; name?: string } = {}) => joinForm({ termsVersion: info.termsVersion, termsUrl, privacyUrl, open: info.open, reason: info.reason, ...extra });
+        if (req.method === "GET" && req.url === "/join") return page(200, form());
+        if (req.method === "POST" && req.url === "/join") {
+          const q = new URLSearchParams(await readBody(req, 8 * 1024).catch(() => ""));
+          const name = q.get("name") ?? "";
+          if (!info.open) return page(503, form());
+          if (q.get("accept_terms") !== "yes" || q.get("terms_version") !== info.termsVersion) return page(400, form({ error: "Please accept the terms to continue.", name }));
+          if (q.get("declaration") !== "adult_or_guardian") return page(400, form({ error: "Please confirm that you are an adult, or a parent or guardian signing up for a young person.", name }));
+          if (!/^[a-z][a-z0-9-]{2,31}$/.test(name)) return page(400, form({ error: "The name is 3 to 32 characters: lower-case letters, digits and hyphens, starting with a letter.", name }));
+          if ((opts.tenantSource?.() ?? opts.tenants ?? []).some((t) => t.name === name)) return page(409, form({ error: "That name is not available.", name }));
+          const started = opts.google.begin({ name, accept_terms: true, terms_version: info.termsVersion, declaration: "adult_or_guardian" });
+          return page(303, "", { location: started.location, "set-cookie": `asp_join=${started.nonce}; Max-Age=600; Path=/auth; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}` });
+        }
+        if (req.method === "GET") {
+          const cookie = /(?:^|;\s*)asp_join=([0-9a-f]+)/.exec(String(req.headers.cookie ?? ""))?.[1];
+          const done = await opts.google.finish(new URLSearchParams((req.url ?? "").split("?")[1] ?? ""), cookie);
+          const clear = { "set-cookie": `asp_join=; Max-Age=0; Path=/auth; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}` };
+          if (!done.ok) return page(done.status, joinError("Sign-up did not finish", done.message), clear);
+          const r = opts.signup.registerVerified(address, { ...done.form }, done.google);
+          if (!r.ok) return page(r.status, joinError("Sign-up did not finish", r.message), clear);
+          return page(201, joinDone({ tenant: r.tenant, token: r.token, service: base || `https://${req.headers.host}`, quotas: r.quotas }), clear);
+        }
+        return page(405, joinError("Not allowed", "Use the sign-up page."));
+      }
       if (opts.signup && (req.url === "/signup" || req.url === "/signup/challenge")) {
         if (req.method === "GET" && req.url === "/signup") return json(res, 200, { ok: true, ...opts.signup.info() });
         if (req.method === "GET") return json(res, 200, { ok: true, ...opts.signup.challenge(address) });

@@ -9,7 +9,9 @@
 | What | Why | Where it comes from |
 |---|---|---|
 | **Tenant name** you choose | to identify your account | you, at sign-up |
-| **Contact line** (optional, not checked) | so we can reach you about abuse or security | you, at sign-up |
+| **Google account id and verified email address** | to show that one real person holds the tenant, to limit how many tenants one person holds, and to reach you about abuse, security or your account | Google, when you sign in with Google at sign-up |
+| **Your declaration** that you are an adult, or a parent or guardian signing up for a young person | to record who holds the account (section 8) | you, at sign-up |
+| **Contact line** (optional, not checked; the command-line route only) | so we can reach you about abuse or security | you, at sign-up |
 | **A hash of your network address** (not the address itself) and the time of sign-up | to apply per-address sign-up limits and spot abuse | your connection |
 | **Terms version** you accepted and when | to show what you agreed to | you, at sign-up |
 | **Token hash** (never the token) | to check your token | generated at sign-up |
@@ -19,7 +21,7 @@
 
 We do **not** ask for your name, phone number or payment details. Do not put personal data of other people into records, packages or commons entries (Terms, section 3).
 
-When we add sign-in with Google, we will receive the details Google shares with us (such as your email address and name) only after you agree on Google's consent screen, and we will update this notice first.
+Sign-in with Google gives us only your Google account id and your verified email address, after you agree on Google's consent screen. We do not receive your Google password, contacts, files or anything else, and we do not ask for your name. Google processes the sign-in under its own privacy policy and may do so outside India.
 
 ## 2. Why we use it, and your consent
 
@@ -35,7 +37,7 @@ The log is **append-only and hash-chained**: records cannot be changed or delete
 ## 4. Who sees it
 
 - Other parties to a job, and anyone who can read the log, see the records the protocol makes visible (identities, Mandates, Actions and so on).
-- **Service providers** that run the infrastructure for us: [hosting provider], [database provider if separate], and later [mail provider] and Google for sign-in. They process data for us only to provide those services.
+- **Service providers** that run the infrastructure for us: [hosting provider], [database provider if separate], Google for sign-in, and later a mail provider. They process data for us only to provide those services.
 - We **do not sell** personal data and we do not use it for advertising profiles.
 - We may disclose data if the law requires it or to protect people from serious harm.
 
