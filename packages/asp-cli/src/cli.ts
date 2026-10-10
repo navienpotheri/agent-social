@@ -284,14 +284,14 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
-  DEFAULT_NETWORK_RATE, isNetworkScope, b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
+  DEFAULT_NETWORK_RATE, isNetworkScope, signerFromSeed, b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, accountRoutes, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, accountRoutes, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -431,6 +431,11 @@ const OPTIONS = {
   confirm: { type: "string" },
   "skip-export": { type: "boolean" },
   "starter-pool": { type: "string" },
+  "no-recovery": { type: "boolean" },
+  "by-sponsor": { type: "boolean" },
+  "passphrase-env": { type: "string" },
+  "recovery-code-env": { type: "string" },
+  "recovery-code-file": { type: "string" },
   "mail-from": { type: "string" },
   "mail-operator": { type: "string" },
   "mail-interval": { type: "string" },
@@ -555,6 +560,10 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
     if (cmd === "identity" && sub === "copy") return await identityCopy(home, rest[0] ?? v.did, v, io);
+    if (cmd === "identity" && sub === "backup") return await identityBackup(home, rest[0] ?? v.did, v, io);
+    if (cmd === "identity" && sub === "restore") return await identityRestore(home, rest[0], v, io);
+    if (cmd === "identity" && sub === "recover") return await identityRecover(home, rest[0] ?? v.did, v, io);
+    if (cmd === "identity" && sub === "recovery-check") return await identityRecoveryCheck(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "export") return await identityExport(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "register") return await identityRegister(home, rest[0], v, io);
     if (cmd === "pack") return await pack(home, v, need, io);
@@ -657,9 +666,18 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
 
   let issuerSigner: Signer & { publicKey: Uint8Array };
   let body: Record<string, unknown>;
+  // A person gets a second key, made now and shown once as a recovery code (never kept on this machine): the way back if the key here is lost (docs/key-recovery.md).
+  // An agent is recovered by its sponsor; a did:key identity cannot have one (its DID is its key).
+  let recoveryCode: string | undefined;
+  const recoveryKey: { id: string; type: "Ed25519"; public_key: string }[] = [];
+  if (kind === "human" && !v["no-recovery"] && !did.startsWith("did:key:")) {
+    const seed = randomSeed();
+    recoveryCode = recoveryCodeFor(seed);
+    recoveryKey.push({ id: `${did}#recovery-1`, type: "Ed25519", public_key: b64urlEncode(publicKeyFromSeed(seed)) });
+  }
   if (kind === "human") {
     issuerSigner = signer;
-    body = { did, kind, keys: [{ id: kid, type: "Ed25519", public_key: b64urlEncode(signer.publicKey) }] };
+    body = { did, kind, keys: [{ id: kid, type: "Ed25519", public_key: b64urlEncode(signer.publicKey) }, ...recoveryKey] };
   } else {
     const sponsor = need("sponsor");
     const sponsorSigner = keys.forDid(sponsor);
@@ -679,6 +697,14 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
   io.out(`created ${kind} ${did}`);
   io.out(`  key      ${kid} (stored in ${join(home, "keys")})`);
   io.out(`  passport ${res.id} (log seq ${res.seq})`);
+  if (recoveryCode) {
+    io.out("");
+    io.out("  RECOVERY CODE (shown once; it is not stored on this machine). Write it on paper and keep it somewhere safe, not in a photo or a notes app:");
+    io.out(`    ${recoveryCode}`);
+    io.out("  If the key on this machine is lost, this code is the only way back to this identity (asp identity recover). Anyone who has the code can act as you.");
+    io.out(`  Also make an encrypted backup of the key: asp identity backup ${did} --out <file>`);
+  } else if (kind === "human") io.out("  no recovery key: if the key on this machine is lost this identity cannot be recovered; keep a backup (asp identity backup)");
+  else io.out(`  if this agent's key is lost, its sponsor can issue a new one: asp identity recover ${did} --by-sponsor`);
   return 0;
 }
 
@@ -764,10 +790,106 @@ async function identityShow(home: string, did: string | undefined, io: Io): Prom
   if (!p) throw new Error(`no passport for ${did}`);
   const rec = (await log.get(p.head))!.record;
   const reputation = await log.reputationOf(did);
+  const passportKeys = ((rec.body as { keys?: { id: string }[] }).keys ?? []).map((k) => k.id);
+  const held = new Keystore(home).entriesFor(did).map((e) => e.kid);
   io.out(JSON.stringify({
     passport: p.head, sponsor: p.sponsor, fleet: p.fleet, body: rec.body, keys: await log.keys(did),
+    recovery: passportKeys.some((k) => k.includes("#recovery-")) ? "recovery key set" : p.sponsor ? "recoverable by its sponsor" : did.startsWith("did:key:") ? "none possible (the DID is the key)" : "NOT SET: losing the key means losing this identity",
+    keysOnThisMachine: held,
     ...(reputation ? { reputation } : {}),
   }, null, 2));
+  return 0;
+}
+
+/** The passphrase for a key backup: from an environment variable (default ASP_BACKUP_PASSPHRASE), never a flag, so it stays out of shell history. */
+function backupPassphrase(v: Values, io: Io): string {
+  const name = v["passphrase-env"] ?? "ASP_BACKUP_PASSPHRASE";
+  const p = io.env[name];
+  if (!p) throw new UsageError(`put the passphrase in the environment variable ${name} (at least ${MIN_PASSPHRASE} characters); it is read from there so it stays out of your shell history`);
+  return p;
+}
+
+/** asp identity backup <did> --out <file>: the keys held here for an identity, encrypted with a passphrase. */
+async function identityBackup(home: string, did: string | undefined, v: Values, io: Io): Promise<number> {
+  if (!did || !v.out) throw new UsageError("asp identity backup <did> --out <file>   (passphrase in ASP_BACKUP_PASSPHRASE)");
+  const entries = new Keystore(home).entriesFor(did);
+  if (!entries.length) throw new Error(`no key for ${did} is held in ${join(home, "keys")}`);
+  const file = resolve(io.cwd, v.out);
+  if (existsSync(file)) throw new Error(`${file} already exists; choose another name`);
+  writeFileSync(file, JSON.stringify(encryptKeys(did, entries, backupPassphrase(v, io), now()), null, 2) + "\n", { mode: 0o600 });
+  io.out(`${entries.length} key(s) for ${did} written to ${file}, encrypted`);
+  io.out("  keep this file and the passphrase in different places; with both, anyone can act as this identity");
+  return 0;
+}
+
+/** asp identity restore <file>: puts the keys of a backup back on this machine. */
+async function identityRestore(home: string, file: string | undefined, v: Values, io: Io): Promise<number> {
+  if (!file) throw new UsageError("asp identity restore <file>   (passphrase in ASP_BACKUP_PASSPHRASE)");
+  const backup = JSON.parse(readFileSync(resolve(io.cwd, file), "utf8"));
+  const entries = decryptKeys(backup, backupPassphrase(v, io));
+  const keys = new Keystore(home);
+  let restored = 0;
+  for (const e of entries) { if (keys.importEntry(e)) restored++; else io.out(`  ${e.kid} is already here; left as it is`); }
+  io.out(`restored ${restored} key(s) for ${backup.did}`);
+  return 0;
+}
+
+/** The recovery code from the environment or a file, never a flag. */
+function recoveryCodeFrom(v: Values, io: Io): string {
+  if (v["recovery-code-file"]) return readFileSync(resolve(io.cwd, v["recovery-code-file"]), "utf8");
+  const name = v["recovery-code-env"] ?? "ASP_RECOVERY_CODE";
+  const c = io.env[name];
+  if (!c) throw new UsageError(`put the recovery code in the environment variable ${name} (or a file: --recovery-code-file), so it stays out of your shell history`);
+  return c;
+}
+
+/**
+ * asp identity recover <did> [--by-sponsor]: replaces a lost key with a new one. A person uses the recovery code (a second key in their passport); an agent's sponsor can
+ * issue the new key instead (--by-sponsor, with the sponsor's key on this machine). The passport update drops every old key but the recovery key, and the log revokes them,
+ * and the person's live node keys with them.
+ */
+async function identityRecover(home: string, did: string | undefined, v: Values, io: Io): Promise<number> {
+  if (!did) throw new UsageError("asp identity recover <did> [--by-sponsor]   (recovery code in ASP_RECOVERY_CODE or --recovery-code-file)");
+  const log = await openLog(home, logEnv);
+  const p = await log.log.passport(did);
+  if (!p) throw new Error(`no passport for ${did}`);
+  const body = (await log.log.get(p.head))!.record.body as { keys: { id: string; type: string; public_key: string }[]; sponsor?: string };
+  const keys = new Keystore(home);
+  const n = 1 + Math.max(0, ...body.keys.map((k) => Number(/#key-(\d+)$/.exec(k.id)?.[1] ?? 0)), ...keys.entriesFor(did).map((e) => Number(/#key-(\d+)$/.exec(e.kid)?.[1] ?? 0)));
+  let issuer: string, signer: Signer & { publicKey: Uint8Array };
+  if (v["by-sponsor"]) {
+    if (!body.sponsor) throw new Error(`${did} has no sponsor, so a sponsor cannot recover it; use its recovery code`);
+    const s = keys.forDid(body.sponsor);
+    if (!s) throw new Error(`no key for the sponsor ${body.sponsor} on this machine; restore it first (asp identity restore)`);
+    issuer = body.sponsor; signer = s;
+  } else {
+    const rec = body.keys.find((k) => k.id.includes("#recovery-"));
+    if (!rec) throw new Error(`${did}'s passport has no recovery key (it was made without one), so it cannot be recovered with a code${body.sponsor ? "; its sponsor can: --by-sponsor" : ""}`);
+    const seed = seedFromRecoveryCode(recoveryCodeFrom(v, io));
+    if (b64urlEncode(publicKeyFromSeed(seed)) !== rec.public_key) throw new Error("this recovery code is not the one for this identity");
+    issuer = did; signer = signerFromSeed(rec.id, seed);
+  }
+  const fresh = keys.create(`${did}#key-${n}`);
+  const newBody = { ...body, keys: [{ id: fresh.kid, type: "Ed25519", public_key: b64urlEncode(fresh.publicKey) }, ...body.keys.filter((k) => k.id.includes("#recovery-"))] };
+  const record = createRecord({ type: "passport", issuer, subject: did, prev: p.head, body: newBody, issued_at: now() }, signer);
+  const res = await log.append(record);
+  io.out(`recovered ${did}: new key ${fresh.kid} (stored in ${join(home, "keys")}); the old key is revoked`);
+  io.out(`  passport ${res.id} (log seq ${res.seq})`);
+  io.out("  make a fresh backup now: asp identity backup " + did + " --out <file>");
+  return 0;
+}
+
+/** asp identity recovery-check <did>: proves the recovery code you wrote down is the right one, signing nothing. */
+async function identityRecoveryCheck(home: string, did: string | undefined, v: Values, io: Io): Promise<number> {
+  if (!did) throw new UsageError("asp identity recovery-check <did>   (recovery code in ASP_RECOVERY_CODE or --recovery-code-file)");
+  const log = await openLog(home, logEnv);
+  const p = await log.log.passport(did);
+  if (!p) throw new Error(`no passport for ${did}`);
+  const rec = ((await log.log.get(p.head))!.record.body as { keys: { id: string; public_key: string }[] }).keys.find((k) => k.id.includes("#recovery-"));
+  if (!rec) throw new Error(`${did} has no recovery key`);
+  const seed = seedFromRecoveryCode(recoveryCodeFrom(v, io));
+  if (b64urlEncode(publicKeyFromSeed(seed)) !== rec.public_key) { io.out("this recovery code is NOT the one for this identity"); return 1; }
+  io.out(`the recovery code matches ${did}'s recovery key; nothing was signed`);
   return 0;
 }
 
@@ -1025,6 +1147,7 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io): Promise<n
     io.out(`tenant ${a.tenant.name} (${a.tenant.role})${a.tenant.signup?.google?.email ? `, signed up with ${a.tenant.signup.google.email}` : ""}`);
     io.out(`  records written: ${a.usage?.records ?? 0} (${a.usage?.bytes ?? 0} bytes); agent identities written as: ${a.dids.length ? a.dids.join(", ") : "none"}`);
     io.out(`  packages: ${a.packages.length}; commons: ${a.commons.entries} entries, ${a.commons.reviews} reviews, ${a.commons.citations} citations`);
+    for (const i of a.identities ?? []) io.out(`  ${i.did}: ${i.recovery === "recovery key" ? "key loss recoverable with its recovery code" : i.recovery === "sponsor" ? "key loss recoverable by its sponsor" : i.recovery === "none" ? "NO RECOVERY: if its key is lost the identity is lost (make a backup: asp identity backup)" : "recovery unknown"}`);
     io.out(`  starter credits: ${a.starter.state === "claimed" ? `claimed (${a.starter.amount})` : a.starter.state === "available" ? `available: ${a.starter.perDid} each for up to ${a.starter.maxDids} of your identities (asp account starter --did <principal>,<agent>)` : `not available: ${a.starter.reason}`}`);
     return 0;
   }

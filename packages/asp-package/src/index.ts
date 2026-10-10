@@ -46,3 +46,4 @@ export { commonsOfDids, purgeCommons } from "./commons.ts";
 export { claimStarter, starterStatus } from "./account.ts";
 export { FileTransport, MemoryTransport, ResendTransport, RetryableMailError, newMailSecret, unsubscribeOk, unsubscribeToken, verifySvix, type MailTransport, type OutMail } from "./mail-send.ts";
 export { ServiceMailer, mailPublicRoutes, type MailerOptions } from "./service-mailer.ts";
+export { MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, type KeyBackup, type KeyEntry } from "./recovery.ts";

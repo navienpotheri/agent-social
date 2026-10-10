@@ -72,6 +72,19 @@ export function tombstoneOf(t: Tenant, now: Date): Tenant {
   };
 }
 
+/** For each identity the tenant has written as: whether losing its key can be undone (a recovery key in its passport, or a sponsor for an agent). */
+export async function identityRecovery(o: AccountOptions, dids: string[]): Promise<{ did: string; kind?: string; recovery: "recovery key" | "sponsor" | "none" | "unknown" }[]> {
+  const out: { did: string; kind?: string; recovery: "recovery key" | "sponsor" | "none" | "unknown" }[] = [];
+  for (const did of dids) {
+    const p = await o.handle.log.passport(did).catch(() => undefined);
+    const rec = p ? await o.handle.log.get(p.head).catch(() => undefined) : undefined;
+    const b = rec?.record.body as { kind?: string; sponsor?: string; keys?: { id: string }[] } | undefined;
+    if (!b) { out.push({ did, recovery: "unknown" }); continue; }
+    out.push({ did, ...(b.kind ? { kind: b.kind } : {}), recovery: (b.keys ?? []).some((k) => k.id.includes("#recovery-")) ? "recovery key" : b.sponsor ? "sponsor" : "none" });
+  }
+  return out;
+}
+
 /** What a tenant can do about starter credits: already claimed, available, or why not. */
 export function starterStatus(o: AccountOptions, t: Tenant): { state: "claimed" | "available" | "unavailable"; amount?: number; reason?: string; perDid: number; maxDids: number; poolLeft?: number } {
   const base = { perDid: STARTER_PER_DID, maxDids: STARTER_MAX_DIDS, ...(o.starter ? { poolLeft: o.starter.left } : {}) };
@@ -145,7 +158,7 @@ export function accountRoutes(o: AccountOptions) {
       const d = await accountData(o, me);
       send(res, 200, {
         ok: true, tenant: tenantView(me), usage: d.usage, dids: d.dids, packages: d.packages, commons: { entries: d.commons.entries.length, reviews: d.commons.reviews.length, citations: d.commons.citations.length },
-        starter: starterStatus(o, me),
+        starter: starterStatus(o, me), identities: await identityRecovery(o, d.dids),
       });
       return true;
     }

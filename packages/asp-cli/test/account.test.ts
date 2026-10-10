@@ -127,3 +127,29 @@ test("account: a tenant sees what the service holds, exports all of it, and clos
     server.kill();
   }
 });
+
+test("account show tells which of a tenant's identities can survive a lost key", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "asp-account-recovery-"));
+  const tokens = join(dir, "tokens.json");
+  const tok = (await run(["serve", "token", "--tokens", tokens, "--tenant", "team-r"])).out.trim().split("\n").at(-1)!;
+  const server = spawn(process.execPath, [cli, "serve", "--db", `local:${join(dir, "log")}`, "--tokens", tokens, "--port", "0"], { stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    const url = await new Promise<string>((resolve, reject) => {
+      let buf = "";
+      server.stdout.on("data", (d) => { buf += d; const m = /listening on (http:\/\/[^ ]+)/.exec(buf); if (m) resolve(m[1]); });
+      server.on("close", () => reject(new Error(`the service exited: ${buf}`)));
+      setTimeout(() => reject(new Error(`no start line: ${buf}`)), 20_000);
+    });
+    const env = { ASP_LOG_URL: url, ASP_LOG_TOKEN: tok };
+    const f = makeFixture();
+    await asp(f, ["identity", "new", "--kind", "human", "--did", A_HUMAN], env);
+    await asp(f, ["identity", "new", "--kind", "agent", "--did", A_AGENT, "--sponsor", A_HUMAN], env);
+    await asp(f, ["identity", "new", "--kind", "human", "--did", "did:web:example.com:users:bare", "--no-recovery"], env);
+    const show = await asp(f, ["account", "show"], env);
+    assert.match(show.out, /users:alice: key loss recoverable with its recovery code/);
+    assert.match(show.out, /agents:alice-coder: key loss recoverable by its sponsor/);
+    assert.match(show.out, /users:bare: NO RECOVERY: if its key is lost the identity is lost/);
+  } finally {
+    server.kill();
+  }
+});

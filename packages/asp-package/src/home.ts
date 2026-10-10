@@ -43,6 +43,23 @@ export class Keystore {
     return signerFromSeed(kid, Buffer.from(seed_hex, "hex"));
   }
 
+  /** Every key held for a DID (not its node keys), as stored: for a backup. */
+  entriesFor(did: string): { kid: string; seed_hex: string }[] {
+    if (!existsSync(this.dir)) return [];
+    return readdirSync(this.dir)
+      .map((f) => JSON.parse(readFileSync(join(this.dir, f), "utf8")) as { kid: string; seed_hex: string })
+      .filter((e) => didOf(e.kid) === did && !e.kid.includes("#node-"))
+      .sort((a, b) => a.kid.localeCompare(b.kid));
+  }
+
+  /** Puts a key back from a backup; false when a key with that name is already here (nothing is overwritten). */
+  importEntry(entry: { kid: string; seed_hex: string }): boolean {
+    if (this.find(entry.kid)) return false;
+    mkdirSync(this.dir, { recursive: true });
+    writeFileSync(join(this.dir, `${slug(entry.kid)}.json`), JSON.stringify({ kid: entry.kid, seed_hex: entry.seed_hex }, null, 2), { mode: 0o600 });
+    return true;
+  }
+
   /** The first key held for a DID (keys are named <did>#key-N). */
   forDid(did: string): (Signer & { publicKey: Uint8Array }) | undefined {
     if (!existsSync(this.dir)) return undefined;

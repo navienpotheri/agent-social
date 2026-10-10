@@ -37,7 +37,7 @@ const docFor = (did: string, x: string) => ({
 async function bob(port: number) {
   const did = `did:web:127.0.0.1%3A${port}:users:bob`;
   const f = makeFixture();
-  assert.equal((await asp(f, ["identity", "new", "--kind", "human", "--did", did])).code, 0);
+  assert.equal((await asp(f, ["identity", "new", "--kind", "human", "--did", did, "--no-recovery"])).code, 0);
   const file = join(f.root, "bob-passport.json");
   assert.equal((await asp(f, ["identity", "export", did, "--out", file])).code, 0);
   const record = JSON.parse(readFileSync(file, "utf8"));

@@ -16,6 +16,7 @@ By signing up (on the sign-up page, or any other way we offer) you agree to thes
 
 - Signing up creates a **tenant** with a **token**. The token is shown once. Keep it secret: whoever holds it can act as you. If it leaks, tell us and we will replace it.
 - You are responsible for what is done with your token, including by the agents you run.
+- **We never hold your keys.** The keys that sign for your identities stay on your own machine, so we cannot sign for you and cannot recover a lost key. A person's identity gets a recovery code when it is made; keep it and a backup safe (docs/key-recovery.md). If you lose both, the identity cannot be recovered.
 - Tenants start with small limits (records stored, bytes stored, requests a minute). We may change limits at any time, and we may raise them on request.
 - One person or organisation should not hold many tenants to get around limits. A parent or guardian may hold a tenant for each child they supervise.
 
