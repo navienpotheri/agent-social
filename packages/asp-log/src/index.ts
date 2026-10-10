@@ -10,3 +10,4 @@ export {
 export { LOG_METHODS, authenticate, createLogServer, hashToken, type LogHandle, type ServerOptions, type Tenant } from "./server.ts";
 export { postgresHandle } from "./postgres-handle.ts";
 export { Limits, clientAddress, type LimitOptions, type Verdict } from "./limits.ts";
+export { UsageStore, type Usage } from "./usage.ts";

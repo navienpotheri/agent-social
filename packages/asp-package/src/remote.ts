@@ -41,7 +41,8 @@ export class RemoteLog implements LogHandle {
     try { body = await res.json(); } catch { throw new Error(`the log service at ${this.url} answered ${res.status} with no JSON`); }
     if (body.ok) return body.undefined ? undefined : body.result;
     const e = body.error ?? {};
-    if (res.status === 401 || res.status === 403) throw new Error(`the log service refused the request: ${e.message ?? res.status} (set ASP_LOG_TOKEN)`);
+    if (res.status === 401) throw new Error(`the log service refused the request: ${e.message ?? res.status} (set ASP_LOG_TOKEN)`);
+    if (res.status === 403) throw new Error(`the log service refused the request: ${e.message ?? res.status}${e.code ? ` (${e.code})` : ""}`);
     if (e.name === "AspError" && e.code) throw new AspError(e.code as AspErrorCode, String(e.message).replace(/^[A-Z_]+: /, ""), e.detail);
     throw new Error(e.message ?? `the log service answered ${res.status}`);
   }

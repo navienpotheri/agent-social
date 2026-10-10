@@ -24,6 +24,10 @@
  *     The ASP log service: one shared log behind HTTP (docs/spec-deltas.md S48). --db is a Postgres connection string
  *     or local:<dir> (a file log). Clients use it with ASP_LOG_URL=http://host:port and ASP_LOG_TOKEN=<token>; their keys
  *     stay local and the service re-verifies every record. --no-auth is only for a service on 127.0.0.1.
+ *   asp serve suspend|resume --tokens <file> --tenant <name> [--reason <text>] | block|unblock --tokens <file> --address <ip> [--minutes n] [--reason <text>] | usage --tokens <file>
+ *     What an operator does to a running service (it reads the tokens file and the block list <file>.blocked.json on each request, so no restart): a suspended tenant
+ *     is refused with SUSPENDED; a blocked address with BLOCKED. The service counts each tenant's records and bytes in <file>.usage.json and refuses a write past the
+ *     quota (--record-quota, default 100000, and --byte-quota-mb, default 256 on serve; per tenant on serve token; admins have none) with QUOTA_EXCEEDED.
  *   asp serve ... --packages <dir>   also stores each tenant's agent packages under <dir> (docs/spec-deltas.md S51).
  *   asp serve ... --known-bad <dir>   also holds the known-bad list (docs/spec-deltas.md S54): command fingerprints an upheld report found harmful.
  *   asp gateway --contract <id> --by <agent did> (--openai-upstream <base url> | --anthropic-upstream <origin>) [--openai-key-env NAME] [--anthropic-key-env NAME] [--max-strikes n] [--token-cap n] [--approval-wait s] [--port n] [-- <command> ...]
@@ -267,8 +271,8 @@ import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
-import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { createLogServer, hashToken, postgresHandle, type Tenant } from "@agent-social/asp-log";
+import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createLogServer, hashToken, postgresHandle, UsageStore, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -390,6 +394,11 @@ const OPTIONS = {
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
   "no-run-log": { type: "boolean" },
+  "record-quota": { type: "string" },
+  "byte-quota-mb": { type: "string" },
+  address: { type: "string" },
+  minutes: { type: "string" },
+  reason: { type: "string" },
   "tls-cert": { type: "string" },
   "tls-key": { type: "string" },
   "rate-limit": { type: "string" },
@@ -529,6 +538,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
+    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "serve") return await serve(v, need, io);
     if (cmd === "watch") return await watch(home, v, io);
     if (cmd === "eval" && sub === "run") return await evalRun(rest[0], v, io);
@@ -835,10 +845,65 @@ async function serveToken(v: Values, need: Need, io: Io): Promise<number> {
   const token = b64urlEncode(randomSeed());
   const quotaMb = v["quota-mb"] === undefined ? undefined : Number(v["quota-mb"]);
   if (quotaMb !== undefined && !(quotaMb > 0)) throw new UsageError("--quota-mb must be a positive number");
-  tenants.push({ name, role, tokenSha256: hashToken(token), ...(quotaMb ? { quotaBytes: Math.round(quotaMb * 1024 * 1024) } : {}), createdAt: now() });
+  const recordQuota = v["record-quota"] === undefined ? undefined : Number(v["record-quota"]);
+  const byteQuotaMb = v["byte-quota-mb"] === undefined ? undefined : Number(v["byte-quota-mb"]);
+  if (recordQuota !== undefined && !(Number.isInteger(recordQuota) && recordQuota >= 0)) throw new UsageError("--record-quota must be a whole number, 0 or more (0 for no limit)");
+  if (byteQuotaMb !== undefined && !(byteQuotaMb >= 0)) throw new UsageError("--byte-quota-mb must be a number, 0 or more (0 for no limit)");
+  tenants.push({
+    name, role, tokenSha256: hashToken(token), ...(quotaMb ? { quotaBytes: Math.round(quotaMb * 1024 * 1024) } : {}),
+    ...(recordQuota !== undefined ? { recordQuota } : {}), ...(byteQuotaMb !== undefined ? { byteQuota: Math.round(byteQuotaMb * 1024 * 1024) } : {}),
+    ...(v["rate-limit"] !== undefined ? { rateLimitPerMinute: Math.trunc(Number(v["rate-limit"])) } : {}), createdAt: now(),
+  });
   writeFileSync(file, JSON.stringify(tenants, null, 2) + "\n");
   io.out(`token for ${name} (${role}), shown once, only its hash is stored in ${file}:`);
   io.out(token);
+  return 0;
+}
+
+const DEFAULT_RECORD_QUOTA = 100_000;
+const DEFAULT_BYTE_QUOTA_MB = 256;
+
+/** asp serve suspend|resume|block|unblock|usage: what an operator does to a running service (it picks the change up without a restart). */
+async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<number> {
+  const file = need("tokens");
+  if (!existsSync(file)) throw new Error(`${file} does not exist`);
+  const tenants: Tenant[] = JSON.parse(readFileSync(file, "utf8"));
+  const save = (data: unknown, path = file) => writeFileSync(path, JSON.stringify(data, null, 2) + "\n");
+  if (sub === "suspend" || sub === "resume") {
+    const name = need("tenant");
+    const t = tenants.find((x) => x.name === name);
+    if (!t) throw new Error(`no tenant called ${name} in ${file}`);
+    if (sub === "suspend") t.suspended = { at: now(), ...(v.reason ? { reason: v.reason } : {}) }; else delete t.suspended;
+    save(tenants);
+    io.out(sub === "suspend" ? `${name} is suspended${v.reason ? `: ${v.reason}` : ""}; every request it makes is refused until you resume it` : `${name} is resumed`);
+    return 0;
+  }
+  const blockedPath = `${file}.blocked.json`;
+  if (sub === "block" || sub === "unblock") {
+    const address = need("address");
+    const list: { address: string; at: string; until?: string; reason?: string }[] = existsSync(blockedPath) ? JSON.parse(readFileSync(blockedPath, "utf8")) : [];
+    const rest = list.filter((b) => b.address !== address);
+    if (sub === "block") {
+      const minutes = v.minutes === undefined ? undefined : Number(v.minutes);
+      if (minutes !== undefined && !(minutes > 0)) throw new UsageError("--minutes must be a positive number");
+      rest.push({ address, at: now(), ...(minutes ? { until: new Date(Date.now() + minutes * 60_000).toISOString() } : {}), ...(v.reason ? { reason: v.reason } : {}) });
+    }
+    save(rest, blockedPath);
+    io.out(sub === "block" ? `${address} is blocked${v.minutes ? ` for ${v.minutes} minute(s)` : " until you unblock it"}` : `${address} is unblocked`);
+    return 0;
+  }
+  // usage
+  const used = new UsageStore(`${file}.usage.json`).all();
+  const recordDefault = v["record-quota"] === undefined ? DEFAULT_RECORD_QUOTA : Math.trunc(Number(v["record-quota"]));
+  const byteDefault = Math.round((v["byte-quota-mb"] === undefined ? DEFAULT_BYTE_QUOTA_MB : Number(v["byte-quota-mb"])) * 1048576);
+  for (const t of tenants) {
+    const u = used[t.name] ?? { records: 0, bytes: 0 };
+    const rq = t.role === "admin" ? 0 : t.recordQuota ?? recordDefault;
+    const bq = t.role === "admin" ? 0 : t.byteQuota ?? byteDefault;
+    io.out(`  ${t.name.padEnd(16)} ${t.role.padEnd(7)} ${String(u.records).padStart(8)} / ${rq || "no limit"} records   ${(u.bytes / 1048576).toFixed(2)} MB / ${bq ? `${Math.round(bq / 1048576)} MB` : "no limit"}${t.suspended ? `   SUSPENDED${t.suspended.reason ? `: ${t.suspended.reason}` : ""}` : ""}`);
+  }
+  const blockedNow = existsSync(blockedPath) ? (JSON.parse(readFileSync(blockedPath, "utf8")) as { address: string; until?: string }[]).filter((b) => !b.until || Date.parse(b.until) > Date.now()) : [];
+  io.out(`${tenants.length} tenant(s); ${blockedNow.length} blocked address(es)${blockedNow.length ? `: ${blockedNow.map((b) => b.address).join(", ")}` : ""}`);
   return 0;
 }
 
@@ -871,6 +936,22 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     tenantPerMinute: num("rate-limit", 600), appendPerMinute: num("write-limit", 120), addressPerMinute: num("address-limit", 1200),
     maxInFlight: num("max-in-flight", 16), failedAuthMax: num("max-failed-auth", 10),
   };
+  // What an operator changes while the service runs (O2): the tenants file (suspend, resume, new tokens), the block list, and the usage counts.
+  const watched = <T,>(file: string, parse: (text: string) => T, empty: T) => {
+    let stamp = "", value = empty;
+    return () => {
+      try { const st = statSync(file); const k = `${st.mtimeMs}:${st.size}`; if (k !== stamp) { value = parse(readFileSync(file, "utf8")); stamp = k; } } catch { if (!existsSync(file)) { value = empty; stamp = ""; } }
+      return value;
+    };
+  };
+  const tenantSource = !noAuth ? watched<Tenant[]>(v.tokens!, (t) => JSON.parse(t), tenants) : undefined;
+  const blockedFile = !noAuth ? `${v.tokens}.blocked.json` : undefined;
+  const blockedList = blockedFile ? watched<{ address: string; until?: string }[]>(blockedFile, (t) => JSON.parse(t), []) : undefined;
+  const blocked = blockedList ? () => blockedList().filter((b) => !b.until || Date.parse(b.until) > Date.now()).map((b) => b.address) : undefined;
+  const usage = new UsageStore(!noAuth ? `${v.tokens}.usage.json` : undefined);
+  const defaultRecordQuota = v["record-quota"] === undefined ? DEFAULT_RECORD_QUOTA : Math.trunc(Number(v["record-quota"]));
+  const defaultByteQuota = Math.round((v["byte-quota-mb"] === undefined ? DEFAULT_BYTE_QUOTA_MB : Number(v["byte-quota-mb"])) * 1024 * 1024);
+  if (!(defaultRecordQuota >= 0) || !(defaultByteQuota >= 0)) throw new UsageError("--record-quota and --byte-quota-mb must be 0 or more (0 for no limit)");
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
   const routes = [
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
@@ -878,11 +959,12 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(v["known-bad"] ? [knownBadRoutes({ root: resolve(v["known-bad"]) })] : []),
   ];
   const extra = routes.length ? async (req: any, res: any, ctx: any) => { for (const r of routes) if (await r(req, res, ctx)) return true; return false; } : undefined;
-  const server = createLogServer({ handle, tenants, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  const server = createLogServer({ handle, tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
   io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
   io.out(`  limits per minute: ${limits.tenantPerMinute || "no limit"} requests and ${limits.appendPerMinute || "no limit"} writes per tenant, ${limits.addressPerMinute || "no limit"} per address; ${limits.maxInFlight || "no"} in flight; lockout after ${limits.failedAuthMax || "never"} failed sign-ins`);
+  io.out(`  quota per tenant (admins have none): ${defaultRecordQuota || "no limit"} records, ${defaultByteQuota ? `${Math.round(defaultByteQuota / 1048576)} MB` : "no limit"} of records; suspend, resume, block and unblock take effect without a restart (asp serve usage shows the counts)`);
   if (!tls && !loopback) io.out("  warning  plain HTTP on a network address: TLS must be terminated in front of this service");
   await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
   server.close();

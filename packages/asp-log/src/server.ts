@@ -12,6 +12,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
 import { Limits, clientAddress, type LimitOptions, type Verdict } from "./limits.ts";
+import { UsageStore } from "./usage.ts";
 import type { AppendResult } from "./log.ts";
 import type { EventLog } from "./log.ts";
 import type { AspRecord } from "@agent-social/asp-core";
@@ -33,6 +34,11 @@ export interface Tenant {
   quotaBytes?: number;
   /** Requests per minute for this tenant, replacing the service's default. */
   rateLimitPerMinute?: number;
+  /** Records this tenant may write to the log, and bytes of them, replacing the service's defaults (0 for no limit). Admins have none. */
+  recordQuota?: number;
+  byteQuota?: number;
+  /** Set when an operator suspended the tenant: every request is refused with SUSPENDED until it is resumed. */
+  suspended?: { at: string; reason?: string };
   createdAt?: string;
 }
 
@@ -49,6 +55,14 @@ const ADMIN_HANDLE_METHODS = new Set(["mint"]);
 export interface ServerOptions {
   handle: LogHandle;
   tenants?: Tenant[];
+  /** Where to read the tenants from on each request, instead of `tenants`: lets an operator suspend or add a tenant without a restart. */
+  tenantSource?: () => Tenant[];
+  /** Addresses refused outright (an operator's block list), read on each request. */
+  blocked?: () => string[];
+  /** Counts of what each tenant has written, and the defaults a tenant without its own quota gets (0 for none). Without a store nothing is counted. */
+  usage?: UsageStore;
+  defaultRecordQuota?: number;
+  defaultByteQuota?: number;
   /** No tokens needed. Only for a service bound to 127.0.0.1. */
   noAuth?: boolean;
   /** Largest request body, bytes (default 4 MB). */
@@ -82,12 +96,12 @@ async function readBody(req: IncomingMessage, max: number): Promise<string> {
 
 const NO_AUTH_TENANT: Tenant = { name: "local", tokenSha256: "", role: "admin" };
 
-export function authenticate(req: IncomingMessage, opts: Pick<ServerOptions, "tenants" | "noAuth">): Tenant | undefined {
+export function authenticate(req: IncomingMessage, opts: Pick<ServerOptions, "tenants" | "tenantSource" | "noAuth">): Tenant | undefined {
   if (opts.noAuth) return NO_AUTH_TENANT;
   const m = /^Bearer\s+(\S+)$/.exec(String(req.headers.authorization ?? ""));
   if (!m) return undefined;
   const given = Buffer.from(hashToken(m[1]), "hex");
-  for (const t of opts.tenants ?? []) {
+  for (const t of opts.tenantSource?.() ?? opts.tenants ?? []) {
     const want = Buffer.from(t.tokenSha256, "hex");
     if (want.length === given.length && timingSafeEqual(want, given)) return t;
   }
@@ -109,6 +123,7 @@ export function createLogServer(opts: ServerOptions): Server {
     try {
       if (opts.tls) res.setHeader("strict-transport-security", "max-age=31536000");
       const address = clientAddress(req, !!opts.trustProxy);
+      if (opts.blocked?.().includes(address)) return json(res, 403, { ok: false, error: { code: "BLOCKED", message: "this address is blocked by the operator" } });
       if (limits) { const v = limits.checkAddress(address); if (!v.ok) return tooMany(res, v); }
       if (req.method === "GET" && req.url === "/health") return json(res, 200, { ok: true });
       const tenant = authenticate(req, opts);
@@ -116,6 +131,7 @@ export function createLogServer(opts: ServerOptions): Server {
         limits?.authFailed(address);
         return json(res, 401, { ok: false, error: { code: "UNAUTHORIZED", message: "a valid bearer token is required" } });
       }
+      if (tenant.suspended) return json(res, 403, { ok: false, error: { code: "SUSPENDED", message: `this tenant is suspended${tenant.suspended.reason ? `: ${tenant.suspended.reason}` : ""}` } });
       if (limits) {
         const v = limits.checkTenant(tenant.name, tenant.rateLimitPerMinute);
         if (!v.ok) return tooMany(res, v);
@@ -132,9 +148,19 @@ export function createLogServer(opts: ServerOptions): Server {
       const { target, method } = call;
       const args = Array.isArray(call.args) ? call.args : [];
       let fn: ((...a: unknown[]) => unknown) | undefined;
-      if (limits && target === "handle" && typeof method === "string" && TENANT_HANDLE_METHODS.has(method)) {
+      const isWrite = target === "handle" && typeof method === "string" && TENANT_HANDLE_METHODS.has(method);
+      if (limits && isWrite) {
         const v = limits.checkWrite(tenant.name);
         if (!v.ok) return tooMany(res, v);
+      }
+      // A tenant's quota on what it has written (admins have none): refused before the call runs, and not worth repeating.
+      const incoming = isWrite ? { records: method === "importRecords" ? ((args[0] as unknown[] | undefined)?.length ?? 0) : 1, bytes: JSON.stringify(args).length } : undefined;
+      if (opts.usage && incoming && tenant.role !== "admin") {
+        const used = opts.usage.get(tenant.name);
+        const recordQuota = tenant.recordQuota ?? opts.defaultRecordQuota ?? 0;
+        const byteQuota = tenant.byteQuota ?? opts.defaultByteQuota ?? 0;
+        if (recordQuota > 0 && used.records + incoming.records > recordQuota) return json(res, 403, { ok: false, error: { code: "QUOTA_EXCEEDED", message: `this tenant has used its quota of ${recordQuota} records (${used.records} written)` } });
+        if (byteQuota > 0 && used.bytes + incoming.bytes > byteQuota) return json(res, 403, { ok: false, error: { code: "QUOTA_EXCEEDED", message: `this tenant has used its quota of ${byteQuota} bytes of records (${used.bytes} written)` } });
       }
       if (target === "log" && typeof method === "string" && LOG_METHODS.has(method)) fn = (opts.handle.log as any)[method]?.bind(opts.handle.log);
       else if (target === "handle" && typeof method === "string" && TENANT_HANDLE_METHODS.has(method)) fn = (opts.handle as any)[method]?.bind(opts.handle);
@@ -145,6 +171,7 @@ export function createLogServer(opts: ServerOptions): Server {
       if (!fn) return json(res, 404, { ok: false, error: { code: "UNKNOWN_METHOD", message: `${target}.${method} is not available` } });
       try {
         const result = await fn(...args);
+        if (opts.usage && incoming) opts.usage.add(tenant.name, method === "importRecords" ? ((result as { imported?: number } | undefined)?.imported ?? incoming.records) : 1, incoming.bytes);
         return json(res, 200, result === undefined ? { ok: true, undefined: true } : { ok: true, result });
       } catch (e) {
         const err = e as { name?: string; code?: string; detail?: string; message?: string };
@@ -156,6 +183,7 @@ export function createLogServer(opts: ServerOptions): Server {
     }
   };
   const server = (opts.tls ? createHttpsServer({ cert: opts.tls.cert, key: opts.tls.key }, handler) : createServer(handler)) as unknown as Server;
+  server.on("close", () => opts.usage?.flush());
   server.requestTimeout = 60_000;
   server.headersTimeout = 15_000;
   return server;
