@@ -14,6 +14,7 @@ import { createServer as createHttpsServer } from "node:https";
 import { Limits, clientAddress, type LimitOptions, type Verdict } from "./limits.ts";
 import { UsageStore } from "./usage.ts";
 import type { Signup } from "./signup.ts";
+import type { OwnerStore } from "./owners.ts";
 import type { GoogleSignIn } from "./google.ts";
 import { joinDone, joinError, joinForm } from "./join-page.ts";
 import type { AppendResult } from "./log.ts";
@@ -45,6 +46,8 @@ export interface Tenant {
   createdAt?: string;
   /** Set on a tenant that signed itself up (src/signup.ts): when, a hash of the address, the terms it accepted and an unverified contact line. */
   signup?: { at: string; addressHash: string; termsVersion: string; contact?: string; google?: { sub: string; email: string }; declaration?: "adult_or_guardian" };
+  /** Set when the tenant closed its account: the token is gone and so is everything personal except what is kept for abuse handling until `retainUntil`. */
+  closed?: { at: string; retainUntil: string };
 }
 
 export const hashToken = (token: string): string => createHash("sha256").update(token).digest("hex");
@@ -72,6 +75,8 @@ export interface ServerOptions {
   blocked?: () => string[];
   /** Counts of what each tenant has written, and the defaults a tenant without its own quota gets (0 for none). Without a store nothing is counted. */
   usage?: UsageStore;
+  /** Which DIDs each tenant has written as, learned from the records it appends (src/owners.ts). */
+  owners?: OwnerStore;
   defaultRecordQuota?: number;
   defaultByteQuota?: number;
   /** No tokens needed. Only for a service bound to 127.0.0.1. */
@@ -113,6 +118,7 @@ export function authenticate(req: IncomingMessage, opts: Pick<ServerOptions, "te
   if (!m) return undefined;
   const given = Buffer.from(hashToken(m[1]), "hex");
   for (const t of opts.tenantSource?.() ?? opts.tenants ?? []) {
+    if (t.closed || !t.tokenSha256) continue;
     const want = Buffer.from(t.tokenSha256, "hex");
     if (want.length === given.length && timingSafeEqual(want, given)) return t;
   }
@@ -233,6 +239,11 @@ export function createLogServer(opts: ServerOptions): Server {
       if (!fn) return json(res, 404, { ok: false, error: { code: "UNKNOWN_METHOD", message: `${target}.${method} is not available` } });
       try {
         const result = await fn(...args);
+        if (opts.owners && isWrite) {
+          // The signer of each record, and the identity a record is about (a sponsor's passport for its agent names the agent as the subject).
+          const recs = method === "importRecords" ? ((args[0] as { record?: { issuer?: string; subject?: string } }[] | undefined) ?? []).map((x) => x?.record) : [args[0] as { issuer?: string; subject?: string } | undefined];
+          opts.owners.add(tenant.name, recs.flatMap((r) => [r?.issuer, r?.subject]).filter((x): x is string => typeof x === "string" && x.startsWith("did:")));
+        }
         if (opts.usage && incoming) opts.usage.add(tenant.name, method === "importRecords" ? ((result as { imported?: number } | undefined)?.imported ?? incoming.records) : 1, incoming.bytes);
         return json(res, 200, result === undefined ? { ok: true, undefined: true } : { ok: true, result });
       } catch (e) {
@@ -245,7 +256,7 @@ export function createLogServer(opts: ServerOptions): Server {
     }
   };
   const server = (opts.tls ? createHttpsServer({ cert: opts.tls.cert, key: opts.tls.key }, handler) : createServer(handler)) as unknown as Server;
-  server.on("close", () => opts.usage?.flush());
+  server.on("close", () => { opts.usage?.flush(); opts.owners?.flush(); });
   server.requestTimeout = 60_000;
   server.headersTimeout = 15_000;
   return server;

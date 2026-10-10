@@ -278,7 +278,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget, runtimeTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { createLogServer, GoogleSignIn, hashToken, postgresHandle, Signup, solveChallenge, UsageStore, type Tenant } from "@agent-social/asp-log";
+import { createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, UsageStore, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -291,7 +291,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, accountRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -428,6 +428,8 @@ const OPTIONS = {
   service: { type: "string" },
   contact: { type: "string" },
   "accept-terms": { type: "boolean" },
+  confirm: { type: "string" },
+  "skip-export": { type: "boolean" },
   "allow-plain-http": { type: "boolean" },
   "link-base": { type: "string" },
   once: { type: "boolean" },
@@ -563,8 +565,9 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
-    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage", "signups", "signup-open", "signup-close", "signup-cap"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
+    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "signup") return await signupCmd(v, io);
+    if (cmd === "account") return await accountCmd(sub, v, io);
     if (cmd === "serve") return await serve(v, need, io);
     if (cmd === "watch") return await watch(home, v, io);
     if (cmd === "eval" && sub === "run") return await evalRun(rest[0], v, io);
@@ -891,6 +894,77 @@ async function collectWatchActions(local: LogHandle): Promise<WatchAction[]> {
   return actions;
 }
 
+/**
+ * asp account show | export [--out <dir>] | close --confirm <tenant> [--skip-export] [--out <dir>] (an admin adds --tenant <name>): a tenant's own data on the service named by
+ * ASP_LOG_URL and ASP_LOG_TOKEN. Export writes account.json, records.ndjson, commons.json, the packages and a README; close exports first (unless --skip-export), then deletes.
+ */
+async function accountCmd(sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const url = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
+  if (!url || !token) throw new UsageError("set ASP_LOG_URL and ASP_LOG_TOKEN to the service and your token");
+  const base = url.endsWith("/") ? url : url + "/";
+  const call = async (path: string, init: RequestInit = {}) => {
+    const res = await fetchRetry(new URL(path, base), { ...init, headers: { ...(init.headers ?? {}), authorization: `Bearer ${token}` } });
+    return res;
+  };
+  const json = async (path: string, init?: RequestInit) => {
+    const res = await call(path, init);
+    const body = (await res.json().catch(() => undefined)) as any;
+    if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? `the service answered ${res.status} to ${path}`);
+    return body;
+  };
+  if (sub === "show") {
+    const a = await json("account");
+    io.out(`tenant ${a.tenant.name} (${a.tenant.role})${a.tenant.signup?.google?.email ? `, signed up with ${a.tenant.signup.google.email}` : ""}`);
+    io.out(`  records written: ${a.usage?.records ?? 0} (${a.usage?.bytes ?? 0} bytes); agent identities written as: ${a.dids.length ? a.dids.join(", ") : "none"}`);
+    io.out(`  packages: ${a.packages.length}; commons: ${a.commons.entries} entries, ${a.commons.reviews} reviews, ${a.commons.citations} citations`);
+    return 0;
+  }
+  const exportTo = async (dir: string) => {
+    const e = await json("account/export");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "account.json"), JSON.stringify({ version: e.version, exportedAt: e.exportedAt, tenant: e.tenant, usage: e.usage, dids: e.dids, packages: e.packages, notes: e.notes }, null, 2) + "\n");
+    writeFileSync(join(dir, "records.ndjson"), e.records.map((r: unknown) => JSON.stringify(r)).join("\n") + (e.records.length ? "\n" : ""));
+    writeFileSync(join(dir, "commons.json"), JSON.stringify(e.commons, null, 2) + "\n");
+    mkdirSync(join(dir, "packages"), { recursive: true });
+    for (const p of e.packages as { name: string; sha256: string; download: string }[]) {
+      const res = await call(p.download.replace(/^\//, ""));
+      if (!res.ok) throw new Error(`could not download package ${p.name} (${res.status})`);
+      const bytes = Buffer.from(await res.arrayBuffer());
+      if (createHash("sha256").update(bytes).digest("hex") !== p.sha256) throw new Error(`package ${p.name} did not download intact`);
+      writeFileSync(join(dir, "packages", `${p.name}.aspkg.tgz`), bytes);
+    }
+    writeFileSync(join(dir, "README.txt"), [
+      `Agent Social: export of tenant ${e.tenant.name}, ${e.exportedAt}`, "",
+      "account.json     the tenant as the service holds it (without its token), usage, the agent identities you wrote as, the packages listed",
+      "records.ndjson   the signed records those identities wrote (also kept in the log, which is append-only)",
+      "commons.json     the commons entries, reviews and citations those identities made",
+      "packages/        each agent package as a .aspkg.tgz, checked against its hash",
+      "", ...e.notes,
+    ].join("\n") + "\n");
+    return e;
+  };
+  if (sub === "export") {
+    const dir = resolve(io.cwd, v.out ?? `asp-export-${now().slice(0, 10)}`);
+    const e = await exportTo(dir);
+    io.out(`exported to ${dir}: ${e.records.length} record(s), ${e.packages.length} package(s), ${e.commons.entries.length} commons entr(ies); your keys were never on the service, so keep their backups`);
+    return 0;
+  }
+  if (sub === "close") {
+    if (!v.confirm) throw new UsageError("asp account close --confirm <your tenant name> [--skip-export]: this deletes your packages and commons entries and cannot be undone (the records in the log stay)");
+    if (!v["skip-export"]) {
+      const dir = resolve(io.cwd, v.out ?? `asp-export-before-close-${now().slice(0, 10)}`);
+      const e = await exportTo(dir);
+      io.out(`exported to ${dir} first (${e.records.length} record(s), ${e.packages.length} package(s))`);
+    }
+    const r = await json("account/close", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ confirm: v.confirm, ...(v.tenant ? { tenant: v.tenant } : {}) }) });
+    io.out(`account ${r.tenant} closed: deleted ${r.deleted.packages} package(s), ${r.deleted.commonsEntries} commons entr(ies), ${r.deleted.commonsReviews} review(s) and ${r.deleted.commonsCitations} citation(s), and its token and personal details`);
+    io.out(r.stays.records);
+    io.out(`kept ${r.stays.retained}`);
+    return 0;
+  }
+  throw new UsageError("usage: asp account show | export [--out <dir>] | close --confirm <tenant name> [--skip-export] [--out <dir>]");
+}
+
 /** asp signup --service <url> --name <name> --accept-terms [--contact <line>]: gets a tenant and its token from a service that offers sign-up. */
 async function signupCmd(v: Values, io: Io): Promise<number> {
   const service = v.service ?? io.env.ASP_LOG_URL;
@@ -967,6 +1041,13 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
     if (sub === "suspend") t.suspended = { at: now(), ...(v.reason ? { reason: v.reason } : {}) }; else delete t.suspended;
     save(tenants);
     io.out(sub === "suspend" ? `${name} is suspended${v.reason ? `: ${v.reason}` : ""}; every request it makes is refused until you resume it` : `${name} is resumed`);
+    return 0;
+  }
+  if (sub === "purge") {
+    // Closed accounts keep a small tombstone for the retention period (the privacy notice); this removes the ones past it.
+    const keep = tenants.filter((t) => !t.closed || Date.parse(t.closed.retainUntil) > Date.now());
+    if (keep.length !== tenants.length) save(keep);
+    io.out(`${tenants.length - keep.length} closed account(s) past their retention period removed; ${keep.filter((t) => t.closed).length} still kept`);
     return 0;
   }
   if (sub.startsWith("signup")) {
@@ -1056,6 +1137,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const blockedList = blockedFile ? watched<{ address: string; until?: string }[]>(blockedFile, (t) => JSON.parse(t), []) : undefined;
   const blocked = blockedList ? () => blockedList().filter((b) => !b.until || Date.parse(b.until) > Date.now()).map((b) => b.address) : undefined;
   const usage = new UsageStore(!noAuth ? `${v.tokens}.usage.json` : undefined);
+  const owners = new OwnerStore(!noAuth ? `${v.tokens}.dids.json` : undefined);
   const defaultRecordQuota = v["record-quota"] === undefined ? DEFAULT_RECORD_QUOTA : Math.trunc(Number(v["record-quota"]));
   const defaultByteQuota = Math.round((v["byte-quota-mb"] === undefined ? DEFAULT_BYTE_QUOTA_MB : Number(v["byte-quota-mb"])) * 1024 * 1024);
   if (!(defaultRecordQuota >= 0) || !(defaultByteQuota >= 0)) throw new UsageError("--record-quota and --byte-quota-mb must be 0 or more (0 for no limit)");
@@ -1090,13 +1172,25 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     } else if (v["signup-require-google"]) throw new UsageError("--signup-require-google needs --google-client-id");
   }
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
+  // A tenant's own data (blocker 1): look at it, export it, close the account. The tenants file is rewritten whole, so a tenant an operator added meanwhile is kept.
+  const accountRoute = !noAuth ? accountRoutes({
+    handle, owners, usage, ...(v.packages ? { packagesRoot: resolve(v.packages) } : {}), ...(v.commons ? { commonsRoot: resolve(v.commons) } : {}), tenants: tenantSource!,
+    closeTenant: (name, tombstone) => {
+      const file = v.tokens!;
+      const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];
+      const tmp = `${file}.${process.pid}.tmp`;
+      writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? tombstone : t)), null, 2) + "\n");
+      renameSync(tmp, file);
+    },
+  }) : undefined;
   const routes = [
+    ...(accountRoute ? [accountRoute] : []),
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
     ...(v.commons ? [commonsRoutes({ root: resolve(v.commons), handle })] : []),
     ...(v["known-bad"] ? [knownBadRoutes({ root: resolve(v["known-bad"]) })] : []),
   ];
   const extra = routes.length ? async (req: any, res: any, ctx: any) => { for (const r of routes) if (await r(req, res, ctx)) return true; return false; } : undefined;
-  const server = createLogServer({ handle, ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  const server = createLogServer({ handle, owners, ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
   io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);

@@ -29,6 +29,9 @@ export class UsageStore {
     this.save();
   }
 
+  /** Forgets a tenant's counts (its account closed). */
+  remove(name: string): void { if (this.data[name]) { delete this.data[name]; this.flush(); } }
+
   private save(): void {
     if (!this.path || this.timer) return;
     this.timer = setTimeout(() => { this.timer = undefined; this.flush(); }, 1000);

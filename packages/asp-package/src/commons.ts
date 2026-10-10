@@ -16,7 +16,7 @@
  *   GET  /commons/entries/<id>                                        the entry, its reviews and citations
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { b64urlDecode, b64urlEncode, canonicalBytes, didOf, sha256Id, signBytes, verifyBytes, type Signer } from "@agent-social/asp-core";
 import type { LogHandle, Tenant } from "@agent-social/asp-log";
@@ -181,4 +181,56 @@ export function commonsRoutes(opts: { root: string; handle: LogHandle }) {
     refuse(res, 404, "NOT_FOUND", "POST /commons/entries|reviews|citations, GET /commons/entries[/<id>]");
     return true;
   };
+}
+
+/** What the given DIDs have put in the commons: the entries they wrote, and the reviews and citations they made (on any entry). For an account export. */
+export function commonsOfDids(root: string, dids: readonly string[]): { entries: Signed<CommonsEntryBody>[]; reviews: Signed<CommonsReviewBody>[]; citations: Signed<CommonsCitationBody>[] } {
+  const mine = new Set(dids);
+  const out = { entries: [] as Signed<CommonsEntryBody>[], reviews: [] as Signed<CommonsReviewBody>[], citations: [] as Signed<CommonsCitationBody>[] };
+  out.entries = readAll<Signed<CommonsEntryBody>>(join(root, "entries")).filter((e) => mine.has(e.author));
+  for (const kind of ["reviews", "citations"] as const) {
+    const base = join(root, kind);
+    if (!existsSync(base)) continue;
+    for (const d of readdirSync(base)) {
+      for (const doc of readAll<Signed<CommonsReviewBody> | Signed<CommonsCitationBody>>(join(base, d))) {
+        if (doc.kind === "review" && mine.has(doc.reviewer)) out.reviews.push(doc);
+        if (doc.kind === "citation" && mine.has(doc.citer)) out.citations.push(doc);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Deletes what the given DIDs put in the commons (an account closing): their entries, together with the reviews and citations others made of those entries
+ * (they point at something that no longer exists), and the reviews and citations they made on other people's entries. Returns how many of each were removed.
+ */
+export function purgeCommons(root: string, dids: readonly string[]): { entries: number; reviews: number; citations: number } {
+  const mine = new Set(dids);
+  const count = { entries: 0, reviews: 0, citations: 0 };
+  const entries = join(root, "entries");
+  for (const f of existsSync(entries) ? readdirSync(entries).filter((n) => n.endsWith(".json")) : []) {
+    const e = JSON.parse(readFileSync(join(entries, f), "utf8")) as Signed<CommonsEntryBody>;
+    if (!mine.has(e.author)) continue;
+    const stem = f.slice(0, -5);
+    for (const kind of ["reviews", "citations"] as const) {
+      const dir = join(root, kind, stem);
+      if (existsSync(dir)) { count[kind] += readdirSync(dir).length; rmSync(dir, { recursive: true, force: true }); }
+    }
+    rmSync(join(entries, f), { force: true });
+    count.entries++;
+  }
+  for (const kind of ["reviews", "citations"] as const) {
+    const base = join(root, kind);
+    if (!existsSync(base)) continue;
+    for (const d of readdirSync(base)) {
+      const dir = join(base, d);
+      for (const f of readdirSync(dir).filter((n) => n.endsWith(".json"))) {
+        const doc = JSON.parse(readFileSync(join(dir, f), "utf8")) as Signed<CommonsReviewBody> | Signed<CommonsCitationBody>;
+        const who = doc.kind === "review" ? doc.reviewer : doc.citer;
+        if (mine.has(who)) { rmSync(join(dir, f), { force: true }); count[kind]++; }
+      }
+    }
+  }
+  return count;
 }

@@ -143,7 +143,7 @@ export class Signup {
     if ("error" in p) return p.error;
     if (b.declaration !== "adult_or_guardian") return this.fail(400, "DECLARATION_MISSING", "confirm that you are an adult, or a parent or guardian signing up for a young person");
     const limit = this.o.perGoogleAccount ?? 3;
-    if (this.o.tenants().filter((t) => t.signup?.google?.sub === google.sub).length >= limit) return this.fail(429, "GOOGLE_LIMIT", `one Google account may hold at most ${limit} tenants`);
+    if (this.o.tenants().filter((t) => t.signup?.google?.sub === google.sub && !t.closed).length >= limit) return this.fail(429, "GOOGLE_LIMIT", `one Google account may hold at most ${limit} tenants`);
     return this.issue(address, p.name, p.contact, { google, declaration: "adult_or_guardian" });
   }
 

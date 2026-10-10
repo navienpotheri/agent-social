@@ -52,3 +52,9 @@ Everything else stays in the register as it is: the other partial and open rows 
 ## Keeping this page honest
 
 When a blocker is closed, change its row here to say so, with the commit and the evidence (a test, or a line in docs/live-run-checklist.md). When the first live run finds something new, add it here and to the register on the same day.
+
+## Progress
+
+| # | Blocker | Status | Evidence |
+|---|---|---|---|
+| 1 | Account export and deletion | **Built, not yet live on the hosted server.** `asp account show|export|close`, operator close on request, tombstones purged after 12 months, retention in the setup script, the permanent-records limit in the terms and privacy notice. Left in U9: a browser page for it, hiding a record by mistake, a deletion receipt | S95; packages/asp-cli/test/account.test.ts; docs/live-run-checklist.md (local only) |

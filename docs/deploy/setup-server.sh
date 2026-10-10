@@ -170,17 +170,23 @@ CADDY
 systemctl enable caddy
 systemctl reload caddy || systemctl restart caddy
 
-echo "==> nightly database backup (7 days kept)"
+echo "==> nightly database backup (35 days kept, as the privacy notice says)"
 cat > /usr/local/bin/asp-backup <<'BACKUP'
 #!/usr/bin/env bash
 set -euo pipefail
 f=/var/backups/asp/asp-$(date -u +%Y%m%d-%H%M).sql.gz
 sudo -u postgres pg_dump asp | gzip > "$f"
 tar -czf "/var/backups/asp/asp-files-$(date -u +%Y%m%d-%H%M).tgz" -C /var/lib/asp tokens.json packages commons known-bad 2>/dev/null || true
-find /var/backups/asp -type f -mtime +7 -delete
+find /var/backups/asp -type f -mtime +35 -delete
 BACKUP
 chmod 755 /usr/local/bin/asp-backup
 echo "17 2 * * * root /usr/local/bin/asp-backup" > /etc/cron.d/asp-backup
+
+echo "==> retention: closed-account tombstones after 12 months, request logs after 90 days"
+echo "41 2 * * * asp /usr/bin/node $APP/packages/asp-cli/bin/asp.mjs serve purge --tokens $DATA/tokens.json >> $DATA/purge.log 2>&1" > /etc/cron.d/asp-purge
+install -d /etc/systemd/journald.conf.d
+printf '[Journal]\nMaxRetentionSec=90day\n' > /etc/systemd/journald.conf.d/asp-retention.conf
+systemctl restart systemd-journald
 
 echo "==> checks"
 sleep 4

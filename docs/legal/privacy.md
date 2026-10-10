@@ -52,7 +52,7 @@ Data is stored on a server in Mumbai, India. Google processes the sign-in itself
 
 ## 6. Your rights
 
-Under the DPDP Act you may ask us to: tell you what data we hold and how it is used; correct or complete it; erase it (subject to section 3 and to legal duties); give you a grievance route; and nominate someone to exercise these rights if you die or cannot. Write to the contact above. If we do not resolve a complaint, you may complain to the Data Protection Board of India once it is operating.
+Under the DPDP Act you may ask us to: tell you what data we hold and how it is used; correct or complete it; erase it (subject to section 3 and to legal duties); give you a grievance route; and nominate someone to exercise these rights if you die or cannot. You can do the first three yourself with the command line: `asp account show` (what we hold), `asp account export` (all of it, as files you keep) and `asp account close` (deletes your packages and commons entries, your token and your personal details; see section 3 for what stays). Or write to the contact above and we will do it for you. If we do not resolve a complaint, you may complain to the Data Protection Board of India once it is operating.
 
 ## 7. Security
 
