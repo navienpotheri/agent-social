@@ -283,7 +283,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
-  b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
+  DEFAULT_NETWORK_RATE, isNetworkScope, b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
@@ -453,6 +453,7 @@ const OPTIONS = {
   "network-host": { type: "string", multiple: true },
   "network-rate-per-host": { type: "string" },
   "network-rate-total": { type: "string" },
+  "network-rate-unlimited": { type: "boolean" },
   "spend-cap": { type: "string" },
   summary: { type: "string" },
   about: { type: "string" },
@@ -574,6 +575,18 @@ type Values = {
 type Need = (name: keyof typeof OPTIONS) => string;
 
 /** The Mandate's `network` object from `--network-host` and `--network-rate-per-host` / `--network-rate-total`. */
+/**
+ * The Mandate's `network` field. A network scope with no rate named gets the default rate (gap H15) unless --network-rate-unlimited says otherwise (the log
+ * refuses that for a tier 1 or 2 agent); a Mandate with no network scope and no network flags has none.
+ */
+function networkField(v: Values, scopes: string[]): { network?: ReturnType<typeof networkOf> } {
+  const named = v["network-host"]?.length || v["network-rate-per-host"] !== undefined || v["network-rate-total"] !== undefined;
+  const wantsNetwork = scopes.some(isNetworkScope);
+  if (!named && !wantsNetwork) return {};
+  const n = networkOf(v);
+  if (!n.rate && wantsNetwork && !v["network-rate-unlimited"]) n.rate = { ...DEFAULT_NETWORK_RATE };
+  return n.hosts || n.rate ? { network: n } : {};
+}
 function networkOf(v: Values): { hosts?: string[]; rate?: { per_host_per_minute?: number; total_per_minute?: number } } {
   const whole = (name: "network-rate-per-host" | "network-rate-total"): number | undefined => {
     if (v[name] === undefined) return undefined;
@@ -1419,8 +1432,12 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const gwHosts = (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
   runLog?.event("run_start", { contract, agent: by, scopes: mandate.scopes, ...(gwHosts ? { hosts: gwHosts } : {}), command: command.join(" "), assurance: v.sandbox ? "sandbox" : "gateway" });
   if (runLog) io.err(`  run log  ${runLog.path}`);
+  // H13: a sandbox whose Mandate names hosts or a rate has no network of its own; the gateway is an egress proxy that enforces them on its connections.
+  const gwNet = (mandateRecord?.record.body as { network?: { hosts?: string[]; rate?: unknown } } | undefined)?.network;
+  const egressProxy = (v.sandbox ?? false) && policyNeedsNetwork(mandate.scopes) && !!(gwNet?.hosts?.length || gwNet?.rate);
   const gw = createGateway({
     ...(runLog ? { runLog } : {}),
+    ...(egressProxy ? { egress: true } : {}),
     ...(gate ? { gate } : {}),
     mcp: { asp: { memoryDir: memDir, ...(commons ? { commons } : {}) }, upstreams },
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
@@ -1451,7 +1468,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       backend = "docker";
     }
   }
-  const sandboxNet = sandbox && policyNeedsNetwork(mandate.scopes);
+  const sandboxNet = sandbox && policyNeedsNetwork(mandate.scopes) && !egressProxy;
   const socketDir = join(gwRunDir, "sock");
   const RELAY_PORT = 18080;
   const sandboxImage = v["sandbox-image"] ?? "python:3.13-alpine";
@@ -1545,6 +1562,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       const agentEnv: Record<string, string> = {
         ASP_MCP_CONFIG: mcpConfig, ASP_GATEWAY_URL: base, OPENAI_BASE_URL: `${base}/v1`, OPENAI_API_BASE: `${base}/v1`, ANTHROPIC_BASE_URL: base,
         ...(v["openai-key-env"] ? { OPENAI_API_KEY: "asp-gateway" } : {}), ...(v["anthropic-key-env"] ? { ANTHROPIC_API_KEY: "asp-gateway" } : {}),
+        // The egress proxy is the sandbox's only route to a network; tools that honour the usual variables use it, and the gateway itself is not proxied.
+        ...(egressProxy ? { HTTP_PROXY: base, HTTPS_PROXY: base, ALL_PROXY: base, http_proxy: base, https_proxy: base, all_proxy: base, NO_PROXY: `127.0.0.1,localhost,${new URL(base).hostname}`, no_proxy: `127.0.0.1,localhost,${new URL(base).hostname}` } : {}),
       };
       let program = command[0];
       let programArgs = command.slice(1);
@@ -1555,7 +1574,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         program = "bwrap";
         programArgs = bwrapArgs({ projectDir, projectWritable: mandate.scopes.includes("repo.write"), network: sandboxNet, memoryDir: memDir, socketDir, relayPort: RELAY_PORT, extraBinds, env: agentEnv, home: homedir() }, command, childBase);
         spawnEnv = childBase;
-        io.err(`  sandbox  bubblewrap: ${sandboxNet ? "network kept (the Mandate grants a network scope)" : "no network; the gateway is the only way out"}; project ${mandate.scopes.includes("repo.write") ? "writable" : "read-only"}; home hidden; environment cleared`);
+        io.err(`  sandbox  bubblewrap: ${sandboxNet ? "network kept (the Mandate grants a network scope)" : egressProxy ? "no network of its own; the gateway is an egress proxy that allows only the Mandate's hosts, at its rate" : "no network; the gateway is the only way out"}; project ${mandate.scopes.includes("repo.write") ? "writable" : "read-only"}; home hidden; environment cleared`);
       }
       if (backend === "docker" && dockerRun) {
         const dockerEnv = { ...agentEnv, ASP_MCP_CONFIG: "/asp/mcp.json" };
@@ -1569,7 +1588,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
           const r = spawnSync("docker", step, { encoding: "utf8" });
           if (r.status !== 0) { io.err(`could not set up the container sandbox (docker ${step.slice(0, 2).join(" ")}): ${(r.stderr || r.stdout || "").trim().slice(0, 300)}`); for (const c of dockerRun.cleanup) spawnSync("docker", c, { stdio: "ignore" }); return done(-1); }
         }
-        io.err(`  sandbox  docker (${sandboxImage}): ${sandboxNet ? "network kept (the Mandate grants a network scope)" : "internal network; a relay container is the only way out, to the gateway"}; project ${mandate.scopes.includes("repo.write") ? "writable" : "read-only"}; read-only root; capabilities dropped; environment is only what the gateway sets`);
+        io.err(`  sandbox  docker (${sandboxImage}): ${sandboxNet ? "network kept (the Mandate grants a network scope)" : egressProxy ? "internal network; a relay container is the only way out, to the gateway's egress proxy (the Mandate's hosts, at its rate)" : "internal network; a relay container is the only way out, to the gateway"}; project ${mandate.scopes.includes("repo.write") ? "writable" : "read-only"}; read-only root; capabilities dropped; environment is only what the gateway sets`);
       }
       // --capture <file> keeps the agent's standard output (and still shows it), for evaluations that check what the agent said.
       const capturing = !!v.capture;
@@ -2329,7 +2348,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const body = {
       contract, purpose: cbody.purpose, floor: "asp.floor/v1" as const,
       scopes: v.scopes?.length ? v.scopes : ["repo.read"],
-      ...(v["network-host"]?.length || v["network-rate-per-host"] !== undefined || v["network-rate-total"] !== undefined ? { network: networkOf(v) } : {}),
+      ...networkField(v, v.scopes?.length ? v.scopes : ["repo.read"]),
       forbidden_means: [] as string[],
       spend: { cap: Math.trunc(Number(v["spend-cap"] ?? "0")), unit: "credit" as const },
       irreversible: {

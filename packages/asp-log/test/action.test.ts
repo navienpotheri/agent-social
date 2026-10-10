@@ -145,7 +145,7 @@ for (const h of [memory, postgres] as Harness[]) {
         escrow: { payer: alice.did, amount: { value: 0, unit: "credit" as const } }, slashing_conditions: ["lost_dispute" as const],
       }, contract.id, contract.id);
       await log.append(bond);
-      const mandateWith = (scopes: string[], network?: { hosts: string[] }) => rec("mandate", alice, {
+      const mandateWith = (scopes: string[], network?: { hosts?: string[]; rate?: { per_host_per_minute?: number; total_per_minute?: number } }) => rec("mandate", alice, {
         contract: contract.id, purpose: "Fix the flaky test", floor: "asp.floor/v1", scopes, ...(network ? { network } : {}), forbidden_means: [],
         spend: { unit: "credit" as const, cap: 10 }, irreversible: { policy: "checkpoint" as const },
         subcontract: { allowed: false }, nodes: { max_parallel: 1 },
@@ -154,7 +154,10 @@ for (const h of [memory, postgres] as Harness[]) {
       }, bond.id, coder.did);
       await assert.rejects(log.append(mandateWith(["repo.read", "web.read"])), /must name the hosts/);
       await assert.rejects(log.append(mandateWith(["shell.network"])), /must name the hosts/);
-      assert.equal((await log.append(mandateWith(["repo.read", "web.read"], { hosts: ["docs.python.org", "*.github.com"] }))).state, "Running");
+      // Hosts are not enough: a rate is needed too (network_rate_required).
+      await assert.rejects(log.append(mandateWith(["repo.read", "web.read"], { hosts: ["docs.python.org", "*.github.com"] })), /must limit the rate/);
+      await assert.rejects(log.append(mandateWith(["repo.read", "web.read"], { hosts: ["docs.python.org"], rate: { total_per_minute: 100 } })), /must limit the rate/);
+      assert.equal((await log.append(mandateWith(["repo.read", "web.read"], { hosts: ["docs.python.org", "*.github.com"], rate: { per_host_per_minute: 60 } }))).state, "Running");
     });
 
     test("only the contract's own performer may report an action for it", async () => {

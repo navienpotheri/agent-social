@@ -16,6 +16,7 @@ node evals/swarm.mjs                   # or any one of them directly
 |---|---|---|---|
 | `swarm.mjs` | 3 | An exploit spreading through 20 scripted agents is detected, reported, ruled on and stopped; no honest agent is stopped; the whistleblower and jurors are paid; the log verifies. `--mixed` runs the scenario with real agents. | nothing |
 | `self-report-sdk.mjs` | 5 | A Python hosted agent holding only its own key reads the live Mandate, is refused out of scope, and signs its own `self_reported` Action that the log accepts. | Python with the `python/` dependencies |
+| `sandbox-egress.mjs` | 10 | In a bubblewrap sandbox (WSL on Windows) under a Mandate that names one host and three requests a minute: the sandbox has no network of its own; through the gateway's egress proxy three requests to the listed host go through, the fourth is refused for the rate, an unlisted host is refused, and the site sees exactly three. | WSL or Linux with bwrap, python3 |
 | `sandbox-bwrap.mjs` | 5 | In a bubblewrap sandbox: no internet, no provider key, read-only project, the gateway the only way out; Action `sandbox_enforced`. On Windows it runs inside WSL. | Linux or WSL with Node, bubblewrap, python3 |
 | `sandbox-docker.mjs` | 5 | The same through Docker: an internal network and a relay container. | Docker running, `docker pull python:3.13-alpine` |
 | `gateway-open-model.mjs` | 5 | A bare tool-calling loop (no ASP code) driving an open-weight model: the disallowed call is removed before the loop sees it. | OpenRouter key |

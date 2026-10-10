@@ -15,7 +15,8 @@ import { randomUUID } from "node:crypto";
 import { lastUserText, replyText, toolResultsIn, type RunRecorder } from "./runlog.ts";
 import { RateLimiter, type NetworkRate } from "./rate.ts";
 import { requestsOf } from "./requests.ts";
-import { isNetworkScope } from "@agent-social/asp-core";
+import { hostAllowed, isNetworkScope } from "@agent-social/asp-core";
+import { attachEgress, privateAddress } from "./egress.ts";
 import { commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
@@ -34,6 +35,11 @@ export interface GatewayOptions {
   hosts?: string[];
   /** How many network calls a minute may go to any one host and in all (`network.rate`); a call over a limit is refused, without a strike. */
   rate?: NetworkRate;
+  /**
+   * Answers proxy requests (CONNECT and absolute-URI HTTP) as an egress proxy (gap H13): for an agent in a sandbox with no network of its own, the Mandate's hosts and rate
+   * are enforced on its connections too, not only on its model's tool calls. Off by default.
+   */
+  egress?: boolean;
   /** Keeps the run log (gap E2): requests, replies, tool calls and how the run ended, redacted, on this machine. */
   runLog?: RunRecorder;
   knownBad?: KnownBadRef[];
@@ -399,8 +405,10 @@ export function createGateway(opts: GatewayOptions): Gateway {
     return json(res, 200, Array.isArray(msg) ? answers : answers[0]);
   }
 
+  let egress: ReturnType<typeof attachEgress> | undefined;
   const server = createServer(async (req, res) => {
     try {
+      if (egress?.isProxy(req)) { if (stopped) { res.writeHead(403); res.end("ASP egress: the contract has ended"); return; } return await egress.forward(req, res); }
       const path = (req.url ?? "/").split("?")[0];
       if (req.method === "GET" && path === "/asp/health") return json(res, 200, { ok: true });
       if (req.method === "GET" && path === "/asp/summary") return json(res, 200, summary());
@@ -419,6 +427,42 @@ export function createGateway(opts: GatewayOptions): Gateway {
       else res.end();
     }
   });
+
+  if (opts.egress) {
+    const netScope = opts.scopes.find(isNetworkScope);
+    egress = attachEgress(server, (host, port, addresses) => {
+      const turnedAway = (reason: string) => {
+        // A connection the Mandate does not allow is a blocked attempt like a refused tool call.
+        const scope = netScope ?? "shell.network";
+        blocked.set(scope, (blocked.get(scope) ?? 0) + 1);
+        pendingBlocked.set(scope, (pendingBlocked.get(scope) ?? 0) + 1);
+        strikes++;
+        rec?.event("egress", { host, port, allowed: false, reason });
+        opts.onCall?.({ tool: "egress", scope, allowed: false, reason });
+        if (strikes >= maxStrikes) stop(`${strikes} blocked attempts in one run read as probing`);
+        return { ok: false, reason };
+      };
+      if (stopped) return { ok: false, reason: "the contract has ended" };
+      if (!netScope) return turnedAway("this job's Mandate grants no network scope");
+      if (opts.hosts && !hostAllowed(host, opts.hosts)) return turnedAway(`the host ${host} is not one this job's Mandate allows (${opts.hosts.join(", ")})`);
+      // A name the Mandate lists as an address (127.0.0.1) may be private; any other name that resolves to a private address is an attempt to reach the inside (SSRF).
+      const listed = opts.hosts?.some((h) => h.toLowerCase() === host);
+      if (!listed && addresses.some(privateAddress)) return turnedAway(`the host ${host} resolves to a private or loopback address`);
+      if (opts.rate) {
+        const v = limiter.take({ perHost: { [host]: 1 }, unknown: 0, total: 1 }, opts.rate);
+        if (!v.ok) {
+          rateLimitedTotal++; rateLimitedSince++;
+          rec?.event("egress", { host, port, allowed: false, rate_limited: true, reason: v.reason });
+          opts.onCall?.({ tool: "egress", scope: netScope, allowed: false, reason: v.reason });
+          return { ok: false, reason: v.reason };
+        }
+      }
+      used.add(netScope); pendingUsed.add(netScope);
+      rec?.event("egress", { host, port, allowed: true });
+      opts.onCall?.({ tool: "egress", scope: netScope, allowed: true });
+      return { ok: true, address: addresses.find((a) => !privateAddress(a)) ?? addresses[0] };
+    });
+  }
 
   function summary(): GatewaySummary {
     return {

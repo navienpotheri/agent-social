@@ -12,4 +12,4 @@ export {
   type AspRecord, type KeyResolver, type RecordDraft, type Signature, type Signer,
 } from "./record.ts";
 export { Job, LIFECYCLE, type JobOptions, type JobSnapshot, type JobState } from "./lifecycle.ts";
-export { hostAllowed, isNetworkScope } from "./network.ts";
+export { DEFAULT_NETWORK_RATE, hostAllowed, isNetworkScope } from "./network.ts";

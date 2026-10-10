@@ -473,6 +473,11 @@ export class EventLog {
     if (rep.tier < 3 && (granted.scopes ?? []).some(isNetworkScope) && !granted.network?.hosts?.length) {
       throw rule("network_hosts_required", `${r.subject} is tier ${rep.tier}: a Mandate that grants a network scope (${(granted.scopes ?? []).filter(isNetworkScope).join(", ")}) must name the hosts it may reach (network.hosts)`);
     }
+    // ... and a rate: a low-tier agent with network access is limited in how fast it may use it (gap H15).
+    const rate = (r.body as { network?: { rate?: { per_host_per_minute?: number } } }).network?.rate;
+    if (rep.tier < 3 && (granted.scopes ?? []).some(isNetworkScope) && rate?.per_host_per_minute === undefined) {
+      throw rule("network_rate_required", `${r.subject} is tier ${rep.tier}: a Mandate that grants a network scope (${(granted.scopes ?? []).filter(isNetworkScope).join(", ")}) must limit the rate (network.rate.per_host_per_minute)`);
+    }
     const parallelLimit = TIER_PARALLEL_LIMIT[rep.tier];
     if (parallelLimit !== undefined && nodes.max_parallel > parallelLimit) {
       throw rule("tier_limit_exceeded", `${r.subject} is tier ${rep.tier}: nodes.max_parallel may not exceed ${parallelLimit} (got ${nodes.max_parallel})`);

@@ -449,3 +449,19 @@ test("asp gateway: a Mandate with a rate limit refuses the calls over it, withou
   assert.equal(bad.code, 2);
   assert.match(bad.err, /--network-rate-per-host must be a whole number, 1 or more/);
 });
+
+test("H15: a Mandate that grants a network scope and names no rate gets the default; tier 1 and 2 cannot opt out of it", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f, ["web.read"], ["--network-host", "docs.example.org"]);
+  const { LocalLog } = await import("@agent-social/asp-package");
+  const mandate = (await (await LocalLog.open(f.aspHome)).log.since(0, 500)).map((x) => x.record).find((r) => r.type === "asp.mandate/v0.2")!;
+  assert.deepEqual((mandate.body as any).network, { hosts: ["docs.example.org"], rate: { per_host_per_minute: 60, total_per_minute: 300 } });
+  assert.equal((await asp(f, ["market", "show", contract])).code, 0);
+  // A Mandate with no network scope gets no network field.
+  const g = makeFixture();
+  await runningContract(g, ["repo.read"]);
+  const plain = (await (await LocalLog.open(g.aspHome)).log.since(0, 500)).map((x) => x.record).find((r) => r.type === "asp.mandate/v0.2")!;
+  assert.equal((plain.body as any).network, undefined);
+  // The opt-out is the principal's to ask for and the log's to refuse for a low-tier agent.
+  await assert.rejects(runningContract(makeFixture(), ["web.read"], ["--network-host", "docs.example.org", "--network-rate-unlimited"]), /must limit the rate/);
+});

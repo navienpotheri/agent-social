@@ -6,7 +6,7 @@
 // and blocks it (exit 2) unless the Mandate grants that scope, so an out-of-scope call never runs.
 // Claude Code treats any other failure of a hook as "do not block", so this hook fails CLOSED: any
 // error at all (bad input, a missing or corrupt Mandate file) blocks. It makes no network calls.
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -121,7 +121,7 @@ export function hostRefusal(scope, command, urls, hosts) {
 }
 
 // ---- Rate limits on network calls (H1, H17): a copy of RateLimiter (gateway/rate.ts). A hook is a new process for every call, so the calls of the last minute are
-// ---- kept in a file (one line a call) and counted from it. Calls that run at the same moment can each see the count before the other's line is written.
+// ---- kept in a file (one line a call) and counted from it. The ledger is locked while a call is counted, so calls that start at the same moment are counted one after the other (H16).
 const RATE_WINDOW_MS = 60_000;
 // ---- requestsOfCommand: a copy of gateway/requests.ts (test/rate.test.ts keeps the two in step on a table of commands).
 /** What a command or tool with no bound counts as. */
@@ -208,8 +208,26 @@ export function requestsOfCommand(command) {
  * The refusal reason for a network call over the Mandate's rate limit, or undefined (and the call is counted). A call counts as the requests it makes (requestsOfCommand);
  * the ledger has one line a call with its per-host counts.
  */
+/** Runs fn with the ledger locked (H16): a directory is made next to it, which only one process can do at a time; a lock older than five seconds is a crashed hook's and is taken over. */
+function withLedgerLock(ledgerPath, fn) {
+  const lock = ledgerPath + ".lock";
+  const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  const deadline = Date.now() + 3000;
+  for (;;) {
+    try { mkdirSync(lock); break; } catch (e) {
+      if (e?.code !== "EEXIST") break; // the folder is not writable: count without a lock rather than not at all
+      try { if (Date.now() - statSync(lock).mtimeMs > 5000) { rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
+      if (Date.now() > deadline) break;
+      sleep(5 + Math.floor(Math.random() * 15));
+    }
+  }
+  try { return fn(); } finally { try { rmSync(lock, { recursive: true, force: true }); } catch { /* already gone */ } }
+}
 export function rateRefusal(scope, command, urls, rate, ledgerPath, now = Date.now()) {
   if (!rate || !isNetworkScope(scope)) return undefined;
+  return withLedgerLock(ledgerPath, () => rateRefusalLocked(scope, command, urls, rate, ledgerPath, now));
+}
+function rateRefusalLocked(scope, command, urls, rate, ledgerPath, now) {
   let counts = scope === "shell.network" && command ? requestsOfCommand(command) : undefined;
   if (!counts || counts.total === 0) {
     const texts = scope === "shell.network" ? [command ?? ""] : urls.filter((u) => typeof u === "string").map((u) => (/^[a-z][a-z0-9+.-]*:\/\//i.test(u) ? u : `https://${u}`));

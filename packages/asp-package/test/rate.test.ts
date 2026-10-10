@@ -78,3 +78,22 @@ test("the hooks' copies of the request counter agree with the gateway's on the t
   assert.match(reason!, /about 8 requests to 127\.0\.0\.1.*allows 3 a minute to any one host/);
   assert.equal(claudeRefusal("shell.network", "curl -s http://127.0.0.1:9/a", [], rate, ledger, 1_000), undefined);
 });
+
+import { spawn } from "node:child_process";
+import { pathToFileURL } from "node:url";
+import { readFileSync } from "node:fs";
+
+test("H16: a burst of hook processes started at the same moment is counted one after the other, so exactly the limit gets through (both hooks)", async () => {
+  for (const hook of ["claude-code-mandate-hook.mjs", "antigravity-mandate-hook.mjs"]) {
+    const ledger = join(mkdtempSync(join(tmpdir(), "burst-")), "calls.ndjson");
+    const url = pathToFileURL(new URL(`../src/adapters/${hook}`, import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")).href;
+    const code = `import(${JSON.stringify(url)}).then((m) => { const r = m.rateRefusal("web.read", undefined, ["https://a.example/x"], { per_host_per_minute: 5 }, ${JSON.stringify(ledger)}, 1000); process.stdout.write(r === undefined ? "ok" : "refused"); });`;
+    const outs = await Promise.all(Array.from({ length: 14 }, () => new Promise<string>((resolve) => {
+      const p = spawn(process.execPath, ["-e", code], { stdio: ["ignore", "pipe", "inherit"] });
+      let out = ""; p.stdout.on("data", (d) => (out += d)); p.on("close", () => resolve(out));
+    })));
+    assert.equal(outs.filter((o) => o === "ok").length, 5, `${hook}: ${outs.join(",")}`);
+    assert.equal(outs.filter((o) => o === "refused").length, 9);
+    assert.equal(readFileSync(ledger, "utf8").trim().split("\n").length, 5, "one ledger line for each call that went through");
+  }
+});

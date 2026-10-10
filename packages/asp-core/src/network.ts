@@ -8,6 +8,12 @@ export function isNetworkScope(scope: string): boolean {
   return scope === "shell.network" || scope.startsWith("web.") || scope.startsWith("net.") || scope.startsWith("browser.");
 }
 
+/**
+ * The rate a Mandate gets when it grants a network scope and names none (gap H15): enough for ordinary work, far too little to flood a site or scan a network.
+ * Tier 1 and 2 agents must carry a rate (the log refuses a Mandate without one, `network_rate_required`); `asp market mandate` fills this in.
+ */
+export const DEFAULT_NETWORK_RATE = { per_host_per_minute: 60, total_per_minute: 300 } as const;
+
 /** A host pattern is an exact name (`api.example.com`) or a subdomain wildcard (`*.example.com`, which does not match `example.com` itself). */
 export function hostAllowed(host: string, patterns: readonly string[]): boolean {
   const h = host.toLowerCase().replace(/\.$/, "");
