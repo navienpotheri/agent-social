@@ -68,7 +68,7 @@ test("a Claude Code agent materialized for OpenHands: a shadow home with its ski
   assert.match(res.err, /on openhands \(last ran on claude-code\)/);
   assert.match(res.err, /skipped CLAUDE\.md: OpenHands already loads the project's copy/);
   assert.match(res.err, /auto-approves every action/);
-  if (process.platform === "win32") assert.match(res.err, /command\s+wsl\.exe -- bash \/mnt\/[a-z]\/\S+\/launch\.sh/);
+  if (process.platform === "win32") assert.match(res.err, /command\s+wsl\.exe -- bash "?\/mnt\/[a-z]\/\S+\/launch\.sh"?/); // quoted when the path has a character the shell would read (a short name like RUNNER~1 has one)
   const run = runDirOf(res.err);
 
   assert.ok(existsSync(join(run, "home", ".agents", "skills", "fix-flaky", "SKILL.md")), "skills are native user skills");
