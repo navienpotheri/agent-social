@@ -6,7 +6,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 
 ## Partial: built in part, with work left
 
-31 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
+30 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
 
 | ID | Gap | Priority | What is left |
 |---|---|---|---|
@@ -39,8 +39,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | E7 | The run log leaves out tool results (what a command or file read returned), MCP call arguments and results,... | B | Record tool results and MCP traffic, redacted and cut, with a link between a call and its result **Done so far (S74): the gateway records the tool results a model... |
 | E8 | The end-of-Mandate mail and the dashboard do not exist yet; the run log has no reader for a person | A | The mail and dashboard of beta flow 1 (U-series) **Done so far (S70): `asp mail preview |
 | E10 | Nothing triggers the mail when a Mandate ends (`asp mail pending` is run by hand), an expired Mandate is not... | A | A watcher that queues the mail when a job settles, and a separate short alert mail for a kill or an upheld report **Done so far (S71): `asp mail watch` queues the end... |
-| CM3 | The matrix uses one agent loop (the reference agent) and free-tier models; results for a real runtime... | B | Matrix rows for real runtimes and paid models **Done so far:** Groq, Cerebras and Gemini rows added, S65; still the reference agent only |
-| CM5 | The full model matrix is waiting on OpenRouter: the free tier allows 50 requests a day per key and the card... | B | When the credit is on: set a $10 cap on a fresh key, save it to ~/.asp-openrouter-key, rerun `node evals/model-matrix.mjs`, add one or two cheap paid models, replace... |
+| CM3 | The matrix uses one agent loop (the reference agent) and free-tier models; results for a real runtime... | B | Matrix rows for real runtimes and paid models **Done so far:** Groq, Cerebras and Gemini rows added, S65; eight paid OpenRouter models added 2026-10-10... |
 
 ## 1. Agent drift and quality
 
@@ -210,9 +209,9 @@ Added 2026-10-09 (canary and model matrix):
 |---|---|---|---|---|---|---|
 | CM1 | The canary suite is run by hand; nothing triggers it when memory is updated, the runtime is swapped, or a provider changes a model | `asp canary run --baseline` | Run it from `asp run` write-back and backend swap, and record the result as evidence on the lineage edge | S62; S63: built for `asp run` (memory update and runtime swap) with a per-agent, per-backend target; S64: the gateway and orchestrate paths and a first baseline are covered too (CM6); what remains is CM7 (certificates in the package) and CM2 to CM4 (a bigger suite) | A | closed |
 | CM2 | Six tasks are a smoke test, not coverage: no multi-step tasks, no memory-recall task, no tasks per Mandate scope, no adversarial suite | The default suite | Grow the suite; per-agent suites written by the principal; held-out tasks | S62 | B | open |
-| CM3 | The matrix uses one agent loop (the reference agent) and free-tier models; results for a real runtime (Claude Code, Codex) or paid models may differ | The canary can drive any agent that uses a model API | Matrix rows for real runtimes and paid models **Done so far:** Groq, Cerebras and Gemini rows added, S65; still the reference agent only | S62 | B | partial |
+| CM3 | The matrix uses one agent loop (the reference agent) and free-tier models; results for a real runtime (Claude Code, Codex) or paid models may differ | The canary can drive any agent that uses a model API | Matrix rows for real runtimes and paid models **Done so far:** Groq, Cerebras and Gemini rows added, S65; eight paid OpenRouter models added 2026-10-10 (gpt-oss-120b/20b, qwen3.7-flash, llama-3.1-8b, mistral-nemo, gemma-3-12b, qwen3.5-9b, nova-micro); still the reference agent only, no real runtime in the matrix | S62 | B | partial |
 | CM4 | Checks are regular expressions and counts; an answer can be correct but phrased unexpectedly, or wrong in a way a regex accepts | Several checks per task | A judge model or exact-answer tasks | S62 | B | open |
-| CM5 | The full model matrix is waiting on OpenRouter: the free tier allows 50 requests a day per key and the card for a $10 top-up is not accepted yet (it needs time). | A partial matrix (Nemotron 6/6, Laguna 4/6, two models with no data) in docs/model-matrix.md | When the credit is on: set a $10 cap on a fresh key, save it to ~/.asp-openrouter-key, rerun `node evals/model-matrix.mjs`, add one or two cheap paid models, replace docs/model-matrix.md **Done so far:** Groq, Cerebras and Gemini free tiers added, S65 | S62 | B | partial |
+| CM5 | The full model matrix was waiting on OpenRouter credit (the free tier allows 50 requests a day per key). Credit arrived 2026-10-10 and the full matrix ran: 12 OpenRouter models (4 free, 8 paid), 2 trials of 6 tasks each | docs/model-matrix.md and .json: 13 trials were lost to provider errors, all on the older Gemini rows (CM8); the whole OpenRouter run cost $0.0044 of the $10 | none | S62 | B | closed |
 
 | CM6 | The canary gate is not applied to memory written back by `asp gateway --package` or consolidated by `asp orchestrate`, and a new package has no baseline until its first change | `asp run` is gated | Gate the other two write-back paths; `asp canary baseline` on pack | S63; closed 2026-10-09 (S64): one function, applyChange, writes every change; asp run, asp gateway --package (backend name gateway) and asp orchestrate all go through it; asp canary setup --package takes the baseline at once | B | closed |
 | CM7 | The canary's certificate lives in the log, not in the package: a package alone shows that a change cites a certificate id but not its verdict | `asp canary evidence` reads the log; `asp verify` counts the citations | Carry the certificates in the package history | S63 | B | open |
