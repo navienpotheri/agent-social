@@ -232,7 +232,7 @@ export class EventLog {
 
   /** Registry rules: one passport chain per DID, issued by the DID itself or its sponsor. */
   private async projectPassport(tx: LogTx, r: AspRecord): Promise<void> {
-    const body = r.body as { did: string; kind: string; sponsor?: string; fleet?: string; keys: { id: string; public_key: string }[] };
+    const body = r.body as { did: string; kind: string; sponsor?: string; fleet?: string; tier?: number; lineage?: { edge: string; parent: string }[]; keys: { id: string; public_key: string }[] };
     const current = await tx.getPassport(body.did);
     if ((current?.head ?? null) !== r.prev) {
       throw new AspError("BAD_PREV", current
@@ -261,6 +261,7 @@ export class EventLog {
 
     const newSponsor = body.sponsor ?? sponsor;
     if (body.fleet) await this.checkFleetMembership(tx, body.did, body.kind, newSponsor, body.fleet);
+    await this.checkFork(tx, r, body, current);
 
     const declared = new Set(body.keys.map((k) => k.id));
     let rotated = false;
@@ -284,6 +285,35 @@ export class EventLog {
       });
     }
     await tx.putPassport({ did: body.did, head: r.id, sponsor: newSponsor, fleet: body.fleet ?? null });
+  }
+
+  /**
+   * A fork (S86): a passport whose `lineage` has a `fork` edge says "I am an independent copy of this agent". The claim has to be true to what the log
+   * knows: only the original's sponsor may issue it, for an agent under that same sponsor, from an agent that is not at tier 0 (so repeat slashes cannot be
+   * washed away by copying), at no higher tier than the original has now. A passport has at most one fork edge, and a later version cannot add, drop or change it.
+   */
+  private async checkFork(tx: LogTx, r: AspRecord, body: { did: string; kind: string; sponsor?: string; tier?: number; lineage?: { edge: string; parent: string }[] }, current: { head: string } | undefined): Promise<void> {
+    const forks = (body.lineage ?? []).filter((l) => l.edge === "fork").map((l) => l.parent);
+    if (current) {
+      const before = ((await tx.getRecord(current.head))?.record.body as { lineage?: { edge: string; parent: string }[] } | undefined)?.lineage ?? [];
+      const was = before.filter((l) => l.edge === "fork").map((l) => l.parent);
+      if (JSON.stringify(was) !== JSON.stringify(forks)) throw rule("fork_immutable", `${body.did}'s fork edge cannot be added, dropped or changed after its first passport`);
+      return;
+    }
+    if (!forks.length) return;
+    if (forks.length > 1) throw rule("fork_one_parent", `${body.did} is a copy of ${forks.length} agents; a copy has one original`);
+    const parent = forks[0];
+    if (body.kind !== "agent") throw rule("fork_not_agent", `only an agent can be a copy; ${body.did} is a ${body.kind}`);
+    if (parent === body.did) throw rule("fork_self", `${body.did} cannot be a copy of itself`);
+    const original = await tx.getPassport(parent);
+    const originalBody = original ? (await tx.getRecord(original.head))?.record.body as { kind?: string } | undefined : undefined;
+    if (!original || originalBody?.kind !== "agent") throw rule("fork_parent_unknown", `${parent} is not an agent in this log, so ${body.did} cannot be a copy of it`);
+    if (!original.sponsor || body.sponsor !== original.sponsor || r.issuer !== original.sponsor) {
+      throw rule("fork_needs_sponsor", `a copy of ${parent} must name its sponsor (${original.sponsor ?? "none"}) and be issued by it`);
+    }
+    const rep = await this.reputation(tx, parent);
+    if (rep && rep.tier === 0) throw rule("fork_from_excluded", `${parent} is at tier 0 (demoted by repeat slashes); its copies would be excluded too`);
+    if (rep && (body.tier ?? 1) > rep.tier) throw rule("fork_tier_above_parent", `a copy of ${parent} cannot declare tier ${body.tier}: the original is tier ${rep.tier}`);
   }
 
   /** An agent joins a fleet by naming it; the fleet must be declared, share the agent's sponsor and have room. */

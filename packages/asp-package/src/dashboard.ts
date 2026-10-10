@@ -258,11 +258,10 @@ export async function dashboardAgent(log: DashboardLog, did: string): Promise<Ag
     if (fl) fleet = { name: fl.name, org: fl.org, copies: [...new Set(copies)].filter((d) => d !== did) };
   }
 
-  // `asp identity copy` records where a copy came from only in the copy's purpose text ("... (independent copy of <did>)"), not as a signed edge (gaps register P15),
-  // so that text is what the page reads.
-  const COPY_OF = /\(independent copy of (did:[^\s)]+)\)/;
-  const forkParent = COPY_OF.exec(String(latest.purpose ?? ""))?.[1];
-  const copies = [...new Set(all.filter((x) => x.record.type === "asp.passport/v0.2" && COPY_OF.exec(String(x.record.body.purpose ?? ""))?.[1] === did).map((x) => x.record.body.did as string))];
+  // Where a copy came from is the fork edge in its passport, which the log checked when it accepted the passport (S86).
+  const forkOf = (b: any): string | undefined => (b?.lineage as { edge: string; parent: string }[] | undefined)?.find((l) => l.edge === "fork")?.parent;
+  const forkParent = forkOf(latest);
+  const copies = [...new Set(all.filter((x) => x.record.type === "asp.passport/v0.2" && forkOf(x.record.body) === did).map((x) => x.record.body.did as string))];
   return {
     ...(forkParent ? { copiedFrom: forkParent } : {}), copies,
     did, kind: latest.kind ?? "human", ...(latest.purpose ? { purpose: latest.purpose } : {}), ...(typeof latest.tier === "number" ? { declaredTier: latest.tier } : {}), ...(latest.shape ? { shape: latest.shape } : {}),

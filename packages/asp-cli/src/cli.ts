@@ -644,6 +644,8 @@ async function createCopy(home: string, local: LogHandle, original: string): Pro
     sponsor: orig.sponsor, mentor: orig.mentor ?? orig.sponsor, tier,
     shape: orig.shape ?? { keeps_learning: true },
     purpose: `${orig.purpose ?? "copy"} (independent copy of ${original})`.slice(0, 500),
+    // The signed claim of where it came from (S86): the log checks it against the original and its sponsor.
+    lineage: [{ edge: "fork", parent: original }],
     ...(orig.fleet ? { fleet: orig.fleet } : {}),
   };
   await local.append(createRecord({ type: "passport", issuer: orig.sponsor, subject: did, prev: null, body, issued_at: now() }, sponsorSigner));
@@ -2717,13 +2719,14 @@ async function historyFor(log: LogHandle["log"], agent: string): Promise<AspReco
   }
   const dids = new Set<string>([agent]);
   const fleets = new Set<string>();
-  // Follow sponsors upward, and collect fleets.
+  // Follow sponsors upward, and the original a copy was forked from (its passport has to be in the history for the log to accept the fork edge, S86), and collect fleets.
   for (let grew = true; grew; ) {
     grew = false;
     for (const r of all) {
       const b = r.body as any;
       if (r.type !== "asp.passport/v0.2" || !dids.has(b.did)) continue;
-      for (const d of [b.sponsor, r.issuer]) if (d && !dids.has(d)) { dids.add(d); grew = true; }
+      const forkParents = ((b.lineage as { edge: string; parent: string }[] | undefined) ?? []).filter((l) => l.edge === "fork").map((l) => l.parent);
+      for (const d of [b.sponsor, r.issuer, ...forkParents]) if (d && !dids.has(d)) { dids.add(d); grew = true; }
       if (b.fleet) fleets.add(b.fleet);
     }
     for (const r of all) {

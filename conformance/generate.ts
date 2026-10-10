@@ -540,6 +540,8 @@ sv("valid_action_with_metrics", "action", { contract: fakeId("c"), scopes_used: 
 sv("action_metrics_negative_tokens", "action", { contract: fakeId("c"), scopes_used: [], metrics: { tokens_in: -1 } }, false);
 sv("action_metrics_unknown_field", "action", { contract: fakeId("c"), scopes_used: [], metrics: { dollars: 2 } }, false);
 sv("action_metrics_model_without_name", "action", { contract: fakeId("c"), scopes_used: [], metrics: { models: [{ provider: "x" }] } }, false);
+sv("valid_passport_fork", "passport", { did: "did:web:example.com:agents:copy", kind: "agent", sponsor: "did:web:example.com:users:alice", tier: 1, shape: { keeps_learning: true }, keys: [{ id: "did:web:example.com:agents:copy#key-1", type: "Ed25519", public_key: "A".repeat(43) }], lineage: [{ edge: "fork", parent: "did:web:example.com:agents:coder" }] }, true);
+sv("passport_fork_without_parent", "passport", { did: "did:web:example.com:agents:copy", kind: "agent", sponsor: "did:web:example.com:users:alice", tier: 1, shape: { keeps_learning: true }, keys: [{ id: "did:web:example.com:agents:copy#key-1", type: "Ed25519", public_key: "A".repeat(43) }], lineage: [{ edge: "fork" }] }, false);
 sv("valid_action_late", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], late: { activity_ended: "2026-10-05T10:00:00Z" } }, true);
 sv("action_late_without_activity_ended", "action", { contract: fakeId("c"), scopes_used: [], late: {} }, false);
 sv("action_late_bad_timestamp", "action", { contract: fakeId("c"), scopes_used: [], late: { activity_ended: "yesterday" } }, false);

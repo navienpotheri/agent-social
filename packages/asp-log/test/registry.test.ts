@@ -61,6 +61,39 @@ for (const h of [memory, postgres] as Harness[]) {
   describe(`registry on ${h.name}`, { skip: h === postgres && !pgUrl && "set ASP_TEST_DATABASE_URL to run" }, () => {
     after(() => h.cleanup());
 
+    // ---------- copies (S86) ----------
+
+    test("a copy's passport carries a fork edge the log checks: only the original's sponsor may issue it, for an agent under that sponsor, at no higher tier, one parent, and it cannot change later", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      const copy = newAgent("copy");
+      const copyPerson = { did: copy.did, kid: copy.kid, seed: copy.seed } as Person;
+      const fork = (parent: string) => ({ lineage: [{ edge: "fork", parent }] });
+
+      // Refused: nothing to copy; two originals; not issued by the original's sponsor; another sponsor's agent; a higher tier than the original.
+      await rejects(log.append(agentPassport(copy.did, alice, copyPerson, "2026-10-06T10:00:00Z", null, fork("did:web:example.com:agents:ghost"))), "GUARD_FAILED", "fork_parent_unknown");
+      await rejects(log.append(agentPassport(copy.did, alice, copyPerson, "2026-10-06T10:01:00Z", null, { lineage: [{ edge: "fork", parent: coder.did }, { edge: "fork", parent: alice.did }] })), "GUARD_FAILED", "fork_one_parent");
+      await rejects(log.append(agentPassport(copy.did, copyPerson, copyPerson, "2026-10-06T10:02:00Z", null, fork(coder.did))), "GUARD_FAILED", "fork_needs_sponsor");
+      await rejects(log.append(agentPassport(copy.did, bank, copyPerson, "2026-10-06T10:03:00Z", null, { ...fork(coder.did), sponsor: bank.did })), "GUARD_FAILED", "fork_needs_sponsor");
+      await rejects(log.append(agentPassport(copy.did, alice, copyPerson, "2026-10-06T10:04:00Z", null, { ...fork(coder.did), tier: 2 })), "GUARD_FAILED", "fork_tier_above_parent");
+      await rejects(log.append(agentPassport(copy.did, alice, copyPerson, "2026-10-06T10:04:30Z", null, { ...fork(copy.did) })), "GUARD_FAILED", "fork_self");
+      const dana = newAgent("dana");
+      const danaPerson = { did: dana.did, kid: dana.kid, seed: dana.seed } as Person;
+      const human = make("passport", danaPerson, dana.did, { did: dana.did, kind: "human", keys: [{ id: dana.kid, type: "Ed25519", public_key: b64urlEncode(publicKeyFromSeed(dana.seed)) }], ...fork(coder.did) }, "2026-10-06T10:05:00Z", { subject: dana.did });
+      await rejects(log.append(human), "GUARD_FAILED", "fork_not_agent");
+
+      // Accepted: the sponsor issues the copy's passport naming the original.
+      const first = agentPassport(copy.did, alice, copyPerson, "2026-10-06T10:06:00Z", null, fork(coder.did));
+      await log.append(first);
+      assert.equal((await log.passport(copy.did))?.sponsor, alice.did);
+
+      // It cannot be changed afterwards: dropped, or pointed at someone else; a version that keeps it is fine.
+      await rejects(log.append(agentPassport(copy.did, alice, copyPerson, "2026-10-06T10:07:00Z", first.id, {})), "GUARD_FAILED", "fork_immutable");
+      await rejects(log.append(agentPassport(copy.did, alice, copyPerson, "2026-10-06T10:08:00Z", first.id, fork(alice.did))), "GUARD_FAILED", "fork_immutable");
+      await log.append(agentPassport(copy.did, alice, copyPerson, "2026-10-06T10:09:00Z", first.id, { ...fork(coder.did), purpose: "renamed" }));
+      assert.equal((await log.verify()).ok, true);
+    });
+
     // ---------- fleets ----------
 
     test("an org declares a fleet and its agents join by naming it on their passports", async () => {
