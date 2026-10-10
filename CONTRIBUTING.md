@@ -22,4 +22,4 @@ Node 22.18+ runs the TypeScript directly, with no build step. After changing `sp
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs the typecheck, every package's tests, the conformance-vector check, the Python SDK's tests and (not required yet) the log against Postgres. Run the first three locally before you push; the Postgres job passed on its first hosted run but is not required yet (gaps register O12).
+`.github/workflows/ci.yml` runs on every push and pull request: the typecheck, every package's tests and the conformance-vector check on Linux and Windows with Node 24 and 22.18; the Python SDK's tests on 3.11 and 3.12 (Linux) and 3.12 (Windows); and the log and CLI against Postgres 17. All must pass. Run the first three locally before you push (gaps register O12, O14).
