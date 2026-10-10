@@ -148,6 +148,8 @@ export interface ReputationRow {
 export interface MandateRow {
   contract: string;
   scopes: string[];
+  /** Late Actions the job has taken since it was settled (S81). */
+  lateActions?: number;
 }
 
 /** Reads and writes inside one append. Writes become visible only if the transaction commits. */

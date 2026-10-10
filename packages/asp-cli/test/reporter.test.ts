@@ -66,6 +66,25 @@ test("a hosted agent checks the live Mandate itself, is refused out of scope, an
   assert.equal(await reporter.flush(), undefined, "nothing new to say");
 });
 
+test("a hosted agent whose job ended before its report sends the report as a late one, with the time of its last activity (S80)", async () => {
+  const { f, contract } = await setup(["repo.read"]);
+  await ok(f, ["market", "settle", "--contract", contract, "--bank", BANK, "--basis", "revoked", "--principal", ALICE, "--escrow-released", "0", "--bond-slashed", "0", "--bond-returned", "200", "--pro-rata", "0"]);
+  const handle = await LocalLog.open(f.aspHome);
+  const server = createLogServer({ handle, tenants: [], noAuth: true });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  servers.push(server);
+  const reporter = AgentReporter.remote({ url: `http://127.0.0.1:${(server.address() as { port: number }).port}`, agent: CODER, signer: new Keystore(f.aspHome).forDid(CODER)!, contract });
+  reporter.note("repo.read"); // it did this just before it learned the job had ended
+  const res = await reporter.flush("last moments");
+  assert.ok(res?.id, "the report was accepted, as a late one");
+  const action = (await handle.log.get(res!.id))!.record.body as any;
+  assert.deepEqual(action.scopes_used, ["repo.read"]);
+  assert.match(action.late.activity_ended, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
+  // A report that claims a scope outside the Mandate is still refused when late.
+  reporter.note("repo.push");
+  await assert.rejects(reporter.flush(), /repo\.push|scope|Mandate/i);
+});
+
 test("the log still refuses a self-reported Action that claims a scope the Mandate does not grant, and a hosted agent cannot report on a job that has ended", async () => {
   const { f, contract, reporter } = await setup(["repo.read"]);
   reporter.note("repo.push"); // the agent claims it used a scope it was never given (or forgot to ask)

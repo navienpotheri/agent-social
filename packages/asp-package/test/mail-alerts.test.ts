@@ -42,6 +42,17 @@ test("findAlerts: a Mandate past its expiry while the job still runs gets an ale
   assert.equal((await findAlerts(fakeLog([contract, mandate("2026-12-05T00:00:00Z")], { c1: "Running" }), now)).length, 0);
 });
 
+test("the end mail says how many reports were made late", async () => {
+  const ordinary = rec(3, "a1", "asp.action/v0.2", "2026-10-02T00:00:00Z", { contract: "c1", scopes_used: ["repo.read"] });
+  const late = (n: number) => rec(4 + n, `a${n + 2}`, "asp.action/v0.2", "2026-10-02T00:20:00Z", { contract: "c1", scopes_used: ["repo.read"], late: { activity_ended: "2026-10-02T00:19:00Z" } });
+  const f = (await collectMandateFacts(fakeLog([contract, mandate("2027-01-01T00:00:00Z"), ordinary, late(1), late(2)], { c1: "Settled" }), "c1"))!;
+  assert.equal(f.activity.lateActions, 2);
+  const mail = buildMandateMail(f, { to: "a@b.co" });
+  assert.match(mail.text, /2 of those reports were made after the job had ended, for the agent's last moments/);
+  const none = buildMandateMail((await collectMandateFacts(fakeLog([contract, mandate("2027-01-01T00:00:00Z"), ordinary], { c1: "Settled" }), "c1"))!, { to: "a@b.co" });
+  assert.doesNotMatch(none.text, /after the job had ended/);
+});
+
 test("the end mail says when the run log holds events from after the last report that could be recorded", async () => {
   const action = (events: number) => rec(3, "a1", "asp.action/v0.2", "2026-10-02T00:00:00Z", { contract: "c1", scopes_used: ["repo.read"], artifacts: [{ uri: `asp://run-log/${events}`, sha256: "sha256:" + "a".repeat(64) }] });
   const log = fakeLog([contract, mandate("2027-01-01T00:00:00Z"), action(3)], { c1: "Settled" });

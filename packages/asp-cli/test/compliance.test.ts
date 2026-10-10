@@ -307,3 +307,29 @@ test("without --contract, asp run behaves exactly as before (no action report at
   assert.equal(run.code, 0, run.err);
   assert.doesNotMatch(run.err, /action |COMPLIANCE/);
 });
+
+test("asp run: a job settled while the run was going is reported as a late Action when the run ends (S80)", async () => {
+  const f = makeFixture();
+  const contractId = await runningContract(f, ["repo.read"]);
+  const pkg = join(f.root, "coder.aspkg");
+  const pack = await asp(f, ["pack", "--runtime", "claude-code", "--agent", CODER, "--project", f.project, "--user-home", f.home, "--out", pkg]);
+  assert.equal(pack.code, 0, pack.err);
+  const { mkdtempSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const hold = join(mkdtempSync(join(tmpdir(), "asp-hold-")), "release");
+  const running = asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", "--contract", contractId],
+    fakeClaude({ FAKE_CLAUDE_HOLD_FILE: hold, FAKE_CLAUDE_TOOL_USE: JSON.stringify([{ name: "Read", input: {}, result: "ok" }]) }));
+  for (let waited = 0; !existsSync(hold + ".started"); waited += 50) { if (waited > 30_000) throw new Error("the run never started"); await new Promise((r) => setTimeout(r, 50)); }
+  // The principal revokes while the agent is working.
+  const settled = await asp(f, ["market", "settle", "--contract", contractId, "--bank", BANK, "--basis", "revoked", "--principal", ALICE, "--escrow-released", "0", "--bond-slashed", "0", "--bond-returned", "200", "--pro-rata", "0"]);
+  assert.equal(settled.code, 0, settled.err);
+  writeFileSync(hold, "go");
+  const run = await running;
+  assert.equal(run.code, 0, run.err);
+  assert.match(run.err, /action .* reported late: the job had ended while the run was going/);
+  const local = await LocalLog.open(f.aspHome);
+  const actions = (await local.log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2").map((x) => x.record.body as any);
+  assert.equal(actions.length, 1);
+  assert.ok(actions[0].late.activity_ended);
+  assert.deepEqual(actions[0].scopes_used, ["repo.read"]);
+});

@@ -26,6 +26,8 @@ class FakeLog(BaseHTTPRequestHandler):
         elif call["target"] == "log" and m == "mandateOf":
             result = {"contract": args[0], "scopes": self.state["scopes"]}
         elif call["target"] == "handle" and m == "append":
+            if self.state["state"] == "Settled" and "late" not in args[0]["body"]:
+                return self._send({"ok": False, "error": {"name": "AspError", "code": "GUARD_FAILED", "message": "GUARD_FAILED: contract is not currently Running (state: Settled)"}})
             self.appended.append(args[0])
             result = {"id": args[0]["id"], "seq": len(self.appended)}
         else:
@@ -79,6 +81,18 @@ def test_a_job_that_is_no_longer_running_refuses_everything(server):
     FakeLog.state["state"] = "Settled"
     with pytest.raises(MandateRefusal, match="not running"):
         reporter(server).guard("repo.read", lambda: "x")
+
+
+def test_a_report_after_the_job_ended_is_sent_as_a_late_one(server):
+    FakeLog.state["state"] = "Settled"
+    r = reporter(server)
+    r.note("repo.read")  # done just before the agent learned the job had ended
+    out = r.flush("last moments")
+    assert out["seq"] == 1
+    body = FakeLog.appended[0]["body"]
+    assert body["scopes_used"] == ["repo.read"]
+    assert len(body["late"]["activity_ended"]) == 20 and body["late"]["activity_ended"].endswith("Z")
+    verify_record(FakeLog.appended[0], static_resolver({f"{AGENT}#key-1": public_key_from_seed(SEED)}))
 
 
 def test_unknown_assurance_level_is_rejected(server):

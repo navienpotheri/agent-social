@@ -3201,7 +3201,16 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
         const res = await local!.append(action);
         io.err(`  action   ${res.id} reported scopes: ${[...scopesSeen].sort().join(", ") || "none"}${blockedAttempts.length ? `; ${blockedAttempts.reduce((n, b) => n + b.count, 0)} blocked attempt(s) recorded as a strike` : ""}`);
       } catch (e) {
-        io.err(`  action   COMPLIANCE VIOLATION: ${(e as Error).message}`);
+        if (/is not currently Running/.test((e as Error).message)) {
+          // The job ended while the run was going (a revoke or a settlement): report the run as a late Action (S80); the log refuses it if it is too late.
+          const lateAction = createRecord({ type: "action", issuer: agent, subject: v.contract, prev: null, issued_at: now(), body: { ...(action.body as object), late: { activity_ended: now() } } }, actionSigner);
+          try {
+            const res = await local!.append(lateAction);
+            io.err(`  action   ${res.id} reported late: the job had ended while the run was going`);
+          } catch (e2) {
+            io.err(`  action   COMPLIANCE VIOLATION: ${(e2 as Error).message}`);
+          }
+        } else io.err(`  action   COMPLIANCE VIOLATION: ${(e as Error).message}`);
       }
     }
   }

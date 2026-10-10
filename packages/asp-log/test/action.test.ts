@@ -211,6 +211,10 @@ for (const h of [memory, postgres] as Harness[]) {
       const before = (await log.reputationOf(coder.did))!.strikes;
       assert.equal(await codeOf(log.append(action(settledAt + 65_000, { scopes_used: [], blocked_attempts: [{ scope: "shell.exec", count: 2 }], late: { activity_ended: iso(settledAt) } }))), undefined);
       assert.equal((await log.reputationOf(coder.did))!.strikes, before + 2);
+      // At most five late reports per job (S81); the first three above and two more are accepted, the sixth is not.
+      assert.equal(await codeOf(log.append(action(settledAt + 66_000, late(settledAt - 1_000)))), undefined);
+      assert.equal(await codeOf(log.append(action(settledAt + 67_000, late(settledAt - 1_000)))), undefined);
+      assert.equal(await codeOf(log.append(action(settledAt + 68_000, late(settledAt - 1_000)))), "GUARD_FAILED");
       const report = await log.verify();
       assert.equal(report.ok, true, report.error && JSON.stringify(report.error));
     });

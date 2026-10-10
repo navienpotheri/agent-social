@@ -40,6 +40,7 @@ class AgentReporter:
         self._used: set[str] = set()
         self._blocked: dict[str, int] = {}
         self._artifacts: list[dict[str, str]] = []
+        self._last_activity = datetime.now(timezone.utc)
 
     # --- the log service's JSON RPC ---
     def _rpc(self, target: str, method: str, *args: Any) -> Any:
@@ -85,12 +86,14 @@ class AgentReporter:
             self._blocked[scope] = self._blocked.get(scope, 0) + 1
             raise MandateRefusal(scope, f"the scope {scope} is not granted by this job's Mandate")
         out = fn()
+        self._last_activity = datetime.now(timezone.utc)
         self._used.add(scope)
         if artifact:
             self._artifacts.append(artifact)
         return out
 
     def note(self, scope: str, artifact: Optional[dict[str, str]] = None) -> None:
+        self._last_activity = datetime.now(timezone.utc)
         self._used.add(scope)
         if artifact:
             self._artifacts.append(artifact)
@@ -106,10 +109,19 @@ class AgentReporter:
             body["blocked_attempts"] = [{"scope": s, "count": c} for s, c in self._blocked.items()]
         if self._artifacts:
             body["artifacts"] = self._artifacts
-        record = create_record(
-            type="action", issuer=self.agent, subject=self.contract, prev=None, body=body, signer=self.signer,
-            issued_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        )
-        res = self._rpc("handle", "append", record)
+        def sign(b: dict[str, Any]) -> Any:
+            return create_record(
+                type="action", issuer=self.agent, subject=self.contract, prev=None, body=b, signer=self.signer,
+                issued_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            )
+
+        try:
+            res = self._rpc("handle", "append", sign(body))
+        except AspError as e:
+            # The job ended before this report: say so, for the activity up to the agent's last (S80).
+            if "is not currently Running" not in str(e):
+                raise
+            late = {"activity_ended": self._last_activity.strftime("%Y-%m-%dT%H:%M:%SZ")}
+            res = self._rpc("handle", "append", sign({**body, "late": late}))
         self._used, self._blocked, self._artifacts = set(), {}, []
         return res

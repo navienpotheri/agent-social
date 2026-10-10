@@ -33,6 +33,8 @@ export class AgentReporter {
   private used = new Set<string>();
   private blocked = new Map<string, number>();
   private artifacts: { uri: string; sha256: string }[] = [];
+  /** When the agent last did or noted something, for a late report (S80). */
+  private lastActivity = Date.now();
 
   constructor(o: ReporterOptions) { this.o = o; }
 
@@ -62,6 +64,7 @@ export class AgentReporter {
       throw new MandateRefusal(scope, `the scope ${scope} is not granted by this job's Mandate`);
     }
     const out = await fn();
+    this.lastActivity = Date.now();
     this.used.add(scope);
     if (opts.artifact) this.artifacts.push(opts.artifact);
     return out;
@@ -69,6 +72,7 @@ export class AgentReporter {
 
   /** Records something that was done without asking first (for example what a tool library did on the agent's behalf). */
   note(scope: string, artifact?: { uri: string; sha256: string }): void {
+    this.lastActivity = Date.now();
     this.used.add(scope);
     if (artifact) this.artifacts.push(artifact);
   }
@@ -84,8 +88,15 @@ export class AgentReporter {
       ...(this.blocked.size ? { blocked_attempts: [...this.blocked].map(([scope, count]) => ({ scope, count })) } : {}),
       ...(this.artifacts.length ? { artifacts: this.artifacts } : {}),
     };
-    const record: AspRecord = createRecord({ type: "action", issuer: this.o.agent, subject: this.o.contract, prev: null, body, issued_at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z") }, this.o.signer);
-    const res = await this.o.log.append(record);
+    const sign = (b: Record<string, unknown>): AspRecord => createRecord({ type: "action", issuer: this.o.agent, subject: this.o.contract, prev: null, body: b, issued_at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z") }, this.o.signer);
+    let res: { id: string; seq: number };
+    try {
+      res = await this.o.log.append(sign(body));
+    } catch (e) {
+      // The job ended before this report: say so, for the activity up to the agent's last (S80). The log accepts it soon after the end, or refuses it.
+      if (!/is not currently Running/.test((e as Error).message)) throw e;
+      res = await this.o.log.append(sign({ ...body, late: { activity_ended: new Date(this.lastActivity).toISOString().replace(/\.\d{3}Z$/, "Z") } }));
+    }
     this.used = new Set(); this.blocked = new Map(); this.artifacts = [];
     return { id: res.id, seq: res.seq };
   }

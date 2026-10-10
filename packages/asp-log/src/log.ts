@@ -81,6 +81,8 @@ export function nextLogHash(prev: string, id: string): string {
 /** How long after a settlement the performer may still report its last stretch of activity, and how far past the settlement that activity may run. */
 const LATE_ACTION_GRACE_MS = 10 * 60_000;
 const LATE_ACTIVITY_SLACK_MS = 30_000;
+/** How many late Actions one job may take. */
+export const MAX_LATE_ACTIONS = 5;
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
 /** How well established a claim is, for comparing a verifier's grade with the performer's declared one. */
@@ -520,6 +522,10 @@ export class EventLog {
     const outOfScope = body.scopes_used.filter((s) => !mandate.scopes.includes(s));
     if (outOfScope.length) {
       throw rule("scope_violation", `${r.issuer} used scope(s) not granted by the Mandate: ${outOfScope.join(", ")}`);
+    }
+    if (body.late) {
+      if ((mandate.lateActions ?? 0) >= MAX_LATE_ACTIONS) throw rule("late_action_limit", `contract ${body.contract} has already taken ${MAX_LATE_ACTIONS} late reports`);
+      await tx.putMandate({ ...mandate, lateActions: (mandate.lateActions ?? 0) + 1 });
     }
   }
 

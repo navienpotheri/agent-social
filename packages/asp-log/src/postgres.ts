@@ -68,7 +68,7 @@ const toEscrow = (e: any): EscrowRow => ({
 const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_minted) });
 const toJuror = (j: any): JurorRow => ({ did: j.did, head: j.head, staked: Number(j.staked) });
 const toReputation = (r: any): ReputationRow => ({ did: r.did, tier: Number(r.tier), slashCount: Number(r.slash_count), strikeLog: r.strike_log ?? [] });
-const toMandate = (m: any): MandateRow => ({ contract: m.contract, scopes: m.scopes });
+const toMandate = (m: any): MandateRow => ({ contract: m.contract, scopes: m.scopes, lateActions: Number(m.late_actions ?? 0) });
 const toReport = (r: any): ReportRow => ({ id: r.id, contract: r.contract, reporter: r.reporter, accused: r.accused, deposit: Number(r.deposit), status: r.status });
 const toVerification = (v: any): VerificationRow => ({ delivery: v.delivery, contract: v.contract, verifier: v.verifier, verdict: v.verdict });
 
@@ -338,9 +338,9 @@ class PgTx implements LogTx {
   }
   async putMandate(row: MandateRow) {
     await this.c.query(
-      `INSERT INTO mandates (contract, scopes) VALUES ($1, $2)
-       ON CONFLICT (contract) DO UPDATE SET scopes = $2`,
-      [row.contract, row.scopes],
+      `INSERT INTO mandates (contract, scopes, late_actions) VALUES ($1, $2, $3)
+       ON CONFLICT (contract) DO UPDATE SET scopes = $2, late_actions = $3`,
+      [row.contract, row.scopes, row.lateActions ?? 0],
     );
   }
   async putReport(row: ReportRow) {

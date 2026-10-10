@@ -27,6 +27,8 @@ export interface MandateFacts {
     runLogCommitments: number;
     /** The most run-log events any Action committed to; the run log may hold more, from after the last report that could be recorded. */
     runLogCommittedEvents: number;
+    /** Reports made after the job ended, for its last moments (S80). */
+    lateActions: number;
   };
   approvals: { kind: string; question: string; proposed?: string; answer: "approved" | "corrected" | "picked" | "refused (no answer in time)" | "no answer"; correction?: string }[];
   memory: { description: string; at: string }[];
@@ -55,6 +57,7 @@ export async function collectMandateFacts(log: MailLog, contract: string): Promi
   const assurance = new Set<string>();
   let commitments = 0;
   let committedEvents = 0;
+  let lateActions = 0;
   for (const a of actions) {
     const b = a.record.body;
     for (const s of b.scopes_used ?? []) used.set(s, (used.get(s) ?? 0) + 1);
@@ -65,6 +68,7 @@ export async function collectMandateFacts(log: MailLog, contract: string): Promi
       for (const x of m.models ?? []) metrics.models.add(x.provider ? `${x.name} (${x.provider})` : x.name);
     }
     if (b.assurance) assurance.add(b.assurance);
+    if (b.late) lateActions++;
     for (const x of b.artifacts ?? []) {
       const m = /^asp:\/\/run-log\/(\d+)$/.exec(x.uri);
       if (m) { commitments++; committedEvents = Math.max(committedEvents, Number(m[1])); }
@@ -107,6 +111,7 @@ export async function collectMandateFacts(log: MailLog, contract: string): Promi
       assurance: [...assurance].sort((a, b) => STRENGTH.indexOf(b) - STRENGTH.indexOf(a)),
       runLogCommitments: commitments,
       runLogCommittedEvents: committedEvents,
+      lateActions,
     },
     approvals,
     memory,
@@ -164,6 +169,7 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
   did.push(a.actions ? `${a.actions} report(s) of activity; scopes used: ${a.scopesUsed.map((s) => s.scope).join(", ") || "none"}.` : "No activity was reported.");
   if (a.metrics.requests) did.push(`${num(a.metrics.requests)} model request(s), ${num(a.metrics.toolCalls)} tool call(s), ${num(a.metrics.tokensIn + a.metrics.tokensOut)} tokens, about ${num(a.metrics.seconds)} s${a.metrics.models.length ? `; models: ${a.metrics.models.join(", ")}` : ""}.`);
   if (a.assurance.length) did.push(`How strongly it was held to the Mandate: ${a.assurance[0].replace(/_/g, " ")}${a.assurance[0] === "self_reported" ? " (the agent's own word)" : ""}.`);
+  if (a.lateActions) did.push(`${a.lateActions} of those reports were made after the job had ended, for the agent's last moments; they are marked late in the log.`);
   sections.push({ title: "What it did", lines: did });
 
   const stopped: string[] = [];

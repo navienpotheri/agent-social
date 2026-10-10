@@ -62,6 +62,11 @@ if (process.env.FAKE_CLAUDE_LEARN !== "0") {
   writeFileSync(join(mem, "refund-race.md"), "---\nname: refund-race\n---\nThe refund cache needs a per-key lock.\n");
   appendFileSync(join(mem, "MEMORY.md"), "- [Refund race](refund-race.md) — lock per key\n");
 }
+// FAKE_CLAUDE_HOLD_FILE = a path: the run says it is going (<path>.started), then waits until the test creates the file (up to 30 s), like a long job.
+if (process.env.FAKE_CLAUDE_HOLD_FILE) {
+  writeFileSync(process.env.FAKE_CLAUDE_HOLD_FILE + ".started", "going");
+  for (let i = 0; i < 600 && !existsSync(process.env.FAKE_CLAUDE_HOLD_FILE); i++) await new Promise((r) => setTimeout(r, 50));
+}
 // FAKE_CLAUDE_OTHER_RUN = a package memory/auto directory: another run writes back there while this one is still going.
 if (process.env.FAKE_CLAUDE_OTHER_RUN) {
   const other = process.env.FAKE_CLAUDE_OTHER_RUN;
