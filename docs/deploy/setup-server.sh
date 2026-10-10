@@ -6,6 +6,8 @@
 #   DOMAIN   the name the service answers on (default log.thedeeptransformation.com; its DNS A record must point at this server first)
 #   BRANCH   the git branch to deploy (default event-log)
 #   SIGNUP_DAILY_CAP  sign-ups a day in all (default 100)
+#   MAIL_FROM, MAIL_OPERATOR  who mail comes from (default "Agent Social <noreply@$DOMAIN-parent>") and where a dispute note goes; the mail is only SENT once RESEND_API_KEY
+#                     is in /etc/asp/asp.env (see docs/deploy/README.md); until then it is written to /var/lib/asp/tokens.json.outbox
 #   GOOGLE_CLIENT_ID  the Google OAuth client id: turns on sign-up with Google at /join, and makes it the only way to sign up. The client secret is NOT passed here:
 #                     put it in /etc/asp/asp.env as GOOGLE_CLIENT_SECRET=... (see docs/deploy/README.md), then run this script again.
 set -euo pipefail
@@ -102,6 +104,8 @@ if [ ! -f "$DATA/tokens.json" ]; then
   echo
 fi
 
+MAIL_FROM="${MAIL_FROM:-Agent Social <noreply@${DOMAIN#*.}>}"
+MAIL_OPERATOR="${MAIL_OPERATOR:-navien@${DOMAIN#*.}}"
 GOOGLE_FLAGS=""
 if [ -n "${GOOGLE_CLIENT_ID:-}" ]; then
   if grep -q '^GOOGLE_CLIENT_SECRET=.\+' "$ETC/asp.env"; then
@@ -126,7 +130,7 @@ EnvironmentFile=$ETC/asp.env
 ExecStart=/usr/bin/node $APP/packages/asp-cli/bin/asp.mjs serve --db \${DATABASE_URL} --tokens $DATA/tokens.json --host 127.0.0.1 --port 8787 --trust-proxy \\
   --packages $DATA/packages --commons $DATA/commons --known-bad $DATA/known-bad \\
   --signup --signup-terms-url https://$DOMAIN/terms --signup-terms-version 2026-10 --signup-daily-cap $SIGNUP_DAILY_CAP \\
-  --public-url https://$DOMAIN $GOOGLE_FLAGS
+  --public-url https://$DOMAIN --mail-from "$MAIL_FROM" --mail-operator $MAIL_OPERATOR $GOOGLE_FLAGS
 Restart=always
 RestartSec=3
 NoNewPrivileges=true

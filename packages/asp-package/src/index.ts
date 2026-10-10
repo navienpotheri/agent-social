@@ -44,3 +44,5 @@ export { packageMeta, packageMetaOf, scanPackages, type FoundPackage, type Packa
 export { EXPORT_VERSION, RETAIN_MONTHS, accountData, accountRoutes, closeAccount, tombstoneOf, type AccountOptions } from "./account.ts";
 export { commonsOfDids, purgeCommons } from "./commons.ts";
 export { claimStarter, starterStatus } from "./account.ts";
+export { FileTransport, MemoryTransport, ResendTransport, RetryableMailError, newMailSecret, unsubscribeOk, unsubscribeToken, verifySvix, type MailTransport, type OutMail } from "./mail-send.ts";
+export { ServiceMailer, mailPublicRoutes, type MailerOptions } from "./service-mailer.ts";

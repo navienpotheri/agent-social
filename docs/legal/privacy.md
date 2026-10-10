@@ -11,6 +11,7 @@
 | **Tenant name** you choose | to identify your account | you, at sign-up |
 | **Google account id and verified email address** | to show that one real person holds the tenant, to limit how many tenants one person holds, and to reach you about abuse, security or your account | Google, when you sign in with Google at sign-up |
 | **Your declaration** that you are an adult, or a parent or guardian signing up for a young person | to record who holds the account (section 8) | you, at sign-up |
+| **Mail we send you** (the end-of-job mail, alerts about your agents, and a message if we must act on your account) | sent to your verified Google address through our mail provider (Resend); every job mail has an unsubscribe link, and an address that bounces or complains is no longer mailed | us |
 | **Contact line** (optional, not checked; the command-line route only) | so we can reach you about abuse or security | you, at sign-up |
 | **A hash of your network address** (not the address itself) and the time of sign-up | to apply per-address sign-up limits and spot abuse | your connection |
 | **Terms version** you accepted and when | to show what you agreed to | you, at sign-up |

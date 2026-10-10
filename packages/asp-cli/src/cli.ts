@@ -291,7 +291,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, accountRoutes, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, accountRoutes, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -431,6 +431,11 @@ const OPTIONS = {
   confirm: { type: "string" },
   "skip-export": { type: "boolean" },
   "starter-pool": { type: "string" },
+  "mail-from": { type: "string" },
+  "mail-operator": { type: "string" },
+  "mail-interval": { type: "string" },
+  "mail-dry-run": { type: "boolean" },
+  "mail-resend-url": { type: "string" },
   jurors: { type: "string" },
   "juror-min-stake": { type: "string" },
   base: { type: "string" },
@@ -1310,15 +1315,39 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(v["known-bad"] ? [knownBadRoutes({ root: resolve(v["known-bad"]) })] : []),
   ];
   const extra = routes.length ? async (req: any, res: any, ctx: any) => { for (const r of routes) if (await r(req, res, ctx)) return true; return false; } : undefined;
-    const jurorMode = v.jurors ?? "operator-only";
+    // Mail from the service (blocker 6): the end-of-Mandate mail, alerts and a note to the operator when a dispute opens. The provider's key and webhook secret come from the
+  // environment (RESEND_API_KEY, RESEND_WEBHOOK_SECRET), never from a flag. Without a key the mail is written to <tokens>.outbox instead of sent.
+  let mailer: ServiceMailer | undefined;
+  let mailPort = 0;
+  if (v["mail-from"] && !noAuth) {
+    const secretFile = `${v.tokens}.mail-secret`;
+    if (!existsSync(secretFile)) writeFileSync(secretFile, newMailSecret().toString("base64") + "\n", { mode: 0o600 });
+    const key = io.env.RESEND_API_KEY;
+    const dry = !!v["mail-dry-run"] || !key;
+    mailer = new ServiceMailer({
+      log: handle.log as any, tenants: tenantSource!, owners, from: v["mail-from"], ...(v["mail-operator"] ? { operatorTo: v["mail-operator"] } : {}),
+      transport: dry ? new FileTransport(`${v.tokens}.outbox`) : new ResendTransport({ apiKey: key!, ...(v["mail-resend-url"] ? { baseUrl: v["mail-resend-url"] } : {}) }),
+      publicUrl: () => v["public-url"] ?? `http://127.0.0.1:${mailPort}`, secret: Buffer.from(readFileSync(secretFile, "utf8").trim(), "base64"), statePath: `${v.tokens}.mail.json`,
+      log2: (l) => io.out(`  ${l}`),
+    });
+  }
+  const jurorMode = v.jurors ?? "operator-only";
   if (jurorMode !== "operator-only" && jurorMode !== "verified") throw new UsageError("--jurors is operator-only (the beta's default: the operator seats the court) or verified");
   const guard = !noAuth ? courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }) : undefined;
-  const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(mailer ? { publicRoutes: mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) }) } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
+  mailPort = addr.port;
+  let mailTimer: NodeJS.Timeout | undefined;
+  if (mailer) {
+    const every = Math.max(1, num("mail-interval", 60)) * 1000;
+    mailTimer = setInterval(() => { mailer!.tick().catch((e) => io.err(`  mail pass failed: ${(e as Error).message}`)); }, every);
+    mailTimer.unref?.();
+  }
   io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
   io.out(`  limits per minute: ${limits.tenantPerMinute || "no limit"} requests and ${limits.appendPerMinute || "no limit"} writes per tenant, ${limits.addressPerMinute || "no limit"} per address; ${limits.maxInFlight || "no"} in flight; lockout after ${limits.failedAuthMax || "never"} failed sign-ins`);
   io.out(`  quota per tenant (admins have none): ${defaultRecordQuota || "no limit"} records, ${defaultByteQuota ? `${Math.round(defaultByteQuota / 1048576)} MB` : "no limit"} of records; suspend, resume, block and unblock take effect without a restart (asp serve usage shows the counts)`);
+  if (mailer) io.out(`  mail      ${io.env.RESEND_API_KEY && !v["mail-dry-run"] ? "sending through Resend" : "DRY RUN: no RESEND_API_KEY, so mail is written to " + v.tokens + ".outbox and not sent"}; from ${v["mail-from"]}${v["mail-operator"] ? `; operator notes to ${v["mail-operator"]}` : ""}; a pass every ${num("mail-interval", 60)} s`);
   if (google) io.out(`  sign-in   Google: the sign-up page is /join${v["signup-require-google"] ? " and it is the only way to sign up" : ", and the proof-of-work route stays open too"}`);
   if (signup) io.out(`  sign-up   open at /signup: proof of work (${num("signup-difficulty", 20)} bits), ${num("signup-per-address", 3)} per address and ${num("signup-daily-cap", 200)} a day, terms ${v["signup-terms-version"] ?? "2026-10"} at ${v["signup-terms-url"]}; close it with: asp serve signup-close --tokens ${v.tokens}`);
   if (!tls && !loopback) io.out("  warning  plain HTTP on a network address: TLS must be terminated in front of this service");

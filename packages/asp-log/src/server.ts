@@ -77,6 +77,8 @@ export interface ServerOptions {
   blocked?: () => string[];
   /** Counts of what each tenant has written, and the defaults a tenant without its own quota gets (0 for none). Without a store nothing is counted. */
   usage?: UsageStore;
+  /** Routes that need no sign-in because they check their own proof (an unsubscribe link, a provider's signed webhook); checked after the address limits and before the token. */
+  publicRoutes?: (req: IncomingMessage, res: ServerResponse) => Promise<boolean>;
   /** A service policy checked before a write runs: a message refuses it (the court's rules, src/court-guard.ts). */
   guard?: (c: { tenant: Tenant; method: string; args: unknown[] }) => string | undefined | Promise<string | undefined>;
   /** Which DIDs each tenant has written as, learned from the records it appends (src/owners.ts). */
@@ -198,6 +200,7 @@ export function createLogServer(opts: ServerOptions): Server {
         }
         return json(res, 405, { ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "GET or POST" } });
       }
+      if (opts.publicRoutes && (await opts.publicRoutes(req, res))) return;
       const tenant = authenticate(req, opts);
       if (!tenant) {
         limits?.authFailed(address);
