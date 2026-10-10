@@ -28,3 +28,53 @@ test("RateLimiter: calls to one host are counted over a sliding minute, hosts ar
   t += 61_000;
   assert.equal(w.take(["x.example"], { per_host_per_minute: 1 }).ok, true, "the refused calls did not extend the wait");
 });
+
+import { requestsOfCommand } from "../src/gateway/requests.ts";
+// @ts-expect-error: plain .mjs without type declarations
+import { requestsOfCommand as claudeCount, rateRefusal as claudeRefusal } from "../src/adapters/claude-code-mandate-hook.mjs";
+// @ts-expect-error: plain .mjs without type declarations
+import { requestsOfCommand as agyCount } from "../src/adapters/antigravity-mandate-hook.mjs";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const COMMANDS: Array<[string, number, Record<string, number>]> = [
+  ["curl -s https://a.example/x", 1, { "a.example": 1 }],
+  ["curl https://a.example/1 https://a.example/2 https://b.example/3", 3, { "a.example": 2, "b.example": 1 }],
+  ["curl -s 'http://a.example/page[1-50]'", 50, { "a.example": 50 }],
+  ["curl -s 'http://a.example/p{1..8}'", 8, { "a.example": 8 }],
+  ["curl -s http://a.example/{a,b,c}", 3, { "a.example": 3 }],
+  ["for i in 1 2 3 4 5; do curl -s http://a.example/$i; done", 5, { "a.example": 5 }],
+  ["for i in $(seq 1 100); do curl -s http://a.example/$i; done", 100, { "a.example": 100 }],
+  ["while true; do curl -s http://a.example/; done", 1000, { "a.example": 1000 }],
+  ["seq 1 30 | xargs -I{} curl -s http://a.example/{}", 1000, { "a.example": 1000 }],
+  ["wget -r https://a.example/", 1000, { "a.example": 1000 }],
+  ["nmap -sS 10.0.0.5", 1000, { "10.0.0.5": 1000 }],
+  ["ping -c 4 a.example", 4, { "a.example": 4 }],
+  ["ping a.example", 1000, { "a.example": 1000 }],
+  ["curl -s http://a.example/1 ; curl -s http://a.example/2", 2, { "a.example": 2 }],
+  ["1..20 | ForEach-Object { Invoke-WebRequest -Uri https://a.example/$_ }", 20, { "a.example": 20 }],
+  ["echo hi", 0, {}],
+];
+
+test("requestsOfCommand counts the requests a shell command makes, per host: URLs, ranges, loops, scanners", () => {
+  for (const [cmd, total, perHost] of COMMANDS) {
+    const r = requestsOfCommand(cmd);
+    assert.equal(r.total, total, cmd);
+    for (const [h, n] of Object.entries(perHost)) assert.equal(r.perHost[h], n, `${cmd} -> ${h}`);
+  }
+});
+
+test("the hooks' copies of the request counter agree with the gateway's on the table of commands, and the hook counts a batched command as its requests", () => {
+  for (const [cmd] of COMMANDS) {
+    const want = requestsOfCommand(cmd);
+    assert.deepEqual(claudeCount(cmd), want, `claude hook: ${cmd}`);
+    assert.deepEqual(agyCount(cmd), want, `agy hook: ${cmd}`);
+  }
+  const ledger = join(mkdtempSync(join(tmpdir(), "rate-")), "calls.ndjson");
+  const rate = { per_host_per_minute: 3 };
+  const batched = "for i in 1 2 3 4 5 6 7 8; do curl -s http://127.0.0.1:9/$i; done";
+  const reason = claudeRefusal("shell.network", batched, [], rate, ledger, 1_000);
+  assert.match(reason!, /about 8 requests to 127\.0\.0\.1.*allows 3 a minute to any one host/);
+  assert.equal(claudeRefusal("shell.network", "curl -s http://127.0.0.1:9/a", [], rate, ledger, 1_000), undefined);
+});

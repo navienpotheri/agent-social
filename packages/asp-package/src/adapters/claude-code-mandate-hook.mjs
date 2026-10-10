@@ -120,14 +120,104 @@ export function hostRefusal(scope, command, urls, hosts) {
   return outside ? `the host ${outside} is not one this job's Mandate allows (${hosts.join(", ")})` : undefined;
 }
 
-// ---- Rate limits on network calls (H1): a copy of RateLimiter (gateway/rate.ts). A hook is a new process for every call, so the calls of the last minute are
+// ---- Rate limits on network calls (H1, H17): a copy of RateLimiter (gateway/rate.ts). A hook is a new process for every call, so the calls of the last minute are
 // ---- kept in a file (one line a call) and counted from it. Calls that run at the same moment can each see the count before the other's line is written.
 const RATE_WINDOW_MS = 60_000;
-/** The refusal reason for a network call over the Mandate's rate limit, or undefined (and the call is counted). */
+// ---- requestsOfCommand: a copy of gateway/requests.ts (test/rate.test.ts keeps the two in step on a table of commands).
+/** What a command or tool with no bound counts as. */
+const UNBOUNDED = 1000;
+
+const R_SCANNERS = /\b(nmap|masscan|zmap|hydra|medusa|ncrack|nikto|gobuster|dirb|dirbuster|ffuf|wfuzz|sqlmap|ab|wrk|siege|hey|vegeta|slowhttptest|hping3|nping)\b/i;
+const R_URL_RE = /\b[a-z][a-z0-9+.-]*:\/\/(?:[^\s\/@'"<>]*@)?(\[[0-9a-f:]+\]|[a-z0-9._-]+)/gi;
+const R_NET_VERB = /\b(curl|wget|nc|ncat|netcat|ssh|scp|sftp|rsync|telnet|ping|nslookup|dig|Invoke-WebRequest|Invoke-RestMethod|iwr|irm)\b/i;
+const R_URL_ONE = new RegExp(R_URL_RE.source, "i");
+const R_BARE_HOST = /^(?:[^@\s]+@)?((?:[a-z0-9-]+\.)+[a-z]{2,}|\d{1,3}(?:\.\d{1,3}){3}|localhost)(?::|$|\/)/i;
+
+/** How many strings a brace list (a{1,2,3}), a numeric brace range (a{1..9}) or a curl range (a[1-9]) in a token stands for. */
+function globCount(token) {
+  let n = 1;
+  for (const m of token.matchAll(/\{(\d+)\.\.(\d+)(?:\.\.(\d+))?\}/g)) n *= Math.floor(Math.abs(Number(m[2]) - Number(m[1])) / Math.max(1, Number(m[3] ?? 1))) + 1;
+  for (const m of token.matchAll(/\{([^{}]*,[^{}]*)\}/g)) n *= m[1].split(",").length;
+  for (const m of token.matchAll(/\[(\d+)-(\d+)\]/g)) n *= Math.abs(Number(m[2]) - Number(m[1])) + 1;
+  for (const m of token.matchAll(/\[([a-z])-([a-z])\]/gi)) n *= Math.abs(m[2].charCodeAt(0) - m[1].charCodeAt(0)) + 1;
+  return Math.min(n, UNBOUNDED);
+}
+
+/** How many times a loop (or a pipe into xargs, parallel or foreach) runs what is inside it; 1 when there is no loop; UNBOUNDED when it cannot be told. */
+function loopFactor(cmd) {
+  let f = 1;
+  let any = false;
+  const mul = (n) => { any = true; f = Math.min(UNBOUNDED, f * Math.max(1, n)); };
+  // for x in a b c; do ... done
+  for (const m of cmd.matchAll(/\bfor\s+\w+\s+in\s+([^;\n]*?)\s*(?:;|\n)\s*do\b/g)) {
+    const list = m[1].trim();
+    const seq = /(?:\$\(\s*)?\bseq\s+(?:-\w+\s+)*(\d+)(?:\s+(\d+))?(?:\s+(\d+))?/.exec(list);
+    if (seq) { const [a, b, c] = [seq[1], seq[2], seq[3]].filter((x) => x !== undefined).map(Number); mul(c !== undefined ? Math.floor((c - a) / Math.max(1, b)) + 1 : b !== undefined ? b - a + 1 : a); continue; }
+    if (/\$\(|\`|\*|\$\w/.test(list)) { mul(UNBOUNDED); continue; }
+    mul(list.split(/\s+/).filter(Boolean).reduce((n, tok) => n + globCount(tok), 0));
+  }
+  // for ((i=0;i<N;i++))
+  for (const m of cmd.matchAll(/\bfor\s*\(\(\s*\w+\s*=\s*(\d+)\s*;\s*\w+\s*(<=|<)\s*(\d+)/g)) mul(Number(m[3]) - Number(m[1]) + (m[2] === "<=" ? 1 : 0));
+  if (/\bwhile\b|\buntil\b/.test(cmd) && /\bdo\b/.test(cmd)) mul(UNBOUNDED);
+  if (/\|\s*(xargs|parallel)\b|\b(xargs|parallel)\b.*\bcurl\b/.test(cmd)) mul(UNBOUNDED);
+  // PowerShell: 1..50 | ForEach-Object { ... }, foreach ($x in ...) { ... }, for ($i...)
+  // A range (1..20) is a loop bound in PowerShell; inside braces (page{1..8}) it is a brace expansion, counted where the URL is.
+  for (const m of cmd.matchAll(/(?<![{\w])(\d+)\s*\.\.\s*(\d+)\b/g)) mul(Math.abs(Number(m[2]) - Number(m[1])) + 1);
+  if (/\b(ForEach-Object|foreach|%\s*\{)/i.test(cmd) && !/(?<![{\w])\d+\s*\.\.\s*\d+\b/.test(cmd)) mul(UNBOUNDED);
+  if (/\bfor\s*\(\s*\$/i.test(cmd)) mul(UNBOUNDED);
+  return any ? f : 1;
+}
+
+/** The requests a shell command makes, per host. Text in, counts out. */
+export function requestsOfCommand(command) {
+  const perHost = {};
+  let unknown = 0;
+  const add = (host, n) => {
+    if (host) perHost[host] = Math.min(UNBOUNDED * 10, (perHost[host] ?? 0) + n); else unknown += n;
+  };
+  const loop = loopFactor(command);
+  for (const segment of command.split(/\s*(?:&&|\|\||;|\n|\|)\s*/)) {
+    if (!segment.trim()) continue;
+    const scanner = R_SCANNERS.test(segment);
+    const verb = R_NET_VERB.exec(segment)?.[1]?.toLowerCase();
+    if (!scanner && !verb && !R_URL_ONE.test(segment)) continue;
+    const tokens = segment.trim().split(/\s+/);
+    let hosts = 0;
+    for (const tok of tokens) {
+      const clean = tok.replace(/^["']|["']$/g, "");
+      const url = R_URL_ONE.exec(clean);
+      const host = url ? url[1].replace(/^\[|\]$/g, "").toLowerCase() : (verb || scanner) && !clean.startsWith("-") ? R_BARE_HOST.exec(clean)?.[1]?.toLowerCase() : undefined;
+      if (!host) continue;
+      hosts++;
+      add(host, (scanner ? UNBOUNDED : globCount(clean)) * loop);
+    }
+    // A recursive download, or a ping with no count, is as many as it likes.
+    if (verb === "wget" && /\s(-\w*[rm]\w*|--recursive|--mirror)\b/.test(segment)) for (const h of Object.keys(perHost)) perHost[h] = Math.max(perHost[h], UNBOUNDED);
+    if (verb === "ping") {
+      const count = /\s-[cn]\s*(\d+)/.exec(segment);
+      if (!count) { for (const h of Object.keys(perHost)) perHost[h] = Math.max(perHost[h], UNBOUNDED); }
+      else for (const h of Object.keys(perHost)) perHost[h] = Math.min(UNBOUNDED, perHost[h] * Math.max(1, Number(count[1])));
+    }
+    if (!hosts) add(undefined, (scanner ? UNBOUNDED : 1) * loop);
+  }
+  const total = Object.values(perHost).reduce((n, c) => n + c, 0) + unknown;
+  return { perHost, unknown, total };
+}
+
+/**
+ * The refusal reason for a network call over the Mandate's rate limit, or undefined (and the call is counted). A call counts as the requests it makes (requestsOfCommand);
+ * the ledger has one line a call with its per-host counts.
+ */
 export function rateRefusal(scope, command, urls, rate, ledgerPath, now = Date.now()) {
   if (!rate || !isNetworkScope(scope)) return undefined;
-  const texts = scope === "shell.network" ? [command ?? ""] : urls.filter((u) => typeof u === "string").map((u) => (/^[a-z][a-z0-9+.-]*:\/\//i.test(u) ? u : `https://${u}`));
-  const hosts = [...new Set(texts.flatMap(hostsOfText))];
+  let counts = scope === "shell.network" && command ? requestsOfCommand(command) : undefined;
+  if (!counts || counts.total === 0) {
+    const texts = scope === "shell.network" ? [command ?? ""] : urls.filter((u) => typeof u === "string").map((u) => (/^[a-z][a-z0-9+.-]*:\/\//i.test(u) ? u : `https://${u}`));
+    const hosts = texts.flatMap(hostsOfText);
+    const perHost = {};
+    for (const h of hosts) perHost[h] = (perHost[h] ?? 0) + 1;
+    counts = { perHost, unknown: hosts.length ? 0 : 1, total: Math.max(1, hosts.length) };
+  }
   const recent = [];
   if (existsSync(ledgerPath)) {
     for (const line of readFileSync(ledgerPath, "utf8").split("\n")) {
@@ -135,16 +225,23 @@ export function rateRefusal(scope, command, urls, rate, ledgerPath, now = Date.n
       try { const e = JSON.parse(line); if (e.t > now - RATE_WINDOW_MS) recent.push(e); } catch { /* a half-written line is not a call yet */ }
     }
   }
-  if (rate.total_per_minute !== undefined && recent.length >= rate.total_per_minute) {
-    return `this job's Mandate allows ${rate.total_per_minute} network calls a minute and ${recent.length} were made in the last minute`;
+  const made = recent.reduce((n, e) => n + (e.total ?? 1), 0);
+  if (rate.total_per_minute !== undefined && made + counts.total > rate.total_per_minute) {
+    return counts.total > 1
+      ? `this call makes about ${counts.total} network requests and ${made} were made in the last minute; this job's Mandate allows ${rate.total_per_minute} a minute`
+      : `this job's Mandate allows ${rate.total_per_minute} network calls a minute and ${made} were made in the last minute`;
   }
   if (rate.per_host_per_minute !== undefined) {
-    for (const h of hosts) {
-      const n = recent.filter((e) => e.hosts.includes(h)).length;
-      if (n >= rate.per_host_per_minute) return `the host ${h} was called ${n} times in the last minute; this job's Mandate allows ${rate.per_host_per_minute} a minute to any one host`;
+    for (const [h, n] of Object.entries(counts.perHost)) {
+      const before = recent.reduce((k, e) => k + (e.perHost?.[h] ?? 0), 0);
+      if (before + n > rate.per_host_per_minute) {
+        return n > 1
+          ? `this call makes about ${n} requests to ${h} and ${before} were made in the last minute; this job's Mandate allows ${rate.per_host_per_minute} a minute to any one host`
+          : `the host ${h} was called ${before} times in the last minute; this job's Mandate allows ${rate.per_host_per_minute} a minute to any one host`;
+      }
     }
   }
-  appendFileSync(ledgerPath, JSON.stringify({ t: now, hosts }) + "\n");
+  appendFileSync(ledgerPath, JSON.stringify({ t: now, perHost: counts.perHost, total: counts.total }) + "\n");
   return undefined;
 }
 

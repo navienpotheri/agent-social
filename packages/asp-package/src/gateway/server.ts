@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { lastUserText, replyText, toolResultsIn, type RunRecorder } from "./runlog.ts";
 import { RateLimiter, type NetworkRate } from "./rate.ts";
-import { hostsOf } from "./judge.ts";
+import { requestsOf } from "./requests.ts";
 import { isNetworkScope } from "@agent-social/asp-core";
 import { commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
@@ -187,7 +187,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     // A rate limit is not a violation either (like a gate): the call is refused, with no strike, and counted.
     let rateLimited = false;
     if (allow && opts.rate && j.scope && isNetworkScope(j.scope)) {
-      const v = limiter.take(hostsOf(call, j.scope), opts.rate);
+      const v = limiter.take(requestsOf(call, j.scope), opts.rate);
       if (!v.ok) { allow = false; reason = v.reason; strike = false; rateLimited = true; rateLimitedTotal++; rateLimitedSince++; }
     }
     opts.onCall?.({ tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}) });

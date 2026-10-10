@@ -6,7 +6,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 
 ## Partial: built in part, with work left
 
-30 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
+31 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
 
 | ID | Gap | Priority | What is left |
 |---|---|---|---|
@@ -21,6 +21,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | H8 | No sandbox level: what a tool does inside the machine is not bounded | B | Container or OS sandbox wrapper |
 | H10 | Actions an agent's own code takes outside the model loop are invisible to the gateway. Seen live: Aider saw... | A | Sandbox with egress rules (H8), network-level redirect through the gateway, and a list of known self-acting agents with their risky defaults |
 | H11 | The host limit is enforced by the gateway and, since S68, by the Claude Code and Antigravity pre-call hooks.... | B | Run Codex and OpenHands through the gateway (or a sandbox with host egress, H13) |
+| H17 | The rate limit counted tool calls, not requests, so one shell command with many requests (a loop around... | A | Enforce in the network layer (the sandbox's egress, H13); or run scripts under a request counter |
 | P1 | Only four runtimes have adapters (Claude Code, Codex, Antigravity, OpenHands) | A | Top 20 runtimes through the gateway, then deeper adapters for the few that matter |
 | P4 | Hosted and enterprise agents that cannot be wrapped | B | Self-report SDK (assurance level 1) |
 | P5 | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) | B | Check or add per runtime |
@@ -78,7 +79,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | H14 | MCP tools that reach the network (a `mcp.*` scope) are not host-checked, and the Mandate has no per-host or per-minute rate limit | none | Rate limits per host and in total; host arguments for known MCP tools | S67 | B | open |
 | H15 | The rate limit is opt-in and per agent: a Mandate with `network.hosts` but no `network.rate` is not limited, a swarm of copies each gets its own allowance (so n copies make n times the calls), and only the gateway and the Claude Code and Antigravity hooks enforce it (Codex and OpenHands runs, MCP network tools and the sandbox's open network do not) | The host list (S67), the contagion watcher, strikes | Require a rate for tier 1 and 2 like the host list (a log rule); a budget shared across a fleet's copies; enforce it in the sandbox's egress (H13) | S89 | A | open |
 | H16 | The hooks count calls in a file: calls that start at the same moment can each read the count before the other writes its line, so a burst of parallel calls can pass a limit by up to the number in the burst; and the window is one minute only (no per-second or per-day limit) | The gateway keeps the count in one process, in order | A lock around the ledger; other windows | S89 | C | open |
-| H17 | The rate limit counts tool calls, not requests: one shell command can make many requests (a `for` loop around curl, `curl url1 url2 ... url50`, a script) and counts as one call to the host it names, so a determined agent gets around it by batching. Confirmed live (2026-10-10, evals/rate-limit.mjs part two): Claude Code asked to put eight curl commands in one Bash call made one call, the gateway allowed it, and the site saw eight requests against a limit of three | The gateway reads one host per call; the sandbox without network (H13) stops it entirely | Count the requests a command makes (read every URL in it, treat a loop around a network command as many); or enforce in the network layer (the sandbox's egress, H13) | S89 | A | open |
+| H17 | The rate limit counted tool calls, not requests, so one shell command with many requests (a loop around curl, fifty URLs) passed as one call. Now counted as the requests it makes (S90) and live-checked with real Claude Code (a command of eight curls under a limit of three: refused whole, the site saw none). What is left: it is a reading of the command text, so a script that makes its own requests (python, node, a binary) counts as one, a loop whose bound is computed counts as 1000 (refused, even if it is small), and a command built at run time is not seen | The gateway and hooks read the text; the sandbox without network (H13) stops everything | Enforce in the network layer (the sandbox's egress, H13); or run scripts under a request counter | S89, S90 | A | partial |
 | H9 | Unknown-unknowns | Least privilege, fast stop, accountability afterwards | Keep widening detectors from real incidents | | C | open |
 
 ## 3. Portability and runtimes
