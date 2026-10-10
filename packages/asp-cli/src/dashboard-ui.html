@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Social</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --surface: #ffffff; --surface-2: #faf9f6; --line: #e4e1d8; --ink: #1c1c1a; --ink-2: #5c5b55; --ink-3: #8b8a82;
+    --accent: #2f5bd4; --accent-ink: #ffffff; --accent-soft: #e8eefc;
+    --ok: #1f7a4d; --ok-soft: #e3f3ea; --warn: #9a6200; --warn-soft: #fbf0d8; --bad: #b3261e; --bad-soft: #fbe5e3; --idle: #6d6c66; --idle-soft: #ecebe6;
+    --shadow: 0 1px 2px rgba(20,20,10,.05), 0 6px 18px rgba(20,20,10,.05);
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141413; --surface: #1c1c1a; --surface-2: #222220; --line: #33332f; --ink: #efeee8; --ink-2: #b2b1a8; --ink-3: #85847b;
+      --accent: #7c9cf5; --accent-ink: #10141f; --accent-soft: #1f2740;
+      --ok: #62c58f; --ok-soft: #17301f; --warn: #e0b04f; --warn-soft: #33290f; --bad: #f08a82; --bad-soft: #3a1a18; --idle: #a3a29a; --idle-soft: #2a2a27;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141413; --surface: #1c1c1a; --surface-2: #222220; --line: #33332f; --ink: #efeee8; --ink-2: #b2b1a8; --ink-3: #85847b;
+    --accent: #7c9cf5; --accent-ink: #10141f; --accent-soft: #1f2740;
+    --ok: #62c58f; --ok-soft: #17301f; --warn: #e0b04f; --warn-soft: #33290f; --bad: #f08a82; --bad-soft: #3a1a18; --idle: #a3a29a; --idle-soft: #2a2a27;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.3);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+  a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  h1 { font-size: 28px; line-height: 1.2; margin: 0 0 4px; letter-spacing: -.01em; }
+  h2 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin: 32px 0 12px; font-weight: 600; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 26px 16px 64px; }
+  header.bar { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  header.bar .in { max-width: 1080px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .brand { font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; color: var(--ink); }
+  .brand:hover { text-decoration: none; }
+  .mark { width: 22px; height: 22px; border-radius: 7px; background: var(--accent); display: inline-block; position: relative; }
+  .mark::after { content: ""; position: absolute; inset: 6px; border: 2px solid var(--accent-ink); border-radius: 50%; }
+  nav { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
+  nav a { color: var(--ink-2); padding: 6px 10px; border-radius: 8px; font-weight: 500; }
+  nav a:hover { background: var(--idle-soft); text-decoration: none; }
+  nav a.on { color: var(--ink); background: var(--idle-soft); }
+  .badge { display: inline-block; min-width: 18px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 12px; text-align: center; line-height: 18px; }
+  .badge.soft { background: var(--warn); }
+  .right { display: flex; align-items: center; gap: 10px; }
+  button, .btn { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 14px; }
+  button:hover { border-color: var(--ink-3); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  button.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+  button:disabled { opacity: .55; cursor: default; }
+  button.icon { padding: 6px 9px; line-height: 1; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 500; background: var(--idle-soft); color: var(--idle); white-space: nowrap; }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); } .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.bad { background: var(--bad-soft); color: var(--bad); } .chip.run { background: var(--accent-soft); color: var(--accent); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .chip.run .dot { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow); }
+  .grid { display: grid; gap: 14px; }
+  .g4 { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .stat .n { font-size: 34px; font-weight: 650; letter-spacing: -.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .stat .l { color: var(--ink-2); margin-top: 2px; }
+  .stat.alert .n { color: var(--bad); }
+  .muted { color: var(--ink-2); } .faint { color: var(--ink-3); } .small { font-size: 13px; }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  td { padding: 11px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  tr.link { cursor: pointer; } tr.link:hover td { background: var(--surface-2); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .table-wrap { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
+  .empty { text-align: center; padding: 40px 16px; color: var(--ink-2); }
+  .empty .big { font-size: 17px; color: var(--ink); font-weight: 600; margin-bottom: 4px; }
+  .kv { display: grid; grid-template-columns: 150px 1fr; gap: 6px 14px; }
+  .kv dt { color: var(--ink-3); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .callout { border-radius: 16px; padding: 18px 20px; border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); background: var(--warn-soft); }
+  .callout.bad { border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); background: var(--bad-soft); }
+  .callout.ok { border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); background: var(--ok-soft); }
+  .actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .crumbs { color: var(--ink-3); margin: 22px 0 10px; }
+  .tl { list-style: none; margin: 0; padding: 0 0 0 4px; }
+  .tl li { position: relative; padding: 0 0 14px 24px; }
+  .tl li::before { content: ""; position: absolute; left: 4px; top: 7px; width: 9px; height: 9px; border-radius: 50%; background: var(--line); box-shadow: 0 0 0 3px var(--surface); }
+  .tl li::after { content: ""; position: absolute; left: 8px; top: 18px; bottom: -4px; width: 1px; background: var(--line); }
+  .tl li:last-child::after { display: none; }
+  .tl li.now::before { background: var(--accent); }
+  .tl li.end::before { background: var(--ok); } .tl li.stop::before { background: var(--bad); }
+  .events { display: grid; gap: 0; }
+  .ev { display: grid; grid-template-columns: 64px 110px 1fr; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+  .ev:last-child { border-bottom: 0; }
+  .ev .k { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); }
+  .ev.refused { background: linear-gradient(90deg, var(--bad-soft), transparent 70%); margin: 0 -10px; padding-left: 10px; border-radius: 8px; }
+  .ev.refused .k { color: var(--bad); font-weight: 600; }
+  .ev.allowed .k { color: var(--ok); }
+  .ev .t { overflow-wrap: anywhere; }
+  .bar2 { height: 8px; border-radius: 4px; background: var(--idle-soft); overflow: hidden; min-width: 90px; }
+  .bar2 > i { display: block; height: 100%; background: var(--accent); border-radius: 4px; transition: width .6s ease; }
+  .eq { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+  .eq .p { padding: 6px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+  .eq .op { color: var(--ink-3); font-size: 18px; }
+  .flow { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; flex-wrap: wrap; }
+  details summary { cursor: pointer; color: var(--accent); }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 12px; box-shadow: var(--shadow); z-index: 20; max-width: 90vw; }
+  .skeleton { height: 90px; border-radius: 16px; background: linear-gradient(90deg, var(--idle-soft), var(--surface-2), var(--idle-soft)); background-size: 200% 100%; animation: sk 1.4s linear infinite; }
+  @keyframes sk { to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  @media (max-width: 640px) {
+    h1 { font-size: 23px; } .kv { grid-template-columns: 1fr; gap: 0; } .kv dd { margin-bottom: 10px; }
+    .ev { grid-template-columns: 1fr; gap: 0; } .stat .n { font-size: 28px; }
+    header.bar .in { gap: 8px 12px; } .right { margin-left: auto; }
+  }
+</style>
+</head>
+<body>
+<header class="bar"><div class="in">
+  <a class="brand" href="#/"><span class="mark"></span>Agent Social</a>
+  <nav id="nav"></nav>
+  <div class="right"><span id="verify" class="chip" title="Whether the whole log replays cleanly"><span class="dot"></span>checking the log</span><button class="icon" id="theme" title="Light or dark" aria-label="Switch between light and dark">◐</button></div>
+</div></header>
+<main class="wrap" id="app"><div class="skeleton" style="margin-top:28px"></div></main>
+<script>
+(() => {
+  "use strict";
+  const $ = (s) => document.querySelector(s);
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const nf = (n) => Number(n || 0).toLocaleString("en-US");
+  const shortId = (id) => (id && id.length > 22 ? id.slice(0, 19) + "…" : id || "");
+  const name = (did) => { const m = /([^:]+)$/.exec(did || ""); return m ? m[1] : did || ""; };
+  const when = (iso) => { const d = new Date(iso); return isNaN(d) ? esc(iso) : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
+  const ago = (iso) => { const s = (Date.now() - Date.parse(iso)) / 1000; if (!(s >= 0)) return when(iso); if (s < 90) return "just now"; if (s < 5400) return Math.round(s / 60) + " min ago"; if (s < 129600) return Math.round(s / 3600) + " h ago"; return Math.round(s / 86400) + " d ago"; };
+
+  // The token comes in the address once and is kept for this tab only.
+  let token = sessionStorage.getItem("asp-token") || "";
+  const q = new URLSearchParams(location.search);
+  if (q.get("t")) { token = q.get("t"); sessionStorage.setItem("asp-token", token); history.replaceState(null, "", location.pathname + location.hash); }
+  const savedTheme = localStorage.getItem("asp-theme"); if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+  $("#theme").onclick = () => { const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); const next = cur === "dark" ? "light" : "dark"; document.documentElement.dataset.theme = next; localStorage.setItem("asp-theme", next); };
+
+  async function api(path, body) {
+    const res = await fetch(path, { method: body ? "POST" : "GET", headers: { "x-dashboard-token": token, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(json.error || res.statusText), { status: res.status });
+    return json;
+  }
+  function toast(text) { const t = document.createElement("div"); t.className = "toast"; t.textContent = text; document.body.appendChild(t); setTimeout(() => t.remove(), 4200); }
+
+  const STATE = {
+    Contracted: ["", "contracted"], Bonded: ["", "bonded"], Running: ["run", "running"], Checkpoint: ["warn", "waiting for you"], Delivered: ["", "delivered"],
+    Disputed: ["warn", "in dispute"], Settled: ["ok", "settled"],
+  };
+  const stateChip = (s, basis) => { const [c, l] = STATE[s] || ["", s || "unknown"]; return `<span class="chip ${c}"><span class="dot"></span>${esc(l)}${basis ? " · " + esc(basis) : ""}</span>`; };
+  const empty = (big, small) => `<div class="card empty"><div class="big">${esc(big)}</div><div>${esc(small)}</div></div>`;
+
+  // ---------- views ----------
+  async function viewHome() {
+    const [h, inbox] = await Promise.all([api("/api/home"), api("/api/inbox")]);
+    const c = h.counts;
+    const jobRows = h.jobs.slice(0, 40).map((j) => `<tr class="link" onclick="location.hash='#/job/${esc(j.id)}'"><td><strong>${esc(j.purpose)}</strong><div class="faint small">${esc(name(j.performer))} · for ${esc(name(j.principal))}</div></td><td>${stateChip(j.state)}</td><td class="num">${j.blocked ? `<span class="chip bad">${nf(j.blocked)} blocked</span>` : '<span class="faint">none</span>'}</td><td class="num faint">${ago(j.lastAt)}</td></tr>`).join("");
+    const agentCards = h.agents.map((a) => `<div class="card"><h3>${esc(name(a.did))}</h3><div class="faint small mono">${esc(a.did)}</div>
+      <dl class="kv" style="margin-top:12px"><dt>sponsor</dt><dd>${esc(name(a.sponsor || "—"))}</dd><dt>tier</dt><dd>${a.tier ?? "—"}</dd><dt>credits</dt><dd>${nf(a.credits)}</dd><dt>jobs</dt><dd>${nf(a.jobs)} · ${nf(a.running)} running</dd><dt>blocked</dt><dd>${a.blocked ? `<span class="chip bad">${nf(a.blocked)} before they ran</span>` : "nothing so far"}${a.strikes ? ` · ${nf(a.strikes)} strike(s)` : ""}</dd></dl></div>`).join("");
+    return `<h1>Your agents</h1><div class="muted">Everything here is read from the signed log on this machine.</div>
+      <div class="grid g4" style="margin-top:20px">
+        <div class="card stat"><div class="n">${nf(h.agents.length)}</div><div class="l">agents</div></div>
+        <div class="card stat"><div class="n">${nf(c.running)}</div><div class="l">jobs running</div></div>
+        <a href="#/inbox" style="color:inherit;text-decoration:none"><div class="card stat ${inbox.waiting.length ? "alert" : ""}"><div class="n">${nf(inbox.waiting.length)}</div><div class="l">waiting for your answer</div></div></a>
+        <a href="#/alerts" style="color:inherit;text-decoration:none"><div class="card stat ${c.alerts ? "alert" : ""}"><div class="n">${nf(h.jobs.reduce((n, j) => n + j.blocked, 0))}</div><div class="l">calls blocked before they ran</div></div></a>
+      </div>
+      <h2>Agents</h2>${h.agents.length ? `<div class="grid g2">${agentCards}</div>` : empty("No agents yet", "Create one with asp identity new --kind agent, then give it a job.")}
+      <h2>Jobs</h2>${h.jobs.length ? `<div class="card"><div class="table-wrap"><table><thead><tr><th>Job</th><th>State</th><th class="num">Blocked</th><th class="num">Last activity</th></tr></thead><tbody>${jobRows}</tbody></table></div></div>` : empty("No jobs yet", "A job starts with an intent, an offer and a contract. See the README.")}
+      <p class="faint small" style="margin-top:28px">Log: ${nf(c.records)} records · head <span class="mono">${esc(shortId(h.head.logHash))}</span> (seq ${nf(h.head.seq)})</p>`;
+  }
+
+  async function viewJob(id) {
+    const j = await api("/api/job?id=" + encodeURIComponent(id));
+    const f = j.facts, a = f.activity, m = f.mandate;
+    const waiting = j.openCheckpoint ? `<div class="callout" style="margin-bottom:16px"><h3>Waiting for your answer</h3><div>${esc(j.openCheckpoint.question)}</div>${j.openCheckpoint.proposed ? `<div class="mono" style="margin-top:8px">${esc(j.openCheckpoint.proposed)}</div>` : ""}
+      <div class="actions"><button class="primary" data-resolve="approved">Approve</button><button class="danger" data-resolve="refused">Refuse</button></div></div>` : "";
+    const chain = j.chain.map((c, i) => `<li class="${c.kind === "settlement" ? (f.ending && f.ending.basis === "revoked" ? "stop" : "end") : i === j.chain.length - 1 ? "now" : ""}"><strong>${esc(c.kind)}</strong> <span class="faint small">· ${when(c.at)} · by ${esc(name(c.issuer))}</span>${c.note ? `<div class="muted small">${esc(c.note)}</div>` : ""}<div class="mono faint">${esc(shortId(c.id))}</div></li>`).join("");
+    const acts = j.actions.length ? j.actions.map((x) => `<tr><td class="faint small">${when(x.at)}${x.late ? ' <span class="chip warn">late</span>' : ""}</td><td>${x.scopes.map((s) => `<span class="chip ok" style="margin:0 4px 4px 0">${esc(s)}</span>`).join("") || '<span class="faint">no scopes</span>'}</td><td>${x.blocked.map((b) => `<span class="chip bad" style="margin:0 4px 4px 0">${esc(b.scope)} ×${b.count}</span>`).join("") || '<span class="faint">—</span>'}</td><td class="faint small">${esc((x.assurance || "").replace(/_/g, " "))}</td></tr>`).join("") : `<tr><td colspan="4" class="faint">No activity reported yet.</td></tr>`;
+    const rl = j.runLog;
+    const evs = rl ? rl.shown.map((e) => {
+      const d = e.data || {}; const t = (x) => esc(String(x ?? "").replace(/\s+/g, " ")).slice(0, 400);
+      let k = e.kind, text = "", cls = "";
+      if (k === "tool_call" && d.allowed !== undefined) { cls = d.allowed ? "allowed" : "refused"; k = d.allowed ? "allowed" : "refused"; text = `<strong>${t(d.tool)}</strong> → ${t(d.scope || "no scope")}${d.reason ? ` <span class="muted">— ${t(d.reason)}</span>` : ""}<div class="mono faint">${t(d.input)}</div>`; }
+      else if (k === "tool_call") text = `<strong>${t(d.tool)}</strong> <span class="mono faint">${t(d.input)}</span>`;
+      else if (k === "call_judged") { cls = d.granted ? "allowed" : "refused"; k = d.granted ? "granted" : "refused"; text = `${t(d.scope)}${d.gated ? " (gated)" : ""}`; }
+      else if (k === "run_start") text = `started under <strong>${t(String(d.contract || "").slice(0, 19))}…</strong> as ${t(name(d.agent))}; allowed: ${t((d.scopes || []).join(", ") || "nothing")}${d.hosts ? "; network only to " + t(d.hosts.join(", ")) : ""}`;
+      else if (k === "run_end") text = `ended with exit ${t(d.exit_code)}: ${nf(d.requests ?? 0)} request(s), ${nf(d.tool_calls ?? 0)} tool call(s), ${nf(d.strikes ?? 0)} blocked${d.redactions ? ", " + nf(d.redactions) + " secret-like value(s) masked" : ""}`;
+      else if (k === "run_result") text = `<span class="muted">${t([d.status, d.turns !== undefined ? d.turns + " turn(s)" : "", d.tokens_in !== undefined ? nf(d.tokens_in) + " in / " + nf(d.tokens_out) + " out" : ""].filter(Boolean).join(", "))}</span>`;
+      else if (k === "model_request") text = `<span class="muted">${t(d.model)} asked:</span> ${t(d.prompt)}`;
+      else if (k === "model_reply") text = `<span class="muted">${nf(d.tokens_in)} in / ${nf(d.tokens_out)} out</span> ${t(d.text)}`;
+      else if (k === "assistant_text") text = t(d.text);
+      else if (k === "tool_result") { if (d.blocked) cls = "refused"; text = `${d.blocked ? "<strong>blocked</strong> " : d.error ? "failed " : ""}<span class="mono">${t(d.text)}</span>`; }
+      else if (k === "mcp_call") text = `<strong>${t(d.server)}/${t(d.tool)}</strong> <span class="mono faint">${t(d.input)}</span> → <span class="mono">${t(d.result)}</span>`;
+      else if (k === "strike" || k === "kill" || k === "stopped") { cls = "refused"; text = t(d.how || d.message || d.reason || ""); }
+      else text = `<span class="muted">${t(JSON.stringify(d)).slice(0, 220)}</span>`;
+      return `<div class="ev ${cls}"><span class="faint small">${esc(e.at.slice(11, 19))}</span><span class="k">${esc(k.replace(/_/g, " "))}</span><span class="t">${text}</span></div>`;
+    }).join("") : "";
+    const money = j.money ? `<dl class="kv"><dt>escrow</dt><dd>${nf(j.money.escrowLocked)} locked from ${esc(name(j.money.escrowPayer))}</dd><dt>bond</dt><dd>${nf(j.money.bondLocked)} locked from ${esc(name(j.money.backer))}</dd><dt>status</dt><dd>${j.money.settled ? "settled" : "held until the job ends"}</dd></dl>` : '<div class="faint">No bond yet.</div>';
+    const flows = j.flows.map((x) => `<div style="margin-top:10px"><div class="faint small">${when(x.at)} · ${esc(x.kind)}</div>${x.lines.map((l) => `<div class="flow"><span>${esc(l.label)}${l.from ? ` <span class="faint">from ${esc(name(l.from))}</span>` : ""}${l.to ? ` <span class="faint">to ${esc(name(l.to))}</span>` : ""}</span><strong>${nf(l.amount)} ${esc(l.unit)}</strong></div>`).join("")}</div>`).join("");
+    return `<div class="crumbs"><a href="#/">Home</a> / job</div>
+      <h1>${esc(f.contract.purpose)}</h1>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0 18px">${stateChip(f.state, f.ending && f.ending.basis)}<span class="muted">${esc(name(f.contract.performer))} for ${esc(name(f.contract.principal))}</span><span class="mono faint">${esc(shortId(f.contract.id))}</span></div>
+      ${waiting}
+      <div class="grid g2">
+        <div class="card"><h3>What it was allowed</h3>${m ? `<dl class="kv"><dt>scopes</dt><dd>${m.scopes.map((s) => `<span class="chip ok" style="margin:0 4px 4px 0">${esc(s)}</span>`).join("") || "none"}</dd>${m.hosts ? `<dt>network</dt><dd>only ${m.hosts.map(esc).join(", ")}</dd>` : ""}<dt>spend cap</dt><dd>${nf(m.spendCap)} ${esc(m.unit)}</dd><dt>needs approval</dt><dd>${m.gatedScopes.length ? m.gatedScopes.map(esc).join(", ") + ` (${esc(m.irreversible)})` : "nothing"}</dd></dl>` : '<div class="faint">No Mandate yet: the agent cannot act.</div>'}</div>
+        <div class="card"><h3>What it did</h3><dl class="kv"><dt>reports</dt><dd>${nf(a.actions)}${a.lateActions ? ` (${nf(a.lateActions)} late)` : ""}</dd><dt>model requests</dt><dd>${nf(a.metrics.requests)} · ${nf(a.metrics.toolCalls)} tool calls</dd><dt>tokens</dt><dd>${nf(a.metrics.tokensIn + a.metrics.tokensOut)}${a.metrics.models.length ? " · " + esc(a.metrics.models.map((m) => m.replace(/ \((?:127\.0\.0\.1|localhost|\[::1\])[^)]*\)/, "")).join(", ")) : ""}</dd><dt>blocked</dt><dd>${a.strikes ? `<span class="chip bad">${nf(a.strikes)} before they ran</span> ${a.blocked.map((b) => esc(b.scope) + " ×" + b.count).join(", ")}` : "nothing"}</dd><dt>held by</dt><dd>${esc((a.assurance[0] || "no report yet").replace(/_/g, " "))}</dd></dl></div>
+      </div>
+      <h2>Reports from the agent</h2><div class="card"><div class="table-wrap"><table><thead><tr><th>When</th><th>Used</th><th>Blocked</th><th>Held by</th></tr></thead><tbody>${acts}</tbody></table></div></div>
+      ${f.approvals.length ? `<h2>Approvals</h2><div class="card">${f.approvals.map((p) => `<div class="flow"><span>${esc(p.question)}${p.proposed ? ` <span class="mono faint">${esc(p.proposed)}</span>` : ""}</span><span class="chip ${p.answer === "approved" ? "ok" : "warn"}">${esc(p.answer)}</span></div>`).join("")}</div>` : ""}
+      ${rl ? `<h2>The run, as the gateway saw it</h2><div class="card"><div class="small ${rl.ok ? "muted" : ""}" style="margin-bottom:8px">${rl.ok ? `${nf(rl.events)} events, hash chain checked <span class="chip ok">verified</span>` : `<span class="chip bad">not verified</span> ${esc(rl.problem || "")}`} · secrets masked, text cut · kept on this machine</div>${rl.truncated ? `<div class="faint small">Showing the last ${rl.shown.length}; ${nf(rl.truncated)} earlier events are in the file.</div>` : ""}<div class="events">${evs || '<div class="faint">Empty.</div>'}</div></div>` : ""}
+      <div class="grid g2"><div><h2>Where it stands</h2><div class="card"><ul class="tl">${chain}</ul></div></div>
+      <div><h2>Money</h2><div class="card">${money}${flows}</div>
+      <h2>With real money</h2><div class="card small muted">These credits are a mock ledger. If they were real: the escrow is the customer's payment, held until the job is accepted; the bond is the agent's sponsor's own money, and a blocked or violating run can forfeit it; ${f.ending ? `this job ended <strong>${esc(f.ending.basis)}</strong>: ${nf(f.ending.escrowReleased)} paid, ${nf(f.ending.bondReturned)} bond returned, ${nf(f.ending.bondSlashed)} forfeited.` : "nothing has moved yet."}</div></div></div>
+      <h2>Check it yourself</h2><div class="card small"><dl class="kv"><dt>contract</dt><dd class="mono">${esc(f.evidence.contractRecord)}</dd>${f.evidence.mandateRecord ? `<dt>mandate</dt><dd class="mono">${esc(f.evidence.mandateRecord)}</dd>` : ""}${f.evidence.settlementRecord ? `<dt>settlement</dt><dd class="mono">${esc(f.evidence.settlementRecord)}</dd>` : ""}<dt>last record</dt><dd class="mono">${esc(f.evidence.lastRecord)}</dd><dt>command</dt><dd class="mono">asp market show ${esc(f.contract.id)}</dd></dl></div>`;
+  }
+
+  async function viewInbox() {
+    const r = await api("/api/inbox");
+    if (!r.waiting.length) return `<h1>Approvals</h1><div class="muted" style="margin-bottom:18px">Calls an agent wants to make that need your say-so.</div>` + empty("Nothing is waiting", "When an agent asks to do something your Mandate gates, it shows up here and the agent waits for your answer.");
+    return `<h1>Approvals</h1><div class="muted" style="margin-bottom:18px">The agent waits until you answer; no answer in time counts as a refusal.</div><div class="grid">${r.waiting.map((w) => `<div class="card" data-contract="${esc(w.contract)}"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><h3>${esc(w.question)}</h3>${w.proposed ? `<div class="mono" style="margin:6px 0">${esc(w.proposed)}</div>` : ""}<div class="muted small">${esc(name(w.performer))} on “${esc(w.purpose)}” · asked ${ago(w.asked)}${w.expires ? ` · expires ${when(w.expires)}` : ""}</div></div><a href="#/job/${esc(w.contract)}" class="small">open job</a></div><div class="actions"><button class="primary" data-resolve="approved" data-contract="${esc(w.contract)}">Approve</button><button class="danger" data-resolve="refused" data-contract="${esc(w.contract)}">Refuse</button></div></div>`).join("")}</div>`;
+  }
+
+  async function viewAlerts() {
+    const r = await api("/api/alerts");
+    const KIND = { killed: ["bad", "Stopped by the kill switch"], report_upheld: ["bad", "Report upheld"], expired: ["warn", "Mandate expired"] };
+    const al = r.alerts.map((a) => `<div class="callout ${KIND[a.kind][0] === "bad" ? "bad" : ""}" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><strong>${esc(KIND[a.kind][1])}</strong><span class="faint small">${when(a.at)}</span></div><div>${esc(a.detail)}</div><div class="small" style="margin-top:6px"><a href="#/job/${esc(a.contract)}">${esc(a.purpose || shortId(a.contract))}</a></div></div>`).join("");
+    const bl = r.blocked.map((b) => `<tr class="link" onclick="location.hash='#/job/${esc(b.contract)}'"><td class="faint small">${when(b.at)}</td><td>${esc(name(b.agent))}</td><td><span class="chip bad">${esc(b.scope)}</span></td><td class="num">${nf(b.count)}</td><td class="muted">${esc(b.purpose)}</td></tr>`).join("");
+    return `<h1>Alerts</h1><div class="muted" style="margin-bottom:18px">Things that stopped an agent or need a look.</div>${r.alerts.length ? al : empty("No alerts", "A kill, an upheld report or an expired Mandate would appear here.")}
+      <h2>Calls blocked before they ran</h2>${r.blocked.length ? `<div class="card"><div class="table-wrap"><table><thead><tr><th>When</th><th>Agent</th><th>Tried to use</th><th class="num">Times</th><th>Job</th></tr></thead><tbody>${bl}</tbody></table></div></div>` : empty("Nothing blocked yet", "When an agent reaches for something its Mandate does not grant, the call is refused before it runs and the attempt appears here.")}`;
+  }
+
+  async function viewMoney() {
+    const m = await api("/api/money");
+    const max = Math.max(1, ...m.accounts.map((a) => a.balance));
+    const rows = m.accounts.map((a) => `<tr><td>${esc(name(a.did))}<div class="mono faint">${esc(a.did)}</div></td><td class="num">${nf(a.balance)}</td><td style="width:34%"><div class="bar2"><i style="width:${Math.round((a.balance / max) * 100)}%"></i></div></td><td class="num faint">${a.minted ? "+" + nf(a.minted) + " granted" : ""}</td></tr>`).join("");
+    const locked = m.locked.map((l) => `<tr class="link" onclick="location.hash='#/job/${esc(l.contract)}'"><td>${esc(l.purpose)}</td><td class="num">${nf(l.escrow)}</td><td class="num">${nf(l.bond)}</td><td class="faint small">${esc(name(l.payer))} / ${esc(name(l.backer))}</td></tr>`).join("");
+    const feed = m.feed.map((x) => `<div style="padding:10px 0;border-bottom:1px solid var(--line)"><div class="faint small">${when(x.at)} · ${esc(x.kind)} · ${esc(x.purpose)}</div>${x.lines.map((l) => `<div class="flow"><span>${esc(l.label)}${l.from ? ` <span class="faint">from ${esc(name(l.from))}</span>` : ""}${l.to ? ` <span class="faint">to ${esc(name(l.to))}</span>` : ""}</span><strong>${nf(l.amount)}</strong></div>`).join("")}</div>`).join("");
+    return `<h1>Money</h1><div class="muted" style="margin-bottom:18px">A mock ledger: no real money moves. This is where every credit is, and the check that none appeared or vanished.</div>
+      <div class="callout ${m.conserved ? "ok" : "bad"}"><div class="eq"><strong>${m.conserved ? "Conserved" : "NOT conserved"}</strong><span class="p">${nf(m.minted)} granted</span><span class="op">=</span><span class="p">${nf(m.totals.balances)} in accounts</span><span class="op">+</span><span class="p">${nf(m.totals.lockedEscrow)} in escrow</span><span class="op">+</span><span class="p">${nf(m.totals.lockedBond)} in bonds</span>${m.conserved ? "" : `<span class="chip bad">off by ${nf(m.difference)}</span>`}</div></div>
+      <h2>Accounts</h2><div class="card"><div class="table-wrap"><table><thead><tr><th>Who</th><th class="num">Credits</th><th></th><th class="num"></th></tr></thead><tbody>${rows}</tbody></table></div></div>
+      <h2>Held in jobs that have not ended</h2>${m.locked.length ? `<div class="card"><div class="table-wrap"><table><thead><tr><th>Job</th><th class="num">Escrow</th><th class="num">Bond</th><th>Payer / backer</th></tr></thead><tbody>${locked}</tbody></table></div></div>` : empty("Nothing held", "Escrow and bonds are locked when a job is bonded and released when it ends.")}
+      <h2>Movements</h2>${m.feed.length ? `<div class="card">${feed}</div>` : empty("No movements yet", "Locks and settlements appear here as jobs run.")}`;
+  }
+
+  // ---------- shell ----------
+  const ROUTES = [["#/", "Home"], ["#/inbox", "Approvals"], ["#/alerts", "Alerts"], ["#/money", "Money"]];
+  let counts = { inbox: 0, alerts: 0 };
+  function renderNav() {
+    const cur = location.hash || "#/";
+    $("#nav").innerHTML = ROUTES.map(([h, l]) => `<a href="${h}" class="${cur === h || (h === "#/" && cur.startsWith("#/job")) ? "on" : ""}">${l}${h === "#/inbox" && counts.inbox ? `<span class="badge soft">${counts.inbox}</span>` : ""}${h === "#/alerts" && counts.alerts ? `<span class="badge">${counts.alerts}</span>` : ""}</a>`).join("");
+  }
+  async function route(quiet) {
+    const h = location.hash || "#/";
+    renderNav();
+    const app = $("#app");
+    if (quiet !== true) app.innerHTML = '<div class="skeleton" style="margin-top:28px"></div>';
+    try {
+      app.innerHTML = h.startsWith("#/job/") ? await viewJob(decodeURIComponent(h.slice(6))) : h === "#/inbox" ? await viewInbox() : h === "#/alerts" ? await viewAlerts() : h === "#/money" ? await viewMoney() : await viewHome();
+      document.title = (app.querySelector("h1")?.textContent || "Agent Social") + " · Agent Social";
+      if (quiet !== true) window.scrollTo(0, 0);
+    } catch (e) {
+      app.innerHTML = e.status === 401 ? empty("This tab is not signed in", "Open the address that `asp dashboard` printed in your terminal; it carries the access token.") : empty("Something went wrong", e.message);
+    }
+    refreshCounts();
+  }
+  async function refreshCounts() {
+    try { const [i, a] = await Promise.all([api("/api/inbox"), api("/api/alerts")]); counts = { inbox: i.waiting.length, alerts: a.alerts.length }; renderNav(); } catch { /* the page already said what is wrong */ }
+  }
+  async function verify() {
+    const el = $("#verify");
+    try { const r = await api("/api/verify"); el.className = "chip " + (r.ok ? "ok" : "bad"); el.innerHTML = `<span class="dot"></span>${r.ok ? "log verified · " + nf(r.records) + " records" : "LOG DOES NOT VERIFY"}`; el.title = r.ok ? "Every record was replayed: signatures, rules and credits." : JSON.stringify(r.error || {}); }
+    catch { el.className = "chip"; el.textContent = "log not checked"; }
+  }
+  document.addEventListener("click", async (ev) => {
+    const b = ev.target.closest("[data-resolve]");
+    if (!b) return;
+    const contract = b.dataset.contract || decodeURIComponent((location.hash.match(/^#\/job\/(.+)$/) || [])[1] || "");
+    const verdict = b.dataset.resolve;
+    let reason;
+    if (verdict === "refused") { reason = prompt("Why? (the agent sees this)", "not now"); if (reason === null) return; }
+    b.disabled = true;
+    try { await api("/api/resolve", { contract, verdict, reason }); toast(verdict === "approved" ? "Approved. The agent can go on." : "Refused. The agent is told why."); route(); }
+    catch (e) { b.disabled = false; toast(e.message); }
+  });
+  window.addEventListener("hashchange", () => route());
+  route(); verify();
+  setInterval(() => { if (!document.hidden && !(location.hash || "").startsWith("#/job")) route(true); else if (!document.hidden) refreshCounts(); }, 15000);
+})();
+</script>
+</body>
+</html>

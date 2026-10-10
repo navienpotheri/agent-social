@@ -57,6 +57,9 @@
  *     A report saved with --out is a baseline; running again with --baseline (or asp canary compare) flags a task that used to pass and does not
  *     (REGRESSION) and growth in tokens, tool calls, time or blocked attempts (drift). The default suite is canary/default-suite.json; the reference
  *     agent (src/reference-agent.mjs) lets any OpenAI-compatible model be tested: --target openrouter:<model>.
+ *   asp dashboard [--port n]
+ *     The dashboard on this machine only (docs/spec-deltas.md S84): agents, jobs, approvals you can answer, alerts, and the money with its conservation check.
+ *     Prints an address carrying a random access token. Reads the log in the ASP home (or the service named by ASP_LOG_URL).
  *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--html] [--again] | pending | watch [--once] [--interval <s>] [--to <address>] | address set <did> <address> | address list
  *     The end-of-Mandate mail (docs/live-beta-flow-1.md step 8, gap E8): one mail per Mandate with the highlights from the log (what was asked, allowed, done,
  *     blocked, approved, what changed in memory, how it ended and what moved) and, when the gateway kept one, the checked run log. preview prints it (--html
@@ -282,6 +285,7 @@ import {
   b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
+import { createDashboard } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
@@ -537,6 +541,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "known-bad") return await knownBadCmd(home, sub, v, need, io);
     if (cmd === "run-log") return await runLogCmd(home, sub, rest, v, io);
     if (cmd === "mail") return await mailCmd(home, sub, rest, v, io);
+    if (cmd === "dashboard") return await dashboardCmd(home, v, io);
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
@@ -1597,6 +1602,28 @@ async function gatewayWriteBack(o: { home: string; pkgDir: string; agent: string
 /** The known-bad list this command line points at: the log service's when ASP_LOG_URL is set, else a file in the ASP home. */
 async function loadKnownBad(home: string, io: Io): Promise<KnownBadEntry[]> {
   return io.env.ASP_LOG_URL ? await fetchKnownBad(io.env.ASP_LOG_URL, io.env.ASP_LOG_TOKEN) : readKnownBad(join(home, "known-bad.json"));
+}
+
+/**
+ * asp dashboard [--port n]: the dashboard (gaps U2, U3, U7) on this machine only, over the log in the ASP home: your agents, each job with what it was
+ * allowed and did, the approvals waiting for you (answer them here instead of asp market resolve), alerts, and where the credits are with the check that none
+ * were lost. Prints an address with an access token; open that. Ctrl-C stops it.
+ */
+async function dashboardCmd(home: string, v: Values, io: Io): Promise<number> {
+  const port = v.port === undefined ? 8788 : Math.trunc(Number(v.port));
+  if (!Number.isInteger(port) || port < 0 || port > 65535) throw new UsageError("--port must be a port number");
+  const token = b64urlEncode(randomSeed());
+  const keys = new Keystore(home);
+  const server = createDashboard({
+    token, openLog: () => openLog(home, logEnv), runLogFor: (c) => findRunLog(home, c), signerFor: (did) => keys.forDid(did), now,
+  });
+  await new Promise<void>((resolveListen, reject) => { server.once("error", reject); server.listen(port, "127.0.0.1", resolveListen); });
+  const at = (server.address() as { port: number }).port;
+  io.out(`the dashboard is on this machine only. Open: http://127.0.0.1:${at}/?t=${token}`);
+  io.out("  it reads the log in " + home + (io.env.ASP_LOG_URL ? ` (the service at ${io.env.ASP_LOG_URL})` : "") + "; Ctrl-C stops it");
+  await new Promise<void>((resolveStop) => { process.once("SIGINT", resolveStop); process.once("SIGTERM", resolveStop); });
+  server.close();
+  return 0;
 }
 
 /** The gateway run folder whose run log belongs to this contract (the newest), or undefined. */

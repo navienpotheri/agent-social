@@ -202,7 +202,7 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
     }
     check.push(o.linkBase ? `Full run log:${o.linkBase.replace(/\/$/, "")}/run-log` : `Full run log, kept on the machine that ran the job: ${o.runLog.path}`);
   } else check.push("No run log was kept for this job.");
-  if (o.linkBase) check.push(`Run page: ${o.linkBase.replace(/\/$/, "")}/jobs/${f.contract.id}`);
+  if (o.linkBase) check.push(`Run page: ${o.linkBase.replace(/\/$/, "")}/#/job/${f.contract.id}`);
   sections.push({ title: "Check it", lines: check });
 
   const highlights = [
@@ -277,7 +277,7 @@ export function buildAlertMail(a: MailAlert, f: MandateFacts, o: Pick<MailOption
     `Job: ${f.contract.purpose}. Agent: ${f.contract.performer}.`,
     ...(f.activity.blocked.length ? [`Before this, ${f.activity.strikes} attempt(s) were blocked: ${f.activity.blocked.map((b) => `${b.scope} x${b.count}`).join(", ")}.`] : []),
     `Check it: record ${short(a.record)} on contract ${short(f.evidence.contractRecord)}; anyone can verify them against the log.`,
-    ...(o.linkBase ? [`Run page: ${o.linkBase.replace(/\/$/, "")}/jobs/${f.contract.id}`] : []),
+    ...(o.linkBase ? [`Run page: ${o.linkBase.replace(/\/$/, "")}/#/job/${f.contract.id}`] : []),
   ];
   const text = [subject, "", ...lines.map((l) => `  ${l}`), "", "-- Agent Social. This is an alert; the end-of-job mail with the highlights follows when the job ends.", ""].join("\n");
   const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

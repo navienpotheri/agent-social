@@ -39,3 +39,4 @@ export { RELAY_TCP_PY, dockerPlan, type DockerPlan, type DockerPolicy } from "./
 export { buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type AlertKind, type BuiltMail, type MailAlert, type MailLog, type MailOptions, type MandateFacts } from "./mail.ts";
 export { claudeCodeRunLogEvents, codexRunLogEvents, type LineEvent } from "./adapters/run-log-lines.ts";
 export { fetchRetry } from "./http-retry.ts";
+export { dashboardAlerts, dashboardHome, dashboardInbox, dashboardJob, dashboardMoney, type AlertsView, type DashboardLog, type FlowEntry, type HomeView, type InboxView, type JobView, type MoneyView } from "./dashboard.ts";

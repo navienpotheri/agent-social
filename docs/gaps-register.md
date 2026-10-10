@@ -6,7 +6,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 
 ## Partial: built in part, with work left
 
-27 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
+30 rows are partial (status column). This table is a view of them; the row in its section has the detail. Keep it in step when a row changes status (rule X3).
 
 | ID | Gap | Priority | What is left |
 |---|---|---|---|
@@ -26,6 +26,9 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | P5 | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) | B | Check or add per runtime |
 | P6 | No model matrix: which open models call tools reliably | B | Run the swarm scenario across models |
 | P7 | Weak models: malformed tool arguments, loops after a refusal | B | Measure and document per model |
+| U2 | The dashboard exists as a local tool for one person on one machine; there is no hosted dashboard, no... | A | Sign-in and a hosted dashboard (U1); the provider, juror, operator and reviewer views; an agent page (lineage, memory, packages, commons); the Mandate builder. **Done... |
+| U7 | No approvals inbox or alerts outside the CLI | A | Notifications outside the dashboard (mail on a waiting approval, a push); answering from another machine or a phone without the principal's key. **Done so far (S84):... |
+| U8 | The app has to look good: no design system yet | A | A design pass on the sign-up page, the consent screen and the mail in the same language; checks on real phones and other browsers (it was looked at in one embedded... |
 | O2 | The log service limits tenants and addresses, counts and caps what each writes, and an operator can suspend... | A | resume |
 | O12 | Branch protection on main is not set | A | Set branch protection on main requiring the checks `node (ubuntu-latest, node 24)`, `node (ubuntu-latest, node 22.18)`, `node (windows-latest, node 24)`, `node... |
 | O14 | What CI does not cover: macOS, Node versions between 22.18 and 24 and newer than 24, the real-agent... | B | A macOS job; Node 26 when it is released; fix or remove the PGlite instructions; run the evaluations on a schedule with a repository secret. **Done (S82): Windows, Node... |
@@ -110,15 +113,17 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 | ID | Gap | Covered today by | Fix | Detail | Pri | Status |
 |---|---|---|---|---|---|---|
 | U1 | No sign-up page, Gmail sign-in or consent screen | CLI identity creation | Live beta flow 1 | `docs/live-beta-flow-1.md` | A | designed |
-| U2 | No dashboard (owner, principal, provider, juror, operator, reviewer views) | CLI commands | Read-only dashboard over the log | `docs/user-journey.md` §7 | A | designed |
-| U3 | No internal money-flow dashboard for our own test runs | CLI balances | Live view of every mock transfer with the conservation check | backlog | A | open |
+| U2 | The dashboard exists as a local tool for one person on one machine; there is no hosted dashboard, no sign-in, and only the owner and principal views | S84: `asp dashboard` serves a page and JSON API on 127.0.0.1 behind a random token: Home (agents, jobs), a job page (Mandate, activity, blocked calls, approvals, the run log, the chain, money, a check-it-yourself panel), Approvals, Alerts, Money | Sign-in and a hosted dashboard (U1); the provider, juror, operator and reviewer views; an agent page (lineage, memory, packages, commons); the Mandate builder. **Done so far (S84): the owner and principal screens above.** Left: U11, U12. | `docs/user-journey.md` §7 | A | partial |
+| U3 | No internal money-flow dashboard for our own test runs | S84: the Money screen: every account, what is locked in unended jobs, every lock and settlement, and the check minted = accounts + escrow + bonds (shown green or red); `asp dashboard` with `evals/dashboard-demo.mjs` for a seeded home | Done 2026-10-10 (S84). The check passed on a real flow with fees, a slashed bond and unfinished jobs; it covers every account the log knows of. | backlog | A | closed |
 | U4 | No run mail (one per Mandate, highlights) | none | Mail provider, opt-in, runtime log capture and redaction | backlog, flow doc | A | designed |
 | U5 | Key recovery: lose the key and the backup, lose the identity | Encrypted backup file (designed) | Second recovery key plus the backup; passkey wrapper later | flow doc | A | designed |
-| U6 | No explainer for what mock funds, banks and courts mean to the user | none | Per-run "what this would mean with real money" panel | backlog | A | open |
-| U7 | No approvals inbox or alerts outside the CLI | `asp market resolve` | Dashboard inbox and alerts | backlog | A | open |
-| U8 | The app has to look good: no design system yet | none | Design pass on page, consent, dashboard, mail, money-flow screen | flow doc | A | open |
+| U6 | No explainer for what mock funds, banks and courts mean to the user | S84: each job page has a "With real money" panel saying what the escrow, the bond and the settlement would mean | Done 2026-10-10 (S84) for a job; no explainer yet for the other screens or for a first-time visitor. | backlog | A | closed |
+| U7 | No approvals inbox or alerts outside the CLI | S84: the Approvals screen lists every call waiting for the principal, who approves or refuses (with a reason) with their own key from this machine; the Alerts screen lists kills, upheld reports, expired Mandates and the latest blocked attempts; badges on both | Notifications outside the dashboard (mail on a waiting approval, a push); answering from another machine or a phone without the principal's key. **Done so far (S84): the inbox and alerts in the dashboard.** | backlog | A | partial |
+| U8 | The app has to look good: no design system yet | S84: a first design pass on the dashboard: type scale, spacing, one accent, light and dark (follows the system, with a switch), a phone-width layout, empty states, skeletons, motion that explains (a pulsing running state, bars that grow) | A design pass on the sign-up page, the consent screen and the mail in the same language; checks on real phones and other browsers (it was looked at in one embedded browser at desktop and narrow width); accessibility checks. **Done so far (S84): the dashboard.** | flow doc | A | partial |
 | U9 | Account deletion and data-retention rules | none | What is public forever vs deletable; retention for run logs | flow doc | A | designed |
 | U10 | Measurement of the beta funnel (where people stop) | none | Instrument each flow step | flow doc | B | open |
+| U11 | The dashboard reads the whole log on every request (a few hundred records is instant, a large log is not), has no pagination, refreshes by polling every 15 seconds, and is for one person: the token in the address is the only access control, so anyone on the machine who can read the terminal or the shell history can use it | Local only: 127.0.0.1, a Host-header check, a random token per start | Read from indexes instead of the whole log; pagination; live updates; a hosted version behind sign-in (U1) | S84 | B | open |
+| U12 | The end mail still points nowhere useful: its run page link (`--link-base`) now matches the dashboard's address (`/#/job/<id>`), but the local dashboard needs its token and runs only while someone started it | E11 | A hosted dashboard the mail can link to, with sign-in | S84 | A | open |
 
 ## 6. Operating the network
 
