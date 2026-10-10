@@ -581,6 +581,65 @@
       "valid": false
     },
     {
+      "name": "valid_action_late",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "late": {
+          "activity_ended": "2026-10-05T10:00:00Z"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "action_late_without_activity_ended",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [],
+        "late": {}
+      },
+      "valid": false
+    },
+    {
+      "name": "action_late_bad_timestamp",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [],
+        "late": {
+          "activity_ended": "yesterday"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "action_late_unknown_field",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [],
+        "late": {
+          "activity_ended": "2026-10-05T10:00:00Z",
+          "reason": "slow"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "action_late_not_an_object",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [],
+        "late": true
+      },
+      "valid": false
+    },
+    {
       "name": "action_bad_scope_format",
       "schema": "action",
       "instance": {

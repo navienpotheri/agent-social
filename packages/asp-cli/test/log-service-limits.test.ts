@@ -116,9 +116,12 @@ test("repeated failed sign-ins lock an address out, even for the right token; X-
 
 test("the client waits out a 429 and repeats the call", async () => {
   const { RemoteLog } = await import("@agent-social/asp-package");
-  // 120 a minute: a burst of 30, then one more every half second, so a refused call is told to wait one second.
-  const url = await start({ limits: { tenantPerMinute: 120, appendPerMinute: 0, maxInFlight: 0, addressPerMinute: 0, failedAuthMax: 0 } });
+  // 120 a minute: a burst of 30, then one more every half second, so a refused call is told to wait one second. The service's clock is ours: frozen while
+  // the burst is used up (so the next call is refused however slow the machine is), then moved on while the client waits.
+  let clock = 1_000_000_000;
+  const url = await start({ limits: new Limits({ tenantPerMinute: 120, appendPerMinute: 0, maxInFlight: 0, addressPerMinute: 0, failedAuthMax: 0, now: () => clock }) });
   for (let i = 0; i < 200; i++) if ((await rpc(url, TOKEN)).status === 429) break;
+  setTimeout(() => { clock += 5_000; }, 300);
   const started = Date.now();
   const head = await new RemoteLog(url, TOKEN).log.head();
   assert.ok(head !== undefined);
@@ -228,11 +231,13 @@ test("the package, known-bad and commons clients all wait out a rate limit inste
   const root = mkdtempSync(join(tmpdir(), "asp-o16-"));
   const handle = await LocalLog.open(join(root, "log"));
   const extras = [packageRoutes({ root: join(root, "packages") }), knownBadRoutes({ root: join(root, "kb") }), commonsRoutes({ root: join(root, "commons"), handle })];
+  let clock = 2_000_000_000;
   const url = await start({
-    handle, limits: { tenantPerMinute: 120, appendPerMinute: 0, maxInFlight: 0, addressPerMinute: 0, failedAuthMax: 0 },
+    handle, limits: new Limits({ tenantPerMinute: 120, appendPerMinute: 0, maxInFlight: 0, addressPerMinute: 0, failedAuthMax: 0, now: () => clock }),
     extra: async (req: any, res: any, ctx: any) => { for (const r of extras) if (await r(req, res, ctx)) return true; return false; },
   });
-  const exhaust = async () => { for (let i = 0; i < 300; i++) if ((await rpc(url, TOKEN)).status === 429) return; throw new Error("never limited"); };
+  // Use up the burst with the clock frozen, then move it on while the client waits out its 429.
+  const exhaust = async () => { for (let i = 0; i < 300; i++) if ((await rpc(url, TOKEN)).status === 429) { setTimeout(() => { clock += 5_000; }, 300); return; } throw new Error("never limited"); };
 
   await exhaust();
   let t = Date.now();

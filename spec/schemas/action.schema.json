@@ -44,6 +44,15 @@
         "seconds": { "type": "integer", "minimum": 0 }
       }
     },
+    "late": {
+      "description": "Marks a report made after the job ended, for the last stretch of activity the performer could not report before the stop (a revoke, a kill or a settlement lands between its reports). The log accepts it only on a Settled job, from the performer, no later than ten minutes after the settlement, and only if activity_ended is no later than thirty seconds after the settlement. The scopes it names are checked against the Mandate like any Action's, and its blocked attempts still count as strikes. Nothing else about a Settled job changes.",
+      "type": "object",
+      "required": ["activity_ended"],
+      "additionalProperties": false,
+      "properties": {
+        "activity_ended": { "description": "When the last activity this report covers happened.", "$ref": "urn:asp:v0.2:common#/$defs/timestamp" }
+      }
+    },
     "blocked_attempts": {
       "description": "Calls the runtime stopped before they ran because their scope wasn't in the Mandate. A signed strike: nothing out of scope executed, so these are not in scopes_used and are not checked against the Mandate.",
       "type": "array",

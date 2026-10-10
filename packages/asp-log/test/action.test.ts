@@ -175,6 +175,46 @@ for (const h of [memory, postgres] as Harness[]) {
       assert.equal(await codeOf(log.append(actionRec(contract.id, ["repo.read"]))), "GUARD_FAILED");
     });
 
+    test("a late report: the performer may report its last stretch of activity after the job is settled, within a short window, and the rules still hold (S80)", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      const contract = await running(log, ["repo.read"]);
+      const mandateId = (await log.chain(contract.id)).at(-1)!.id;
+      const settlement = cosign(rec("settlement", bank, {
+        contract: contract.id, basis: "revoked", escrow_released: { value: 0, unit: "credit" }, bond_returned: { value: 0, unit: "credit" },
+        bond_slashed: { value: 0, unit: "credit" }, pro_rata_permille: 0,
+      }, mandateId, contract.id), alice);
+      assert.equal((await log.append(settlement)).state, "Settled");
+      const settledAt = Date.parse(settlement.issued_at);
+      const iso = (ms: number) => new Date(ms).toISOString().replace(".000Z", "Z");
+      const action = (issuedAt: number, body: Record<string, unknown>, by = coder) => createRecord({
+        type: "action", issuer: by.did, subject: contract.id, prev: null, issued_at: iso(issuedAt), body: { contract: contract.id, ...body },
+      }, by);
+      const late = (activityEnded: number) => ({ scopes_used: ["repo.read"], late: { activity_ended: iso(activityEnded) } });
+
+      // An ordinary report on a settled job is still refused, and so is a late one on a job that is still running.
+      assert.equal(await codeOf(log.append(action(settledAt + 1000, { scopes_used: ["repo.read"] }))), "GUARD_FAILED");
+      const running2 = await running(log, ["repo.read"]);
+      const lateWhileRunning = createRecord({ type: "action", issuer: coder.did, subject: running2.id, prev: null, issued_at: iso(Date.parse(running2.issued_at) + 1000), body: { contract: running2.id, scopes_used: [], late: { activity_ended: iso(Date.parse(running2.issued_at)) } } }, coder);
+      assert.equal(await codeOf(log.append(lateWhileRunning)), "GUARD_FAILED");
+
+      // A late report: activity up to the settlement and a little after it (the performer cannot know at once), within ten minutes.
+      assert.equal(await codeOf(log.append(action(settledAt + 60_000, late(settledAt - 5_000)))), undefined);
+      assert.equal(await codeOf(log.append(action(settledAt + 61_000, late(settledAt + 20_000)))), undefined, "within the thirty seconds of slack");
+      // Not activity from after the end, not after the window, not another party's, not a scope the Mandate never granted.
+      assert.equal(await codeOf(log.append(action(settledAt + 62_000, late(settledAt + 31_000)))), "GUARD_FAILED");
+      assert.equal(await codeOf(log.append(action(settledAt + 11 * 60_000, late(settledAt - 1_000)))), "GUARD_FAILED");
+      assert.equal(await codeOf(log.append(action(settledAt + 63_000, late(settledAt - 1_000), alice))), "WRONG_ISSUER");
+      assert.equal(await codeOf(log.append(action(settledAt + 64_000, { scopes_used: ["shell.exec"], late: { activity_ended: iso(settledAt) } }))), "GUARD_FAILED");
+
+      // Its blocked attempts are strikes like any other's, and the log still verifies.
+      const before = (await log.reputationOf(coder.did))!.strikes;
+      assert.equal(await codeOf(log.append(action(settledAt + 65_000, { scopes_used: [], blocked_attempts: [{ scope: "shell.exec", count: 2 }], late: { activity_ended: iso(settledAt) } }))), undefined);
+      assert.equal((await log.reputationOf(coder.did))!.strikes, before + 2);
+      const report = await log.verify();
+      assert.equal(report.ok, true, report.error && JSON.stringify(report.error));
+    });
+
     test("verify() replays action reports (both accepted and would-be-rejected) without breaking", async () => {
       const log = new EventLog(await h.make());
       await registerParties(log);

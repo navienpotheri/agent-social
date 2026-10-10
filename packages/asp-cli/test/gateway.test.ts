@@ -184,6 +184,45 @@ for (let i = 0; i < 600 && !existsSync(process.env.AGENT_RELEASE); i++) await ne
   assert.deepEqual(body.scopes_used, ["repo.read"]);
 });
 
+test("asp gateway: when the job is settled before the gateway can report, the last interval goes in as a late Action (E15, S80)", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f, ["repo.read"]);
+  const upstream = await provider();
+  const dir = mkdtempSync(join(tmpdir(), "gw-late-"));
+  const release = join(dir, "release");
+  const seen = join(dir, "seen");
+  // One request (an allowed call and a blocked one), then the agent waits. Nothing is reported while it waits: the interval is ten minutes and eager reports are off.
+  const HOLD = `
+import { existsSync, writeFileSync } from "node:fs";
+await (await fetch(process.env.OPENAI_BASE_URL + "/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer x" }, body: JSON.stringify({ model: "m", messages: [] }) })).json();
+writeFileSync(process.env.AGENT_SEEN, "asked");
+for (let i = 0; i < 600 && !existsSync(process.env.AGENT_RELEASE); i++) await new Promise((r) => setTimeout(r, 50));
+`;
+  const revoker = (async () => {
+    for (let waited = 0; !existsSync(seen); waited += 50) { if (waited > 30_000) throw new Error("the agent never asked"); await new Promise((r) => setTimeout(r, 50)); }
+    const settled = await asp(f, ["market", "settle", "--contract", contract, "--bank", BANK, "--basis", "revoked", "--principal", ALICE, "--escrow-released", "0", "--bond-slashed", "0", "--bond-returned", "200", "--pro-rata", "0"]);
+    await new Promise((r) => setTimeout(r, 600)); // the gateway notices the stop
+    writeFileSync(release, "go");
+    return settled;
+  })();
+  const [run, settled] = await Promise.all([
+    asp(f, ["gateway", "--contract", contract, "--by", CODER, "--max-strikes", "1000", "--openai-upstream", upstream, "--", process.execPath, "--input-type=module", "-e", HOLD],
+      { AGENT_SEEN: seen, AGENT_RELEASE: release, ASP_GATEWAY_FLUSH_MS: "600000", ASP_GATEWAY_EAGER_MS: "-1", ASP_GATEWAY_POLL_MS: "200" }),
+    revoker,
+  ]);
+  assert.equal(settled.code, 0, settled.err);
+  assert.match(run.err, /late report: the job had ended/);
+  const { LocalLog } = await import("@agent-social/asp-package");
+  const actions = (await (await LocalLog.open(f.aspHome)).log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2").map((x) => x.record.body as any);
+  const lateOnes = actions.filter((a) => a.late);
+  assert.ok(lateOnes.length >= 1, "a late Action is in the log");
+  assert.ok(Date.parse(lateOnes[0].late.activity_ended) > 0);
+  const total = actions.reduce((n, a) => n + (a.metrics?.tokens_in ?? 0), 0);
+  assert.equal(total, 7, "the one reply's tokens are in the log, although the job had ended before they could be reported");
+  assert.ok(actions.some((a) => a.scopes_used?.includes("repo.read")));
+  assert.ok(actions.some((a) => a.blocked_attempts?.some((b: any) => b.scope === "repo.push")), "the blocked attempt is in the log too");
+});
+
 test("asp gateway refuses a contract that is not running, and needs an upstream", async () => {
   const f = makeFixture();
   const missing = await asp(f, ["gateway", "--contract", "sha256:" + "0".repeat(64), "--by", CODER, "--openai-upstream", "http://127.0.0.1:1/v1", "--", process.execPath, "-e", "0"]);
@@ -293,12 +332,12 @@ writeFileSync(process.env.AGENT_OUT, "NEVER STOPPED");
   assert.ok(requests >= 2);
   const reported = { in: metrics.reduce((n, m) => n + m.tokens_in, 0), out: metrics.reduce((n, m) => n + m.tokens_out, 0) };
   assert.equal(reported.in * 3, reported.out * 7, "only whole replies are counted");
-  // A settled job takes no more Actions, so replies that finished after the last Action was recorded before the revoke are missing from the Actions (how many depends on how far the reports lagged); the run log has every reply.
+  // A settled job takes no more ordinary Actions, but the gateway reports what the last interval covered as a late Action (S80), so the Actions hold every reply the run log does.
   const { readRunLog } = await import("@agent-social/asp-package");
   const logged = readRunLog(/run log {2}(\S+run-log\.ndjson)/.exec(run.err)![1]).events.filter((e) => e.kind === "model_reply").map((e) => e.data as any);
   assert.ok(logged.length >= 2);
   assert.equal(logged.reduce((n, d) => n + d.tokens_in, 0), 7 * logged.length);
-  assert.ok(reported.in >= 7 && reported.in <= 7 * logged.length, "the Actions hold at least the first reply and never more than the run log");
+  assert.equal(reported.in, 7 * logged.length, "nothing is lost to the stop: the Actions add up to the run log");
 });
 
 // ---- P2: MCP and memory ----

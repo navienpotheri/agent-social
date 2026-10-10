@@ -78,6 +78,10 @@ export function nextLogHash(prev: string, id: string): string {
   return sha256Id(new TextEncoder().encode(`${prev}\n${id}`));
 }
 
+/** How long after a settlement the performer may still report its last stretch of activity, and how far past the settlement that activity may run. */
+const LATE_ACTION_GRACE_MS = 10 * 60_000;
+const LATE_ACTIVITY_SLACK_MS = 30_000;
+
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
 /** How well established a claim is, for comparing a verifier's grade with the performer's declared one. */
 const GRADE_RANK: Record<string, number> = { measured: 3, simulated: 2, predicted: 1, unverified: 0 };
@@ -487,7 +491,7 @@ export class EventLog {
    * when it's submitted, not discovered later in a Delivery nobody double-checked.
    */
   private async checkAction(tx: LogTx, r: AspRecord): Promise<void> {
-    const body = r.body as { contract: string; scopes_used: string[] };
+    const body = r.body as { contract: string; scopes_used: string[]; late?: { activity_ended: string } };
     const contract = await tx.getRecord(body.contract);
     if (!contract || contract.record.type !== "asp.contract/v0.2") {
       throw rule("action_contract_unknown", `${body.contract} is not a Contract in this log`);
@@ -495,7 +499,20 @@ export class EventLog {
     const cbody = contract.record.body as { performer: string };
     if (r.issuer !== cbody.performer) throw new AspError("WRONG_ISSUER", `${r.issuer} is not the performer of ${body.contract}`);
     const chain = await tx.getChain(contract.chain);
-    if (chain?.state !== "Running" && chain?.state !== "Checkpoint") {
+    const live = chain?.state === "Running" || chain?.state === "Checkpoint";
+    if (body.late) {
+      // A late report (S80): the last stretch of activity, reported after the job ended, within a short window and only for activity up to the end.
+      if (live) throw rule("late_action_while_running", `contract ${body.contract} is still ${chain!.state}: a late report is for a job that has ended`);
+      const settlement = chain?.state === "Settled" ? await tx.getRecord(chain.head) : undefined;
+      if (!settlement || settlement.record.type !== "asp.settlement/v0.2") throw rule("action_not_running", `contract ${body.contract} has not been settled (state: ${chain?.state ?? "unknown"}), so there is nothing to report late`);
+      const settledAt = Date.parse(settlement.record.issued_at);
+      if (Date.parse(body.late.activity_ended) > settledAt + LATE_ACTIVITY_SLACK_MS) {
+        throw rule("late_action_after_end", `the report covers activity until ${body.late.activity_ended}, after the job was settled at ${settlement.record.issued_at}`);
+      }
+      if (Date.parse(r.issued_at) > settledAt + LATE_ACTION_GRACE_MS) {
+        throw rule("late_action_too_late", `a late report must be made within ${LATE_ACTION_GRACE_MS / 60_000} minutes of the settlement (${settlement.record.issued_at})`);
+      }
+    } else if (!live) {
       throw rule("action_not_running", `contract ${body.contract} is not currently Running (state: ${chain?.state ?? "unknown"})`);
     }
     const mandate = await tx.getMandate(body.contract);

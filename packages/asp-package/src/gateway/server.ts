@@ -79,7 +79,7 @@ export interface Gateway {
   listenUnix(path: string): Promise<void>;
   summary(): GatewaySummary;
   /** What happened since the last drain (scopes used, blocked attempts, fingerprints), and starts a new interval, so Actions can be reported while the run goes on. */
-  drain(): { scopesUsed: string[]; blocked: { scope: string; count: number }[]; artifacts: { uri: string; sha256: string }[]; metrics: ActionMetrics };
+  drain(): { scopesUsed: string[]; blocked: { scope: string; count: number }[]; artifacts: { uri: string; sha256: string }[]; metrics: ActionMetrics; /** When the gateway last saw a request or a tool call, for a late report (S80). */ lastActivityAt: string };
   /** Refuses every further request (the contract was revoked, killed or settled). */
   stop(reason: string): void;
   close(): Promise<void>;
@@ -105,6 +105,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const pendingArtifacts = new Map<string, { uri: string; sha256: string }>();
   const tokens: { input: number; output: number; text: string } = { input: 0, output: 0, text: "" };
   const rec = opts.runLog;
+  let lastActivity = Date.now();
   const seenResults = new Set<string>();
   /** Records a model request in the run log and returns where the token counts stood, so the reply can be recorded with its own figures. */
   const beginModelCall = (api: string, body: any) => {
@@ -157,6 +158,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   /** Judges one call; records it. Returns the refusal reason when it is refused. */
   async function decide(call: ToolCall): Promise<string | undefined> {
     toolCalls++;
+    lastActivity = Date.now();
     const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"), opts.hosts);
     let allow = j.allow;
     let reason = j.reason;
@@ -388,6 +390,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       const style: "openai" | "anthropic" = path.startsWith("/v1/messages") || path.startsWith("/messages") ? "anthropic" : "openai";
       if (stopped) return json(res, 403, stoppedBody(style));
       requests++;
+      lastActivity = Date.now();
       const rawBody = await readBody(req);
       if (path.startsWith("/mcp/")) return await mcpRoute(req, res, path.slice("/mcp/".length), rawBody);
       if (req.method === "POST" && /\/chat\/completions$/.test(path) && opts.openaiUpstream) return await openaiChat(req, res, rawBody);
@@ -420,7 +423,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       const metrics: ActionMetrics = { models: [...modelsSeen.values()], requests: requests - last.requests, tool_calls: toolCalls - last.toolCalls, tokens_in: tokens.input - last.input, tokens_out: tokens.output - last.output, seconds: Math.round((now - last.at) / 1000) };
       Object.assign(last, { requests, toolCalls, input: tokens.input, output: tokens.output, at: now });
       modelsSeen.clear();
-      const out = { scopesUsed: [...pendingUsed].sort(), blocked: [...pendingBlocked].map(([scope, count]) => ({ scope, count })), artifacts: [...pendingArtifacts.values()], metrics };
+      const out = { scopesUsed: [...pendingUsed].sort(), blocked: [...pendingBlocked].map(([scope, count]) => ({ scope, count })), artifacts: [...pendingArtifacts.values()], metrics, lastActivityAt: new Date(lastActivity).toISOString().replace(/\.\d{3}Z$/, "Z") };
       pendingUsed.clear(); pendingBlocked.clear(); pendingArtifacts.clear();
       return out;
     },

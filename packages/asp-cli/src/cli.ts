@@ -259,7 +259,8 @@
  *     you don't have to hand-compute it. --bond-returned still defaults to 0 either way.
  *     A slash also self-signs a lineage penalty for the backer, if its key is available locally
  *     (see `asp pack`'s note on memory/PENALTIES.md).
- *   asp market action --contract <id> --by <did> --scopes-used <s> [...] [--summary <text>]
+ *   asp market action --contract <id> --by <did> --scopes-used <s> [...] [--summary <text>] [--late <time of the last activity>]
+ *     --late marks a report made after the job ended, for the last stretch of activity before the stop (docs/spec-deltas.md S80): the log accepts it on a settled job, from the performer, within ten minutes of the settlement, if the activity ended no later than thirty seconds after it. The gateway does this by itself when its report finds the job ended.
  *     The compliance bridge, by hand (see `asp run --contract` for automatic emission from real
  *     tool calls). Checked against the contract's live Mandate; refused if any scope wasn't granted.
  *   asp market show <contract>
@@ -394,6 +395,7 @@ const OPTIONS = {
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
   "no-run-log": { type: "boolean" },
+  late: { type: "string" },
   "record-quota": { type: "string" },
   "byte-quota-mb": { type: "string" },
   address: { type: "string" },
@@ -1452,10 +1454,14 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   // Reports follow the activity instead of waiting for the next interval (E15): a settled job takes no more Actions, so whatever has not been
   // reported when a revoke or kill lands is lost from the log's Actions. A blocked attempt is reported at once (the evidence a kill rests on), other
   // activity within `ASP_GATEWAY_EAGER_MS` (default 2 s) of its first call. flushAction is defined below; these only run once it is.
-  const eagerMs = Number(io.env.ASP_GATEWAY_EAGER_MS) >= 0 && io.env.ASP_GATEWAY_EAGER_MS !== undefined ? Number(io.env.ASP_GATEWAY_EAGER_MS) : 2000;
+  // ASP_GATEWAY_EAGER_MS=-1 turns eager reports off (tests of the late report need activity that has not been reported when the job ends).
+  const eagerEnv = io.env.ASP_GATEWAY_EAGER_MS === undefined || io.env.ASP_GATEWAY_EAGER_MS === "" ? NaN : Number(io.env.ASP_GATEWAY_EAGER_MS);
+  const eagerOff = eagerEnv < 0;
+  const eagerMs = eagerEnv >= 0 ? eagerEnv : 2000;
   let soon: NodeJS.Timeout | undefined;
   let soonDue = Infinity;
   const reportSoon = (ms: number) => {
+    if (eagerOff) return;
     const due = Date.now() + ms;
     if (soon && soonDue <= due) return;
     if (soon) clearTimeout(soon);
@@ -1479,7 +1485,13 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       ...(runLog ? (() => { const a = runLogArtifact(runLog.head()); return ["--artifact", `${a.uri}=${a.sha256}`]; })() : []),
       "--assurance", sandbox ? "sandbox_enforced" : s.toolCalls > 0 ? "gateway_enforced" : "gateway_observed", "--summary", `ASP gateway (${sandbox ? "sandbox-enforced: the agent ran in a sandbox whose only way out was the gateway" : s.toolCalls > 0 ? "gateway-enforced" : "gateway-observed: no structured tool calls passed through, so nothing could be enforced"}, ${why}): ${s.requests} request(s) so far, ${s.tokens.input + s.tokens.output} tokens, ${s.strikes} blocked${s.stopped ? `; stopped: ${s.stopped}` : ""}`];
     const out: string[] = [];
-    const rc = await main(args, { out: (l) => out.push(l), err: (l) => out.push(l), env: io.env, cwd: io.cwd });
+    let rc = await main(args, { out: (l) => out.push(l), err: (l) => out.push(l), env: io.env, cwd: io.cwd });
+    // The job ended (a revoke, a kill or a settlement) between the last report and this one: report what this interval covers as a late Action (S80).
+    if (rc !== 0 && out.join(" ").includes("is not currently Running")) {
+      out.length = 0;
+      rc = await main([...args, "--late", d.lastActivityAt], { out: (l) => out.push(l), err: (l) => out.push(l), env: io.env, cwd: io.cwd });
+      if (rc === 0) out.unshift("(late report: the job had ended)");
+    }
     io.err(rc === 0 ? `  action   ${out.join(" ").slice(0, 200)}` : `  warning  could not record an Action (${why}): ${out.join(" ").slice(0, 200)}`);
     return rc;
   }));
@@ -2527,6 +2539,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       body.assurance = v.assurance;
     }
     if (v.summary) body.summary = v.summary;
+    // A late report (S80): the last stretch of activity, made after the job ended; the log accepts it only on a settled job, soon after, for activity up to the end.
+    if (v.late) body.late = { activity_ended: v.late };
     if (v.metrics) {
       try { body.metrics = JSON.parse(v.metrics); } catch { throw new UsageError("--metrics must be a JSON object, e.g. '{\"tokens_in\":1200,\"tokens_out\":340,\"models\":[{\"name\":\"gpt-oss-120b\"}]}'"); }
     }
