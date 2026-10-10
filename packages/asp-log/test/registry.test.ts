@@ -2,7 +2,7 @@ import { after, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import {
-  b64urlEncode, createRecord, publicKeyFromSeed, type AspRecord, type RecordType, type Signer,
+  b64urlEncode, cosign, createRecord, publicKeyFromSeed, type AspRecord, type RecordType, type Signer,
 } from "@agent-social/asp-core";
 import { EventLog } from "../src/index.ts";
 import {
@@ -61,6 +61,38 @@ for (const h of [memory, postgres] as Harness[]) {
   describe(`registry on ${h.name}`, { skip: h === postgres && !pgUrl && "set ASP_TEST_DATABASE_URL to run" }, () => {
     after(() => h.cleanup());
 
+    // ---------- the sponsor's consent (S87) ----------
+
+    test("a passport that names a sponsor needs that sponsor's signature, as issuer or countersigner; moving to another sponsor needs both the old and the new", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      const agent = newAgent("claimed");
+      const person = { did: agent.did, kid: agent.kid, seed: agent.seed } as Person;
+
+      // An agent cannot pick its own sponsor: it signs a passport naming alice, and alice never agreed.
+      const self = agentPassport(agent.did, person, person, "2026-10-06T11:00:00Z", null);
+      await rejects(log.append(self), "GUARD_FAILED", "sponsor_consent_missing");
+      // With alice's countersignature it is accepted.
+      await log.append(cosign(self, alice));
+      assert.equal((await log.passport(agent.did))?.sponsor, alice.did);
+      const head = (await log.passport(agent.did))!.head;
+
+      // The agent may still update its own passport while the sponsor stays the same.
+      const update = agentPassport(agent.did, person, person, "2026-10-06T11:01:00Z", head, { purpose: "renamed by the agent" });
+      await log.append(update);
+
+      // Changing sponsor: the agent alone, alice alone (bank never agreed), bank issuing (it is not the current sponsor), and the agent with bank's countersignature only (alice never agreed) are each refused; alice issuing with bank's countersignature is accepted.
+      const toBank = (by: Person, at: string) => agentPassport(agent.did, by, person, at, update.id, { sponsor: bank.did, purpose: "renamed by the agent" });
+      await rejects(log.append(toBank(person, "2026-10-06T11:02:00Z")), "GUARD_FAILED", "sponsor_consent_missing");
+      await rejects(log.append(toBank(alice, "2026-10-06T11:03:00Z")), "GUARD_FAILED", "sponsor_consent_missing");
+      await rejects(log.append(toBank(bank, "2026-10-06T11:04:00Z")), "WRONG_ISSUER");
+      // The agent with only the new sponsor's countersignature: alice, who is liable today, never agreed to let it go.
+      await rejects(log.append(cosign(toBank(person, "2026-10-06T11:04:30Z"), bank)), "GUARD_FAILED", "sponsor_change_needs_old_sponsor");
+      await log.append(cosign(toBank(alice, "2026-10-06T11:05:00Z"), bank));
+      assert.equal((await log.passport(agent.did))?.sponsor, bank.did);
+      assert.equal((await log.verify()).ok, true);
+    });
+
     // ---------- copies (S86) ----------
 
     test("a copy's passport carries a fork edge the log checks: only the original's sponsor may issue it, for an agent under that sponsor, at no higher tier, one parent, and it cannot change later", async () => {
@@ -73,7 +105,7 @@ for (const h of [memory, postgres] as Harness[]) {
       // Refused: nothing to copy; two originals; not issued by the original's sponsor; another sponsor's agent; a higher tier than the original.
       await rejects(log.append(agentPassport(copy.did, alice, copyPerson, "2026-10-06T10:00:00Z", null, fork("did:web:example.com:agents:ghost"))), "GUARD_FAILED", "fork_parent_unknown");
       await rejects(log.append(agentPassport(copy.did, alice, copyPerson, "2026-10-06T10:01:00Z", null, { lineage: [{ edge: "fork", parent: coder.did }, { edge: "fork", parent: alice.did }] })), "GUARD_FAILED", "fork_one_parent");
-      await rejects(log.append(agentPassport(copy.did, copyPerson, copyPerson, "2026-10-06T10:02:00Z", null, fork(coder.did))), "GUARD_FAILED", "fork_needs_sponsor");
+      await rejects(log.append(agentPassport(copy.did, copyPerson, copyPerson, "2026-10-06T10:02:00Z", null, fork(coder.did))), "GUARD_FAILED", "sponsor_consent_missing");
       await rejects(log.append(agentPassport(copy.did, bank, copyPerson, "2026-10-06T10:03:00Z", null, { ...fork(coder.did), sponsor: bank.did })), "GUARD_FAILED", "fork_needs_sponsor");
       await rejects(log.append(agentPassport(copy.did, alice, copyPerson, "2026-10-06T10:04:00Z", null, { ...fork(coder.did), tier: 2 })), "GUARD_FAILED", "fork_tier_above_parent");
       await rejects(log.append(agentPassport(copy.did, alice, copyPerson, "2026-10-06T10:04:30Z", null, { ...fork(copy.did) })), "GUARD_FAILED", "fork_self");

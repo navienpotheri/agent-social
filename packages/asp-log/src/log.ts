@@ -243,6 +243,13 @@ export class EventLog {
     if (r.issuer !== body.did && r.issuer !== sponsor) {
       throw new AspError("WRONG_ISSUER", `${r.issuer} is neither ${body.did} nor its sponsor`);
     }
+    // A passport that names a sponsor needs that sponsor's consent (S87): the sponsor issues it or countersigns it. The sponsor is liable for the agent, so an
+    // agent cannot pick one on its own; and changing sponsors needs the old sponsor's consent as well as the new one's.
+    if (body.sponsor && (!current || current.sponsor !== body.sponsor)) {
+      const consents = (did: string) => r.issuer === did || (r.cosigs ?? []).some((c) => c.kid.startsWith(`${did}#`));
+      if (!consents(body.sponsor)) throw rule("sponsor_consent_missing", `${body.did} names ${body.sponsor} as its sponsor, but ${body.sponsor} did not issue or countersign the passport`);
+      if (current?.sponsor && !consents(current.sponsor)) throw rule("sponsor_change_needs_old_sponsor", `${body.did} is sponsored by ${current.sponsor}; moving to ${body.sponsor} needs ${current.sponsor}'s consent too`);
+    }
     for (const k of body.keys) {
       if (!k.id.startsWith(`${body.did}#`)) throw new AspError("KID_NOT_ISSUER", `key ${k.id} does not belong to ${body.did}`);
       const existing = await tx.getKey(k.id);

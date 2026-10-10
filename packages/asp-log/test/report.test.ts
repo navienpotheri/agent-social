@@ -10,8 +10,11 @@ const fresh = (name: string): Who => {
   const did = `did:web:example.com:users:${name}`;
   return { did, ...signerFromSeed(`${did}#key-1`, new Uint8Array(randomBytes(32))) } as Who;
 };
-const passportOf = (log: EventLog, p: Who, extra: Record<string, unknown> = {}) =>
-  log.append(rec("passport", p, { did: p.did, kind: "human", keys: [{ id: p.kid, type: "Ed25519", public_key: b64urlEncode(p.publicKey) }], ...extra }, null, p.did));
+/** A passport; one that names a sponsor is countersigned by it (the log requires the sponsor's consent, S87). */
+const passportOf = (log: EventLog, p: Who, extra: Record<string, unknown> = {}, sponsor?: Who) => {
+  const record = rec("passport", p, { did: p.did, kind: "human", keys: [{ id: p.kid, type: "Ed25519", public_key: b64urlEncode(p.publicKey) }], ...extra }, null, p.did);
+  return log.append(sponsor ? cosign(record, sponsor as unknown as Signer) : record);
+};
 
 const contractBody = (price: number) => ({
   principal: alice.did, performer: coder.did, bank: bank.did, purpose: "Fix the flaky test",
@@ -125,7 +128,7 @@ for (const h of [memory, postgres] as Harness[]) {
       const contract = await job(log, 1000, 200);
       await assert.rejects(log.append(reportOf(alice, contract.id)), /party to the contract/, "the principal rejects or revokes instead");
       const sponsored = fresh("sponsored-by-alice");
-      await passportOf(log, sponsored, { sponsor: alice.did });
+      await passportOf(log, sponsored, { sponsor: alice.did }, alice as unknown as Who);
       await assert.rejects(log.append(reportOf(sponsored, contract.id)), /party to the contract/, "nor can someone the principal sponsors");
       const broke = fresh("broke");
       await passportOf(log, broke);
