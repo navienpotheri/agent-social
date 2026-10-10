@@ -3,6 +3,7 @@
 // refusal, and what it costs. Writes docs/model-matrix.md and docs/model-matrix.json.
 //
 //   node evals/model-matrix.mjs [--models provider:model,provider:model]   (a name without a provider is an OpenRouter model)
+//   A real runtime is a row too: runtime:claude-code[:model] (your own Claude Code login) and runtime:codex[:model] (an OpenRouter model, needs that key).
 //   keys: ASP_OR_KEY, ASP_GROQ_KEY, ASP_CEREBRAS_KEY, ASP_GEMINI_KEY or the files ~/.asp-<provider>-key
 //   node evals/model-matrix.mjs [--models a,b,c] [--trials 2] [--only task,task] [--no-write]
 // Free-tier models rate-limit and change without notice, so a provider failure is recorded as an error, not as a failed task, and the results are a
@@ -23,7 +24,7 @@ const DEFAULTS = {
   gemini: ["gemini:gemini-3.8-flash", "gemini:gemma-4-31b-it", "gemini:gemini-3.5-flash"],
 };
 const DEFAULT_MODELS = available.flatMap((p) => DEFAULTS[p] ?? []);
-const models = (arg("models") ?? process.env.ASP_EVAL_MATRIX_MODELS ?? DEFAULT_MODELS.join(",")).split(",").map((s) => s.trim()).filter(Boolean).map((m) => (Object.keys(PROVIDER_KEYS).some((p) => m.startsWith(p + ":")) ? m : `openrouter:${m}`));
+const models = (arg("models") ?? process.env.ASP_EVAL_MATRIX_MODELS ?? DEFAULT_MODELS.join(",")).split(",").map((s) => s.trim()).filter(Boolean).map((m) => ([...Object.keys(PROVIDER_KEYS), "runtime"].some((p) => m.startsWith(p + ":")) ? m : `openrouter:${m}`));
 const trials = Number(arg("trials") ?? process.env.ASP_EVAL_MATRIX_TRIALS ?? 2);
 const only = arg("only");
 const ev = new Eval(NAME, `${models.length} model(s) x the default canary suite, ${trials} trial(s) per task`);
@@ -58,7 +59,7 @@ const ids = [...new Set(reports.flatMap((r) => r.tasks.map((t) => t.id)))];
 const cell = (t) => !t ? "-" : t.errors === t.trials.length ? "error" : `${Math.round(t.passRate * 100)}%${t.errors ? "*" : ""}`;
 const lines = [];
 lines.push("# Model matrix", "");
-lines.push(`Generated ${new Date().toISOString().slice(0, 10)} by \`node evals/model-matrix.mjs\`. The canary suite (\`canary/default-suite.json\`, ${ids.length} tasks) run through \`asp gateway\` with the reference agent against hosted open-weight models, ${trials} trial(s) per task, each trial in a fresh project folder under a read-only Mandate. A snapshot of one day on hosted endpoints (several on free tiers), not a ranking: models change and rate-limit without notice. The model name carries its provider. \`*\` means some trials were lost to provider errors; \`error\` means the provider never let the task run.`, "");
+lines.push(`Generated ${new Date().toISOString().slice(0, 10)} by \`node evals/model-matrix.mjs\`. The canary suite (\`canary/default-suite.json\`, ${ids.length} tasks) run through \`asp gateway\` with the reference agent against hosted open-weight models (a row named runtime:... is the real runtime itself, Claude Code or Codex, in place of the reference agent; Codex has only a shell, so its Mandate also grants shell.exec and its token limits are ten times the others), ${trials} trial(s) per task, each trial in a fresh project folder under a read-only Mandate. A snapshot of one day on hosted endpoints (several on free tiers), not a ranking: models change and rate-limit without notice. The model name carries its provider. \`*\` means some trials were lost to provider errors; \`error\` means the provider never let the task run.`, "");
 lines.push("| Model | " + ids.join(" | ") + " | Tasks passed | Median tokens | Median tool calls | Blocked attempts |", "|---|" + ids.map(() => "---").join("|") + "|---|---|---|---|");
 for (const r of reports) {
   if (r.failed) { lines.push(`| ${r.target.name} | ${ids.map(() => "error").join(" | ")} | - | - | - | - |`); continue; }

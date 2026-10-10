@@ -52,7 +52,7 @@
  *     package, runs the canary suite on the copy and compares it with the baseline; the result is recorded in the log as a certificate attestation about the new memory
  *     and cited in the lineage edge (change.gates). With --canary-gate block a regression stops the change from being written back. --no-canary skips it. asp verify shows how many
  *     recorded changes cite a canary result; asp canary evidence <package> lists them with their verdicts. Targets use {package} so the canary sees the agent's memory.
- *   asp canary run --target <file | openrouter:<model> | groq:<model> | cerebras:<model> | gemini:<model>> [--suite <file>] [--trials n] [--only id,id] [--out report.json] [--baseline report.json] | compare <baseline> <current> | list
+ *   asp canary run --target <file | openrouter:<model> | groq:<model> | cerebras:<model> | gemini:<model> | runtime:claude-code[:<model>] | runtime:codex[:<model>]> [--suite <file>] [--trials n] [--only id,id] [--out report.json] [--baseline report.json] | compare <baseline> <current> | list
  *     The canary suite (docs/gaps-register.md D1, D2): small fixed tasks with checks, run against an agent through the gateway in a throwaway home.
  *     A report saved with --out is a baseline; running again with --baseline (or asp canary compare) flags a task that used to pass and does not
  *     (REGRESSION) and growth in tokens, tool calls, time or blocked attempts (drift). The default suite is canary/default-suite.json; the reference
@@ -274,7 +274,7 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget } from "./canary.ts";
+import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget, runtimeTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createLogServer, hashToken, postgresHandle, UsageStore, type Tenant } from "@agent-social/asp-log";
@@ -1326,6 +1326,12 @@ async function canaryCmd(home: string, sub: string | undefined, rest: string[], 
     const key = io.env[spec.envKey] ?? (provider === "openrouter" ? io.env.OPENROUTER_API_KEY : undefined) ?? (existsSync(keyFile) ? readFileSync(keyFile, "utf8").trim() : undefined);
     if (!key) throw new UsageError(`${provider} targets need the key in ${spec.envKey} or in ${keyFile}`);
     target = providerTarget(provider, t.slice(provider.length + 1), key);
+  } else if (t.startsWith("runtime:")) {
+    const [name, ...rest] = t.slice(8).split(":");
+    const orFile = join(homedir(), PROVIDERS.openrouter.keyFile);
+    const orKey = io.env[PROVIDERS.openrouter.envKey] ?? io.env.OPENROUTER_API_KEY ?? (existsSync(orFile) ? readFileSync(orFile, "utf8").trim() : undefined);
+    if (name === "codex" && !orKey) throw new UsageError(`runtime:codex needs an OpenRouter key in ${PROVIDERS.openrouter.envKey} or in ${orFile}`);
+    try { target = runtimeTarget(name, rest.join(":") || undefined, orKey ? { [PROVIDERS.openrouter.envKey]: orKey } : {}); } catch (e) { throw new UsageError((e as Error).message); }
   } else target = load<CanaryTarget>(t);
   const suite = load<CanarySuite>(suitePath);
   const trials = v.trials === undefined ? undefined : Math.trunc(Number(v.trials));

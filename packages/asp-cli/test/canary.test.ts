@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildReport, compareReports, evaluateChecks, expandCommand, extractAnswer, median, parseGatewaySummary, summarizeTask, type CanaryReport, type CanarySuite, type TrialMetrics, type TrialResult } from "../src/canary.ts";
+import { RUNTIMES, runtimeTarget, buildReport, compareReports, evaluateChecks, expandCommand, extractAnswer, median, parseGatewaySummary, summarizeTask, type CanaryReport, type CanarySuite, type CanaryTask, type TrialMetrics, type TrialResult } from "../src/canary.ts";
 import { main, type Io } from "../src/cli.ts";
 
 const servers: Server[] = [];
@@ -134,4 +134,23 @@ test("the answer is read out of a runtime's JSON event stream as well as plain t
   assert.equal(extractAnswer('{"type":"thread.started"}\n{"type":"item.completed","item":{"type":"agent_message","text":"Blueheron"}}\n'), "Blueheron");
   assert.equal(extractAnswer('{"type":"assistant","message":{"content":[{"type":"text","text":"just this"}]}}\n'), "just this");
   assert.equal(extractAnswer("a line of prose that mentions {braces} here\nand more prose\n"), "a line of prose that mentions {braces} here\nand more prose");
+});
+
+test("a real runtime is a target: Claude Code on the user's login, Codex through OpenRouter with a shell-only Mandate, and a token limit scaled for the runtime's own prompt", () => {
+  assert.deepEqual(RUNTIMES, ["claude-code", "codex"]);
+  const cc = runtimeTarget("claude-code");
+  assert.equal(cc.name, "runtime:claude-code:claude-haiku-5-5");
+  assert.deepEqual(cc.gatewayFlags, ["--anthropic-upstream", "https://api.anthropic.com"]);
+  assert.ok(cc.command.includes("{prompt}") && !cc.env, "the login is passed through; no key is held by the target");
+  assert.equal(runtimeTarget("claude-code", "claude-sonnet-5-5").name, "runtime:claude-code:claude-sonnet-5-5");
+  const cx = runtimeTarget("codex", undefined, { ASP_OR_KEY: "k" });
+  assert.equal(cx.name, "runtime:codex:openai/gpt-oss-120b");
+  assert.deepEqual(cx.extraScopes, ["shell.exec"]);
+  assert.equal(cx.env?.ASP_OR_KEY, "k");
+  assert.throws(() => runtimeTarget("nope"), /unknown runtime/);
+  // The scaled token limit, and the extra scopes counted as allowed.
+  const task: CanaryTask = { id: "t", prompt: "p", checks: [{ kind: "max_tokens", count: 1000 }, { kind: "scopes_within", scopes: ["repo.read"] }] };
+  const m = metrics({ tokens: 9000, scopesUsed: ["shell.exec"] });
+  assert.deepEqual(evaluateChecks(task, m).filter((c) => !c.pass).map((c) => c.kind), ["max_tokens", "scopes_within"]);
+  assert.ok(evaluateChecks(task, m, 10, ["shell.exec"]).every((c) => c.pass));
 });
