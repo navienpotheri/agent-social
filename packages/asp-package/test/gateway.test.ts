@@ -213,6 +213,21 @@ test("live streaming: text arrives as it is sent, a tool call split over several
   assert.equal(JSON.parse(deltas.map((d) => d.delta.partial_json).join("")).pad, "z".repeat(30));
 });
 
+test("approval gates: an answer still being written is not answered yet, not a crash and not a refusal", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "gw-approvals-"));
+  const up = await fakeUpstream([openaiToolReply([{ name: "bash", args: { command: "node deploy.js" } }])]);
+  const { url } = await gateway(up, { scopes: ["repo.read", "shell.exec"], gate: { scopes: ["shell.exec"], mode: "ask", waitSeconds: 10, approvalsDir: dir } });
+  const pending = post(`${url}/v1/chat/completions`, { model: "m", messages: [] }).then((r) => r.json());
+  for (let i = 0; i < 200 && !readdirSync(dir).some((x) => x.endsWith(".request.json")); i++) await new Promise((r) => setTimeout(r, 20));
+  const id = readdirSync(dir).find((x) => x.endsWith(".request.json"))!.replace(".request.json", "");
+  const file = join(dir, `${id}.decision.json`);
+  writeFileSync(file, '{"approv');
+  await new Promise((r) => setTimeout(r, 300));
+  writeFileSync(file, JSON.stringify({ approved: true }));
+  const reply: any = await pending;
+  assert.equal(reply.choices[0].message.tool_calls.length, 1, "approved once the file was whole");
+});
+
 test("approval gates: a gated call is held until the principal answers; approved runs, refused or silent does not, and a gate is not a strike", async () => {
   const dir = mkdtempSync(join(tmpdir(), "gw-approvals-"));
   const answer = async (approved: boolean, reason?: string) => {

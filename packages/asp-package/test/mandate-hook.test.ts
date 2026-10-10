@@ -113,8 +113,19 @@ test("the hook holds a gated call for an answer: approved runs it, refused or si
   assert.equal(silent.code, 2);
   assert.match(silent.stderr, /no answer within 1 seconds/);
 
-  const garbled = await gatedCall(10, (dir, id) => writeFileSync(join(dir, `${id}.decision.json`), "{ not json"));
+  // An answer that never becomes readable is not an approval; the call is refused when the wait runs out.
+  const garbled = await gatedCall(1, (dir, id) => writeFileSync(join(dir, `${id}.decision.json`), "{ not json"));
   assert.equal(garbled.code, 2, "an unreadable decision is a refusal, never an approval");
+  assert.match(garbled.stderr, /no answer within 1 seconds/);
+});
+
+test("the hook reads an answer that is still being written as not answered yet, and approves once the file is whole (found by the Postgres CI job)", async () => {
+  const half = await gatedCall(10, (dir, id) => {
+    const file = join(dir, `${id}.decision.json`);
+    writeFileSync(file, '{"appr'); // what a reader sees if the writer is mid-write
+    setTimeout(() => writeFileSync(file, JSON.stringify({ approved: true })), 250);
+  });
+  assert.equal(half.code, 0, half.stderr);
 });
 
 test("post-call events record the calls that ran, and nothing else does", () => {

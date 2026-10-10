@@ -147,8 +147,9 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const deadline = Date.now() + g.waitSeconds * 1000;
     while (Date.now() < deadline && !stopped) {
       if (existsSync(decisionFile)) {
-        const d = JSON.parse(readFileSync(decisionFile, "utf8"));
-        return d.approved === true ? { approved: true } : { approved: false, reason: d.reason };
+        let d: { approved?: boolean; reason?: string } | undefined;
+        try { d = JSON.parse(readFileSync(decisionFile, "utf8")); } catch { d = undefined; } // half written: read it again on the next poll
+        if (d) return d.approved === true ? { approved: true } : { approved: false, reason: d.reason };
       }
       await new Promise((r) => setTimeout(r, 100));
     }

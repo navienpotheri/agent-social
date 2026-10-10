@@ -2834,7 +2834,12 @@ async function autoSettleOnKill(local: LogHandle, home: string, contract: string
 function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; waitSeconds: number; io: Io }) {
   let stopped = false;
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  const decide = (id: string, d: { approved: boolean; reason?: string }) => writeFileSync(join(o.dir, `${id}.decision.json`), JSON.stringify(d));
+  // Written to a temporary name and renamed, so a hook polling for the file never reads half of it (found by the Postgres CI job: it failed closed on "Unexpected end of JSON input").
+  const decide = (id: string, d: { approved: boolean; reason?: string }) => {
+    const tmp = join(o.dir, `${id}.decision.tmp`);
+    writeFileSync(tmp, JSON.stringify(d));
+    renameSync(tmp, join(o.dir, `${id}.decision.json`));
+  };
 
   async function handle(req: { id: string; tool: string; scope: string; summary: string }) {
     const signer = new Keystore(o.home).forDid(o.agent);

@@ -164,8 +164,9 @@ async function askPrincipal(pluginRoot, event, scope, waitSeconds) {
   const deadline = Date.now() + waitSeconds * 1000;
   while (Date.now() < deadline) {
     if (existsSync(decisionFile)) {
-      const decision = JSON.parse(readFileSync(decisionFile, "utf8"));
-      return decision.approved === true ? { approved: true } : { approved: false, reason: decision.reason };
+      let decision;
+      try { decision = JSON.parse(readFileSync(decisionFile, "utf8")); } catch { decision = undefined; } // half written: read it again on the next poll
+      if (decision) return decision.approved === true ? { approved: true } : { approved: false, reason: decision.reason };
     }
     await new Promise((r) => setTimeout(r, poll));
   }
