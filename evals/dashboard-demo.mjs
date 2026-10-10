@@ -1,7 +1,7 @@
 // Builds an ASP home with enough in it to look at the dashboard: agents, a job that was accepted after a gateway run with a blocked call, a job the kill
 // switch stopped, a job waiting for an approval, and one still running. No agent or key is needed: a stand-in model provider answers the gateway.
 //
-//   node evals/dashboard-demo.mjs [folder]      then      ASP_HOME=<folder>/asp node packages/asp-cli/src/cli.ts dashboard
+//   node evals/dashboard-demo.mjs [folder]      then      ASP_HOME=<folder>/asp node packages/asp-cli/src/cli.ts dashboard --packages <folder>/packages
 import { createServer } from "node:http";
 import { D, loadPackage, session, workdir } from "./lib/common.mjs";
 
@@ -64,7 +64,15 @@ await s.must(["market", "action", "--contract", running, "--by", SUMMARISER, "--
   await handle.append(createRecord({ type: "lineage", issuer: CODER, subject: CODER, prev: null, issued_at: iso(2000), body: { edge: "update", child: CODER, parents: [CODER], change: { layer: "memory", description: "memory updated during a gateway run: +2 files (retry-patterns, test-flakiness)", gates: [cert.id] } } }, signer));
   await s.must(["identity", "copy", CODER, "--count", "2"]);
 }
+// Packages for the agent page: the coder and the summariser, captured from a small fake Claude Code project into <dir>/packages.
+{
+  const { makeFixture } = await import("../packages/asp-cli/test/fixture.ts");
+  const fx = makeFixture();
+  for (const [did, name] of [[CODER, "coder"], [SUMMARISER, "summariser"]]) {
+    await s.must(["pack", "--runtime", "claude-code", "--agent", did, "--project", fx.project, "--user-home", fx.home, "--out", `${dir}/packages/${name}.aspkg`]);
+  }
+}
 provider.close();
-console.log(`\ndemo home: ${s.home}\n  ASP_HOME=${s.home} node packages/asp-cli/src/cli.ts dashboard`);
+console.log(`\ndemo home: ${s.home}\n  ASP_HOME=${s.home} node packages/asp-cli/src/cli.ts dashboard --packages ${dir}/packages`);
 console.log(`  jobs: accepted ${done.slice(0, 19)}  killed ${killed.slice(0, 19)}  waiting ${waiting.slice(0, 19)}  running ${running.slice(0, 19)}`);
 process.exit(0);

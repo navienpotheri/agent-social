@@ -8,7 +8,7 @@ export class PackageServiceError extends Error {
   constructor(code: string, message: string, etag?: string) { super(message); this.name = "PackageServiceError"; this.code = code; this.etag = etag; }
 }
 
-export interface RemotePackage { name: string; etag: string; bytes: number; updatedAt: string }
+export interface RemotePackage { name: string; etag: string; bytes: number; updatedAt: string; agent?: string; meta?: import("./package-meta.ts").PackageMeta }
 export interface RemoteListing { tenant: string; usedBytes: number; quotaBytes: number; packages: RemotePackage[] }
 
 export class PackagesClient {

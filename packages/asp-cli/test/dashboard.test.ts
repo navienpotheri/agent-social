@@ -255,3 +255,90 @@ test("a copy's page says what it was copied from, and the original lists its cop
   const parent = (await get(`/api/agent?did=${encodeURIComponent(CODER)}`)).body;
   assert.deepEqual([...parent.copies].sort(), [...out].sort(), "the parent lists its copies");
 });
+
+// ---------- packages and commons on the agent's page (U13) ----------
+
+async function dashboardWith(f: Fixture, extras: ReturnType<typeof import("../src/dashboard-server.ts").makeExtras>) {
+  const keys = new Keystore(f.aspHome);
+  const server = createDashboard({ token: TOKEN, openLog: () => openLog(f.aspHome, {}), runLogFor: () => undefined, signerFor: (did) => keys.forDid(did), now: () => "2026-10-10T00:00:00Z", extras });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  servers.push(server);
+  const port = (server.address() as { port: number }).port;
+  return async (path: string) => (await (await fetch(`http://127.0.0.1:${port}${path}`, { headers: { "x-dashboard-token": TOKEN } })).json()) as any;
+}
+
+test("an agent's page says when it cannot show packages and commons, instead of an empty list that looks like the whole truth", async () => {
+  const { get } = await setup();
+  const a = (await get(`/api/agent?did=${encodeURIComponent(CODER)}`)).body;
+  assert.deepEqual([a.packages, a.commons], [[], []]);
+  assert.match(a.notes[0], /no package folder or service is configured/);
+});
+
+test("packages found in a folder show the agent's runtime, skills and memory against its budget", async () => {
+  const { f } = await setup();
+  const { makeExtras } = await import("../src/dashboard-server.ts");
+  const { mkdirSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const folder = join(f.root, "packages");
+  mkdirSync(folder, { recursive: true });
+  await ok(f, ["pack", "--runtime", "claude-code", "--agent", CODER, "--project", f.project, "--user-home", f.home, "--out", join(folder, "coder.aspkg")]);
+  await ok(f, ["pack", "--runtime", "claude-code", "--agent", OTHER, "--project", f.project, "--user-home", f.home, "--out", join(folder, "other.aspkg.tgz")]);
+  const get = await dashboardWith(f, makeExtras({ folder }));
+  const a = await get(`/api/agent?did=${encodeURIComponent(CODER)}`);
+  assert.equal(a.packages.length, 1, "only this agent's package, not the other agent's");
+  const p = a.packages[0];
+  assert.deepEqual([p.source, p.name, p.runtime.name], ["this machine", "coder", "claude-code"]);
+  assert.ok(p.memory.files >= 0 && p.memory.bytes >= 0);
+  assert.deepEqual(p.memory.budget, { maxFiles: 200, maxBytes: 1048576, maxIndexLines: 200 });
+  assert.ok(Number.isInteger(p.skills));
+  const other = await get(`/api/agent?did=${encodeURIComponent(OTHER)}`);
+  assert.deepEqual(other.packages.map((x: any) => x.name), ["other"], "an archive is read too");
+  assert.deepEqual(a.notes, [], "nothing was missing");
+});
+
+test("through a log service: the agent's packages and the lessons it shared, with who endorsed and cited them", async () => {
+  const { f } = await setup();
+  const { makeExtras } = await import("../src/dashboard-server.ts");
+  const { createLogServer, hashToken } = await import("@agent-social/asp-log");
+  const { PackagesClient, packageRoutes, commonsRoutes } = await import("@agent-social/asp-package");
+  const { mkdtempSync, readFileSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const handle = await LocalLog.open(f.aspHome);
+  const root = mkdtempSync(join(tmpdir(), "asp-u13-"));
+  const routes = [packageRoutes({ root: join(root, "packages") }), commonsRoutes({ root: join(root, "commons"), handle })];
+  const service = createLogServer({
+    handle, tenants: [{ name: "ops", role: "admin", tokenSha256: hashToken("svc-token") }],
+    extra: async (req: any, res: any, ctx: any) => { for (const r of routes) if (await r(req, res, ctx)) return true; return false; },
+  });
+  await new Promise<void>((r) => service.listen(0, "127.0.0.1", r));
+  servers.push(service);
+  const url = `http://127.0.0.1:${(service.address() as { port: number }).port}`;
+
+  // The agent's package goes up, and the agent shares a lesson.
+  const archive = join(root, "coder.aspkg.tgz");
+  await ok(f, ["pack", "--runtime", "claude-code", "--agent", CODER, "--project", f.project, "--user-home", f.home, "--out", archive]);
+  await new PackagesClient(url, "svc-token").push("coder", readFileSync(archive));
+  const lesson = join(root, "lesson.md");
+  writeFileSync(lesson, "Run migrations before seeding test data, or the seed fails on a missing column.\n");
+  const out: string[] = [];
+  const io: Io = { out: (l) => out.push(l), err: (l) => out.push(l), env: { ASP_HOME: f.aspHome, ASP_LOG_URL: url, ASP_LOG_TOKEN: "svc-token" }, cwd: f.root };
+  assert.equal(await main(["commons", "add", lesson, "--by", CODER, "--title", "Migrations first", "--tag", "testing,database"], io), 0, out.join("\n"));
+
+  const get = await dashboardWith(f, makeExtras({ serviceUrl: url, serviceToken: "svc-token" }));
+  const a = await get(`/api/agent?did=${encodeURIComponent(CODER)}`);
+  assert.equal(a.packages.length, 1);
+  assert.deepEqual([a.packages[0].source, a.packages[0].name, a.packages[0].runtime.name], ["the log service", "coder", "claude-code"]);
+  assert.equal(a.commons.length, 1);
+  assert.deepEqual([a.commons[0].title, a.commons[0].status, a.commons[0].citations], ["Migrations first", "unreviewed", 0]);
+  assert.deepEqual(a.commons[0].tags, ["testing", "database"]);
+  assert.deepEqual(a.notes, []);
+  // The service wrote a sidecar at upload, and a second listing reads it.
+  assert.equal((await new PackagesClient(url, "svc-token").list()).packages[0].meta?.agent, CODER);
+
+  // A service that is down is said so, not shown as an empty agent.
+  const down = await dashboardWith(f, makeExtras({ serviceUrl: "http://127.0.0.1:9", serviceToken: "x" }));
+  const d = await down(`/api/agent?did=${encodeURIComponent(CODER)}`);
+  assert.deepEqual([d.packages, d.commons], [[], []]);
+  assert.ok(d.notes.length >= 1 && /could not read/.test(d.notes[0]), JSON.stringify(d.notes));
+});

@@ -40,3 +40,4 @@ export { buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type
 export { claudeCodeRunLogEvents, codexRunLogEvents, type LineEvent } from "./adapters/run-log-lines.ts";
 export { fetchRetry } from "./http-retry.ts";
 export { dashboardAgent, type AgentView, dashboardAlerts, dashboardHome, dashboardInbox, dashboardJob, dashboardMoney, type AlertsView, type DashboardLog, type FlowEntry, type HomeView, type InboxView, type JobView, type MoneyView } from "./dashboard.ts";
+export { packageMeta, packageMetaOf, scanPackages, type FoundPackage, type PackageMeta } from "./package-meta.ts";

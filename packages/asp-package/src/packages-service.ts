@@ -11,6 +11,7 @@
  * ETag is refused with 412, so one copy never silently overwrites a newer one. Each tenant has its own
  * folder and a byte quota; an admin may read another tenant's packages with ?tenant=<name>.
  */
+import { packageMeta, packageMetaOf, readMetaSidecar, writeMetaSidecar } from "./package-meta.ts";
 import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -75,10 +76,15 @@ export function packageRoutes(opts: PackageServiceOptions) {
     if (url.pathname === "/packages") {
       if (method !== "GET") { fail(res, 405, "METHOD", "GET /packages"); return true; }
       const names = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(SUFFIX)) : [];
-      const packages = names.map((f) => {
+      const packages = [];
+      for (const f of names) {
         const p = join(dir, f);
-        return { name: f.slice(0, -SUFFIX.length), etag: sha256(readFileSync(p)), bytes: statSync(p).size, updatedAt: statSync(p).mtime.toISOString() };
-      });
+        const etag = sha256(readFileSync(p));
+        // What the package says about its agent (S88): from the sidecar written at upload, or read once now for a package stored before sidecars existed.
+        let meta = readMetaSidecar(p, etag);
+        if (!meta) { try { meta = await packageMetaOf(p); writeMetaSidecar(p, etag, meta); } catch { /* an archive that is not readable has no meta */ } }
+        packages.push({ name: f.slice(0, -SUFFIX.length), etag, bytes: statSync(p).size, updatedAt: statSync(p).mtime.toISOString(), ...(meta ? { agent: meta.agent, meta } : {}) });
+      }
       send(res, 200, { ok: true, tenant: owner, usedBytes: usage(dir), quotaBytes: quota, packages });
       return true;
     }
@@ -104,6 +110,7 @@ export function packageRoutes(opts: PackageServiceOptions) {
       if (!current) { fail(res, 404, "NOT_FOUND", `no package ${name}`); return true; }
       if (ifMatch && ifMatch !== current) { fail(res, 412, "STALE", "the stored copy has changed", { etag: current }); return true; }
       rmSync(file);
+      rmSync(file + ".meta.json", { force: true });
       send(res, 200, { ok: true });
       return true;
     }
@@ -129,6 +136,7 @@ export function packageRoutes(opts: PackageServiceOptions) {
         mkdirSync(dir, { recursive: true });
         writeFileSync(file + ".part", bytes); // same folder, so the rename is atomic
         renameSync(file + ".part", file);
+        try { writeMetaSidecar(file, sha256(bytes), packageMeta(unpacked)); } catch { /* a listing will read it from the archive instead */ }
         send(res, 200, { ok: true, name, etag: sha256(bytes), bytes: bytes.length, agent: report.agent }, { etag: `"${sha256(bytes)}"` });
       } finally { rmSync(unpacked, { recursive: true, force: true }); }
     } finally { rmSync(tmp, { recursive: true, force: true }); }

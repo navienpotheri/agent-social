@@ -9,12 +9,59 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFileSync } from "node:fs";
 import { timingSafeEqual } from "node:crypto";
 import { createRecord, type Signer } from "@agent-social/asp-core";
+import { fetchRetry, PackagesClient, scanPackages } from "@agent-social/asp-package";
 import {
   dashboardAgent, dashboardAlerts, dashboardHome, dashboardInbox, dashboardJob, dashboardMoney, readRunLog, type DashboardLog,
 } from "@agent-social/asp-package";
 import type { LogHandle } from "@agent-social/asp-package";
 
+/** What an agent's page shows that is not in the log: its packages (on this machine or on a service) and its lessons in the commons (U13). */
+export interface AgentExtras {
+  packages: { source: string; name: string; where: string; updatedAt: string; bytes: number; runtime?: { name: string; version?: string; model?: string }; skills: number; memory: { files: number; bytes: number; indexLines: number; budget: { maxFiles: number; maxBytes: number; maxIndexLines: number } }; lineageHead?: string }[];
+  commons: { id: string; title: string; tags: string[]; status: string; endorsements: number; disputes: number; citations: number; createdAt: string }[];
+  /** Where it looked and could not, so the page can say what it is missing instead of showing an empty list as if it were the whole truth. */
+  notes: string[];
+}
+
+const cache = <T,>(ttlMs: number, load: () => Promise<T>) => {
+  let at = 0;
+  let value: Promise<T> | undefined;
+  return () => { if (!value || Date.now() - at > ttlMs) { at = Date.now(); value = load(); } return value; };
+};
+
+/**
+ * Where an agent's packages and commons entries come from: a folder of packages on this machine, and a log service (its package store and its commons).
+ * Each source is read at most every 30 or 15 seconds. A source that cannot be read is reported in `notes`, never shown as an empty list.
+ */
+export function makeExtras(o: { folder?: string; serviceUrl?: string; serviceToken?: string }): (did: string) => Promise<AgentExtras> {
+  const local = o.folder ? cache(30_000, () => scanPackages(o.folder!)) : undefined;
+  const base = o.serviceUrl ? (o.serviceUrl.endsWith("/") ? o.serviceUrl : o.serviceUrl + "/") : undefined;
+  const remote = o.serviceUrl ? cache(15_000, () => new PackagesClient(o.serviceUrl!, o.serviceToken).list()) : undefined;
+  const commons = base ? cache(15_000, async () => {
+    const res = await fetchRetry(new URL("commons/entries", base), { headers: o.serviceToken ? { authorization: `Bearer ${o.serviceToken}` } : {}, signal: AbortSignal.timeout(20_000) });
+    if (!res.ok) throw new Error(`the commons answered ${res.status}`);
+    return ((await res.json()) as { entries: { id: string; title: string; author: string; tags: string[]; status: string; endorsements: number; disputes: number; citations: number; createdAt: string }[] }).entries;
+  }) : undefined;
+  return async (did) => {
+    const out: AgentExtras = { packages: [], commons: [], notes: [] };
+    if (local) for (const p of await local()) if (p.meta.agent === did) out.packages.push({ source: "this machine", name: p.name, where: p.path, updatedAt: p.updatedAt, bytes: p.bytes, ...(p.meta.runtime ? { runtime: p.meta.runtime } : {}), skills: p.meta.skills, memory: p.meta.memory, ...(p.meta.lineageHead ? { lineageHead: p.meta.lineageHead } : {}) });
+    if (remote) {
+      try {
+        for (const p of (await remote()).packages) if (p.agent === did && p.meta) out.packages.push({ source: "the log service", name: p.name, where: o.serviceUrl!, updatedAt: p.updatedAt, bytes: p.bytes, ...(p.meta.runtime ? { runtime: p.meta.runtime } : {}), skills: p.meta.skills, memory: p.meta.memory, ...(p.meta.lineageHead ? { lineageHead: p.meta.lineageHead } : {}) });
+      } catch (e) { out.notes.push(`could not read the service's packages: ${(e as Error).message}`); }
+    }
+    if (commons) {
+      try { for (const e of await commons()) if (e.author === did) out.commons.push({ id: e.id, title: e.title, tags: e.tags, status: e.status, endorsements: e.endorsements, disputes: e.disputes, citations: e.citations, createdAt: e.createdAt }); }
+      catch (e) { out.notes.push(`could not read the commons: ${(e as Error).message}`); }
+    }
+    if (!local && !remote) out.notes.push("no package folder or service is configured, so packages and commons entries are not shown (start the dashboard with --packages <folder>, or with ASP_LOG_URL set)");
+    return out;
+  };
+}
+
 export interface DashboardOptions {
+  /** Reads the packages and commons entries of one agent. */
+  extras?: (did: string) => Promise<AgentExtras>;
   token: string;
   /** Opens the log afresh (a local log is read once when opened). */
   openLog: () => Promise<LogHandle>;
@@ -84,7 +131,9 @@ export function createDashboard(opts: DashboardOptions): Server {
       if (req.method === "GET" && url.pathname === "/api/agent") {
         const did = url.searchParams.get("did") ?? "";
         const view = await dashboardAgent(log, did);
-        return view ? send(res, 200, view) : send(res, 404, { error: `${did} has no passport in the log` });
+        if (!view) return send(res, 404, { error: `${did} has no passport in the log` });
+        const extras = opts.extras ? await opts.extras(did).catch((e: Error): AgentExtras => ({ packages: [], commons: [], notes: [`could not read packages and commons: ${e.message}`] })) : { packages: [], commons: [], notes: ["no package folder or service is configured, so packages and commons entries are not shown (start the dashboard with --packages <folder>, or with ASP_LOG_URL set)"] };
+        return send(res, 200, { ...view, ...extras });
       }
       if (req.method === "GET" && url.pathname === "/api/job") {
         const id = url.searchParams.get("id") ?? "";

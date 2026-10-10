@@ -57,7 +57,8 @@
  *     A report saved with --out is a baseline; running again with --baseline (or asp canary compare) flags a task that used to pass and does not
  *     (REGRESSION) and growth in tokens, tool calls, time or blocked attempts (drift). The default suite is canary/default-suite.json; the reference
  *     agent (src/reference-agent.mjs) lets any OpenAI-compatible model be tested: --target openrouter:<model>.
- *   asp dashboard [--port n]
+ *   asp dashboard [--port n] [--packages <folder>]
+ *     --packages <folder> lets an agent's page list its packages found there (*.aspkg folders and *.aspkg.tgz archives); with ASP_LOG_URL set it also lists the ones on the service and its commons entries.
  *     The dashboard on this machine only (docs/spec-deltas.md S84): agents, jobs, approvals you can answer, alerts, and the money with its conservation check.
  *     Prints an address carrying a random access token. Reads the log in the ASP home (or the service named by ASP_LOG_URL).
  *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--html] [--again] | pending | watch [--once] [--interval <s>] [--to <address>] | address set <did> <address> | address list
@@ -285,7 +286,7 @@ import {
   b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
-import { createDashboard } from "./dashboard-server.ts";
+import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
@@ -1616,8 +1617,10 @@ async function dashboardCmd(home: string, v: Values, io: Io): Promise<number> {
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new UsageError("--port must be a port number");
   const token = b64urlEncode(randomSeed());
   const keys = new Keystore(home);
+  // What the log does not hold (U13): packages in a folder on this machine (--packages) and on the service, and the agent's lessons in the commons.
+  const extras = makeExtras({ folder: v.packages ? resolve(io.cwd, v.packages) : undefined, serviceUrl: io.env.ASP_LOG_URL, serviceToken: io.env.ASP_LOG_TOKEN });
   const server = createDashboard({
-    token, openLog: () => openLog(home, logEnv), runLogFor: (c) => findRunLog(home, c), signerFor: (did) => keys.forDid(did), now,
+    token, openLog: () => openLog(home, logEnv), runLogFor: (c) => findRunLog(home, c), signerFor: (did) => keys.forDid(did), now, extras,
   });
   await new Promise<void>((resolveListen, reject) => { server.once("error", reject); server.listen(port, "127.0.0.1", resolveListen); });
   const at = (server.address() as { port: number }).port;
