@@ -13,6 +13,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { createServer as createHttpsServer } from "node:https";
 import { Limits, clientAddress, type LimitOptions, type Verdict } from "./limits.ts";
 import { UsageStore } from "./usage.ts";
+import type { Signup } from "./signup.ts";
 import type { AppendResult } from "./log.ts";
 import type { EventLog } from "./log.ts";
 import type { AspRecord } from "@agent-social/asp-core";
@@ -40,6 +41,8 @@ export interface Tenant {
   /** Set when an operator suspended the tenant: every request is refused with SUSPENDED until it is resumed. */
   suspended?: { at: string; reason?: string };
   createdAt?: string;
+  /** Set on a tenant that signed itself up (src/signup.ts): when, a hash of the address, the terms it accepted and an unverified contact line. */
+  signup?: { at: string; addressHash: string; termsVersion: string; contact?: string };
 }
 
 export const hashToken = (token: string): string => createHash("sha256").update(token).digest("hex");
@@ -54,6 +57,8 @@ const ADMIN_HANDLE_METHODS = new Set(["mint"]);
 
 export interface ServerOptions {
   handle: LogHandle;
+  /** Self-serve sign-up (GET /signup, GET /signup/challenge, POST /signup), open to anyone who can reach the service. Absent means no sign-up. */
+  signup?: Signup;
   tenants?: Tenant[];
   /** Where to read the tenants from on each request, instead of `tenants`: lets an operator suspend or add a tenant without a restart. */
   tenantSource?: () => Tenant[];
@@ -126,6 +131,21 @@ export function createLogServer(opts: ServerOptions): Server {
       if (opts.blocked?.().includes(address)) return json(res, 403, { ok: false, error: { code: "BLOCKED", message: "this address is blocked by the operator" } });
       if (limits) { const v = limits.checkAddress(address); if (!v.ok) return tooMany(res, v); }
       if (req.method === "GET" && req.url === "/health") return json(res, 200, { ok: true });
+      if (opts.signup && (req.url === "/signup" || req.url === "/signup/challenge")) {
+        if (req.method === "GET" && req.url === "/signup") return json(res, 200, { ok: true, ...opts.signup.info() });
+        if (req.method === "GET") return json(res, 200, { ok: true, ...opts.signup.challenge(address) });
+        if (req.method === "POST" && req.url === "/signup") {
+          let body: unknown;
+          try { body = JSON.parse(await readBody(req, 8 * 1024)); } catch { return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "the body is JSON, at most 8 KB" } }); }
+          const r = opts.signup.register(address, body);
+          if (!r.ok) {
+            if (r.retryAfterSec) res.setHeader("retry-after", String(r.retryAfterSec));
+            return json(res, r.status, { ok: false, error: { code: r.code, message: r.message, ...(r.retryAfterSec ? { retryAfterSec: r.retryAfterSec } : {}) } });
+          }
+          return json(res, 201, { ok: true, tenant: r.tenant, token: r.token, quotas: r.quotas, termsVersion: r.termsVersion });
+        }
+        return json(res, 405, { ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "GET or POST" } });
+      }
       const tenant = authenticate(req, opts);
       if (!tenant) {
         limits?.authFailed(address);

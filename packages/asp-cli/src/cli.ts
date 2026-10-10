@@ -24,6 +24,7 @@
  *     The ASP log service: one shared log behind HTTP (docs/spec-deltas.md S48). --db is a Postgres connection string
  *     or local:<dir> (a file log). Clients use it with ASP_LOG_URL=http://host:port and ASP_LOG_TOKEN=<token>; their keys
  *     stay local and the service re-verifies every record. --no-auth is only for a service on 127.0.0.1.
+ *   asp serve ... --signup --signup-terms-url <url> [--signup-terms-version v] [--signup-difficulty bits] [--signup-per-address n] [--signup-daily-cap n]: tenants sign themselves up (docs/spec-deltas.md S93); asp serve signups|signup-open|signup-close|signup-cap --tokens <file> controls it; clients: asp signup --service <url> --name <name> --accept-terms [--contact <line>]
  *   asp serve suspend|resume --tokens <file> --tenant <name> [--reason <text>] | block|unblock --tokens <file> --address <ip> [--minutes n] [--reason <text>] | usage --tokens <file>
  *     What an operator does to a running service (it reads the tokens file and the block list <file>.blocked.json on each request, so no restart): a suspended tenant
  *     is refused with SUSPENDED; a blocked address with BLOCKED. The service counts each tenant's records and bytes in <file>.usage.json and refuses a write past the
@@ -277,7 +278,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget, runtimeTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { createLogServer, hashToken, postgresHandle, UsageStore, type Tenant } from "@agent-social/asp-log";
+import { createLogServer, hashToken, postgresHandle, Signup, solveChallenge, UsageStore, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -414,6 +415,15 @@ const OPTIONS = {
   "max-in-flight": { type: "string" },
   "max-failed-auth": { type: "string" },
   "trust-proxy": { type: "boolean" },
+  signup: { type: "boolean" },
+  "signup-terms-url": { type: "string" },
+  "signup-terms-version": { type: "string" },
+  "signup-difficulty": { type: "string" },
+  "signup-per-address": { type: "string" },
+  "signup-daily-cap": { type: "string" },
+  service: { type: "string" },
+  contact: { type: "string" },
+  "accept-terms": { type: "boolean" },
   "allow-plain-http": { type: "boolean" },
   "link-base": { type: "string" },
   once: { type: "boolean" },
@@ -549,7 +559,8 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
-    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
+    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage", "signups", "signup-open", "signup-close", "signup-cap"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
+    if (cmd === "signup") return await signupCmd(v, io);
     if (cmd === "serve") return await serve(v, need, io);
     if (cmd === "watch") return await watch(home, v, io);
     if (cmd === "eval" && sub === "run") return await evalRun(rest[0], v, io);
@@ -876,6 +887,41 @@ async function collectWatchActions(local: LogHandle): Promise<WatchAction[]> {
   return actions;
 }
 
+/** asp signup --service <url> --name <name> --accept-terms [--contact <line>]: gets a tenant and its token from a service that offers sign-up. */
+async function signupCmd(v: Values, io: Io): Promise<number> {
+  const service = v.service ?? io.env.ASP_LOG_URL;
+  if (!service) throw new UsageError("give --service <url> (or set ASP_LOG_URL) for the service to sign up to");
+  const name = v.name;
+  if (!name) throw new UsageError("give --name <name>: 3 to 32 characters, lower-case letters, digits and hyphens");
+  const base = service.endsWith("/") ? service : service + "/";
+  const get = async (path: string) => {
+    const res = await fetchRetry(new URL(path, base));
+    const body = (await res.json().catch(() => undefined)) as any;
+    if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? `the service answered ${res.status} to ${path}`);
+    return body;
+  };
+  const info = await get("signup");
+  if (!info.open) throw new Error(`sign-up is not open on ${service}${info.reason ? `: ${info.reason}` : ""}`);
+  if (!v["accept-terms"]) {
+    io.err(`Sign-up on ${service} needs you to accept its terms (version ${info.termsVersion}${info.termsUrl ? `, at ${info.termsUrl}` : ""}). Read them, then run this again with --accept-terms.`);
+    return 1;
+  }
+  const ch = await get("signup/challenge");
+  io.err(`  solving a proof of work (${ch.difficulty} bits) ...`);
+  const nonce = solveChallenge(ch.salt, ch.difficulty);
+  const res = await fetchRetry(new URL("signup", base), {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, accept_terms: true, terms_version: info.termsVersion, challenge: ch.challenge, nonce, ...(v.contact ? { contact: v.contact } : {}) }),
+  });
+  const body = (await res.json().catch(() => undefined)) as any;
+  if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? `the service answered ${res.status}`);
+  io.out(`tenant ${body.tenant} created on ${service}; this token is shown once, keep it:`);
+  io.out(body.token);
+  io.out(`use it with: ASP_LOG_URL=${service} ASP_LOG_TOKEN=<the token>`);
+  io.out(`starting limits: ${body.quotas.recordQuota} records, ${Math.round(body.quotas.byteQuota / 1048576)} MB, ${body.quotas.rateLimitPerMinute} requests a minute; an operator can raise them`);
+  return 0;
+}
+
 async function serveToken(v: Values, need: Need, io: Io): Promise<number> {
   const file = need("tokens");
   const name = need("tenant");
@@ -917,6 +963,22 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
     if (sub === "suspend") t.suspended = { at: now(), ...(v.reason ? { reason: v.reason } : {}) }; else delete t.suspended;
     save(tenants);
     io.out(sub === "suspend" ? `${name} is suspended${v.reason ? `: ${v.reason}` : ""}; every request it makes is refused until you resume it` : `${name} is resumed`);
+    return 0;
+  }
+  if (sub.startsWith("signup")) {
+    const controlPath = `${file}.signup.json`;
+    const control: { open?: boolean; dailyCap?: number; reason?: string } = existsSync(controlPath) ? JSON.parse(readFileSync(controlPath, "utf8")) : {};
+    if (sub === "signup-open") { control.open = true; delete control.reason; }
+    if (sub === "signup-close") { control.open = false; if (v.reason) control.reason = v.reason; }
+    if (sub === "signup-cap") {
+      const cap = Number(v["signup-daily-cap"]);
+      if (!Number.isInteger(cap) || cap < 0) throw new UsageError("--signup-daily-cap must be a whole number, 0 or more (0 closes sign-up for the day)");
+      control.dailyCap = cap;
+    }
+    if (sub !== "signups") save(control, controlPath);
+    const dayAgo = Date.now() - 86_400_000;
+    const recent = tenants.filter((t) => t.signup && Date.parse(t.signup.at) > dayAgo);
+    io.out(`sign-up is ${control.open === false ? `CLOSED${control.reason ? `: ${control.reason}` : ""}` : "open"}; day's cap ${control.dailyCap ?? "the service's default"}; ${recent.length} sign-up(s) in the last 24 hours, ${tenants.filter((t) => t.signup).length} in all`);
     return 0;
   }
   const blockedPath = `${file}.blocked.json`;
@@ -993,6 +1055,27 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const defaultRecordQuota = v["record-quota"] === undefined ? DEFAULT_RECORD_QUOTA : Math.trunc(Number(v["record-quota"]));
   const defaultByteQuota = Math.round((v["byte-quota-mb"] === undefined ? DEFAULT_BYTE_QUOTA_MB : Number(v["byte-quota-mb"])) * 1024 * 1024);
   if (!(defaultRecordQuota >= 0) || !(defaultByteQuota >= 0)) throw new UsageError("--record-quota and --byte-quota-mb must be 0 or more (0 for no limit)");
+  let signup: Signup | undefined;
+  if (v.signup) {
+    if (noAuth) throw new UsageError("--signup needs --tokens: a service with no auth has no tenants to sign up");
+    if (!v["signup-terms-url"]) throw new UsageError("--signup needs --signup-terms-url: the address of the terms a person accepts when they sign up");
+    const controlFile = `${v.tokens}.signup.json`;
+    const control = watched<{ open?: boolean; dailyCap?: number; reason?: string } | undefined>(controlFile, (t) => JSON.parse(t), undefined);
+    const tokensFile = v.tokens!;
+    signup = new Signup({
+      tenants: tenantSource!, control,
+      add: (t) => {
+        // Read the file again, add, and replace it whole, so a tenant an operator added meanwhile is kept.
+        const current: Tenant[] = existsSync(tokensFile) ? JSON.parse(readFileSync(tokensFile, "utf8")) : [];
+        current.push(t);
+        const tmp = `${tokensFile}.${process.pid}.tmp`;
+        writeFileSync(tmp, JSON.stringify(current, null, 2) + "\n");
+        renameSync(tmp, tokensFile);
+      },
+      termsVersion: v["signup-terms-version"] ?? "2026-10", termsUrl: v["signup-terms-url"],
+      difficulty: num("signup-difficulty", 20), perAddressPerDay: num("signup-per-address", 3), dailyCap: num("signup-daily-cap", 200),
+    });
+  }
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
   const routes = [
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
@@ -1000,12 +1083,13 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(v["known-bad"] ? [knownBadRoutes({ root: resolve(v["known-bad"]) })] : []),
   ];
   const extra = routes.length ? async (req: any, res: any, ctx: any) => { for (const r of routes) if (await r(req, res, ctx)) return true; return false; } : undefined;
-  const server = createLogServer({ handle, tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  const server = createLogServer({ handle, ...(signup ? { signup } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
   io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
   io.out(`  limits per minute: ${limits.tenantPerMinute || "no limit"} requests and ${limits.appendPerMinute || "no limit"} writes per tenant, ${limits.addressPerMinute || "no limit"} per address; ${limits.maxInFlight || "no"} in flight; lockout after ${limits.failedAuthMax || "never"} failed sign-ins`);
   io.out(`  quota per tenant (admins have none): ${defaultRecordQuota || "no limit"} records, ${defaultByteQuota ? `${Math.round(defaultByteQuota / 1048576)} MB` : "no limit"} of records; suspend, resume, block and unblock take effect without a restart (asp serve usage shows the counts)`);
+  if (signup) io.out(`  sign-up   open at /signup: proof of work (${num("signup-difficulty", 20)} bits), ${num("signup-per-address", 3)} per address and ${num("signup-daily-cap", 200)} a day, terms ${v["signup-terms-version"] ?? "2026-10"} at ${v["signup-terms-url"]}; close it with: asp serve signup-close --tokens ${v.tokens}`);
   if (!tls && !loopback) io.out("  warning  plain HTTP on a network address: TLS must be terminated in front of this service");
   await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
   server.close();
