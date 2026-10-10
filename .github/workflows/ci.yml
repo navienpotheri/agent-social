@@ -14,37 +14,59 @@ permissions:
 
 jobs:
   # The TypeScript packages: typecheck, every package's tests, and the conformance vectors are the ones the generator produces.
+  # Linux with Node 24 is the reference and must pass. The other combinations (Node 22.18, the declared minimum, and Windows, where the author works)
+  # are marked experimental until each has been seen passing: a failure there shows in the run but does not fail it (docs/gaps-register.md O14).
   node:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    name: node (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, node: "24", experimental: false }
+          - { os: ubuntu-latest, node: "22.18", experimental: true }
+          - { os: windows-latest, node: "24", experimental: true }
+          - { os: windows-latest, node: "22.18", experimental: true }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
       - name: Conformance vectors are up to date
+        shell: bash
         run: |
           npm run vectors
           git diff --exit-code conformance/vectors
 
-  # The Python SDK runs the same vectors.
+  # The Python SDK runs the same vectors. 3.11 is the declared minimum.
   python:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    name: python (${{ matrix.os }}, ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, python: "3.12", experimental: false }
+          - { os: ubuntu-latest, python: "3.11", experimental: true }
+          - { os: windows-latest, python: "3.12", experimental: true }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
       - run: pip install -e "./python[dev]"
       - run: python -m pytest
         working-directory: python
 
-  # The event log against real Postgres, the reference store. Not required to pass yet: this job has not run on a hosted runner (docs/gaps-register.md O12).
+  # The event log against real Postgres, the reference store.
   postgres:
     runs-on: ubuntu-latest
     timeout-minutes: 15
