@@ -41,12 +41,13 @@ fi
 systemctl enable --now postgresql
 
 echo "==> Caddy"
+# Ubuntu's own package: Caddy's third-party apt host (Cloudsmith) answers 402 Payment Required when its bandwidth quota is used up, and a broken source stops apt.
+rm -f /etc/apt/sources.list.d/caddy-stable.list /usr/share/keyrings/caddy-stable-archive-keyring.gpg
 if ! command -v caddy >/dev/null; then
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' > /etc/apt/sources.list.d/caddy-stable.list
   apt-get update -y
   apt-get install -y caddy
 fi
+caddy version
 
 echo "==> service user, folders, secrets"
 id asp >/dev/null 2>&1 || useradd --system --create-home --home-dir "$DATA" --shell /usr/sbin/nologin asp
