@@ -8,6 +8,7 @@ What ASP is, and how to implement it.
 
 | Document | What it is |
 |---|---|
+| [../SPEC.md](../SPEC.md) | **The protocol in one document**: conventions, the record envelope and every record type, the job lifecycle, identity, the Mandate, assurance levels, settlement, conformance and versioning. Generated from `spec/` (`npm run spec`) |
 | [../spec/](../spec/) | The machine-readable spec: JSON Schemas for the envelope and every record type, the agent-package harness, and `lifecycle.json` (the job state machine as data) |
 | [protocol-accountability.md](protocol-accountability.md) | Part 2 of the protocol: Mandate, escrow, bonds, Courts, jurors, slashes and transfers, and why |
 | [spec-deltas.md](spec-deltas.md) | The change log of the spec and the build: every change since v0.2, one row each (S1 onward), newest last |

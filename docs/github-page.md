@@ -18,7 +18,7 @@ None yet. Leave empty until there is a page worth linking.
 
 - Private vulnerability reporting (Settings > Code security): SECURITY.md sends reporters there.
 - Issues on; Discussions optional.
-- Branch protection on `main` once there is CI (there is none yet: gap O12).
+- Branch protection on `main`, requiring the CI check (CI exists: `.github/workflows/ci.yml`; gap O12 is the protection itself).
 - No wiki; the docs are in the repo.
 
 ## Commands (run them yourself)

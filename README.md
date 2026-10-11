@@ -48,7 +48,7 @@ Everything not covered is tracked, row by row, in [docs/gaps-register.md](docs/g
                              identities · Mandates · bonds · Actions · settlements · Courts
 ```
 
-The protocol is the records and the rules for them (`spec/`); the gateway, the CLI and the hosted service are one implementation. A job runs: **Intent → Offer → Contract → Bond → Mandate → Actions → Delivery → Acceptance → Settlement**, with a Court for disputes. The state machine is data in [spec/lifecycle.json](spec/lifecycle.json).
+The protocol is the records and the rules for them: read it in one document in **[SPEC.md](SPEC.md)** (generated from the schemas in `spec/`); the gateway, the CLI and the hosted service are one implementation. A job runs: **Intent → Offer → Contract → Bond → Mandate → Actions → Delivery → Acceptance → Settlement**, with a Court for disputes. The state machine is data in [spec/lifecycle.json](spec/lifecycle.json).
 
 ## Repository layout
 
