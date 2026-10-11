@@ -30,6 +30,8 @@ for (const s of JSON.parse(process.env.FAKE_AGY_STEPS ?? "[]")) {
     if (s.ran) appendFileSync(runDir + "/executed-calls.ndjson", JSON.stringify({ at: new Date().toISOString(), id: `step-${index}`, tool: s.tool, scope: s.scope, failed: false }) + "\n");
   }
 }
+// FAKE_AGY_WAIT_MS = keep running this long before finishing (a session someone can stop).
+if (process.env.FAKE_AGY_WAIT_MS) await new Promise((r) => setTimeout(r, Number(process.env.FAKE_AGY_WAIT_MS)));
 out({ event: "step_update", step_update: { conversation_id, step_index: step, step_type: "agent_response", state: "DONE", text_delta: "done" } });
 const status = process.env.FAKE_AGY_STATUS ?? "SUCCESS";
 out({ event: "result", result: { conversation_id, status, response: "done", ...(status === "ERROR" ? { error: "model quota exceeded" } : {}), num_turns: 1 } });

@@ -3679,7 +3679,7 @@ async function verify(pkg: string | undefined, json: boolean, io: Io): Promise<n
 interface SessionProfile {
   scopes: string[];
   /** The API the tool talks to, so the gateway is pointed at the right kind of upstream. */
-  wire: "anthropic" | "openai";
+  wire: "anthropic" | "openai" | "hooked";
   /** The tool can only be started with a task (no interactive mode here) / needs a model named. */
   needsPrompt: boolean;
   needsModel: boolean;
@@ -3689,6 +3689,9 @@ const SESSION_RUNTIMES: Record<string, SessionProfile> = {
   "claude-code": { scopes: SESSION_SCOPES, wire: "anthropic", needsPrompt: false, needsModel: false },
   codex: { scopes: SESSION_SCOPES, wire: "openai", needsPrompt: true, needsModel: false },
   goose: { scopes: SESSION_SCOPES, wire: "openai", needsPrompt: true, needsModel: true },
+  // Governed by the runtime's own pre-call hook and the observation of its output, not by the gateway (the package path of asp run, with the standing job as its contract).
+  antigravity: { scopes: SESSION_SCOPES, wire: "hooked", needsPrompt: true, needsModel: false },
+  openhands: { scopes: SESSION_SCOPES, wire: "hooked", needsPrompt: true, needsModel: false },
 };
 /** Where an OpenAI-style tool's model calls go, and the environment variable that holds the person's own key for it (held by the gateway, removed from the tool's environment). */
 const OPENAI_PROVIDERS: Record<string, { base: string; keyEnv: string }> = {
@@ -3699,7 +3702,7 @@ const CODEX_RUNTIME = fileURLToPath(new URL("./codex-runtime.mjs", import.meta.u
 const GOOSE_RUNTIME = fileURLToPath(new URL("./goose-runtime.mjs", import.meta.url));
 
 /**
- * asp run claude-code|codex|goose [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--allow-network host,host] [--standing-days n]: your agent, running a real
+ * asp run claude-code|codex|goose|antigravity|openhands [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--allow-network host,host] [--standing-days n]: your agent, running a real
  * runtime under the protocol, with none of the paperwork (launch blocker 12). The first run makes a standing job for the person and the agent (the Mandate allows reading and
  * writing files and running commands in the project, and no network unless you name hosts, for a week by default); every later run reuses it, so a session costs only its signed
  * Action reports. The tool runs through the gateway, so a call the Mandate does not allow is removed before the tool receives it; when it stops, a short summary says what the
@@ -3720,7 +3723,11 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
   if (prof.needsModel && !v.model) throw new UsageError(`asp run ${runtime} needs --model <name>`);
   // The upstream the gateway forwards to. Claude Code uses the person's own Claude login (passed through); an OpenAI-style tool uses the person's own API key, named by an environment variable.
   let upstreamFlags: string[];
-  if (prof.wire === "anthropic") {
+  if (prof.wire === "hooked") {
+    // No gateway: the tool talks to its own provider with its own sign-in or key (Antigravity: your Google sign-in; OpenHands: its settings, or --model/--endpoint/--api-key-env).
+    if (headless) throw new UsageError(`asp run ${runtime} --headless is not built: ${runtime} is governed by its own hook, which needs the tool's own sign-in on this machine`);
+    upstreamFlags = [];
+  } else if (prof.wire === "anthropic") {
     upstreamFlags = ["--anthropic-upstream", io.env.ASP_RUN_ANTHROPIC_UPSTREAM ?? "https://api.anthropic.com"];
     // Without a person to sign in, the tool uses the person's own API key, held by the gateway (a subscription login is for a person at a terminal: docs/launch-blockers.md, P22).
     const keyEnv = v["api-key-env"] ?? "ANTHROPIC_API_KEY";
@@ -3787,6 +3794,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
   try { compilePatterns(matchPatterns); } catch (e) { throw new UsageError((e as Error).message); }
   const gate = [...new Set([...askTokens.map((x) => ALIAS[x] ?? x), ...(v["ask-match"]?.length ? ["shell.exec"] : [])])];
   const alwaysFile = join(home, "always-allow.json");
+  if (prof.wire === "hooked" && (matchPatterns.length || askTokens.includes("risky"))) io.err(`  note     ${runtime} is held by its own hook, which cannot narrow by command pattern: every command is asked about (--ask commands)`);
   const days = Math.max(1, Math.trunc(Number(v["standing-days"] ?? "7")));
   const hosts = (v["allow-network"] ?? "").split(",").map((h) => h.trim()).filter(Boolean);
   const scopes = [...prof.scopes, ...(hosts.length ? ["shell.network"] : [])];
@@ -3881,15 +3889,32 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     if (canAsk) askInline(m[1], m[2]);
     else io.err(`  approval needed for ${m[1]}: ${m[2]}  (answer in another window: asp approvals approve, or asp approvals refuse)`);
   };
-  const gw = await quiet(["gateway", "--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  // Antigravity and OpenHands: no gateway. A package is made for this session and run on the package path of asp run, under the standing job's Mandate: the runtime's pre-call hook
+  // blocks a call outside it before it runs, a gated call is held for your yes (the same prompt as above), the output is observed, and the signed Action is reported. No memory is written back.
+  const hooked = prof.wire === "hooked";
+  const runHooked = async () => {
+    const pkgDir = join(home, `session-pkg-${sid}`);
+    const packed = await quiet(["pack", "--runtime", runtime, "--agent", ids.agent, "--project", project, "--out", pkgDir]);
+    if (packed.code) return { code: packed.code, out: packed.out, err: packed.err, errLines: [...packed.errLines, ...packed.out.split("\n")] };
+    try {
+      return await quiet(["run", pkgDir, "--backend", runtime, "--project", project, "--prompt", v.prompt!, "--contract", job.contract, "--no-write-back", "--no-canary", "--max-strikes", "3", "--stop-file", stopFile,
+        ...(gate.length ? ["--approval-wait", "600"] : []), ...(v.model ? ["--model", v.model] : []), ...(v.endpoint ? ["--endpoint", v.endpoint] : []), ...(v["api-key-env"] ? ["--api-key-env", v["api-key-env"]] : [])],
+        { cwd: project, ...(io.raw ? { raw: io.raw } : {}) }, onGatewayLine);
+    } finally { rmSync(pkgDir, { recursive: true, force: true }); }
+  };
+  const gw = hooked ? await runHooked() : await quiet(["gateway", "--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   sessionOver = true;
   await asking;
   rmSync(capture, { force: true });
   const wasStopped = existsSync(stopFile);
   rmSync(stopFile, { force: true });
 
-  const sum = (() => { const line = gw.errLines.find((l) => /^\s*summary\s+\{/.test(l)); return line ? JSON.parse(line.replace(/^\s*summary\s+/, "")) : undefined; })();
-  const refused = gw.errLines.filter((l) => /^\s*REFUSED /.test(l)).map((l) => l.trim().replace(/^REFUSED\s+/, ""));
+  // A hooked runtime has no gateway summary: the calls are the ones its run log judged, the refusals are the strikes and the gated calls that were not approved.
+  const hookedLog = hooked ? (() => { const f = findRunLog(home, job.contract); return f ? readRunLog(f) : undefined; })() : undefined;
+  const sum = hooked ? { toolCalls: hookedLog?.events.filter((e) => e.kind === "call_judged").length ?? 0 } as { toolCalls: number; tokens?: { input: number; output: number } } : (() => { const line = gw.errLines.find((l) => /^\s*summary\s+\{/.test(l)); return line ? JSON.parse(line.replace(/^\s*summary\s+/, "")) : undefined; })();
+  const refused = hooked
+    ? gw.errLines.filter((l) => /^\s*strike\s/.test(l) || /^\s*gate\s+.*not approved/.test(l)).map((l) => l.trim().replace(/^(strike|gate)\s+/, ""))
+    : gw.errLines.filter((l) => /^\s*REFUSED /.test(l)).map((l) => l.trim().replace(/^REFUSED\s+/, ""));
   const stopped = gw.errLines.find((l) => /^\s*stopped /.test(l))?.trim();
   const state = wasStopped ? "stopped" : gw.code === 0 ? "ended" : "failed";
   if (headless && v.json) {
@@ -4728,7 +4753,16 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
       void (approvals ? approvals.stop() : Promise.resolve()).then(() => done(-1));
     });
     // "close", not "exit": every line of output is read (and every outcome judged) before the run is wrapped up.
+    // asp stop on a session of a hooked runtime (Antigravity, OpenHands): the tool is ended; the standing job stays.
+    const stopWatch = v["stop-file"] ? setInterval(() => {
+      if (!existsSync(v["stop-file"]!) || child.exitCode !== null || child.signalCode !== null || killed) return;
+      io.err("  stopped  stopped by you (asp stop)");
+      runLog?.event("stopped", { reason: "stopped by you (asp stop)" });
+      child.kill("SIGTERM");
+      killTimer ??= setTimeout(() => { if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL"); }, KILL_GRACE_MS);
+    }, 300) : undefined;
     child.on("close", (c) => {
+      if (stopWatch) clearInterval(stopWatch);
       if (killTimer) clearTimeout(killTimer);
       void (approvals ? approvals.stop() : Promise.resolve())
         .then(() => Promise.all(confirmations))

@@ -81,10 +81,10 @@ test("asp run codex and asp run goose: governed sessions with the person's own A
     assert.match(runs.out, /codex\s+ended\s+1 calls, 1 refused/);
     assert.match(runs.out, /goose\s+ended\s+1 calls, 1 refused/);
     assert.match((await call(["standing"])).out, /2 session\(s\)/);
-    // OpenHands and Antigravity say what to do instead.
-    const oh = await call(["run", "openhands", "--prompt", "x"]);
+    // OpenHands and Antigravity are sessions too (S112, tested in run-hooked.test.ts); like Codex they need a task.
+    const oh = await call(["run", "openhands"]);
     assert.equal(oh.code, 2);
-    assert.match(oh.err, /asp run openhands as a one-command session is not built yet \(claude-code, codex, goose are\)/);
+    assert.match(oh.err, /asp run openhands needs --prompt/);
   } finally {
     server.kill(); provider.close();
   }

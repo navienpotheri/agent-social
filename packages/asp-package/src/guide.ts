@@ -42,6 +42,8 @@ export const TOPICS: Topic[] = [
       "asp run claude-code [--prompt \"...\"]      Claude Code, with your own Claude sign-in at a terminal",
       "asp run codex --prompt \"...\" [--provider openai|openrouter]     Codex with your own API key (held by the local gateway)",
       "asp run goose --prompt \"...\" --model <name>      Goose, same",
+      "asp run antigravity --prompt \"...\"       Antigravity (agy), with your own Google sign-in; held by its own pre-call hook, not the gateway",
+      "asp run openhands --prompt \"...\" [--model m --endpoint url --api-key-env NAME]      OpenHands (inside WSL on Windows), with its own settings or the model you name",
       "--project <dir>            the folder the agent works in (default: here)",
       "--agent <name>             which of your agents (default: the one asp agent use set)",
       "--allow-network a.com,b.com   hosts the agent may reach (default: none)",
@@ -337,7 +339,7 @@ export function parseAspYaml(text: string): { values: Record<string, YamlValue>;
 
 export const STARTER_ASP_YAML = `# asp.yaml: defaults for 'asp run' in this project. Flags on the command line win over this file.
 # asp help asp-yaml explains each setting.
-runtime: claude-code        # claude-code, codex or goose
+runtime: claude-code        # claude-code, codex, goose, antigravity or openhands
 # agent: my-agent           # which of your agents (default: the one 'asp agent use' set)
 # ask: [commands]           # hold these until you say yes: commands, writes, network
 # allow-network: [api.github.com]   # hosts the agent may reach; used only after 'asp trust asp.yaml'
