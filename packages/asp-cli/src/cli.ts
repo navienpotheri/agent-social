@@ -434,6 +434,12 @@ const OPTIONS = {
   "skip-export": { type: "boolean" },
   "starter-pool": { type: "string" },
   "no-recovery": { type: "boolean" },
+  headless: { type: "boolean" },
+  prepare: { type: "boolean" },
+  "prompt-file": { type: "string" },
+  "agent-did": { type: "string" },
+  "fail-on-refusal": { type: "boolean" },
+  days: { type: "string" },
   provider: { type: "string" },
   "max-agents": { type: "string" },
   ask: { type: "string" },
@@ -613,6 +619,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
     if (cmd === "approvals") return await approvalsCmd(home, sub, rest, v, io);
     if (cmd === "agent") return await agentCmd(home, sub, rest, v, io);
+    if (cmd === "token") return await tokenCmd(sub, rest, v, io);
     if (cmd === "leave") return leaveCmd(home, io);
     if (cmd === "court") return await courtCmd(home, sub, v, io);
     if (cmd === "serve") return await serve(v, need, io);
@@ -3516,11 +3523,26 @@ const GOOSE_RUNTIME = fileURLToPath(new URL("./goose-runtime.mjs", import.meta.u
  */
 async function runSession(home: string, runtime: string, v: Values, io: Io): Promise<number> {
   const prof = SESSION_RUNTIMES[runtime];
+  // Headless (a CI job, a scheduled task): no terminal, no login file, the job prepared beforehand (asp standing prepare) and named with --contract, the agent's key restored from an encrypted
+  // backup, the person's own API key held by the gateway, output meant for a machine. Exit codes: the tool's own, 10 if --fail-on-refusal and a call was refused, 11 if the job had ended.
+  const headless = !!v.headless;
+  if (v["prompt-file"]) v = { ...v, prompt: readFileSync(resolve(io.cwd, v["prompt-file"]), "utf8").trim() };
+  if (headless) {
+    if (!v.contract) throw new UsageError("asp run --headless needs --contract <the standing job's id> (asp standing prepare makes one, on your own machine)");
+    if (!v.prompt) throw new UsageError("asp run --headless needs --prompt or --prompt-file");
+    if (v.ask) throw new UsageError("--ask needs a person to answer; a headless run cannot ask");
+  }
   if (prof.needsPrompt && !v.prompt) throw new UsageError(`asp run ${runtime} needs --prompt "<the task>"`);
   if (prof.needsModel && !v.model) throw new UsageError(`asp run ${runtime} needs --model <name>`);
   // The upstream the gateway forwards to. Claude Code uses the person's own Claude login (passed through); an OpenAI-style tool uses the person's own API key, named by an environment variable.
   let upstreamFlags: string[];
-  if (prof.wire === "anthropic") upstreamFlags = ["--anthropic-upstream", io.env.ASP_RUN_ANTHROPIC_UPSTREAM ?? "https://api.anthropic.com"];
+  if (prof.wire === "anthropic") {
+    upstreamFlags = ["--anthropic-upstream", io.env.ASP_RUN_ANTHROPIC_UPSTREAM ?? "https://api.anthropic.com"];
+    // Without a person to sign in, the tool uses the person's own API key, held by the gateway (a subscription login is for a person at a terminal: docs/launch-blockers.md, P22).
+    const keyEnv = v["api-key-env"] ?? "ANTHROPIC_API_KEY";
+    if (headless && !io.env[keyEnv]) throw new UsageError(`a headless run uses your own Anthropic API key: set the environment variable ${keyEnv} (or name another with --api-key-env)`);
+    if (io.env[keyEnv] && (headless || v["api-key-env"])) upstreamFlags.push("--anthropic-key-env", keyEnv);
+  }
   else {
     const provider = v.provider ?? "openai";
     const preset = OPENAI_PROVIDERS[provider];
@@ -3529,8 +3551,13 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     if (!io.env[keyEnv]) throw new UsageError(`asp run ${runtime} uses your own ${provider} key: set the environment variable ${keyEnv} (or name another with --api-key-env). The gateway holds it; the tool never sees it.`);
     upstreamFlags = ["--openai-upstream", io.env.ASP_RUN_OPENAI_UPSTREAM ?? preset.base, "--openai-key-env", keyEnv];
   }
-  const cfg = readJoinConfig(home);
-  if (!cfg) throw new Error("you have not joined yet: run asp join first");
+  let cfg = readJoinConfig(home);
+  if (!cfg && headless && io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN) {
+    const a = (await (await fetchRetry(new URL("account", io.env.ASP_LOG_URL.replace(/\/$/, "") + "/"), { headers: { authorization: `Bearer ${io.env.ASP_LOG_TOKEN}` } })).json().catch(() => undefined)) as any;
+    if (!a?.ok) throw new Error("the service did not accept ASP_LOG_TOKEN (revoked or expired?)");
+    cfg = { service: io.env.ASP_LOG_URL.replace(/\/$/, ""), token: io.env.ASP_LOG_TOKEN, tenant: a.tenant.name, joinedAt: "" };
+  }
+  if (!cfg) throw new Error(headless ? "a headless run needs ASP_LOG_URL and ASP_LOG_TOKEN (a machine token: asp token create)" : "you have not joined yet: run asp join first");
   const env = { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token };
   const quiet = async (args: string[], extra: Partial<Io> = {}, onErr?: (line: string) => void) => {
     const out: string[] = [], err: string[] = [];
@@ -3548,7 +3575,23 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     ids = { me: didFor(domain, cfg.tenant, "human"), agent: didFor(domain, cfg.tenant, "agent", v.agent ?? "my-agent"), bank: didFor(domain, cfg.tenant, "human", "bank") };
   }
   const local = await openLog(home, { ...logEnv, ...env });
-  for (const [what, did] of [["you", ids.me], ["your agent", ids.agent], ["the settlement identity", ids.bank]] as const) {
+  if (headless) {
+    const c = await local.log.get(v.contract!);
+    if (!c) throw new Error(`the job ${v.contract} is not in the log`);
+    const cb = c.record.body as { principal: string; performer: string; bank?: string };
+    ids = { me: cb.principal, agent: v["agent-did"] ?? cb.performer, bank: cb.bank ?? "" };
+    if (ids.agent !== cb.performer) throw new UsageError(`the job is for ${cb.performer}, not ${ids.agent}`);
+    // The agent's key, from an encrypted backup (ASP_AGENT_BACKUP names the file, ASP_BACKUP_PASSPHRASE opens it): the person's own key never leaves their machine.
+    if (!new Keystore(home).entriesFor(ids.agent).length) {
+      if (!io.env.ASP_AGENT_BACKUP) throw new Error(`no key for ${ids.agent} here: set ASP_AGENT_BACKUP to its encrypted backup file (asp identity backup) and ASP_BACKUP_PASSPHRASE`);
+      const r = await quiet(["identity", "restore", resolve(io.cwd, io.env.ASP_AGENT_BACKUP)]);
+      if (r.code) throw new Error(`could not restore the agent's key: ${(r.err || r.out).trim().slice(0, 200)}`);
+    }
+    const st = (await local.log.chainInfo(v.contract!))?.state;
+    if (st !== "Running" && st !== "Checkpoint") { io.err(`the job is ${st}, not running; asp standing prepare makes a new one`); return 11; }
+    const m = (await local.log.chain(v.contract!)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1)?.record.body as { expires?: string } | undefined;
+    if (m?.expires && Date.parse(m.expires) - Date.now() < 10 * 60_000) { io.err("the job's Mandate expires within ten minutes; asp standing prepare makes a new one"); return 11; }
+  } else for (const [what, did] of [["you", ids.me], ["your agent", ids.agent], ["the settlement identity", ids.bank]] as const) {
     if (!(await local.log.passport(did))) throw new Error(`${what} (${did}) is not set up; run asp join, or create it with asp identity new`);
   }
 
@@ -3564,9 +3607,9 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
 
   // The standing job for this agent and these permissions: reused while it runs and has time left, settled and replaced when it is about to expire.
   const key = standingKey(ids.agent, scopes, hosts, gate);
-  const standing = readStanding(home);
-  let job: StandingJob | undefined = standing[key];
-  if (job) {
+  const standing = headless ? {} : readStanding(home);
+  let job: StandingJob | undefined = headless ? { contract: v.contract!, agent: ids.agent, key: "headless", createdAt: "", expiresAt: "9999-12-31T00:00:00Z", scopes, hosts, sessions: 0 } : standing[key];
+  if (job && !headless) {
     const st = (await local.log.chainInfo(job.contract))?.state;
     const live = st === "Running" || st === "Checkpoint";
     if (!live || Date.parse(job.expiresAt) - Date.now() < 15 * 60_000) {
@@ -3584,8 +3627,14 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     job = { contract, agent: ids.agent, key, createdAt: new Date().toISOString(), expiresAt: iso(days * 86_400_000), scopes, hosts, ...(gate.length ? { gate } : {}), sessions: 0 };
     created = true;
   }
+  if (v.prepare) {
+    standing[key] = job; writeStanding(home, standing);
+    io.out(`standing job ${job.contract} for ${ids.agent.split(":").slice(-1)[0]} (${created ? "made" : "already running"}), until ${job.expiresAt.slice(0, 10)}; scopes ${scopes.join(", ")}${hosts.length ? `; network ${hosts.join(", ")}` : "; no network"}`);
+    io.out("for a CI job or a scheduled task: asp token create <name>, asp identity backup <agent did> --out <file>, then asp run claude-code --headless --contract <this id> --prompt-file <task>");
+    return 0;
+  }
   job.sessions += 1;
-  standing[key] = job; writeStanding(home, standing);
+  if (!headless) { standing[key] = job; writeStanding(home, standing); }
   const sid = randomBytes(4).toString("hex");
   const stopFile = join(home, `stop-${sid}`);
   sessionIndexAdd(home, { t: "start", sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
@@ -3629,7 +3678,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     if (canAsk) askInline(m[1], m[2]);
     else io.err(`  approval needed for ${m[1]}: ${m[2]}  (answer in another window: asp approvals approve, or asp approvals refuse)`);
   };
-  const gw = await quiet(["gateway", "--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600"] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : {}) }, onGatewayLine);
+  const gw = await quiet(["gateway", "--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600"] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   sessionOver = true;
   await asking;
   rmSync(capture, { force: true });
@@ -3640,6 +3689,11 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
   const refused = gw.errLines.filter((l) => /^\s*REFUSED /.test(l)).map((l) => l.trim().replace(/^REFUSED\s+/, ""));
   const stopped = gw.errLines.find((l) => /^\s*stopped /.test(l))?.trim();
   const state = wasStopped ? "stopped" : gw.code === 0 ? "ended" : "failed";
+  if (headless && v.json) {
+    io.out(JSON.stringify({ session: sid, contract: job.contract, agent: ids.agent, runtime, state, exitCode: gw.code, toolCalls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, ...(stopped && !wasStopped ? { stopped } : {}) }));
+    sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state, calls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, exitCode: gw.code });
+    return gw.code !== 0 ? gw.code : stopped && !wasStopped ? 11 : v["fail-on-refusal"] && refused.length ? 10 : 0;
+  }
   io.out("");
   io.out("Session summary");
   io.out(`  session  ${sid}  ${state === "stopped" ? "stopped by you" : state === "ended" ? "finished" : `failed (exit ${gw.code})`}`);
@@ -3649,7 +3703,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
   if (stopped && !wasStopped) io.out(`  ${stopped}`);
   io.out(`  job      standing job ${job.contract.slice(0, 19)}..., ${job.sessions} session(s) so far; the signed Action reports are in the log (asp runs ${sid})`);
   sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state, calls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, exitCode: gw.code, ...(stopped && !wasStopped ? { stopped } : {}) });
-  return gw.code;
+  if (gw.code !== 0) return gw.code;
+  return headless && stopped && !wasStopped ? 11 : headless && v["fail-on-refusal"] && refused.length ? 10 : 0;
 }
 
 /** Settles a standing job as accepted (zero value): the agent delivers, the person accepts, the bank settles. */
@@ -3745,6 +3800,44 @@ async function stopCmd(home: string, id: string | undefined, v: Values, io: Io):
 }
 
 /**
+ * asp token create <name> [--days n] | list | revoke <name>: machine tokens for a CI job or a scheduled task (launch blocker 12, headless runs). A machine token can read your account and
+ * write records, so a job can run its agent, but it cannot make tokens, claim credits, export or close the account, and it expires (90 days unless you say). Shown once; only a hash is kept.
+ */
+async function tokenCmd(sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const url = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
+  if (!url || !token) throw new Error("you have not joined yet: run asp join first (a machine token is made with your own login)");
+  const base = url.endsWith("/") ? url : url + "/";
+  const call = async (path: string, init: RequestInit = {}) => {
+    const res = await fetchRetry(new URL(path, base), { ...init, headers: { ...(init.headers ?? {}), authorization: `Bearer ${token}`, "content-type": "application/json" } });
+    const body = (await res.json().catch(() => undefined)) as any;
+    if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? `the service answered ${res.status}`);
+    return body;
+  };
+  if (sub === "create") {
+    const name = rest[0];
+    if (!name) throw new UsageError("asp token create <name> [--days n]   (a name like ci or nightly)");
+    const r = await call("account/tokens", { method: "POST", body: JSON.stringify({ name, ...(v.days ? { days: Number(v.days) } : {}) }) });
+    io.out(`machine token ${r.name}, valid until ${r.expiresAt.slice(0, 10)}; shown once, keep it as a secret:`);
+    io.out(r.token);
+    io.out("use it as ASP_LOG_TOKEN in the job (with ASP_LOG_URL=" + url + "); revoke it with: asp token revoke " + r.name);
+    return 0;
+  }
+  if (sub === "revoke") {
+    if (!rest[0]) throw new UsageError("asp token revoke <name>");
+    await call(`account/tokens/${encodeURIComponent(rest[0])}`, { method: "DELETE" });
+    io.out(`revoked ${rest[0]}: it stops working at once`);
+    return 0;
+  }
+  if (!sub || sub === "list") {
+    const r = await call("account/tokens");
+    if (!r.tokens.length) { io.out("no machine tokens: asp token create <name>"); return 0; }
+    for (const t of r.tokens) io.out(`  ${t.name.padEnd(16)} ${t.revoked ? `revoked ${t.revoked.slice(0, 10)}` : t.active ? `until ${t.expiresAt.slice(0, 10)}` : `expired ${t.expiresAt.slice(0, 10)}`}`);
+    return 0;
+  }
+  throw new UsageError("usage: asp token create <name> [--days n] | list | revoke <name>");
+}
+
+/**
  * asp agent add <name> [--purpose <text>] | list | use <name>: your agents on the service (launch blocker 12). Each is its own identity in your namespace, sponsored by you, with its
  * own key on this machine; `asp run <runtime> --agent <name>` runs it, and `use` makes one the default. An agent whose key is lost is recovered by you, its sponsor.
  */
@@ -3837,6 +3930,10 @@ async function approvalsCmd(home: string, sub: string | undefined, rest: string[
 async function standingCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
   const standing = readStanding(home);
   const entries = Object.entries(standing);
+  if (sub === "prepare") {
+    // Makes (or finds) the standing job without running anything: a CI job or a scheduled task runs under it with --contract, holding only its agent's key.
+    return await runSession(home, "claude-code", { ...v, prepare: true }, io);
+  }
   if (sub !== "end") {
     if (!entries.length) { io.out("no standing jobs yet: the first asp run makes one"); return 0; }
     for (const [, j] of entries) io.out(`  ${j.contract.slice(0, 19)}...  ${j.agent.split(":").slice(-1)[0]}  ${j.scopes.join(",")}${j.hosts.length ? ` +${j.hosts.join(",")}` : ""}  ${j.sessions} session(s), until ${j.expiresAt.slice(0, 10)}`);

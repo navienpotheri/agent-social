@@ -12,7 +12,7 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, type LogHandle, type OwnerStore, type StarterPool, type Tenant, type UsageStore } from "@agent-social/asp-log";
 import { commonsOfDids, purgeCommons } from "./commons.ts";
@@ -57,10 +57,10 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
   try { return JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { return undefined; }
 }
 
-/** The tenant as the export shows it: what we hold, without the token's hash. */
+/** The tenant as the export shows it: what we hold, without any token's hash. */
 function tenantView(t: Tenant) {
-  const { tokenSha256: _hash, ...rest } = t;
-  return rest;
+  const { tokenSha256: _hash, machineTokens, machine: _machine, ...rest } = t;
+  return { ...rest, ...(machineTokens ? { machineTokens: machineTokens.map((m) => ({ name: m.name, createdAt: m.createdAt, expiresAt: m.expiresAt, ...(m.revoked ? { revoked: m.revoked } : {}) })) } : {}) };
 }
 
 /** The tombstone left when a tenant closes: the name (so it is not reused), and for the retention period only what abuse handling needs. */
@@ -164,6 +164,43 @@ export function accountRoutes(o: AccountOptions) {
         starter: starterStatus(o, me), identities: await identityRecovery(o, d.dids),
         ...(o.didDomain ? { namespace: { domain: o.didDomain, ...namespaceOf(o.didDomain, me.name) } } : {}),
       });
+      return true;
+    }
+
+    // A machine token (a CI job, a scheduled task) can read the account and write records, but not take it apart: no tokens, no starter credits, no export, no closing.
+    if (me.machine && url.pathname !== "/account") { fail(res, 403, "MACHINE_TOKEN", `the machine token ${me.machine} can read the account and write records; this needs your own token`); return true; }
+
+    // Machine tokens: make one (shown once), list them, revoke one.
+    if (url.pathname === "/account/tokens" || url.pathname.startsWith("/account/tokens/")) {
+      if (!o.updateTenant) { fail(res, 404, "NOT_FOUND", "machine tokens are not offered here"); return true; }
+      const live = (me.machineTokens ?? []).filter((m) => !m.revoked && Date.parse(m.expiresAt) > Date.now());
+      if (method === "GET" && url.pathname === "/account/tokens") {
+        send(res, 200, { ok: true, tokens: (me.machineTokens ?? []).map((m) => ({ name: m.name, createdAt: m.createdAt, expiresAt: m.expiresAt, ...(m.revoked ? { revoked: m.revoked } : {}), active: live.includes(m) })) });
+        return true;
+      }
+      if (method === "POST" && url.pathname === "/account/tokens") {
+        const body = (await readJson(req)) as { name?: unknown; days?: unknown } | undefined;
+        const name = typeof body?.name === "string" ? body.name : "";
+        const days = body?.days === undefined ? 90 : Number(body.days);
+        if (!/^[a-z][a-z0-9-]{1,31}$/.test(name)) { fail(res, 400, "BAD_NAME", "a machine token's name is 2 to 32 characters: lower-case letters, digits and hyphens, starting with a letter"); return true; }
+        if (!Number.isInteger(days) || days < 1 || days > 365) { fail(res, 400, "BAD_DAYS", "a machine token lasts 1 to 365 days"); return true; }
+        if ((me.machineTokens ?? []).some((m) => m.name === name)) { fail(res, 409, "NAME_TAKEN", `you already have a machine token called ${name}`); return true; }
+        if (live.length >= 10) { fail(res, 400, "TOO_MANY", "at most 10 active machine tokens; revoke one first"); return true; }
+        const token = randomBytes(32).toString("base64url");
+        const now = new Date((o.now ?? Date.now)());
+        const entry = { name, tokenSha256: createHash("sha256").update(token).digest("hex"), createdAt: now.toISOString().replace(/\.\d{3}Z$/, "Z"), expiresAt: new Date(now.getTime() + days * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z") };
+        o.updateTenant(me.name, { machineTokens: [...(me.machineTokens ?? []), entry] });
+        send(res, 201, { ok: true, name, token, expiresAt: entry.expiresAt, note: "Shown once. It can read the account and write records; it cannot make tokens, claim credits, export or close the account." });
+        return true;
+      }
+      if (method === "DELETE" && url.pathname.startsWith("/account/tokens/")) {
+        const name = decodeURIComponent(url.pathname.slice("/account/tokens/".length));
+        if (!(me.machineTokens ?? []).some((m) => m.name === name && !m.revoked)) { fail(res, 404, "NO_SUCH_TOKEN", `no active machine token called ${name}`); return true; }
+        o.updateTenant(me.name, { machineTokens: (me.machineTokens ?? []).map((m) => (m.name === name ? { ...m, revoked: new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z") } : m)) });
+        send(res, 200, { ok: true, revoked: name });
+        return true;
+      }
+      fail(res, 405, "METHOD", "GET, POST /account/tokens or DELETE /account/tokens/<name>");
       return true;
     }
 

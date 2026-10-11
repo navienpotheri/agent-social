@@ -49,6 +49,10 @@ export interface Tenant {
   signup?: { at: string; addressHash: string; termsVersion: string; contact?: string; google?: { sub: string; email: string }; declaration?: "adult_or_guardian" };
   /** Set when the tenant closed its account: the token is gone and so is everything personal except what is kept for abuse handling until `retainUntil`. */
   closed?: { at: string; retainUntil: string };
+  /** Extra tokens for machines (a CI job, a scheduled task): named, with an expiry, revocable, and less powerful than the person's own token (src/account.ts). Only hashes are kept. */
+  machineTokens?: { name: string; tokenSha256: string; createdAt: string; expiresAt: string; revoked?: string }[];
+  /** Set, on the tenant a request is made as, when it came with a machine token: the token's name. Never stored. */
+  machine?: string;
   /** The starter credits this tenant claimed (src/starter.ts): when and how many; kept in a tombstone too, so closing and signing up again does not earn a second grant. */
   starter?: { at: string; amount: number; dids?: string[] };
 }
@@ -128,6 +132,11 @@ export function authenticate(req: IncomingMessage, opts: Pick<ServerOptions, "te
     if (t.closed || !t.tokenSha256) continue;
     const want = Buffer.from(t.tokenSha256, "hex");
     if (want.length === given.length && timingSafeEqual(want, given)) return t;
+    for (const mt of t.machineTokens ?? []) {
+      if (mt.revoked || Date.parse(mt.expiresAt) <= Date.now()) continue;
+      const w = Buffer.from(mt.tokenSha256, "hex");
+      if (w.length === given.length && timingSafeEqual(w, given)) return { ...t, machine: mt.name };
+    }
   }
   return undefined;
 }

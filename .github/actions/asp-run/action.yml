@@ -1,0 +1,41 @@
+name: Governed agent run (ASP)
+description: Runs Claude Code headless under an ASP standing job, with the agent's key restored from an encrypted backup and your own Anthropic API key held by the gateway.
+inputs:
+  contract:
+    description: The standing job's id (asp standing prepare makes one on your machine)
+    required: true
+  prompt-file:
+    description: A file with the task
+    required: true
+  asp-log-url:
+    required: true
+    description: Your service's URL
+  asp-log-token:
+    required: true
+    description: A machine token (asp token create), kept as a secret
+  agent-backup:
+    required: true
+    description: Path to the agent's encrypted key backup (asp identity backup), checked in or decoded from a secret
+  backup-passphrase:
+    required: true
+    description: The backup's passphrase, kept as a secret
+  anthropic-api-key:
+    required: true
+    description: Your own Anthropic API key, kept as a secret
+  fail-on-refusal:
+    description: Fail the step if the gateway refused any call
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        ASP_LOG_URL: ${{ inputs.asp-log-url }}
+        ASP_LOG_TOKEN: ${{ inputs.asp-log-token }}
+        ASP_AGENT_BACKUP: ${{ inputs.agent-backup }}
+        ASP_BACKUP_PASSPHRASE: ${{ inputs.backup-passphrase }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+      run: |
+        flags=""
+        if [ "${{ inputs.fail-on-refusal }}" = "true" ]; then flags="--fail-on-refusal"; fi
+        asp run claude-code --headless --contract "${{ inputs.contract }}" --prompt-file "${{ inputs.prompt-file }}" --json $flags
