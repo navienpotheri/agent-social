@@ -432,6 +432,7 @@ const OPTIONS = {
   "skip-export": { type: "boolean" },
   "starter-pool": { type: "string" },
   "no-recovery": { type: "boolean" },
+  "allow-network": { type: "string" },
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
   "agent-name": { type: "string" },
@@ -1231,7 +1232,7 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io): Promise<n
   throw new UsageError("usage: asp account show | starter --did <did>[,<did>] | export [--out <dir>] | close --confirm <tenant name> [--skip-export] [--out <dir>]");
 }
 
-interface JoinConfig { service: string; token: string; tenant: string; joinedAt: string }
+interface JoinConfig { service: string; token: string; tenant: string; joinedAt: string; /** Made by asp join: who asp run uses. */ identities?: { me: string; agent: string; bank: string } }
 const joinConfigPath = (home: string) => join(home, "config.json");
 function readJoinConfig(home: string): JoinConfig | undefined {
   try { const c = JSON.parse(readFileSync(joinConfigPath(home), "utf8")) as JoinConfig; return c.service && c.token ? c : undefined; } catch { return undefined; }
@@ -1306,6 +1307,8 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   await run(["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]);
   const credits = await run(["account", "starter", "--did", `${me},${agent}`]);
   const code = /(ASP-[0-9A-Z-]+)/.exec(person)?.[1];
+  const bank = didFor(domain, picked.tenant, "human", "bank");
+  writeFileSync(joinConfigPath(home), JSON.stringify({ service, token: picked.token, tenant: picked.tenant, joinedAt: now(), identities: { me, agent, bank } } satisfies JoinConfig, null, 2) + "\n", { mode: 0o600 });
 
   io.out("");
   io.out(`You are set up on ${service}:`);
@@ -1327,7 +1330,7 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
     } else io.out(`  Check later that you wrote it correctly: asp identity recovery-check ${me}`);
   }
   io.out("");
-  io.out("Next: asp run <runtime> runs an agent under the protocol. asp account show says what you have.");
+  io.out("Next: asp run claude-code --prompt \"...\" runs Claude Code as your agent under the protocol. asp account show says what you have.");
   return 0;
 }
 
@@ -3456,8 +3459,93 @@ async function verify(pkg: string | undefined, json: boolean, io: Io): Promise<n
   return report.ok ? 0 : 1;
 }
 
+/** The runtimes asp run <runtime> can start as a governed session without a package, and what they get by default. */
+const SESSION_RUNTIMES: Record<string, { scopes: string[]; upstream: string }> = {
+  "claude-code": { scopes: ["repo.read", "repo.write", "shell.exec"], upstream: "https://api.anthropic.com" },
+};
+
+/**
+ * asp run claude-code [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--budget n] [--minutes n] [--allow-network host,host]: your agent, running a real
+ * runtime under the protocol, with none of the paperwork (launch blocker 12). Behind the scenes it makes a short job for you and your agent (the Mandate allows reading and writing
+ * files and running commands in the project, and no network unless you name hosts), runs the tool through the gateway so a call the Mandate does not allow never reaches it,
+ * settles the job when the tool stops, and prints what the agent said and a short summary: calls made, calls refused and why, what it cost.
+ */
+async function runSession(home: string, runtime: string, v: Values, io: Io): Promise<number> {
+  const prof = SESSION_RUNTIMES[runtime];
+  const cfg = readJoinConfig(home);
+  if (!cfg) throw new Error("you have not joined yet: run asp join first");
+  const env = { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token };
+  const quiet = async (args: string[], extra: Partial<Io> = {}) => {
+    const out: string[] = [], err: string[] = [];
+    const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env, cwd: io.cwd, ...extra });
+    return { code, out: out.join("\n"), err: err.join("\n"), errLines: err };
+  };
+  const step = async (args: string[]) => { const r = await quiet(args); if (r.code) throw new Error(`${args.slice(0, 3).join(" ")} failed: ${(r.err || r.out).trim().slice(0, 300)}`); return r.out; };
+
+  // Who runs it: the identities asp join made (or, for an older login, the ones named the same way).
+  let ids = cfg.identities;
+  if (v.agent || !ids) {
+    const acct = (await (await fetchRetry(new URL("account", cfg.service + "/"), { headers: { authorization: `Bearer ${cfg.token}` } })).json().catch(() => undefined)) as any;
+    if (!acct?.namespace) throw new Error("this service gives identities no namespace; use asp market ... directly");
+    const domain = acct.namespace.domain as string;
+    const agentName = v.agent ?? "my-agent";
+    ids = { me: didFor(domain, cfg.tenant, "human"), agent: didFor(domain, cfg.tenant, "agent", agentName), bank: didFor(domain, cfg.tenant, "human", "bank") };
+  }
+  const local = await openLog(home, { ...logEnv, ...env });
+  for (const [what, did] of [["you", ids.me], ["your agent", ids.agent], ["the settlement identity", ids.bank]] as const) {
+    if (!(await local.log.passport(did))) throw new Error(`${what} (${did}) is not set up; run asp join, or create it with asp identity new`);
+  }
+
+  const minutes = Math.max(5, Math.trunc(Number(v.minutes ?? "120")));
+  const cap = Math.trunc(Number(v.budget ?? "100"));
+  const iso = (ms: number) => new Date(Date.now() + ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const hosts = (v["allow-network"] ?? "").split(",").map((h) => h.trim()).filter(Boolean);
+  const scopes = [...prof.scopes, ...(hosts.length ? ["shell.network"] : [])];
+  const purpose = (v.prompt ?? "An interactive session").replace(/\s+/g, " ").slice(0, 80);
+
+  const intent = /^intent (\S+)/m.exec(await step(["market", "intent", "--by", ids.me, "--purpose", purpose, "--budget", "0", "--deadline", iso((minutes + 60) * 60_000)]))![1];
+  const offer = /^offer (\S+)/m.exec(await step(["market", "offer", "--by", ids.agent, "--intent", intent, "--price", "0", "--plan", `run ${runtime}`,"--eta", iso(minutes * 60_000)]))![1];
+  const contract = /^contract (sha256:[0-9a-f]{64})/m.exec(await step(["market", "contract", "--principal", ids.me, "--bank", ids.bank, "--intent", intent, "--offer", offer]))![1];
+  await step(["market", "bond", "--contract", contract, "--backer", ids.agent, "--amount", "0", "--escrow-payer", ids.me, "--escrow-amount", "0"]);
+  await step(["market", "mandate", "--contract", contract, "--principal", ids.me, "--performer", ids.agent, "--spend-cap", String(cap), ...scopes.flatMap((s) => ["--scopes", s]), ...hosts.flatMap((h) => ["--network-host", h])]);
+  io.err(`  job ${contract.slice(0, 19)}...: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}, for ${minutes} minutes`);
+
+  // The tool, through the gateway. A prompt runs once and its answer is shown as it comes; without one the tool is interactive.
+  const bin = io.env.ASP_CLAUDE_BIN ? [io.env.ASP_CLAUDE_BIN, ...(io.env.ASP_CLAUDE_SCRIPT ? [io.env.ASP_CLAUDE_SCRIPT] : [])] : ["claude"];
+  const tool = v.prompt
+    ? [...bin, "-p", v.prompt, "--allowedTools", "Read", "Glob", "Grep", "Edit", "Write", "Bash", "--output-format", "text", ...(v.model ? ["--model", v.model] : [])]
+    : [...bin, ...(v.model ? ["--model", v.model] : [])];
+  const capture = join(home, `run-${Date.now()}.txt`);
+  const project = resolve(io.cwd, v.project ?? ".");
+  const gw = await quiet(["gateway", "--contract", contract, "--by", ids.agent, "--anthropic-upstream", io.env.ASP_RUN_ANTHROPIC_UPSTREAM ?? prof.upstream, "--max-strikes", "3", ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : {}) });
+  rmSync(capture, { force: true });
+
+  // Settle the job if the gateway did not already end it (a kill settles it).
+  const state = (await local.log.chainInfo(contract))?.state;
+  if (state === "Running" || state === "Checkpoint") {
+    await step(["market", "deliver", "--contract", contract, "--by", ids.agent, "--summary", purpose]);
+    await step(["market", "accept", "--contract", contract, "--by", ids.me]);
+    await step(["market", "settle", "--contract", contract, "--bank", ids.bank, "--basis", "accepted", "--escrow-released", "0", "--bond-returned", "0", "--bond-slashed", "0"]);
+  }
+  const ended = (await local.log.chainInfo(contract))?.state;
+
+  const sum = (() => { const line = gw.errLines.find((l) => /^\s*summary\s+\{/.test(l)); return line ? JSON.parse(line.replace(/^\s*summary\s+/, "")) : undefined; })();
+  const refused = gw.errLines.filter((l) => /^\s*REFUSED /.test(l)).map((l) => l.trim().replace(/^REFUSED\s+/, ""));
+  const stopped = gw.errLines.find((l) => /^\s*stopped /.test(l))?.trim();
+  io.out("");
+  io.out("Session summary");
+  io.out(`  job      ${contract.slice(0, 19)}... ${ended === "Settled" ? "settled" : ended ?? "unknown"}`);
+  io.out(`  calls    ${sum?.toolCalls ?? 0} tool call(s) judged, ${refused.length} refused${sum?.tokens ? `; ${sum.tokens.input + sum.tokens.output} tokens` : ""}`);
+  for (const r of refused.slice(0, 5)) io.out(`  refused  ${r}`);
+  if (refused.length > 5) io.out(`  ... and ${refused.length - 5} more`);
+  if (stopped) io.out(`  ${stopped}`);
+  io.out(`  evidence signed Actions in the log; the Mandate and every refusal are checkable (asp market show ${contract})`);
+  return gw.code;
+}
+
 async function run(home: string, pkg: string | undefined, v: Values, need: Need, io: Io): Promise<number> {
-  if (!pkg) throw new UsageError("asp run <package> --backend <runtime>");
+  if (pkg && SESSION_RUNTIMES[pkg] && !existsSync(resolve(io.cwd, pkg))) return await runSession(home, pkg, v, io);
+  if (!pkg) throw new UsageError(`asp run <runtime> [--prompt <text>] (${Object.keys(SESSION_RUNTIMES).join(", ")}), or asp run <package> --backend <runtime>`);
   const backend = need("backend");
   const adapter = ADAPTERS[backend];
   if (!adapter) throw new UsageError(`unknown backend ${backend}; available: ${Object.keys(ADAPTERS).join(", ")}`);
