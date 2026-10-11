@@ -311,6 +311,8 @@ export interface Io {
   cwd: string;
   /** Where a child runtime's own output is echoed (default: this process's stdout); the evaluation harness discards it. */
   raw?: (chunk: Buffer) => void;
+  /** Asks the person a question and returns the answer (default: the terminal, when there is one); the tests answer it. */
+  ask?: (question: string) => Promise<string>;
 }
 
 const OPTIONS = {
@@ -432,6 +434,7 @@ const OPTIONS = {
   "skip-export": { type: "boolean" },
   "starter-pool": { type: "string" },
   "no-recovery": { type: "boolean" },
+  ask: { type: "string" },
   "stop-file": { type: "string" },
   "standing-days": { type: "string" },
   "allow-network": { type: "string" },
@@ -606,6 +609,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
     if (cmd === "stop") return await stopCmd(home, sub, v, io);
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
+    if (cmd === "approvals") return await approvalsCmd(home, sub, rest, v, io);
     if (cmd === "leave") return leaveCmd(home, io);
     if (cmd === "court") return await courtCmd(home, sub, v, io);
     if (cmd === "serve") return await serve(v, need, io);
@@ -2004,7 +2008,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const mandateRecord = (await local.log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
   const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
   const gateOn = !!irreversible?.scopes?.length && irreversible.policy !== "allow";
-  const gwRunDir = join(home, "runs", `gateway-${now().replace(/:/g, "")}`);
+  const gwRunDir = join(home, "runs", `gateway-${randomBytes(3).toString("hex")}-${now().replace(/:/g, "")}`);
   const approvalsDir = join(gwRunDir, "approvals");
   // Memory: the agent's notes are served to it by the gateway's own MCP server (asp_memory_*), from a copy that is written back after the run.
   const pkgDir = v.package ? resolve(io.cwd, v.package) : undefined;
@@ -3494,9 +3498,9 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
   const cfg = readJoinConfig(home);
   if (!cfg) throw new Error("you have not joined yet: run asp join first");
   const env = { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token };
-  const quiet = async (args: string[], extra: Partial<Io> = {}) => {
+  const quiet = async (args: string[], extra: Partial<Io> = {}, onErr?: (line: string) => void) => {
     const out: string[] = [], err: string[] = [];
-    const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env, cwd: io.cwd, ...extra });
+    const code = await main(args, { out: (l) => out.push(l), err: (l) => { err.push(l); onErr?.(l); }, env, cwd: io.cwd, ...extra });
     return { code, out: out.join("\n"), err: err.join("\n"), errLines: err };
   };
   const step = async (args: string[]) => { const r = await quiet(args); if (r.code) throw new Error(`${args.slice(0, 3).join(" ")} failed: ${(r.err || r.out).trim().slice(0, 300)}`); return r.out; };
@@ -3514,14 +3518,18 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     if (!(await local.log.passport(did))) throw new Error(`${what} (${did}) is not set up; run asp join, or create it with asp identity new`);
   }
 
+  // --ask commands|writes|network|<scope>,...: calls on these scopes wait for your yes (a gate in the Mandate, so it is signed and in the log).
+  const ALIAS: Record<string, string> = { commands: "shell.exec", writes: "repo.write", network: "shell.network" };
+  const gate = (v.ask ?? "").split(",").map((x) => x.trim()).filter(Boolean).map((x) => ALIAS[x] ?? x);
   const days = Math.max(1, Math.trunc(Number(v["standing-days"] ?? "7")));
   const hosts = (v["allow-network"] ?? "").split(",").map((h) => h.trim()).filter(Boolean);
   const scopes = [...prof.scopes, ...(hosts.length ? ["shell.network"] : [])];
+  for (const g of gate) if (!scopes.includes(g)) throw new UsageError(`--ask ${g}: that scope is not in this session's Mandate (${scopes.join(", ")})`);
   const purpose = (v.prompt ?? "An interactive session").replace(/\s+/g, " ").slice(0, 80);
   const iso = (ms: number) => new Date(Date.now() + ms).toISOString().replace(/\.\d{3}Z$/, "Z");
 
   // The standing job for this agent and these permissions: reused while it runs and has time left, settled and replaced when it is about to expire.
-  const key = standingKey(ids.agent, scopes, hosts);
+  const key = standingKey(ids.agent, scopes, hosts, gate);
   const standing = readStanding(home);
   let job: StandingJob | undefined = standing[key];
   if (job) {
@@ -3538,8 +3546,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     const offer = /^offer (\S+)/m.exec(await step(["market", "offer", "--by", ids.agent, "--intent", intent, "--price", "0", "--plan", `run ${runtime}`, "--eta", iso(days * 86_400_000 - 30 * 60_000)]))![1];
     const contract = /^contract (sha256:[0-9a-f]{64})/m.exec(await step(["market", "contract", "--principal", ids.me, "--bank", ids.bank, "--intent", intent, "--offer", offer]))![1];
     await step(["market", "bond", "--contract", contract, "--backer", ids.agent, "--amount", "0", "--escrow-payer", ids.me, "--escrow-amount", "0"]);
-    await step(["market", "mandate", "--contract", contract, "--principal", ids.me, "--performer", ids.agent, "--spend-cap", String(Math.trunc(Number(v.budget ?? "100"))), ...scopes.flatMap((s) => ["--scopes", s]), ...hosts.flatMap((h) => ["--network-host", h])]);
-    job = { contract, agent: ids.agent, key, createdAt: new Date().toISOString(), expiresAt: iso(days * 86_400_000), scopes, hosts, sessions: 0 };
+    await step(["market", "mandate", "--contract", contract, "--principal", ids.me, "--performer", ids.agent, "--spend-cap", String(Math.trunc(Number(v.budget ?? "100"))), ...scopes.flatMap((s) => ["--scopes", s]), ...hosts.flatMap((h) => ["--network-host", h]), ...(gate.length ? ["--irreversible", "checkpoint", ...gate.flatMap((g) => ["--gate", g])] : [])]);
+    job = { contract, agent: ids.agent, key, createdAt: new Date().toISOString(), expiresAt: iso(days * 86_400_000), scopes, hosts, ...(gate.length ? { gate } : {}), sessions: 0 };
     created = true;
   }
   job.sessions += 1;
@@ -3547,7 +3555,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
   const sid = randomBytes(4).toString("hex");
   const stopFile = join(home, `stop-${sid}`);
   sessionIndexAdd(home, { t: "start", sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
-  io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
+  io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
   // The tool, through the gateway. A prompt runs once and its answer is shown as it comes; without one the tool is interactive.
   const bin = io.env.ASP_CLAUDE_BIN ? [io.env.ASP_CLAUDE_BIN, ...(io.env.ASP_CLAUDE_SCRIPT ? [io.env.ASP_CLAUDE_SCRIPT] : [])] : ["claude"];
@@ -3556,7 +3564,38 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     : [...bin, ...(v.model ? ["--model", v.model] : [])];
   const capture = join(home, `run-${sid}.txt`);
   const project = resolve(io.cwd, v.project ?? ".");
-  const gw = await quiet(["gateway", "--contract", job.contract, "--by", ids.agent, "--anthropic-upstream", io.env.ASP_RUN_ANTHROPIC_UPSTREAM ?? prof.upstream, "--max-strikes", "3", "--stop-file", stopFile, ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : {}) });
+  // An approval the gateway is holding is asked about here, in the terminal, when the tool runs with a prompt (its output is a stream, the terminal is free) and there is a
+  // terminal (or a front end that can ask); otherwise it says where to answer: asp approvals, in another window.
+  const canAsk = !!v.prompt && (!!io.ask || !!process.stdin.isTTY);
+  let asking: Promise<void> = Promise.resolve();
+  let sessionOver = false;
+  const askInline = (scope: string, shown: string) => {
+    asking = asking.then(async () => {
+      if (sessionOver) return;
+      let answer = "";
+      try {
+        if (io.ask) answer = await io.ask(`Allow ${scope}: ${shown}? [y/N] `);
+        else {
+          const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stderr });
+          const timer = setInterval(() => { if (sessionOver) rl.close(); }, 500); timer.unref();
+          try { answer = await rl.question(`\n  Allow ${scope}: ${shown}? [y/N] `); } catch { answer = ""; } finally { clearInterval(timer); rl.close(); }
+        }
+      } catch { answer = ""; }
+      if (sessionOver) return;
+      const yes = /^y(es)?$/i.test(answer.trim());
+      const r = await quiet(["market", "resolve", "--contract", job!.contract, "--by", ids!.me, "--verdict", yes ? "approved" : "corrected", ...(yes ? [] : ["--correction", "refused by you"])]);
+      if (r.code) io.err(`  could not record your answer: ${(r.err || r.out).trim().slice(0, 200)}`);
+    });
+  };
+  const onGatewayLine = (l: string) => {
+    const m = /^\s*APPROVAL NEEDED\s+(\S+): (.*)$/.exec(l);
+    if (!m) return;
+    if (canAsk) askInline(m[1], m[2]);
+    else io.err(`  approval needed for ${m[1]}: ${m[2]}  (answer in another window: asp approvals approve, or asp approvals refuse)`);
+  };
+  const gw = await quiet(["gateway", "--contract", job.contract, "--by", ids.agent, "--anthropic-upstream", io.env.ASP_RUN_ANTHROPIC_UPSTREAM ?? prof.upstream, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600"] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : {}) }, onGatewayLine);
+  sessionOver = true;
+  await asking;
   rmSync(capture, { force: true });
   const wasStopped = existsSync(stopFile);
   rmSync(stopFile, { force: true });
@@ -3585,11 +3624,11 @@ async function settleStanding(step: (args: string[]) => Promise<string>, contrac
 }
 
 // ---- standing jobs and the history of governed sessions, kept on this machine (prompts stay private) ----
-interface StandingJob { contract: string; agent: string; key: string; createdAt: string; expiresAt: string; scopes: string[]; hosts: string[]; sessions: number }
+interface StandingJob { contract: string; agent: string; key: string; createdAt: string; expiresAt: string; scopes: string[]; hosts: string[]; gate?: string[]; sessions: number }
 const standingPath = (home: string) => join(home, "standing.json");
 function readStanding(home: string): Record<string, StandingJob> { try { return JSON.parse(readFileSync(standingPath(home), "utf8")); } catch { return {}; } }
 function writeStanding(home: string, s: Record<string, StandingJob>): void { mkdirSync(home, { recursive: true }); writeFileSync(standingPath(home), JSON.stringify(s, null, 2) + "\n"); }
-const standingKey = (agent: string, scopes: string[], hosts: string[]) => createHash("sha256").update(JSON.stringify([agent, [...scopes].sort(), [...hosts].sort()])).digest("hex").slice(0, 16);
+const standingKey = (agent: string, scopes: string[], hosts: string[], gate: string[] = []) => createHash("sha256").update(JSON.stringify(gate.length ? [agent, [...scopes].sort(), [...hosts].sort(), [...gate].sort()] : [agent, [...scopes].sort(), [...hosts].sort()])).digest("hex").slice(0, 16);
 
 interface SessionStart { t: "start"; sid: string; contract: string; at: string; runtime: string; agent: string; me: string; bank: string; purpose: string; scopes: string[]; hosts: string[] }
 interface SessionEnd { t: "end"; sid: string; contract: string; at: string; state: string; calls: number; refused: string[]; tokens: number; exitCode: number; stopped?: string }
@@ -3666,6 +3705,44 @@ async function stopCmd(home: string, id: string | undefined, v: Values, io: Io):
   mkdirSync(home, { recursive: true });
   writeFileSync(join(home, `stop-${start.sid}`), `${new Date().toISOString()}\n`);
   io.out(`stopping session ${start.sid}: its tool ends within a few seconds (the standing job stays; asp standing end ends that too)`);
+  return 0;
+}
+
+/**
+ * asp approvals [approve|refuse [<n>]]: the calls your agents are waiting to make that need your yes (a gate in the Mandate: asp run --ask commands). Answer from here, in another
+ * window from the session, or inline when the session asks you. Your answer is signed with your key and goes in the log.
+ */
+async function approvalsCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const standing = readStanding(home);
+  const contracts = [...new Set(Object.values(standing).map((j) => j.contract))];
+  const cfg = readJoinConfig(home);
+  const local = await openLog(home, logEnv);
+  const open: { n: number; contract: string; checkpoint: string; question: string; action: string; principal: string }[] = [];
+  for (const c of contracts) {
+    if ((await local.log.chainInfo(c))?.state !== "Checkpoint") continue;
+    const chain = await marketChain(local.log, c);
+    const last = [...chain].reverse().find((x) => x.record.type === "asp.checkpoint/v0.2");
+    if (!last) continue;
+    const b = last.record.body as { question?: string; proposed_action?: string };
+    const principal = ((await local.log.get(c))!.record.body as { principal: string }).principal;
+    open.push({ n: open.length + 1, contract: c, checkpoint: last.id, question: b.question ?? "", action: b.proposed_action ?? "", principal });
+  }
+  if (!sub || sub === "list") {
+    if (!open.length) { io.out("nothing is waiting for your answer"); return 0; }
+    for (const o of open) io.out(`  ${o.n}  ${o.question}\n       ${o.action}`);
+    io.out("answer with: asp approvals approve [n]  or  asp approvals refuse [n]");
+    return 0;
+  }
+  if (sub !== "approve" && sub !== "refuse") throw new UsageError("usage: asp approvals [list] | approve [<n>] | refuse [<n>]");
+  const pick = rest[0] ? open.filter((o) => String(o.n) === rest[0]) : open;
+  if (!pick.length) throw new Error(rest[0] ? `no waiting approval numbered ${rest[0]}` : "nothing is waiting for your answer");
+  if (pick.length > 1) { for (const o of open) io.out(`  ${o.n}  ${o.question}`); throw new Error("more than one is waiting; asp approvals approve <n>"); }
+  const o = pick[0];
+  const out: string[] = [], err: string[] = [];
+  const code = await main(["market", "resolve", "--contract", o.contract, "--by", o.principal, "--verdict", sub === "approve" ? "approved" : "corrected", ...(sub === "approve" ? [] : ["--correction", "refused by you"])], { out: (l) => out.push(l), err: (l) => err.push(l), env: logEnv, cwd: io.cwd });
+  if (code) throw new Error(`could not record your answer: ${(err.join("\n") || out.join("\n")).trim().slice(0, 300)}`);
+  io.out(`${sub === "approve" ? "approved" : "refused"}: ${o.question}`);
+  void cfg;
   return 0;
 }
 
@@ -3769,11 +3846,11 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     const signer = new Keystore(o.home).forDid(o.agent);
     if (!signer) return decide(req.id, { approved: false, reason: `no key for ${o.agent} to raise the Checkpoint` });
     // A job has one open Checkpoint at a time: wait for any earlier one to be resolved first.
-    let local = await openLog(o.home);
+    let local = await openLog(o.home, logEnv);
     while ((await local.log.chainInfo(o.contract))?.state !== "Running") {
       if (stopped) return;
       await sleep(o.pollMs);
-      local = await openLog(o.home);
+      local = await openLog(o.home, logEnv);
     }
     // What the principal sees, and what goes in the log, is the command with anything secret-looking masked.
     const masked = redactSecrets(req.summary);
@@ -3797,7 +3874,7 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
         return;
       }
       await sleep(o.pollMs);
-      const fresh = await openLog(o.home);
+      const fresh = await openLog(o.home, logEnv);
       const chain = await marketChain(fresh.log, o.contract);
       const at = chain.findIndex((x) => x.id === checkpoint.id);
       const resolution = chain.slice(at + 1).find((x) => {
