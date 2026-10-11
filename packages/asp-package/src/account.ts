@@ -16,6 +16,7 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, type LogHandle, type OwnerStore, type StarterPool, type Tenant, type UsageStore } from "@agent-social/asp-log";
 import { commonsOfDids, purgeCommons } from "./commons.ts";
+import { namespaceOf } from "./namespace.ts";
 
 export const EXPORT_VERSION = "asp.account-export/v1";
 /** How long what is kept for abuse handling stays after an account closes (the privacy notice says 12 months). */
@@ -32,6 +33,8 @@ export interface AccountOptions {
   commonsRoot?: string;
   /** The tenants now, so an admin can close another tenant's account by name (the operator answering an erasure request). */
   tenants: () => Tenant[];
+  /** The service's DID domain: when set, GET /account says where this tenant's identities live (src/namespace.ts). */
+  didDomain?: string;
   /** The starter-credit pool; without one no starter grants are offered. */
   starter?: StarterPool;
   /** Saves a change to a tenant's entry (the starter grant it claimed). */
@@ -159,6 +162,7 @@ export function accountRoutes(o: AccountOptions) {
       send(res, 200, {
         ok: true, tenant: tenantView(me), usage: d.usage, dids: d.dids, packages: d.packages, commons: { entries: d.commons.entries.length, reviews: d.commons.reviews.length, citations: d.commons.citations.length },
         starter: starterStatus(o, me), identities: await identityRecovery(o, d.dids),
+        ...(o.didDomain ? { namespace: { domain: o.didDomain, ...namespaceOf(o.didDomain, me.name) } } : {}),
       });
       return true;
     }

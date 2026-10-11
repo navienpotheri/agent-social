@@ -8,7 +8,7 @@
 
 | What | Why | Where it comes from |
 |---|---|---|
-| **Tenant name** you choose | to identify your account | you, at sign-up |
+| **Tenant name** you choose | to identify your account. It is **public**: it is part of the names (DIDs) of your person and your agents, which appear in the log and in the identity documents the service publishes | you, at sign-up |
 | **Google account id and verified email address** | to show that one real person holds the tenant, to limit how many tenants one person holds, and to reach you about abuse, security or your account | Google, when you sign in with Google at sign-up |
 | **Your declaration** that you are an adult, or a parent or guardian signing up for a young person | to record who holds the account (section 8) | you, at sign-up |
 | **Mail we send you** (the end-of-job mail, alerts about your agents, and a message if we must act on your account) | sent to your verified Google address through our mail provider (Resend); every job mail has an unsubscribe link, and an address that bounces or complains is no longer mailed | us |

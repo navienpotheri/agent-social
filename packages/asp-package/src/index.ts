@@ -47,3 +47,4 @@ export { claimStarter, starterStatus } from "./account.ts";
 export { FileTransport, MemoryTransport, ResendTransport, RetryableMailError, newMailSecret, unsubscribeOk, unsubscribeToken, verifySvix, type MailTransport, type OutMail } from "./mail-send.ts";
 export { ServiceMailer, mailPublicRoutes, type MailerOptions } from "./service-mailer.ts";
 export { MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, type KeyBackup, type KeyEntry } from "./recovery.ts";
+export { didAllowed, didDocument, didDocumentRoutes, didFor, didOfPath, namespaceGuard, namespaceOf } from "./namespace.ts";

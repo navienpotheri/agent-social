@@ -291,7 +291,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, accountRoutes, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, accountRoutes, didDocumentRoutes, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -432,6 +432,8 @@ const OPTIONS = {
   "skip-export": { type: "boolean" },
   "starter-pool": { type: "string" },
   "no-recovery": { type: "boolean" },
+  me: { type: "boolean" },
+  "did-domain": { type: "string" },
   "by-sponsor": { type: "boolean" },
   "passphrase-env": { type: "string" },
   "recovery-code-env": { type: "string" },
@@ -650,8 +652,18 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
   // (2026-09-27: raised against did:web-only identity undercutting "take your agent and leave").
   let did: string;
   let signer: Signer & { publicKey: Uint8Array };
-  if (v.did) {
-    did = v.did;
+  let wanted = v.did;
+  if (!wanted && (v.name || v.me) && io.env.ASP_LOG_URL) {
+    // --name <n> (an agent, or a further person) or --me (your own person): the DID in your tenant's namespace on the service named by ASP_LOG_URL.
+    const base = io.env.ASP_LOG_URL.endsWith("/") ? io.env.ASP_LOG_URL : io.env.ASP_LOG_URL + "/";
+    const res = await fetchRetry(new URL("account", base), { headers: { authorization: `Bearer ${io.env.ASP_LOG_TOKEN ?? ""}` } });
+    const acct = (await res.json().catch(() => undefined)) as { ok?: boolean; tenant?: { name: string }; namespace?: { domain: string } } | undefined;
+    if (!acct?.ok || !acct.namespace) throw new Error("this service does not give identities a namespace; use --did");
+    if (kind === "agent" && !v.name) throw new UsageError("an agent needs --name <name>");
+    wanted = didFor(acct.namespace.domain, acct.tenant!.name, kind, v.me ? undefined : v.name);
+  }
+  if (wanted) {
+    did = wanted;
     const kid = `${did}#key-1`;
     signer = keys.find(kid) ?? keys.create(kid);
   } else if (v.method === "did:key") {
@@ -1145,6 +1157,7 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io): Promise<n
   if (sub === "show") {
     const a = await json("account");
     io.out(`tenant ${a.tenant.name} (${a.tenant.role})${a.tenant.signup?.google?.email ? `, signed up with ${a.tenant.signup.google.email}` : ""}`);
+    if (a.namespace) io.out(`  your identities live in: a person ${a.namespace.person}, further people ${a.namespace.personPrefix}<name>, agents ${a.namespace.agentPrefix}<name>  (asp identity new --kind agent --name <name>)`);
     io.out(`  records written: ${a.usage?.records ?? 0} (${a.usage?.bytes ?? 0} bytes); agent identities written as: ${a.dids.length ? a.dids.join(", ") : "none"}`);
     io.out(`  packages: ${a.packages.length}; commons: ${a.commons.entries} entries, ${a.commons.reviews} reviews, ${a.commons.citations} citations`);
     for (const i of a.identities ?? []) io.out(`  ${i.did}: ${i.recovery === "recovery key" ? "key loss recoverable with its recovery code" : i.recovery === "sponsor" ? "key loss recoverable by its sponsor" : i.recovery === "none" ? "NO RECOVERY: if its key is lost the identity is lost (make a backup: asp identity backup)" : "recovery unknown"}`);
@@ -1414,8 +1427,9 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
   // A tenant's own data (blocker 1): look at it, export it, close the account. The tenants file is rewritten whole, so a tenant an operator added meanwhile is kept.
   const starter = !noAuth ? new StarterPool(`${v.tokens}.starter.json`, num("starter-pool", STARTER_POOL)) : undefined;
+  const didDomain = v["did-domain"] ?? (v["public-url"] ? new URL(v["public-url"]).host : undefined);
   const accountRoute = !noAuth ? accountRoutes({
-    handle, owners, usage, ...(starter ? { starter } : {}),
+    handle, owners, usage, ...(didDomain ? { didDomain } : {}), ...(starter ? { starter } : {}),
     updateTenant: (name, patch) => {
       const file = v.tokens!;
       const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];
@@ -1456,8 +1470,13 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   }
   const jurorMode = v.jurors ?? "operator-only";
   if (jurorMode !== "operator-only" && jurorMode !== "verified") throw new UsageError("--jurors is operator-only (the beta's default: the operator seats the court) or verified");
-  const guard = !noAuth ? courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }) : undefined;
-  const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(mailer ? { publicRoutes: mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) }) } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  // Identities in the tenant's own namespace (blocker 12): the service publishes their DID documents and refuses passports outside the namespace. On when --did-domain is
+  // given, or --public-url names a host.
+  const guards = !noAuth ? [courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain })] : [])] : [];
+  const guard = guards.length ? async (c: Parameters<typeof guards[0]>[0]) => { for (const g of guards) { const r = await g(c); if (r) return r; } return undefined; } : undefined;
+  const publicList = [...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
+  const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
   mailPort = addr.port;
