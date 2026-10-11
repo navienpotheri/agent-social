@@ -434,6 +434,7 @@ const OPTIONS = {
   "skip-export": { type: "boolean" },
   "starter-pool": { type: "string" },
   "no-recovery": { type: "boolean" },
+  provider: { type: "string" },
   "max-agents": { type: "string" },
   ask: { type: "string" },
   "stop-file": { type: "string" },
@@ -3484,12 +3485,30 @@ async function verify(pkg: string | undefined, json: boolean, io: Io): Promise<n
 }
 
 /** The runtimes asp run <runtime> can start as a governed session without a package, and what they get by default. */
-const SESSION_RUNTIMES: Record<string, { scopes: string[]; upstream: string }> = {
-  "claude-code": { scopes: ["repo.read", "repo.write", "shell.exec"], upstream: "https://api.anthropic.com" },
+interface SessionProfile {
+  scopes: string[];
+  /** The API the tool talks to, so the gateway is pointed at the right kind of upstream. */
+  wire: "anthropic" | "openai";
+  /** The tool can only be started with a task (no interactive mode here) / needs a model named. */
+  needsPrompt: boolean;
+  needsModel: boolean;
+}
+const SESSION_SCOPES = ["repo.read", "repo.write", "shell.exec"];
+const SESSION_RUNTIMES: Record<string, SessionProfile> = {
+  "claude-code": { scopes: SESSION_SCOPES, wire: "anthropic", needsPrompt: false, needsModel: false },
+  codex: { scopes: SESSION_SCOPES, wire: "openai", needsPrompt: true, needsModel: false },
+  goose: { scopes: SESSION_SCOPES, wire: "openai", needsPrompt: true, needsModel: true },
 };
+/** Where an OpenAI-style tool's model calls go, and the environment variable that holds the person's own key for it (held by the gateway, removed from the tool's environment). */
+const OPENAI_PROVIDERS: Record<string, { base: string; keyEnv: string }> = {
+  openai: { base: "https://api.openai.com/v1", keyEnv: "OPENAI_API_KEY" },
+  openrouter: { base: "https://openrouter.ai/api/v1", keyEnv: "OPENROUTER_API_KEY" },
+};
+const CODEX_RUNTIME = fileURLToPath(new URL("./codex-runtime.mjs", import.meta.url));
+const GOOSE_RUNTIME = fileURLToPath(new URL("./goose-runtime.mjs", import.meta.url));
 
 /**
- * asp run claude-code [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--allow-network host,host] [--standing-days n]: your agent, running a real
+ * asp run claude-code|codex|goose [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--allow-network host,host] [--standing-days n]: your agent, running a real
  * runtime under the protocol, with none of the paperwork (launch blocker 12). The first run makes a standing job for the person and the agent (the Mandate allows reading and
  * writing files and running commands in the project, and no network unless you name hosts, for a week by default); every later run reuses it, so a session costs only its signed
  * Action reports. The tool runs through the gateway, so a call the Mandate does not allow is removed before the tool receives it; when it stops, a short summary says what the
@@ -3497,6 +3516,19 @@ const SESSION_RUNTIMES: Record<string, { scopes: string[]; upstream: string }> =
  */
 async function runSession(home: string, runtime: string, v: Values, io: Io): Promise<number> {
   const prof = SESSION_RUNTIMES[runtime];
+  if (prof.needsPrompt && !v.prompt) throw new UsageError(`asp run ${runtime} needs --prompt "<the task>"`);
+  if (prof.needsModel && !v.model) throw new UsageError(`asp run ${runtime} needs --model <name>`);
+  // The upstream the gateway forwards to. Claude Code uses the person's own Claude login (passed through); an OpenAI-style tool uses the person's own API key, named by an environment variable.
+  let upstreamFlags: string[];
+  if (prof.wire === "anthropic") upstreamFlags = ["--anthropic-upstream", io.env.ASP_RUN_ANTHROPIC_UPSTREAM ?? "https://api.anthropic.com"];
+  else {
+    const provider = v.provider ?? "openai";
+    const preset = OPENAI_PROVIDERS[provider];
+    if (!preset) throw new UsageError(`--provider is ${Object.keys(OPENAI_PROVIDERS).join(" or ")}`);
+    const keyEnv = v["api-key-env"] ?? preset.keyEnv;
+    if (!io.env[keyEnv]) throw new UsageError(`asp run ${runtime} uses your own ${provider} key: set the environment variable ${keyEnv} (or name another with --api-key-env). The gateway holds it; the tool never sees it.`);
+    upstreamFlags = ["--openai-upstream", io.env.ASP_RUN_OPENAI_UPSTREAM ?? preset.base, "--openai-key-env", keyEnv];
+  }
   const cfg = readJoinConfig(home);
   if (!cfg) throw new Error("you have not joined yet: run asp join first");
   const env = { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token };
@@ -3560,12 +3592,14 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
   io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
   // The tool, through the gateway. A prompt runs once and its answer is shown as it comes; without one the tool is interactive.
-  const bin = io.env.ASP_CLAUDE_BIN ? [io.env.ASP_CLAUDE_BIN, ...(io.env.ASP_CLAUDE_SCRIPT ? [io.env.ASP_CLAUDE_SCRIPT] : [])] : ["claude"];
-  const tool = v.prompt
-    ? [...bin, "-p", v.prompt, "--allowedTools", "Read", "Glob", "Grep", "Edit", "Write", "Bash", "--output-format", "text", ...(v.model ? ["--model", v.model] : [])]
-    : [...bin, ...(v.model ? ["--model", v.model] : [])];
-  const capture = join(home, `run-${sid}.txt`);
   const project = resolve(io.cwd, v.project ?? ".");
+  const bin = io.env.ASP_CLAUDE_BIN ? [io.env.ASP_CLAUDE_BIN, ...(io.env.ASP_CLAUDE_SCRIPT ? [io.env.ASP_CLAUDE_SCRIPT] : [])] : ["claude"];
+  const tool = runtime === "codex" ? [process.execPath, CODEX_RUNTIME, project, v.model ?? "-", v.prompt!, "workspace-write"]
+    : runtime === "goose" ? [process.execPath, GOOSE_RUNTIME, project, v.model!, v.prompt!]
+    : v.prompt
+      ? [...bin, "-p", v.prompt, "--allowedTools", "Read", "Glob", "Grep", "Edit", "Write", "Bash", "--output-format", "text", ...(v.model ? ["--model", v.model] : [])]
+      : [...bin, ...(v.model ? ["--model", v.model] : [])];
+  const capture = join(home, `run-${sid}.txt`);
   // An approval the gateway is holding is asked about here, in the terminal, when the tool runs with a prompt (its output is a stream, the terminal is free) and there is a
   // terminal (or a front end that can ask); otherwise it says where to answer: asp approvals, in another window.
   const canAsk = !!v.prompt && (!!io.ask || !!process.stdin.isTTY);
@@ -3595,7 +3629,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     if (canAsk) askInline(m[1], m[2]);
     else io.err(`  approval needed for ${m[1]}: ${m[2]}  (answer in another window: asp approvals approve, or asp approvals refuse)`);
   };
-  const gw = await quiet(["gateway", "--contract", job.contract, "--by", ids.agent, "--anthropic-upstream", io.env.ASP_RUN_ANTHROPIC_UPSTREAM ?? prof.upstream, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600"] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : {}) }, onGatewayLine);
+  const gw = await quiet(["gateway", "--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600"] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : {}) }, onGatewayLine);
   sessionOver = true;
   await asking;
   rmSync(capture, { force: true });
@@ -3828,6 +3862,7 @@ async function standingCmd(home: string, sub: string | undefined, rest: string[]
 
 async function run(home: string, pkg: string | undefined, v: Values, need: Need, io: Io): Promise<number> {
   if (pkg && SESSION_RUNTIMES[pkg] && !existsSync(resolve(io.cwd, pkg))) return await runSession(home, pkg, v, io);
+  if (pkg && ADAPTERS[pkg] && !existsSync(resolve(io.cwd, pkg))) throw new UsageError(`asp run ${pkg} as a one-command session is not built yet (${Object.keys(SESSION_RUNTIMES).join(", ")} are). For ${pkg}: asp pack --runtime ${pkg} --agent <your agent did> --project <dir> --out <package>, then asp run <package> --backend ${pkg}`);
   if (!pkg) throw new UsageError(`asp run <runtime> [--prompt <text>] (${Object.keys(SESSION_RUNTIMES).join(", ")}), or asp run <package> --backend <runtime>`);
   const backend = need("backend");
   const adapter = ADAPTERS[backend];
