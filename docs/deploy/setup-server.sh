@@ -55,7 +55,7 @@ caddy version
 
 echo "==> service user, folders, secrets"
 id asp >/dev/null 2>&1 || useradd --system --create-home --home-dir "$DATA" --shell /usr/sbin/nologin asp
-install -d -o asp -g asp -m 750 "$DATA" "$DATA/packages" "$DATA/commons" "$DATA/known-bad" /var/backups/asp
+install -d -o asp -g asp -m 750 "$DATA" "$DATA/packages" "$DATA/runlogs" "$DATA/commons" "$DATA/known-bad" /var/backups/asp
 install -d -m 750 -o root -g asp "$ETC"
 if [ ! -f "$ETC/asp.env" ]; then
   PGPASS="$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 32)"
@@ -128,7 +128,7 @@ Group=asp
 WorkingDirectory=$APP
 EnvironmentFile=$ETC/asp.env
 ExecStart=/usr/bin/node $APP/packages/asp-cli/bin/asp.mjs serve --db \${DATABASE_URL} --tokens $DATA/tokens.json --host 127.0.0.1 --port 8787 --trust-proxy \\
-  --packages $DATA/packages --commons $DATA/commons --known-bad $DATA/known-bad \\
+  --packages $DATA/packages --runlogs $DATA/runlogs --commons $DATA/commons --known-bad $DATA/known-bad \\
   --signup --signup-terms-url https://$DOMAIN/terms --signup-terms-version 2026-10 --signup-daily-cap $SIGNUP_DAILY_CAP \\
   --public-url https://$DOMAIN --mail-from "$MAIL_FROM" --mail-operator $MAIL_OPERATOR $GOOGLE_FLAGS
 Restart=always
@@ -180,7 +180,7 @@ cat > /usr/local/bin/asp-backup <<'BACKUP'
 set -euo pipefail
 f=/var/backups/asp/asp-$(date -u +%Y%m%d-%H%M).sql.gz
 sudo -u postgres pg_dump asp | gzip > "$f"
-tar -czf "/var/backups/asp/asp-files-$(date -u +%Y%m%d-%H%M).tgz" -C /var/lib/asp tokens.json packages commons known-bad 2>/dev/null || true
+tar -czf "/var/backups/asp/asp-files-$(date -u +%Y%m%d-%H%M).tgz" -C /var/lib/asp tokens.json packages runlogs commons known-bad 2>/dev/null || true
 find /var/backups/asp -type f -mtime +35 -delete
 BACKUP
 chmod 755 /usr/local/bin/asp-backup

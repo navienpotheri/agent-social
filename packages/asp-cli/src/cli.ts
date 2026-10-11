@@ -30,6 +30,9 @@
  *     is refused with SUSPENDED; a blocked address with BLOCKED. The service counts each tenant's records and bytes in <file>.usage.json and refuses a write past the
  *     quota (--record-quota, default 100000, and --byte-quota-mb, default 256 on serve; per tenant on serve token; admins have none) with QUOTA_EXCEEDED.
  *   asp serve ... --packages <dir>   also stores each tenant's agent packages under <dir> (docs/spec-deltas.md S51).
+ *   asp serve ... --runlogs <dir>    also keeps each tenant's sealed (encrypted) run logs under <dir>; the service holds ciphertext only (S109, docs/run-log-custody.md).
+ *   asp run-log keep [<log>] | kept | fetch --id <id> | drop --id <id> | disclose --id <id> --to <did,..> --reason <why> [--upload] | open <sealed.json> [--as <did>]
+ *     An optional encrypted copy of a run log on the service, and a signed disclosure of it to a court. `asp run <runtime> --keep-run-log` seals the session's log when it ends.
  *   asp serve ... --known-bad <dir>   also holds the known-bad list (docs/spec-deltas.md S54): command fingerprints an upheld report found harmful.
  *   asp gateway --contract <id> --by <agent did> (--openai-upstream <base url> | --anthropic-upstream <origin>) [--openai-key-env NAME] [--anthropic-key-env NAME] [--max-strikes n] [--token-cap n] [--approval-wait s] [--port n] [-- <command> ...]
  *     Gateway P1 (docs/gateway-design.md): runs any agent command under the contract's Mandate. The command's OPENAI_BASE_URL and
@@ -291,7 +294,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -361,6 +364,10 @@ const OPTIONS = {
   role: { type: "string" },
   "no-auth": { type: "boolean" },
   packages: { type: "string" },
+  runlogs: { type: "string" },
+  id: { type: "string" },
+  upload: { type: "boolean" },
+  "keep-run-log": { type: "boolean" },
   commons: { type: "string" },
   "known-bad": { type: "string" },
   fingerprint: { type: "string" },
@@ -1219,12 +1226,21 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io): Promise<n
       if (createHash("sha256").update(bytes).digest("hex") !== p.sha256) throw new Error(`package ${p.name} did not download intact`);
       writeFileSync(join(dir, "packages", `${p.name}.aspkg.tgz`), bytes);
     }
+    if ((e.sealedRunLogs ?? []).length) {
+      mkdirSync(join(dir, "runlogs"), { recursive: true });
+      for (const r of e.sealedRunLogs as { id: string; download: string }[]) {
+        const res = await call(r.download.replace(/^\//, ""));
+        if (!res.ok) throw new Error(`could not download the sealed run log ${r.id} (${res.status})`);
+        writeFileSync(join(dir, "runlogs", `${r.id.replace(/[^A-Za-z0-9._-]+/g, "_")}.sealed.json`), Buffer.from(await res.arrayBuffer()));
+      }
+    }
     writeFileSync(join(dir, "README.txt"), [
       `Agent Social: export of tenant ${e.tenant.name}, ${e.exportedAt}`, "",
       "account.json     the tenant as the service holds it (without its token), usage, the agent identities you wrote as, the packages listed",
       "records.ndjson   the signed records those identities wrote (also kept in the log, which is append-only)",
       "commons.json     the commons entries, reviews and citations those identities made",
       "packages/        each agent package as a .aspkg.tgz, checked against its hash",
+      "runlogs/         each sealed run log (encrypted; only your identity key opens it: asp run-log open)",
       "", ...e.notes,
     ].join("\n") + "\n");
     return e;
@@ -1579,7 +1595,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       const tmp = `${file}.${process.pid}.tmp`;
       writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n");
       renameSync(tmp, file);
-    }, ...(v.packages ? { packagesRoot: resolve(v.packages) } : {}), ...(v.commons ? { commonsRoot: resolve(v.commons) } : {}), tenants: tenantSource!,
+    }, ...(v.packages ? { packagesRoot: resolve(v.packages) } : {}), ...(v.commons ? { commonsRoot: resolve(v.commons) } : {}), ...(v.runlogs ? { runLogsRoot: resolve(v.runlogs) } : {}), tenants: tenantSource!,
     closeTenant: (name, tombstone) => {
       const file = v.tokens!;
       const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];
@@ -1591,6 +1607,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const routes = [
     ...(accountRoute ? [accountRoute] : []),
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
+    ...(v.runlogs ? [runLogRoutes({ root: resolve(v.runlogs) })] : []),
     ...(v.commons ? [commonsRoutes({ root: resolve(v.commons), handle })] : []),
     ...(v["known-bad"] ? [knownBadRoutes({ root: resolve(v["known-bad"]) })] : []),
   ];
@@ -2433,12 +2450,159 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
   return 0;
 }
 
+/** The newest gateway run folder's run log under the ASP home, or undefined. */
+function latestRunLog(home: string): string | undefined {
+  const runs = join(home, "runs");
+  const stamp = (d: string) => d.match(/\d{4}-\d\d-\d\dT\d+Z$/)?.[0] ?? d;
+  const latest = existsSync(runs) ? readdirSync(runs).filter((d) => existsSync(join(runs, d, "run-log.ndjson"))).sort((a, b) => stamp(a).localeCompare(stamp(b))).at(-1) : undefined;
+  return latest ? join(runs, latest, "run-log.ndjson") : undefined;
+}
+
+/**
+ * asp run-log keep [<run-log>] [--contract <id>] | kept | fetch --id <id> [--out f] | drop --id <id> | disclose [<sealed.json>] --id <id> --to <did,...> --reason <text> [--out f] [--upload] | open <sealed.json> [--as <did>] [--out f]
+ * (gap E16): an optional sealed copy of a run log on the service, and a signed disclosure of it to a court. The log is encrypted on this machine under a random key wrapped to your
+ * identity's keys (your signing key and your recovery key); the service holds ciphertext only and cannot read it. A disclosure wraps the same key to the people you name (a panel's
+ * jurors, the operator's court) and records, signed by you, who and why. `--tenant <name>` lets an admin fetch a tenant's sealed file to hand on; it still cannot open it.
+ */
+async function runLogVaultCmd(home: string, sub: string, rest: string[], v: Values, io: Io): Promise<number> {
+  const url = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
+  const base = url ? (url.endsWith("/") ? url : url + "/") : "";
+  const needService = () => { if (!url || !token) throw new UsageError("set ASP_LOG_URL and ASP_LOG_TOKEN to the service and your token (asp join saves them)"); };
+  const call = (path: string, init: RequestInit = {}) => fetchRetry(new URL(path + (v.tenant ? `${path.includes("?") ? "&" : "?"}tenant=${encodeURIComponent(v.tenant)}` : ""), base), { ...init, headers: { ...(init.headers ?? {}), authorization: `Bearer ${token}` } });
+  const failOf = async (res: Response, what: string) => { const b = (await res.json().catch(() => undefined)) as any; return new Error(b?.error?.message ?? `the service answered ${res.status} to ${what}`); };
+  const me = v.as ?? readJoinConfig(home)?.identities?.me;
+  const keys = new Keystore(home);
+  const ownerSeed = (did = me): Uint8Array => {
+    const k = did ? keys.forDid(did) : undefined;
+    if (!k) throw new Error(`the key for ${did ?? "your identity"} is not on this machine (asp identity restore, or name the identity with --as)`);
+    return k.seed;
+  };
+  const keysOf = async (did: string): Promise<PublicKeyOf[]> => {
+    const ks = await (await openLog(home, logEnv)).log.keys(did);
+    const out: PublicKeyOf[] = ks.map((k) => ({ did, kid: k.kid, edPublic: b64urlDecode(k.publicKey) }));
+    if (!out.length && did.startsWith("did:key:")) { try { out.push({ did, kid: `${did}#key-1`, edPublic: publicKeyFromDidKey(did) }); } catch { /* not an Ed25519 did:key */ } }
+    if (!out.length) throw new Error(`no keys are known for ${did} in the log`);
+    return out;
+  };
+  const listRemote = async () => {
+    const res = await call("runlogs");
+    const b = (await res.json().catch(() => undefined)) as any;
+    if (!res.ok || !b?.ok) throw await failOf(res, "runlogs");
+    return b as { tenant: string; usedBytes: number; quotaBytes: number; runLogs: { id: string; contract: string; owner: string; bytes: number; createdAt: string; recipients: string[]; disclosures: number }[] };
+  };
+  const pickId = async (): Promise<string> => {
+    if (v.id) return v.id;
+    if (!v.contract) throw new UsageError("name the sealed log with --id <id> (asp run-log kept lists them) or --contract <id>");
+    const mine = (await listRemote()).runLogs.filter((r) => r.contract === v.contract);
+    if (!mine.length) throw new Error(`no sealed run log for ${v.contract}`);
+    if (mine.length > 1) { for (const r of mine) io.out(`  ${r.id}  ${r.createdAt}`); throw new UsageError("more than one sealed log for that job; name one with --id"); }
+    return mine[0].id;
+  };
+  const getSealed = async (id: string): Promise<{ env: SealedRunLog; etag: string }> => {
+    const res = await call(`runlogs/${encodeURIComponent(id)}`);
+    if (!res.ok) throw await failOf(res, `runlogs/${id}`);
+    return { env: (await res.json()) as SealedRunLog, etag: (res.headers.get("etag") ?? "").replace(/"/g, "") };
+  };
+  const put = async (env: SealedRunLog, etag?: string) => {
+    const res = await call(`runlogs/${encodeURIComponent(env.id)}`, { method: "PUT", headers: etag ? { "if-match": etag } : { "if-none-match": "*" }, body: JSON.stringify(env) });
+    if (!res.ok) throw await failOf(res, "the upload");
+  };
+
+  if (sub === "kept") {
+    needService();
+    const l = await listRemote();
+    io.out(`${l.tenant}: ${l.runLogs.length} sealed run log(s), ${l.usedBytes} of ${l.quotaBytes} bytes used (the service holds ciphertext only)`);
+    for (const r of l.runLogs) io.out(`  ${r.id}  ${r.bytes} bytes  ${r.createdAt}  ${r.recipients.length} key(s)${r.disclosures ? `, disclosed ${r.disclosures}x` : ""}`);
+    return 0;
+  }
+  if (sub === "keep") {
+    needService();
+    const file = rest[0] ? (rest[0].endsWith(".ndjson") ? resolve(io.cwd, rest[0]) : join(resolve(io.cwd, rest[0]), "run-log.ndjson")) : v.contract ? findRunLog(home, v.contract) : latestRunLog(home);
+    if (!file || !existsSync(file)) throw new Error("no run log found; give the file or folder, or --contract <id>");
+    const check = readRunLog(file);
+    if (!check.ok) throw new Error(`the run log does not verify (${check.problem}); it was not sealed`);
+    const first = check.events[0];
+    const contract = v.contract ?? (first?.data as { contract?: string } | undefined)?.contract;
+    if (!first || !contract) throw new UsageError("could not tell which job this run log is for; pass --contract <id>");
+    if (!me) throw new UsageError("whose log is it? name your identity with --as <did> (asp join saves it)");
+    const id = `${contract}.${first.hash.replace(/^sha256:/, "").slice(0, 12)}`;
+    const bytes = readFileSync(file);
+    const sealed = sealRunLog(bytes, { id, contract, owner: await keysOf(me), head: check.head, createdAt: now() });
+    const cur = await call(`runlogs/${encodeURIComponent(id)}`);
+    if (cur.ok) {
+      const old = (await cur.json()) as SealedRunLog;
+      const etag = (cur.headers.get("etag") ?? "").replace(/"/g, "");
+      if (old.run_log_sha256 === sealed.run_log_sha256) { io.out(`already kept: ${id}`); return 0; }
+      if (old.disclosures.length) throw new Error("a sealed copy that was already disclosed cannot be replaced by a different log; drop it first if you mean to");
+      await put(sealed, etag);
+    } else await put(sealed);
+    io.out(`kept ${id}: ${check.head.events} event(s), ${bytes.length} bytes, sealed to ${sealed.recipients.length} key(s) of ${me}; the service holds ciphertext only`);
+    io.out(`  open it again on any machine that holds your identity: asp run-log fetch --id ${id} && asp run-log open ${id}.sealed.json`);
+    return 0;
+  }
+  if (sub === "fetch") {
+    needService();
+    const id = await pickId();
+    const { env } = await getSealed(id);
+    const out = resolve(io.cwd, v.out ?? `${id.replace(/[^A-Za-z0-9._-]+/g, "_")}.sealed.json`);
+    writeFileSync(out, JSON.stringify(env, null, 2) + "\n");
+    io.out(`wrote ${out}: ${env.bytes} bytes sealed for ${[...new Set(env.recipients.map((r) => r.did))].join(", ")}`);
+    return 0;
+  }
+  if (sub === "drop") {
+    needService();
+    const id = await pickId();
+    const res = await call(`runlogs/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res.ok) throw await failOf(res, "the delete");
+    io.out(`dropped ${id} from the service (a copy you already fetched or disclosed stays with whoever has it)`);
+    return 0;
+  }
+  if (sub === "disclose") {
+    if (!v.to) throw new UsageError("asp run-log disclose [<sealed.json>] --id <id> --to <did,did> --reason <why> [--out <file>] [--upload]");
+    if (!v.reason) throw new UsageError("say why with --reason \"...\" (it is signed and kept with the file)");
+    if (!me) throw new UsageError("name your identity with --as <did>");
+    let env: SealedRunLog, etag: string | undefined;
+    if (rest[0]) env = JSON.parse(readFileSync(resolve(io.cwd, rest[0]), "utf8")) as SealedRunLog;
+    else { needService(); ({ env, etag } = await getSealed(await pickId())); }
+    const to: PublicKeyOf[] = [];
+    for (const did of v.to.split(",").map((d) => d.trim()).filter(Boolean)) to.push(...await keysOf(did));
+    const out = discloseRunLog(env, { did: me, seed: ownerSeed() }, to, v.reason, now());
+    const file = resolve(io.cwd, v.out ?? `${out.id.replace(/[^A-Za-z0-9._-]+/g, "_")}.disclosed.json`);
+    writeFileSync(file, JSON.stringify(out, null, 2) + "\n");
+    io.out(`disclosed ${out.id} to ${[...new Set(to.map((t) => t.did))].join(", ")}; signed, reason: ${v.reason}`);
+    io.out(`  wrote ${file}: give it to them (they open it with asp run-log open)`);
+    if (v.upload) { needService(); const cur = await getSealed(out.id); await put(out, cur.etag); io.out("  the service now holds this version too"); }
+    return 0;
+  }
+  // open
+  if (!rest[0]) throw new UsageError("usage: asp run-log open <sealed.json> [--as <did>] [--out <file>]");
+  const env = JSON.parse(readFileSync(resolve(io.cwd, rest[0]), "utf8")) as SealedRunLog;
+  if (!me) throw new UsageError("name the identity that opens it with --as <did>");
+  const plain = openRunLog(env, me, ownerSeed());
+  const out = resolve(io.cwd, v.out ?? `${env.id.replace(/[^A-Za-z0-9._-]+/g, "_")}.run-log.ndjson`);
+  writeFileSync(out, plain);
+  io.out(`opened ${env.id} as ${me}: ${plain.length} bytes -> ${out}`);
+  const check = readRunLog(out);
+  io.out(check.ok ? `  run log verifies: ${check.head.events} event(s), head ${check.head.hash.slice(0, 19)}${env.head && env.head.hash !== check.head.hash ? "  BUT THE HEAD DIFFERS FROM THE ONE SEALED" : ""}` : `  run log does NOT verify: ${check.problem}`);
+  if (env.disclosures.length) {
+    try {
+      const problems = checkDisclosures(env, (await keysOf(env.owner)).map((k) => k.edPublic));
+      for (const d of env.disclosures) io.out(`  disclosed ${d.at} by ${d.owner} to ${d.to.join(", ")}: ${d.reason}`);
+      for (const p of problems) io.out(`  PROBLEM  ${p}`);
+      if (problems.length) return 1;
+    } catch (e) { io.out(`  (the disclosure signatures could not be checked: ${(e as Error).message})`); }
+  }
+  io.out(`  check it against what the Actions committed to: asp run-log verify ${out} --contract ${env.contract}`);
+  return check.ok ? 0 : 1;
+}
+
 /**
  * asp run-log show|verify [<run-log file or gateway run folder>] [--contract <id>] [--json]: the redacted run log a gateway run kept (gap E2).
  * show prints it as a timeline; verify checks every line's hash chain and, with --contract, that each Action's run-log artifact matches the log.
  */
 async function runLogCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
-  if (sub !== "show" && sub !== "verify") throw new UsageError("usage: asp run-log show|verify [<run-log.ndjson | gateway run folder>] [--contract <id>] [--json]");
+  if (sub === "keep" || sub === "kept" || sub === "fetch" || sub === "drop" || sub === "disclose" || sub === "open") return await runLogVaultCmd(home, sub, rest, v, io);
+  if (sub !== "show" && sub !== "verify") throw new UsageError("usage: asp run-log show|verify [<run-log.ndjson | gateway run folder>] [--contract <id>] [--json]  |  keep|kept|fetch|drop|disclose|open (a sealed copy on the service, E16)");
   let target = rest[0];
   if (!target) {
     const runs = join(home, "runs");
@@ -3782,7 +3946,10 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
     if (used.length) io.out(`            scopes used: ${used.join(", ")}`);
   } catch (e) { io.out(`  in the log (not readable now: ${(e as Error).message.slice(0, 80)})`); }
   const rl = findRunLog(home, start.contract);
-  if (rl) io.out(`  run log   ${rl}  (on this machine only; asp run-log ... reads it)`);
+  if (rl && v["keep-run-log"]) {
+    try { await runLogVaultCmd(home, "keep", [rl], { ...v, contract: undefined, tenant: undefined, as: undefined }, io); }
+    catch (e) { io.out(`  run log   ${rl}  (not kept on the service: ${(e as Error).message.slice(0, 100)})`); }
+  } else if (rl) io.out(`  run log   ${rl}  (on this machine only; asp run-log ... reads it; --keep-run-log seals a copy on the service)`);
   return 0;
 }
 

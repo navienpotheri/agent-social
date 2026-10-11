@@ -16,6 +16,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, type LogHandle, type OwnerStore, type StarterPool, type Tenant, type UsageStore } from "@agent-social/asp-log";
 import { commonsOfDids, purgeCommons } from "./commons.ts";
+import { sealedLogsOf } from "./runlog-vault.ts";
 import { namespaceOf } from "./namespace.ts";
 
 export const EXPORT_VERSION = "asp.account-export/v1";
@@ -31,6 +32,8 @@ export interface AccountOptions {
   /** The folders the package and commons services keep their data in (omit one that is not served). */
   packagesRoot?: string;
   commonsRoot?: string;
+  /** The folder the sealed run-log service keeps its data in (omit when not served). */
+  runLogsRoot?: string;
   /** The tenants now, so an admin can close another tenant's account by name (the operator answering an erasure request). */
   tenants: () => Tenant[];
   /** The service's DID domain: when set, GET /account says where this tenant's identities live (src/namespace.ts). */
@@ -128,7 +131,7 @@ export async function accountData(o: AccountOptions, tenant: Tenant) {
     ? readdirSync(dir).filter((f) => f.endsWith(SUFFIX)).map((f) => ({ name: f.slice(0, -SUFFIX.length), bytes: statSync(join(dir, f)).size, sha256: createHash("sha256").update(readFileSync(join(dir, f))).digest("hex") }))
     : [];
   const commons = o.commonsRoot ? commonsOfDids(o.commonsRoot, dids) : { entries: [], reviews: [], citations: [] };
-  return { dids, packages, commons, usage: o.usage?.get(tenant.name) };
+  return { dids, packages, runLogs: sealedLogsOf(o.runLogsRoot, tenant.name), commons, usage: o.usage?.get(tenant.name) };
 }
 
 /** Deletes a tenant's data and turns it into a tombstone. Returns what was removed and what stays. */
@@ -139,12 +142,17 @@ export async function closeAccount(o: AccountOptions, tenant: Tenant) {
     const dir = join(o.packagesRoot, tenant.name);
     if (existsSync(dir)) { packages = data.packages.length; rmSync(dir, { recursive: true, force: true }); }
   }
+  let runLogs = 0;
+  if (o.runLogsRoot && NAME.test(tenant.name)) {
+    const dir = join(o.runLogsRoot, tenant.name);
+    if (existsSync(dir)) { runLogs = data.runLogs.length; rmSync(dir, { recursive: true, force: true }); }
+  }
   const commons = o.commonsRoot ? purgeCommons(o.commonsRoot, data.dids) : { entries: 0, reviews: 0, citations: 0 };
   o.owners.remove(tenant.name);
   o.usage?.remove(tenant.name);
   o.closeTenant(tenant.name, tombstoneOf(tenant, new Date((o.now ?? Date.now)())));
   return {
-    deleted: { packages, commonsEntries: commons.entries, commonsReviews: commons.reviews, commonsCitations: commons.citations, token: true, personalDetails: true },
+    deleted: { packages, sealedRunLogs: runLogs, commonsEntries: commons.entries, commonsReviews: commons.reviews, commonsCitations: commons.citations, token: true, personalDetails: true },
     stays: { records: "the signed records your agents wrote stay in the log, which is append-only", retained: `for ${RETAIN_MONTHS} months, only your Google account id, a hash of your sign-up address, the terms version you accepted and the time you closed, for abuse handling` },
     dids: data.dids,
   };
@@ -160,7 +168,7 @@ export function accountRoutes(o: AccountOptions) {
     if (method === "GET" && url.pathname === "/account") {
       const d = await accountData(o, me);
       send(res, 200, {
-        ok: true, tenant: tenantView(me), usage: d.usage, dids: d.dids, packages: d.packages, commons: { entries: d.commons.entries.length, reviews: d.commons.reviews.length, citations: d.commons.citations.length },
+        ok: true, tenant: tenantView(me), usage: d.usage, dids: d.dids, packages: d.packages, sealedRunLogs: d.runLogs.length, commons: { entries: d.commons.entries.length, reviews: d.commons.reviews.length, citations: d.commons.citations.length },
         starter: starterStatus(o, me), identities: await identityRecovery(o, d.dids),
         ...(o.didDomain ? { namespace: { domain: o.didDomain, ...namespaceOf(o.didDomain, me.name) } } : {}),
       });
@@ -226,6 +234,7 @@ export function accountRoutes(o: AccountOptions) {
         ok: true, version: EXPORT_VERSION, exportedAt: new Date((o.now ?? Date.now)()).toISOString(),
         tenant: tenantView(me), usage: d.usage, dids: d.dids, records, commons: d.commons,
         packages: d.packages.map((p) => ({ ...p, download: `/packages/${encodeURIComponent(p.name)}` })),
+        sealedRunLogs: d.runLogs.map((r) => ({ ...r, download: `/runlogs/${encodeURIComponent(r.id)}` })),
         notes: [
           "Records are the signed records your agents' identities wrote; they are also kept in the log, which is append-only and cannot be edited or deleted.",
           "Packages are downloaded one by one from the download path; each is a .aspkg.tgz that `asp package` can unpack on any machine that holds the agent's keys.",

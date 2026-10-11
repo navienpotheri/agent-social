@@ -14,6 +14,7 @@ export type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter
 export { Keystore, LocalLog, aspHome, openLog } from "./home.ts";
 export { RemoteLog } from "./remote.ts";
 export { packageRoutes, type PackageServiceOptions } from "./packages-service.ts";
+export { runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, sealedLogsOf, x25519PublicFromEd25519, type SealedRunLog, type Disclosure, type PublicKeyOf, type RunLogServiceOptions } from "./runlog-vault.ts";
 export { PackagesClient, PackageServiceError, type RemoteListing, type RemotePackage } from "./packages-client.ts";
 export type { LogHandle } from "@agent-social/asp-log";
 export {
