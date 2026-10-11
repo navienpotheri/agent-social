@@ -60,7 +60,7 @@ test("asp runs lists and explains governed sessions, and asp stop ends a running
     const detail = await call("fake-claude-gateway.mjs", ["runs", id]);
     assert.equal(detail.code, 0, detail.err);
     assert.match(detail.out, /task\s+A finished task/);
-    assert.match(detail.out, /mandate\s+repo\.read, repo\.write, shell\.exec; no network\s+\(standing job sha256:/);
+    assert.match(detail.out, /mandate\s+repo\.read, repo\.write, shell\.exec, tests\.run; no network\s+\(standing job sha256:/);
     assert.match(detail.out, /ended\s+\S+ \(ended, exit 0\)/);
     assert.match(detail.out, /in the log \d+ records on the standing job/);
     assert.equal((await call("fake-claude-gateway.mjs", ["runs", "zzzzzzzz"])).code, 1);
@@ -81,7 +81,7 @@ test("asp runs lists and explains governed sessions, and asp stop ends a running
     // The standing job: later sessions reuse the first's job, so each costs only its Action reports, not a dozen records.
     const head = async () => (await (await openLog(f.aspHome, { ASP_LOG_URL: base, ASP_LOG_TOKEN: "tok-h" })).log.head()).seq;
     const standingBefore = await call("fake-claude-gateway.mjs", ["standing"]);
-    assert.match(standingBefore.out, /my-agent\s+repo\.read,repo\.write,shell\.exec\s+2 session\(s\), until /, standingBefore.out);
+    assert.match(standingBefore.out, /my-agent\s+repo\.read,repo\.write,shell\.exec,tests\.run\s+2 session\(s\), until /, standingBefore.out);
     const seq0 = await head();
     const again = await call("fake-claude-gateway.mjs", ["run", "claude-code", "--prompt", "A third task", "--project", project]);
     assert.match(again.err, /standing job, session 3, until /);

@@ -186,7 +186,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     let strike = true;
     // A gate is not a violation: a forbidden or unanswered call is refused without a strike.
     // For shell commands the person may have narrowed the asking to risky patterns, or said "always" to this exact command: then the call is not held (the run log says why).
-    const filtered = allow && j.scope === "shell.exec" && opts.gate?.commandFilter && opts.gate.mode === "ask" ? opts.gate.commandFilter(commandOf(call.args) ?? "") : "ask";
+    const filtered = allow && (j.scope === "shell.exec" || j.scope === "tests.run") && opts.gate?.commandFilter && opts.gate.mode === "ask" ? opts.gate.commandFilter(commandOf(call.args) ?? "") : "ask";
     const gated = !!(j.scope && opts.gate?.scopes.includes(j.scope)) && filtered === "ask";
     if (allow && gated) {
       strike = false;

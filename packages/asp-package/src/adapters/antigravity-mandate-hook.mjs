@@ -24,11 +24,21 @@ export const NO_SCOPE_TOOLS = new Set([
   "manage_task", "manage_inbox", "send_message", "wait", "wait_5_seconds", "manage_subagents", "define_subagent",
 ]);
 
+/**
+ * A command is a test run only when every part of it is a test runner (or a cd): "echo test", "git log --oneline latest" and "npm test && rm -rf x" are not. A copy of this is in
+ * the pre-call hook scripts (adapters/*-mandate-hook.mjs); test/mandate-hook.test.ts keeps them in step.
+ */
+const TEST_RUNNER = /^(?:\w+=\S*\s+)*(?:(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?test(?::\S*)?\b|npx\s+(?:jest|vitest|mocha|playwright\s+test)\b|pytest\b|py\.test\b|python3?\s+-m\s+(?:pytest|unittest)\b|jest\b|vitest\b|mocha\b|cargo\s+(?:nextest\s+run|test)\b|go\s+test\b|mvn\s+(?:-\S+\s+)*test\b|(?:\.\/)?gradlew?\s+test\b|make\s+test\b|phpunit\b|rspec\b|dotnet\s+test\b|ctest\b|node\s+--test\b|deno\s+test\b|tox\b)/i;
+export function isTestRun(arg) {
+  const parts = arg.split(/\s*(?:&&|\|\||;|\||\n)\s*/).map((s) => s.trim()).filter(Boolean);
+  return parts.length > 0 && parts.some((s) => TEST_RUNNER.test(s)) && parts.every((s) => TEST_RUNNER.test(s) || /^cd\s/.test(s));
+}
+
 function deriveScopeForTool(tool, arg) {
   if (tool === "Bash" || tool === "PowerShell") {
     if (/^git push/.test(arg)) return "repo.push";
     if (/^gh pr (create|merge)/.test(arg)) return arg.startsWith("gh pr merge") ? "pr.merge" : "pr.open";
-    if (/(test|pytest|jest|vitest|cargo test|go test)/.test(arg)) return "tests.run";
+    if (isTestRun(arg)) return "tests.run";
     if (/\b(curl|wget|nc|ncat|netcat|ssh|scp|sftp|rsync|telnet|Invoke-WebRequest|Invoke-RestMethod|iwr)\b/i.test(arg)) return "shell.network";
     if (/\bhttps?:\/\/\S+/i.test(arg)) return "shell.network";
     return "shell.exec";

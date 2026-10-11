@@ -3695,7 +3695,7 @@ interface SessionProfile {
   needsPrompt: boolean;
   needsModel: boolean;
 }
-const SESSION_SCOPES = ["repo.read", "repo.write", "shell.exec"];
+const SESSION_SCOPES = ["repo.read", "repo.write", "shell.exec", "tests.run"];
 const SESSION_RUNTIMES: Record<string, SessionProfile> = {
   "claude-code": { scopes: SESSION_SCOPES, wire: "anthropic", needsPrompt: false, needsModel: false },
   codex: { scopes: SESSION_SCOPES, wire: "openai", needsPrompt: true, needsModel: false },
@@ -3799,11 +3799,11 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
 
   // --ask commands|risky|writes|network|<scope>,...: calls on these scopes wait for your yes (a gate in the Mandate, so it is signed and in the log).
   // `commands` asks about every shell command; `risky` (or --ask-match <pattern>, repeatable) holds only the commands that match a list of risky patterns (gap U15; docs: asp help approvals).
-  const ALIAS: Record<string, string> = { commands: "shell.exec", risky: "shell.exec", writes: "repo.write", network: "shell.network" };
+  const ALIAS: Record<string, string> = { commands: "shell.exec,tests.run", risky: "shell.exec", writes: "repo.write", network: "shell.network" };
   const askTokens = (v.ask ?? "").split(",").map((x) => x.trim()).filter(Boolean);
   const matchPatterns = askTokens.includes("commands") ? [] : [...(askTokens.includes("risky") ? ["risky"] : []), ...(v["ask-match"] ?? [])];
   try { compilePatterns(matchPatterns); } catch (e) { throw new UsageError((e as Error).message); }
-  const gate = [...new Set([...askTokens.map((x) => ALIAS[x] ?? x), ...(v["ask-match"]?.length ? ["shell.exec"] : [])])];
+  const gate = [...new Set([...askTokens.flatMap((x) => (ALIAS[x] ?? x).split(",")), ...(v["ask-match"]?.length ? ["shell.exec", "tests.run"] : [])])];
   const alwaysFile = join(home, "always-allow.json");
   if (prof.wire === "hooked" && (matchPatterns.length || askTokens.includes("risky"))) io.err(`  note     ${runtime} is held by its own hook, which cannot narrow by command pattern: every command is asked about (--ask commands)`);
   const days = Math.max(1, Math.trunc(Number(v["standing-days"] ?? "7")));
@@ -3866,7 +3866,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     // "a" (always allow this exact command) is offered only for a shell command shown whole: not cut short and not masked, so what is remembered is exactly what you read.
     const masked = /\(secret-looking text was masked\)\s*$/.test(shownRaw);
     const shown = shownRaw.replace(/\s*\(secret-looking text was masked\)\s*$/, "");
-    const canAlways = scope === "shell.exec" && !masked && !shown.endsWith("...");
+    const canAlways = (scope === "shell.exec" || scope === "tests.run") && !masked && !shown.endsWith("...");
     const options = canAlways ? "[y/N/a]" : "[y/N]";
     asking = asking.then(async () => {
       if (sessionOver) return;
