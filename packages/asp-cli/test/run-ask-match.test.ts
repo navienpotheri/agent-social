@@ -29,7 +29,7 @@ test("per-command approval: only risky commands (or the ones you match) are aske
   writeFileSync(tokens, JSON.stringify([{ name: "am", role: "tenant", tokenSha256: hashToken("tok-am") }]));
   const port = await freePort();
   const base = `http://127.0.0.1:${port}`;
-  const server = spawn(process.execPath, [cli, "serve", "--db", `local:${join(dir, "log")}`, "--tokens", tokens, "--port", String(port), "--did-domain", `127.0.0.1:${port}`], { stdio: ["ignore", "pipe", "pipe"] });
+  const server = spawn(process.execPath, [cli, "serve", "--db", `local:${join(dir, "log")}`, "--tokens", tokens, "--port", String(port), "--did-domain", `127.0.0.1:${port}`, "--runlogs", join(dir, "runlogs")], { stdio: ["ignore", "pipe", "pipe"] });
   try {
     await new Promise<void>((resolve, reject) => {
       let buf = "";
@@ -108,6 +108,20 @@ test("per-command approval: only risky commands (or the ones you match) are aske
     assert.equal(badRe.code, 2);
     assert.match(badRe.err, /not a valid regular expression/);
     assert.equal((await call(["approvals", "forget"])).code, 2);
+
+    // Found in the first live run: each session has its own run log (the job has many), `asp runs <id>` shows that one, and --keep-run-log seals it at the end of the session.
+    command = "make docs";
+    const s1 = await session(["--ask", "risky"], neverAsked);
+    const s2 = await session(["--ask", "risky", "--keep-run-log"], neverAsked);
+    const sid1 = /session\s+([0-9a-f]{8})\s+finished/.exec(s1.out)![1], sid2 = /session\s+([0-9a-f]{8})\s+finished/.exec(s2.out)![1];
+    const log1 = /run log\s+(\S.*?)\s+\(on this machine/.exec((await call(["runs", sid1])).out)![1];
+    const log2 = /run log\s+(\S.*?)\s+\(on this machine/.exec((await call(["runs", sid2])).out)![1];
+    assert.notEqual(log1, log2, "two sessions of one standing job have two run logs");
+    assert.match(s1.out, /run log\s+\S.*\(on this machine; --keep-run-log seals a copy/);
+    assert.ok(!/kept /.test(s1.out), "not sealed unless asked");
+    assert.match(s2.out, /kept \S+: \d+ event\(s\).*sealed to 1 key\(s\)/, "sealed at the end of the session that asked");
+    const kept = await call(["run-log", "kept"]);
+    assert.match(kept.out, /: 1 sealed run log\(s\)/);
   } finally {
     server.kill(); upstream.close();
   }

@@ -2495,7 +2495,12 @@ async function runLogVaultCmd(home: string, sub: string, rest: string[], v: Valu
   const base = url ? (url.endsWith("/") ? url : url + "/") : "";
   const needService = () => { if (!url || !token) throw new UsageError("set ASP_LOG_URL and ASP_LOG_TOKEN to the service and your token (asp join saves them)"); };
   const call = (path: string, init: RequestInit = {}) => fetchRetry(new URL(path + (v.tenant ? `${path.includes("?") ? "&" : "?"}tenant=${encodeURIComponent(v.tenant)}` : ""), base), { ...init, headers: { ...(init.headers ?? {}), authorization: `Bearer ${token}` } });
-  const failOf = async (res: Response, what: string) => { const b = (await res.json().catch(() => undefined)) as any; return new Error(b?.error?.message ?? `the service answered ${res.status} to ${what}`); };
+  const failOf = async (res: Response, what: string) => {
+    const b = (await res.json().catch(() => undefined)) as any;
+    // A 404 with no error code is the service saying it has no such route: it was started without --runlogs.
+    if (res.status === 404 && !b?.error?.code) return new Error("this service does not keep sealed run logs (it was started without --runlogs)");
+    return new Error(b?.error?.message ?? `the service answered ${res.status} to ${what}`);
+  };
   const me = v.as ?? readJoinConfig(home)?.identities?.me;
   const keys = new Keystore(home);
   const ownerSeed = (did = me): Uint8Array => {
@@ -3923,9 +3928,12 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     : gw.errLines.filter((l) => /^\s*REFUSED /.test(l)).map((l) => l.trim().replace(/^REFUSED\s+/, ""));
   const stopped = gw.errLines.find((l) => /^\s*stopped /.test(l))?.trim();
   const state = wasStopped ? "stopped" : gw.code === 0 ? "ended" : "failed";
+  // This session's own run log (the gateway and the package run both say where it is): a standing job has one per session, so the job alone does not name it.
+  const runLogPath = gw.errLines.map((l) => /^\s*run log\s+(\S.*)$/.exec(l)?.[1]?.trim()).find((p) => !!p && existsSync(p));
+  const runLogField = runLogPath ? { runLog: runLogPath } : {};
   if (headless && v.json) {
     io.out(JSON.stringify({ session: sid, contract: job.contract, agent: ids.agent, runtime, state, exitCode: gw.code, toolCalls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, ...(stopped && !wasStopped ? { stopped } : {}) }));
-    sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state, calls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, exitCode: gw.code });
+    sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state, calls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, exitCode: gw.code, ...runLogField });
     return gw.code !== 0 ? gw.code : stopped && !wasStopped ? 11 : v["fail-on-refusal"] && refused.length ? 10 : 0;
   }
   io.out("");
@@ -3936,7 +3944,12 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
   if (refused.length > 5) io.out(`  ... and ${refused.length - 5} more`);
   if (stopped && !wasStopped) io.out(`  ${stopped}`);
   io.out(`  job      standing job ${job.contract.slice(0, 19)}..., ${job.sessions} session(s) so far; the signed Action reports are in the log (asp runs ${sid})`);
-  sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state, calls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, exitCode: gw.code, ...(stopped && !wasStopped ? { stopped } : {}) });
+  sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state, calls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, exitCode: gw.code, ...(stopped && !wasStopped ? { stopped } : {}), ...runLogField });
+  // --keep-run-log: seal this session's log to the service now (docs/run-log-custody.md); otherwise say where it is.
+  if (runLogPath && v["keep-run-log"]) {
+    try { await runLogVaultCmd(home, "keep", [runLogPath], { ...v, contract: job.contract, tenant: undefined, as: undefined }, io); }
+    catch (e) { io.out(`  run log  ${runLogPath}  (not kept on the service: ${(e as Error).message.slice(0, 100)})`); }
+  } else if (runLogPath) io.out(`  run log  ${runLogPath}  (on this machine; --keep-run-log seals a copy on the service)`);
   if (gw.code !== 0) return gw.code;
   return headless && stopped && !wasStopped ? 11 : headless && v["fail-on-refusal"] && refused.length ? 10 : 0;
 }
@@ -4137,7 +4150,7 @@ function writeStanding(home: string, s: Record<string, StandingJob>): void { mkd
 const standingKey = (agent: string, scopes: string[], hosts: string[], gate: string[] = []) => createHash("sha256").update(JSON.stringify(gate.length ? [agent, [...scopes].sort(), [...hosts].sort(), [...gate].sort()] : [agent, [...scopes].sort(), [...hosts].sort()])).digest("hex").slice(0, 16);
 
 interface SessionStart { t: "start"; sid: string; contract: string; at: string; runtime: string; agent: string; me: string; bank: string; purpose: string; scopes: string[]; hosts: string[] }
-interface SessionEnd { t: "end"; sid: string; contract: string; at: string; state: string; calls: number; refused: string[]; tokens: number; exitCode: number; stopped?: string }
+interface SessionEnd { t: "end"; sid: string; contract: string; at: string; state: string; calls: number; refused: string[]; tokens: number; exitCode: number; stopped?: string; /** This session's own run log (a standing job has one per session). */ runLog?: string }
 const sessionIndexPath = (home: string) => join(home, "runs.ndjson");
 function sessionIndexAdd(home: string, rec: SessionStart | SessionEnd): void {
   mkdirSync(home, { recursive: true });
@@ -4196,11 +4209,9 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
     const used = [...new Set(sets.flatMap((x) => x.scopes_used ?? []))];
     if (used.length) io.out(`            scopes used: ${used.join(", ")}`);
   } catch (e) { io.out(`  in the log (not readable now: ${(e as Error).message.slice(0, 80)})`); }
-  const rl = findRunLog(home, start.contract);
-  if (rl && v["keep-run-log"]) {
-    try { await runLogVaultCmd(home, "keep", [rl], { ...v, contract: undefined, tenant: undefined, as: undefined }, io); }
-    catch (e) { io.out(`  run log   ${rl}  (not kept on the service: ${(e as Error).message.slice(0, 100)})`); }
-  } else if (rl) io.out(`  run log   ${rl}  (on this machine only; asp run-log ... reads it; --keep-run-log seals a copy on the service)`);
+  // This session's own run log when the session recorded it (S114); an older session falls back to the newest log of its job.
+  const rl = end?.runLog && existsSync(end.runLog) ? end.runLog : findRunLog(home, start.contract);
+  if (rl) io.out(`  run log   ${rl}  (on this machine; asp run-log show|verify reads it; asp run-log keep seals a copy on the service)`);
   return 0;
 }
 
