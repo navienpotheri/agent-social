@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { deriveScopeForTool, isTestRun } from "../src/package.ts";
+// @ts-expect-error the hook script is plain JavaScript with no types
 import { deriveScopeForTool as hookScope } from "../src/adapters/claude-code-mandate-hook.mjs";
 
 // Found in the first live run: `echo "test content" > x.txt` was classed as tests.run (any command with the letters "test"), which a session's Mandate did not grant, so it was refused.

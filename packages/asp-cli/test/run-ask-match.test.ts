@@ -103,6 +103,18 @@ test("per-command approval: only risky commands (or the ones you match) are aske
     const masked: string[] = [];
     await session(["--ask", "risky"], async (q) => { masked.push(q); return "n"; });
     assert.match(masked[0], /\[y\/N\] $/);
+    // Found in the live approval test: rm and mkdir read as file writes (repo.write), so a gate on shell commands never saw `rm -r scratch`. A command from a shell tool is a command, whatever it is classed as.
+    command = "rm -r scratch";
+    const rm: string[] = [];
+    const rmRun = await session(["--ask", "risky"], async (q) => { rm.push(q); return "n"; });
+    assert.equal(rm.length, 1, "rm -r is asked about");
+    assert.match(rm[0], /Allow shell\.exec: rm -r scratch\? \[y\/N\/a\]/);
+    assert.ok(!/tool_use:Bash/.test(rmRun.out));
+    command = "mkdir scratch && echo hi > scratch/x.txt";
+    assert.match((await session(["--ask", "risky"], neverAsked)).out, /tool_use:Bash/, "a harmless write is not asked about under risky");
+    const every: string[] = [];
+    await session(["--ask", "commands"], async (q) => { every.push(q); return "n"; });
+    assert.equal(every.length, 1, "--ask commands asks about every command, including a file write made with one");
     // A bad pattern is a usage error, before anything starts.
     const badRe = await session(["--ask-match", "re:("]);
     assert.equal(badRe.code, 2);

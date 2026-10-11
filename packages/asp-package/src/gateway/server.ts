@@ -17,7 +17,7 @@ import { RateLimiter, type NetworkRate } from "./rate.ts";
 import { requestsOf } from "./requests.ts";
 import { hostAllowed, isNetworkScope } from "@agent-social/asp-core";
 import { attachEgress, privateAddress } from "./egress.ts";
-import { commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
+import { classify, commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
 
@@ -186,16 +186,20 @@ export function createGateway(opts: GatewayOptions): Gateway {
     let strike = true;
     // A gate is not a violation: a forbidden or unanswered call is refused without a strike.
     // For shell commands the person may have narrowed the asking to risky patterns, or said "always" to this exact command: then the call is not held (the run log says why).
-    const filtered = allow && (j.scope === "shell.exec" || j.scope === "tests.run") && opts.gate?.commandFilter && opts.gate.mode === "ask" ? opts.gate.commandFilter(commandOf(call.args) ?? "") : "ask";
-    const gated = !!(j.scope && opts.gate?.scopes.includes(j.scope)) && filtered === "ask";
+    // The scope the gate sees is the call's own, or shell.exec for any command from a shell tool that was classed narrower (rm and mkdir read as repo.write, a test run as tests.run, ls as
+    // repo.read): a command is a command. Found in the live approval test, where `rm -r scratch` walked past a gate on shell commands as a file write.
+    const gateScope = j.scope && opts.gate?.scopes.includes(j.scope) ? j.scope
+      : classify(call).shell !== undefined && opts.gate?.scopes.includes("shell.exec") && ["repo.read", "repo.write", "tests.run"].includes(j.scope) ? "shell.exec" : "";
+    const filtered = allow && (gateScope === "shell.exec" || gateScope === "tests.run") && opts.gate?.commandFilter && opts.gate.mode === "ask" ? opts.gate.commandFilter(commandOf(call.args) ?? "") : "ask";
+    const gated = !!gateScope && filtered === "ask";
     if (allow && gated) {
       strike = false;
       const g = opts.gate!;
-      if (g.mode === "deny") { allow = false; reason = `the scope ${j.scope} is forbidden by this job's irreversible policy`; }
-      else if (!g.approvalsDir) { allow = false; reason = `the scope ${j.scope} needs the principal's approval and this run cannot ask for it`; }
+      if (g.mode === "deny") { allow = false; reason = `the scope ${gateScope} is forbidden by this job's irreversible policy`; }
+      else if (!g.approvalsDir) { allow = false; reason = `the scope ${gateScope} needs the principal's approval and this run cannot ask for it`; }
       else {
-        const a = await askPrincipal(call, j.scope);
-        if (!a.approved) { allow = false; reason = `the scope ${j.scope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`; }
+        const a = await askPrincipal(call, gateScope);
+        if (!a.approved) { allow = false; reason = `the scope ${gateScope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`; }
       }
     }
     // A rate limit is not a violation either (like a gate): the call is refused, with no strike, and counted.
@@ -205,7 +209,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (!v.ok) { allow = false; reason = v.reason; strike = false; rateLimited = true; rateLimitedTotal++; rateLimitedSince++; }
     }
     opts.onCall?.({ tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}) });
-    rec?.event("tool_call", { tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && opts.gate?.scopes.includes(j.scope) ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
+    rec?.event("tool_call", { tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && gateScope ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
     if (allow) {
       if (j.scope) { used.add(j.scope); pendingUsed.add(j.scope); }
       if (j.artifact) { artifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); pendingArtifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); }
