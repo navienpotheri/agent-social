@@ -20,6 +20,8 @@ export interface GoogleOptions {
   tokenUrl?: string;
   userinfoUrl?: string;
   fetch?: typeof fetch;
+  /** Where to say why Google refused (the service's log); never the secret or the code. */
+  log?: (line: string) => void;
   secret?: Buffer;
   now?: () => number;
 }
@@ -79,14 +81,17 @@ export class GoogleSignIn {
         method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ code, client_id: this.o.clientId, client_secret: this.o.clientSecret, redirect_uri: this.o.redirectUri, grant_type: "authorization_code" }),
       });
-      const t = (await r.json().catch(() => undefined)) as { access_token?: string } | undefined;
-      if (!r.ok || !t?.access_token) return this.fail(502, "GOOGLE_ERROR", "Google did not accept the sign-in; try again");
+      const t = (await r.json().catch(() => undefined)) as { access_token?: string; error?: string; error_description?: string } | undefined;
+      if (!r.ok || !t?.access_token) {
+        this.o.log?.(`google sign-in: the token endpoint answered ${r.status}: ${t?.error ?? "no error given"}${t?.error_description ? ` (${t.error_description})` : ""}; client ${this.o.clientId}, redirect ${this.o.redirectUri}`);
+        return this.fail(502, "GOOGLE_ERROR", "Google did not accept the sign-in; try again");
+      }
       access = t.access_token;
-    } catch { return this.fail(502, "GOOGLE_ERROR", "could not reach Google; try again"); }
+    } catch (e) { this.o.log?.(`google sign-in: could not reach the token endpoint: ${(e as Error).message}`); return this.fail(502, "GOOGLE_ERROR", "could not reach Google; try again"); }
     try {
       const r = await this.f(this.o.userinfoUrl ?? "https://openidconnect.googleapis.com/v1/userinfo", { headers: { authorization: `Bearer ${access}` } });
       const u = (await r.json().catch(() => undefined)) as { sub?: string; email?: string; email_verified?: boolean } | undefined;
-      if (!r.ok || !u?.sub || !u.email) return this.fail(502, "GOOGLE_ERROR", "Google did not say who you are; try again");
+      if (!r.ok || !u?.sub || !u.email) { this.o.log?.(`google sign-in: the userinfo endpoint answered ${r.status} without an account id and email`); return this.fail(502, "GOOGLE_ERROR", "Google did not say who you are; try again"); }
       if (u.email_verified !== true) return this.fail(403, "EMAIL_NOT_VERIFIED", "this Google account has no verified email address");
       return { ok: true, form: s.f, google: { sub: u.sub, email: u.email.toLowerCase() } };
     } catch { return this.fail(502, "GOOGLE_ERROR", "could not reach Google; try again"); }

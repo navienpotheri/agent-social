@@ -123,3 +123,16 @@ test("browser sign-up limits: three tenants for one Google account, the day's ca
   assert.match(await (await fetch(`${closed.url}/join`)).text(), /Sign-up is closed.*maintenance/s);
   assert.equal((await fetch(`${closed.url}/join`, form(GOOD))).status, 503);
 });
+
+test("when Google refuses the code the service logs why (its error, never the secret or the code), so a wrong secret or redirect is easy to find", async () => {
+  const g = await fakeGoogle({ ok: { sub: "g-5", email: "z@example.org", email_verified: true } });
+  const lines: string[] = [];
+  const google = new GoogleSignIn({ clientId: "client-1", clientSecret: "the-WRONG-secret", redirectUri: "https://svc.example/auth/callback", authUrl: `${g.url}/auth`, tokenUrl: `${g.url}/token`, userinfoUrl: `${g.url}/userinfo`, log: (l) => lines.push(l) });
+  const started = google.begin({ name: "x-bot", accept_terms: true, terms_version: "v1", declaration: "adult_or_guardian" });
+  const state = new URL(started.location).searchParams.get("state")!;
+  const r = await google.finish(new URLSearchParams({ code: "ok", state }), started.nonce);
+  assert.equal(r.ok, false);
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /token endpoint answered 400: invalid_grant; client client-1, redirect https:\/\/svc\.example\/auth\/callback/);
+  assert.ok(!lines[0].includes("the-WRONG-secret") && !lines[0].includes("code=ok"));
+});

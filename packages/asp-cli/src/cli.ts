@@ -1408,7 +1408,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       const secret = io.env.GOOGLE_CLIENT_SECRET;
       if (!secret) throw new UsageError("--google-client-id needs the client secret in the environment variable GOOGLE_CLIENT_SECRET");
       if (!v["google-redirect-uri"]) throw new UsageError("--google-client-id needs --google-redirect-uri (the authorized redirect URI of the client, for example https://log.example.org/auth/callback)");
-      google = new GoogleSignIn({ clientId: v["google-client-id"], clientSecret: secret, redirectUri: v["google-redirect-uri"] });
+      google = new GoogleSignIn({ clientId: v["google-client-id"], clientSecret: secret, redirectUri: v["google-redirect-uri"], log: (l) => io.err(`  ${l}`) });
     } else if (v["signup-require-google"]) throw new UsageError("--signup-require-google needs --google-client-id");
   }
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
