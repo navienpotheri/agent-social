@@ -190,8 +190,9 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const gated = !!(j.scope && opts.gate?.scopes.includes(j.scope)) && filtered === "ask";
     if (allow && gated) {
       strike = false;
-      if (opts.gate.mode === "deny") { allow = false; reason = `the scope ${j.scope} is forbidden by this job's irreversible policy`; }
-      else if (!opts.gate.approvalsDir) { allow = false; reason = `the scope ${j.scope} needs the principal's approval and this run cannot ask for it`; }
+      const g = opts.gate!;
+      if (g.mode === "deny") { allow = false; reason = `the scope ${j.scope} is forbidden by this job's irreversible policy`; }
+      else if (!g.approvalsDir) { allow = false; reason = `the scope ${j.scope} needs the principal's approval and this run cannot ask for it`; }
       else {
         const a = await askPrincipal(call, j.scope);
         if (!a.approved) { allow = false; reason = `the scope ${j.scope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`; }

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -110,5 +110,5 @@ test("run-log custody: a log is sealed on the machine, the service holds ciphert
     const closed = await asp(a, ["account", "close", "--confirm", "team-a", "--skip-export"], envA);
     assert.equal(closed.code, 0, closed.err);
     assert.ok(!existsSync(join(vault, "team-a")), "the sealed logs are deleted with the account");
-  } finally { server.kill(); rmSync(dir, { recursive: true, force: true }); }
+  } finally { server.kill(); }
 });
