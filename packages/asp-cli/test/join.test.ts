@@ -94,6 +94,25 @@ test("asp join: one command signs you up in the browser, the token comes back to
     assert.match((await later(["leave"])).out, /forgot the saved login for joiner/);
     assert.equal(existsSync(cfgPath), false);
     assert.ok(existsSync(join(f.aspHome, "keys")));
+
+    // Found in the first live run: a second tenant by the same Google account is refused the starter credits (once per account). That must not stop the join: the recovery
+    // code is shown the moment it exists, the login is saved with its identities, and the credits line says why there are none.
+    const f2 = makeFixture();
+    const out2: string[] = [], err2: string[] = [];
+    const joining2 = main(["join", "--service", base, "--no-open", "--yes"], { out: (l) => out2.push(l), err: (l) => err2.push(l), env: { ASP_HOME: f2.aspHome, ASP_JOIN_POLL_MS: "100" }, cwd: f2.root });
+    await until("the second sign-up address", () => out2.some((l) => l.includes("/join?c=")));
+    const c2 = /name="c" value="([^"]+)"/.exec(await (await fetch(out2.find((l) => l.includes("/join?c="))!.trim())).text())![1];
+    const post2 = await fetch(`${base}/join`, { method: "POST", redirect: "manual", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ name: "joiner-two", accept_terms: "yes", terms_version: "2026-10", declaration: "adult_or_guardian", c: c2 }) });
+    assert.equal(post2.status, 303);
+    const state2 = new URL(post2.headers.get("location")!).searchParams.get("state")!;
+    const cookie2 = /asp_join=([0-9a-f]+)/.exec(post2.headers.get("set-cookie")!)![1];
+    assert.equal((await fetch(`${base}/auth/callback?code=ok&state=${encodeURIComponent(state2)}`, { headers: { cookie: `asp_join=${cookie2}` } })).status, 201);
+    assert.equal(await joining2, 0, err2.join("\n"));
+    const text2 = out2.join("\n");
+    assert.ok(text2.indexOf("YOUR RECOVERY CODE") > 0 && text2.indexOf("YOUR RECOVERY CODE") < text2.indexOf("You are set up on"), "the recovery code comes first");
+    assert.match(text2, /credits  none \(.*already claimed/);
+    const cfg2 = JSON.parse(readFileSync(join(f2.aspHome, "config.json"), "utf8"));
+    assert.ok(cfg2.identities?.me && cfg2.identities?.agent && cfg2.identities?.bank, "the identities are saved with the login");
   } finally {
     server.kill(); google.close();
   }

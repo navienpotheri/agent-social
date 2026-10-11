@@ -1353,23 +1353,29 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   const { domain } = acct.body.namespace as { domain: string };
   const me = didFor(domain, picked.tenant, "human"), agent = didFor(domain, picked.tenant, "agent", agentName);
   const person = await run(["identity", "new", "--kind", "human", "--me"]);
-  await run(["identity", "new", "--kind", "agent", "--name", agentName, "--sponsor", me, "--purpose", "My first agent"]);
-  await run(["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]);
-  const credits = await run(["account", "starter", "--did", `${me},${agent}`]);
   const code = /(ASP-[0-9A-Z-]+)/.exec(person)?.[1];
-  const bank = didFor(domain, picked.tenant, "human", "bank");
-  writeFileSync(joinConfigPath(home), JSON.stringify({ service, token: picked.token, tenant: picked.tenant, joinedAt: now(), identities: { me, agent, bank } } satisfies JoinConfig, null, 2) + "\n", { mode: 0o600 });
-
-  io.out("");
-  io.out(`You are set up on ${service}:`);
-  io.out(`  you      ${me}`);
-  io.out(`  agent    ${agent}`);
-  io.out(`  credits  ${/\+(\d+) credits/.exec(credits) ? "500 each for you and your agent" : "claimed"}`);
+  // The recovery code is shown the moment it exists, before any later step can fail: it is kept nowhere else.
   if (code) {
     io.out("");
     io.out("  YOUR RECOVERY CODE. Shown once, kept nowhere on this machine. Write it on paper and keep it safe:");
     io.out(`    ${code}`);
     io.out("  If you lose the key on this machine, this code is the only way back to your identity. Anyone who has it can act as you.");
+  }
+  await run(["identity", "new", "--kind", "agent", "--name", agentName, "--sponsor", me, "--purpose", "My first agent"]);
+  await run(["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]);
+  const bank = didFor(domain, picked.tenant, "human", "bank");
+  // Saved now, so a failure below (the starter credits) never leaves identities that the saved login does not know.
+  writeFileSync(joinConfigPath(home), JSON.stringify({ service, token: picked.token, tenant: picked.tenant, joinedAt: now(), identities: { me, agent, bank } } satisfies JoinConfig, null, 2) + "\n", { mode: 0o600 });
+  let credits = "";
+  let creditsNote = "";
+  try { credits = await run(["account", "starter", "--did", `${me},${agent}`]); } catch (e) { creditsNote = (e as Error).message.replace(/^account starter[^:]*failed:\s*/, "").slice(0, 160); }
+
+  io.out("");
+  io.out(`You are set up on ${service}:`);
+  io.out(`  you      ${me}`);
+  io.out(`  agent    ${agent}`);
+  io.out(`  credits  ${creditsNote ? `none (${creditsNote})` : /\+(\d+) credits/.exec(credits) ? "500 each for you and your agent" : "claimed"}`);
+  if (code) {
     if (process.stdin.isTTY && !v.yes) {
       const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stdout });
       const tail = code.replace(/[^0-9A-Z]/g, "").slice(-6);
