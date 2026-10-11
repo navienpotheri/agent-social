@@ -1288,6 +1288,41 @@ function readJoinConfig(home: string): JoinConfig | undefined {
   try { const c = JSON.parse(readFileSync(joinConfigPath(home), "utf8")) as JoinConfig; return c.service && c.token ? c : undefined; } catch { return undefined; }
 }
 
+/**
+ * What to run to bring the person back to this terminal when the browser part is finished: a bell and a title are always possible; the rest is the operating system's own way to raise a
+ * window or show a notification, best effort (a page in a browser cannot focus another application, so the command does it). Pure, so a test can read it.
+ */
+export function returnToTerminalPlan(platform: string, env: NodeJS.ProcessEnv, message: string, title: string): { cmd: string; args: string[] }[] {
+  const q = (s: string) => s.replace(/'/g, "''");
+  if (platform === "win32") {
+    // Activate the window whose title is ours (the title is set just before), and show a balloon notification.
+    const ps = `$w = New-Object -ComObject WScript.Shell; [void]$w.AppActivate('${q(title)}'); Add-Type -AssemblyName System.Windows.Forms; $n = New-Object System.Windows.Forms.NotifyIcon; $n.Icon = [System.Drawing.SystemIcons]::Information; $n.Visible = $true; $n.ShowBalloonTip(6000, 'Agent Social', '${q(message)}', 'Info'); Start-Sleep -Seconds 7; $n.Dispose()`;
+    return [{ cmd: "powershell", args: ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", ps] }];
+  }
+  if (platform === "darwin") {
+    const app = env.TERM_PROGRAM === "iTerm.app" ? "iTerm" : env.TERM_PROGRAM === "Apple_Terminal" ? "Terminal" : "";
+    return [
+      { cmd: "osascript", args: ["-e", `display notification "${message.replace(/"/g, "'")}" with title "Agent Social"`] },
+      ...(app ? [{ cmd: "osascript", args: ["-e", `tell application "${app}" to activate`] }] : []),
+    ];
+  }
+  return [{ cmd: "notify-send", args: ["Agent Social", message] }];
+}
+
+/** Gets the person's attention in this terminal (asp join, once the browser step is done). Only at a terminal; ASP_NO_FOCUS turns it off. */
+function returnToTerminal(io: Io, message: string): void {
+  if (!process.stdout.isTTY || io.env.ASP_NO_FOCUS) return;
+  const title = "asp join";
+  try {
+    process.stdout.write(`\x1b]0;${title}\x07\x07`); // the window title, then the bell
+    for (const p of returnToTerminalPlan(process.platform, io.env, message, title)) {
+      const c = spawn(p.cmd, p.args, { stdio: "ignore", detached: true });
+      c.on("error", () => {});
+      c.unref();
+    }
+  } catch { /* the banner in the terminal is enough */ }
+}
+
 /** Opens the page in the person's browser (the address is always printed too). */
 function openBrowser(url: string): void {
   try {
@@ -1339,7 +1374,9 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   if (!picked) throw new Error("timed out waiting for the sign-up; run asp join again");
   mkdirSync(home, { recursive: true });
   writeFileSync(joinConfigPath(home), JSON.stringify({ service, token: picked.token, tenant: picked.tenant, joinedAt: now() } satisfies JoinConfig, null, 2) + "\n", { mode: 0o600 });
-  io.out(`Signed up as ${picked.tenant}. Setting up your first agent ...`);
+  io.out("");
+  io.out(`>>> Signed up as ${picked.tenant}. You are back in the terminal: the browser is finished. Setting up your first agent ...`);
+  returnToTerminal(io, `You are signed up as ${picked.tenant}. Back to your terminal: your recovery code is about to appear.`);
 
   const env = { ...io.env, ASP_LOG_URL: service, ASP_LOG_TOKEN: picked.token };
   const run = async (args: string[]) => {

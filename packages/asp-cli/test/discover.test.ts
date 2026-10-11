@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { EVERYDAY, ALSO } from "@agent-social/asp-package";
 import { AFTER_JOIN, joinDone, joinDoneCli } from "../../asp-log/src/join-page.ts";
-import { main, type Io } from "../src/cli.ts";
+import { main, returnToTerminalPlan, type Io } from "../src/cli.ts";
 import { makeFixture, type Fixture } from "./fixture.ts";
 
 const cli = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
@@ -129,6 +129,20 @@ test("asp.yaml: init writes and trusts it, a bare asp run uses it, the command l
   join_(f);
   assert.match((await asp(f, [], { cwd: proj })).out, /Next:\n  asp run$/);
   assert.equal((await asp(f, ["trust"], { cwd: f.root })).code, 2);
+});
+
+test("after the browser step, asp join gets the person's attention in the terminal the way each operating system allows (a page cannot focus another application)", () => {
+  const win = returnToTerminalPlan("win32", {}, "It's done", "asp join");
+  assert.equal(win.length, 1);
+  assert.equal(win[0].cmd, "powershell");
+  const script = win[0].args.at(-1)!;
+  assert.match(script, /AppActivate\('asp join'\)/);
+  assert.match(script, /ShowBalloonTip\(6000, 'Agent Social', 'It''s done'/, "quotes in the message are escaped");
+  const mac = returnToTerminalPlan("darwin", { TERM_PROGRAM: "iTerm.app" }, "Back to the terminal", "asp join");
+  assert.deepEqual(mac.map((p) => p.cmd), ["osascript", "osascript"]);
+  assert.match(mac[1].args[1], /tell application "iTerm" to activate/);
+  assert.equal(returnToTerminalPlan("darwin", {}, "x", "t").length, 1, "an unknown terminal app gets the notification only");
+  assert.deepEqual(returnToTerminalPlan("linux", {}, "Back", "t"), [{ cmd: "notify-send", args: ["Agent Social", "Back"] }]);
 });
 
 test("asp shim prints a script for the shell and refuses a shell it does not know", async () => {
