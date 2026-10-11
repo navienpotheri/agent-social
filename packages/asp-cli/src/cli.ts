@@ -294,6 +294,7 @@ import {
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
+import { askAbout, commandKey, compilePatterns, type AlwaysAllow } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
@@ -383,6 +384,8 @@ const OPTIONS = {
   assurance: { type: "string" },
   metrics: { type: "string" },
   mcp: { type: "string", multiple: true },
+  "ask-match": { type: "string", multiple: true },
+  "always-file": { type: "string" },
   sandbox: { type: "boolean" },
   "sandbox-bind": { type: "string", multiple: true },
   "sandbox-backend": { type: "string" },
@@ -660,7 +663,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "mcp" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -2081,7 +2084,12 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       if (!res.ok) throw new Error(((await res.json().catch(() => undefined)) as any)?.error?.message ?? `the commons answered ${res.status}`);
     } } : {}),
   } : undefined;
-  const gate = gateOn ? { scopes: irreversible!.scopes!, mode: (irreversible!.policy === "forbid" ? "deny" : "ask") as "ask" | "deny", waitSeconds: approvalWait, approvalsDir } : undefined;
+  // Per-command asking (U15): --ask-match <pattern|risky> (repeatable) narrows which shell commands are held; --always-file names the commands the person said "always" to.
+  let cmdPatterns: RegExp[] | undefined;
+  try { cmdPatterns = v["ask-match"]?.length ? compilePatterns(v["ask-match"]) : undefined; } catch (e) { throw new UsageError((e as Error).message); }
+  const alwaysFile = v["always-file"] ? resolve(io.cwd, v["always-file"]) : undefined;
+  const commandFilter = cmdPatterns || alwaysFile ? (cmd: string) => askAbout(cmd, { ...(cmdPatterns ? { patterns: cmdPatterns } : {}), remembered: alwaysFile ? readAlways(alwaysFile)[by] ?? [] : [] }) : undefined;
+  const gate = gateOn ? { scopes: irreversible!.scopes!, mode: (irreversible!.policy === "forbid" ? "deny" : "ask") as "ask" | "deny", waitSeconds: approvalWait, approvalsDir, ...(commandFilter ? { commandFilter } : {}) } : undefined;
   const approvals = gate?.mode === "ask"
     ? serveApprovals({ dir: approvalsDir, home, contract, agent: by, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io })
     : undefined;
@@ -3771,9 +3779,14 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     if (!(await local.log.passport(did))) throw new Error(`${what} (${did}) is not set up; run asp join, or create it with asp identity new`);
   }
 
-  // --ask commands|writes|network|<scope>,...: calls on these scopes wait for your yes (a gate in the Mandate, so it is signed and in the log).
-  const ALIAS: Record<string, string> = { commands: "shell.exec", writes: "repo.write", network: "shell.network" };
-  const gate = (v.ask ?? "").split(",").map((x) => x.trim()).filter(Boolean).map((x) => ALIAS[x] ?? x);
+  // --ask commands|risky|writes|network|<scope>,...: calls on these scopes wait for your yes (a gate in the Mandate, so it is signed and in the log).
+  // `commands` asks about every shell command; `risky` (or --ask-match <pattern>, repeatable) holds only the commands that match a list of risky patterns (gap U15; docs: asp help approvals).
+  const ALIAS: Record<string, string> = { commands: "shell.exec", risky: "shell.exec", writes: "repo.write", network: "shell.network" };
+  const askTokens = (v.ask ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  const matchPatterns = askTokens.includes("commands") ? [] : [...(askTokens.includes("risky") ? ["risky"] : []), ...(v["ask-match"] ?? [])];
+  try { compilePatterns(matchPatterns); } catch (e) { throw new UsageError((e as Error).message); }
+  const gate = [...new Set([...askTokens.map((x) => ALIAS[x] ?? x), ...(v["ask-match"]?.length ? ["shell.exec"] : [])])];
+  const alwaysFile = join(home, "always-allow.json");
   const days = Math.max(1, Math.trunc(Number(v["standing-days"] ?? "7")));
   const hosts = (v["allow-network"] ?? "").split(",").map((h) => h.trim()).filter(Boolean);
   const scopes = [...prof.scopes, ...(hosts.length ? ["shell.network"] : [])];
@@ -3830,20 +3843,34 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
   const canAsk = !!v.prompt && (!!io.ask || !!process.stdin.isTTY);
   let asking: Promise<void> = Promise.resolve();
   let sessionOver = false;
-  const askInline = (scope: string, shown: string) => {
+  const askInline = (scope: string, shownRaw: string) => {
+    // "a" (always allow this exact command) is offered only for a shell command shown whole: not cut short and not masked, so what is remembered is exactly what you read.
+    const masked = /\(secret-looking text was masked\)\s*$/.test(shownRaw);
+    const shown = shownRaw.replace(/\s*\(secret-looking text was masked\)\s*$/, "");
+    const canAlways = scope === "shell.exec" && !masked && !shown.endsWith("...");
+    const options = canAlways ? "[y/N/a]" : "[y/N]";
     asking = asking.then(async () => {
       if (sessionOver) return;
       let answer = "";
       try {
-        if (io.ask) answer = await io.ask(`Allow ${scope}: ${shown}? [y/N] `);
+        if (io.ask) answer = await io.ask(`Allow ${scope}: ${shown}? ${options} `);
         else {
           const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stderr });
           const timer = setInterval(() => { if (sessionOver) rl.close(); }, 500); timer.unref();
-          try { answer = await rl.question(`\n  Allow ${scope}: ${shown}? [y/N] `); } catch { answer = ""; } finally { clearInterval(timer); rl.close(); }
+          try { answer = await rl.question(`\n  Allow ${scope}: ${shown}? ${options}${canAlways ? " (a = yes, and never ask about this exact command again)" : ""} `); } catch { answer = ""; } finally { clearInterval(timer); rl.close(); }
         }
       } catch { answer = ""; }
       if (sessionOver) return;
-      const yes = /^y(es)?$/i.test(answer.trim());
+      const always = canAlways && /^a(lways)?$/i.test(answer.trim());
+      if (always) {
+        const all = readAlways(alwaysFile);
+        const mine = all[ids!.agent] ?? [];
+        if (!mine.some((r) => r.hash === commandKey(shown))) mine.push({ hash: commandKey(shown), command: shown, at: new Date().toISOString() });
+        all[ids!.agent] = mine.slice(-200);
+        writeAlways(alwaysFile, all);
+        io.err(`  remembered: ${ids!.agent.split(":").slice(-1)[0]} may run that exact command without asking (asp approvals always lists them; asp approvals forget removes them)`);
+      }
+      const yes = always || /^y(es)?$/i.test(answer.trim());
       const r = await quiet(["market", "resolve", "--contract", job!.contract, "--by", ids!.me, "--verdict", yes ? "approved" : "corrected", ...(yes ? [] : ["--correction", "refused by you"])]);
       if (r.code) io.err(`  could not record your answer: ${(r.err || r.out).trim().slice(0, 200)}`);
     });
@@ -3854,7 +3881,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     if (canAsk) askInline(m[1], m[2]);
     else io.err(`  approval needed for ${m[1]}: ${m[2]}  (answer in another window: asp approvals approve, or asp approvals refuse)`);
   };
-  const gw = await quiet(["gateway", "--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600"] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  const gw = await quiet(["gateway", "--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   sessionOver = true;
   await asking;
   rmSync(capture, { force: true });
@@ -3934,7 +3961,7 @@ function withAspYaml(home: string, pkg: string | undefined, v: Values, io: Io): 
     if (k === "allow-network" && !readTrustedYaml(home).includes(yamlHash(text))) {
       throw new Error(`${file} asks for network access to ${(val as string[]).join(", ")}, and you have not trusted this file. If you wrote it or have read it: asp trust ${relative(io.cwd, file) || "asp.yaml"}`);
     }
-    merged[k] = Array.isArray(val) ? val.join(",") : typeof val === "number" ? String(val) : val;
+    merged[k] = k === "ask-match" ? val : Array.isArray(val) ? val.join(",") : typeof val === "number" ? String(val) : val;
   }
   io.err(`  using ${relative(io.cwd, file) || "asp.yaml"}`);
   return { pkg: runtime, v: merged as Values };
@@ -4252,6 +4279,10 @@ async function agentCmd(home: string, sub: string | undefined, rest: string[], v
  * asp approvals [approve|refuse [<n>]]: the calls your agents are waiting to make that need your yes (a gate in the Mandate: asp run --ask commands). Answer from here, in another
  * window from the session, or inline when the session asks you. Your answer is signed with your key and goes in the log.
  */
+/** The commands the person said "always" to, per agent (gap U15): a file in the ASP home the gateway reads at each decision. */
+function readAlways(file: string): AlwaysAllow { try { return JSON.parse(readFileSync(file, "utf8")) as AlwaysAllow; } catch { return {}; } }
+function writeAlways(file: string, a: AlwaysAllow): void { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify(a, null, 2) + "\n"); }
+
 /** The calls waiting for the person's answer, from the standing jobs' chains in the log. */
 async function waitingApprovals(home: string): Promise<{ n: number; contract: string; checkpoint: string; question: string; action: string; principal: string }[]> {
   const contracts = [...new Set(Object.values(readStanding(home)).map((j) => j.contract))];
@@ -4271,6 +4302,25 @@ async function waitingApprovals(home: string): Promise<{ n: number; contract: st
 
 async function approvalsCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
   const cfg = readJoinConfig(home);
+  if (sub === "always" || sub === "forget") {
+    // The exact commands you answered "a" (always) to, per agent: listed here, and removed with forget <n> or forget all.
+    const file = join(home, "always-allow.json");
+    const all = readAlways(file);
+    const flat = Object.entries(all).flatMap(([agent, list]) => list.map((r) => ({ agent, ...r })));
+    if (sub === "always") {
+      if (!flat.length) { io.out("no command is allowed for always (answer a at a prompt to allow one)"); return 0; }
+      flat.forEach((r, i) => io.out(`  ${i + 1}  ${r.agent.split(":").slice(-1)[0]}  ${r.command.slice(0, 100)}  (${r.at.slice(0, 10)})`));
+      io.out("asp approvals forget <n> | all   takes them back");
+      return 0;
+    }
+    if (!rest[0]) throw new UsageError("usage: asp approvals forget <n> | all");
+    const drop = rest[0] === "all" ? flat : flat.filter((_, i) => String(i + 1) === rest[0]);
+    if (!drop.length) throw new Error(`no remembered command numbered ${rest[0]}`);
+    for (const d of drop) all[d.agent] = (all[d.agent] ?? []).filter((r) => r.hash !== d.hash);
+    writeAlways(file, all);
+    io.out(`forgot ${drop.length} command(s); they will be asked about again`);
+    return 0;
+  }
   const open = await waitingApprovals(home);
   if (!sub || sub === "list") {
     if (!open.length) { io.out("nothing is waiting for your answer"); return 0; }

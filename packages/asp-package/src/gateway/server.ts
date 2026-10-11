@@ -49,7 +49,11 @@ export interface GatewayOptions {
    * The Mandate's irreversible policy: calls on these granted scopes are held for the principal's answer (mode "ask",
    * through request and decision files in approvalsDir, the same protocol the pre-call hooks use) or refused (mode "deny").
    */
-  gate?: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number; approvalsDir?: string };
+  gate?: {
+    scopes: string[]; mode: "ask" | "deny"; waitSeconds: number; approvalsDir?: string;
+    /** Per-command asking for shell.exec (gap U15): "ask", or why this command is not asked about. Absent: every gated call is asked about. */
+    commandFilter?: (command: string) => "ask" | "remembered" | "no-match";
+  };
   /** MCP endpoints on the gateway: the agent's memory and commons tools, and proxies for its other MCP servers. */
   mcp?: { asp?: AspToolsOptions; upstreams?: Record<string, McpUpstream> };
   /** Stops the run when input plus output tokens pass this. */
@@ -181,7 +185,10 @@ export function createGateway(opts: GatewayOptions): Gateway {
     let reason = j.reason;
     let strike = true;
     // A gate is not a violation: a forbidden or unanswered call is refused without a strike.
-    if (allow && j.scope && opts.gate?.scopes.includes(j.scope)) {
+    // For shell commands the person may have narrowed the asking to risky patterns, or said "always" to this exact command: then the call is not held (the run log says why).
+    const filtered = allow && j.scope === "shell.exec" && opts.gate?.commandFilter && opts.gate.mode === "ask" ? opts.gate.commandFilter(commandOf(call.args) ?? "") : "ask";
+    const gated = !!(j.scope && opts.gate?.scopes.includes(j.scope)) && filtered === "ask";
+    if (allow && gated) {
       strike = false;
       if (opts.gate.mode === "deny") { allow = false; reason = `the scope ${j.scope} is forbidden by this job's irreversible policy`; }
       else if (!opts.gate.approvalsDir) { allow = false; reason = `the scope ${j.scope} needs the principal's approval and this run cannot ask for it`; }
@@ -197,7 +204,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (!v.ok) { allow = false; reason = v.reason; strike = false; rateLimited = true; rateLimitedTotal++; rateLimitedSince++; }
     }
     opts.onCall?.({ tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}) });
-    rec?.event("tool_call", { tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(opts.gate?.scopes.includes(j.scope) ? { gated: true } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
+    rec?.event("tool_call", { tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && opts.gate?.scopes.includes(j.scope) ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
     if (allow) {
       if (j.scope) { used.add(j.scope); pendingUsed.add(j.scope); }
       if (j.artifact) { artifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); pendingArtifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); }

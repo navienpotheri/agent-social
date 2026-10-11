@@ -74,7 +74,7 @@ test("inline approvals: a call on a gated scope waits for your yes; asked in the
     const asked: string[] = [];
     const yes = await call(["run", "claude-code", "--prompt", "Push again", "--project", project, "--ask", "commands"], async (q) => { asked.push(q); return "y"; });
     assert.equal(yes.code, 0, yes.err);
-    assert.match(asked[0], /Allow shell\.exec: npm run build\? \[y\/N\]/);
+    assert.match(asked[0], /Allow shell\.exec: npm run build\? \[y\/N\/a\]/);
     assert.match(yes.out, /tool_use:Bash/);
     // ... and no keeps it from the agent, which is told why.
     const no = await call(["run", "claude-code", "--prompt", "Push once more", "--project", project, "--ask", "commands"], async () => "n");

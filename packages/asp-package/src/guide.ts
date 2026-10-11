@@ -54,8 +54,11 @@ export const TOPICS: Topic[] = [
     name: "approvals", title: "Approvals: calls that wait for your yes", keywords: ["approve", "approval", "allow", "gate", "ask", "permission", "yes", "refuse"],
     body: [
       "Start a session with --ask commands (or writes, or network). When the agent makes such a call, it is held and a signed Checkpoint is raised.",
-      "In the same window you are asked: Allow shell.exec: npm run build? [y/N]. From another window: asp approvals, then asp approvals approve 1 (or refuse 1).",
-      "Your answer is signed with your key and goes in the log.",
+      "--ask commands asks about every shell command. --ask risky asks only about risky ones (git push, rm -r, sudo, publishing, deleting in kubectl/terraform, curl | sh, drop table ...);",
+      "--ask-match \"git push\" --ask-match \"re:\\bdeploy\\b\" asks only about commands that match what you give (words, or re:<regular expression>). Everything else runs as the Mandate allows.",
+      "In the same window you are asked: Allow shell.exec: npm run build? [y/N/a]. a means yes, and never ask about this exact command again for this agent.",
+      "From another window: asp approvals, then asp approvals approve 1 (or refuse 1). asp approvals always lists the commands you said a to; asp approvals forget <n|all> takes them back.",
+      "Your answer is signed with your key and goes in the log. The run log says, for each command, whether it was asked about or why not (remembered, no match).",
     ],
   },
   {
@@ -134,7 +137,7 @@ export const TOPICS: Topic[] = [
     name: "asp-yaml", title: "asp.yaml: defaults for a project", keywords: ["asp.yaml", "yaml", "config", "configuration", "defaults", "file", "init"],
     body: [
       "asp init writes a starter asp.yaml in the current folder. With it, a bare 'asp run' does what the file says; flags on the command line win over the file.",
-      "Keys: runtime, agent, project, model, provider, api-key-env, ask (list), allow-network (list), standing-days, keep-run-log.",
+      "Keys: runtime, agent, project, model, provider, api-key-env, ask (list), ask-match (list), allow-network (list), standing-days, keep-run-log.",
       "A file you did not write cannot widen what an agent may reach: allow-network from an asp.yaml is used only after you trust it (asp trust asp.yaml; asp init trusts the file it writes).",
     ],
   },
@@ -291,7 +294,7 @@ export type YamlValue = string | boolean | number | string[];
 /** The keys, and whether each is a list. */
 export const ASP_YAML_KEYS: Record<string, "string" | "list" | "boolean" | "number"> = {
   runtime: "string", agent: "string", project: "string", model: "string", provider: "string", "api-key-env": "string",
-  ask: "list", "allow-network": "list", "standing-days": "number", "keep-run-log": "boolean",
+  ask: "list", "ask-match": "list", "allow-network": "list", "standing-days": "number", "keep-run-log": "boolean",
 };
 
 /** Reads `key: value`, `key: [a, b]` and `key:` followed by `- item` lines. Anything else, or a key that is not in the list, is an error naming the line. */
