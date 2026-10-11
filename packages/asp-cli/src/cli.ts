@@ -2713,6 +2713,9 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
   if (!v.contract) return 0;
   const local = await openLog(home, logEnv);
   const actions = (await local.log.since(0, 100000)).filter((x) => x.record.type === "asp.action/v0.2" && (x.record.body as { contract: string }).contract === v.contract);
+  // A standing job has one run log per session, and an Action names only a count and a hash, not which log (gap P27): so for such a job an Action that does not match this file is
+  // most likely another session's, and only a log that no Action matches is a failure.
+  const standingJob = sessionsOf(home).filter((s) => s.start.contract === v.contract).length > 1 || Object.values(readStanding(home)).some((j) => j.contract === v.contract);
   let checked = 0, bad = 0;
   for (const a of actions) {
     for (const art of ((a.record.body as { artifacts?: { uri: string; sha256: string }[] }).artifacts ?? [])) {
@@ -2722,11 +2725,11 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
       checked++;
       const want = n <= check.events.length ? hashAfter(check.events, n) : undefined;
       if (want === art.sha256) io.out(`  action ${a.id.slice(0, 19)} commits to the first ${n} event(s): matches`);
-      else { bad++; io.out(`  action ${a.id.slice(0, 19)} commits to ${n} event(s) and ${want ? "the hash does not match" : "this file has fewer events"}`); }
+      else { bad++; io.out(`  action ${a.id.slice(0, 19)} commits to ${n} event(s) and ${want ? "the hash does not match" : "this file has fewer events"}${standingJob ? " (another session's log, if this job has more than one)" : ""}`); }
     }
   }
-  io.out(checked ? `${checked - bad} of ${checked} Action commitment(s) match` : "no Action of this contract commits to a run log");
-  return bad ? 1 : 0;
+  io.out(checked ? `${checked - bad} of ${checked} Action commitment(s) match${standingJob && bad && checked > bad ? `; the ${bad} that do not are taken to belong to other sessions of this standing job` : ""}` : "no Action of this contract commits to a run log");
+  return standingJob ? (checked && checked === bad ? 1 : 0) : bad ? 1 : 0;
 }
 
 /** asp known-bad add|list: command fingerprints that an upheld report found harmful (docs/spec-deltas.md S54). */
