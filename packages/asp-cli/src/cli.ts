@@ -277,7 +277,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget, runtimeTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
-import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, UsageStore, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -432,6 +432,8 @@ const OPTIONS = {
   "skip-export": { type: "boolean" },
   "starter-pool": { type: "string" },
   "no-recovery": { type: "boolean" },
+  "stop-file": { type: "string" },
+  "standing-days": { type: "string" },
   "allow-network": { type: "string" },
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
@@ -601,6 +603,9 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "signup") return await signupCmd(v, io);
     if (cmd === "account") return await accountCmd(sub, v, io);
     if (cmd === "join") return await joinCmd(home, v, io);
+    if (cmd === "runs") return await runsCmd(home, sub, v, io);
+    if (cmd === "stop") return await stopCmd(home, sub, v, io);
+    if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
     if (cmd === "leave") return leaveCmd(home, io);
     if (cmd === "court") return await courtCmd(home, sub, v, io);
     if (cmd === "serve") return await serve(v, need, io);
@@ -2045,6 +2050,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   // H13: a sandbox whose Mandate names hosts or a rate has no network of its own; the gateway is an egress proxy that enforces them on its connections.
   const gwNet = (mandateRecord?.record.body as { network?: { hosts?: string[]; rate?: unknown } } | undefined)?.network;
   const egressProxy = (v.sandbox ?? false) && policyNeedsNetwork(mandate.scopes) && !!(gwNet?.hosts?.length || gwNet?.rate);
+  // When the gateway stops (the contract ended or was revoked, or the run read as probing) the agent is ended too, not left waiting on refusals.
+  let killAgent: (() => void) | undefined;
   const gw = createGateway({
     ...(runLog ? { runLog } : {}),
     ...(egressProxy ? { egress: true } : {}),
@@ -2059,7 +2066,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`);
       reportSoon(e.allowed ? eagerMs : 20);
     },
-    onStop: (r) => io.err(`  stopped  ${r}`),
+    onStop: (r) => { io.err(`  stopped  ${r}`); killAgent?.(); },
   });
   // The sandbox level: the agent runs where its only way out is the gateway, unless the Mandate grants a network scope.
   // Two backends: bubblewrap (Linux, WSL) and Docker (any host with Docker, for agents that run in a Linux image).
@@ -2159,6 +2166,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const watcher = setInterval(async () => {
     try {
       // A local log is read once when it is opened, so reopen it to see records another process has added.
+      // asp stop leaves a file for this run: the gateway stops, and with it the agent (the job itself stays).
+      if (v["stop-file"] && existsSync(v["stop-file"])) { gw.stop("stopped by you (asp stop)"); return; }
       const st = (await (await openLog(home, logEnv)).log.chainInfo(contract))?.state;
       if (st !== "Running" && st !== "Checkpoint") gw.stop(`the contract is now ${st}`);
     } catch { /* keep the last known state */ }
@@ -2205,6 +2214,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       const child = spawn(program, programArgs, { cwd: io.cwd, stdio: capturing ? ["ignore", "pipe", "inherit"] : "inherit", env: spawnEnv });
       child.on("close", () => { for (const c of dockerRun?.cleanup ?? []) spawnSync("docker", c, { stdio: "ignore" }); });
       child.on("error", (e) => { io.err(`could not start ${command[0]}: ${e.message}`); done(-1); });
+      killAgent = () => { child.kill("SIGTERM"); setTimeout(() => { if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL"); }, 5000).unref(); };
       if (capturing) {
         const chunks: Buffer[] = [];
         child.stdout!.on("data", (c: Buffer) => { chunks.push(c); (io.raw ?? ((b: Buffer) => process.stdout.write(b)))(c); });
@@ -3465,10 +3475,11 @@ const SESSION_RUNTIMES: Record<string, { scopes: string[]; upstream: string }> =
 };
 
 /**
- * asp run claude-code [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--budget n] [--minutes n] [--allow-network host,host]: your agent, running a real
- * runtime under the protocol, with none of the paperwork (launch blocker 12). Behind the scenes it makes a short job for you and your agent (the Mandate allows reading and writing
- * files and running commands in the project, and no network unless you name hosts), runs the tool through the gateway so a call the Mandate does not allow never reaches it,
- * settles the job when the tool stops, and prints what the agent said and a short summary: calls made, calls refused and why, what it cost.
+ * asp run claude-code [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--allow-network host,host] [--standing-days n]: your agent, running a real
+ * runtime under the protocol, with none of the paperwork (launch blocker 12). The first run makes a standing job for the person and the agent (the Mandate allows reading and
+ * writing files and running commands in the project, and no network unless you name hosts, for a week by default); every later run reuses it, so a session costs only its signed
+ * Action reports. The tool runs through the gateway, so a call the Mandate does not allow is removed before the tool receives it; when it stops, a short summary says what the
+ * agent said and did, what was refused and why. A new standing job is made when the old one is about to expire (the old one is settled) or the permissions asked for change.
  */
 async function runSession(home: string, runtime: string, v: Values, io: Io): Promise<number> {
   const prof = SESSION_RUNTIMES[runtime];
@@ -3488,59 +3499,193 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     const acct = (await (await fetchRetry(new URL("account", cfg.service + "/"), { headers: { authorization: `Bearer ${cfg.token}` } })).json().catch(() => undefined)) as any;
     if (!acct?.namespace) throw new Error("this service gives identities no namespace; use asp market ... directly");
     const domain = acct.namespace.domain as string;
-    const agentName = v.agent ?? "my-agent";
-    ids = { me: didFor(domain, cfg.tenant, "human"), agent: didFor(domain, cfg.tenant, "agent", agentName), bank: didFor(domain, cfg.tenant, "human", "bank") };
+    ids = { me: didFor(domain, cfg.tenant, "human"), agent: didFor(domain, cfg.tenant, "agent", v.agent ?? "my-agent"), bank: didFor(domain, cfg.tenant, "human", "bank") };
   }
   const local = await openLog(home, { ...logEnv, ...env });
   for (const [what, did] of [["you", ids.me], ["your agent", ids.agent], ["the settlement identity", ids.bank]] as const) {
     if (!(await local.log.passport(did))) throw new Error(`${what} (${did}) is not set up; run asp join, or create it with asp identity new`);
   }
 
-  const minutes = Math.max(5, Math.trunc(Number(v.minutes ?? "120")));
-  const cap = Math.trunc(Number(v.budget ?? "100"));
-  const iso = (ms: number) => new Date(Date.now() + ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const days = Math.max(1, Math.trunc(Number(v["standing-days"] ?? "7")));
   const hosts = (v["allow-network"] ?? "").split(",").map((h) => h.trim()).filter(Boolean);
   const scopes = [...prof.scopes, ...(hosts.length ? ["shell.network"] : [])];
   const purpose = (v.prompt ?? "An interactive session").replace(/\s+/g, " ").slice(0, 80);
+  const iso = (ms: number) => new Date(Date.now() + ms).toISOString().replace(/\.\d{3}Z$/, "Z");
 
-  const intent = /^intent (\S+)/m.exec(await step(["market", "intent", "--by", ids.me, "--purpose", purpose, "--budget", "0", "--deadline", iso((minutes + 60) * 60_000)]))![1];
-  const offer = /^offer (\S+)/m.exec(await step(["market", "offer", "--by", ids.agent, "--intent", intent, "--price", "0", "--plan", `run ${runtime}`,"--eta", iso(minutes * 60_000)]))![1];
-  const contract = /^contract (sha256:[0-9a-f]{64})/m.exec(await step(["market", "contract", "--principal", ids.me, "--bank", ids.bank, "--intent", intent, "--offer", offer]))![1];
-  await step(["market", "bond", "--contract", contract, "--backer", ids.agent, "--amount", "0", "--escrow-payer", ids.me, "--escrow-amount", "0"]);
-  await step(["market", "mandate", "--contract", contract, "--principal", ids.me, "--performer", ids.agent, "--spend-cap", String(cap), ...scopes.flatMap((s) => ["--scopes", s]), ...hosts.flatMap((h) => ["--network-host", h])]);
-  io.err(`  job ${contract.slice(0, 19)}...: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}, for ${minutes} minutes`);
+  // The standing job for this agent and these permissions: reused while it runs and has time left, settled and replaced when it is about to expire.
+  const key = standingKey(ids.agent, scopes, hosts);
+  const standing = readStanding(home);
+  let job: StandingJob | undefined = standing[key];
+  if (job) {
+    const st = (await local.log.chainInfo(job.contract))?.state;
+    const live = st === "Running" || st === "Checkpoint";
+    if (!live || Date.parse(job.expiresAt) - Date.now() < 15 * 60_000) {
+      if (live) await settleStanding(step, job.contract, ids);
+      delete standing[key]; writeStanding(home, standing); job = undefined;
+    }
+  }
+  let created = false;
+  if (!job) {
+    const intent = /^intent (\S+)/m.exec(await step(["market", "intent", "--by", ids.me, "--purpose", `Standing job: ${runtime} as ${ids.agent.split(":").slice(-1)[0]} (${randomBytes(3).toString("hex")})`, "--budget", "0", "--deadline", iso(days * 86_400_000)]))![1];
+    const offer = /^offer (\S+)/m.exec(await step(["market", "offer", "--by", ids.agent, "--intent", intent, "--price", "0", "--plan", `run ${runtime}`, "--eta", iso(days * 86_400_000 - 30 * 60_000)]))![1];
+    const contract = /^contract (sha256:[0-9a-f]{64})/m.exec(await step(["market", "contract", "--principal", ids.me, "--bank", ids.bank, "--intent", intent, "--offer", offer]))![1];
+    await step(["market", "bond", "--contract", contract, "--backer", ids.agent, "--amount", "0", "--escrow-payer", ids.me, "--escrow-amount", "0"]);
+    await step(["market", "mandate", "--contract", contract, "--principal", ids.me, "--performer", ids.agent, "--spend-cap", String(Math.trunc(Number(v.budget ?? "100"))), ...scopes.flatMap((s) => ["--scopes", s]), ...hosts.flatMap((h) => ["--network-host", h])]);
+    job = { contract, agent: ids.agent, key, createdAt: new Date().toISOString(), expiresAt: iso(days * 86_400_000), scopes, hosts, sessions: 0 };
+    created = true;
+  }
+  job.sessions += 1;
+  standing[key] = job; writeStanding(home, standing);
+  const sid = randomBytes(4).toString("hex");
+  const stopFile = join(home, `stop-${sid}`);
+  sessionIndexAdd(home, { t: "start", sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
+  io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
   // The tool, through the gateway. A prompt runs once and its answer is shown as it comes; without one the tool is interactive.
   const bin = io.env.ASP_CLAUDE_BIN ? [io.env.ASP_CLAUDE_BIN, ...(io.env.ASP_CLAUDE_SCRIPT ? [io.env.ASP_CLAUDE_SCRIPT] : [])] : ["claude"];
   const tool = v.prompt
     ? [...bin, "-p", v.prompt, "--allowedTools", "Read", "Glob", "Grep", "Edit", "Write", "Bash", "--output-format", "text", ...(v.model ? ["--model", v.model] : [])]
     : [...bin, ...(v.model ? ["--model", v.model] : [])];
-  const capture = join(home, `run-${Date.now()}.txt`);
+  const capture = join(home, `run-${sid}.txt`);
   const project = resolve(io.cwd, v.project ?? ".");
-  const gw = await quiet(["gateway", "--contract", contract, "--by", ids.agent, "--anthropic-upstream", io.env.ASP_RUN_ANTHROPIC_UPSTREAM ?? prof.upstream, "--max-strikes", "3", ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : {}) });
+  const gw = await quiet(["gateway", "--contract", job.contract, "--by", ids.agent, "--anthropic-upstream", io.env.ASP_RUN_ANTHROPIC_UPSTREAM ?? prof.upstream, "--max-strikes", "3", "--stop-file", stopFile, ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : {}) });
   rmSync(capture, { force: true });
-
-  // Settle the job if the gateway did not already end it (a kill settles it).
-  const state = (await local.log.chainInfo(contract))?.state;
-  if (state === "Running" || state === "Checkpoint") {
-    await step(["market", "deliver", "--contract", contract, "--by", ids.agent, "--summary", purpose]);
-    await step(["market", "accept", "--contract", contract, "--by", ids.me]);
-    await step(["market", "settle", "--contract", contract, "--bank", ids.bank, "--basis", "accepted", "--escrow-released", "0", "--bond-returned", "0", "--bond-slashed", "0"]);
-  }
-  const ended = (await local.log.chainInfo(contract))?.state;
+  const wasStopped = existsSync(stopFile);
+  rmSync(stopFile, { force: true });
 
   const sum = (() => { const line = gw.errLines.find((l) => /^\s*summary\s+\{/.test(l)); return line ? JSON.parse(line.replace(/^\s*summary\s+/, "")) : undefined; })();
   const refused = gw.errLines.filter((l) => /^\s*REFUSED /.test(l)).map((l) => l.trim().replace(/^REFUSED\s+/, ""));
   const stopped = gw.errLines.find((l) => /^\s*stopped /.test(l))?.trim();
+  const state = wasStopped ? "stopped" : gw.code === 0 ? "ended" : "failed";
   io.out("");
   io.out("Session summary");
-  io.out(`  job      ${contract.slice(0, 19)}... ${ended === "Settled" ? "settled" : ended ?? "unknown"}`);
+  io.out(`  session  ${sid}  ${state === "stopped" ? "stopped by you" : state === "ended" ? "finished" : `failed (exit ${gw.code})`}`);
   io.out(`  calls    ${sum?.toolCalls ?? 0} tool call(s) judged, ${refused.length} refused${sum?.tokens ? `; ${sum.tokens.input + sum.tokens.output} tokens` : ""}`);
   for (const r of refused.slice(0, 5)) io.out(`  refused  ${r}`);
   if (refused.length > 5) io.out(`  ... and ${refused.length - 5} more`);
-  if (stopped) io.out(`  ${stopped}`);
-  io.out(`  evidence signed Actions in the log; the Mandate and every refusal are checkable (asp market show ${contract})`);
+  if (stopped && !wasStopped) io.out(`  ${stopped}`);
+  io.out(`  job      standing job ${job.contract.slice(0, 19)}..., ${job.sessions} session(s) so far; the signed Action reports are in the log (asp runs ${sid})`);
+  sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state, calls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, exitCode: gw.code, ...(stopped && !wasStopped ? { stopped } : {}) });
   return gw.code;
+}
+
+/** Settles a standing job as accepted (zero value): the agent delivers, the person accepts, the bank settles. */
+async function settleStanding(step: (args: string[]) => Promise<string>, contract: string, ids: { me: string; agent: string; bank: string }): Promise<void> {
+  await step(["market", "deliver", "--contract", contract, "--by", ids.agent, "--summary", "Standing job ended"]);
+  await step(["market", "accept", "--contract", contract, "--by", ids.me]);
+  await step(["market", "settle", "--contract", contract, "--bank", ids.bank, "--basis", "accepted", "--escrow-released", "0", "--bond-returned", "0", "--bond-slashed", "0"]);
+}
+
+// ---- standing jobs and the history of governed sessions, kept on this machine (prompts stay private) ----
+interface StandingJob { contract: string; agent: string; key: string; createdAt: string; expiresAt: string; scopes: string[]; hosts: string[]; sessions: number }
+const standingPath = (home: string) => join(home, "standing.json");
+function readStanding(home: string): Record<string, StandingJob> { try { return JSON.parse(readFileSync(standingPath(home), "utf8")); } catch { return {}; } }
+function writeStanding(home: string, s: Record<string, StandingJob>): void { mkdirSync(home, { recursive: true }); writeFileSync(standingPath(home), JSON.stringify(s, null, 2) + "\n"); }
+const standingKey = (agent: string, scopes: string[], hosts: string[]) => createHash("sha256").update(JSON.stringify([agent, [...scopes].sort(), [...hosts].sort()])).digest("hex").slice(0, 16);
+
+interface SessionStart { t: "start"; sid: string; contract: string; at: string; runtime: string; agent: string; me: string; bank: string; purpose: string; scopes: string[]; hosts: string[] }
+interface SessionEnd { t: "end"; sid: string; contract: string; at: string; state: string; calls: number; refused: string[]; tokens: number; exitCode: number; stopped?: string }
+const sessionIndexPath = (home: string) => join(home, "runs.ndjson");
+function sessionIndexAdd(home: string, rec: SessionStart | SessionEnd): void {
+  mkdirSync(home, { recursive: true });
+  appendFileSync(sessionIndexPath(home), JSON.stringify(rec) + "\n");
+}
+/** Every governed session, newest first, with its end if it has one. A start with no end is running (or its terminal was closed). */
+function sessionsOf(home: string): { start: SessionStart; end?: SessionEnd }[] {
+  if (!existsSync(sessionIndexPath(home))) return [];
+  const bySid = new Map<string, { start: SessionStart; end?: SessionEnd }>();
+  for (const line of readFileSync(sessionIndexPath(home), "utf8").split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const r = JSON.parse(line) as SessionStart | SessionEnd;
+      if (r.t === "start") bySid.set(r.sid, { start: r });
+      else if (bySid.has(r.sid)) bySid.get(r.sid)!.end = r;
+    } catch { /* a damaged line is skipped */ }
+  }
+  return [...bySid.values()].sort((a, b) => b.start.at.localeCompare(a.start.at));
+}
+const ago = (iso: string) => { const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000)); return s < 90 ? `${s}s ago` : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`; };
+
+/** asp runs [--all] | asp runs <id>: what your governed sessions did, and what was refused. */
+async function runsCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
+  const all = sessionsOf(home);
+  if (!id) {
+    if (!all.length) { io.out("no sessions yet: asp run claude-code --prompt \"...\" starts one"); return 0; }
+    for (const s of all.slice(0, v.all ? all.length : 15)) {
+      const state = s.end?.state ?? "running?";
+      io.out(`  ${s.start.sid}  ${ago(s.start.at).padEnd(11)} ${s.start.runtime.padEnd(11)} ${state.padEnd(9)} ${s.end ? `${s.end.calls} calls, ${s.end.refused.length} refused` : "no end recorded"}  ${s.start.purpose.slice(0, 50)}`);
+    }
+    if (!v.all && all.length > 15) io.out(`  ... ${all.length - 15} older (asp runs --all)`);
+    io.out("details: asp runs <id>");
+    return 0;
+  }
+  const hit = all.filter((s) => s.start.sid.startsWith(id));
+  if (!hit.length) throw new Error(`no session starts with ${id}; asp runs lists them`);
+  if (hit.length > 1) throw new Error(`${id} matches ${hit.length} sessions; give more characters`);
+  const { start, end } = hit[0];
+  io.out(`session ${start.sid}`);
+  io.out(`  started   ${start.at} (${ago(start.at)}), ${start.runtime} as ${start.agent}`);
+  io.out(`  task      ${start.purpose}`);
+  io.out(`  mandate   ${start.scopes.join(", ")}${start.hosts.length ? `; network to ${start.hosts.join(", ")}` : "; no network"}  (standing job ${start.contract})`);
+  io.out(`  ended     ${end ? `${end.at} (${end.state}, exit ${end.exitCode})` : "no end recorded: still running, or the terminal was closed (asp stop <id> ends a running one)"}`);
+  if (end) {
+    io.out(`  calls     ${end.calls} judged, ${end.refused.length} refused, ${end.tokens} tokens`);
+    for (const r of end.refused) io.out(`  refused   ${r}`);
+    if (end.stopped) io.out(`  ${end.stopped}`);
+  }
+  // What the log itself holds for the job.
+  try {
+    const log = (await openLog(home, logEnv)).log;
+    const chain = await log.chain(start.contract);
+    const actions = chain.length ? (await log.since(0, 100000)).filter((s) => s.record.type === "asp.action/v0.2" && (s.record.body as { contract?: string }).contract === start.contract) : [];
+    const sets = actions.map((a) => a.record.body as { scopes_used?: string[]; blocked_attempts?: { scope: string; count: number }[]; assurance?: string });
+    io.out(`  in the log ${chain.length} records on the standing job, ${actions.length} signed Action report(s) across its sessions${sets[0]?.assurance ? `, assurance ${[...new Set(sets.map((x) => x.assurance))].join("/")}` : ""}`);
+    const used = [...new Set(sets.flatMap((x) => x.scopes_used ?? []))];
+    if (used.length) io.out(`            scopes used: ${used.join(", ")}`);
+  } catch (e) { io.out(`  in the log (not readable now: ${(e as Error).message.slice(0, 80)})`); }
+  const rl = findRunLog(home, start.contract);
+  if (rl) io.out(`  run log   ${rl}  (on this machine only; asp run-log ... reads it)`);
+  return 0;
+}
+
+/** asp stop [<id>]: ends a running session from another window. The gateway sees the stop, refuses the agent's next request and ends the tool; the standing job stays. */
+async function stopCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
+  const running = sessionsOf(home).filter((s) => !s.end);
+  const pick = id ? running.filter((s) => s.start.sid.startsWith(id)) : running;
+  if (!pick.length) { io.out(id ? `no running session starts with ${id}` : "nothing is running (asp runs lists sessions)"); return id ? 1 : 0; }
+  if (pick.length > 1) { for (const s of pick) io.out(`  ${s.start.sid}  ${ago(s.start.at)}  ${s.start.purpose.slice(0, 50)}`); throw new Error("more than one session is running; asp stop <id>"); }
+  const { start } = pick[0];
+  mkdirSync(home, { recursive: true });
+  writeFileSync(join(home, `stop-${start.sid}`), `${new Date().toISOString()}\n`);
+  io.out(`stopping session ${start.sid}: its tool ends within a few seconds (the standing job stays; asp standing end ends that too)`);
+  return 0;
+}
+
+/** asp standing [end [<agent name>]]: the standing jobs sessions run under, and ending one (it is settled, and the next run makes a new one). */
+async function standingCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const standing = readStanding(home);
+  const entries = Object.entries(standing);
+  if (sub !== "end") {
+    if (!entries.length) { io.out("no standing jobs yet: the first asp run makes one"); return 0; }
+    for (const [, j] of entries) io.out(`  ${j.contract.slice(0, 19)}...  ${j.agent.split(":").slice(-1)[0]}  ${j.scopes.join(",")}${j.hosts.length ? ` +${j.hosts.join(",")}` : ""}  ${j.sessions} session(s), until ${j.expiresAt.slice(0, 10)}`);
+    io.out("asp standing end ends them (settled; the next run makes a new one)");
+    return 0;
+  }
+  const cfg = readJoinConfig(home);
+  if (!cfg?.identities) throw new Error("asp standing end needs the login and identities asp join saves");
+  const env = { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token };
+  const step = async (args: string[]) => { const out: string[] = [], err: string[] = []; const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env, cwd: io.cwd }); if (code) throw new Error(`${args.slice(0, 3).join(" ")} failed: ${(err.join("\n") || out.join("\n")).trim().slice(0, 300)}`); return out.join("\n"); };
+  const log = (await openLog(home, { ...logEnv, ...env })).log;
+  let ended = 0;
+  for (const [key, j] of entries) {
+    if (rest[0] && !j.agent.endsWith(`:${rest[0]}`)) continue;
+    const st = (await log.chainInfo(j.contract))?.state;
+    if (st === "Running" || st === "Checkpoint") await settleStanding(step, j.contract, cfg.identities);
+    delete standing[key]; ended++;
+  }
+  writeStanding(home, standing);
+  io.out(`${ended} standing job(s) ended`);
+  return 0;
 }
 
 async function run(home: string, pkg: string | undefined, v: Values, need: Need, io: Io): Promise<number> {

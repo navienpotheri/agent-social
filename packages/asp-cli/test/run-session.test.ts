@@ -67,11 +67,12 @@ test("asp run claude-code: a governed session with no paperwork: a job is made, 
     assert.match(r.out, /\[ASP\] The action "Bash" was not run/);
     // Then a short summary, nothing like a wall of events.
     assert.match(r.out, /Session summary/);
-    assert.match(r.out, /job\s+sha256:[0-9a-f]{12}\S*\.\.\. settled/);
+    assert.match(r.out, /session\s+[0-9a-f]{8}\s+finished/);
+    assert.match(r.out, /job\s+standing job sha256:[0-9a-f]{12}\S*\.\.\., 1 session\(s\) so far/);
     assert.match(r.out, /2 tool call\(s\) judged, 1 refused/);
     assert.match(r.out, /refused\s+Bash -> shell\.network/);
     assert.ok(!/stream|session_id|rate_limit/.test(r.out), "no raw event stream");
-    assert.match(r.err, new RegExp(`job sha256:.*my-agent may read and write files, run commands; no network, for 120 minutes`));
+    assert.match(r.err, /session [0-9a-f]{8}: my-agent may read and write files, run commands; no network; new standing job \(7 days\)/);
   } finally {
     server.kill(); upstream.close();
   }
