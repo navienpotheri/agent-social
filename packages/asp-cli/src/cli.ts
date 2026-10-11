@@ -291,7 +291,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, accountRoutes, didDocumentRoutes, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -434,6 +434,7 @@ const OPTIONS = {
   "skip-export": { type: "boolean" },
   "starter-pool": { type: "string" },
   "no-recovery": { type: "boolean" },
+  "max-agents": { type: "string" },
   ask: { type: "string" },
   "stop-file": { type: "string" },
   "standing-days": { type: "string" },
@@ -610,6 +611,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "stop") return await stopCmd(home, sub, v, io);
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
     if (cmd === "approvals") return await approvalsCmd(home, sub, rest, v, io);
+    if (cmd === "agent") return await agentCmd(home, sub, rest, v, io);
     if (cmd === "leave") return leaveCmd(home, io);
     if (cmd === "court") return await courtCmd(home, sub, v, io);
     if (cmd === "serve") return await serve(v, need, io);
@@ -1605,7 +1607,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   if (jurorMode !== "operator-only" && jurorMode !== "verified") throw new UsageError("--jurors is operator-only (the beta's default: the operator seats the court) or verified");
   // Identities in the tenant's own namespace (blocker 12): the service publishes their DID documents and refuses passports outside the namespace. On when --did-domain is
   // given, or --public-url names a host.
-  const guards = !noAuth ? [courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain })] : [])] : [];
+  const guards = !noAuth ? [courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain }), agentCapGuard({ domain: didDomain, max: num("max-agents", 20), owners })] : [])] : [];
   const guard = guards.length ? async (c: Parameters<typeof guards[0]>[0]) => { for (const g of guards) { const r = await g(c); if (r) return r; } return undefined; } : undefined;
   const publicList = [...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
@@ -3705,6 +3707,57 @@ async function stopCmd(home: string, id: string | undefined, v: Values, io: Io):
   mkdirSync(home, { recursive: true });
   writeFileSync(join(home, `stop-${start.sid}`), `${new Date().toISOString()}\n`);
   io.out(`stopping session ${start.sid}: its tool ends within a few seconds (the standing job stays; asp standing end ends that too)`);
+  return 0;
+}
+
+/**
+ * asp agent add <name> [--purpose <text>] | list | use <name>: your agents on the service (launch blocker 12). Each is its own identity in your namespace, sponsored by you, with its
+ * own key on this machine; `asp run <runtime> --agent <name>` runs it, and `use` makes one the default. An agent whose key is lost is recovered by you, its sponsor.
+ */
+async function agentCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const cfg = readJoinConfig(home);
+  if (!cfg?.identities) throw new Error("you have not joined yet: run asp join first");
+  const env = { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token };
+  const acct = (await (await fetchRetry(new URL("account", cfg.service + "/"), { headers: { authorization: `Bearer ${cfg.token}` } })).json().catch(() => undefined)) as any;
+  if (!acct?.ok || !acct.namespace) throw new Error("could not read your account from the service");
+  const domain = acct.namespace.domain as string;
+  const short = (did: string) => did.split(":").slice(-1)[0];
+  const nameOk = (n: string | undefined): n is string => !!n && /^[a-z0-9][a-z0-9-]{0,31}$/.test(n);
+  if (sub === "add") {
+    const name = rest[0];
+    if (!nameOk(name)) throw new UsageError("asp agent add <name>: lower-case letters, digits and hyphens, up to 32");
+    const out: string[] = [], err: string[] = [];
+    const code = await main(["identity", "new", "--kind", "agent", "--name", name, "--sponsor", cfg.identities.me, "--purpose", v.purpose ?? `Agent ${name}`], { out: (l) => out.push(l), err: (l) => err.push(l), env, cwd: io.cwd });
+    if (code) throw new Error((err.join("\n") || out.join("\n")).trim().slice(0, 300));
+    io.out(`added agent ${name}: ${didFor(domain, cfg.tenant, "agent", name)}`);
+    io.out(`  run it:    asp run claude-code --agent ${name} --prompt "..."`);
+    io.out(`  default:   asp agent use ${name}`);
+    io.out("  its key is on this machine; if it is lost you, its sponsor, can issue a new one (asp identity recover <did> --by-sponsor)");
+    return 0;
+  }
+  if (sub === "use") {
+    const name = rest[0];
+    if (!nameOk(name)) throw new UsageError("asp agent use <name>");
+    const did = didFor(domain, cfg.tenant, "agent", name);
+    const local = await openLog(home, { ...logEnv, ...env });
+    if (!(await local.log.passport(did))) throw new Error(`no agent called ${name}; asp agent list shows yours`);
+    writeFileSync(joinConfigPath(home), JSON.stringify({ ...cfg, identities: { ...cfg.identities, agent: did } }, null, 2) + "\n", { mode: 0o600 });
+    io.out(`${name} is now the agent asp run uses by default`);
+    return 0;
+  }
+  if (sub && sub !== "list") throw new UsageError("usage: asp agent add <name> [--purpose <text>] | list | use <name>");
+  const keys = new Keystore(home);
+  const sessions = sessionsOf(home);
+  const standing = Object.values(readStanding(home));
+  const agents = ((acct.identities ?? []) as { did: string; kind?: string; recovery: string }[]).filter((i) => i.kind === "agent" || i.did.startsWith(namespaceOf(domain, cfg.tenant).agentPrefix));
+  if (!agents.length) { io.out("no agents yet: asp agent add <name>"); return 0; }
+  for (const a of agents) {
+    const mine = sessions.filter((s) => s.start.agent === a.did);
+    const last = mine[0];
+    const job = standing.filter((j) => j.agent === a.did).sort((x, y) => y.expiresAt.localeCompare(x.expiresAt))[0];
+    io.out(`  ${short(a.did).padEnd(16)} ${a.did === cfg.identities.agent ? "(default) " : ""}${keys.entriesFor(a.did).length ? "key here" : "KEY NOT ON THIS MACHINE"}; ${a.recovery === "sponsor" ? "recoverable by you" : a.recovery}; ${mine.length} session(s)${last ? `, last ${ago(last.start.at)}` : ""}${job ? `; standing job until ${job.expiresAt.slice(0, 10)}` : ""}`);
+  }
+  io.out(`${agents.length} agent(s); asp agent add <name> makes another`);
   return 0;
 }
 

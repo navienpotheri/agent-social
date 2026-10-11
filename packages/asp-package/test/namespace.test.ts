@@ -38,3 +38,16 @@ test("the namespace guard: a tenant's passport outside its namespace is refused 
   assert.equal(await g({ tenant: tenant("team-a"), method: "append", args: [{ type: "asp.action/v0.2", issuer: "did:web:elsewhere:x", body: {} }] }), undefined);
   assert.equal(await g({ tenant: tenant("ops", "admin"), method: "append", args: [passport("did:web:log.example.org:court:juror-1")] }), undefined);
 });
+
+import { agentCapGuard } from "../src/index.ts";
+
+test("the agent cap: a tenant may have only so many agents; an update to one it has, a person, an admin and other records are not counted", async () => {
+  const mine = new Set(["did:web:log.example.org:a:team-a:one", "did:web:log.example.org:a:team-a:two", "did:web:log.example.org:u:team-a"]);
+  const g = agentCapGuard({ domain: D, max: 2, owners: { of: () => [...mine] } });
+  const passport = (did: string) => ({ type: "asp.passport/v0.2", issuer: did, body: { did } });
+  assert.match((await g({ tenant: tenant("team-a"), method: "append", args: [passport("did:web:log.example.org:a:team-a:three")] }))!, /already has 2 agents; the beta allows 2/);
+  assert.equal(await g({ tenant: tenant("team-a"), method: "append", args: [passport("did:web:log.example.org:a:team-a:one")] }), undefined, "an update to an agent it already has");
+  assert.equal(await g({ tenant: tenant("team-a"), method: "append", args: [passport("did:web:log.example.org:u:team-a:bank")] }), undefined, "a person is not an agent");
+  assert.equal(await g({ tenant: tenant("ops", "admin"), method: "append", args: [passport("did:web:log.example.org:a:team-a:three")] }), undefined);
+  assert.equal(await g({ tenant: tenant("team-a"), method: "append", args: [{ type: "asp.action/v0.2", issuer: "x", body: {} }] }), undefined);
+});

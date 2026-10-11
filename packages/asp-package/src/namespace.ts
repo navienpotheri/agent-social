@@ -56,6 +56,21 @@ export function namespaceGuard(o: { domain: string }) {
   };
 }
 
+/** A write guard: a tenant may have at most `max` agents (passports under its agent namespace), so one sign-up cannot fill the log with identities. */
+export function agentCapGuard(o: { domain: string; max: number; owners: { of(tenant: string): string[] } }) {
+  return async (c: { tenant: Tenant; method: string; args: unknown[] }): Promise<string | undefined> => {
+    if (c.tenant.role === "admin" || c.method !== "append") return undefined;
+    const r = c.args[0] as Rec | undefined;
+    const did = r?.body?.did;
+    if (typeof r?.type !== "string" || !r.type.startsWith("asp.passport/") || typeof did !== "string") return undefined;
+    const prefix = namespaceOf(o.domain, c.tenant.name).agentPrefix;
+    if (!did.startsWith(prefix)) return undefined;
+    const have = o.owners.of(c.tenant.name).filter((d) => d.startsWith(prefix));
+    if (have.includes(did)) return undefined; // an update to an agent it already has
+    return have.length >= o.max ? `this tenant already has ${have.length} agents; the beta allows ${o.max} (ask the operator for more)` : undefined;
+  };
+}
+
 /** The DID a document path stands for, or undefined: /u/<tenant>/did.json, /u/<tenant>/<name>/did.json, /a/<tenant>/<name>/did.json. */
 export function didOfPath(domain: string, path: string): string | undefined {
   const m = /^\/(u|a)\/([^/]+)(?:\/([^/]+))?\/did\.json$/.exec(path);
