@@ -107,6 +107,12 @@ fi
 MAIL_FROM="${MAIL_FROM:-Agent Social <noreply@${DOMAIN#*.}>}"
 MAIL_OPERATOR="${MAIL_OPERATOR:-navien@${DOMAIN#*.}}"
 GOOGLE_FLAGS=""
+# The client id (not a secret) is remembered in asp.env, so a plain re-run of this script keeps Google sign-up on instead of silently turning it off.
+if [ -n "${GOOGLE_CLIENT_ID:-}" ]; then
+  sed -i '/^GOOGLE_CLIENT_ID=/d' "$ETC/asp.env"; echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" >> "$ETC/asp.env"
+elif grep -q '^GOOGLE_CLIENT_ID=.\+' "$ETC/asp.env"; then
+  GOOGLE_CLIENT_ID="$(grep '^GOOGLE_CLIENT_ID=' "$ETC/asp.env" | tail -1 | cut -d= -f2-)"
+fi
 if [ -n "${GOOGLE_CLIENT_ID:-}" ]; then
   if grep -q '^GOOGLE_CLIENT_SECRET=.\+' "$ETC/asp.env"; then
     GOOGLE_FLAGS="--google-client-id $GOOGLE_CLIENT_ID --google-redirect-uri https://$DOMAIN/auth/callback --signup-require-google"
