@@ -14,6 +14,7 @@ export type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter
 export { Keystore, LocalLog, aspHome, openLog } from "./home.ts";
 export { RemoteLog } from "./remote.ts";
 export { packageRoutes, type PackageServiceOptions } from "./packages-service.ts";
+export { ALSO, ASP_YAML_KEYS, EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpPage, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type AskResult, type HomeState, type Topic, type YamlValue } from "./guide.ts";
 export { runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, sealedLogsOf, x25519PublicFromEd25519, type SealedRunLog, type Disclosure, type PublicKeyOf, type RunLogServiceOptions } from "./runlog-vault.ts";
 export { PackagesClient, PackageServiceError, type RemoteListing, type RemotePackage } from "./packages-client.ts";
 export type { LogHandle } from "@agent-social/asp-log";

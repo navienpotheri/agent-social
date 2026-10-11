@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
- * asp: the Agent Social portability tool.
+ * asp: the Agent Social portability tool. This is the complete reference (asp --help, asp help all). `asp` alone shows a short home; asp help <topic or words> explains by topic.
  *
+ *   asp | asp status | asp help [topic|words|all] | asp ask "<words>" [--yes] | asp init | asp trust [asp.yaml] | asp shim bash|zsh|powershell
+ *     The home, where things stand and what to do next, help by topic or search (the same text is at /help on the service), a rule-based words-to-command that shows the command first
+ *     (S110), a starter asp.yaml of project defaults (allow-network is used only from a file you trust), and a script for your shell (completion; claude starts a governed session).
  *   asp identity new --kind human (--did <did> | --method did:key) [--sponsor <did>]
  *   asp identity new --kind agent (--did <did> | --method did:key) --sponsor <did> [--fleet <did>] [--purpose <text>]
  *     --did <did> uses a DID you already have (e.g. did:web:your-own-domain:...). --method did:key
@@ -290,6 +293,7 @@ import {
   DEFAULT_NETWORK_RATE, isNetworkScope, signerFromSeed, b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
+import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
@@ -574,11 +578,13 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     return 2;
   }
   const { values: v, positionals: [cmd, sub, ...rest] } = parsed;
-  if (!cmd || v.help) {
+  // The full reference (every command, as the file header writes it): asp --help, asp help all. `asp` alone shows the short home instead.
+  if (v.help || (cmd === "help" && sub === "all")) {
     io.out(readFileSync(new URL(import.meta.url), "utf8").split("*/")[0].replace(/^[\s\S]*?\/\*\*\n/, "").replace(/^ \* ?/gm, ""));
-    return cmd ? 0 : 2;
+    return 0;
   }
   const home = aspHome(v.home ?? io.env.ASP_HOME);
+  if (!cmd) return homeCmd(home, io);
   // After `asp join` the service and the token are saved in the ASP home, so nothing has to be exported: the environment, when set, wins.
   if (cmd !== "join" && !io.env.ASP_LOG_URL) {
     const cfg = readJoinConfig(home);
@@ -619,6 +625,12 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
     if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "signup") return await signupCmd(v, io);
+    if (cmd === "help") return helpCmd(sub ? [sub, ...rest] : [], io);
+    if (cmd === "status") return await statusCmd(home, io);
+    if (cmd === "ask") return await askCmd(home, [sub, ...rest].filter(Boolean).join(" "), v, io);
+    if (cmd === "init") return initCmd(home, io);
+    if (cmd === "trust") return trustCmd(home, sub, io);
+    if (cmd === "shim") return shimCmd(sub, io);
     if (cmd === "account") return await accountCmd(sub, v, io);
     if (cmd === "join") return await joinCmd(home, v, io);
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
@@ -1634,7 +1646,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   // given, or --public-url names a host.
   const guards = !noAuth ? [courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain }), agentCapGuard({ domain: didDomain, max: num("max-agents", 20), owners })] : [])] : [];
   const guard = guards.length ? async (c: Parameters<typeof guards[0]>[0]) => { for (const g of guards) { const r = await g(c); if (r) return r; } return undefined; } : undefined;
-  const publicList = [...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  const publicList = [helpRoutes(), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
@@ -3878,6 +3890,187 @@ async function settleStanding(step: (args: string[]) => Promise<string>, contrac
   await step(["market", "settle", "--contract", contract, "--bank", ids.bank, "--basis", "accepted", "--escrow-released", "0", "--bond-returned", "0", "--bond-slashed", "0"]);
 }
 
+// ---- discoverability (launch blocker 12 item 10): the home screen, status, help, ask, asp.yaml and the shell shim ----
+
+/** The nearest asp.yaml from here upwards, or undefined. */
+function findAspYaml(cwd: string): string | undefined {
+  let dir = resolve(cwd);
+  for (let i = 0; i < 25; i++) {
+    const f = join(dir, "asp.yaml");
+    if (existsSync(f)) return f;
+    const up = dirname(dir);
+    if (up === dir) return undefined;
+    dir = up;
+  }
+  return undefined;
+}
+const trustedYamlPath = (home: string) => join(home, "trusted-asp-yaml.json");
+const yamlHash = (text: string) => createHash("sha256").update(text).digest("hex");
+function readTrustedYaml(home: string): string[] { try { return JSON.parse(readFileSync(trustedYamlPath(home), "utf8")) as string[]; } catch { return []; } }
+function trustYaml(home: string, text: string): void {
+  const have = readTrustedYaml(home);
+  if (have.includes(yamlHash(text))) return;
+  mkdirSync(home, { recursive: true });
+  writeFileSync(trustedYamlPath(home), JSON.stringify([...have, yamlHash(text)].slice(-50), null, 2) + "\n");
+}
+
+/**
+ * The project's asp.yaml as defaults for a session: a bare `asp run` starts the runtime the file names, and a setting the command line does not give comes from the file. The one setting
+ * that widens what an agent may reach, allow-network, is used only from a file you have trusted (asp trust, or asp init, which wrote it), so a cloned repository cannot grant itself the network.
+ */
+function withAspYaml(home: string, pkg: string | undefined, v: Values, io: Io): { pkg: string | undefined; v: Values } {
+  if (v.headless || (pkg && !SESSION_RUNTIMES[pkg])) return { pkg, v };
+  const file = findAspYaml(io.cwd);
+  if (!file) return { pkg, v };
+  const text = readFileSync(file, "utf8");
+  const { values, errors } = parseAspYaml(text);
+  if (errors.length) throw new UsageError(`${file}: ${errors.join("; ")}`);
+  const runtime = pkg ?? (values.runtime as string | undefined);
+  if (!runtime) return { pkg, v };
+  if (!SESSION_RUNTIMES[runtime]) throw new UsageError(`${file}: runtime ${runtime} is not one asp run can start (${Object.keys(SESSION_RUNTIMES).join(", ")})`);
+  const merged: Record<string, unknown> = { ...v };
+  for (const [k, val] of Object.entries(values)) {
+    if (k === "runtime" || merged[k] !== undefined) continue;
+    if (k === "allow-network" && !readTrustedYaml(home).includes(yamlHash(text))) {
+      throw new Error(`${file} asks for network access to ${(val as string[]).join(", ")}, and you have not trusted this file. If you wrote it or have read it: asp trust ${relative(io.cwd, file) || "asp.yaml"}`);
+    }
+    merged[k] = Array.isArray(val) ? val.join(",") : typeof val === "number" ? String(val) : val;
+  }
+  io.err(`  using ${relative(io.cwd, file) || "asp.yaml"}`);
+  return { pkg: runtime, v: merged as Values };
+}
+
+/** asp init: a starter asp.yaml in this folder (trusted, since you just made it). */
+function initCmd(home: string, io: Io): number {
+  const file = join(io.cwd, "asp.yaml");
+  if (existsSync(file)) throw new Error("asp.yaml already exists here; edit it, or delete it and run asp init again");
+  writeFileSync(file, STARTER_ASP_YAML);
+  trustYaml(home, STARTER_ASP_YAML);
+  io.out("wrote asp.yaml: now a bare `asp run` starts the runtime it names. asp help asp-yaml explains the settings");
+  return 0;
+}
+
+/** asp trust [asp.yaml]: you have read this file and accept what it asks for (the network hosts). It is trusted as it is now: change it and it must be trusted again. */
+function trustCmd(home: string, file: string | undefined, io: Io): number {
+  const path = file ? resolve(io.cwd, file) : findAspYaml(io.cwd);
+  if (!path || !existsSync(path)) throw new UsageError("asp trust <asp.yaml>   (no asp.yaml found here or above)");
+  const text = readFileSync(path, "utf8");
+  const { values, errors } = parseAspYaml(text);
+  if (errors.length) throw new UsageError(`${path}: ${errors.join("; ")}`);
+  trustYaml(home, text);
+  const hosts = values["allow-network"] as string[] | undefined;
+  io.out(`trusted ${path}${hosts?.length ? `: agents started with it may reach ${hosts.join(", ")}` : " (it asks for no network access)"}`);
+  return 0;
+}
+
+function homeState(home: string, io: Io): HomeState {
+  const cfg = readJoinConfig(home);
+  const sessions = sessionsOf(home);
+  const soon = Object.values(readStanding(home)).find((j) => { const left = Date.parse(j.expiresAt) - Date.now(); return left > 0 && left < 86_400_000; });
+  return { joined: !!cfg, tenant: cfg?.tenant, agent: cfg?.identities?.agent.split(":").pop(), running: sessions.filter((s) => !s.end).length, sessions: sessions.length, standingEndingSoon: soon?.agent.split(":").pop(), hasYaml: !!findAspYaml(io.cwd) };
+}
+
+/** `asp` with nothing after it: the everyday commands and what to type next. Reads only files on this machine, so it is instant. */
+function homeCmd(home: string, io: Io): number {
+  for (const l of homeText(homeState(home, io))) io.out(l);
+  return 0;
+}
+
+/** asp status: who you are, what is running, what is waiting for you, and what to do next. It asks the service and the log, and says so when it cannot. */
+async function statusCmd(home: string, io: Io): Promise<number> {
+  const s = homeState(home, io);
+  const cfg = readJoinConfig(home);
+  if (!cfg) { io.out("You have not joined yet.\nNext:\n  asp join"); return 0; }
+  io.out(`${cfg.tenant} on ${cfg.service}${s.agent ? `; default agent ${s.agent}` : ""}`);
+  const next: string[] = [];
+  try {
+    const res = await fetchRetry(new URL("account", cfg.service + "/"), { headers: { authorization: `Bearer ${cfg.token}` } });
+    const a = (await res.json().catch(() => undefined)) as any;
+    if (!res.ok || !a?.ok) io.out(`  service: answered ${res.status}${res.status === 401 ? " (your token was refused: asp join --again)" : ""}`);
+    else {
+      io.out(`  service: reachable; ${a.usage?.records ?? 0} record(s) written`);
+      for (const i of (a.identities ?? []) as { did: string; recovery: string }[]) if (i.recovery === "none") next.push(`${i.did.split(":").slice(-1)[0]} has no key recovery: asp identity backup ${i.did}`);
+      if (a.starter?.available) next.push("starter credits are waiting: asp account starter");
+    }
+  } catch (e) { io.out(`  service: not reachable now (${(e as Error).message.slice(0, 60)}); what follows is from this machine`); }
+  const sessions = sessionsOf(home);
+  const running = sessions.filter((x) => !x.end);
+  if (running.length) { io.out(`  running: ${running.length}`); for (const r of running.slice(0, 5)) io.out(`    ${r.start.sid}  ${r.start.runtime}  started ${ago(r.start.at)}  ${r.start.purpose.slice(0, 40)}`); next.unshift("asp stop   (ends it; a session with no end recorded may just have had its window closed)"); }
+  else io.out("  running: nothing");
+  const last = sessions.find((x) => x.end);
+  if (last?.end) io.out(`  last session: ${last.start.runtime}, ${ago(last.end.at)}, ${last.end.calls} call(s), ${last.end.refused.length} refused`);
+  try {
+    const waiting = await waitingApprovals(home);
+    io.out(`  waiting for your yes: ${waiting.length || "nothing"}`);
+    for (const w of waiting.slice(0, 5)) io.out(`    ${w.n}  ${w.question.slice(0, 70)}`);
+    if (waiting.length) next.unshift("asp approvals   (then approve or refuse)");
+  } catch { io.out("  waiting for your yes: could not read the log now"); }
+  const standing = Object.values(readStanding(home));
+  if (standing.length) io.out(`  standing jobs: ${standing.length}, the next ends ${standing.map((j) => j.expiresAt).sort()[0].slice(0, 10)}`);
+  for (const n of nextSteps({ ...s, running: running.length })) if (!next.includes(n)) next.push(n);
+  if (next.length) { io.out("Next:"); for (const n of next) io.out(`  ${n}`); }
+  return 0;
+}
+
+/** asp help | asp help <topic> | asp help <words to search> | asp help all (the full reference). */
+function helpCmd(args: string[], io: Io): number {
+  if (!args.length) {
+    io.out("Agent Social help");
+    io.out("");
+    for (const [c, d] of EVERYDAY) io.out(`  ${c.padEnd(24)}${d}`);
+    io.out("");
+    io.out("Topics (asp help <topic>):");
+    for (const t of TOPICS) io.out(`  ${t.name.padEnd(12)}${t.title}`);
+    io.out("");
+    io.out("asp help <words> searches the topics. asp help all prints the complete reference. The same text is at /help on the service.");
+    return 0;
+  }
+  const exact = args.length === 1 ? topicNamed(args[0]) : undefined;
+  const found = exact ? [exact] : searchTopics(args.join(" ")).slice(0, 3);
+  if (!found.length) { io.out(`nothing in the help matches "${args.join(" ")}". Topics: ${TOPICS.map((t) => t.name).join(", ")}`); return 1; }
+  for (const t of found) { io.out(`${t.title}`); for (const l of t.body) io.out(`  ${l}`); io.out(""); }
+  if (!exact && found.length === 3) io.out("(the three best matches; asp help <topic> shows one)");
+  return 0;
+}
+
+/**
+ * asp ask "<what you want>" [--yes]: fixed rules from words to a command, no model. It shows the command it understood first and asks before running it; a command that cannot be undone
+ * (closing an account, ending a standing job) it only shows. Without a terminal to answer on, it shows the command and stops unless --yes.
+ */
+async function askCmd(home: string, text: string, v: Values, io: Io): Promise<number> {
+  if (!text.trim()) throw new UsageError("asp ask \"<what you want>\"   for example: asp ask \"stop what is running\"");
+  const r = askToCommand(text, { tenant: readJoinConfig(home)?.tenant });
+  if (!r) {
+    io.out("I did not understand that, and I only follow fixed rules. Try asking differently, or search the help:");
+    for (const t of searchTopics(text).slice(0, 3)) io.out(`  asp help ${t.name}   ${t.title}`);
+    io.out("  asp help   lists the topics");
+    return 1;
+  }
+  io.out(`I read that as:  ${shown(r.args)}`);
+  if (!r.complete) { io.out("  it still needs your details (the <...> parts). Fill them in and run it yourself."); return 0; }
+  if (r.risk === "destructive") { io.out("  that cannot be undone, so asp ask only shows it. Run it yourself if you mean it."); return 0; }
+  let go = !!v.yes;
+  if (!go) {
+    let answer: string | undefined;
+    if (io.ask) answer = await io.ask("Run it? [y/N] ");
+    else if (process.stdin.isTTY) {
+      const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stderr });
+      try { answer = await rl.question("Run it? [y/N] "); } finally { rl.close(); }
+    } else { io.out("  (not run: there is no one here to answer. Add --yes to run it.)"); return 0; }
+    go = /^y/i.test(answer ?? "");
+  }
+  if (!go) { io.out("  not run"); return 0; }
+  return await main(v.home ? ["--home", v.home, ...r.args] : r.args, io);
+}
+
+/** asp shim bash|zsh|powershell: a script for your shell's startup file (completion, and `claude` starting a governed session). asp never edits your startup files itself. */
+function shimCmd(shell: string | undefined, io: Io): number {
+  const script = shell ? shimScript(shell) : undefined;
+  if (!script) throw new UsageError("usage: asp shim bash|zsh|powershell   (asp help shim)");
+  io.out(script.replace(/\n$/, ""));
+  return 0;
+}
+
 // ---- standing jobs and the history of governed sessions, kept on this machine (prompts stay private) ----
 interface StandingJob { contract: string; agent: string; key: string; createdAt: string; expiresAt: string; scopes: string[]; hosts: string[]; gate?: string[]; sessions: number }
 const standingPath = (home: string) => join(home, "standing.json");
@@ -4059,10 +4252,9 @@ async function agentCmd(home: string, sub: string | undefined, rest: string[], v
  * asp approvals [approve|refuse [<n>]]: the calls your agents are waiting to make that need your yes (a gate in the Mandate: asp run --ask commands). Answer from here, in another
  * window from the session, or inline when the session asks you. Your answer is signed with your key and goes in the log.
  */
-async function approvalsCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
-  const standing = readStanding(home);
-  const contracts = [...new Set(Object.values(standing).map((j) => j.contract))];
-  const cfg = readJoinConfig(home);
+/** The calls waiting for the person's answer, from the standing jobs' chains in the log. */
+async function waitingApprovals(home: string): Promise<{ n: number; contract: string; checkpoint: string; question: string; action: string; principal: string }[]> {
+  const contracts = [...new Set(Object.values(readStanding(home)).map((j) => j.contract))];
   const local = await openLog(home, logEnv);
   const open: { n: number; contract: string; checkpoint: string; question: string; action: string; principal: string }[] = [];
   for (const c of contracts) {
@@ -4074,6 +4266,12 @@ async function approvalsCmd(home: string, sub: string | undefined, rest: string[
     const principal = ((await local.log.get(c))!.record.body as { principal: string }).principal;
     open.push({ n: open.length + 1, contract: c, checkpoint: last.id, question: b.question ?? "", action: b.proposed_action ?? "", principal });
   }
+  return open;
+}
+
+async function approvalsCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const cfg = readJoinConfig(home);
+  const open = await waitingApprovals(home);
   if (!sub || sub === "list") {
     if (!open.length) { io.out("nothing is waiting for your answer"); return 0; }
     for (const o of open) io.out(`  ${o.n}  ${o.question}\n       ${o.action}`);
@@ -4125,6 +4323,7 @@ async function standingCmd(home: string, sub: string | undefined, rest: string[]
 }
 
 async function run(home: string, pkg: string | undefined, v: Values, need: Need, io: Io): Promise<number> {
+  ({ pkg, v } = withAspYaml(home, pkg, v, io));
   if (pkg && SESSION_RUNTIMES[pkg] && !existsSync(resolve(io.cwd, pkg))) return await runSession(home, pkg, v, io);
   if (pkg && ADAPTERS[pkg] && !existsSync(resolve(io.cwd, pkg))) throw new UsageError(`asp run ${pkg} as a one-command session is not built yet (${Object.keys(SESSION_RUNTIMES).join(", ")} are). For ${pkg}: asp pack --runtime ${pkg} --agent <your agent did> --project <dir> --out <package>, then asp run <package> --backend ${pkg}`);
   if (!pkg) throw new UsageError(`asp run <runtime> [--prompt <text>] (${Object.keys(SESSION_RUNTIMES).join(", ")}), or asp run <package> --backend <runtime>`);

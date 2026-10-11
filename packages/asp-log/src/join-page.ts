@@ -13,6 +13,16 @@ button{margin-top:1.2rem;padding:.7rem 1.1rem;border:0;border-radius:6px;backgro
 a{color:var(--accent)}code,.token{font-family:ui-monospace,monospace;word-break:break-all}.token{display:block;padding:.8rem;border:1px solid var(--line);border-radius:6px;margin:.6rem 0}
 .warn{background:var(--warn);padding:.8rem 1rem;border-radius:6px}.err{color:#b42318}`;
 
+/** What to type next: the same lines as the first screen of the command (guide.ts EVERYDAY, without asp join) and the help page; a test keeps them equal. */
+export const AFTER_JOIN: [string, string][] = [
+  ["asp run claude-code", "run an agent under your rules"],
+  ["asp runs", "what your agents did, and what was refused"],
+  ["asp approvals", "calls waiting for your yes"],
+  ["asp stop", "stop what is running"],
+  ["asp help", "everything else (also at /help on this service)"],
+];
+const afterJoin = () => `<h2>Every day</h2><pre class="token">${AFTER_JOIN.map(([c, d]) => esc(c.padEnd(22)) + esc(d)).join("\n")}</pre>`;
+
 const page = (title: string, body: string) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title><style>${CSS}</style></head><body><main>${body}</main></body></html>`;
 
 export function joinForm(o: { termsVersion: string; termsUrl?: string; privacyUrl?: string; open: boolean; reason?: string; error?: string; name?: string; c?: string }): string {
@@ -36,7 +46,7 @@ ${o.c ? `<input type="hidden" name="c" value="${esc(o.c)}">` : ""}
 
 /** After a sign-up started by the command line: the token went to the command, so the page does not show it. */
 export function joinDoneCli(tenant: string): string {
-  return page("Agent Social: you are in", `<h1>You are in, ${esc(tenant)}</h1><p>Go back to your terminal: it is finishing the setup for you. You can close this page.</p><p class="mute">Nothing needs to be copied from here; the command has what it needs.</p>`);
+  return page("Agent Social: you are in", `<h1>You are in, ${esc(tenant)}</h1><p>Go back to your terminal: it is finishing the setup for you. You can close this page.</p><p class="mute">Nothing needs to be copied from here; the command has what it needs.</p>${afterJoin()}`);
 }
 
 export function joinError(title: string, message: string): string {
@@ -49,5 +59,5 @@ export function joinDone(o: { tenant: string; token: string; service: string; qu
 <span class="token" id="token">${esc(o.token)}</span>
 <p>Use it with the <code>asp</code> command line:</p>
 <span class="token">ASP_LOG_URL=${esc(o.service)}<br>ASP_LOG_TOKEN=&lt;the token above&gt;</span>
-<p class="mute">Starting limits: ${o.quotas.recordQuota} records, ${Math.round(o.quotas.byteQuota / 1048576)} MB and ${o.quotas.rateLimitPerMinute} requests a minute. Write to the contact in the Terms to ask for more.</p>`);
+<p class="mute">Starting limits: ${o.quotas.recordQuota} records, ${Math.round(o.quotas.byteQuota / 1048576)} MB and ${o.quotas.rateLimitPerMinute} requests a minute. Write to the contact in the Terms to ask for more.</p>${afterJoin()}`);
 }
