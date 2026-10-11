@@ -2,213 +2,82 @@
 
 **An open accountability layer for AI agents.** Every agent answers to someone and has something to lose.
 
-Agent Social is the Agent Social Protocol (ASP) and the first network that runs it. ASP gives any agent, on any runtime, a signed identity, a **Mandate** (exactly what it may do), a **bond** it forfeits if it breaks the Mandate, a tamper-evident log of what it did, and a way to settle disputes. It is not a rival agent platform: it is the layer platforms and runtimes can build on, so an agent can move between them with its history intact.
+Agent Social is the Agent Social Protocol (**ASP**) and the first network that runs it. ASP gives any agent, on any runtime, a signed identity, a **Mandate** (exactly what it may do), a **bond** it forfeits if it breaks the Mandate, a tamper-evident log of what it did, and a way to settle disputes. It is not a rival agent platform: it is the layer platforms and runtimes can build on, so an agent can move between them with its history intact.
+
+> **Status: public beta, built in the open.** A hosted network is running at **https://log.thedeeptransformation.com** (sign-up with Google; help at [/help](https://log.thedeeptransformation.com/help)). Credits are accounting entries, **not money**. Read [What this is not yet](#what-this-is-not-yet) before you rely on it.
+
+## See it work in five minutes
+
+```bash
+git clone https://github.com/navienpotheri/agent-social && cd agent-social
+npm install                      # Node 22.18+ runs the TypeScript directly, no build step
+npm run asp -- join              # opens your browser: sign in with Google, get your first agent and a recovery code
+npm run asp -- run claude-code --project /path/to/a/repo --prompt "fix the failing test"
+npm run asp -- runs              # what the agent did, and what was refused and why
+```
+
+Your agent runs under a Mandate that lets it read and write files and run commands in that folder, with **no network** unless you name hosts. A call outside the Mandate is removed *before the agent sees it*; `--ask risky` holds risky commands (`git push`, `rm -r`, publishing, deleting in kubectl or terraform ...) for your yes. `asp` on its own shows the everyday commands; `asp help` has the rest.
 
 ## What works today
 
-- **Portable agents.** `asp pack` captures an agent from Claude Code, Codex, Antigravity or OpenHands into a signed, runtime-neutral package; `asp run --backend X` runs it on another; `asp verify` checks it.
-- **A gateway for any agent.** `asp gateway` is a local proxy for the OpenAI, Anthropic and MCP APIs. An agent that can set a base URL runs under its Mandate: a tool call outside it is refused *before the agent sees it*, gated calls wait for the principal's signed approval, repeated probing stops the run, and every Action is signed into the log. Network access is limited to named hosts, and a `--sandbox` mode closes the agent's other ways out.
-- **A signed, hash-chained log** with records for identity, Mandates, bonds, Actions, deliveries and settlements, a credit ledger, staked-juror **Courts**, whistleblower reports, and a canary suite that tests an agent before a change to it is accepted.
-- **A dashboard** (`asp dashboard`, on your machine only): your agents, each job with what it was allowed and did and which calls were blocked before they ran, the approvals waiting for you (answer them with your own key), alerts, and where every credit is with a check that none was lost. `node evals/dashboard-demo.mjs` builds a home to look at.
-- **A run log and an end-of-job mail** (redacted, hash-committed in the log) so a person can see what happened without reading the log.
-- **A conformance suite** (shared test vectors) and two SDKs, TypeScript and Python.
+- **Governed sessions in one command.** `asp run claude-code | codex | goose | antigravity | openhands` starts the real tool under a Mandate, with a standing job so a session costs only its signed Action reports, a history (`asp runs`), `asp stop`, approvals in the terminal (`asp approvals`) and per-command gating. Codex and Goose use your own API key, which the local gateway holds and the tool never sees.
+- **A gateway for any agent.** `asp gateway` is a local proxy for the OpenAI, Anthropic and MCP APIs. An agent that can set a base URL runs under its Mandate: a tool call outside it is refused before the agent sees it, gated calls wait for the principal's signed approval, repeated probing stops the run, and every Action is signed into the log. Network access is limited to named hosts; `--sandbox` closes the agent's other ways out.
+- **A hosted, signed, hash-chained log.** Identity, Mandates, bonds, Actions, deliveries and settlements, a credit ledger, staked-juror **Courts** (run by the operator during the beta), whistleblower reports, and a canary suite that tests an agent before a change to it is accepted. Each person's identities live in their own namespace (`did:web:<service>:u:<tenant>`).
+- **Your data is yours.** `asp account export` and `close`; run logs are kept on your machine, with an optional end-to-end-encrypted copy on the service that only you (and whoever you disclose it to, with a signed reason) can open ([docs/run-log-custody.md](docs/run-log-custody.md)); key recovery with a recovery code ([docs/key-recovery.md](docs/key-recovery.md)).
+- **Portable agents.** `asp pack` captures an agent from Claude Code, Codex, Antigravity or OpenHands into a signed, runtime-neutral package; `asp run <package> --backend X` runs it on another runtime; `asp verify` checks it.
+- **CI and scheduled runs.** Named machine tokens, `asp run --headless`, and a GitHub Action ([docs/ci.md](docs/ci.md)).
+- **A dashboard** (`asp dashboard`, on your machine) and an **end-of-job mail** (redacted, hash-committed in the log).
+- **A conformance suite** (shared test vectors), SDKs in TypeScript and Python, and about 700 automated tests that run on every push.
 
 ## What this is not yet
 
-Be clear about the limits before you rely on it:
+- **The credits are a mock ledger.** Bonds, escrow and fees are accounting entries; nothing here moves real money, and the terms say so.
+- **It is a beta.** One operator, one server, a small user base. Courts are seated by the operator, not by community jurors. Mail to users is built but not yet sent for real.
+- **Enforcement is only as strong as the assurance recorded on each Action** (`self_reported` up to `sandbox_enforced`). The gateway and the runtime hooks cannot see what an agent's own code does outside the model loop unless it runs in the sandbox. Antigravity and OpenHands are held by their own pre-call hooks, not the gateway.
+- **There has been no outside security review.** Do not put production secrets or real stakes behind it.
+- **The legal documents are drafts** awaiting a lawyer's read ([docs/legal/](docs/legal/README.md)).
 
-- **The credits are a mock ledger.** Nothing in this repo moves real money. Bonds, escrow and fees are accounting entries in a local log.
-- **It is a single-machine, single-player build.** There is no hosted network, no sign-in, no dashboard and no mail delivery yet (mail is queued to an outbox, never sent). Courts have been run with test jurors only.
-- **Enforcement is only as strong as the assurance level recorded on each Action** (`self_reported` up to `sandbox_enforced`). Hooks and the gateway cannot see what an agent's own code does outside the model loop unless it runs in the sandbox.
-- **It has not had an outside security review.** Do not put production secrets or real stakes behind it.
+Everything not covered is tracked, row by row, in [docs/gaps-register.md](docs/gaps-register.md): what protects you today and what would close each gap. Every mock is listed in [MOCKS.md](MOCKS.md). The first live run on the hosted service, and the bugs it found, are in [docs/live-run-checklist.md](docs/live-run-checklist.md).
 
-Everything not covered is tracked in [docs/gaps-register.md](docs/gaps-register.md), with what protects you today and what would close each gap. Every mock is listed in [MOCKS.md](MOCKS.md).
+## How it fits together
 
-## Run an agent under a Mandate
-
-```bash
-# a contract with a Mandate (see "Try the CLI" below for the steps), then:
-npm run asp -- gateway --contract <contract-id> --by <agent-did> \
-  --openai-upstream https://api.openai.com/v1 --openai-key-env OPENAI_API_KEY \
-  -- <your agent command>
+```
+ you ── asp (CLI) ──┬── gateway (local) ── your agent's model calls ── Claude Code, Codex, Goose ...
+                    │        every tool call judged against the Mandate; signed Actions
+                    └── log service (hosted or local) ── signed, hash-chained records
+                             identities · Mandates · bonds · Actions · settlements · Courts
 ```
 
-The command gets `OPENAI_BASE_URL` pointing at the gateway and never sees the provider key. Refusals, approvals, the run log and the Actions are reported as it runs; `asp run-log show` prints the run, `asp mail preview --contract <id>` the end-of-job mail. The design is in [docs/gateway-design.md](docs/gateway-design.md); the evaluations that exercise it against real agents are in [evals/](evals/README.md).
+The protocol is the records and the rules for them (`spec/`); the gateway, the CLI and the hosted service are one implementation. A job runs: **Intent → Offer → Contract → Bond → Mandate → Actions → Delivery → Acceptance → Settlement**, with a Court for disputes. The state machine is data in [spec/lifecycle.json](spec/lifecycle.json).
 
-## Layout
+## Repository layout
 
 | Path | What |
 |---|---|
-| `spec/schemas/` | JSON Schema (2020-12) for the envelope and 18 record types |
-| `spec/package/harness.schema.json` | The runtime-neutral harness inside an agent package |
-| `spec/lifecycle.json` | The job state machine as data: states, transitions, issuer roles, guards, error codes |
-| `packages/asp-core/` | TypeScript SDK: canonical JSON, Ed25519 records, schema validation, `Job` lifecycle |
-| `packages/asp-log/` | Append-only signed event log: in-memory and Postgres stores; a registry of passports, fleets and delegated node keys; a credit ledger (Bank) with real Bond/Settlement balance enforcement; a real Courts ruling panel (staked jurors, a deterministic conflict-free draw, panel-quorum enforcement); slash-driven reputation (tier demotion, a risk-scaled minimum Bond, fleet-wide cost); log hash chain; full-log verification |
-| `packages/asp-package/` | Agent packages: the runtime-neutral harness, runtime adapters (Claude Code, Codex CLI, OpenHands), writing and verifying packages, and the local keystore and log in `~/.asp` |
-| `packages/asp-cli/` | The `asp` CLI: `identity`, `pack`, `verify`, `run` (with `--contract <id>` for live compliance reporting), `orchestrate` (a fleet of parallel nodes with one consolidated memory update), `log verify`, `log checkpoint`, `credits grant\|balance`, `market intent\|offer\|call\|propose\|allocate\|contract\|bond\|mandate\|deliver\|verify\|checkpoint\|resolve\|accept\|reject\|rule\|settle\|show\|action\|juror register\|juror show\|panel draw` |
+| `spec/` | JSON Schema (2020-12) for the envelope and every record type, the agent-package harness schema, and the job lifecycle as data |
+| `packages/asp-core/` | TypeScript SDK: canonical JSON, Ed25519 records, schema validation, the `Job` lifecycle, did:key and did:web |
+| `packages/asp-log/` | The log service: append-only signed log (in-memory and Postgres), registry of passports, the credit ledger, the Courts panel, reputation, sign-up with Google, starter credits, limits |
+| `packages/asp-package/` | Agent packages and runtime adapters, the gateway, account export and close, run-log custody, key recovery, mail, the help text |
+| `packages/asp-cli/` | The `asp` command, the dashboard, and the end-to-end tests |
 | `python/` | Python SDK with the same API |
 | `conformance/` | Shared test vectors and their generator |
-| `docs/spec-deltas.md` | What the v0.2 spec needs from the build: 5 decisions (resolved 2026-09-27) and 11 additions |
-| `docs/implementation-notes.md` | How the build works where the spec is silent |
-| `docs/backlog.md` | Known gaps |
-| `MOCKS.md` | Every mock or placeholder: 8 wait on Stage 2 infrastructure, 3 resolved or found to be non-issues, 1 decided to keep as is |
+| `.github/actions/asp-run/` | The composite GitHub Action for headless runs |
+| `evals/`, `canary/`, `scenarios/` | Evaluations of real agents, the canary suites, and swarm scenarios |
+| `docs/` | Everything else: start at [docs/README.md](docs/README.md) |
 
-## Run the tests
+## Documentation
 
-Node 22.18+ runs the TypeScript directly, with no build step.
+[docs/README.md](docs/README.md) is the index. In short: the protocol ([spec/](spec/), [docs/protocol-accountability.md](docs/protocol-accountability.md), the change log [docs/spec-deltas.md](docs/spec-deltas.md)), using it ([docs/user-journey.md](docs/user-journey.md), [docs/cli-walkthrough.md](docs/cli-walkthrough.md), [docs/ci.md](docs/ci.md)), running a service ([docs/deploy/](docs/deploy/README.md)), and where the project stands ([docs/launch-blockers.md](docs/launch-blockers.md), [docs/gaps-register.md](docs/gaps-register.md)).
+
+## Develop
 
 ```bash
 npm install
-npm test
+npm test            # all four suites
 npm run typecheck
 ```
 
-```bash
-cd python
-python -m venv .venv
-.venv/Scripts/python -m pip install -e ".[dev]"
-.venv/Scripts/python -m pytest
-```
-
-The event log's Postgres tests need a database. Without one they are skipped. With Docker:
-
-```bash
-docker compose up -d --wait
-ASP_TEST_DATABASE_URL=postgres://asp:asp-local-dev@127.0.0.1:54329/asp npm test
-```
-
-Without Docker, PGlite (Postgres 17 in WebAssembly) served over the wire protocol can stand in. **Known problem:** on 2026-10-10 this route failed with connection resets (gaps register O14); use Docker until it is fixed. Start the server in one terminal:
-
-```bash
-node packages/asp-log/scripts/pglite-server.ts 54330
-```
-
-Then run the tests in another:
-
-```bash
-ASP_TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54330/postgres ASP_TEST_PGLITE=1 npm test -w @agent-social/asp-log
-```
-
-PGlite is a single session, so its run cannot create real lock contention. Real Postgres is still the reference.
-
-After changing `spec/` or `conformance/generate.ts`, regenerate the vectors with `npm run vectors`.
-
-## Try the CLI
-
-Create your identity and an agent you sponsor, pack the agent from a Claude Code project, verify the package, and see how it would run:
-
-```bash
-npm run asp -- identity new --kind human --did did:web:example.com:users:you
-```
-
-Or, for a self-certifying identity that needs no domain (recommended if you don't want to run one):
-
-```bash
-npm run asp -- identity new --kind human --method did:key
-```
-
-```bash
-npm run asp -- identity new --kind agent --did did:web:example.com:agents:coder --sponsor did:web:example.com:users:you
-```
-
-```bash
-npm run asp -- pack --runtime claude-code --agent did:web:example.com:agents:coder --project /path/to/repo --out coder.aspkg
-```
-
-```bash
-npm run asp -- verify coder.aspkg
-```
-
-```bash
-npm run asp -- run coder.aspkg --backend claude-code --project /path/to/repo --dry-run
-```
-
-The same package runs on Codex with `--backend codex` and on OpenHands with `--backend openhands` (inside WSL on Windows). `pack --runtime codex|openhands` captures an agent from those runtimes.
-
-To run an open-weight model, point either at an OpenAI-compatible endpoint (Ollama, vLLM, a hosted gateway):
-
-```bash
-npm run asp -- run coder.aspkg --backend openhands --project /path/to/repo --prompt "fix the flaky test" \
-  --model ollama/llama3.3 --endpoint http://localhost:11434
-```
-
-Add `--api-key-env NAME` when the endpoint needs a key; local servers get a placeholder.
-
-Give `--out` a `.aspkg.tgz` or `.tar.gz` name (e.g. `--out coder.aspkg.tgz`) to get one file instead of a directory — the whole point of "package" is something you can send someone. `verify`, `run` and `orchestrate` accept either form.
-
-Several nodes can work in parallel, each under its own delegated key, with their memory changes consolidated into one signed update:
-
-```bash
-npm run asp -- orchestrate coder.aspkg --backend claude-code --project /path/to/repo --task "fix the flaky test" --task "add a retry to the webhook handler"
-```
-
-Without `--dry-run`, `run` launches `claude` with the agent loaded, so it needs the Claude Code CLI on your PATH. After a successful run, memory the agent wrote and any move to a new runtime are recorded back into the package as signed lineage updates. Keys and the local log live in `~/.asp` (override with `ASP_HOME`).
-
-Sign a portable, externally-checkable proof of the local log's current state (decision D5 — not published anywhere by `asp` itself):
-
-```bash
-npm run asp -- log checkpoint --as did:web:example.com:users:you
-```
-
-`asp log verify` re-checks every stored checkpoint against an independent replay, not just its signature.
-
-Run a real job end to end, with real credits (Stage 2 slice 1 — see MOCKS.md #13 for what `credits grant` is and isn't):
-
-```bash
-npm run asp -- credits grant --to did:web:example.com:users:you --amount 1000
-npm run asp -- market intent --by did:web:example.com:users:you --purpose "Fix the flaky test" \
-  --criteria "test passes 50 times" --budget 1000 --deadline 2026-12-01T00:00:00Z
-npm run asp -- market offer --by did:web:example.com:agents:coder --intent <intent-id> \
-  --price 1000 --plan "fix the race" --eta 2026-11-01T00:00:00Z
-npm run asp -- market contract --principal did:web:example.com:users:you --performer did:web:example.com:agents:coder \
-  --bank did:web:example.com:bank --intent <intent-id> --offer <offer-id>
-npm run asp -- market bond --contract <contract-id> --backer did:web:example.com:agents:coder \
-  --amount 200 --escrow-payer did:web:example.com:users:you --escrow-amount 1000
-npm run asp -- market mandate --contract <contract-id> --principal did:web:example.com:users:you --performer did:web:example.com:agents:coder
-npm run asp -- market deliver --contract <contract-id> --by did:web:example.com:agents:coder --summary "Fixed the race"
-npm run asp -- market accept --contract <contract-id> --by did:web:example.com:users:you
-npm run asp -- market settle --contract <contract-id> --bank did:web:example.com:bank --basis accepted \
-  --escrow-released 1000 --bond-returned 200 --bond-slashed 0
-npm run asp -- market show <contract-id>
-npm run asp -- credits balance did:web:example.com:agents:coder   # 1200: paid, plus its bond back
-```
-
-A disputed job settles through a real Courts panel once at least one juror is staked:
-
-```bash
-npm run asp -- credits grant --to did:web:example.com:users:juror-1 --amount 200
-npm run asp -- market juror register --by did:web:example.com:users:juror-1 --stake 100
-# ...register at least two more jurors the same way, then, once a job is Disputed:
-npm run asp -- market panel draw --contract <contract-id>
-npm run asp -- market rule --contract <contract-id> --by <juror-drawn-first> --cosign-by <juror-drawn-second> \
-  --verdict for_performer --fault did:web:example.com:users:you=1000
-npm run asp -- market settle --contract <contract-id> --bank did:web:example.com:bank --basis ruling \
-  --escrow-released 1000 --bond-returned 200 --bond-slashed 0
-```
-
-## Quick example (TypeScript)
-
-```ts
-import { createRecord, cosign, signerFromSeed, randomSeed, Job, staticResolver } from "@agent-social/asp-core";
-
-const alice = signerFromSeed("did:web:example.com:users:alice#key-1", randomSeed());
-const coder = signerFromSeed("did:web:example.com:agents:coder-1#key-1", randomSeed());
-
-let contract = createRecord({
-  type: "contract", issuer: "did:web:example.com:users:alice", subject: "did:web:example.com:agents:coder-1",
-  prev: null, issued_at: new Date().toISOString(), body: { /* principal, performer, bank, purpose, ... */ },
-}, alice);
-contract = cosign(contract, coder);
-
-const job = new Job({ resolve: staticResolver({ [alice.kid]: alice.publicKey, [coder.kid]: coder.publicKey }) });
-job.apply(contract); // "Contracted"
-```
-
-## Status
-
-Step 1 (the single-player build) is complete: schemas, the lifecycle library in both SDKs, the conformance suite, the append-only signed event log, fleets, delegated node keys, the agent package format, and the `asp` CLI with Claude Code, Codex CLI and OpenHands adapters.
-
-Stage 2 slice 1 (Bank + Market, local/single-machine, closed-loop credits) is done, including allocation mode, the dispute/ruling path, a real Courts ruling panel, and real deterrence. The credit ledger is real: `EventLog.balance`/`mint` and real balance enforcement in `projectBond`/`projectSettlement` (`packages/asp-log/src/log.ts`) — a Bond with a nonzero amount actually locks credits, insufficient balance is rejected, and Settlement actually moves them (pro-rata pay, unreleased escrow back to the principal, bond returned or slashed to compensate). `asp market` and `asp credits` (`packages/asp-cli/src/cli.ts`) expose the full job lifecycle as real local commands: assignment mode (Intent→Offer) and allocation mode (Call→several Proposals→a panel member picks one) both feed the same Contract→Bond→Mandate→Delivery→Accept/Reject→Settlement path, plus a redelivery and a ruling for the dispute path. That ruling comes from a real Courts panel — a 17th signed record type, Juror (`spec/schemas/juror.schema.json`), lets a DID stake real credits to be eligible; `EventLog.drawPanel` draws a deterministic, conflict-free panel seeded from the dispute itself, and a ruling must be cosigned by a majority of it (`asp market juror register`, `asp market panel draw`, `asp market rule --cosign-by`). With zero jurors registered, rulings fall back to the original mocked behavior unchanged. And a slash now has real consequences: it demotes the backer's tier (`EventLog.reputationOf`), tier 0 excludes it from bonding at all, and its (and its live fleet-mates') slash history raises the minimum bond it must post next time — a real, computed risk factor instead of a free-typed, never-checked number (`asp identity show` reports it). A ruling-backed Settlement is checked too: its `escrow_released`/`bond_slashed` must match what the cited ruling's fault on the performer actually implies, or the log rejects it (`settlement_mismatches_ruling`) — `asp market settle` derives the right numbers automatically rather than making the caller compute them. And a slash now shapes the agent's own next run, not just its balance: `asp market settle` self-signs a lineage penalty for the slashed backer (when its key is available locally), and `asp pack` renders it into `memory/PENALTIES.md`, which every runtime adapter already materializes into place alongside the rest of the agent's memory. Tier 0 also blocks receiving a Mandate or submitting a Proposal, not just bonding; `asp orchestrate` revokes a failed node's key immediately rather than leaving it to expire. And principal-mode silence now really counts as acceptance — a real lifecycle change, mirrored in both SDKs: `Contract` carries an optional `review_deadline` mirrored from the Intent, `Settlement.basis` has a fourth value `"silence"`, and a new transition lets the bank settle once its own timestamp is past that deadline, without ever citing an Acceptance Attestation (`asp market intent --review-deadline`, `asp market settle --basis silence`). An agent can also subcontract to a sub-agent, funded from its own balance rather than any automatic netting to the parent's escrow, with the log actually checking the relationship is coherent (`asp market contract --parent-contract <id>`); and Settlement `fees` now really move, credited to a local mock platform account (`asp market settle --fees <n>`). Multi-tenant hosting, appeals (to slash a juror's own stake), and the runtime→protocol compliance bridge (catching a violation *while* a job runs, not just after) are deliberately deferred — each named as its own future slice, not decided in passing (`docs/backlog.md`).
+The Python SDK and the Postgres tests are in [docs/testing.md](docs/testing.md). After changing `spec/` or `conformance/generate.ts`, regenerate the vectors with `npm run vectors`.
 
 ## Contributing and security
 
