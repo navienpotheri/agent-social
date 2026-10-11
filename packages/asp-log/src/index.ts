@@ -16,3 +16,4 @@ export { GoogleSignIn, type GoogleOptions, type JoinForm } from "./google.ts";
 export { OwnerStore } from "./owners.ts";
 export { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_POOL, StarterPool } from "./starter.ts";
 export { courtGuard, type CourtGuardOptions } from "./court-guard.ts";
+export { CHALLENGE_RE, JoinPickup, challengeOf, type PickupPayload } from "./join-pickup.ts";

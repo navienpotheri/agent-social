@@ -15,7 +15,7 @@ a{color:var(--accent)}code,.token{font-family:ui-monospace,monospace;word-break:
 
 const page = (title: string, body: string) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title><style>${CSS}</style></head><body><main>${body}</main></body></html>`;
 
-export function joinForm(o: { termsVersion: string; termsUrl?: string; privacyUrl?: string; open: boolean; reason?: string; error?: string; name?: string }): string {
+export function joinForm(o: { termsVersion: string; termsUrl?: string; privacyUrl?: string; open: boolean; reason?: string; error?: string; name?: string; c?: string }): string {
   if (!o.open) return page("Agent Social: sign-up", `<h1>Sign-up is closed</h1><p>${esc(o.reason ?? "Sign-up is not open right now. Please try again later.")}</p>`);
   const terms = o.termsUrl ? `<a href="${esc(o.termsUrl)}">Terms of Use</a>` : "Terms of Use";
   const privacy = o.privacyUrl ? `<a href="${esc(o.privacyUrl)}">Privacy Notice</a>` : "Privacy Notice";
@@ -29,8 +29,14 @@ ${o.error ? `<p class="err" role="alert">${esc(o.error)}</p>` : ""}
 <label class="check"><input type="checkbox" name="declaration" value="adult_or_guardian" required><span>I am 18 or over, or I am a parent or legal guardian signing up on behalf of a young person and I will hold the account and be responsible for it.</span></label>
 <label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>I have read and accept the ${terms} and the ${privacy} (version ${esc(o.termsVersion)}). I understand that records written to the log are permanent.</span></label>
 <input type="hidden" name="terms_version" value="${esc(o.termsVersion)}">
+${o.c ? `<input type="hidden" name="c" value="${esc(o.c)}">` : ""}
 <button type="submit">Continue with Google</button>
 </form>`);
+}
+
+/** After a sign-up started by the command line: the token went to the command, so the page does not show it. */
+export function joinDoneCli(tenant: string): string {
+  return page("Agent Social: you are in", `<h1>You are in, ${esc(tenant)}</h1><p>Go back to your terminal: it is finishing the setup for you. You can close this page.</p><p class="mute">Nothing needs to be copied from here; the command has what it needs.</p>`);
 }
 
 export function joinError(title: string, message: string): string {

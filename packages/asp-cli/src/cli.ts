@@ -274,7 +274,7 @@
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
 import { spawn, spawnSync } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget, runtimeTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -432,6 +432,12 @@ const OPTIONS = {
   "skip-export": { type: "boolean" },
   "starter-pool": { type: "string" },
   "no-recovery": { type: "boolean" },
+  "no-open": { type: "boolean" },
+  yes: { type: "boolean" },
+  "agent-name": { type: "string" },
+  "google-auth-url": { type: "string" },
+  "google-token-url": { type: "string" },
+  "google-userinfo-url": { type: "string" },
   me: { type: "boolean" },
   "did-domain": { type: "string" },
   "by-sponsor": { type: "boolean" },
@@ -552,6 +558,11 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     return cmd ? 0 : 2;
   }
   const home = aspHome(v.home ?? io.env.ASP_HOME);
+  // After `asp join` the service and the token are saved in the ASP home, so nothing has to be exported: the environment, when set, wins.
+  if (cmd !== "join" && !io.env.ASP_LOG_URL) {
+    const cfg = readJoinConfig(home);
+    if (cfg) { io = { ...io, env: { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token } }; logEnv = io.env; }
+  }
   const need = (name: keyof typeof v) => {
     const val = v[name];
     if (val === undefined || val === "") throw new UsageError(`--${name} is required`);
@@ -588,6 +599,8 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "signup") return await signupCmd(v, io);
     if (cmd === "account") return await accountCmd(sub, v, io);
+    if (cmd === "join") return await joinCmd(home, v, io);
+    if (cmd === "leave") return leaveCmd(home, io);
     if (cmd === "court") return await courtCmd(home, sub, v, io);
     if (cmd === "serve") return await serve(v, need, io);
     if (cmd === "watch") return await watch(home, v, io);
@@ -1218,6 +1231,114 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io): Promise<n
   throw new UsageError("usage: asp account show | starter --did <did>[,<did>] | export [--out <dir>] | close --confirm <tenant name> [--skip-export] [--out <dir>]");
 }
 
+interface JoinConfig { service: string; token: string; tenant: string; joinedAt: string }
+const joinConfigPath = (home: string) => join(home, "config.json");
+function readJoinConfig(home: string): JoinConfig | undefined {
+  try { const c = JSON.parse(readFileSync(joinConfigPath(home), "utf8")) as JoinConfig; return c.service && c.token ? c : undefined; } catch { return undefined; }
+}
+
+/** Opens the page in the person's browser (the address is always printed too). */
+function openBrowser(url: string): void {
+  try {
+    const p = process.platform;
+    const [cmd, args] = p === "win32" ? ["cmd", ["/c", "start", "", url]] : p === "darwin" ? ["open", [url]] : ["xdg-open", [url]];
+    const c = spawn(cmd as string, args as string[], { stdio: "ignore", detached: true });
+    c.on("error", () => {});
+    c.unref();
+  } catch { /* the printed address is enough */ }
+}
+
+/**
+ * asp join [--service <url>] [--agent-name <name>] [--no-open] [--yes] [--again]: one command from nothing to a first agent under the protocol (launch blocker 12).
+ * It opens the sign-up page; when you have signed in with Google the token comes back to this command (never shown, never pasted) and is saved in the ASP home; it then makes your person,
+ * a first agent and a settlement identity in your namespace, claims the starter credits and shows the recovery code once. `asp leave` forgets the saved login.
+ */
+async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
+  const existing = readJoinConfig(home);
+  if (existing && !v.again) {
+    io.out(`already joined as ${existing.tenant} on ${existing.service}; \`asp account show\` says what you have. (asp join --again signs up another account; asp leave forgets this login.)`);
+    return 0;
+  }
+  const service = (v.service ?? io.env.ASP_LOG_URL ?? "https://log.thedeeptransformation.com").replace(/\/$/, "");
+  const agentName = v["agent-name"] ?? "my-agent";
+  if (!/^[a-z0-9][a-z0-9-]{0,31}$/.test(agentName)) throw new UsageError("--agent-name is lower-case letters, digits and hyphens");
+  const get = async (path: string, init?: RequestInit) => {
+    const res = await fetchRetry(new URL(path, service + "/"), init);
+    return { status: res.status, body: (await res.json().catch(() => undefined)) as any };
+  };
+  const info = await get("signup");
+  if (info.status !== 200 || !info.body?.ok) throw new Error(`${service} does not offer sign-up (it answered ${info.status})`);
+  if (!info.body.open) throw new Error(`sign-up is not open on ${service}${info.body.reason ? `: ${info.body.reason}` : ""}`);
+
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  const url = `${service}/join?c=${challenge}`;
+  io.out("Opening your browser to sign up. If it does not open, go to this address:");
+  io.out(`  ${url}`);
+  if (!v["no-open"]) openBrowser(url);
+  io.out("Waiting for you to finish in the browser (up to 10 minutes) ...");
+  let picked: { tenant: string; token: string } | undefined;
+  const deadline = Date.now() + 10 * 60_000;
+  const every = Math.max(50, Number(io.env.ASP_JOIN_POLL_MS) || 2000);
+  while (Date.now() < deadline) {
+    const r = await get("join/pickup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ verifier }) });
+    if (r.status === 200 && r.body?.token) { picked = r.body; break; }
+    await new Promise((res) => setTimeout(res, every));
+  }
+  if (!picked) throw new Error("timed out waiting for the sign-up; run asp join again");
+  mkdirSync(home, { recursive: true });
+  writeFileSync(joinConfigPath(home), JSON.stringify({ service, token: picked.token, tenant: picked.tenant, joinedAt: now() } satisfies JoinConfig, null, 2) + "\n", { mode: 0o600 });
+  io.out(`Signed up as ${picked.tenant}. Setting up your first agent ...`);
+
+  const env = { ...io.env, ASP_LOG_URL: service, ASP_LOG_TOKEN: picked.token };
+  const run = async (args: string[]) => {
+    const out: string[] = [], err: string[] = [];
+    const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env, cwd: io.cwd });
+    if (code) throw new Error(`${args.slice(0, 3).join(" ")} failed: ${(err.join("\n") || out.join("\n")).trim().slice(0, 300)}`);
+    return out.join("\n");
+  };
+  const acct = await get("account", { headers: { authorization: `Bearer ${picked.token}` } });
+  if (!acct.body?.namespace) throw new Error("this service does not give identities a namespace, so asp join cannot name your agent; use asp identity new --did ...");
+  const { domain } = acct.body.namespace as { domain: string };
+  const me = didFor(domain, picked.tenant, "human"), agent = didFor(domain, picked.tenant, "agent", agentName);
+  const person = await run(["identity", "new", "--kind", "human", "--me"]);
+  await run(["identity", "new", "--kind", "agent", "--name", agentName, "--sponsor", me, "--purpose", "My first agent"]);
+  await run(["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]);
+  const credits = await run(["account", "starter", "--did", `${me},${agent}`]);
+  const code = /(ASP-[0-9A-Z-]+)/.exec(person)?.[1];
+
+  io.out("");
+  io.out(`You are set up on ${service}:`);
+  io.out(`  you      ${me}`);
+  io.out(`  agent    ${agent}`);
+  io.out(`  credits  ${/\+(\d+) credits/.exec(credits) ? "500 each for you and your agent" : "claimed"}`);
+  if (code) {
+    io.out("");
+    io.out("  YOUR RECOVERY CODE. Shown once, kept nowhere on this machine. Write it on paper and keep it safe:");
+    io.out(`    ${code}`);
+    io.out("  If you lose the key on this machine, this code is the only way back to your identity. Anyone who has it can act as you.");
+    if (process.stdin.isTTY && !v.yes) {
+      const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stdout });
+      const tail = code.replace(/[^0-9A-Z]/g, "").slice(-6);
+      let ok = false;
+      for (let i = 0; i < 3 && !ok; i++) ok = (await rl.question("  Type the last 6 characters of the code to confirm you wrote it down: ")).trim().toUpperCase() === tail;
+      rl.close();
+      io.out(ok ? "  Thank you. Your recovery code is confirmed." : "  Not confirmed. Check the code you wrote with: asp identity recovery-check " + me);
+    } else io.out(`  Check later that you wrote it correctly: asp identity recovery-check ${me}`);
+  }
+  io.out("");
+  io.out("Next: asp run <runtime> runs an agent under the protocol. asp account show says what you have.");
+  return 0;
+}
+
+function leaveCmd(home: string, io: Io): number {
+  const c = readJoinConfig(home);
+  if (!c) { io.out("not joined: nothing to forget"); return 0; }
+  rmSync(joinConfigPath(home), { force: true });
+  io.out(`forgot the saved login for ${c.tenant} on ${c.service}; your keys and identities are untouched, and your account on the service stays (asp account close deletes it)`);
+  return 0;
+}
+
 /** asp signup --service <url> --name <name> --accept-terms [--contact <line>]: gets a tenant and its token from a service that offers sign-up. */
 async function signupCmd(v: Values, io: Io): Promise<number> {
   const service = v.service ?? io.env.ASP_LOG_URL;
@@ -1421,7 +1542,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       const secret = io.env.GOOGLE_CLIENT_SECRET;
       if (!secret) throw new UsageError("--google-client-id needs the client secret in the environment variable GOOGLE_CLIENT_SECRET");
       if (!v["google-redirect-uri"]) throw new UsageError("--google-client-id needs --google-redirect-uri (the authorized redirect URI of the client, for example https://log.example.org/auth/callback)");
-      google = new GoogleSignIn({ clientId: v["google-client-id"], clientSecret: secret, redirectUri: v["google-redirect-uri"], log: (l) => io.err(`  ${l}`) });
+      google = new GoogleSignIn({ clientId: v["google-client-id"], clientSecret: secret, redirectUri: v["google-redirect-uri"], log: (l) => io.err(`  ${l}`), ...(v["google-auth-url"] ? { authUrl: v["google-auth-url"] } : {}), ...(v["google-token-url"] ? { tokenUrl: v["google-token-url"] } : {}), ...(v["google-userinfo-url"] ? { userinfoUrl: v["google-userinfo-url"] } : {}) });
     } else if (v["signup-require-google"]) throw new UsageError("--signup-require-google needs --google-client-id");
   }
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);

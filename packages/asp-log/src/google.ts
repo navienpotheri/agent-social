@@ -26,7 +26,7 @@ export interface GoogleOptions {
   now?: () => number;
 }
 
-export interface JoinForm { name: string; accept_terms: boolean; terms_version: string; declaration: string; contact?: string }
+export interface JoinForm { name: string; accept_terms: boolean; terms_version: string; declaration: string; contact?: string; /** The command line's challenge (src/join-pickup.ts): the token is handed to it instead of shown. */ c?: string }
 export type GoogleStart = { location: string; nonce: string };
 export type GoogleFinish =
   | { ok: true; form: JoinForm; google: { sub: string; email: string } }
