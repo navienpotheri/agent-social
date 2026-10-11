@@ -2214,7 +2214,15 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       const child = spawn(program, programArgs, { cwd: io.cwd, stdio: capturing ? ["ignore", "pipe", "inherit"] : "inherit", env: spawnEnv });
       child.on("close", () => { for (const c of dockerRun?.cleanup ?? []) spawnSync("docker", c, { stdio: "ignore" }); });
       child.on("error", (e) => { io.err(`could not start ${command[0]}: ${e.message}`); done(-1); });
-      killAgent = () => { child.kill("SIGTERM"); setTimeout(() => { if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL"); }, 5000).unref(); };
+      // A stopped agent is first left a few seconds to see the refusals and exit by itself, then asked to end, then ended.
+      killAgent = () => {
+        const grace = Number(io.env.ASP_GATEWAY_KILL_GRACE_MS) >= 0 && io.env.ASP_GATEWAY_KILL_GRACE_MS !== undefined ? Number(io.env.ASP_GATEWAY_KILL_GRACE_MS) : 5000;
+        setTimeout(() => {
+          if (child.exitCode !== null || child.signalCode !== null) return;
+          child.kill("SIGTERM");
+          setTimeout(() => { if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL"); }, 5000).unref();
+        }, grace).unref();
+      };
       if (capturing) {
         const chunks: Buffer[] = [];
         child.stdout!.on("data", (c: Buffer) => { chunks.push(c); (io.raw ?? ((b: Buffer) => process.stdout.write(b)))(c); });
