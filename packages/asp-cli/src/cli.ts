@@ -2158,7 +2158,10 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(v["token-cap"] ? { tokenCap: Math.trunc(Number(v["token-cap"])) } : {}),
     onCall: (e) => {
       io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`);
-      reportSoon(e.allowed ? eagerMs : 20);
+      // At once for a blocked attempt, soon for a scope this session has not reported yet; repeated calls on a scope already reported wait for the interval or the exit (found in the
+      // long-horizon run: one Action for every tool call burns a tenant's record quota, gap R1).
+      if (!e.allowed) reportSoon(20);
+      else if (e.scope && !reportedScopes.has(e.scope)) { reportedScopes.add(e.scope); reportSoon(eagerMs); }
     },
     onStop: (r) => { io.err(`  stopped  ${r}`); killAgent?.(); },
   });
@@ -2220,6 +2223,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const eagerMs = eagerEnv >= 0 ? eagerEnv : 2000;
   let soon: NodeJS.Timeout | undefined;
   let soonDue = Infinity;
+  const reportedScopes = new Set<string>();
   const reportSoon = (ms: number) => {
     if (eagerOff) return;
     const due = Date.now() + ms;
