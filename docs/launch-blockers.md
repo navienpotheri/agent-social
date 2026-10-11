@@ -66,3 +66,14 @@ When a blocker is closed, change its row here to say so, with the commit and the
 | 12 (step 1) | Identities in the tenant's namespace | **Built, not yet on the hosted server.** DIDs under the tenant's own name, DID documents published, passports outside the namespace refused, `identity new --me/--name`. Left for blocker 12: `asp join`, `asp run`, the install | S100; packages/asp-cli/test/namespace.test.ts |
 | 12 (step 2) | `asp join` | **Built, not yet on the hosted server.** One command: browser sign-up, the token returned to the command, the saved login, the person, agent and bank identities in the namespace, starter credits, the recovery code once. Left for blocker 12: `asp run <runtime>`, the install; P20 (a lost token cannot be reset) | S101; packages/asp-cli/test/join.test.ts |
 | 12 (step 3) | `asp run claude-code` | **Built, not yet tried on the hosted server or with the real Claude Code from this command.** A job made behind the scenes, Claude Code through the gateway under a Mandate (files and commands in the project, no network unless named), settled, a short summary. Left for blocker 12: the one-line install, the other runtimes (P21), the per-session quota (R1) | S102; packages/asp-cli/test/run-session.test.ts |
+
+### Blocker 12: the rest of the list (agreed 2026-10-11)
+
+1. `asp runs` and `asp runs <id>`: history, with what was refused and why.
+2. Approvals inside a run: a gated action asks y/n in the terminal.
+3. `asp agent add <name>` and `asp agent list`.
+4. `asp stop`: end a running session from another window (the kill switch, one command).
+5. The other runtimes as governed sessions (P21): Codex, OpenHands, Antigravity, Goose.
+6. A standing job per agent, so a session does not cost a dozen records (R1).
+7. Run-log custody (E16): an optional encrypted copy on the service and a signed disclosure to a court.
+8. The provider-terms rule (P22): the gateway stays a local process; hosted agents use the user's own API key; written into the docs and the terms.
