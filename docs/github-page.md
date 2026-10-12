@@ -18,7 +18,7 @@ An open accountability layer for AI agents: signed identity, a Mandate that limi
 
 - Private vulnerability reporting (Settings > Code security): SECURITY.md sends reporters there.
 - Issues on; Discussions optional.
-- Branch protection on `main`, requiring the CI check (CI exists: `.github/workflows/ci.yml`; gap O12 is the protection itself).
+- Branch protection on `main`: require a pull request, with **0** required approvals (there is one maintainer, who cannot approve their own pull request), and require the single status check **`all-green`** (the last job of `.github/workflows/ci.yml`; the matrix jobs have too many names to list). Leave "do not allow bypassing" off so the owner can still merge in an emergency.
 - No wiki; the docs are in the repo.
 
 ## Commands (run them yourself)
