@@ -6,35 +6,40 @@
       "did": "did:web:example.com:users:alice",
       "kid": "did:web:example.com:users:alice#key-1",
       "seed_hex": "7382b043ad9d0166c33557cce1abc844fd5e55d2c561ebae81cc9791a278e0fe",
-      "public_key": "_HDjGN-JRLM_1EZ44TU7tozewdk6ewDml7ibj1pH1JI"
+      "public_key": "_HDjGN-JRLM_1EZ44TU7tozewdk6ewDml7ibj1pH1JI",
+      "did_key": "did:key:z6MkwSgd6pjZ9MaUxfezw5shWUfZ2Lueghr4rPLwwpra6SSm"
     },
     {
       "name": "coder",
       "did": "did:web:example.com:agents:coder-1",
       "kid": "did:web:example.com:agents:coder-1#key-1",
       "seed_hex": "9905ca1a68f8a23bb5fa2695f15c4fd606ecc7bed15c2ca6f079f92f83b4f18a",
-      "public_key": "RWwTpP1BT0LenxwqPpPCNK-WVdfzVoFVp-2LFlicVf8"
+      "public_key": "RWwTpP1BT0LenxwqPpPCNK-WVdfzVoFVp-2LFlicVf8",
+      "did_key": "did:key:z6Mkj8Fm3hJaMuxnv1HV9HL1eEp4QV4PzAWdjuKVKE76msN6"
     },
     {
       "name": "bank",
       "did": "did:web:example.com:bank",
       "kid": "did:web:example.com:bank#key-1",
       "seed_hex": "f67c7909c6803ccdf41ea8f83b4e42ce52a252d60c2e2d32f4b0f3f84c01afe0",
-      "public_key": "fktmO3b3c_iCq4yDHYhjzYLfNZILciCKh5jJaQldRvw"
+      "public_key": "fktmO3b3c_iCq4yDHYhjzYLfNZILciCKh5jJaQldRvw",
+      "did_key": "did:key:z6MknxG6h9z1Jtb2Zw8HFabtVujZzwAEDParw38quBuSEQrF"
     },
     {
       "name": "panel",
       "did": "did:web:example.com:courts:panel-1",
       "kid": "did:web:example.com:courts:panel-1#key-1",
       "seed_hex": "72f1cd4f8167f9162641130080a942daf9a65af9c2d08975f6697ee52943f4bb",
-      "public_key": "_SH5qzm_5NjW2yHgb5DLdkoprOZRv7_uJsHI0wK6xYw"
+      "public_key": "_SH5qzm_5NjW2yHgb5DLdkoprOZRv7_uJsHI0wK6xYw",
+      "did_key": "did:key:z6MkwVPEvghwmayHMFX4V8ENbRdsACQsQ9xqcoUmK1NSBnzF"
     },
     {
       "name": "mallory",
       "did": "did:web:evil.example:mallory",
       "kid": "did:web:evil.example:mallory#key-1",
       "seed_hex": "925f998881d79bd0554ccf8a3f2c6273fa4c4515f09c805fd38995aa180825c9",
-      "public_key": "-o1-82iBQUG_yXzOq7JHPE6SrzwvpNW5YFMYG0uYm5g"
+      "public_key": "-o1-82iBQUG_yXzOq7JHPE6SrzwvpNW5YFMYG0uYm5g",
+      "did_key": "did:key:z6MkwKK7JzNEhkrwSDwA5wMyP9pifEtCHYubRuP9snC4gQ9d"
     }
   ]
 }

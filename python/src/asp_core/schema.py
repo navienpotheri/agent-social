@@ -15,7 +15,7 @@ SPEC_DIR = Path(__file__).resolve().parents[3] / "spec"
 
 RECORD_TYPES = (
     "intent", "call", "proposal", "offer", "contract", "mandate", "bond",
-    "checkpoint", "delivery", "attestation", "settlement", "passport", "lineage", "package",
+    "checkpoint", "delivery", "attestation", "settlement", "passport", "lineage", "package", "fleet", "node", "juror", "action",
 )
 TYPE_VERSION = "v0.2"
 _TYPE_RE = re.compile(r"^asp\.([a-z_]+)/v0\.2$")

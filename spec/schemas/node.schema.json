@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:node",
+  "title": "Node delegation body",
+  "description": "A person grants a short-lived worker (subagent, parallel copy) its own signing key. The node has no passport; it acts under the person, who stays liable. The node key's id is the node id, and it may sign only as that node, only until it expires, and never identity records. Tied to a Mandate, the node counts against the Mandate's nodes.max_parallel.",
+  "type": "object",
+  "required": ["node", "public_key", "expires"],
+  "additionalProperties": false,
+  "properties": {
+    "node": {
+      "description": "The node id, a DID URL under the issuer, e.g. did:web:example.com:agents:coder-1#node-7.",
+      "$ref": "urn:asp:v0.2:common#/$defs/didUrl"
+    },
+    "public_key": {
+      "description": "Raw 32-byte Ed25519 public key, base64url without padding.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{43}$"
+    },
+    "expires": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "mandate": {
+      "description": "The Mandate this node works under, if any.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "purpose": { "type": "string" },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "model": { "type": "string" }
+      }
+    }
+  }
+}

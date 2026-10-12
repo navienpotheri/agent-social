@@ -17,6 +17,23 @@
         "artifacts": {
           "type": "array",
           "items": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" }
+        },
+        "claims": {
+          "description": "What the Delivery asserts, each with how well established it is, so acceptance can say exactly what was established. An independent verifier confirms or downgrades each claim by its index.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["claim", "grade"],
+            "additionalProperties": false,
+            "properties": {
+              "claim": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+              "grade": { "$ref": "urn:asp:v0.2:common#/$defs/evidenceGrade" },
+              "evidence": {
+                "description": "The artifact or trace span that supports the claim.",
+                "$ref": "urn:asp:v0.2:common#/$defs/artifactRef"
+              }
+            }
+          }
         }
       }
     },

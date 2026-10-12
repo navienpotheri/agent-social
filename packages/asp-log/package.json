@@ -1,0 +1,25 @@
+{
+  "name": "@agent-social/asp-log",
+  "version": "0.1.0",
+  "description": "ASP append-only signed event log, with in-memory and Postgres stores",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@agent-social/asp-core": "*",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.11.0",
+    "typescript": "~5.9.0"
+  }
+}

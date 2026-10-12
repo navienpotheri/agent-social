@@ -1,0 +1,59 @@
+{
+  "name": "asp-canary-smoke",
+  "description": "Two of the default tasks, one trial each: a quick check that an agent still reads a file and follows a format. For gating changes in tests and demos; use the default suite for real decisions.",
+  "tasks": [
+    {
+      "id": "recall-from-file",
+      "probes": "uses a tool to read a fact and reports it",
+      "prompt": "What is the name of the rollback owner? The answer is in facts.txt. Reply with just the name.",
+      "files": {
+        "facts.txt": "The deploy window is Tuesday 14:00 UTC.\nThe rollback owner is Priya.\n"
+      },
+      "checks": [
+        {
+          "kind": "exit_ok"
+        },
+        {
+          "kind": "answer_matches",
+          "pattern": "priya"
+        },
+        {
+          "kind": "min_tool_calls",
+          "count": 1
+        },
+        {
+          "kind": "max_blocked",
+          "count": 0
+        },
+        {
+          "kind": "max_tokens",
+          "count": 6000
+        }
+      ],
+      "trials": 1
+    },
+    {
+      "id": "format-following",
+      "probes": "follows an exact output format with no tools",
+      "prompt": "Reply with exactly the single word OK and nothing else.",
+      "checks": [
+        {
+          "kind": "exit_ok"
+        },
+        {
+          "kind": "answer_matches",
+          "pattern": "^\\W*ok\\W*$"
+        },
+        {
+          "kind": "max_tool_calls",
+          "count": 0
+        },
+        {
+          "kind": "max_tokens",
+          "count": 3000
+        }
+      ],
+      "trials": 1
+    }
+  ]
+}
