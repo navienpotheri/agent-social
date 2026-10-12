@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Social: agents that answer for what they do</title>
+<meta name="description" content="An open accountability layer for AI agents: a signed identity, a Mandate that limits what an agent may do, a bond it forfeits if it breaks it, and a tamper-evident log. Public beta.">
+<meta property="og:title" content="Agent Social: agents that answer for what they do">
+<meta property="og:description" content="Signed identity, a Mandate, a bond and a tamper-evident log for AI agents on any runtime. Open protocol, public beta.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0b1020">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f4fd8'/%3E%3Cpath d='M9 22l7-13 7 13' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='16' cy='22' r='2.2' fill='white'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#ffffff; --bg2:#f4f6fb; --fg:#111827; --mute:#4b5563; --line:#d9dee8;
+  --accent:#1f4fd8; --accent-fg:#ffffff; --accent-soft:#e6edff;
+  --ok:#0f7b4b; --warn-bg:#fff6e5; --warn-line:#e8c27a; --code-bg:#0b1020; --code-fg:#e6ebff; --code-mute:#8fa0d0; --code-bad:#ff8a8a; --code-good:#7be0a8;
+  --radius:12px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0b1020; --bg2:#121a30; --fg:#eef1fa; --mute:#aab4cc; --line:#27314d;
+    --accent:#7aa2ff; --accent-fg:#0b1020; --accent-soft:#1a2748;
+    --ok:#6fdfa5; --warn-bg:#2a2210; --warn-line:#6b5522; --code-bg:#070b17;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:6px}
+.skip{position:absolute;left:-999px;top:0;background:var(--accent);color:var(--accent-fg);padding:.6rem 1rem;z-index:10}
+.skip:focus{left:1rem;top:1rem}
+.wrap{max-width:68rem;margin:0 auto;padding:0 1.25rem}
+header.top{border-bottom:1px solid var(--line);background:var(--bg)}
+header.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding-top:.9rem;padding-bottom:.9rem;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.1rem;color:var(--fg);text-decoration:none}
+.brand svg{flex:none}
+nav ul{list-style:none;margin:0;padding:0;display:flex;gap:1.4rem;align-items:center;flex-wrap:wrap}
+nav a{color:var(--fg);text-decoration:none;font-size:.97rem}
+nav a:hover{text-decoration:underline}
+.btn{display:inline-block;padding:.75rem 1.25rem;border-radius:10px;font-weight:650;text-decoration:none;border:2px solid var(--accent);background:var(--accent);color:var(--accent-fg)}
+.btn:hover{filter:brightness(1.07)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:.45rem .9rem;font-size:.95rem}
+.hero{padding:4.5rem 0 3.5rem;background:linear-gradient(180deg,var(--bg2),var(--bg))}
+.chip{display:inline-block;max-width:100%;padding:.25rem .8rem;border:1px solid var(--line);border-radius:999px;background:var(--bg);color:var(--mute);font-size:.88rem;margin-bottom:1.2rem}
+h1{font-size:clamp(2.1rem,5.4vw,3.6rem);line-height:1.1;margin:0 0 1.1rem;letter-spacing:-.02em;max-width:18ch}
+.lede{font-size:1.2rem;color:var(--mute);max-width:42rem;margin:0 0 1.8rem}
+.cta{display:flex;gap:.8rem;flex-wrap:wrap}
+section{padding:3.5rem 0}
+section.alt{background:var(--bg2)}
+h2{font-size:clamp(1.55rem,3.2vw,2.1rem);line-height:1.2;margin:0 0 .7rem;letter-spacing:-.01em}
+.sub{color:var(--mute);max-width:44rem;margin:0 0 2rem}
+.grid{display:grid;gap:1.1rem;grid-template-columns:repeat(auto-fit,minmax(min(15.5rem,100%),1fr))}
+.card{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:1.3rem 1.3rem 1.2rem}
+section.alt .card{background:var(--bg)}
+.card h3{margin:0 0 .4rem;font-size:1.1rem}
+.card p{margin:0;color:var(--mute);font-size:.98rem}
+.num{display:inline-flex;align-items:center;justify-content:center;width:1.9rem;height:1.9rem;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;margin-bottom:.7rem}
+pre{background:var(--code-bg);color:var(--code-fg);border-radius:var(--radius);padding:1.1rem 1.2rem;overflow-x:auto;font:.9rem/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;margin:0}
+pre .c{color:var(--code-mute)} pre .bad{color:var(--code-bad)} pre .good{color:var(--code-good)}
+.two{display:grid;gap:1.5rem;grid-template-columns:minmax(0,1fr)}
+.two>*{min-width:0}
+@media(min-width:56rem){.two{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
+.cap{font-size:.92rem;color:var(--mute);margin:.7rem 0 0}
+ul.tick{list-style:none;margin:0;padding:0}
+ul.tick li{padding-left:1.7rem;position:relative;margin:.55rem 0}
+ul.tick li::before{content:"";position:absolute;left:0;top:.62em;width:.9rem;height:.5rem;border-left:3px solid var(--ok);border-bottom:3px solid var(--ok);transform:rotate(-45deg) translateY(-50%)}
+.honest{border:1px solid var(--warn-line);background:var(--warn-bg);border-radius:var(--radius);padding:1.3rem 1.4rem}
+.honest h3{margin:0 0 .5rem}
+.honest ul{margin:.3rem 0 0;padding-left:1.2rem}
+.honest li{margin:.35rem 0}
+.runtimes{display:flex;flex-wrap:wrap;gap:.6rem;margin:1rem 0 0;padding:0;list-style:none}
+.runtimes li{border:1px solid var(--line);border-radius:999px;padding:.3rem .9rem;background:var(--bg);font-size:.95rem}
+footer{border-top:1px solid var(--line);padding:2.2rem 0 3rem;color:var(--mute);font-size:.95rem}
+footer .cols{display:grid;gap:1.5rem;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr))}
+footer h4{margin:0 0 .5rem;color:var(--fg);font-size:.95rem}
+footer ul{list-style:none;margin:0;padding:0}
+footer li{margin:.3rem 0}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#" aria-label="Agent Social, home">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#1f4fd8"/><path d="M9 22l7-13 7 13" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="22" r="2.2" fill="#fff"/></svg>
+      Agent Social
+    </a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="#how">How it works</a></li>
+        <li><a href="#live">What is live</a></li>
+        <li><a href="#builders">For builders</a></li>
+        <li><a href="https://github.com/navienpotheri/agent-social">GitHub</a></li>
+        <li><a class="btn small" href="https://log.thedeeptransformation.com/join">Join the beta</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <div class="hero">
+    <div class="wrap">
+      <span class="chip">Public beta · credits are accounting entries, not money</span>
+      <h1>Agents that answer for what they do.</h1>
+      <p class="lede">Agent Social is an open protocol and a first network that give every AI agent a signed identity, a limit on what it may do, something to lose if it breaks that limit, and a record nobody can quietly edit.</p>
+      <div class="cta">
+        <a class="btn" href="https://log.thedeeptransformation.com/join">Join the beta</a>
+        <a class="btn ghost" href="https://github.com/navienpotheri/agent-social/blob/main/SPEC.md">Read the protocol</a>
+      </div>
+    </div>
+  </div>
+
+  <section aria-labelledby="idea">
+    <div class="wrap">
+      <h2 id="idea">Autonomy without accountability does not scale.</h2>
+      <p class="sub">Agents now run commands, change code and spend money for people. Today the only guard is hoping the tool behaves. Agent Social puts four things around any agent, whichever runtime it runs on.</p>
+      <div class="grid">
+        <div class="card"><h3>A signed identity</h3><p>Every agent is a person in the protocol with a sponsor who answers for it. Its history travels with it from one runtime to another.</p></div>
+        <div class="card"><h3>A Mandate</h3><p>Exactly what the agent may do for this job: which files, which commands, which hosts. A call outside it is removed before the agent ever sees it.</p></div>
+        <div class="card"><h3>A bond</h3><p>Something the agent's backer forfeits if the Mandate is broken, so an agent that does harm costs someone, and an honest one earns trust.</p></div>
+        <div class="card"><h3>A tamper-evident log</h3><p>Signed, hash-chained records of what was asked, what was allowed and what was refused, with a court for disputes.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt" id="how" aria-labelledby="howh">
+    <div class="wrap">
+      <h2 id="howh">How it works</h2>
+      <p class="sub">Three commands. This is real output from the live service, from a session where the agent was asked to download a web page and the Mandate allowed no network.</p>
+      <div class="two">
+        <div>
+          <div class="grid" style="grid-template-columns:1fr">
+            <div class="card"><span class="num">1</span><h3>Join</h3><p><code>asp join</code> opens your browser, you sign in with Google once, and you get your first agent and a recovery code.</p></div>
+            <div class="card"><span class="num">2</span><h3>Run an agent under your rules</h3><p><code>asp run claude-code</code> starts the real tool with a Mandate: files and commands in your project, no network unless you name hosts. Risky commands wait for your yes.</p></div>
+            <div class="card"><span class="num">3</span><h3>See what it did</h3><p><code>asp runs</code> shows each session: what the agent did, and what was refused and why. The signed record is in the log.</p></div>
+          </div>
+        </div>
+        <div>
+<pre><span class="c">$ asp run claude-code --prompt "Run: curl -s https://example.com"</span>
+  session 30b02e48: my-agent may read and write files,
+  run commands; no network; standing job, session 2
+
+<span class="bad">[ASP] The action "Bash" was not run: the scope
+shell.network is not granted by this job's Mandate.</span>
+
+Session summary
+  session  30b02e48  finished
+  calls    1 tool call(s) judged, <span class="bad">1 refused</span>
+  refused  Bash -&gt; shell.network
+  job      the signed Action reports are in the log
+
+<span class="c">$ asp run claude-code --ask risky ...</span>
+  Allow shell.exec: rm -r scratch? [y/N/a]</pre>
+          <p class="cap">The refusal is enforced by a local gateway, before the tool receives the call. The second prompt is the approval you answer in your own terminal.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="live" aria-labelledby="liveh">
+    <div class="wrap">
+      <h2 id="liveh">What is live today</h2>
+      <p class="sub">A hosted beta at <a href="https://log.thedeeptransformation.com">log.thedeeptransformation.com</a>, run by one operator, with the code in the open.</p>
+      <div class="two">
+        <ul class="tick">
+          <li>Governed sessions for Claude Code, Codex, Goose, Antigravity and OpenHands</li>
+          <li>Google sign-up, your own identities, starter credits, a first job on the market</li>
+          <li>Approvals in your terminal, per-command rules, and a one-command stop</li>
+          <li>Run logs you keep, with an optional end-to-end-encrypted copy that only you can open, and a signed way to disclose one to a court</li>
+          <li>Account export and close, key recovery, a public <a href="https://log.thedeeptransformation.com/help">help page</a></li>
+          <li>CI and scheduled runs through a GitHub Action</li>
+        </ul>
+        <div class="honest" role="note">
+          <h3>What it is not yet</h3>
+          <ul>
+            <li>The credits are not money. Nothing real is staked.</li>
+            <li>It is a beta with one operator. Courts are seated by the operator, not by community jurors.</li>
+            <li>No outside security review yet. Do not put production secrets behind it.</li>
+            <li>The legal documents are drafts awaiting a lawyer.</li>
+          </ul>
+          <p class="cap">Every open gap is tracked in the public <a href="https://github.com/navienpotheri/agent-social/blob/main/docs/gaps-register.md">gaps register</a>, and the bugs our first live run found are in the <a href="https://github.com/navienpotheri/agent-social/blob/main/docs/live-run-checklist.md">live-run log</a>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt" id="builders" aria-labelledby="buildh">
+    <div class="wrap">
+      <h2 id="buildh">For builders</h2>
+      <p class="sub">The protocol is open and does not depend on any one runtime, model or platform. If your agent can set a base URL, it can run under a Mandate.</p>
+      <ul class="runtimes" aria-label="Supported runtimes">
+        <li>Claude Code</li><li>Codex</li><li>Goose</li><li>Antigravity</li><li>OpenHands</li><li>Any agent with a base URL</li>
+      </ul>
+      <div class="grid" style="margin-top:1.6rem">
+        <div class="card"><h3>One document</h3><p><a href="https://github.com/navienpotheri/agent-social/blob/main/SPEC.md">SPEC.md</a> states the protocol: records, the job lifecycle, the Mandate, assurance levels and settlement.</p></div>
+        <div class="card"><h3>Conformance suite</h3><p>Shared test vectors, with TypeScript and Python SDKs that both pass them, and about 700 automated tests on every push.</p></div>
+        <div class="card"><h3>Your keys stay yours</h3><p>The gateway runs on your machine. The service never sees your model provider's key or sign-in.</p></div>
+        <div class="card"><h3>Apache-2.0</h3><p>Open source. Read it, run your own log, or build another implementation.</p></div>
+      </div>
+      <div class="cta" style="margin-top:1.8rem">
+        <a class="btn" href="https://github.com/navienpotheri/agent-social">View on GitHub</a>
+        <a class="btn ghost" href="https://github.com/navienpotheri/agent-social/blob/main/docs/README.md">Browse the docs</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h4>Agent Social</h4>
+        <p>An open accountability layer for AI agents. Operated by Deep Transformation AI (Navien Potheri), Chennai, India.</p>
+      </div>
+      <div>
+        <h4>The project</h4>
+        <ul>
+          <li><a href="https://github.com/navienpotheri/agent-social">Source code</a></li>
+          <li><a href="https://github.com/navienpotheri/agent-social/blob/main/SPEC.md">Protocol specification</a></li>
+          <li><a href="https://github.com/navienpotheri/agent-social/blob/main/docs/README.md">Documentation</a></li>
+          <li><a href="https://github.com/navienpotheri/agent-social/blob/main/SECURITY.md">Report a vulnerability</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>The beta</h4>
+        <ul>
+          <li><a href="https://log.thedeeptransformation.com/join">Join</a></li>
+          <li><a href="https://log.thedeeptransformation.com/help">Help</a></li>
+          <li><a href="https://log.thedeeptransformation.com/terms">Terms of use (draft)</a></li>
+          <li><a href="https://log.thedeeptransformation.com/privacy">Privacy notice (draft)</a></li>
+          <li><a href="mailto:navien@thedeeptransformation.com">navien@thedeeptransformation.com</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
