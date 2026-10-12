@@ -3,7 +3,7 @@
 The server is an Ubuntu 24.04 machine running Node 24, Postgres 17 and Caddy (HTTPS), set up by `setup-server.sh`. Run it as root on the server; it can be run again to update the code.
 
 ```
-curl -fsSL https://raw.githubusercontent.com/navienpotheri/agent-social/event-log/docs/deploy/setup-server.sh -o setup.sh && sudo bash setup.sh
+curl -fsSL https://raw.githubusercontent.com/navienpotheri/agent-social/main/docs/deploy/setup-server.sh -o setup.sh && sudo bash setup.sh
 ```
 
 ## Turning on sign-up with Google
