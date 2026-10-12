@@ -55,7 +55,7 @@ Dates are 2026-10 unless written out. The first live run on the hosted service w
 | UC-33 | Record quota: a long session does not use up the tenant's records | packages/asp-cli/test/gateway.test.ts | partial 10-12 (after the fix about half a record per tool call; 64 records for 76 calls over 2.2 h) | R1 | Measure a multi-hour continuous session (UC-37) | P0 |
 | UC-34 | A second agent (`asp agent add/list/use`) | packages/asp-cli/test/agent-cmd.test.ts | yes 10-12 | P19 | none | P1 |
 | UC-35 | Laptop sleeps or the network drops mid-session | none | no | T2 | Test sleep and wifi loss during a held approval and during a model call | P0 |
-| UC-36 | Work spread over hours: nine stages of a real task, ten-minute idle gaps, one standing job, the service watched throughout | evals/long-horizon.mjs (a live driver, not part of `npm test`) | yes 10-12 (2.2 h, 9 stages, 76 tool calls, 0 crashes) | R1 | Repeat after the redeploy; add a gap longer than the standing job's refresh window | P0 |
+| UC-36 | Work spread over hours (a live driver, not part of npm test): nine stages of a real task, ten-minute idle gaps, one standing job, the service watched throughout | evals/long-horizon.mjs | yes 10-12 (2.2 h, 9 stages, 76 tool calls, 0 crashes) | R1 | Repeat after the redeploy; add a gap longer than the standing job's refresh window | P0 |
 | UC-37 | One session that runs continuously for hours (many hundreds of calls) | none | no | R1 | Run one; measure records, memory and the Mandate expiring mid-run | P1 |
 
 ## 5. Run logs, custody and disclosure
