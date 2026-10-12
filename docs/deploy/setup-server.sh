@@ -4,7 +4,7 @@
 # it updates the code and restarts the service, and does not recreate the database, the secrets or the admin token.
 #
 #   DOMAIN   the name the service answers on (default log.thedeeptransformation.com; its DNS A record must point at this server first)
-#   BRANCH   the git branch to deploy (default event-log)
+#   BRANCH   the git branch to deploy (default main)
 #   SIGNUP_DAILY_CAP  sign-ups a day in all (default 100)
 #   MAIL_FROM, MAIL_OPERATOR  who mail comes from (default "Agent Social <noreply@$DOMAIN-parent>") and where a dispute note goes; the mail is only SENT once RESEND_API_KEY
 #                     is in /etc/asp/asp.env (see docs/deploy/README.md); until then it is written to /var/lib/asp/tokens.json.outbox
@@ -13,7 +13,7 @@
 set -euo pipefail
 
 DOMAIN="${DOMAIN:-log.thedeeptransformation.com}"
-BRANCH="${BRANCH:-event-log}"
+BRANCH="${BRANCH:-main}"
 REPO="${REPO:-https://github.com/navienpotheri/agent-social.git}"
 SIGNUP_DAILY_CAP="${SIGNUP_DAILY_CAP:-100}"
 APP=/opt/asp
