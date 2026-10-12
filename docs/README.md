@@ -58,3 +58,4 @@ For contributors, reviewers and anyone judging how far along it is.
 | [build-status.md](build-status.md) | The detailed account of the first build slices |
 | [testing.md](testing.md) | Running every suite, including Postgres and Python |
 | [github-page.md](github-page.md) | What the repository page should say, and the release check |
+| [website.md](website.md) | The one-page website in `site/`: what it may say, the one-time setup, how to edit it |
