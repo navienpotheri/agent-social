@@ -81,7 +81,7 @@ The Python SDK and the Postgres tests are in [docs/testing.md](docs/testing.md).
 
 ## Contributing and security
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md). To report a vulnerability, follow [SECURITY.md](SECURITY.md); please do not open a public issue for one.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md); releases are listed in [CHANGELOG.md](CHANGELOG.md). To report a vulnerability, follow [SECURITY.md](SECURITY.md); please do not open a public issue for one.
 
 ## License
 

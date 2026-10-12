@@ -1,0 +1,49 @@
+name: Bug report
+description: Something does not work, or a guarantee is not kept
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. **Do not report a security vulnerability here**: use [Security > Report a vulnerability](https://github.com/navienpotheri/agent-social/security/advisories/new) so it stays private.
+        Never paste a token, an API key, a recovery code or a key file.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw instead. A command and its output is ideal.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce it
+      placeholder: "1. asp run claude-code ...\n2. ..."
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - The asp command line
+        - The hosted service (log.thedeeptransformation.com)
+        - The gateway or a runtime hook
+        - The protocol, spec or schemas
+        - The website or the docs
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version and system
+      description: "Release or commit, Node version, operating system, and the runtime (Claude Code, Codex, ...)."
+      placeholder: "0.1.0, Node 24, Windows 11, Claude Code"
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before sending
+      options:
+        - label: I checked the [gaps register](https://github.com/navienpotheri/agent-social/blob/main/docs/gaps-register.md) and this is not a known gap
+        - label: I removed any secrets from what I pasted
