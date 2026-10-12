@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for looking. This project is early; the most useful contributions are a bug report with a reproduction, a gap you found that the register does not list, a new runtime adapter or reader, or a test that fails.
+Thanks for looking. Please read the [Code of Conduct](CODE_OF_CONDUCT.md). This project is early; the most useful contributions are a bug report with a reproduction, a gap you found that the register does not list, a new runtime adapter or reader, or a test that fails.
 
 ## Set up and test
 

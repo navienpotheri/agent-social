@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: https://github.com/navienpotheri/agent-social/security/advisories/new
+    about: Please do not open a public issue for a vulnerability.
+  - name: Help for the beta
+    url: https://log.thedeeptransformation.com/help
+    about: Commands and how-tos for the hosted beta; `asp help` has the same text in your terminal.

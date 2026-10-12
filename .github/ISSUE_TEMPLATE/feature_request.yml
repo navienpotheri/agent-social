@@ -1,0 +1,33 @@
+name: Idea or feature request
+description: A runtime to support, a rule to add, something that would make this more useful
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what gets in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you would like
+      description: Rough is fine. If it changes the protocol, say which record or rule.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - A new runtime or adapter
+        - The Mandate or the gateway
+        - The log service or accounts
+        - Approvals and the terminal experience
+        - The protocol itself
+        - The website or the docs
+        - Something else
+  - type: markdown
+    attributes:
+      value: Known gaps and what is planned are tracked in the [gaps register](https://github.com/navienpotheri/agent-social/blob/main/docs/gaps-register.md); an idea that closes one of those rows is very welcome.
