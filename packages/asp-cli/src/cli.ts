@@ -4529,23 +4529,30 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     renameSync(tmp, join(o.dir, `${id}.decision.json`));
   };
 
-  async function handle(req: { id: string; tool: string; scope: string; summary: string }) {
+  async function handle(req: { id: string; tool: string; scope: string; summary: string; requested_at?: string }) {
     const signer = new Keystore(o.home).forDid(o.agent);
     if (!signer) return decide(req.id, { approved: false, reason: `no key for ${o.agent} to raise the Checkpoint` });
+    // The gateway's wait started when the request was made, not when this turn comes (found in the long-horizon run: a retried call queued behind an earlier approval was refused by the
+    // gateway on time while its Checkpoint stayed open and listed as waiting for a yes that could no longer count).
+    const askedAt = Number.isFinite(Date.parse(req.requested_at ?? "")) ? Date.parse(req.requested_at!) : Date.now();
+    const giveUpAt = askedAt + o.waitSeconds * 1000;
+    const timedOut = () => decide(req.id, { approved: false, reason: `the principal did not answer within ${o.waitSeconds} seconds` });
     // A job has one open Checkpoint at a time: wait for any earlier one to be resolved first.
     let local = await openLog(o.home, logEnv);
     while ((await local.log.chainInfo(o.contract))?.state !== "Running") {
       if (stopped) return;
+      if (Date.now() >= giveUpAt) return timedOut();
       await sleep(o.pollMs);
       local = await openLog(o.home, logEnv);
     }
+    if (Date.now() >= giveUpAt) return timedOut();
     // What the principal sees, and what goes in the log, is the command with anything secret-looking masked.
     const masked = redactSecrets(req.summary);
     const shown = masked.text.length > 300 ? masked.text.slice(0, 300) + "..." : masked.text;
     const head = (await marketChain(local.log, o.contract)).at(-1)!;
     const principal = ((await local.log.get(o.contract))!.record.body as { principal: string }).principal;
     // The request expires when the hook gives up waiting; then the performer closes the Checkpoint itself, so the job is not stuck.
-    const expiresMs = Math.ceil((Date.now() + o.waitSeconds * 1000) / 1000) * 1000;
+    const expiresMs = Math.ceil(giveUpAt / 1000) * 1000;
     const checkpoint = createRecord({
       type: "checkpoint", issuer: o.agent, subject: o.contract, prev: head.id, issued_at: now(),
       body: { contract: o.contract, kind: "before_irreversible", question: `May ${o.agent} run ${req.tool} (${req.scope})?`, proposed_action: shown,
