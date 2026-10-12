@@ -296,6 +296,16 @@ test("approval gates: a gated call is held until the principal answers; approved
   assert.ok(Date.now() - t0 >= 900);
   assert.match(none.choices[0].message.content, /no answer within 1 seconds/);
 
+  // After two requests nobody answered, the gateway stops asking in this session: the third is refused at once, with a reason the agent can act on (found in the long-horizon run, where an
+  // agent retried one gated command for 40 minutes, each try waiting its full ten).
+  const second1: any = await (await post(`${silent.url}/v1/chat/completions`, { model: "m", messages: [] })).json();
+  assert.match(second1.choices[0].message.content, /no answer within 1 seconds/);
+  const t1 = Date.now();
+  const third: any = await (await post(`${silent.url}/v1/chat/completions`, { model: "m", messages: [] })).json();
+  assert.ok(Date.now() - t1 < 500, "no wait once the principal has been silent twice");
+  assert.match(third.choices[0].message.content, /2 earlier approval request\(s\) in this session went unanswered, so no more are asked/);
+  assert.equal(silent.g.summary().strikes, 0, "still not a strike");
+
   const deny = await gateway(up, { scopes: ["shell.exec"], gate: { scopes: ["shell.exec"], mode: "deny", waitSeconds: 1 } });
   const denied: any = await (await post(`${deny.url}/v1/chat/completions`, { model: "m", messages: [] })).json();
   assert.match(denied.choices[0].message.content, /forbidden by this job's irreversible policy/);

@@ -51,6 +51,7 @@ For contributors, reviewers and anyone judging how far along it is.
 |---|---|
 | [launch-blockers.md](launch-blockers.md) | What stands between the protocol and a public beta, and progress against each item |
 | [gaps-register.md](gaps-register.md) | Every gap, with what protects you today and what would close it; rows are never deleted |
+| [testing-map.md](testing-map.md) | **The testing map**: every use case, how it is covered (automated and live), the gap, the to-do and the priority; kept current by a test |
 | [live-run-checklist.md](live-run-checklist.md) | What was and was not tried live, what was faked, and the bugs the live runs found |
 | [../MOCKS.md](../MOCKS.md) | Every mock or placeholder |
 | [backlog.md](backlog.md) | Known work not yet scheduled |

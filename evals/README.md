@@ -8,6 +8,7 @@ Each evaluation builds a throwaway ASP home under your system temp folder (`asp-
 node evals/run-all.mjs fast            # no model, no account
 node evals/run-all.mjs models          # an open-weight model on OpenRouter
 node evals/run-all.mjs real            # real agents on your own logins
+node evals/long-horizon.mjs         # nine staged sessions over about two hours against your joined account (uses real Claude Code)
 node evals/run-all.mjs all --only swarm,known-bad
 node evals/swarm.mjs                   # or any one of them directly
 ```

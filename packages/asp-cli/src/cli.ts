@@ -3739,6 +3739,14 @@ interface SessionProfile {
   needsPrompt: boolean;
   needsModel: boolean;
 }
+/** What to tell a person whose tool did not start. */
+const TOOL_INSTALL_HINT: Record<string, string> = {
+  "claude-code": "Install Claude Code (https://claude.com/claude-code), sign in once by running `claude`,",
+  codex: "Install the Codex CLI (`npm install -g @openai/codex`),",
+  goose: "Install Goose,",
+  antigravity: "Install the Antigravity CLI (agy) and sign in,",
+  openhands: "Install OpenHands (on Windows it runs inside WSL),",
+};
 const SESSION_SCOPES = ["repo.read", "repo.write", "shell.exec", "tests.run"];
 const SESSION_RUNTIMES: Record<string, SessionProfile> = {
   "claude-code": { scopes: SESSION_SCOPES, wire: "anthropic", needsPrompt: false, needsModel: false },
@@ -3984,6 +3992,13 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
   io.out("Session summary");
   io.out(`  session  ${sid}  ${state === "stopped" ? "stopped by you" : state === "ended" ? "finished" : `failed (exit ${gw.code})`}`);
   io.out(`  calls    ${sum?.toolCalls ?? 0} tool call(s) judged, ${refused.length} refused${sum?.tokens ? `; ${sum.tokens.input + sum.tokens.output} tokens` : ""}`);
+  // A tool that never started says why and what to do (found in preparing for developers: "failed (exit -1)" with no reason read as asp being broken).
+  if (state === "failed") {
+    const text = gw.errLines.join("\n");
+    const notStarted = /ENOENT|not installed|could not start|spawn .* (ENOENT|EACCES)|is not recognized/i.test(text) || gw.code === -1;
+    for (const l of gw.errLines.map((x) => x.trim()).filter((x) => /ENOENT|not installed|could not start|error:|failed/i.test(x)).slice(0, 3)) io.out(`  why      ${l.slice(0, 200)}`);
+    if (notStarted) io.out(`  fix      ${runtime} could not be started on this machine. ${TOOL_INSTALL_HINT[runtime] ?? `Install ${runtime}`} and make sure typing its name in a terminal works, then run this again.`);
+  }
   for (const r of refused.slice(0, 5)) io.out(`  refused  ${r}`);
   if (refused.length > 5) io.out(`  ... and ${refused.length - 5} more`);
   if (stopped && !wasStopped) io.out(`  ${stopped}`);
@@ -4369,9 +4384,36 @@ async function agentCmd(home: string, sub: string | undefined, rest: string[], v
 function readAlways(file: string): AlwaysAllow { try { return JSON.parse(readFileSync(file, "utf8")) as AlwaysAllow; } catch { return {}; } }
 function writeAlways(file: string, a: AlwaysAllow): void { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify(a, null, 2) + "\n"); }
 
+/**
+ * Closes a Checkpoint nobody can answer any more: its time ran out and the session that raised it is gone (stopped with asp stop, its window closed, a crash). The performer signs the
+ * expiry, as the approval server does while it is alive. Without this the job stays in Checkpoint (found in the long-horizon run), `asp approvals` lists a request that cannot count, and every
+ * later approval waits behind it. Returns whether it closed one.
+ */
+async function reapExpiredCheckpoint(home: string, contract: string): Promise<boolean> {
+  const local = await openLog(home, logEnv);
+  if ((await local.log.chainInfo(contract))?.state !== "Checkpoint") return false;
+  const chain = await marketChain(local.log, contract);
+  const at = chain.map((x) => x.record.type).lastIndexOf("asp.checkpoint/v0.2");
+  if (at < 0) return false;
+  const cp = chain[at];
+  const resolved = chain.slice(at + 1).some((x) => x.record.type === "asp.attestation/v0.2" && (x.record.body as { kind?: string; about?: string }).kind === "checkpoint_resolution" && (x.record.body as { about?: string }).about === cp.id);
+  const expires = Date.parse((cp.record.body as { expires?: string }).expires ?? "");
+  if (resolved || !Number.isFinite(expires) || Date.now() < expires + 1000) return false;
+  const performer = ((await local.log.get(contract))!.record.body as { performer: string }).performer;
+  const signer = new Keystore(home).forDid(performer);
+  if (!signer) return false;
+  const expired = createRecord({
+    type: "attestation", issuer: performer, subject: contract, prev: chain.at(-1)!.id, issued_at: now(),
+    body: { kind: "checkpoint_resolution", about: cp.id, verdict: "expired" },
+  }, signer);
+  await local.append(expired);
+  return true;
+}
+
 /** The calls waiting for the person's answer, from the standing jobs' chains in the log. */
 async function waitingApprovals(home: string): Promise<{ n: number; contract: string; checkpoint: string; question: string; action: string; principal: string }[]> {
   const contracts = [...new Set(Object.values(readStanding(home)).map((j) => j.contract))];
+  for (const c of contracts) { try { await reapExpiredCheckpoint(home, c); } catch { /* the next look tries again */ } }
   const local = await openLog(home, logEnv);
   const open: { n: number; contract: string; checkpoint: string; question: string; action: string; principal: string }[] = [];
   for (const c of contracts) {
@@ -4542,6 +4584,8 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     while ((await local.log.chainInfo(o.contract))?.state !== "Running") {
       if (stopped) return;
       if (Date.now() >= giveUpAt) return timedOut();
+      // An earlier Checkpoint whose session is gone and whose time has run out would hold this one back for ever: close it.
+      try { await reapExpiredCheckpoint(o.home, o.contract); } catch { /* try again on the next poll */ }
       await sleep(o.pollMs);
       local = await openLog(o.home, logEnv);
     }

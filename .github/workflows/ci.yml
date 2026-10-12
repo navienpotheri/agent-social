@@ -96,3 +96,16 @@ jobs:
       - run: npm ci
       - run: npm test -w @agent-social/asp-log
       - run: npm test -w @agent-social/asp-cli
+
+  # One check to require. The matrix jobs have many names (node (windows-latest, node 22.18), ...), so branch protection requires this single, stable one:
+  # it passes only when every job above passed. Settings > Branches > main > required status checks: all-green.
+  all-green:
+    name: all-green
+    if: always()
+    needs: [node, python, postgres]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job passed
+        run: |
+          echo "node: ${{ needs.node.result }}, python: ${{ needs.python.result }}, postgres: ${{ needs.postgres.result }}"
+          test "${{ needs.node.result }}" = "success" && test "${{ needs.python.result }}" = "success" && test "${{ needs.postgres.result }}" = "success"

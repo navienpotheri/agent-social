@@ -51,7 +51,10 @@ test("sign-up refuses: no terms, a bad or reserved or taken name, a challenge fo
   const nonce = solveChallenge(ch.salt, ch.difficulty);
   const body = { name: "carol-bot", accept_terms: true, terms_version: "v1", challenge: ch.challenge, nonce };
   assert.equal(code(s.register("4.4.4.4", body)), "BAD_CHALLENGE", "another address cannot use it");
-  assert.equal(code(s.register("3.3.3.3", { ...body, nonce: "zzzzzzzz" })), "BAD_PROOF");
+  // A nonce that is certainly wrong for this challenge (a fixed one passes by chance about once in 2^difficulty runs: it failed once on CI).
+  let wrong = "zzzzzzzz";
+  while (powOk(ch.salt, wrong, ch.difficulty)) wrong += "z";
+  assert.equal(code(s.register("3.3.3.3", { ...body, nonce: wrong })), "BAD_PROOF");
   assert.equal(code(s.register("3.3.3.3", body)), "ok");
   assert.equal(code(s.register("3.3.3.3", { ...body, name: "dave-bot" })), "CHALLENGE_USED");
   const old = s.challenge("5.5.5.5");

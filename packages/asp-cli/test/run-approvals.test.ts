@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer as createHttp } from "node:http";
 import { createServer as createNet } from "node:net";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -85,6 +85,16 @@ test("inline approvals: a call on a gated scope waits for your yes; asked in the
     assert.match((await call(["standing"])).out, /3 session\(s\)/);
     // A session that does not ask about commands is a different standing job (no gate).
     assert.match((await call(["run", "claude-code", "--prompt", "No gate", "--project", project])).err, /new standing job/);
+
+    // Found in the long-horizon run: a session ended with asp stop while holding an approval left its Checkpoint open for ever (nothing alive to close it when its time ran out), so the job
+    // sat in Checkpoint and asp approvals listed a request nobody could answer. Whoever looks next closes it.
+    const gated = Object.values(JSON.parse(readFileSync(join(f.aspHome, "standing.json"), "utf8")) as Record<string, { contract: string; gate?: string[] }>).find((j) => j.gate?.length)!;
+    const soon = new Date(Date.now() + 2000).toISOString().replace(/\.\d{3}Z$/, "Z");
+    assert.equal((await call(["market", "checkpoint", "--contract", gated.contract, "--by", agent, "--kind", "before_irreversible", "--question", "May it run the stale thing?", "--summary", "rm -r stale", "--expires", soon])).code, 0);
+    assert.match((await call(["approvals"])).out, /May it run the stale thing\?/, "while its time has not run out it is waiting for an answer");
+    await new Promise((r) => setTimeout(r, 4000));
+    assert.match((await call(["approvals"])).out, /nothing is waiting/, "after its time it is closed, not listed");
+    assert.match((await call(["market", "show", gated.contract])).out, /Running/, "and the job is running again, not stuck in Checkpoint");
   } finally {
     server.kill(); upstream.close();
   }
