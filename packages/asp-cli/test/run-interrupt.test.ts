@@ -46,9 +46,23 @@ test("Ctrl-C in the middle of a session ends it as stopped, removes the stop fil
     appendFileSync(join(lhome, "runs.ndjson"), JSON.stringify({ t: "start", pid: 2147483646, sid: "deadbeef", contract: "c", at: new Date().toISOString(), runtime: "claude-code", agent: "a", me: "m", bank: "b", purpose: "killed", scopes: [], hosts: [] }) + "\n");
     assert.match((await asp(lhome, ["runs"])).out, /deadbeef\s.*claude-code\s+interrupted/);
 
+    // An interactive session (no prompt): the tool owns Ctrl-C, so asp does not end the session on it; the session ends when the tool does. A closed terminal still stops it.
+    const brief = { ...env, ASP_CLAUDE_SCRIPT: fileURLToPath(new URL("./fake-claude-brief.mjs", import.meta.url)) };
+    const waitRunning = async () => { const t0 = Date.now(); while (Date.now() - t0 < 20000 && !(await asp(lhome, ["runs"])).out.split("\n")[0].includes("running")) await new Promise((r) => setTimeout(r, 150)); };
+    const inter = asp(f.aspHome, ["run", "claude-code", "--local", "--project", project], brief);
+    await waitRunning();
+    process.emit("SIGINT");
+    const interDone = await inter;
+    assert.doesNotMatch(interDone.err, /Ctrl-C: ending the session/, "Ctrl-C belongs to the tool in an interactive session");
+    assert.match(interDone.out, /finished/, interDone.err + interDone.out);
+    const hup = asp(f.aspHome, ["run", "claude-code", "--local", "--project", project], brief);
+    await waitRunning();
+    process.emit("SIGHUP");
+    assert.match((await hup).out, /stopped by you/, "a closed terminal still stops an interactive session");
+
     // The handler is gone after the session, and the next session is a normal one.
     assert.equal(process.listenerCount("SIGINT") <= 1, true);
     const again = await asp(f.aspHome, ["run", "claude-code", "--local", "--prompt", "Again", "--project", project], { ...env, ASP_CLAUDE_SCRIPT: fileURLToPath(new URL("./fake-claude-gateway.mjs", import.meta.url)) });
-    assert.match(again.err, /standing job, session 2/);
+    assert.match(again.err, /standing job, session 4/);
   } finally { upstream.close(); }
 });

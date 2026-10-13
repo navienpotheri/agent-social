@@ -4033,10 +4033,14 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     rmSync(stopFile, { force: true });
     process.exit(130);
   };
+  // An interactive session (no prompt) gives the terminal to the tool, and the tool uses Ctrl-C for itself (cancel the answer, press twice to leave): asp leaves Ctrl-C to it and the
+  // session ends when the tool does. A closed terminal or SIGTERM still stops the session (UC-223).
+  const interactive = !v.prompt && !hooked;
+  const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
-  for (const s of signals) process.on(s, onInterrupt);
+  for (const s of signals) process.on(s, handlers[s]);
   const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
-  for (const s of signals) process.off(s, onInterrupt);
+  for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
   await asking;
   rmSync(capture, { force: true });

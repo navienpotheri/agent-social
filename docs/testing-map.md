@@ -313,7 +313,8 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | Any | process killed outright, power cut, crash | the session reads as interrupted, not running | done: UC-17 (`asp runs` says interrupted) |
 | Any | a second terminal starts a session for the same agent | the job and the one-open-Checkpoint rule hold | UC-138, untested |
 | Hooked runtime (Antigravity, OpenHands) | Ctrl-C (person) | the same, through the package path | UC-222, untested |
-| Interactive session (no prompt) | Ctrl-C (person) | Ctrl-C belongs to the tool (it usually means "cancel this answer"); the session must not end by accident | UC-223, untested |
+| Interactive session | terminal closed or SIGTERM | the session is stopped | done: UC-223 (SIGHUP by test; tab close live) |
+| Interactive session (no prompt) | Ctrl-C (person) | Ctrl-C belongs to the tool (it usually means "cancel this answer"); the session must not end by accident; it ends when the tool does | done: UC-223 (S125; live only at the first-run screen) |
 | Agent (its own code) | the agent starts a process that outlives it | that process is ended with the session | UC-224, Windows only so far (taskkill); macOS and Linux rely on the terminal's process group |
 
 | ID | Use case | Automated | Live | Gap | To-do | Pri |
@@ -322,7 +323,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-220 | Ctrl-C while a call is held for approval closes the Checkpoint | packages/asp-cli/test/run-interrupt-approval.test.ts | yes 10-13 (Claude Code, a command held at the prompt) | T2 | none (found three defects, fixed in S124; the held call and the open Checkpoint are closed when the session is) | P0 |
 | UC-221 | Closing the terminal window ends the session the same way | none | no | T2 | Try on Windows (closing the tab) and Linux | P1 |
 | UC-222 | Ctrl-C of a hooked runtime session (Antigravity, OpenHands) | none | no | T2 | Run with the real runtime | P1 |
-| UC-223 | Ctrl-C in an interactive session does not end the whole session by accident | none | no | T2 | Decide the behaviour (the tool usually claims Ctrl-C), then test it | P0 |
+| UC-223 | Ctrl-C in an interactive session does not end the whole session by accident | packages/asp-cli/test/run-interrupt.test.ts | partial 10-13 (real Claude Code at its first-run screen: two Ctrl-Cs went to the tool, asp left the session running; closing the tab left it `interrupted`, no process left) | T2 | Do it once more with Claude Code past its first-run screen, in the middle of an answer and at its own approval prompt; also UC-15 (a whole interactive session) | P0 |
 | UC-224 | A process the agent started is ended with the session on macOS and Linux | none | no | T1 | Test on both; kill the process group if the terminal does not | P1 |
 
 ## Journey index
