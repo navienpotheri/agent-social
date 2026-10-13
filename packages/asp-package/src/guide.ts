@@ -49,6 +49,7 @@ export const TOPICS: Topic[] = [
       "--allow-network a.com,b.com   hosts the agent may reach (default: none)",
       "--ask commands|writes|network   hold those calls until you say yes (asp approvals, or the prompt in this window)",
       "--keep-run-log             seal a copy of the session's log on the service (asp help runlog)",
+      "--local                    no service and no account (a demo with no wifi): local identities and records on this machine only, in <ASP_HOME>/local; nothing is shared",
       "Defaults for a project can live in a file: asp help asp-yaml.",
     ],
   },

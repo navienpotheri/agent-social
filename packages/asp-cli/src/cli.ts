@@ -5,6 +5,9 @@
  *   asp | asp status | asp help [topic|words|all] | asp ask "<words>" [--yes] | asp init | asp trust [asp.yaml] | asp shim bash|zsh|powershell
  *     The home, where things stand and what to do next, help by topic or search (the same text is at /help on the service), a rule-based words-to-command that shows the command first
  *     (S110), a starter asp.yaml of project defaults (allow-network is used only from a file you trust), and a script for your shell (completion; claude starts a governed session).
+ *   asp run <runtime> --local --prompt <text>   (S122) the same governed session with no service and no account: did:key identities and a log under <ASP_HOME>/local, nothing shared
+ *   asp token create <name> [--days n] | list | revoke <name>   machine tokens for CI (S107); asp leave   forget the saved login
+ *   asp court seat [--count n] [--stake n] | status | docket | rule --contract <id> --verdict ... --fault <did>=<permille>   the operator's court during the beta
  *   asp identity new --kind human (--did <did> | --method did:key) [--sponsor <did>]
  *   asp identity new --kind agent (--did <did> | --method did:key) --sponsor <did> [--fleet <did>] [--purpose <text>]
  *     --did <did> uses a DID you already have (e.g. did:web:your-own-domain:...). --method did:key
@@ -279,7 +282,13 @@
  *
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
-import { spawn, spawnSync } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+
+/** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
+function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
+  if (process.platform === "win32" && child.pid) { spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" }); return; }
+  child.kill(signal);
+}
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget, runtimeTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
@@ -325,6 +334,7 @@ export interface Io {
 
 const OPTIONS = {
   home: { type: "string" },
+  local: { type: "boolean" },
   "claude-home": { type: "string" },
   "user-home": { type: "string" },
   model: { type: "string" },
@@ -563,6 +573,19 @@ const OPTIONS = {
   artifact: { type: "string", multiple: true },
 } as const;
 
+/**
+ * A bare "fetch failed" (Node's message for any network failure) says nothing a person can act on. When an error is a connection failure, say what happened and what still works.
+ * Found in preparing for developers: `asp account show` with no wifi printed only "error: fetch failed".
+ */
+export function connectionProblem(e: unknown, service?: string): string | undefined {
+  const err = e as { message?: string; cause?: { code?: string; message?: string } };
+  const code = err?.cause?.code;
+  const network = /^fetch failed$/i.test(err?.message ?? "") || ["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET", "EAI_AGAIN", "UND_ERR_CONNECT_TIMEOUT", "EHOSTUNREACH", "ENETUNREACH"].includes(code ?? "");
+  if (!network) return undefined;
+  const why = code === "ENOTFOUND" || code === "EAI_AGAIN" ? "the address could not be found: check the spelling and your connection" : code === "ECONNREFUSED" ? "nothing is answering there: the service may be down" : code === "ETIMEDOUT" || code === "UND_ERR_CONNECT_TIMEOUT" ? "it did not answer in time: check your connection" : "check your connection";
+  return `cannot reach the service${service ? ` at ${service}` : ""} (${why}). Try again in a moment. \`asp status\` shows what works from this machine; \`asp run --local\` runs an agent under a Mandate with no service and no account.`;
+}
+
 /** The environment the current command runs with, so ASP_LOG_URL and ASP_LOG_TOKEN reach every openLog call (restored on exit: main re-enters). */
 let logEnv: NodeJS.ProcessEnv = process.env;
 
@@ -657,7 +680,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
   } catch (e) {
-    io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${(e as Error).message}`);
+    io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${connectionProblem(e, io.env.ASP_LOG_URL) ?? (e as Error).message}`);
     return e instanceof UsageError ? 2 : 1;
   }
 }
@@ -2267,7 +2290,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       // asp stop leaves a file for this run: the gateway stops, and with it the agent (the job itself stays).
       if (v["stop-file"] && existsSync(v["stop-file"])) { gw.stop("stopped by you (asp stop)"); return; }
       const st = (await (await openLog(home, logEnv)).log.chainInfo(contract))?.state;
-      if (st !== "Running" && st !== "Checkpoint") gw.stop(`the contract is now ${st}`);
+      // An unknown state (the log read while another process was writing it, found with two terminals on one job) is not an end: only a known state other than Running or Checkpoint stops the run.
+      if (st && st !== "Running" && st !== "Checkpoint") gw.stop(`the contract is now ${st}`);
     } catch { /* keep the last known state */ }
   }, pollMs);
   let code = 0;
@@ -2317,8 +2341,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         const grace = Number(io.env.ASP_GATEWAY_KILL_GRACE_MS) >= 0 && io.env.ASP_GATEWAY_KILL_GRACE_MS !== undefined ? Number(io.env.ASP_GATEWAY_KILL_GRACE_MS) : 5000;
         setTimeout(() => {
           if (child.exitCode !== null || child.signalCode !== null) return;
-          child.kill("SIGTERM");
-          setTimeout(() => { if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL"); }, 5000).unref();
+          killTree(child, "SIGTERM");
+          setTimeout(() => { if (child.exitCode === null && child.signalCode === null) killTree(child, "SIGKILL"); }, 5000).unref();
         }, grace).unref();
       };
       if (capturing) {
@@ -3771,7 +3795,7 @@ const GOOSE_RUNTIME = fileURLToPath(new URL("./goose-runtime.mjs", import.meta.u
  * Action reports. The tool runs through the gateway, so a call the Mandate does not allow is removed before the tool receives it; when it stops, a short summary says what the
  * agent said and did, what was refused and why. A new standing job is made when the old one is about to expire (the old one is settled) or the permissions asked for change.
  */
-async function runSession(home: string, runtime: string, v: Values, io: Io): Promise<number> {
+async function runSession(home: string, runtime: string, v: Values, io: Io, localIds?: { me: string; agent: string; bank: string }): Promise<number> {
   const prof = SESSION_RUNTIMES[runtime];
   // Headless (a CI job, a scheduled task): no terminal, no login file, the job prepared beforehand (asp standing prepare) and named with --contract, the agent's key restored from an encrypted
   // backup, the person's own API key held by the gateway, output meant for a machine. Exit codes: the tool's own, 10 if --fail-on-refusal and a call was refused, 11 if the job had ended.
@@ -3805,14 +3829,46 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     if (!io.env[keyEnv]) throw new UsageError(`asp run ${runtime} uses your own ${provider} key: set the environment variable ${keyEnv} (or name another with --api-key-env). The gateway holds it; the tool never sees it.`);
     upstreamFlags = ["--openai-upstream", io.env.ASP_RUN_OPENAI_UPSTREAM ?? preset.base, "--openai-key-env", keyEnv];
   }
-  let cfg = readJoinConfig(home);
+  // --local: no service and no account. The same governed session, run against a log and identities that live only on this machine (<ASP_HOME>/local), so governance can be shown with no
+  // wifi (a venue) and nothing is written to your hosted account. Nothing is shared: the records are not on any network.
+  if (v.local) {
+    if (headless) throw new UsageError("--local cannot be combined with --headless");
+    if (v.agent) throw new UsageError("--agent is not available with --local (the local mode has one agent)");
+    const lhome = join(home, "local");
+    mkdirSync(lhome, { recursive: true });
+    const idFile = join(lhome, "local-identities.json");
+    const lenv = { ...io.env, ASP_HOME: lhome } as NodeJS.ProcessEnv;
+    delete lenv.ASP_LOG_URL; delete lenv.ASP_LOG_TOKEN;
+    let lids: { me: string; agent: string; bank: string } | undefined;
+    try { lids = JSON.parse(readFileSync(idFile, "utf8")); } catch { /* first use */ }
+    if (!lids) {
+      const make = async (args: string[]) => {
+        const out: string[] = [], err: string[] = [];
+        const code = await main([...args, "--home", lhome], { out: (l) => out.push(l), err: (l) => err.push(l), env: lenv, cwd: io.cwd });
+        if (code) throw new Error(`could not set up the local identities: ${(err.join("\n") || out.join("\n")).trim().slice(0, 200)}`);
+        return /created \w+ (did:\S+)/.exec(out.join("\n"))![1];
+      };
+      const me = await make(["identity", "new", "--kind", "human", "--method", "did:key", "--no-recovery"]);
+      const agent = await make(["identity", "new", "--kind", "agent", "--method", "did:key", "--sponsor", me, "--purpose", "Local agent"]);
+      const bank = await make(["identity", "new", "--kind", "human", "--method", "did:key", "--no-recovery"]);
+      lids = { me, agent, bank };
+      writeFileSync(idFile, JSON.stringify(lids, null, 2) + "\n");
+      io.err("  local mode: made local identities on this machine (no account, no service, nothing shared)");
+    }
+    io.err("  local mode: records stay on this machine, in " + lhome);
+    // The outer command may already have put the saved service in the log environment; for this run there is none.
+    const outerLogEnv = logEnv;
+    logEnv = lenv;
+    try { return await runSession(lhome, runtime, { ...v, local: false, home: lhome }, { ...io, env: lenv }, lids); } finally { logEnv = outerLogEnv; }
+  }
+  let cfg: JoinConfig | undefined = localIds ? { service: "", token: "", tenant: "local", joinedAt: "", identities: localIds } : readJoinConfig(home);
   if (!cfg && headless && io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN) {
     const a = (await (await fetchRetry(new URL("account", io.env.ASP_LOG_URL.replace(/\/$/, "") + "/"), { headers: { authorization: `Bearer ${io.env.ASP_LOG_TOKEN}` } })).json().catch(() => undefined)) as any;
     if (!a?.ok) throw new Error("the service did not accept ASP_LOG_TOKEN (revoked or expired?)");
     cfg = { service: io.env.ASP_LOG_URL.replace(/\/$/, ""), token: io.env.ASP_LOG_TOKEN, tenant: a.tenant.name, joinedAt: "" };
   }
   if (!cfg) throw new Error(headless ? "a headless run needs ASP_LOG_URL and ASP_LOG_TOKEN (a machine token: asp token create)" : "you have not joined yet: run asp join first");
-  const env = { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token };
+  const env = localIds ? { ...io.env } : { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token };
   const quiet = async (args: string[], extra: Partial<Io> = {}, onErr?: (line: string) => void) => {
     const out: string[] = [], err: string[] = [];
     const code = await main(args, { out: (l) => out.push(l), err: (l) => { err.push(l); onErr?.(l); }, env, cwd: io.cwd, ...extra });
@@ -3897,7 +3953,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
   if (!headless) { standing[key] = job; writeStanding(home, standing); }
   const sid = randomBytes(4).toString("hex");
   const stopFile = join(home, `stop-${sid}`);
-  sessionIndexAdd(home, { t: "start", sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
+  sessionIndexAdd(home, { t: "start", pid: process.pid, sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
   io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
   // The tool, through the gateway. A prompt runs once and its answer is shown as it comes; without one the tool is interactive.
@@ -3928,7 +3984,11 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
         else {
           const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stderr });
           const timer = setInterval(() => { if (sessionOver) rl.close(); }, 500); timer.unref();
-          try { answer = await rl.question(`\n  Allow ${scope}: ${shown}? ${options}${canAlways ? " (a = yes, and never ask about this exact command again)" : ""} `); } catch { answer = ""; } finally { clearInterval(timer); rl.close(); }
+          // At a terminal, readline takes Ctrl-C for itself; it means "leave", not "no" (found live, UC-220): end the session, and the held call is refused as part of ending it.
+          rl.on("SIGINT", () => { onInterrupt(); rl.close(); });
+          // A closed prompt (Ctrl-C, the session over) never settles its own question, so the question is raced against the close.
+          const closed = new Promise<string>((res) => rl.once("close", () => res("")));
+          try { answer = await Promise.race([rl.question(`\n  Allow ${scope}: ${shown}? ${options}${canAlways ? " (a = yes, and never ask about this exact command again)" : ""} `), closed]); } catch { answer = ""; } finally { clearInterval(timer); rl.close(); }
         }
       } catch { answer = ""; }
       if (sessionOver) return;
@@ -3965,11 +4025,29 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
         { cwd: project, ...(io.raw ? { raw: io.raw } : {}) }, onGatewayLine);
     } finally { rmSync(pkgDir, { recursive: true, force: true }); }
   };
-  const gw = hooked ? await runHooked() : await quiet(["gateway", "--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  // Ctrl-C (or the terminal closing) ends the session the way `asp stop` does, so it is recorded as stopped, the agent's processes are ended and the stop file is removed; a second Ctrl-C leaves at once.
+  let interrupts = 0;
+  const onInterrupt = () => {
+    interrupts += 1;
+    if (interrupts === 1) { try { writeFileSync(stopFile, "interrupted\n"); } catch { /* the second Ctrl-C still leaves */ } io.err("  Ctrl-C: ending the session (press again to leave at once)"); return; }
+    sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state: "stopped", calls: 0, refused: [], tokens: 0, exitCode: 130 });
+    rmSync(stopFile, { force: true });
+    process.exit(130);
+  };
+  // An interactive session (no prompt) gives the terminal to the tool, and the tool uses Ctrl-C for itself (cancel the answer, press twice to leave): asp leaves Ctrl-C to it and the
+  // session ends when the tool does. A closed terminal or SIGTERM still stops the session (UC-223).
+  const interactive = !v.prompt && !hooked;
+  const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
+  const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
+  for (const s of signals) process.on(s, handlers[s]);
+  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
   await asking;
   rmSync(capture, { force: true });
   const wasStopped = existsSync(stopFile);
+  // A session ended by Ctrl-C, a closed terminal or asp stop while a call was held leaves its Checkpoint open: nobody is left to answer it, so it is closed now (UC-220).
+  if (wasStopped || interrupts) { await quiet(["market", "resolve", "--contract", job.contract, "--by", ids.me, "--verdict", "corrected", "--correction", "the session was ended before you answered"]).catch(() => undefined); }
   rmSync(stopFile, { force: true });
 
   // A hooked runtime has no gateway summary: the calls are the ones its run log judged, the refusals are the strikes and the gated calls that were not approved.
@@ -4208,7 +4286,7 @@ function readStanding(home: string): Record<string, StandingJob> { try { return 
 function writeStanding(home: string, s: Record<string, StandingJob>): void { mkdirSync(home, { recursive: true }); writeFileSync(standingPath(home), JSON.stringify(s, null, 2) + "\n"); }
 const standingKey = (agent: string, scopes: string[], hosts: string[], gate: string[] = []) => createHash("sha256").update(JSON.stringify(gate.length ? [agent, [...scopes].sort(), [...hosts].sort(), [...gate].sort()] : [agent, [...scopes].sort(), [...hosts].sort()])).digest("hex").slice(0, 16);
 
-interface SessionStart { t: "start"; sid: string; contract: string; at: string; runtime: string; agent: string; me: string; bank: string; purpose: string; scopes: string[]; hosts: string[] }
+interface SessionStart { t: "start"; /** The process of `asp run`, so a session whose process has gone without an end record can be called interrupted. */ pid?: number; sid: string; contract: string; at: string; runtime: string; agent: string; me: string; bank: string; purpose: string; scopes: string[]; hosts: string[] }
 interface SessionEnd { t: "end"; sid: string; contract: string; at: string; state: string; calls: number; refused: string[]; tokens: number; exitCode: number; stopped?: string; /** This session's own run log (a standing job has one per session). */ runLog?: string }
 const sessionIndexPath = (home: string) => join(home, "runs.ndjson");
 function sessionIndexAdd(home: string, rec: SessionStart | SessionEnd): void {
@@ -4231,13 +4309,16 @@ function sessionsOf(home: string): { start: SessionStart; end?: SessionEnd }[] {
 }
 const ago = (iso: string) => { const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000)); return s < 90 ? `${s}s ago` : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`; };
 
+function pidAlive(pid: number): boolean {
+  try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; }
+}
 /** asp runs [--all] | asp runs <id>: what your governed sessions did, and what was refused. */
 async function runsCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
   const all = sessionsOf(home);
   if (!id) {
     if (!all.length) { io.out("no sessions yet: asp run claude-code --prompt \"...\" starts one"); return 0; }
     for (const s of all.slice(0, v.all ? all.length : 15)) {
-      const state = s.end?.state ?? "running?";
+      const state = s.end?.state ?? (s.start.pid && !pidAlive(s.start.pid) ? "interrupted" : "running?");
       io.out(`  ${s.start.sid}  ${ago(s.start.at).padEnd(11)} ${s.start.runtime.padEnd(11)} ${state.padEnd(9)} ${s.end ? `${s.end.calls} calls, ${s.end.refused.length} refused` : "no end recorded"}  ${s.start.purpose.slice(0, 50)}`);
     }
     if (!v.all && all.length > 15) io.out(`  ... ${all.length - 15} older (asp runs --all)`);
@@ -4571,6 +4652,13 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     renameSync(tmp, join(o.dir, `${id}.decision.json`));
   };
 
+  // The hosted service limits how often one tenant may call it, and two terminals on one job poll twice as often (found live, UC-138): a rate limit is waited out, not taken for a refusal.
+  const retry = async <T,>(fn: () => Promise<T>): Promise<T> => {
+    for (let i = 0; ; i++) {
+      try { return await fn(); } catch (e) { if (!/rate limit|too many requests/i.test((e as Error).message) || i >= 40 || stopped) throw e; await sleep(Math.max(o.pollMs, 1500)); }
+    }
+  };
+
   async function handle(req: { id: string; tool: string; scope: string; summary: string; requested_at?: string }) {
     const signer = new Keystore(o.home).forDid(o.agent);
     if (!signer) return decide(req.id, { approved: false, reason: `no key for ${o.agent} to raise the Checkpoint` });
@@ -4580,14 +4668,16 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     const giveUpAt = askedAt + o.waitSeconds * 1000;
     const timedOut = () => decide(req.id, { approved: false, reason: `the principal did not answer within ${o.waitSeconds} seconds` });
     // A job has one open Checkpoint at a time: wait for any earlier one to be resolved first.
-    let local = await openLog(o.home, logEnv);
-    while ((await local.log.chainInfo(o.contract))?.state !== "Running") {
+    let lastReap = 0;
+    let local = await retry(() => openLog(o.home, logEnv));
+    while ((await retry(() => local.log.chainInfo(o.contract)))?.state !== "Running") {
       if (stopped) return;
       if (Date.now() >= giveUpAt) return timedOut();
       // An earlier Checkpoint whose session is gone and whose time has run out would hold this one back for ever: close it.
-      try { await reapExpiredCheckpoint(o.home, o.contract); } catch { /* try again on the next poll */ }
+      // (Reading the whole chain for this is costly, so it is done every 15 seconds, not every poll: two terminals on one job ran into the service's request limit, UC-138.)
+      if (Date.now() - lastReap >= 15_000) { lastReap = Date.now(); try { await reapExpiredCheckpoint(o.home, o.contract); } catch { /* try again on the next poll */ } }
       await sleep(o.pollMs);
-      local = await openLog(o.home, logEnv);
+      local = await retry(() => openLog(o.home, logEnv));
     }
     if (Date.now() >= giveUpAt) return timedOut();
     // What the principal sees, and what goes in the log, is the command with anything secret-looking masked.
@@ -4602,7 +4692,7 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
       body: { contract: o.contract, kind: "before_irreversible", question: `May ${o.agent} run ${req.tool} (${req.scope})?`, proposed_action: shown,
         expires: new Date(expiresMs).toISOString().replace(/\.\d{3}Z$/, "Z") },
     }, signer);
-    await local.append(checkpoint);
+    await retry(() => local.append(checkpoint));
     o.io.err(`  APPROVAL NEEDED  ${req.scope}: ${shown}${masked.redacted ? "  (secret-looking text was masked)" : ""}`);
     o.io.err(`    answer with: asp market resolve --contract ${o.contract} --by ${principal} --verdict approved`);
     for (;;) {
@@ -4612,8 +4702,11 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
         return;
       }
       await sleep(o.pollMs);
-      const fresh = await openLog(o.home, logEnv);
-      const chain = await marketChain(fresh.log, o.contract);
+      const fresh = await retry(() => openLog(o.home, logEnv));
+      // Only the job's state is polled (one cheap request): while it is still Checkpoint nobody has answered. The whole chain is read when the state changes. Reading it every second grew with
+      // the job and, with two terminals, ran into the service's request limit (found live, UC-138).
+      if (Date.now() < expiresMs + 1000 && (await retry(() => fresh.log.chainInfo(o.contract)))?.state === "Checkpoint") continue;
+      const chain = await retry(() => marketChain(fresh.log, o.contract));
       const at = chain.findIndex((x) => x.id === checkpoint.id);
       const resolution = chain.slice(at + 1).find((x) => {
         const b = x.record.body as { kind?: string; about?: string };
@@ -4625,7 +4718,7 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
           type: "attestation", issuer: o.agent, subject: o.contract, prev: chain.at(-1)!.id, issued_at: now(),
           body: { kind: "checkpoint_resolution", about: checkpoint.id, verdict: "expired" },
         }, signer);
-        await fresh.append(expired);
+        await retry(() => fresh.append(expired));
         o.io.err(`  approval expired for ${req.scope}: no answer in ${o.waitSeconds} s, so the call was refused and the job runs again`);
         return decide(req.id, { approved: false, reason: `the principal did not answer within ${o.waitSeconds} seconds` });
       }
@@ -4803,9 +4896,9 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
       killed = k;
       runLog?.event("kill", { scope: k.scope, reason: k.reason, message });
       io.err(`  KILL SWITCH  ${message}`);
-      child.kill("SIGTERM");
+      killTree(child, "SIGTERM");
       killTimer = setTimeout(() => {
-        if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+        if (child.exitCode === null && child.signalCode === null) killTree(child, "SIGKILL");
       }, KILL_GRACE_MS);
     };
     if (plan.checkOutputForFailure || plan.checkOutputForAction) {
@@ -4870,8 +4963,8 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
       if (!existsSync(v["stop-file"]!) || child.exitCode !== null || child.signalCode !== null || killed) return;
       io.err("  stopped  stopped by you (asp stop)");
       runLog?.event("stopped", { reason: "stopped by you (asp stop)" });
-      child.kill("SIGTERM");
-      killTimer ??= setTimeout(() => { if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL"); }, KILL_GRACE_MS);
+      killTree(child, "SIGTERM");
+      killTimer ??= setTimeout(() => { if (child.exitCode === null && child.signalCode === null) killTree(child, "SIGKILL"); }, KILL_GRACE_MS);
     }, 300) : undefined;
     child.on("close", (c) => {
       if (stopWatch) clearInterval(stopWatch);

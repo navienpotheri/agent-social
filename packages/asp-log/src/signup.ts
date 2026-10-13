@@ -54,7 +54,7 @@ const DAY_MS = 24 * 60 * 60_000;
 const NAME_RE = /^[a-z][a-z0-9-]{2,31}$/;
 const RESERVED = new Set(["admin", "root", "local", "system", "asp", "operator", "support", "security", "abuse", "postmaster", "www", "api", "test", "null", "undefined"]);
 
-export const DEFAULT_STARTING = { recordQuota: 2_000, byteQuota: 16 * 1024 * 1024, quotaBytes: 16 * 1024 * 1024, rateLimitPerMinute: 120 } as const;
+export const DEFAULT_STARTING = { recordQuota: 2_000, byteQuota: 16 * 1024 * 1024, quotaBytes: 16 * 1024 * 1024, rateLimitPerMinute: 600 } as const;
 
 /** Leading zero bits of a digest. */
 export function leadingZeroBits(digest: Buffer): number {

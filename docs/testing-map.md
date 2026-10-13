@@ -4,6 +4,21 @@ Every use case the protocol and the network must support, how each is tested tod
 
 **Columns.** *Automated* is the test file(s) that cover it. *Live* is whether it has been run against the real hosted service with real tools (date), `partial` if only part was, `no` if never. *Gap* is the row in [gaps-register.md](gaps-register.md), or `none` when there is nothing open. A to-do that reveals a gap gets a register row first (the testing-map gaps are the `T` series). *Pri*: **P0** before the developer conference on 2026-10-17, **P1** before wider invitations, **P2** later. A use case counts as **proven** only when both Automated and Live are filled in.
 
+**In plain words.** What we are testing: each row is one thing a real person does with Agent Social (sign up, run an agent, answer an approval, lose a key, run the service), and the question is "does it work, and how do we know?"
+
+| Term | One-line meaning |
+|---|---|
+| P0 | Must work before the conference on 2026-10-17; a developer hits it in their first 15 minutes |
+| P1 | Needed before we invite more than a few watched testers |
+| P2 | Later; not needed for the conference or the first testers |
+| Automated | The test file that checks it on every change; `none` means no test yet |
+| Live `yes` | Done for real on the hosted service with the real tool (date, and what was faked, in brackets) |
+| Live `partial` | Some of it, or some variants, done for real |
+| Live `no` | Never done for real |
+| Live `n/a` | Pure logic with no live version |
+| proven | Automated filled in AND Live `yes`: the strongest evidence |
+| Open P0 | A P0 row whose Live is `partial` or `no`: what remains for the conference (the "Open to-dos by priority" list below, and the "P0 to do" sheet in the workbook) |
+
 Dates are 2026-10 unless written out. The first live run on the hosted service was 2026-10-12 (docs/live-run-checklist.md).
 
 ## 1. Install and first run (the first 15 minutes)
@@ -27,8 +42,8 @@ Dates are 2026-10 unless written out. The first live run on the hosted service w
 | UC-13 | Antigravity session, held by its own hook | packages/asp-cli/test/run-hooked.test.ts | no | P21 | Run with the real `agy` signed in | P1 |
 | UC-14 | OpenHands session (inside WSL on Windows) | packages/asp-cli/test/run-hooked.test.ts | no | P21 | Run with the real OpenHands | P1 |
 | UC-15 | Interactive session (no prompt) in Claude Code | packages/asp-cli/test/run-session.test.ts | no | U15 | Try it live; approvals rely on another window | P0 |
-| UC-16 | A session in a non-git folder, a folder with spaces, a very large folder | none | no | T2 | Add cases; check Windows paths | P0 |
-| UC-17 | Ctrl-C in the middle of a session leaves a consistent state | none | no | T2 | Test; `asp runs` should show it as stopped, the job should stay usable | P0 |
+| UC-16 | A session in a non-git folder, a folder with spaces, a very large folder | none | partial 10-13 (no git, spaces in the path) | T2 | A very large folder; non-ASCII paths; add an automated case | P0 |
+| UC-17 | Ctrl-C in the middle of a session leaves a consistent state | packages/asp-cli/test/run-interrupt.test.ts | yes 10-13 (Claude Code, a 90-second command running) | T2 | none (found two defects, fixed in S123: the session stayed `running?` for ever and the agent's command lived on) | P0 |
 | UC-18 | Model provider errors (rate limit, bad key, outage) are reported plainly | packages/asp-package/test/gateway.test.ts | no | T2 | Add a session-level case with a 401 and a 429 | P1 |
 
 ## 3. Mandate, gating and approvals
@@ -58,6 +73,7 @@ Dates are 2026-10 unless written out. The first live run on the hosted service w
 | UC-36 | Work spread over hours (a live driver, not part of npm test): nine stages of a real task, ten-minute idle gaps, one standing job, the service watched throughout | evals/long-horizon.mjs | yes 10-12 (2.2 h, 9 stages, 76 tool calls, 0 crashes) | R1 | Repeat after the redeploy; add a gap longer than the standing job's refresh window | P0 |
 | UC-37 | One session that runs continuously for hours (many hundreds of calls) | none | no | R1 | Run one; measure records, memory and the Mandate expiring mid-run | P1 |
 | UC-38 | Dissect a long-horizon run in depth: what the agent did and why, record by record, run against run | evals/long-horizon-report.mjs | partial 10-12 (first report run on the 2.2 h run) | R1 | The analysis backlog below | P1 |
+| UC-39 | A demo with no wifi and no account: `asp run <runtime> --local` shows a governed session and a refusal, with records only on this machine | packages/asp-cli/test/run-local.test.ts | yes 10-13 (against a dead service) | T4 | Try it on a clean machine, with the real Claude Code, before the 17th | P0 |
 
 ## 5. Run logs, custody and disclosure
 
@@ -166,9 +182,9 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 | UC-135 | Run with a different agent (`--agent`) and a different folder (`--project`) | packages/asp-cli/test/agent-cmd.test.ts | partial 10-12 | P19 | Run the second agent live | P1 |
 | UC-136 | Allow named hosts (`--allow-network`); only those work | packages/asp-cli/test/gateway.test.ts | partial 10-12 (refusal only) | H2 | Run a session that reaches an allowed host live | P0 |
 | UC-137 | "It refused something I need": the refusal says how to allow it | none | no | U6 | Put the fix (`--allow-network host`, `--ask`) in the refusal message; test it | P0 |
-| UC-138 | Two sessions at once for one agent (two terminals) | none | no | T3 | Test the standing job, approvals and the one-open-Checkpoint rule under concurrency | P0 |
+| UC-138 | Two sessions at once for one agent (two terminals) | packages/asp-cli/test/run-concurrent.test.ts | yes 10-13 (two real Claude Code sessions, approvals answered one after the other; polling slowed to fit the service's 120 requests a minute) | T12 | Decide the per-tenant request limit (T12); the standing job's session count can still lose an update when two sessions start in the same moment | P0 |
 | UC-139 | The standing job expires after seven days; the next run makes a new one without fuss | packages/asp-cli/test/run-history.test.ts | no | R1 | Test the expiry boundary | P1 |
-| UC-140 | The service is down, or there is no network: `asp run` says so and what still works | none | no | T4 | Define offline behaviour; a local-only mode for demos at a venue | P0 |
+| UC-140 | The service is down, or there is no network: every command says so plainly and what still works | packages/asp-cli/test/run-local.test.ts | partial 10-13 (a dead service address) | T4 | Run it with real wifi off; the environment variable should override the saved login for `run` and `status` as documented | P0 |
 | UC-141 | Choose a model and a provider (`--model`, `--provider`, `--api-key-env`) | packages/asp-cli/test/run-runtimes.test.ts | no | P22 | Run live with OpenRouter | P1 |
 | UC-142 | A project with its own `asp.yaml`, and the trust step | packages/asp-cli/test/discover.test.ts | no | U16 | Try in a real repo | P1 |
 | UC-143 | The shell shim: typing `claude` starts a governed session | packages/asp-package/test/guide.test.ts | no | U16 | Try it in bash, zsh and PowerShell | P1 |
@@ -253,6 +269,63 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 | UC-196 | Add a runtime adapter | packages/asp-cli/test/cli.test.ts | n/a | P8 | An adapter guide and a per-runtime conformance test | P1 |
 | UC-197 | Use the TypeScript or Python SDK in an application | python/tests/test_reporter.py | n/a | T5 | Neither is published as a package; decide | P1 |
 
+## 23. Three perspectives: the agent, the principal, the work
+
+Every row above is written from a person's side. A protocol for agents also has to be checked from the **agent's** side and from the side of **the work itself**, and the principal's view of both. Each row names its perspective: **[agent]**, **[principal]**, **[work]**. These rows are mostly untested; they are the list of what to examine after the first-15-minutes bar is met.
+
+| ID | Use case | Automated | Live | Gap | To-do | Pri |
+|---|---|---|---|---|---|---|
+| UC-200 | [agent] What the agent itself sees: its Mandate, what it may do, and a refusal that explains itself so the agent can adapt instead of looping | packages/asp-cli/test/run-session.test.ts | partial 10-12 (Claude Code only) | T10 | Read a real session from the agent's side (the refusal text, the retries); try a weak model; check the agent can find its own Mandate | P1 |
+| UC-201 | [agent] An agent under the protocol keeps a stable identity across sessions, machines and runtimes | packages/asp-cli/test/memory.test.ts | no | T10 | Move one agent between two runtimes and two machines; check the lineage | P1 |
+| UC-202 | [agent] Data logging: what is recorded about each session (calls, refusals, results) and how it is represented to a reader | packages/asp-cli/test/run-session.test.ts | partial 10-12 | E7 | Decide what a reader needs; tool results are left out of the log today; define the representation and a reader | P0 |
+| UC-203 | [agent] Continual learning: what the agent learns in a run is carried, signed, merged and offered to the next run | packages/asp-cli/test/memory.test.ts | partial 10-12 (Claude Code write-back) | D9 | Show a lesson going in and coming out across two live runs; verify a lesson before it enters memory | P1 |
+| UC-204 | [agent] The agent is told what it learned and what was forgotten (memory loss is detected) | none | no | D3 | Detect and report memory loss; show the principal what was learned (D10) | P2 |
+| UC-205 | [agent] Agent drift: behaviour changes after a memory update or a runtime or model swap, and the change is noticed | packages/asp-cli/test/canary.test.ts | no | D1 | Run the canary set before and after a change live; compare an outcome series across a lineage edge (D2) | P1 |
+| UC-206 | [agent] The model that actually ran is recorded, so a change of weights behind a name shows up | none | no | D4 | Record the model identifier the provider reports in each run | P2 |
+| UC-207 | [agent] An agent is manipulated (prompt injection, goal hijacking) and the Mandate still holds | packages/asp-cli/test/compliance.test.ts | no | D6 | Run an injection scenario live; the Mandate bounds actions but nothing detects the hijack | P1 |
+| UC-208 | [agent] Whistleblowers: an agent or a person reports another agent's violation, and it is checked and ruled on | packages/asp-cli/test/report.test.ts | no | H3 | Replay the shared-task shortcut scenario (docs/backlog.md) with the operator's court; third parties have no way to report | P1 |
+| UC-209 | [agent] Cheating: an agent games its checker or hides a failure, and the log shows it | none | no | D7 | Design the check (reasoning-trace and outcome checks); an adversarial run | P2 |
+| UC-210 | [agent] Two agents of one principal work together under separate Mandates without widening each other's | packages/asp-cli/test/run-session.test.ts | no | T3 | Run a pair live (also UC-138: two sessions at once) | P1 |
+| UC-211 | [principal] What the agent did on my behalf, in words I can read, without opening a log | packages/asp-cli/test/run-session.test.ts | partial 10-12 (`asp runs`) | E8 | The end-of-job summary and a reader for the run log | P0 |
+| UC-212 | [principal] Am I being told when an agent drifts, fails or is refused, without having to look | none | no | U7 | Alerts outside the CLI; define what is worth an alert | P1 |
+| UC-213 | [principal] Quality, cost and time of my agents over weeks, not one session | none | no | D8 | A trend view per agent | P2 |
+| UC-214 | [principal] I can stop, pause or roll back an agent mid-work, and know what state it left | packages/asp-cli/test/run-session.test.ts | partial 10-13 | T2 | Ctrl-C test (UC-17); pause and rollback are not built (D13) | P0 |
+| UC-215 | [work] What the agent produced, and which Mandate, run and model produced it, can be traced from the result back | none | no | T11 | Attach the run and the Mandate to the work (a commit trailer or a sidecar) and verify it from the result | P1 |
+| UC-216 | [work] The work is checked against what was asked (an outcome check), not only against what the agent was allowed to do | packages/asp-cli/test/eval.test.ts | no | T9 | Run outcome verification live | P1 |
+| UC-217 | [work] Work done by several agents or in parallel nodes is merged and its parts stay attributable | none | no | T9 | Run a fleet live | P2 |
+| UC-218 | [work] A third party who receives the work can verify where it came from without trusting the producer | packages/asp-cli/test/witness.test.ts | n/a | T11 | A one-command verify for a recipient (also UC-195) | P1 |
+
+**Perspective index.** Agent: UC-200 to UC-210. Principal: UC-211 to UC-214, and the earlier rows of sections 13 to 21. Work: UC-215 to UC-218.
+
+## 24. Where a failure sits on the flow
+
+Each thing found or fixed is placed on the flow: the **stage** a session is in and the **action** of the person or the agent at that moment. This is how the interruption cases are enumerated, so that a fix for one cell does not leave its neighbours unexamined. Rows with a UC id are in the tables above or below; "done" cells name the test.
+
+| Stage of a session | Action (who) | What must hold | Status |
+|---|---|---|---|
+| Starting (Mandate being made, tool launching) | Ctrl-C (person) | no half-made job or stray stop file; the next run starts clean | UC-219, untested |
+| Agent working, no command running | Ctrl-C (person) | the session is recorded as stopped; the job stays usable | done: UC-17 |
+| Agent running a long command (a build, a script) | Ctrl-C (person) | the command is ended with the session, not left running | done: UC-17 (Windows tree kill) |
+| A call held for approval | Ctrl-C, terminal closed, SIGTERM (person) | the session is stopped, the held call is refused, the Checkpoint is closed, nothing is left waiting | done: UC-220 (all three signals; live for Ctrl-C) |
+| A call held for approval | no answer in time (person away) | expiry settles it; the agent is told once | done: UC-23, UC-25 (S118 to S121) |
+| Any | Ctrl-C twice | leaves at once, records the end | done: UC-17 (second press path, by code; not exercised live) |
+| Any | terminal closed or hung up (SIGHUP) | same as Ctrl-C | UC-221, by code, not exercised |
+| Any | process killed outright, power cut, crash | the session reads as interrupted, not running | done: UC-17 (`asp runs` says interrupted) |
+| Any | a second terminal starts a session for the same agent | the job and the one-open-Checkpoint rule hold | UC-138, untested |
+| Hooked runtime (Antigravity, OpenHands) | Ctrl-C (person) | the same, through the package path | UC-222, untested |
+| Interactive session | terminal closed or SIGTERM | the session is stopped | done: UC-223 (SIGHUP by test; tab close live) |
+| Interactive session (no prompt) | Ctrl-C (person) | Ctrl-C belongs to the tool (it usually means "cancel this answer"); the session must not end by accident; it ends when the tool does | done: UC-223 (S125; live only at the first-run screen) |
+| Agent (its own code) | the agent starts a process that outlives it | that process is ended with the session | UC-224, Windows only so far (taskkill); macOS and Linux rely on the terminal's process group |
+
+| ID | Use case | Automated | Live | Gap | To-do | Pri |
+|---|---|---|---|---|---|---|
+| UC-219 | Ctrl-C while the session is still starting (before the tool launches) leaves no half-made state | none | no | T2 | Interrupt at each step of the start; check the standing job and the stop file | P1 |
+| UC-220 | Ctrl-C while a call is held for approval closes the Checkpoint | packages/asp-cli/test/run-interrupt-approval.test.ts | yes 10-13 (Claude Code, a command held at the prompt) | T2 | none (found three defects, fixed in S124; the held call and the open Checkpoint are closed when the session is) | P0 |
+| UC-221 | Closing the terminal window ends the session the same way | none | no | T2 | Try on Windows (closing the tab) and Linux | P1 |
+| UC-222 | Ctrl-C of a hooked runtime session (Antigravity, OpenHands) | none | no | T2 | Run with the real runtime | P1 |
+| UC-223 | Ctrl-C in an interactive session does not end the whole session by accident | packages/asp-cli/test/run-interrupt.test.ts | partial 10-13 (real Claude Code at its first-run screen: two Ctrl-Cs went to the tool, asp left the session running; closing the tab left it `interrupted`, no process left) | T2 | Do it once more with Claude Code past its first-run screen, in the middle of an answer and at its own approval prompt; also UC-15 (a whole interactive session) | P0 |
+| UC-224 | A process the agent started is ended with the session on macOS and Linux | none | no | T1 | Test on both; kill the process group if the terminal does not | P1 |
+
 ## Journey index
 
 Where a journey step is covered by a row earlier in the map:
@@ -296,6 +369,8 @@ Each item should end as a row, a to-do or a closed gap in this map and the gaps 
 
 ## Open to-dos by priority
 
+**Last step, once every P0 row above is done or consciously deferred: a full live rehearsal of the flow.** One clean run, on a clean machine and the hosted service, as a developer would do it: clone, `asp`, `asp join`, `asp run` with a prompt, an approval answered from a second window, Ctrl-C, `asp runs`, an agent added, a recovery, `asp account export`. Time it against the 15-minute bar, write what went wrong in docs/live-run-checklist.md, and fix it before the conference (2026-10-17). Do it again after any fix.
+
 The P0 rows above, in the order to do them: redeploy (UC-90) and re-run the live pass; Codex, headless Action and key recovery live (UC-11, 80, 52, 54); the first-use failures (UC-02, 04, 16, 17, 35); the service's safety basics (UC-91, 93, 94, 103); then the demo and wording (UC-110, 112).
 
 ## Keeping it current
@@ -303,4 +378,7 @@ The P0 rows above, in the order to do them: redeploy (UC-90) and re-run the live
 - A change that adds, removes or changes a use case updates its row in the same commit. A bug found live gets a new row or changes an existing one, and a row in the gaps register.
 - When something is run live, put the date in **Live** and say what was faked.
 - `packages/asp-cli/test/testing-map.test.ts` fails when a row names a test file or a gap that does not exist, uses a priority that is not P0, P1 or P2, names a gap that is not a row of the register, or repeats an ID.
+- **Order of work.** Rows on a direct flow come first: the **user flow** (a person installs, joins, runs, approves, stops, leaves), the **agent flow** (what the agent sees and does under a Mandate) and the **work flow** (what is produced and whether it can be traced). Operator, implementer and long-term rows follow. When two rows tie, the one nearer the start of a person's first 15 minutes goes first. `python evals/interrupt-matrix.mjs` runs every automated interruption case in one go.
+- Every bug found or fixed is placed on the flow (section 24): which stage of the session, and which action of the person or the agent. Fill in its neighbouring cells as rows, not only the one that was hit.
 - Review the P0 list at the start of each working day until the conference.
+- An Excel view (a summary driven by formulas, the use cases with filters, the gaps register, the analysis backlog) is made by `python evals/testing-map-to-xlsx.py out.xlsx`. The markdown stays the source of truth; regenerate the workbook when the map changes.

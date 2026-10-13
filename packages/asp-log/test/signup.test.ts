@@ -32,7 +32,7 @@ test("sign-up: a person gets a tenant with small starting quotas and a token sho
   const t = tenants.find((x) => x.name === "alice-bot")!;
   assert.equal(t.role, "tenant");
   assert.notEqual(t.tokenSha256, r.token);
-  assert.deepEqual([t.recordQuota, t.rateLimitPerMinute], [2000, 120]);
+  assert.deepEqual([t.recordQuota, t.rateLimitPerMinute], [2000, 600]);
   assert.equal(t.signup?.termsVersion, "v1");
   assert.equal(t.signup?.contact, "alice@example.org");
   assert.ok(!JSON.stringify(t).includes("203.0.113.5"), "the address itself is not stored");
