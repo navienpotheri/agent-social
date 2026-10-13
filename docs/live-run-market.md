@@ -98,11 +98,11 @@ The same numbers are asserted in `packages/asp-cli/test/credit-ledger.test.ts`, 
 
 The same job lifecycle, but the work is a staged task of about an hour instead of a single prompt. This is what shows whether the bond, the escrow and the court-fee reserve stay right over many sessions and gaps, and how credits, tokens and records grow.
 
-Two windows. **Window C** watches the credits (start it as soon as the job has a contract):
+Two windows. **Window C** watches the credits (start it once the job has a contract; it finds the job by itself, nothing to copy):
 
 ```bash
 export ASP_HOME=/c/Users/Navie/asp-live-home
-node evals/credit-ledger.mjs --home $ASP_HOME --contract <C> --every 300 --out /c/Users/Navie/asp-backups/ledger.ndjson
+node evals/credit-ledger.mjs --home $ASP_HOME --every 300 --out /c/Users/Navie/asp-backups/ledger.ndjson
 ```
 
 It needs no totals: it finds the court's jurors itself and uses its first reading as the baseline, then prints a table, what moved since the last reading, a check that every credit is accounted for, and the tokens used (an estimate in credits; credits do not pay the provider).

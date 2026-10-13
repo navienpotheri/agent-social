@@ -22,7 +22,11 @@ if (!entities.length) {
   catch { console.error("no --entity given and no saved login with identities in that home"); process.exit(2); }
 }
 let jurors = all("juror").map(pair);
-const contracts = all("contract");
+let contracts = all("contract");
+// With no --contract, the job that evals/live-job.mjs is walking (its saved contract id) is watched while it is open: nothing to copy.
+if (!contracts.length) {
+  try { const j = JSON.parse(readFileSync(join(HOME, "live-job.json"), "utf8")); if (j.contract && !j.settled) { contracts = [j.contract]; console.log(`(watching the job in progress: ${j.contract.slice(0, 19)}...)`); } } catch { /* no job in progress */ }
+}
 let granted = one("granted") === undefined ? undefined : Number(one("granted"));
 const rate = Number(one("rate", "1"));
 const every = Number(one("every", "0"));
