@@ -16,7 +16,7 @@ npm run asp -- run claude-code --project /path/to/a/repo --prompt "fix the faili
 npm run asp -- runs              # what the agent did, and what was refused and why
 ```
 
-Your agent runs under a Mandate that lets it read and write files and run commands in that folder, with **no network** unless you name hosts. A call outside the Mandate is removed *before the agent sees it*; `--ask risky` holds risky commands (`git push`, `rm -r`, publishing, deleting in kubectl or terraform ...) for your yes. `asp` on its own shows the everyday commands; `asp help` has the rest.
+Your agent runs under a Mandate that lets it read and write files and run commands in that folder, with **no network** unless you name hosts. A call outside the Mandate is removed *before the agent sees it*; `--ask risky` holds risky commands (`git push`, `rm -r`, publishing, deleting in kubectl or terraform ...) for your yes. `asp` on its own shows the everyday commands; `asp help` has the rest, and **[docs/commands.md](docs/commands.md) lists every command with a one-line description**.
 
 ## What works today
 
@@ -67,7 +67,7 @@ The protocol is the records and the rules for them: read it in one document in *
 
 ## Documentation
 
-[docs/README.md](docs/README.md) is the index. In short: the protocol ([spec/](spec/), [docs/protocol-accountability.md](docs/protocol-accountability.md), the change log [docs/spec-deltas.md](docs/spec-deltas.md)), using it ([docs/user-journey.md](docs/user-journey.md), [docs/cli-walkthrough.md](docs/cli-walkthrough.md), [docs/ci.md](docs/ci.md)), running a service ([docs/deploy/](docs/deploy/README.md)), and where the project stands ([docs/launch-blockers.md](docs/launch-blockers.md), [docs/gaps-register.md](docs/gaps-register.md)).
+[docs/README.md](docs/README.md) is the index. In short: every command ([docs/commands.md](docs/commands.md)), the protocol ([spec/](spec/), [docs/protocol-accountability.md](docs/protocol-accountability.md), the change log [docs/spec-deltas.md](docs/spec-deltas.md)), using it ([docs/user-journey.md](docs/user-journey.md), [docs/cli-walkthrough.md](docs/cli-walkthrough.md), [docs/ci.md](docs/ci.md)), running a service ([docs/deploy/](docs/deploy/README.md)), and where the project stands ([docs/launch-blockers.md](docs/launch-blockers.md), [docs/gaps-register.md](docs/gaps-register.md)).
 
 ## Develop
 

@@ -57,6 +57,7 @@ Dates are 2026-10 unless written out. The first live run on the hosted service w
 | UC-35 | Laptop sleeps or the network drops mid-session | none | no | T2 | Test sleep and wifi loss during a held approval and during a model call | P0 |
 | UC-36 | Work spread over hours (a live driver, not part of npm test): nine stages of a real task, ten-minute idle gaps, one standing job, the service watched throughout | evals/long-horizon.mjs | yes 10-12 (2.2 h, 9 stages, 76 tool calls, 0 crashes) | R1 | Repeat after the redeploy; add a gap longer than the standing job's refresh window | P0 |
 | UC-37 | One session that runs continuously for hours (many hundreds of calls) | none | no | R1 | Run one; measure records, memory and the Mandate expiring mid-run | P1 |
+| UC-38 | Dissect a long-horizon run in depth: what the agent did and why, record by record, run against run | evals/long-horizon-report.mjs | partial 10-12 (first report run on the 2.2 h run) | R1 | The analysis backlog below | P1 |
 
 ## 5. Run logs, custody and disclosure
 
@@ -266,6 +267,22 @@ Where a journey step is covered by a row earlier in the map:
 - **The service, safely:** UC-90 to UC-96, UC-100 to UC-104.
 - **Protocol correctness:** UC-70 to UC-74.
 - **Public face:** UC-110 to UC-112.
+
+## Analysis backlog: the long-horizon run
+
+The first run (2026-10-12, 2.2 hours, nine stages) has been dissected once with `evals/long-horizon-report.mjs` (liveness, cost, governance, integrity, outcome). Deeper analysis still to do, in order:
+
+1. **Where the records go.** Break the 64 records down by type (Action reports, Checkpoints, expiries, passports): how many are interval Actions, how many are approvals, and what a quiet hour costs. Decide whether the 30-second interval is right.
+2. **Replay independently.** Export the account, import it into a clean local log, run `asp log verify --full`, and confirm the replay reaches the same state (UC-43, UC-195).
+3. **Map Actions to run logs.** For each Action, find the run log it committed to and check its hash (needs P27: name the run in the Action's artifact). Report how many of the 109 records are accounted for by a verified log.
+4. **How the agent responds to refusal.** In stage 7 the agent retried one refused command about eight times and varied it; in stage 8 it accepted the refusal and moved on. Read the model requests and replies around each refusal: what did the refusal message say, and which wording makes an agent stop retrying? Test alternative refusal messages.
+5. **Cost per stage and per tool call.** Tokens in and out by stage, by scope and by model; the cost of the prompt boilerplate on every request; what a day of work would cost.
+6. **Compare runs.** Repeat after the redeploy and after each reporting or approval change; compare records per call, retries and wall time against the 2026-10-12 baseline (UC-36).
+7. **Failure injection.** Kill the service mid-stage, expire the machine token, let the Mandate expire, answer an approval from another window, put the laptop to sleep, run two agents at once; record what each does to the run (UC-35, UC-138).
+8. **A continuous multi-hour session** (UC-37): memory growth in the gateway and the driver, records per hour, the interval Actions.
+9. **Outcome quality over time.** Does the product keep passing its own tests at every stage? Add a per-stage check, not only at the end.
+
+Each item should end as a row, a to-do or a closed gap in this map and the gaps register; when one is done, say so here with the date.
 
 ## Install matrix
 
