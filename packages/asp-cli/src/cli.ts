@@ -580,6 +580,7 @@ const OPTIONS = {
 /** What a model provider's error means to the person, and what to do about it. */
 export function providerProblem(status: number, host: string, cause?: string): string {
   const who = host || "the model provider";
+  if (status === 0 && cause?.startsWith("cut:")) return `lost the connection to ${who} while it was answering (${cause.slice(4)}): check your network, then run this again`;
   if (status === 0) return `could not reach ${who}${cause ? ` (${/ENOTFOUND/.test(cause) ? "its address could not be found" : /ECONNREFUSED/.test(cause) ? "it refused the connection" : /TIMEDOUT|timeout/i.test(cause) ? "it did not answer in time" : cause})` : ""}: check your network, or whether the provider is down, then run this again`;
   if (status === 401 || status === 403) return `${who} refused the API key (HTTP ${status}): the key is wrong, expired, revoked or out of credit; check it with the provider, set the right one and run this again`;
   if (status === 402) return `${who} says the account is out of credit (HTTP 402): add credit with the provider, then run this again`;
@@ -2378,6 +2379,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   await gw.close();
   if (pkgDir && !v["no-write-back"]) await gatewayWriteBack({ home, pkgDir, agent: by, memDir, baseMemory, gwRunDir, v, io });
   io.err(`  summary  ${JSON.stringify({ requests: sum.requests, toolCalls: sum.toolCalls, unjudged: sum.unjudgedRequests, tokens: sum.tokens, scopesUsed: sum.scopesUsed, blocked: sum.blocked, strikes: sum.strikes })}`);
+  // Said apart from the report's own result, so a caller can tell an agent that failed from a report that could not be sent (the service was out of reach).
+  io.err(`  agent    exited ${code}`);
   return rc !== 0 ? rc : code;
 }
 
@@ -4074,7 +4077,10 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     ? gw.errLines.filter((l) => /^\s*strike\s/.test(l) || /^\s*gate\s+.*not approved/.test(l)).map((l) => l.trim().replace(/^(strike|gate)\s+/, ""))
     : gw.errLines.filter((l) => /^\s*REFUSED /.test(l)).map((l) => l.trim().replace(/^REFUSED\s+/, ""));
   const stopped = gw.errLines.find((l) => /^\s*stopped /.test(l))?.trim();
-  const state = wasStopped ? "stopped" : gw.code === 0 ? "ended" : "failed";
+  // When only the report could not be sent (the wifi dropped, the service is down) the agent's work is done: the session ended, and the summary says what was not recorded (UC-35).
+  const notRecorded = gw.errLines.find((l) => /^\s*warning\s+could not record an Action/.test(l));
+  const agentExit = Number(gw.errLines.map((l) => /^\s*agent\s+exited\s+(-?\d+)/.exec(l)?.[1]).find((x) => x !== undefined) ?? gw.code);
+  const state = wasStopped ? "stopped" : (notRecorded ? agentExit === 0 : gw.code === 0) ? "ended" : "failed";
   // This session's own run log (the gateway and the package run both say where it is): a standing job has one per session, so the job alone does not name it.
   const runLogPath = gw.errLines.map((l) => /^\s*run log\s+(\S.*)$/.exec(l)?.[1]?.trim()).find((p) => !!p && existsSync(p));
   const runLogField = runLogPath ? { runLog: runLogPath } : {};
@@ -4099,7 +4105,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   for (const r of refused.slice(0, 5)) io.out(`  refused  ${r}`);
   if (refused.length > 5) io.out(`  ... and ${refused.length - 5} more`);
   if (stopped && !wasStopped) io.out(`  ${stopped}`);
-  io.out(`  job      standing job ${job.contract.slice(0, 19)}..., ${job.sessions} session(s) so far; the signed Action reports are in the log (asp runs ${sid})`);
+  if (notRecorded) io.out(`  record   NOT recorded in the log: ${/cannot reach/.test(notRecorded) ? "the service could not be reached" : "the service refused it"}. The run log below is the record on this machine; nothing was lost, but the log service does not have this session's Action.`);
+  io.out(`  job      standing job ${job.contract.slice(0, 19)}..., ${job.sessions} session(s) so far; ${notRecorded ? "this session's signed Action is not in the log" : "the signed Action reports are in the log"} (asp runs ${sid})`);
   sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state, calls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, exitCode: gw.code, ...(stopped && !wasStopped ? { stopped } : {}), ...runLogField });
   // --keep-run-log: seal this session's log to the service now (docs/run-log-custody.md); otherwise say where it is.
   if (runLogPath && v["keep-run-log"]) {
@@ -4671,10 +4678,10 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     renameSync(tmp, join(o.dir, `${id}.decision.json`));
   };
 
-  // The hosted service limits how often one tenant may call it, and two terminals on one job poll twice as often (found live, UC-138): a rate limit is waited out, not taken for a refusal.
+  // The hosted service limits how often one tenant may call it, and two terminals on one job poll twice as often (found live, UC-138): a rate limit, and a service that cannot be reached for a while (the wifi drops, the laptop sleeps, UC-35), are waited out, not taken for a refusal.
   const retry = async <T,>(fn: () => Promise<T>): Promise<T> => {
     for (let i = 0; ; i++) {
-      try { return await fn(); } catch (e) { if (!/rate limit|too many requests/i.test((e as Error).message) || i >= 40 || stopped) throw e; await sleep(Math.max(o.pollMs, 1500)); }
+      try { return await fn(); } catch (e) { if (!/rate limit|too many requests|cannot reach/i.test((e as Error).message) || i >= 40 || stopped) throw e; await sleep(Math.max(o.pollMs, 1500)); }
     }
   };
 

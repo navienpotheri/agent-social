@@ -268,6 +268,18 @@ export function createGateway(opts: GatewayOptions): Gateway {
     return reason ?? "outside the Mandate";
   }
 
+  /** The provider's answer, or undefined when the connection was cut while it was coming (the wifi dropped): said to the person by name, and the agent gets a clear error, not an empty reply. */
+  async function readUpstream(up: Response, res: ServerResponse): Promise<string | undefined> {
+    try { return await up.text(); } catch (e) {
+      let host = ""; try { host = new URL(up.url).host; } catch { /* a stand-in fetch has no address */ }
+      const cause = ((e as { cause?: { code?: string } }).cause?.code) ?? "ECONNRESET";
+      rec?.event("model_error", { status: 0, body: `the connection was cut while the answer was coming: ${cause}` });
+      opts.onModelError?.({ status: 0, host, cause: `cut:${cause}` });
+      json(res, 502, { error: { message: "ASP gateway: the model provider cut the connection while it was answering" } });
+      return undefined;
+    }
+  }
+
   function json(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) {
     const text = JSON.stringify(body);
     res.writeHead(status, { "content-type": "application/json", "content-length": Buffer.byteLength(text), ...headers });
@@ -312,7 +324,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (tokenCapHit()) stop("token cap reached");
       return;
     }
-    const text = await up.text();
+    const text = await readUpstream(up, res);
+    if (text === undefined) return;
     if (!up.ok) { rec?.event("model_error", { status: up.status, body: text.slice(0, 300) }); opts.onModelError?.({ status: up.status, host: new URL(up.url || "http://provider").host }); res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
     const reply = JSON.parse(text);
     tokens.input += reply.usage?.prompt_tokens ?? 0;
@@ -353,7 +366,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (tokenCapHit()) stop("token cap reached");
       return;
     }
-    const text = await up.text();
+    const text = await readUpstream(up, res);
+    if (text === undefined) return;
     if (!up.ok) { rec?.event("model_error", { status: up.status, body: text.slice(0, 300) }); opts.onModelError?.({ status: up.status, host: new URL(up.url || "http://provider").host }); res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
     const reply = JSON.parse(text);
     tokens.input += reply.usage?.input_tokens ?? 0;
@@ -392,7 +406,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (tokenCapHit()) stop("token cap reached");
       return;
     }
-    const text = await up.text();
+    const text = await readUpstream(up, res);
+    if (text === undefined) return;
     if (!up.ok) { rec?.event("model_error", { status: up.status, body: text.slice(0, 300) }); opts.onModelError?.({ status: up.status, host: new URL(up.url || "http://provider").host }); res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
     const reply = JSON.parse(text);
     tokens.input += reply.usage?.input_tokens ?? 0;
