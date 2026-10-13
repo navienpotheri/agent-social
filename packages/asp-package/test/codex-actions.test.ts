@@ -67,7 +67,8 @@ test("a redirect to nowhere is not a file write; a redirect to a file still is",
   assert.equal(scopeForShellCommand('find . -maxdepth 2 -iname "calc.py" 2>/dev/null'), "repo.read");
   assert.equal(scopeForShellCommand("ls 2>&1"), "repo.read");
   assert.equal(scopeForShellCommand("cat notes.txt 2>nul"), "repo.read");
-  assert.equal(scopeForShellCommand('cd proj && echo "exit: $?"; find . -name a 2>/dev/null; ls'), "shell.exec", "a cd is not read-only, so it is a command, not a file write");
+  assert.equal(scopeForShellCommand('cd proj && echo "exit: $?"; find . -name a 2>/dev/null; ls'), "repo.read", "a cd changes nothing, so a cd with look-only commands is a read");
+  assert.equal(scopeForShellCommand('cd proj && python x.py 2>/dev/null'), "shell.exec", "a cd with something that runs is a command, not a file write");
   assert.equal(scopeForShellCommand("python calc.py 2>/dev/null"), "shell.exec");
   assert.equal(scopeForShellCommand("echo hi > out.txt"), "repo.write");
   assert.equal(scopeForShellCommand("echo hi >> out.txt 2>/dev/null"), "repo.write");

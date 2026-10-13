@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer as createHttp } from "node:http";
 import { createServer as createNet } from "node:net";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -140,6 +140,8 @@ test("the service drops during an ordinary session and stays down until it ends:
     for (const a of [["identity", "new", "--kind", "human", "--me", "--no-recovery"], ["identity", "new", "--kind", "agent", "--name", "my-agent", "--sponsor", me, "--purpose", "Test"], ["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]]) assert.equal((await call(a)).code, 0);
     const running = call(["run", "claude-code", "--prompt", "Work for a while", "--project", project]);
     await until("the session to be running", async () => /running/.test((await call(["runs"])).out.split("\n")[0] ?? ""));
+    // ... and its gateway to be up (it keeps a run log from its first request on): on a busy machine the session is still starting, and starting needs the service.
+    await until("the gateway to start", async () => { const runs = join(f.aspHome, "runs"); return existsSync(runs) && readdirSync(runs).some((d) => existsSync(join(runs, d, "run-log.ndjson"))); });
     server.kill();
     const done = await running;
     // The agent did its work; only the record could not be sent, and the summary says so instead of calling the session failed or claiming the Action is in the log.

@@ -2821,7 +2821,10 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
         : e.kind === "tool_call" ? `${d.allowed === undefined ? "" : d.allowed ? "allowed " : "REFUSED "}${d.tool}${d.scope !== undefined ? ` -> ${d.scope || "no scope"}` : ""}${d.reason ? ` (${d.reason})` : ""}${d.gated ? " [gated]" : ""}: ${q(d.input)}`
         : e.kind === "model_error" ? `provider answered ${d.status}`
         : e.kind === "stopped" ? `stopped: ${d.reason}`
-        : e.kind === "run_end" ? `exit ${d.exit_code}; ${d.requests} request(s), ${d.tool_calls} tool call(s), ${d.strikes} blocked, ${d.redactions} secret-like value(s) masked`
+        : e.kind === "run_end" ? (d.requests !== undefined
+          ? `exit ${d.exit_code}; ${d.requests} request(s), ${d.tool_calls} tool call(s), ${d.strikes} blocked, ${d.redactions} secret-like value(s) masked`
+          // a run under a contract (the package path) records strikes and what was masked, not request counts
+          : `exit ${d.exit_code}; ${d.strikes ?? 0} strike(s)${d.redactions !== undefined ? `, ${d.redactions} secret-like value(s) masked` : ""}${d.killed ? `; stopped: ${d.killed}` : ""}`)
         : e.kind === "assistant_text" ? q(d.text)
         : e.kind === "tool_result" ? `${d.blocked ? "BLOCKED " : d.error ? "failed " : ""}${q(d.text)}`
         : e.kind === "mcp_call" ? `${d.server}/${d.tool}${d.error ? " (error)" : ""}: ${q(d.input)} -> ${q(d.result)}`

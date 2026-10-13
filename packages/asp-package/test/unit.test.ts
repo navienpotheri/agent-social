@@ -36,14 +36,14 @@ test("secret scan reports kind and location only", () => {
 test("permission rules map to coarse ASP scopes", () => {
   assert.deepEqual(
     deriveScopes(["Read", "Edit", "Bash(pnpm test:*)", "Bash(git push:*)", "Bash(gh pr create:*)", "Bash(ls)", "WebFetch", "mcp__github__create_issue", "Skill"]),
-    ["mcp.github.create_issue", "pr.open", "repo.push", "repo.read", "repo.write", "shell.exec", "tests.run", "tool.skill", "web.read"],
+    ["mcp.github.create_issue", "pr.open", "repo.push", "repo.read", "repo.write", "tests.run", "tool.skill", "web.read"],
   );
 });
 
 test("network-bound shell commands map to shell.network, not shell.exec", () => {
   assert.deepEqual(
     deriveScopes(["Bash(curl https://example.com:*)", "Bash(ssh user@host:*)", "Bash(ls)"]),
-    ["shell.exec", "shell.network"],
+    ["repo.read", "shell.network"],
   );
   assert.deepEqual(deriveScopes(["Bash(wget http://internal:*)"]), ["shell.network"]);
   assert.deepEqual(deriveScopes(["Bash(echo hi | nc 10.0.0.1 80:*)"]), ["shell.network"]);
