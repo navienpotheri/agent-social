@@ -21,21 +21,28 @@ if (!entities.length) {
   try { const id = JSON.parse(readFileSync(join(HOME, "config.json"), "utf8")).identities; entities = [{ name: "principal", did: id.me }, { name: "agent", did: id.agent }, { name: "bank", did: id.bank }]; }
   catch { console.error("no --entity given and no saved login with identities in that home"); process.exit(2); }
 }
-const jurors = all("juror").map(pair);
+let jurors = all("juror").map(pair);
 const contracts = all("contract");
-const granted = one("granted") === undefined ? undefined : Number(one("granted"));
+let granted = one("granted") === undefined ? undefined : Number(one("granted"));
 const rate = Number(one("rate", "1"));
 const every = Number(one("every", "0"));
 const out = one("out");
-const names = [...entities, ...jurors].map((e) => e.name);
 
 const run = async (a) => { const r = spawnSync(process.execPath, ["--experimental-strip-types", ASP, ...a], { env: { ...process.env, ASP_HOME: HOME, ASP_NO_FOCUS: "1" }, encoding: "utf8", timeout: 60_000 }); return { code: r.status ?? 1, out: r.stdout ?? "", err: r.stderr ?? "" }; };
+const run0 = run;
+// The court's seated jurors (asp court seat) hold and stake credits, so they are counted without being told; and with no total given, the first reading is the baseline the rest are checked against.
+if (!all("juror").length) {
+  const domain = entities[0].did.split(":")[2];
+  for (let n = 1; n <= 3; n++) { const did = `did:web:${domain}:court:juror-${n}`; const r = await run0(["market", "juror", "show", did]); if (/staked [1-9]/.test(r.out)) jurors.push({ name: `juror${n}`, did }); }
+}
+const names = [...entities, ...jurors].map((e) => e.name);
 const began = new Date().toISOString();
 const snaps = [];
 let n = 0;
 async function sample() {
   const label = `t${String(n++).padStart(2, "0")} ${new Date().toISOString().slice(11, 19)}`;
   const s = await snapshot(run, { entities, jurors, contracts, granted, label });
+  if (granted === undefined) { granted = s.total + (contracts.length ? 0 : 0); s.held = 0; console.log(`(no total was given: this first reading, ${s.total} credits, is the baseline the later ones are checked against)`); }
   const prev = snaps.at(-1);
   snaps.push(s);
   const use = meteredUse(HOME, began, rate);

@@ -4,6 +4,7 @@
 //   node evals/live-job.mjs reject  [--home <ASP_HOME>]   instead of accepting a delivery: reject it (opens a dispute)
 //   node evals/live-job.mjs reset   [--home <ASP_HOME>]   forget the saved job (nothing in the log is touched)
 // Options for the first step: --price 40 --bond 20 --gate (hold shell commands for your yes) --skip-work (record a report by hand instead of running Claude Code; for a rehearsal)
+//   --long [--stages 9] [--gap-minutes 4]  the work is the staged task of evals/long-horizon.mjs (an hour or so), under the contract, with a Mandate that lets it write files and run its tests
 // It uses the saved login's person, agent and bank. Everything it writes to the log is permanent. Credits are accounting entries, not money. It never prints a token or a key.
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync, rmSync } from "node:fs";
@@ -82,7 +83,7 @@ if (!state) {
   const jurors = await findJurors();
   const first = await snapshot(run, { entities, jurors, label: "start" });
   const granted = first.total;
-  state = { jurors, step: "intent", price: Number(opt("price", "40")), bond: Number(opt("bond", "20")), gate: flag("gate"), skipWork: flag("skip-work"), granted, rows: [first], purpose: `Summarise the project folder in five lines (${new Date().toISOString().slice(0, 19)})` };
+  state = { jurors, step: "intent", price: Number(opt("price", flag("long") ? "100" : "40")), bond: Number(opt("bond", flag("long") ? "30" : "20")), gate: flag("gate"), long: flag("long"), stages: Number(opt("stages", "9")), gap: Number(opt("gap-minutes", "4")), skipWork: flag("skip-work"), granted, rows: [first], purpose: `Summarise the project folder in five lines (${new Date().toISOString().slice(0, 19)})` };
   console.log(`Starting a job. You, the principal: ${ME.split(":").slice(-1)[0]}. Your agent: ${AGENT.split(":").slice(-1)[0]}. Credits in play: ${granted}.`);
   console.log(jurors.length ? `The court is seated: ${jurors.length} juror(s) are counted too.` : "No court is seated yet, so a rejected job could not be ruled on.");
   console.log(`\n${formatTable([first], ["principal", "agent", "bank", ...jurors.map((j) => j.name)])}`);
@@ -105,9 +106,15 @@ if (step === "intent") {
 } else if (step === "bond") {
   await must(["market", "bond", "--contract", state.contract, "--backer", AGENT, "--amount", String(state.bond), "--escrow-payer", ME, "--escrow-amount", String(state.price)]);
 } else if (step === "mandate") {
-  await must(["market", "mandate", "--contract", state.contract, "--principal", ME, "--performer", AGENT, "--scopes", "repo.read", ...(state.gate ? ["--scopes", "shell.exec", "--gate", "shell.exec"] : [])]);
+  await must(["market", "mandate", "--contract", state.contract, "--principal", ME, "--performer", AGENT, "--scopes", "repo.read", ...(state.long ? ["--scopes", "repo.write", "--scopes", "tests.run", "--scopes", "shell.exec"] : state.gate ? ["--scopes", "shell.exec"] : []), ...(state.gate ? ["--gate", "shell.exec"] : [])]);
 } else if (step === "work") {
-  if (state.skipWork) {
+  if (state.long && !state.skipWork) {
+    const LONG = resolve(opt("project", join(process.env.HOME ?? process.env.USERPROFILE ?? ".", "asp-long-project-2")));
+    if (!existsSync(PKG)) await must(["pack", "--runtime", "claude-code", "--agent", AGENT, "--project", LONG, "--out", PKG]);
+    console.log(`The long task starts: ${state.stages} stages with ${state.gap} minutes between them, under the contract. It takes about ${Math.round(state.stages * (2 + state.gap))} minutes. Watch the credits in the other window.\n`);
+    const r = spawnSync(process.execPath, ["evals/long-horizon.mjs", "--home", HOME, "--contract", state.contract, "--package", PKG, "--project", LONG, "--stages", String(state.stages), "--gap-minutes", String(state.gap), "--sample-minutes", "5", "--out", join(HOME, "long-run-" + state.contract.slice(7, 15))], { env: { ...process.env, ASP_HOME: HOME, ASP_NO_FOCUS: "1" }, stdio: "inherit", cwd: resolve(fileURLToPath(new URL("..", import.meta.url))) });
+    if (r.status) { console.error(`\nThe long task ended with an error (exit ${r.status}). Nothing else was changed; run \`next\` again to retry this step.`); process.exit(1); }
+  } else if (state.skipWork) {
     await must(["market", "action", "--contract", state.contract, "--by", AGENT, "--scopes-used", "repo.read", "--metrics", JSON.stringify({ requests: 5, tool_calls: 3, tokens_in: 4000, tokens_out: 900 }), "--summary", "work (rehearsal: reported by hand)"]);
   } else {
     if (!existsSync(PKG)) await must(["pack", "--runtime", "claude-code", "--agent", AGENT, "--project", PROJECT, "--out", PKG]);

@@ -96,21 +96,32 @@ The same numbers are asserted in `packages/asp-cli/test/credit-ledger.test.ts`, 
 
 ## Act 5: a long-horizon job under the contract, with the credits watched
 
-The same job lifecycle, but the work is a staged task of an hour or more instead of a single prompt. This is what shows whether bond, escrow and the fee reserve stay correct over many sessions, gaps, an approval and a refusal.
+The same job lifecycle, but the work is a staged task of about an hour instead of a single prompt. This is what shows whether the bond, the escrow and the court-fee reserve stay right over many sessions and gaps, and how credits, tokens and records grow.
 
-1. Make a job as in Act 1 steps 2 to 6, with a **larger price** (say 100 credits, a bond of 30) and a Mandate of `repo.read`, `repo.write`, `shell.exec` and `tests.run`, gating `shell.exec` (`--gate shell.exec`).
-2. Pack the agent (step 7).
-3. In Window C start the monitor (above) with `--contract <C>`.
-4. In Window A start the staged task under the contract. Six stages with 3 minutes between them is about 45 minutes; the full nine stages with 10 minutes between them is the 2.2-hour run of 2026-10-12:
+Two windows. **Window C** watches the credits (start it as soon as the job has a contract):
 
 ```bash
-node evals/long-horizon.mjs --home $ASP_HOME --contract <C> --package /c/Users/Navie/asp-market-pkg --project /c/Users/Navie/asp-long-project --stages 6 --gap-minutes 3 --sample-minutes 5 --out /c/Users/Navie/asp-long-run-credits
+export ASP_HOME=/c/Users/Navie/asp-live-home
+node evals/credit-ledger.mjs --home $ASP_HOME --contract <C> --every 300 --out /c/Users/Navie/asp-backups/ledger.ndjson
 ```
 
-5. Answer the `shell.exec` approvals as they come (a second window, `asp approvals approve`). Stage 7 of the full task removes a folder with `rm -r build`; stage 8 tries a download and is refused.
-6. When it ends, deliver, accept and settle as in Act 1 (steps 9 to 11), and read the last table.
+It needs no totals: it finds the court's jurors itself and uses its first reading as the baseline, then prints a table, what moved since the last reading, a check that every credit is accounted for, and the tokens used (an estimate in credits; credits do not pay the provider).
 
-What to look for: the escrow and the bond stay locked and unchanged for the whole run; the held reserve stays at its 5%; no credit moves until settlement; the token estimate grows by session; the record count stays within the quota (about half a record per tool call); a held approval does not stall the sampling. After settlement the table must show exactly the Act 1 arithmetic scaled to the price.
+**Window A** runs the job. After a court run, `reset` first, then `next` as before, with `--long` on the first one:
+
+```bash
+node evals/live-job.mjs reset
+node evals/live-job.mjs next --long
+```
+Then `next` again for the offer, the contract, the bond and the Mandate (a larger job: price 100, bond 30; a Mandate that lets the agent read, write files, run its tests and run commands). The sixth `next` is the long task itself: **nine stages with four minutes between them, about an hour**. It builds a small Python package, writes tests, refactors, writes a README and notes, removes a folder it created, and tries one download it is not allowed (a strike). Then `next` delivers, `next` accepts, `next` settles, as in Act 1.
+
+What to look for, in the table and in the stage output:
+- escrow 100 and bond 30 stay locked and unchanged for the whole run, and the held reserve stays at its 5%; **no credit moves until settlement**;
+- every stage prints a summary line ending in the credits line, with the job's locked amounts;
+- the tokens estimate grows stage by stage;
+- the record count stays well inside the account's quota (about half a record per tool call);
+- the download is refused and counted as **one** strike (three would stop the job and slash the bond, which is its own test);
+- after settlement: the principal paid 100, the agent earned 100 and its bond returned, nothing held, total unchanged.
 
 ## What I check in the backend at each step
 

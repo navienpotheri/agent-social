@@ -2,7 +2,7 @@
  * The credit ledger watch: where every credit is, by entity, at a moment, and whether the total still adds up. It reads only what the CLI already prints (`asp credits balance`, `asp market show`,
  * `asp market juror show`), so the same code watches a local log, the hosted service, or a test. Credits are accounting entries, not money; the token estimate is a metering figure and pays no provider.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 export interface Entity { name: string; did: string }
@@ -74,19 +74,25 @@ export function formatTable(snaps: Snapshot[], names: string[]): string {
 }
 
 /**
- * Tokens the sessions of an ASP home used since a time, from its session index, and the estimate in credits at a rate per thousand tokens. This is a **metering figure only**: credits do not pay
- * a model provider (docs/provider-terms.md, rule 5), so it says what a run cost, not what was charged.
+ * Tokens the runs of an ASP home used since a time, from the run logs they keep (a session under a standing job and a run under a contract both write one), and the estimate in credits at a rate per
+ * thousand tokens. This is a **metering figure only**: credits do not pay a model provider (docs/provider-terms.md, rule 5), so it says what a run cost, not what was charged.
  */
 export function meteredUse(home: string, since: string, creditsPerThousandTokens = 1): { sessions: number; tokens: number; estimate: number } {
-  const file = join(home, "runs.ndjson");
-  if (!existsSync(file)) return { sessions: 0, tokens: 0, estimate: 0 };
+  const runs = join(home, "runs");
+  if (!existsSync(runs)) return { sessions: 0, tokens: 0, estimate: 0 };
   let sessions = 0, tokens = 0;
-  for (const line of readFileSync(file, "utf8").split("\n")) {
-    if (!line.trim()) continue;
-    try {
-      const r = JSON.parse(line) as { t: string; at: string; tokens?: number };
-      if (r.t === "end" && r.at >= since) { sessions++; tokens += r.tokens ?? 0; }
-    } catch { /* a half-written line */ }
+  for (const d of readdirSync(runs)) {
+    const file = join(runs, d, "run-log.ndjson");
+    if (!existsSync(file)) continue;
+    let counted = false;
+    for (const line of readFileSync(file, "utf8").split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const e = JSON.parse(line) as { at?: string; kind?: string; data?: { tokens_in?: number; tokens_out?: number } };
+        if (!counted) { if ((e.at ?? "") < since) break; counted = true; sessions++; }
+        if (e.kind === "model_reply") tokens += (e.data?.tokens_in ?? 0) + (e.data?.tokens_out ?? 0);
+      } catch { /* a half-written line */ }
+    }
   }
   return { sessions, tokens, estimate: Math.round((tokens / 1000) * creditsPerThousandTokens * 100) / 100 };
 }
