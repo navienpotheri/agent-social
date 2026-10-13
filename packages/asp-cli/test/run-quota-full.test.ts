@@ -54,7 +54,12 @@ test("a full record quota: sessions still run and succeed, say why in one senten
 
     // Run until the account is full.
     let full: { code: number; out: string; err: string } | undefined;
-    for (let i = 1; i <= 14 && !full; i++) { const r = await call(["run", "claude-code", "--prompt", `Task ${i}`, "--project", project]); if (/NOT recorded in the log yet/.test(r.out)) full = r; else assert.equal(r.code, 0, r.err + r.out); }
+    for (let i = 1; i <= 14 && !full; i++) {
+      const r = await call(["run", "claude-code", "--prompt", `Task ${i}`, "--project", project]);
+      // Every session's summary shows credits (the owner's choice, 2026-10-13): this account has none, and the session moved none.
+      assert.match(r.out, /\n {2}credits {2}you 0, my-agent 0 {2}\(asp credits has the detail\)/, `a credits line in the summary\n${r.out}`);
+      if (/NOT recorded in the log yet/.test(r.out)) full = r; else assert.equal(r.code, 0, r.err + r.out);
+    }
     assert.ok(full, "the account filled up");
     // The agent worked, so the session is a success; the person is told the cause and that nothing is theirs to do.
     assert.equal(full!.code, 0, "only the record failed: not a failing exit code\n" + full!.err + full!.out);

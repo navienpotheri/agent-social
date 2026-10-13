@@ -4073,6 +4073,17 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
       if (r?.sent) io.err(`  sent ${r.sent} earlier report(s) that had been waiting${r.waiting ? `; ${r.waiting} still wait` : ""}`);
     } catch { /* they stay in the outbox */ }
   }
+  // Credits are shown in every session's summary (the owner's choice, 2026-10-13): your balance and your agent's, and what this session moved. A figure that cannot be read (no service, a slow one)
+  // is left out, never waited for beyond a few seconds.
+  const creditsNow = async (): Promise<{ you: number; agent: number } | undefined> => {
+    if (localIds) return undefined;
+    try {
+      const one = async (did: string) => { const r = await quiet(["credits", "balance", did]); const n = Number(/(-?\d+)\s+credits?/.exec(r.out)?.[1]); return r.code || !Number.isFinite(n) ? undefined : n; };
+      const both = await Promise.race([Promise.all([one(ids.me), one(ids.agent)]), new Promise<undefined>((res) => setTimeout(() => res(undefined), 6000))]);
+      return both && both[0] !== undefined && both[1] !== undefined ? { you: both[0], agent: both[1] } : undefined;
+    } catch { return undefined; }
+  };
+  const creditsBefore = await creditsNow();
   sessionIndexAdd(home, { t: "start", pid: process.pid, sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
   io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
@@ -4196,8 +4207,9 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   // This session's own run log (the gateway and the package run both say where it is): a standing job has one per session, so the job alone does not name it.
   const runLogPath = gw.errLines.map((l) => /^\s*run log\s+(\S.*)$/.exec(l)?.[1]?.trim()).find((p) => !!p && existsSync(p));
   const runLogField = runLogPath ? { runLog: runLogPath } : {};
+  const creditsAfter = await creditsNow();
   if (headless && v.json) {
-    io.out(JSON.stringify({ session: sid, contract: job.contract, agent: ids.agent, runtime, state, exitCode: gw.code, toolCalls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, ...(stopped && !wasStopped ? { stopped } : {}) }));
+    io.out(JSON.stringify({ session: sid, contract: job.contract, agent: ids.agent, runtime, state, exitCode: gw.code, ...(creditsAfter ? { credits: creditsAfter } : {}), toolCalls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, ...(stopped && !wasStopped ? { stopped } : {}) }));
     sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state, calls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, exitCode: gw.code, ...runLogField });
     return gw.code !== 0 && !(notRecorded && agentExit === 0) ? gw.code : stopped && !wasStopped ? 11 : v["fail-on-refusal"] && refused.length ? 10 : 0;
   }
@@ -4207,6 +4219,11 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   io.out(`  calls    ${sum?.toolCalls ?? 0} tool call(s) judged, ${refused.length} refused${sum?.tokens ? `; ${sum.tokens.input + sum.tokens.output} tokens` : ""}`);
   // The model provider said no or could not be reached (a wrong key, a rate limit, an outage): in the summary too, because the tool's own error is rarely plain (UC-18).
   for (const l of gw.errLines.filter((x) => /^\s*provider\s/.test(x)).slice(0, 3)) io.out(`  ${l.trim().replace(/^provider\s+/, "provider ")}`);
+  if (creditsAfter) {
+    const moved = creditsBefore ? { you: creditsAfter.you - creditsBefore.you, agent: creditsAfter.agent - creditsBefore.agent } : undefined;
+    const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
+    io.out(`  credits  you ${creditsAfter.you}, ${ids.agent.split(":").slice(-1)[0]} ${creditsAfter.agent}${moved && (moved.you || moved.agent) ? `; this session moved: you ${signed(moved.you)}, agent ${signed(moved.agent)}` : ""}  (asp credits has the detail)`);
+  }
   // A tool that never started says why and what to do (found in preparing for developers: "failed (exit -1)" with no reason read as asp being broken).
   if (state === "failed") {
     const text = gw.errLines.join("\n");
@@ -4955,7 +4972,31 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
   return { stop: async () => { stopped = true; await loop; } };
 }
 
+/**
+ * A run of a package, and then, when it ran under a contract, the credits line: the principal's and the performer's balances and what is locked in that job, however the run ended (the owner's choice,
+ * 2026-10-13: credits are shown in every summary). A figure that cannot be read is left out.
+ */
 async function runIn(pkgDir: string, home: string, backend: string, adapter: RuntimeAdapter, v: Values, io: Io, onMutate: () => void): Promise<number> {
+  const code = await runInInner(pkgDir, home, backend, adapter, v, io, onMutate);
+  if (v.contract) {
+    try {
+      const log = (await openLog(home, logEnv)).log;
+      const body = (await log.get(v.contract))?.record.body as { principal?: string; performer?: string } | undefined;
+      const balance = async (did?: string) => {
+        if (!did) return undefined;
+        const out: string[] = [];
+        const rc = await Promise.race([main(["credits", "balance", did], { out: (l) => out.push(l), err: () => {}, env: io.env, cwd: io.cwd }), new Promise<number>((r) => setTimeout(() => r(1), 6000))]);
+        const n = Number(/(-?\d+)\s+credits?/.exec(out.join(" "))?.[1]);
+        return rc || !Number.isFinite(n) ? undefined : n;
+      };
+      const [p, f, lock] = await Promise.all([balance(body?.principal), balance(body?.performer), log.escrow(v.contract).catch(() => undefined)]);
+      if (p !== undefined && f !== undefined) io.err(`  credits  principal ${p}, performer ${f}${lock && !lock.settled ? `; locked in this job: ${lock.escrowLocked} in escrow, ${lock.bondLocked} as bond` : ""}  (asp credits has the detail)`);
+    } catch { /* the credits line is a courtesy; the run's own result stands */ }
+  }
+  return code;
+}
+
+async function runInInner(pkgDir: string, home: string, backend: string, adapter: RuntimeAdapter, v: Values, io: Io, onMutate: () => void): Promise<number> {
   const report = await verifyPackage(pkgDir);
   if (!report.ok) {
     io.err(`refusing to run: the package does not verify (${report.checks.filter((c) => c.status === "fail").map((c) => c.name).join(", ")}). Run asp verify for details.`);
