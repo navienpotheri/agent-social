@@ -4687,6 +4687,19 @@ async function agentCmd(home: string, sub: string | undefined, rest: string[], v
  * asp approvals [approve|refuse [<n>]]: the calls your agents are waiting to make that need your yes (a gate in the Mandate: asp run --ask commands). Answer from here, in another
  * window from the session, or inline when the session asks you. Your answer is signed with your key and goes in the log.
  */
+/**
+ * Which gated shell commands of a job under a contract the person is asked about (gap T21): by default the risky ones (the gateway path's list), every command with --ask commands, or the ones
+ * --ask-match names; and never an exact command they said "always" to (asp approvals always). The signed gate stays the ceiling.
+ */
+function commandFilterFor(v: Values, home: string, agent: string): (command: string) => "ask" | "remembered" | "no-match" {
+  const askTokens = (v.ask ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  const patterns = askTokens.includes("commands") ? [] : [...(askTokens.includes("risky") || !v["ask-match"]?.length ? ["risky"] : []), ...(v["ask-match"] ?? [])];
+  let compiled: RegExp[] = [];
+  try { compiled = compilePatterns(patterns); } catch (e) { throw new UsageError((e as Error).message); }
+  const file = join(home, "always-allow.json");
+  return (cmd) => askAbout(cmd, { ...(compiled.length ? { patterns: compiled } : {}), remembered: readAlways(file)[agent] ?? [] });
+}
+
 /** The commands the person said "always" to, per agent (gap U15): a file in the ASP home the gateway reads at each decision. */
 function readAlways(file: string): AlwaysAllow { try { return JSON.parse(readFileSync(file, "utf8")) as AlwaysAllow; } catch { return {}; } }
 function writeAlways(file: string, a: AlwaysAllow): void { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify(a, null, 2) + "\n"); }
@@ -4868,7 +4881,7 @@ async function autoSettleOnKill(local: LogHandle, home: string, contract: string
  * approved only for an `approved` resolution. Each request reopens the log fresh, because the principal
  * answers from another process, and requests are served one at a time (a job has one open Checkpoint).
  */
-function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; waitSeconds: number; io: Io }) {
+function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; waitSeconds: number; io: Io; filter?: (command: string) => "ask" | "remembered" | "no-match"; onSkip?: (req: { tool: string; scope: string; summary: string }, why: string) => void }) {
   let stopped = false;
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   // Written to a temporary name and renamed, so a hook polling for the file never reads half of it (found by the Postgres CI job: it failed closed on "Unexpected end of JSON input").
@@ -4886,6 +4899,12 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
   };
 
   async function handle(req: { id: string; tool: string; scope: string; summary: string; requested_at?: string }) {
+    // Gap T21: a gate on shell commands asks only about the risky ones (or the ones the person named), and never about an exact command they said "always" to, as on the personal gateway path.
+    // The signed gate stays the ceiling; this only decides which gated commands the person is asked about. Every other kind of call is asked as before.
+    if (o.filter && (req.tool === "Bash" || req.tool === "PowerShell") && req.scope === "shell.exec") {
+      const verdict = o.filter(req.summary);
+      if (verdict !== "ask") { o.onSkip?.(req, verdict); return decide(req.id, { approved: true }); }
+    }
     const signer = new Keystore(o.home).forDid(o.agent);
     if (!signer) return decide(req.id, { approved: false, reason: `no key for ${o.agent} to raise the Checkpoint` });
     // The gateway's wait started when the request was made, not when this turn comes (found in the long-horizon run: a retried call queued behind an earlier approval was refused by the
@@ -5111,7 +5130,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
     });
     let killTimer: NodeJS.Timeout | undefined;
     const approvals = plan.approvalsDir && v.contract
-      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io })
+      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io, io, filter: commandFilterFor(v, home, agent), onSkip: (r, why) => runLog?.event("gate_skipped", { tool: r.tool, scope: r.scope, why, input: r.summary }) })
       : undefined;
     const strike = (scope: string, how: string) => {
       strikes++;
