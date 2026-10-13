@@ -144,7 +144,8 @@ test("the service drops during an ordinary session and stays down until it ends:
     const done = await running;
     // The agent did its work; only the record could not be sent, and the summary says so instead of calling the session failed or claiming the Action is in the log.
     assert.match(done.out, /session +[0-9a-f]{8} +finished/, done.out);
-    assert.match(done.out, /\n {2}record {3}NOT recorded in the log: the service could not be reached/, done.out);
+    assert.equal(done.code, 0, "the agent worked and only the record failed: not a failing exit code\n" + done.err + done.out);
+    assert.match(done.out, /\n {2}record {3}NOT recorded in the log yet: the service could not be reached\. Your agent ran and the run log below is complete\. This report is kept and is sent by itself/, done.out);
     assert.match(done.out, /this session's signed Action is not in the log/, done.out);
     assert.doesNotMatch(done.out, /the signed Action reports are in the log/);
     assert.match(done.out, /run log +.*run-log\.ndjson/, "the local run log is named");
@@ -152,6 +153,7 @@ test("the service drops during an ordinary session and stays down until it ends:
     const next = await call(["run", "claude-code", "--prompt", "Again", "--project", project]);
     assert.equal(next.code, 0, next.err + next.out);
     assert.match(next.out, /the signed Action reports are in the log/, "the next session records normally");
+    assert.match(next.err, /sent 1 earlier report\(s\) that had been waiting/, "and the report that was kept goes by itself\n" + next.err);
     assert.match((await call(["runs"])).out, /claude-code\s+ended\s+1 calls.*\n.*claude-code\s+ended\s+1 calls/, "both sessions are listed as ended");
   } finally { server.kill(); upstream.close(); }
 });

@@ -589,6 +589,40 @@ export function providerProblem(status: number, host: string, cause?: string): s
   if (status >= 500) return `${who} had an error on its side (HTTP ${status}): its service may be down; try again later`;
   return `${who} rejected the request (HTTP ${status}): the run log (asp run-log show) has the detail`;
 }
+/**
+ * Reports that could not be sent (the account's record limit is full, the service is down, the wifi dropped) wait in <home>/outbox and are sent by the next session, with nothing asked of the
+ * person (T16): a session that did its work is never made to look failed, and nothing it did is lost. A report is kept only for a cause that can pass; a settled job is not retried.
+ */
+const OUTBOX_KEEP_WHEN = /cannot reach|QUOTA_EXCEEDED|quota|rate limit|too many requests|timed out|\b50[0-9]\b/i;
+function outboxAdd(home: string, args: string[], at: string, contract: string): void {
+  const dir = join(home, "outbox");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, `action-${Date.now()}-${randomBytes(3).toString("hex")}.json`), JSON.stringify({ args, at, contract }) + "\n");
+}
+function outboxWaiting(home: string): number {
+  try { return readdirSync(join(home, "outbox")).filter((f) => f.endsWith(".json")).length; } catch { return 0; }
+}
+/** Sends the waiting reports, oldest first; stops at the first one that still cannot go (the rest cannot either). Returns how many were sent and how many still wait. */
+async function outboxSend(home: string, env: NodeJS.ProcessEnv, cwd: string): Promise<{ sent: number; waiting: number }> {
+  const dir = join(home, "outbox");
+  if (!existsSync(dir)) return { sent: 0, waiting: 0 };
+  const files = readdirSync(dir).filter((f) => f.endsWith(".json")).sort();
+  let sent = 0;
+  for (const f of files.slice(0, 50)) {
+    const path = join(dir, f);
+    let item: { args: string[]; at: string };
+    try { item = JSON.parse(readFileSync(path, "utf8")); } catch { rmSync(path, { force: true }); continue; }
+    const out: string[] = [];
+    const quiet = { out: (l: string) => out.push(l), err: (l: string) => out.push(l), env, cwd };
+    let rc = await main(item.args, quiet);
+    if (rc !== 0 && out.join(" ").includes("is not currently Running")) { out.length = 0; rc = await main([...item.args, "--late", item.at], quiet); }
+    if (rc === 0) { rmSync(path, { force: true }); sent++; continue; }
+    if (!OUTBOX_KEEP_WHEN.test(out.join(" "))) { rmSync(path, { force: true }); continue; } // it can never be accepted (the job is settled): not kept for ever
+    break;
+  }
+  return { sent, waiting: outboxWaiting(home) };
+}
+
 export function connectionProblem(e: unknown, service?: string): string | undefined {
   const err = e as { message?: string; cause?: { code?: string; message?: string } };
   const code = err?.cause?.code;
@@ -2332,7 +2366,9 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       rc = await main([...args, "--late", d.lastActivityAt], { out: (l) => out.push(l), err: (l) => out.push(l), env: io.env, cwd: io.cwd });
       if (rc === 0) out.unshift("(late report: the job had ended)");
     }
-    io.err(rc === 0 ? `  action   ${out.join(" ").slice(0, 200)}` : `  warning  could not record an Action (${why}): ${out.join(" ").slice(0, 200)}`);
+    const kept = rc !== 0 && OUTBOX_KEEP_WHEN.test(out.join(" "));
+    if (kept) { try { outboxAdd(home, [...args], d.lastActivityAt, contract); } catch { /* the run log still holds it */ } }
+    io.err(rc === 0 ? `  action   ${out.join(" ").slice(0, 200)}` : `  warning  could not record an Action (${why})${kept ? " (kept to send later)" : ""}: ${out.join(" ").slice(0, 200)}`);
     return rc;
   }));
   const flusher = setInterval(() => { void flushAction("interval"); }, Number(io.env.ASP_GATEWAY_FLUSH_MS) > 0 ? Number(io.env.ASP_GATEWAY_FLUSH_MS) : 30_000);
@@ -4016,6 +4052,13 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   if (!headless) { standing[key] = job; writeStanding(home, standing); }
   const sid = randomBytes(4).toString("hex");
   const stopFile = join(home, `stop-${sid}`);
+  // Reports an earlier session could not send (a full account, a dropped connection) are sent now, by themselves; a service that does not answer is not waited for (T16).
+  if (!localIds && outboxWaiting(home) > 0) {
+    try {
+      const r = await Promise.race([outboxSend(home, io.env, io.cwd), new Promise<undefined>((res) => setTimeout(() => res(undefined), 8000))]);
+      if (r?.sent) io.err(`  sent ${r.sent} earlier report(s) that had been waiting${r.waiting ? `; ${r.waiting} still wait` : ""}`);
+    } catch { /* they stay in the outbox */ }
+  }
   sessionIndexAdd(home, { t: "start", pid: process.pid, sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
   io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
@@ -4142,7 +4185,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   if (headless && v.json) {
     io.out(JSON.stringify({ session: sid, contract: job.contract, agent: ids.agent, runtime, state, exitCode: gw.code, toolCalls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, ...(stopped && !wasStopped ? { stopped } : {}) }));
     sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state, calls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, exitCode: gw.code, ...runLogField });
-    return gw.code !== 0 ? gw.code : stopped && !wasStopped ? 11 : v["fail-on-refusal"] && refused.length ? 10 : 0;
+    return gw.code !== 0 && !(notRecorded && agentExit === 0) ? gw.code : stopped && !wasStopped ? 11 : v["fail-on-refusal"] && refused.length ? 10 : 0;
   }
   io.out("");
   io.out("Session summary");
@@ -4171,7 +4214,11 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     io.out(`            (only the hosts you name, in a new standing job; the refused command is in: asp run-log show ${sid})`);
   }
   if (stopped && !wasStopped) io.out(`  ${stopped}`);
-  if (notRecorded) io.out(`  record   NOT recorded in the log: ${/cannot reach/.test(notRecorded) ? "the service could not be reached" : "the service refused it"}. The run log below is the record on this machine; nothing was lost, but the log service does not have this session's Action.`);
+  if (notRecorded) {
+    const quotaFull = /QUOTA_EXCEEDED|quota/i.test(notRecorded);
+    const heldForLater = /kept to send later/.test(notRecorded);
+    io.out(`  record   NOT recorded in the log yet: ${quotaFull ? "your account's record limit is full" : /cannot reach/.test(notRecorded) ? "the service could not be reached" : "the service refused it"}. Your agent ran and the run log below is complete.${heldForLater ? " This report is kept and is sent by itself the next time there is room and a connection." : ""}${quotaFull ? " To make room, ask the operator to raise the limit (the contact is in the Terms)." : ""}`);
+  }
   io.out(`  job      standing job ${job.contract.slice(0, 19)}..., ${job.sessions} session(s) so far; ${notRecorded ? "this session's signed Action is not in the log" : "the signed Action reports are in the log"} (asp runs ${sid})`);
   sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state, calls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, exitCode: gw.code, ...(stopped && !wasStopped ? { stopped } : {}), ...runLogField });
   // --keep-run-log: seal this session's log to the service now (docs/run-log-custody.md); otherwise say where it is.
@@ -4179,7 +4226,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     try { await runLogVaultCmd(home, "keep", [runLogPath], { ...v, contract: job.contract, tenant: undefined, as: undefined }, io); }
     catch (e) { io.out(`  run log  ${runLogPath}  (not kept on the service: ${(e as Error).message.slice(0, 100)})`); }
   } else if (runLogPath) io.out(`  run log  ${runLogPath}  (on this machine; --keep-run-log seals a copy on the service)`);
-  if (gw.code !== 0) return gw.code;
+  // The agent did its work and only the record could not be kept: that is not a failed session, so it is not a failing exit code (a script or CI would stop on it for nothing).
+  if (gw.code !== 0 && !(notRecorded && agentExit === 0)) return gw.code;
   return headless && stopped && !wasStopped ? 11 : headless && v["fail-on-refusal"] && refused.length ? 10 : 0;
 }
 
@@ -4288,7 +4336,12 @@ async function statusCmd(home: string, io: Io): Promise<number> {
     const a = (await res.json().catch(() => undefined)) as any;
     if (!res.ok || !a?.ok) io.out(`  service: answered ${res.status}${res.status === 401 ? " (your token was refused: asp join --again)" : ""}`);
     else {
-      io.out(`  service: reachable; ${a.usage?.records ?? 0} record(s) written`);
+      const rq = Number(a.tenant?.recordQuota) || 0, used = Number(a.usage?.records) || 0;
+      io.out(`  service: reachable; ${used}${rq ? ` of ${rq}` : ""} record(s) written`);
+      // A heads-up before the account is full, so it is never a surprise (T16): a session still runs when it is full, but its reports then wait.
+      if (rq && used >= rq * 0.9) next.push(`your account is ${used >= rq ? "full" : "nearly full"} (${used} of ${rq} records): ask the operator to raise the limit (the contact is in the Terms); your agents keep running meanwhile`);
+      const waitingReports = outboxWaiting(home);
+      if (waitingReports) io.out(`  ${waitingReports} report(s) from earlier sessions are waiting to be sent; they go by themselves at your next session`);
       for (const i of (a.identities ?? []) as { did: string; recovery: string }[]) if (i.recovery === "none") next.push(`${i.did.split(":").slice(-1)[0]} has no key recovery: asp identity backup ${i.did}`);
       if (a.starter?.available) next.push("starter credits are waiting: asp account starter");
     }
