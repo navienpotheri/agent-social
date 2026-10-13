@@ -306,7 +306,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | Starting (Mandate being made, tool launching) | Ctrl-C (person) | no half-made job or stray stop file; the next run starts clean | UC-219, untested |
 | Agent working, no command running | Ctrl-C (person) | the session is recorded as stopped; the job stays usable | done: UC-17 |
 | Agent running a long command (a build, a script) | Ctrl-C (person) | the command is ended with the session, not left running | done: UC-17 (Windows tree kill) |
-| A call held for approval | Ctrl-C (person) | the Checkpoint is closed, not left open for the 10-minute wait | UC-220, untested |
+| A call held for approval | Ctrl-C, terminal closed, SIGTERM (person) | the session is stopped, the held call is refused, the Checkpoint is closed, nothing is left waiting | done: UC-220 (all three signals; live for Ctrl-C) |
 | A call held for approval | no answer in time (person away) | expiry settles it; the agent is told once | done: UC-23, UC-25 (S118 to S121) |
 | Any | Ctrl-C twice | leaves at once, records the end | done: UC-17 (second press path, by code; not exercised live) |
 | Any | terminal closed or hung up (SIGHUP) | same as Ctrl-C | UC-221, by code, not exercised |
@@ -319,7 +319,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-219 | Ctrl-C while the session is still starting (before the tool launches) leaves no half-made state | none | no | T2 | Interrupt at each step of the start; check the standing job and the stop file | P1 |
-| UC-220 | Ctrl-C while a call is held for approval closes the Checkpoint | none | no | T2 | Run live with a gated command and press Ctrl-C at the prompt | P0 |
+| UC-220 | Ctrl-C while a call is held for approval closes the Checkpoint | packages/asp-cli/test/run-interrupt-approval.test.ts | yes 10-13 (Claude Code, a command held at the prompt) | T2 | none (found three defects, fixed in S124; the held call and the open Checkpoint are closed when the session is) | P0 |
 | UC-221 | Closing the terminal window ends the session the same way | none | no | T2 | Try on Windows (closing the tab) and Linux | P1 |
 | UC-222 | Ctrl-C of a hooked runtime session (Antigravity, OpenHands) | none | no | T2 | Run with the real runtime | P1 |
 | UC-223 | Ctrl-C in an interactive session does not end the whole session by accident | none | no | T2 | Decide the behaviour (the tool usually claims Ctrl-C), then test it | P0 |
@@ -375,6 +375,7 @@ The P0 rows above, in the order to do them: redeploy (UC-90) and re-run the live
 - A change that adds, removes or changes a use case updates its row in the same commit. A bug found live gets a new row or changes an existing one, and a row in the gaps register.
 - When something is run live, put the date in **Live** and say what was faked.
 - `packages/asp-cli/test/testing-map.test.ts` fails when a row names a test file or a gap that does not exist, uses a priority that is not P0, P1 or P2, names a gap that is not a row of the register, or repeats an ID.
+- **Order of work.** Rows on a direct flow come first: the **user flow** (a person installs, joins, runs, approves, stops, leaves), the **agent flow** (what the agent sees and does under a Mandate) and the **work flow** (what is produced and whether it can be traced). Operator, implementer and long-term rows follow. When two rows tie, the one nearer the start of a person's first 15 minutes goes first. `python evals/interrupt-matrix.mjs` runs every automated interruption case in one go.
 - Every bug found or fixed is placed on the flow (section 24): which stage of the session, and which action of the person or the agent. Fill in its neighbouring cells as rows, not only the one that was hit.
 - Review the P0 list at the start of each working day until the conference.
 - An Excel view (a summary driven by formulas, the use cases with filters, the gaps register, the analysis backlog) is made by `python evals/testing-map-to-xlsx.py out.xlsx`. The markdown stays the source of truth; regenerate the workbook when the map changes.

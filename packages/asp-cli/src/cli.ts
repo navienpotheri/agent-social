@@ -3983,7 +3983,11 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
         else {
           const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stderr });
           const timer = setInterval(() => { if (sessionOver) rl.close(); }, 500); timer.unref();
-          try { answer = await rl.question(`\n  Allow ${scope}: ${shown}? ${options}${canAlways ? " (a = yes, and never ask about this exact command again)" : ""} `); } catch { answer = ""; } finally { clearInterval(timer); rl.close(); }
+          // At a terminal, readline takes Ctrl-C for itself; it means "leave", not "no" (found live, UC-220): end the session, and the held call is refused as part of ending it.
+          rl.on("SIGINT", () => { onInterrupt(); rl.close(); });
+          // A closed prompt (Ctrl-C, the session over) never settles its own question, so the question is raced against the close.
+          const closed = new Promise<string>((res) => rl.once("close", () => res("")));
+          try { answer = await Promise.race([rl.question(`\n  Allow ${scope}: ${shown}? ${options}${canAlways ? " (a = yes, and never ask about this exact command again)" : ""} `), closed]); } catch { answer = ""; } finally { clearInterval(timer); rl.close(); }
         }
       } catch { answer = ""; }
       if (sessionOver) return;
@@ -4037,6 +4041,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   await asking;
   rmSync(capture, { force: true });
   const wasStopped = existsSync(stopFile);
+  // A session ended by Ctrl-C, a closed terminal or asp stop while a call was held leaves its Checkpoint open: nobody is left to answer it, so it is closed now (UC-220).
+  if (wasStopped || interrupts) { await quiet(["market", "resolve", "--contract", job.contract, "--by", ids.me, "--verdict", "corrected", "--correction", "the session was ended before you answered"]).catch(() => undefined); }
   rmSync(stopFile, { force: true });
 
   // A hooked runtime has no gateway summary: the calls are the ones its run log judged, the refusals are the strikes and the gated calls that were not approved.
