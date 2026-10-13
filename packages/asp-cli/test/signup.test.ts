@@ -48,7 +48,7 @@ test("asp serve --signup: a stranger signs up with asp signup (terms, proof of w
     assert.equal(up.code, 0, up.err);
     const token = up.out.split("\n")[1];
     assert.match(token, /^[A-Za-z0-9_-]{43}$/);
-    assert.match(up.out, /starting limits: 2000 records, 16 MB, 120 requests a minute/);
+    assert.match(up.out, /starting limits: 2000 records, 16 MB, 600 requests a minute/);
     const saved = JSON.parse(readFileSync(tokens, "utf8"));
     const mine = saved.find((t: any) => t.name === "first-bot");
     assert.equal(mine.role, "tenant");
