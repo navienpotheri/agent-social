@@ -55,6 +55,9 @@ test("Ctrl-C in the middle of a session ends it as stopped, removes the stop fil
     const interDone = await inter;
     assert.doesNotMatch(interDone.err, /Ctrl-C: ending the session/, "Ctrl-C belongs to the tool in an interactive session");
     assert.match(interDone.out, /finished/, interDone.err + interDone.out);
+    // An interactive session with a gate says up front that approvals are answered in a second terminal (a person typed y into the tool's own box, found live in UC-15).
+    const gated = await asp(f.aspHome, ["run", "claude-code", "--local", "--ask", "commands", "--project", project], brief);
+    assert.match(gated.err, /approvals: this window belongs to the tool.*second terminal.*asp approvals approve/s, gated.err);
     const hup = asp(f.aspHome, ["run", "claude-code", "--local", "--project", project], brief);
     await waitRunning();
     process.emit("SIGHUP");

@@ -41,7 +41,7 @@ Dates are 2026-10 unless written out. The first live run on the hosted service w
 | UC-12 | Goose session, same | packages/asp-cli/test/run-runtimes.test.ts | no | P21 | Run live | P1 |
 | UC-13 | Antigravity session, held by its own hook | packages/asp-cli/test/run-hooked.test.ts | no | P21 | Run with the real `agy` signed in | P1 |
 | UC-14 | OpenHands session (inside WSL on Windows) | packages/asp-cli/test/run-hooked.test.ts | no | P21 | Run with the real OpenHands | P1 |
-| UC-15 | Interactive session (no prompt) in Claude Code | packages/asp-cli/test/run-session.test.ts | no | U15 | Try it live; approvals rely on another window | P0 |
+| UC-15 | Interactive session (no prompt) in Claude Code | packages/asp-cli/test/run-interrupt.test.ts | yes 10-13 (the owner, by hand in Git Bash: theme screen, a prompt, a command held, approved from a second window, the tool's own permission prompt, `/exit`; the summary said finished) | U15 | none (the approval wording is fixed in S128; Claude Code retries a held call after a few minutes, which looks like a network problem) | P0 |
 | UC-16 | A session in a non-git folder, a folder with spaces, a very large folder | none | partial 10-13 (no git, spaces in the path) | T2 | A very large folder; non-ASCII paths; add an automated case | P0 |
 | UC-17 | Ctrl-C in the middle of a session leaves a consistent state | packages/asp-cli/test/run-interrupt.test.ts | yes 10-13 (Claude Code, a 90-second command running) | T2 | none (found two defects, fixed in S123: the session stayed `running?` for ever and the agent's command lived on) | P0 |
 | UC-18 | Model provider errors (rate limit, bad key, outage) are reported plainly | packages/asp-package/test/gateway.test.ts | no | T2 | Add a session-level case with a 401 and a 429 | P1 |
@@ -53,7 +53,7 @@ Dates are 2026-10 unless written out. The first live run on the hosted service w
 | UC-20 | Network is refused unless hosts are named | packages/asp-cli/test/gateway.test.ts | yes 10-12 | H2 | none | P0 |
 | UC-21 | `--ask risky` holds risky commands, lets harmless ones through | packages/asp-package/test/commands.test.ts, packages/asp-cli/test/run-ask-match.test.ts | yes 10-12 | U15 | Try on real work for a day to see how noisy it is | P0 |
 | UC-22 | An approval answered at the prompt (y, n, a) | packages/asp-cli/test/run-approvals.test.ts | yes 10-12 | U15 | Check the prompt on macOS and in Windows Terminal | P0 |
-| UC-23 | An approval answered from another window (`asp approvals approve`) | packages/asp-cli/test/run-approvals.test.ts | no | U15 | Do it live | P0 |
+| UC-23 | An approval answered from another window (`asp approvals approve`) | packages/asp-cli/test/run-approvals.test.ts | yes 10-13 (real Claude Code, interactive and two terminals) | U15 | none | P0 |
 | UC-24 | Nobody answers: refused after the wait; stops asking after two | packages/asp-package/test/gateway.test.ts | yes 10-12 (retry loop found and fixed) | P29 | The same limit for the hook runtimes; a note to the person when approvals pile up | P0 |
 | UC-25 | A shell command classed as a file write cannot walk past the shell gate | packages/asp-cli/test/run-ask-match.test.ts | yes 10-12 | P26 | none | P0 |
 | UC-26 | A test run is told from other commands | packages/asp-package/test/test-run-scope.test.ts | yes 10-12 | P25 | A list of real commands from real sessions to check the classifier against | P1 |
@@ -323,7 +323,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-220 | Ctrl-C while a call is held for approval closes the Checkpoint | packages/asp-cli/test/run-interrupt-approval.test.ts | yes 10-13 (Claude Code, a command held at the prompt) | T2 | none (found three defects, fixed in S124; the held call and the open Checkpoint are closed when the session is) | P0 |
 | UC-221 | Closing the terminal window ends the session the same way | none | no | T2 | Try on Windows (closing the tab) and Linux | P1 |
 | UC-222 | Ctrl-C of a hooked runtime session (Antigravity, OpenHands) | none | no | T2 | Run with the real runtime | P1 |
-| UC-223 | Ctrl-C in an interactive session does not end the whole session by accident | packages/asp-cli/test/run-interrupt.test.ts | partial 10-13 (real Claude Code at its first-run screen: two Ctrl-Cs went to the tool, asp left the session running; closing the tab left it `interrupted`, no process left) | T2 | Do it once more with Claude Code past its first-run screen, in the middle of an answer and at its own approval prompt; also UC-15 (a whole interactive session) | P0 |
+| UC-223 | Ctrl-C in an interactive session does not end the whole session by accident | packages/asp-cli/test/run-interrupt.test.ts | yes 10-13 (real Claude Code: Ctrl-C at the tool's own permission prompt closed only that prompt and the session carried on; two Ctrl-Cs at the first-run screen were the tool's; closing the tab left it `interrupted`) | T2 | none | P0 |
 | UC-224 | A process the agent started is ended with the session on macOS and Linux | none | no | T1 | Test on both; kill the process group if the terminal does not | P1 |
 
 ## Journey index

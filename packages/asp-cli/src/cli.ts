@@ -3956,6 +3956,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   sessionIndexAdd(home, { t: "start", pid: process.pid, sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
   io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
+  // An interactive session cannot ask here: the tool owns the window, and a person who types y into the tool's own box answers the tool, not asp (found live, UC-15).
+  if (gate.length && !v.prompt && !headless) io.err("  approvals: this window belongs to the tool, so asp cannot ask you in it. When a command is held, open a second terminal and run:  asp approvals approve   (or  asp approvals refuse ). Typing y in the tool's own box does not answer it.");
   // The tool, through the gateway. A prompt runs once and its answer is shown as it comes; without one the tool is interactive.
   const project = resolve(io.cwd, v.project ?? ".");
   const bin = io.env.ASP_CLAUDE_BIN ? [io.env.ASP_CLAUDE_BIN, ...(io.env.ASP_CLAUDE_SCRIPT ? [io.env.ASP_CLAUDE_SCRIPT] : [])] : ["claude"];
@@ -4010,7 +4012,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     const m = /^\s*APPROVAL NEEDED\s+(\S+): (.*)$/.exec(l);
     if (!m) return;
     if (canAsk) askInline(m[1], m[2]);
-    else io.err(`  approval needed for ${m[1]}: ${m[2]}  (answer in another window: asp approvals approve, or asp approvals refuse)`);
+    else io.err(!v.prompt ? `  approval needed for ${m[1]}: ${m[2]}  -- NOT answered by typing here: open a second terminal and run: asp approvals approve  (or: asp approvals refuse)` : `  approval needed for ${m[1]}: ${m[2]}  (answer in another window: asp approvals approve, or asp approvals refuse)`);
   };
   // Antigravity and OpenHands: no gateway. A package is made for this session and run on the package path of asp run, under the standing job's Mandate: the runtime's pre-call hook
   // blocks a call outside it before it runs, a gated call is held for your yes (the same prompt as above), the output is observed, and the signed Action is reported. No memory is written back.
