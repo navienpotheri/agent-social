@@ -2290,7 +2290,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       // asp stop leaves a file for this run: the gateway stops, and with it the agent (the job itself stays).
       if (v["stop-file"] && existsSync(v["stop-file"])) { gw.stop("stopped by you (asp stop)"); return; }
       const st = (await (await openLog(home, logEnv)).log.chainInfo(contract))?.state;
-      if (st !== "Running" && st !== "Checkpoint") gw.stop(`the contract is now ${st}`);
+      // An unknown state (the log read while another process was writing it, found with two terminals on one job) is not an end: only a known state other than Running or Checkpoint stops the run.
+      if (st && st !== "Running" && st !== "Checkpoint") gw.stop(`the contract is now ${st}`);
     } catch { /* keep the last known state */ }
   }, pollMs);
   let code = 0;
@@ -4651,6 +4652,13 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     renameSync(tmp, join(o.dir, `${id}.decision.json`));
   };
 
+  // The hosted service limits how often one tenant may call it, and two terminals on one job poll twice as often (found live, UC-138): a rate limit is waited out, not taken for a refusal.
+  const retry = async <T,>(fn: () => Promise<T>): Promise<T> => {
+    for (let i = 0; ; i++) {
+      try { return await fn(); } catch (e) { if (!/rate limit|too many requests/i.test((e as Error).message) || i >= 40 || stopped) throw e; await sleep(Math.max(o.pollMs, 1500)); }
+    }
+  };
+
   async function handle(req: { id: string; tool: string; scope: string; summary: string; requested_at?: string }) {
     const signer = new Keystore(o.home).forDid(o.agent);
     if (!signer) return decide(req.id, { approved: false, reason: `no key for ${o.agent} to raise the Checkpoint` });
@@ -4660,14 +4668,16 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     const giveUpAt = askedAt + o.waitSeconds * 1000;
     const timedOut = () => decide(req.id, { approved: false, reason: `the principal did not answer within ${o.waitSeconds} seconds` });
     // A job has one open Checkpoint at a time: wait for any earlier one to be resolved first.
-    let local = await openLog(o.home, logEnv);
-    while ((await local.log.chainInfo(o.contract))?.state !== "Running") {
+    let lastReap = 0;
+    let local = await retry(() => openLog(o.home, logEnv));
+    while ((await retry(() => local.log.chainInfo(o.contract)))?.state !== "Running") {
       if (stopped) return;
       if (Date.now() >= giveUpAt) return timedOut();
       // An earlier Checkpoint whose session is gone and whose time has run out would hold this one back for ever: close it.
-      try { await reapExpiredCheckpoint(o.home, o.contract); } catch { /* try again on the next poll */ }
+      // (Reading the whole chain for this is costly, so it is done every 15 seconds, not every poll: two terminals on one job ran into the service's request limit, UC-138.)
+      if (Date.now() - lastReap >= 15_000) { lastReap = Date.now(); try { await reapExpiredCheckpoint(o.home, o.contract); } catch { /* try again on the next poll */ } }
       await sleep(o.pollMs);
-      local = await openLog(o.home, logEnv);
+      local = await retry(() => openLog(o.home, logEnv));
     }
     if (Date.now() >= giveUpAt) return timedOut();
     // What the principal sees, and what goes in the log, is the command with anything secret-looking masked.
@@ -4682,7 +4692,7 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
       body: { contract: o.contract, kind: "before_irreversible", question: `May ${o.agent} run ${req.tool} (${req.scope})?`, proposed_action: shown,
         expires: new Date(expiresMs).toISOString().replace(/\.\d{3}Z$/, "Z") },
     }, signer);
-    await local.append(checkpoint);
+    await retry(() => local.append(checkpoint));
     o.io.err(`  APPROVAL NEEDED  ${req.scope}: ${shown}${masked.redacted ? "  (secret-looking text was masked)" : ""}`);
     o.io.err(`    answer with: asp market resolve --contract ${o.contract} --by ${principal} --verdict approved`);
     for (;;) {
@@ -4692,8 +4702,11 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
         return;
       }
       await sleep(o.pollMs);
-      const fresh = await openLog(o.home, logEnv);
-      const chain = await marketChain(fresh.log, o.contract);
+      const fresh = await retry(() => openLog(o.home, logEnv));
+      // Only the job's state is polled (one cheap request): while it is still Checkpoint nobody has answered. The whole chain is read when the state changes. Reading it every second grew with
+      // the job and, with two terminals, ran into the service's request limit (found live, UC-138).
+      if (Date.now() < expiresMs + 1000 && (await retry(() => fresh.log.chainInfo(o.contract)))?.state === "Checkpoint") continue;
+      const chain = await retry(() => marketChain(fresh.log, o.contract));
       const at = chain.findIndex((x) => x.id === checkpoint.id);
       const resolution = chain.slice(at + 1).find((x) => {
         const b = x.record.body as { kind?: string; about?: string };
@@ -4705,7 +4718,7 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
           type: "attestation", issuer: o.agent, subject: o.contract, prev: chain.at(-1)!.id, issued_at: now(),
           body: { kind: "checkpoint_resolution", about: checkpoint.id, verdict: "expired" },
         }, signer);
-        await fresh.append(expired);
+        await retry(() => fresh.append(expired));
         o.io.err(`  approval expired for ${req.scope}: no answer in ${o.waitSeconds} s, so the call was refused and the job runs again`);
         return decide(req.id, { approved: false, reason: `the principal did not answer within ${o.waitSeconds} seconds` });
       }

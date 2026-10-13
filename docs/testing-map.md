@@ -369,6 +369,8 @@ Each item should end as a row, a to-do or a closed gap in this map and the gaps 
 
 ## Open to-dos by priority
 
+**Last step, once every P0 row above is done or consciously deferred: a full live rehearsal of the flow.** One clean run, on a clean machine and the hosted service, as a developer would do it: clone, `asp`, `asp join`, `asp run` with a prompt, an approval answered from a second window, Ctrl-C, `asp runs`, an agent added, a recovery, `asp account export`. Time it against the 15-minute bar, write what went wrong in docs/live-run-checklist.md, and fix it before the conference (2026-10-17). Do it again after any fix.
+
 The P0 rows above, in the order to do them: redeploy (UC-90) and re-run the live pass; Codex, headless Action and key recovery live (UC-11, 80, 52, 54); the first-use failures (UC-02, 04, 16, 17, 35); the service's safety basics (UC-91, 93, 94, 103); then the demo and wording (UC-110, 112).
 
 ## Keeping it current
