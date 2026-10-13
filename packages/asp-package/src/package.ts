@@ -54,6 +54,25 @@ export function isTestRun(arg: string): boolean {
   return parts.length > 0 && parts.some((s) => TEST_RUNNER.test(s)) && parts.every((s) => TEST_RUNNER.test(s) || /^cd\s/.test(s));
 }
 
+/**
+ * A shell command that only looks at things (ls, cat, grep, find without -delete or -exec, git status ...) is a read, not a command to run: the same rule the gateway's judge applies
+ * (scopeForShellCommand in adapters/codex-actions.ts). Without it a harmless `ls -la` was blocked as shell.exec under a contract that grants repo.read, and counted as a strike
+ * (found in the first live job under a contract, 2026-10-13). A copy of this is in the pre-call hook scripts (adapters/*-mandate-hook.mjs); test/mandate-hook.test.ts keeps them in step.
+ */
+const READ_ONLY_COMMANDS = new Set(["cat", "type", "ls", "dir", "pwd", "head", "tail", "wc", "grep", "rg", "findstr", "find", "tree", "stat", "file", "echo", "get-content", "get-childitem", "select-string", "get-item", "test-path", "get-location", "resolve-path", "measure-object", "gc", "gci", "sls", "write-output", "write-host"]);
+const GIT_READ_ONLY = /^git\s+(status|diff|log|show|branch|ls-files|rev-parse|blame)\b/i;
+const SHELL_WRITES = /(^|\s)(set-content|add-content|out-file|new-item|remove-item|copy-item|move-item|rename-item|clear-content|mkdir|md|rm|del|cp|copy|mv|move|touch|tee|sed\s+-i|ni|ri|si|sc|ac)\b|>>?(?!&)/i;
+export function isReadOnlyShell(arg: string): boolean {
+  const cleaned = arg.replace(/\d*&?>>?\s*(?:\/dev\/null|nul|\$null)(?![\w./-])/gi, " ").replace(/\d*>&\d/g, " ");
+  if (SHELL_WRITES.test(cleaned) || /\$\(|`/.test(cleaned) || /\bfind\b[^|;&]*\s-(?:delete|exec|execdir|ok)\b/i.test(cleaned)) return false;
+  const parts = cleaned.split(/\s*(?:&&|\|\||;|\||\n)\s*/).map((s) => s.trim()).filter(Boolean);
+  if (!parts.length) return false;
+  return parts.every((s) => {
+    const first = s.replace(/^&\s*/, "").split(/\s+/)[0]?.replace(/^["']|["']$/g, "").toLowerCase() ?? "";
+    return first === "cd" || READ_ONLY_COMMANDS.has(first) || GIT_READ_ONLY.test(s);
+  });
+}
+
 /** One tool name plus its shell-like argument text (a permission rule's pattern, or a live call's command) → an ASP scope. */
 export function deriveScopeForTool(tool: string, arg: string): string {
   if (["Read", "Grep", "Glob", "LS", "NotebookRead"].includes(tool)) return "repo.read";
@@ -65,6 +84,7 @@ export function deriveScopeForTool(tool: string, arg: string): string {
     if (isTestRun(arg)) return "tests.run";
     if (/\b(curl|wget|nc|ncat|netcat|ssh|scp|sftp|rsync|telnet|Invoke-WebRequest|Invoke-RestMethod|iwr)\b/i.test(arg)) return "shell.network";
     if (/\bhttps?:\/\/\S+/i.test(arg)) return "shell.network";
+    if (isReadOnlyShell(arg)) return "repo.read";
     return "shell.exec";
   }
   if (tool.startsWith("mcp__")) {

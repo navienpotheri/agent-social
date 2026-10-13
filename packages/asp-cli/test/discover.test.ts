@@ -64,6 +64,12 @@ test("asp ask shows the command it understood before anything runs, asks first, 
   assert.equal(shown.code, 0);
   assert.match(shown.out, /I read that as:  asp stop/);
   assert.match(shown.out, /not run: there is no one here to answer/);
+  // "How do I ..." asks how, so the command is shown and never offered to run (a person answered y to "how do I stop a session" and ran `asp stop` for real).
+  let offered = false;
+  const how = await asp(f, ["ask", "how do I stop a session"], { ask: async () => { offered = true; return "y"; } });
+  assert.equal(how.code, 0);
+  assert.match(how.out, /To do that, run:  asp stop/);
+  assert.equal(offered, false, "it does not offer to run it");
   // Answered no, then yes (asp stop with nothing running says so).
   const no = await asp(f, ["ask", "stop", "what", "is", "running"], { ask: async () => "n" });
   assert.match(no.out, /not run/);

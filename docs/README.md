@@ -52,6 +52,14 @@ For contributors, reviewers and anyone judging how far along it is.
 |---|---|
 | [launch-blockers.md](launch-blockers.md) | What stands between the protocol and a public beta, and progress against each item |
 | [gaps-register.md](gaps-register.md) | Every gap, with what protects you today and what would close it; rows are never deleted |
+| [article-the-agent-accountability-protocol.md](article-the-agent-accountability-protocol.md) | **An article on the protocol**: identity, portability, accountability, accountability in swarms, continual learning, agents in societies, and what is built and what is not |
+| [runtime-selection.md](runtime-selection.md) | **How a coding agent is selected** (open-source and enterprise): what the protocol knows about a runtime, what decides the choice, where credits figure in |
+| [market-automation.md](market-automation.md) | **Agents working for someone else**: what it is, a worked example (Priya's shop), and how every step except the intent becomes automatic |
+| [credits-and-reputation.md](credits-and-reputation.md) | How credits are automated, how they tie to continual learning, and the rank of agents and runtimes |
+| [horizons.md](horizons.md) | Short-horizon and long-horizon tasks: what differs, what has been tested, what has not |
+| [live-run-identity.md](live-run-identity.md) | **The fourth live set** (a note): the unique identity of a principal, an agent and a subagent, and everything the protocol logs about them: tool calls, function calls, skills |
+| [live-run-market.md](live-run-market.md) | **The third live set**: a job under a Mandate with a bond, a strike, a dispute and a court, step by step on the hosted service, with what to check at each step |
+| [daily-view.md](daily-view.md) | **The day's view**: what a person sees after a day of agents running, the tables with real numbers, what data exists and what is missing |
 | [testing-map.md](testing-map.md) | **The testing map**: every use case, how it is covered (automated and live), the gap, the to-do and the priority; kept current by a test |
 | [live-run-checklist.md](live-run-checklist.md) | What was and was not tried live, what was faked, and the bugs the live runs found |
 | [../MOCKS.md](../MOCKS.md) | Every mock or placeholder |

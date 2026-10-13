@@ -68,8 +68,10 @@ fi
 
 echo "==> code ($BRANCH)"
 if [ -d "$APP/.git" ]; then
+  # FETCH_HEAD, not origin/$BRANCH: a clone made with --branch <other> only tracks that branch, so asking it for another one fetches the files but creates no origin/$BRANCH
+  # (found 2026-10-13: the server had stayed on the event-log branch, so every "redeploy" since had failed at this line).
   git -C "$APP" fetch --depth 1 origin "$BRANCH"
-  git -C "$APP" checkout -q -B "$BRANCH" "origin/$BRANCH"
+  git -C "$APP" checkout -q -B "$BRANCH" FETCH_HEAD
 else
   git clone --depth 1 --branch "$BRANCH" "$REPO" "$APP"
 fi

@@ -15,7 +15,9 @@ test("a command is a test run only when every part of it is a test runner; words
   for (const c of ["mkdir scratch && echo \"test content\" > scratch/x.txt && ls scratch", "git log --oneline latest", "cat contest.md", "echo test", "npm install", "python app.py",
     "npm test && rm -rf build", "pytest; curl https://x.example", "npm test | tee out.txt", "ls tests/", "git add tests/new_test.py"]) {
     assert.ok(!isTestRun(c), `should not be a test run: ${c}`);
-    assert.equal(deriveScopeForTool("Bash", c), c.includes("curl") || /https?:\/\//.test(c) ? "shell.network" : "shell.exec", c);
+    // Not a test run either way; the ones that only look are reads (the contract path now reads them as the gateway does), the rest are commands.
+    const looksOnly = ["git log --oneline latest", "cat contest.md", "echo test", "ls tests/"];
+    assert.equal(deriveScopeForTool("Bash", c), c.includes("curl") || /https?:\/\//.test(c) ? "shell.network" : looksOnly.includes(c) ? "repo.read" : "shell.exec", c);
   }
   // A command that mixes a test run with something else is the broader scope, so a gate on shell commands still holds it.
   assert.equal(deriveScopeForTool("Bash", "npm test && rm -rf build"), "shell.exec");

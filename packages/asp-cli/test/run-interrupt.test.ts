@@ -17,7 +17,7 @@ async function asp(home: string, args: string[], env: Record<string, string> = {
 }
 
 // Found by the Ctrl-C test (2026-10-13): interrupting `asp run` left the session "running? no end recorded" for ever and the agent's command alive.
-test("Ctrl-C in the middle of a session ends it as stopped, removes the stop file, and the next session works", async () => {
+test("Ctrl-C in the middle of a session ends it as stopped, removes the stop file, and the next session works", { timeout: 120_000 }, async () => {
   const upstream = createHttp(async (req, res) => { for await (const _ of req) { /* not inspected */ } res.writeHead(200); res.end("{}"); });
   await new Promise<void>((r) => upstream.listen(0, "127.0.0.1", r));
   const upUrl = `http://127.0.0.1:${(upstream.address() as { port: number }).port}`;
@@ -55,6 +55,9 @@ test("Ctrl-C in the middle of a session ends it as stopped, removes the stop fil
     const interDone = await inter;
     assert.doesNotMatch(interDone.err, /Ctrl-C: ending the session/, "Ctrl-C belongs to the tool in an interactive session");
     assert.match(interDone.out, /finished/, interDone.err + interDone.out);
+    // An interactive session with a gate says up front that approvals are answered in a second terminal (a person typed y into the tool's own box, found live in UC-15).
+    const gated = await asp(f.aspHome, ["run", "claude-code", "--local", "--ask", "commands", "--project", project], brief);
+    assert.match(gated.err, /approvals: this window belongs to the tool.*second terminal.*asp approvals approve/s, gated.err);
     const hup = asp(f.aspHome, ["run", "claude-code", "--local", "--project", project], brief);
     await waitRunning();
     process.emit("SIGHUP");

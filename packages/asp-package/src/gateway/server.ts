@@ -62,6 +62,8 @@ export interface GatewayOptions {
   /** Called for every judged call. */
   onCall?: (e: { tool: string; scope: string; allowed: boolean; reason?: string }) => void;
   onStop?: (reason: string) => void;
+  /** The model provider answered with an error (its HTTP status) or could not be reached (status 0). The body is not passed on: it can echo part of a key. */
+  onModelError?: (e: { status: number; host: string; cause?: string }) => void;
 }
 
 /** What one interval of a run cost and which models ran: the Action's `metrics` field. */
@@ -112,7 +114,23 @@ function parseArgs(raw: unknown): Record<string, unknown> {
 }
 
 export function createGateway(opts: GatewayOptions): Gateway {
-  const f = opts.fetch ?? fetch;
+  const rawFetch = opts.fetch ?? fetch;
+  let authFailures = 0;
+  // A provider that cannot be reached is reported to the person by name (a bare "fetch failed" tells them nothing), and recorded in the run log.
+  const f: typeof fetch = async (input, init) => {
+    try {
+      const res = await rawFetch(input, init);
+      // A key the provider refuses is refused every time: after three in a row the run is stopped, instead of the tool retrying in silence for minutes (found live with a wrong key, UC-18).
+      if (res.status === 401 || res.status === 403) { if (++authFailures >= 3) stop(`the model provider refused the API key ${authFailures} times in a row`); } else if (res.ok) authFailures = 0;
+      return res;
+    } catch (e) {
+      let host = ""; try { host = new URL(String(input)).host; } catch { /* not a URL */ }
+      const cause = ((e as { cause?: { code?: string } }).cause?.code) ?? (e as Error).message;
+      rec?.event("model_error", { status: 0, body: `could not reach ${host}: ${cause}` });
+      opts.onModelError?.({ status: 0, host, cause });
+      throw e;
+    }
+  };
   const maxStrikes = opts.maxStrikes ?? 3;
   const used = new Set<string>();
   const blocked = new Map<string, number>();
@@ -234,8 +252,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
       const v = limiter.take(requestsOf(call, j.scope), opts.rate);
       if (!v.ok) { allow = false; reason = v.reason; strike = false; rateLimited = true; rateLimitedTotal++; rateLimitedSince++; }
     }
-    opts.onCall?.({ tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}) });
-    rec?.event("tool_call", { tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && gateScope ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
+    opts.onCall?.({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}) });
+    rec?.event("tool_call", { tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && gateScope ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
     if (allow) {
       if (j.scope) { used.add(j.scope); pendingUsed.add(j.scope); }
       if (j.artifact) { artifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); pendingArtifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); }
@@ -248,6 +266,18 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (strikes >= maxStrikes) stop(`${strikes} blocked attempts in one run read as probing`);
     }
     return reason ?? "outside the Mandate";
+  }
+
+  /** The provider's answer, or undefined when the connection was cut while it was coming (the wifi dropped): said to the person by name, and the agent gets a clear error, not an empty reply. */
+  async function readUpstream(up: Response, res: ServerResponse): Promise<string | undefined> {
+    try { return await up.text(); } catch (e) {
+      let host = ""; try { host = new URL(up.url).host; } catch { /* a stand-in fetch has no address */ }
+      const cause = ((e as { cause?: { code?: string } }).cause?.code) ?? "ECONNRESET";
+      rec?.event("model_error", { status: 0, body: `the connection was cut while the answer was coming: ${cause}` });
+      opts.onModelError?.({ status: 0, host, cause: `cut:${cause}` });
+      json(res, 502, { error: { message: "ASP gateway: the model provider cut the connection while it was answering" } });
+      return undefined;
+    }
   }
 
   function json(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) {
@@ -294,8 +324,9 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (tokenCapHit()) stop("token cap reached");
       return;
     }
-    const text = await up.text();
-    if (!up.ok) { rec?.event("model_error", { status: up.status, body: text.slice(0, 300) }); res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
+    const text = await readUpstream(up, res);
+    if (text === undefined) return;
+    if (!up.ok) { rec?.event("model_error", { status: up.status, body: text.slice(0, 300) }); opts.onModelError?.({ status: up.status, host: new URL(up.url || "http://provider").host }); res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
     const reply = JSON.parse(text);
     tokens.input += reply.usage?.prompt_tokens ?? 0;
     tokens.output += reply.usage?.completion_tokens ?? 0;
@@ -335,8 +366,9 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (tokenCapHit()) stop("token cap reached");
       return;
     }
-    const text = await up.text();
-    if (!up.ok) { rec?.event("model_error", { status: up.status, body: text.slice(0, 300) }); res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
+    const text = await readUpstream(up, res);
+    if (text === undefined) return;
+    if (!up.ok) { rec?.event("model_error", { status: up.status, body: text.slice(0, 300) }); opts.onModelError?.({ status: up.status, host: new URL(up.url || "http://provider").host }); res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
     const reply = JSON.parse(text);
     tokens.input += reply.usage?.input_tokens ?? 0;
     tokens.output += reply.usage?.output_tokens ?? 0;
@@ -374,8 +406,9 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (tokenCapHit()) stop("token cap reached");
       return;
     }
-    const text = await up.text();
-    if (!up.ok) { rec?.event("model_error", { status: up.status, body: text.slice(0, 300) }); res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
+    const text = await readUpstream(up, res);
+    if (text === undefined) return;
+    if (!up.ok) { rec?.event("model_error", { status: up.status, body: text.slice(0, 300) }); opts.onModelError?.({ status: up.status, host: new URL(up.url || "http://provider").host }); res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
     const reply = JSON.parse(text);
     tokens.input += reply.usage?.input_tokens ?? 0;
     tokens.output += reply.usage?.output_tokens ?? 0;

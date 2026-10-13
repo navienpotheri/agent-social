@@ -45,7 +45,9 @@ export function shellArtifact(command: string): { uri: string; sha256: string } 
 export function scopeForShellCommand(command: string): string {
   const inner = unwrapShell(command);
   const segments = inner.split(/\s*(?:&&|\|\||;|\|)\s*/).filter(Boolean);
-  if (WRITES.test(inner)) {
+  // A redirect to nowhere (2>/dev/null, >nul, 2>&1) writes nothing: agents add it to hide error text, and it must not turn a read into a file write (found in the owner's live run, UC-25).
+  const withoutQuietRedirects = inner.replace(/\d*&?>>?\s*(?:\/dev\/null|nul|\$null)(?![\w./-])/gi, " ").replace(/\d*>&\d/g, " ");
+  if (WRITES.test(withoutQuietRedirects)) {
     // Writing files is repo.write only when nothing in the command is network, push or a PR.
     const other = deriveScopeForTool("Bash", inner);
     return other === "shell.exec" ? "repo.write" : other;

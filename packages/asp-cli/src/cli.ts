@@ -183,6 +183,7 @@
  *   asp credits grant --to <did> --amount <n>
  *     Bootstraps a DID's credit balance. Local, unsigned, not part of the tamper-evident log — a
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
+ *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
  *   asp credits balance <did>
  *
  *   Assignment mode (one performer bidding directly):
@@ -283,6 +284,7 @@
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { snapshot as snapshotCredits } from "./ledger.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -577,6 +579,52 @@ const OPTIONS = {
  * A bare "fetch failed" (Node's message for any network failure) says nothing a person can act on. When an error is a connection failure, say what happened and what still works.
  * Found in preparing for developers: `asp account show` with no wifi printed only "error: fetch failed".
  */
+/** What a model provider's error means to the person, and what to do about it. */
+export function providerProblem(status: number, host: string, cause?: string): string {
+  const who = host || "the model provider";
+  if (status === 0 && cause?.startsWith("cut:")) return `lost the connection to ${who} while it was answering (${cause.slice(4)}): check your network, then run this again`;
+  if (status === 0) return `could not reach ${who}${cause ? ` (${/ENOTFOUND/.test(cause) ? "its address could not be found" : /ECONNREFUSED/.test(cause) ? "it refused the connection" : /TIMEDOUT|timeout/i.test(cause) ? "it did not answer in time" : cause})` : ""}: check your network, or whether the provider is down, then run this again`;
+  if (status === 401 || status === 403) return `${who} refused the API key (HTTP ${status}): the key is wrong, expired, revoked or out of credit; check it with the provider, set the right one and run this again`;
+  if (status === 402) return `${who} says the account is out of credit (HTTP 402): add credit with the provider, then run this again`;
+  if (status === 404) return `${who} does not know that model or address (HTTP 404): check the model name and the endpoint`;
+  if (status === 429) return `${who} is rate limiting this key (HTTP 429): wait a minute and run this again, or use another key or model`;
+  if (status >= 500) return `${who} had an error on its side (HTTP ${status}): its service may be down; try again later`;
+  return `${who} rejected the request (HTTP ${status}): the run log (asp run-log show) has the detail`;
+}
+/**
+ * Reports that could not be sent (the account's record limit is full, the service is down, the wifi dropped) wait in <home>/outbox and are sent by the next session, with nothing asked of the
+ * person (T16): a session that did its work is never made to look failed, and nothing it did is lost. A report is kept only for a cause that can pass; a settled job is not retried.
+ */
+const OUTBOX_KEEP_WHEN = /cannot reach|QUOTA_EXCEEDED|quota|rate limit|too many requests|timed out|\b50[0-9]\b/i;
+function outboxAdd(home: string, args: string[], at: string, contract: string): void {
+  const dir = join(home, "outbox");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, `action-${Date.now()}-${randomBytes(3).toString("hex")}.json`), JSON.stringify({ args, at, contract }) + "\n");
+}
+function outboxWaiting(home: string): number {
+  try { return readdirSync(join(home, "outbox")).filter((f) => f.endsWith(".json")).length; } catch { return 0; }
+}
+/** Sends the waiting reports, oldest first; stops at the first one that still cannot go (the rest cannot either). Returns how many were sent and how many still wait. */
+async function outboxSend(home: string, env: NodeJS.ProcessEnv, cwd: string): Promise<{ sent: number; waiting: number }> {
+  const dir = join(home, "outbox");
+  if (!existsSync(dir)) return { sent: 0, waiting: 0 };
+  const files = readdirSync(dir).filter((f) => f.endsWith(".json")).sort();
+  let sent = 0;
+  for (const f of files.slice(0, 50)) {
+    const path = join(dir, f);
+    let item: { args: string[]; at: string };
+    try { item = JSON.parse(readFileSync(path, "utf8")); } catch { rmSync(path, { force: true }); continue; }
+    const out: string[] = [];
+    const quiet = { out: (l: string) => out.push(l), err: (l: string) => out.push(l), env, cwd };
+    let rc = await main(item.args, quiet);
+    if (rc !== 0 && out.join(" ").includes("is not currently Running")) { out.length = 0; rc = await main([...item.args, "--late", item.at], quiet); }
+    if (rc === 0) { rmSync(path, { force: true }); sent++; continue; }
+    if (!OUTBOX_KEEP_WHEN.test(out.join(" "))) { rmSync(path, { force: true }); continue; } // it can never be accepted (the job is settled): not kept for ever
+    break;
+  }
+  return { sent, waiting: outboxWaiting(home) };
+}
+
 export function connectionProblem(e: unknown, service?: string): string | undefined {
   const err = e as { message?: string; cause?: { code?: string; message?: string } };
   const code = err?.cause?.code;
@@ -612,6 +660,15 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   const home = aspHome(v.home ?? io.env.ASP_HOME);
   if (!cmd) return homeCmd(home, io);
   // After `asp join` the service and the token are saved in the ASP home, so nothing has to be exported: the environment, when set, wins.
+  // The environment wins, so say so when it overrides a different saved login: an old ASP_LOG_URL / ASP_LOG_TOKEN left in a shell silently made `account show` and `account export` act as
+  // another account than the one being tested (found in the owner's live walkthrough). Names only; a token is never printed.
+  if (cmd !== "join" && cmd !== "help" && cmd !== "ask" && io.env.ASP_LOG_URL) {
+    const saved = readJoinConfig(home);
+    const sameService = saved && saved.service.replace(/\/$/, "") === io.env.ASP_LOG_URL.replace(/\/$/, "");
+    if (saved && (!sameService || (io.env.ASP_LOG_TOKEN && io.env.ASP_LOG_TOKEN !== saved.token))) {
+      io.err(`  note: ASP_LOG_URL${io.env.ASP_LOG_TOKEN ? " and ASP_LOG_TOKEN are" : " is"} set in this shell and override the login saved for ${saved.tenant}, so this command acts as the account they name, not ${saved.tenant}. To use the saved login: unset ASP_LOG_URL ASP_LOG_TOKEN`);
+    }
+  }
   if (cmd !== "join" && !io.env.ASP_LOG_URL) {
     const cfg = readJoinConfig(home);
     if (cfg) { io = { ...io, env: { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token } }; logEnv = io.env; }
@@ -657,7 +714,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "init") return initCmd(home, io);
     if (cmd === "trust") return trustCmd(home, sub, io);
     if (cmd === "shim") return shimCmd(sub, io);
-    if (cmd === "account") return await accountCmd(sub, v, io);
+    if (cmd === "account") return await accountCmd(sub, v, io, home);
     if (cmd === "join") return await joinCmd(home, v, io);
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
     if (cmd === "stop") return await stopCmd(home, sub, v, io);
@@ -675,6 +732,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "witness") return await logWitness(home, rest[0], v, need, io);
     if (cmd === "log" && sub === "witnesses") return await logWitnessesAdd(home, rest[0] === "add" ? rest[1] : undefined, io);
     if (cmd === "log" && sub === "checkpoint") return await logCheckpoint(home, v, need, io);
+    if (cmd === "credits" && (!sub || sub === "show")) return await creditsShow(home, io);
     if (cmd === "credits" && sub === "grant") return await creditsGrant(home, v, need, io);
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
@@ -891,22 +949,41 @@ async function identityShow(home: string, did: string | undefined, io: Io): Prom
   return 0;
 }
 
-/** The passphrase for a key backup: from an environment variable (default ASP_BACKUP_PASSPHRASE), never a flag, so it stays out of shell history. */
-function backupPassphrase(v: Values, io: Io): string {
+/** A line typed at the terminal with nothing echoed (a passphrase): the typed characters are not shown and not kept anywhere. */
+async function promptHidden(question: string): Promise<string> {
+  const { createInterface } = await import("node:readline");
+  const { Writable } = await import("node:stream");
+  let muted = false;
+  const sink = new Writable({ write(chunk, _enc, cb) { if (!muted) process.stderr.write(chunk); cb(); } });
+  const rl = createInterface({ input: process.stdin, output: sink, terminal: true });
+  return await new Promise<string>((resolve) => {
+    rl.question(question, (answer) => { rl.close(); process.stderr.write("\n"); resolve(answer); });
+    muted = true; // from here nothing typed is echoed
+  });
+}
+
+/**
+ * The passphrase for a key backup: from an environment variable (default ASP_BACKUP_PASSPHRASE, for scripts and CI), never a flag, so it stays out of shell history; at a terminal with no
+ * variable it is asked for with nothing echoed (twice when making a backup, so a typing slip does not lock the backup).
+ */
+async function backupPassphrase(v: Values, io: Io, confirm = false): Promise<string> {
   const name = v["passphrase-env"] ?? "ASP_BACKUP_PASSPHRASE";
   const p = io.env[name];
-  if (!p) throw new UsageError(`put the passphrase in the environment variable ${name} (at least ${MIN_PASSPHRASE} characters); it is read from there so it stays out of your shell history`);
-  return p;
+  if (p) return p;
+  if (!process.stdin.isTTY) throw new UsageError(`put the passphrase in the environment variable ${name} (at least ${MIN_PASSPHRASE} characters); it is read from there so it stays out of your shell history`);
+  const first = await promptHidden(`Passphrase for the backup (at least ${MIN_PASSPHRASE} characters; nothing shows as you type): `);
+  if (confirm && (await promptHidden("Type it again: ")) !== first) throw new Error("the two passphrases differ; nothing was written");
+  return first;
 }
 
 /** asp identity backup <did> --out <file>: the keys held here for an identity, encrypted with a passphrase. */
 async function identityBackup(home: string, did: string | undefined, v: Values, io: Io): Promise<number> {
-  if (!did || !v.out) throw new UsageError("asp identity backup <did> --out <file>   (passphrase in ASP_BACKUP_PASSPHRASE)");
+  if (!did || !v.out) throw new UsageError("asp identity backup <did> --out <file>   (it asks for a passphrase; scripts set ASP_BACKUP_PASSPHRASE instead)");
   const entries = new Keystore(home).entriesFor(did);
   if (!entries.length) throw new Error(`no key for ${did} is held in ${join(home, "keys")}`);
   const file = resolve(io.cwd, v.out);
   if (existsSync(file)) throw new Error(`${file} already exists; choose another name`);
-  writeFileSync(file, JSON.stringify(encryptKeys(did, entries, backupPassphrase(v, io), now()), null, 2) + "\n", { mode: 0o600 });
+  writeFileSync(file, JSON.stringify(encryptKeys(did, entries, await backupPassphrase(v, io, true), now()), null, 2) + "\n", { mode: 0o600 });
   io.out(`${entries.length} key(s) for ${did} written to ${file}, encrypted`);
   io.out("  keep this file and the passphrase in different places; with both, anyone can act as this identity");
   return 0;
@@ -914,9 +991,9 @@ async function identityBackup(home: string, did: string | undefined, v: Values, 
 
 /** asp identity restore <file>: puts the keys of a backup back on this machine. */
 async function identityRestore(home: string, file: string | undefined, v: Values, io: Io): Promise<number> {
-  if (!file) throw new UsageError("asp identity restore <file>   (passphrase in ASP_BACKUP_PASSPHRASE)");
+  if (!file) throw new UsageError("asp identity restore <file>   (it asks for the passphrase; scripts set ASP_BACKUP_PASSPHRASE instead)");
   const backup = JSON.parse(readFileSync(resolve(io.cwd, file), "utf8"));
-  const entries = decryptKeys(backup, backupPassphrase(v, io));
+  const entries = decryptKeys(backup, await backupPassphrase(v, io));
   const keys = new Keystore(home);
   let restored = 0;
   for (const e of entries) { if (keys.importEntry(e)) restored++; else io.out(`  ${e.kid} is already here; left as it is`); }
@@ -1218,7 +1295,7 @@ async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io
  * asp account show | export [--out <dir>] | close --confirm <tenant> [--skip-export] [--out <dir>] (an admin adds --tenant <name>): a tenant's own data on the service named by
  * ASP_LOG_URL and ASP_LOG_TOKEN. Export writes account.json, records.ndjson, commons.json, the packages and a README; close exports first (unless --skip-export), then deletes.
  */
-async function accountCmd(sub: string | undefined, v: Values, io: Io): Promise<number> {
+async function accountCmd(sub: string | undefined, v: Values, io: Io, home: string): Promise<number> {
   const url = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
   if (!url || !token) throw new UsageError("set ASP_LOG_URL and ASP_LOG_TOKEN to the service and your token");
   const base = url.endsWith("/") ? url : url + "/";
@@ -1284,15 +1361,16 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io): Promise<n
     return e;
   };
   if (sub === "export") {
-    const dir = resolve(io.cwd, v.out ?? `asp-export-${now().slice(0, 10)}`);
+    // Into the ASP home by default, not the current folder: run from a repository, an export (your records, in the clear) landed in the repo and could have been committed.
+    const dir = resolve(io.cwd, v.out ?? join(home, "exports", `asp-export-${now().slice(0, 10)}`));
     const e = await exportTo(dir);
-    io.out(`exported to ${dir}: ${e.records.length} record(s), ${e.packages.length} package(s), ${e.commons.entries.length} commons entr(ies); your keys were never on the service, so keep their backups`);
+    io.out(`exported tenant ${e.tenant.name} to ${dir}: ${e.records.length} record(s), ${e.packages.length} package(s), ${e.commons.entries.length} commons entr(ies); your keys were never on the service, so keep their backups`);
     return 0;
   }
   if (sub === "close") {
     if (!v.confirm) throw new UsageError("asp account close --confirm <your tenant name> [--skip-export]: this deletes your packages and commons entries and cannot be undone (the records in the log stay)");
     if (!v["skip-export"]) {
-      const dir = resolve(io.cwd, v.out ?? `asp-export-before-close-${now().slice(0, 10)}`);
+      const dir = resolve(io.cwd, v.out ?? join(home, "exports", `asp-export-before-close-${now().slice(0, 10)}`));
       const e = await exportTo(dir);
       io.out(`exported to ${dir} first (${e.records.length} record(s), ${e.packages.length} package(s))`);
     }
@@ -1375,26 +1453,36 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
     const res = await fetchRetry(new URL(path, service + "/"), init);
     return { status: res.status, body: (await res.json().catch(() => undefined)) as any };
   };
-  const info = await get("signup");
+  const info = await get("signup").catch((e) => { const m = connectionProblem(e, service); throw m ? new Error(m) : e; });
   if (info.status !== 200 || !info.body?.ok) throw new Error(`${service} does not offer sign-up (it answered ${info.status})`);
   if (!info.body.open) throw new Error(`sign-up is not open on ${service}${info.body.reason ? `: ${info.body.reason}` : ""}`);
 
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const url = `${service}/join?c=${challenge}`;
-  io.out("Opening your browser to sign up. If it does not open, go to this address:");
+  io.out(v["no-open"] ? "Go to this address in a browser to sign up:" : "Opening your browser to sign up. If it does not open, go to this address:");
   io.out(`  ${url}`);
+  io.out("  (On a machine with no browser, over SSH or in a container: open that address on any other device. This terminal picks up the result by itself.)");
   if (!v["no-open"]) openBrowser(url);
-  io.out("Waiting for you to finish in the browser (up to 10 minutes) ...");
+  const waitMs = Number(io.env.ASP_JOIN_TIMEOUT_MS) > 0 ? Number(io.env.ASP_JOIN_TIMEOUT_MS) : 10 * 60_000;
+  io.out(`Waiting for you to finish in the browser (up to ${Math.round(waitMs / 60_000) || 1} minutes) ...`);
   let picked: { tenant: string; token: string } | undefined;
-  const deadline = Date.now() + 10 * 60_000;
+  const deadline = Date.now() + waitMs;
   const every = Math.max(50, Number(io.env.ASP_JOIN_POLL_MS) || 2000);
+  let said = false;
   while (Date.now() < deadline) {
-    const r = await get("join/pickup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ verifier }) });
-    if (r.status === 200 && r.body?.token) { picked = r.body; break; }
+    try {
+      const r = await get("join/pickup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ verifier }) });
+      said = false;
+      if (r.status === 200 && r.body?.token) { picked = r.body; break; }
+    } catch (e) {
+      // The connection drops while you are signing up in the browser (UC-04, UC-35): keep waiting, the sign-up is not lost.
+      if (!connectionProblem(e, service)) throw e;
+      if (!said) { said = true; io.out("  (cannot reach the service right now; still waiting, and trying again)"); }
+    }
     await new Promise((res) => setTimeout(res, every));
   }
-  if (!picked) throw new Error("timed out waiting for the sign-up; run asp join again");
+  if (!picked) throw new Error(`gave up waiting for the sign-up after ${Math.round(waitMs / 60_000) || 1} minutes. Run asp join again. If you did finish signing up in the browser after that, that account exists but this terminal never received its login, so pick a different name this time (one Google account may sign up a few times); the contact in the Terms can close the unused one.`);
   mkdirSync(home, { recursive: true });
   writeFileSync(joinConfigPath(home), JSON.stringify({ service, token: picked.token, tenant: picked.tenant, joinedAt: now() } satisfies JoinConfig, null, 2) + "\n", { mode: 0o600 });
   io.out("");
@@ -1434,7 +1522,7 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   io.out(`You are set up on ${service}:`);
   io.out(`  you      ${me}`);
   io.out(`  agent    ${agent}`);
-  io.out(`  credits  ${creditsNote ? `none (${creditsNote})` : /\+(\d+) credits/.exec(credits) ? "500 each for you and your agent" : "claimed"}`);
+  io.out(`  credits  ${creditsNote ? (/already claimed/i.test(creditsNote) ? "none this time: starter credits are given once per Google account, and this one has had them (this does not affect anything else)" : `none (${creditsNote})`) : /\+(\d+) credits/.exec(credits) ? "500 each for you and your agent" : "claimed"}`);
   if (code) {
     if (process.stdin.isTTY && !v.yes) {
       const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stdout });
@@ -2187,6 +2275,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       else if (e.scope && !reportedScopes.has(e.scope)) { reportedScopes.add(e.scope); reportSoon(eagerMs); }
     },
     onStop: (r) => { io.err(`  stopped  ${r}`); killAgent?.(); },
+    // The model provider said no, or could not be reached: said once, in words, with what to do (UC-18). Never the provider's own text, which can echo part of a key.
+    onModelError: ((said: Set<string>) => (e: { status: number; host: string; cause?: string }) => { const m = providerProblem(e.status, e.host, e.cause); if (!said.has(m)) { said.add(m); io.err(`  provider  ${m}`); } })(new Set<string>()),
   });
   // The sandbox level: the agent runs where its only way out is the gateway, unless the Mandate grants a network scope.
   // Two backends: bubblewrap (Linux, WSL) and Docker (any host with Docker, for agents that run in a Linux image).
@@ -2279,7 +2369,9 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       rc = await main([...args, "--late", d.lastActivityAt], { out: (l) => out.push(l), err: (l) => out.push(l), env: io.env, cwd: io.cwd });
       if (rc === 0) out.unshift("(late report: the job had ended)");
     }
-    io.err(rc === 0 ? `  action   ${out.join(" ").slice(0, 200)}` : `  warning  could not record an Action (${why}): ${out.join(" ").slice(0, 200)}`);
+    const kept = rc !== 0 && OUTBOX_KEEP_WHEN.test(out.join(" "));
+    if (kept) { try { outboxAdd(home, [...args], d.lastActivityAt, contract); } catch { /* the run log still holds it */ } }
+    io.err(rc === 0 ? `  action   ${out.join(" ").slice(0, 200)}` : `  warning  could not record an Action (${why})${kept ? " (kept to send later)" : ""}: ${out.join(" ").slice(0, 200)}`);
     return rc;
   }));
   const flusher = setInterval(() => { void flushAction("interval"); }, Number(io.env.ASP_GATEWAY_FLUSH_MS) > 0 ? Number(io.env.ASP_GATEWAY_FLUSH_MS) : 30_000);
@@ -2365,6 +2457,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   await gw.close();
   if (pkgDir && !v["no-write-back"]) await gatewayWriteBack({ home, pkgDir, agent: by, memDir, baseMemory, gwRunDir, v, io });
   io.err(`  summary  ${JSON.stringify({ requests: sum.requests, toolCalls: sum.toolCalls, unjudged: sum.unjudgedRequests, tokens: sum.tokens, scopesUsed: sum.scopesUsed, blocked: sum.blocked, strikes: sum.strikes })}`);
+  // Said apart from the report's own result, so a caller can tell an agent that failed from a report that could not be sent (the service was out of reach).
+  io.err(`  agent    exited ${code}`);
   return rc !== 0 ? rc : code;
 }
 
@@ -2707,6 +2801,14 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
     if (!latest) throw new Error(`no run with a run log in ${runs}; give the file or folder`);
     target = join(runs, latest);
   }
+  // The session id that `asp runs` prints works too (a person tries exactly that): it is looked up to the session's own run log.
+  if (/^[0-9a-f]{4,16}$/.test(target) && !existsSync(resolve(io.cwd, target))) {
+    const hit = sessionsOf(home).filter((s) => s.start.sid.startsWith(target));
+    const log = hit.length === 1 ? hit[0].end?.runLog : undefined;
+    if (hit.length > 1) throw new Error(`more than one session starts with ${target}; asp runs lists them`);
+    if (hit.length === 1 && !log) throw new Error(`session ${hit[0].start.sid} has no run log (it has not ended, or it ran without one)`);
+    if (log) target = log;
+  }
   const file = target.endsWith(".ndjson") ? resolve(io.cwd, target) : join(resolve(io.cwd, target), "run-log.ndjson");
   const check = readRunLog(file);
   if (sub === "show") {
@@ -2722,7 +2824,10 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
         : e.kind === "tool_call" ? `${d.allowed === undefined ? "" : d.allowed ? "allowed " : "REFUSED "}${d.tool}${d.scope !== undefined ? ` -> ${d.scope || "no scope"}` : ""}${d.reason ? ` (${d.reason})` : ""}${d.gated ? " [gated]" : ""}: ${q(d.input)}`
         : e.kind === "model_error" ? `provider answered ${d.status}`
         : e.kind === "stopped" ? `stopped: ${d.reason}`
-        : e.kind === "run_end" ? `exit ${d.exit_code}; ${d.requests} request(s), ${d.tool_calls} tool call(s), ${d.strikes} blocked, ${d.redactions} secret-like value(s) masked`
+        : e.kind === "run_end" ? (d.requests !== undefined
+          ? `exit ${d.exit_code}; ${d.requests} request(s), ${d.tool_calls} tool call(s), ${d.strikes} blocked, ${d.redactions} secret-like value(s) masked`
+          // a run under a contract (the package path) records strikes and what was masked, not request counts
+          : `exit ${d.exit_code}; ${d.strikes ?? 0} strike(s)${d.redactions !== undefined ? `, ${d.redactions} secret-like value(s) masked` : ""}${d.killed ? `; stopped: ${d.killed}` : ""}`)
         : e.kind === "assistant_text" ? q(d.text)
         : e.kind === "tool_result" ? `${d.blocked ? "BLOCKED " : d.error ? "failed " : ""}${q(d.text)}`
         : e.kind === "mcp_call" ? `${d.server}/${d.tool}${d.error ? " (error)" : ""}: ${q(d.input)} -> ${q(d.result)}`
@@ -3220,6 +3325,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     let record = createRecord({ type: "contract", issuer: principal, subject: performer, prev: null, body, issued_at: now() }, signerFor(principal));
     record = cosign(record, signerFor(performer));
     const res = await local.append(record);
+    rememberJob(home, res.id);
     io.out(`contract ${res.id}: ${principal} -> ${performer}, price ${priceValue} credits (log seq ${res.seq}, state ${res.state})`);
     return 0;
   }
@@ -3554,7 +3660,14 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
 
     let escrowReleased = v["escrow-released"] !== undefined ? Math.trunc(Number(v["escrow-released"])) : undefined;
     let bondSlashed = v["bond-slashed"] !== undefined ? Math.trunc(Number(v["bond-slashed"])) : undefined;
-    const bondReturned = Math.trunc(Number(v["bond-returned"] ?? "0"));
+    let bondReturned = Math.trunc(Number(v["bond-returned"] ?? "0"));
+    // An accepted job (or one settled on silence) pays what was agreed and gives the bond back: nobody does credit arithmetic (found in the credit-ledger rehearsal, where
+    // `settle --basis accepted` with no amounts paid the performer nothing and handed the escrow back).
+    if ((basis === "accepted" || basis === "silence") && (escrowReleased === undefined || v["bond-returned"] === undefined)) {
+      const e = await local.log.escrow(contract);
+      escrowReleased ??= Math.max(0, (e?.escrowLocked ?? 0) - Math.trunc(Number(v.fees ?? 0)));
+      if (v["bond-returned"] === undefined) bondReturned = Math.max(0, (e?.bondLocked ?? 0) - (bondSlashed ?? 0));
+    }
     let cited: string | undefined = v.cites;
     // An upheld report forces full fault (the log refuses anything else): default to exactly that.
     const forced = (await local.log.escrow(contract))?.forcedFault ? await local.log.escrow(contract) : undefined;
@@ -3953,9 +4066,29 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   if (!headless) { standing[key] = job; writeStanding(home, standing); }
   const sid = randomBytes(4).toString("hex");
   const stopFile = join(home, `stop-${sid}`);
+  // Reports an earlier session could not send (a full account, a dropped connection) are sent now, by themselves; a service that does not answer is not waited for (T16).
+  if (!localIds && outboxWaiting(home) > 0) {
+    try {
+      const r = await Promise.race([outboxSend(home, io.env, io.cwd), new Promise<undefined>((res) => setTimeout(() => res(undefined), 8000))]);
+      if (r?.sent) io.err(`  sent ${r.sent} earlier report(s) that had been waiting${r.waiting ? `; ${r.waiting} still wait` : ""}`);
+    } catch { /* they stay in the outbox */ }
+  }
+  // Credits are shown in every session's summary (the owner's choice, 2026-10-13): your balance and your agent's, and what this session moved. A figure that cannot be read (no service, a slow one)
+  // is left out, never waited for beyond a few seconds.
+  const creditsNow = async (): Promise<{ you: number; agent: number } | undefined> => {
+    if (localIds) return undefined;
+    try {
+      const one = async (did: string) => { const r = await quiet(["credits", "balance", did]); const n = Number(/(-?\d+)\s+credits?/.exec(r.out)?.[1]); return r.code || !Number.isFinite(n) ? undefined : n; };
+      const both = await Promise.race([Promise.all([one(ids.me), one(ids.agent)]), new Promise<undefined>((res) => setTimeout(() => res(undefined), 6000))]);
+      return both && both[0] !== undefined && both[1] !== undefined ? { you: both[0], agent: both[1] } : undefined;
+    } catch { return undefined; }
+  };
+  const creditsBefore = await creditsNow();
   sessionIndexAdd(home, { t: "start", pid: process.pid, sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
   io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
+  // An interactive session cannot ask here: the tool owns the window, and a person who types y into the tool's own box answers the tool, not asp (found live, UC-15).
+  if (gate.length && !v.prompt && !headless) io.err("  approvals: this window belongs to the tool, so asp cannot ask you in it. When a command is held, open a second terminal and run:  asp approvals approve   (or  asp approvals refuse ). Typing y in the tool's own box does not answer it.");
   // The tool, through the gateway. A prompt runs once and its answer is shown as it comes; without one the tool is interactive.
   const project = resolve(io.cwd, v.project ?? ".");
   const bin = io.env.ASP_CLAUDE_BIN ? [io.env.ASP_CLAUDE_BIN, ...(io.env.ASP_CLAUDE_SCRIPT ? [io.env.ASP_CLAUDE_SCRIPT] : [])] : ["claude"];
@@ -3985,7 +4118,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
           const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stderr });
           const timer = setInterval(() => { if (sessionOver) rl.close(); }, 500); timer.unref();
           // At a terminal, readline takes Ctrl-C for itself; it means "leave", not "no" (found live, UC-220): end the session, and the held call is refused as part of ending it.
-          rl.on("SIGINT", () => { onInterrupt(); rl.close(); });
+          rl.on("SIGINT", () => { io.err(""); onInterrupt(); rl.close(); }); // (the empty line ends the question's line, so the message starts on its own line)
           // A closed prompt (Ctrl-C, the session over) never settles its own question, so the question is raced against the close.
           const closed = new Promise<string>((res) => rl.once("close", () => res("")));
           try { answer = await Promise.race([rl.question(`\n  Allow ${scope}: ${shown}? ${options}${canAlways ? " (a = yes, and never ask about this exact command again)" : ""} `), closed]); } catch { answer = ""; } finally { clearInterval(timer); rl.close(); }
@@ -4002,15 +4135,25 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
         io.err(`  remembered: ${ids!.agent.split(":").slice(-1)[0]} may run that exact command without asking (asp approvals always lists them; asp approvals forget removes them)`);
       }
       const yes = always || /^y(es)?$/i.test(answer.trim());
-      const r = await quiet(["market", "resolve", "--contract", job!.contract, "--by", ids!.me, "--verdict", yes ? "approved" : "corrected", ...(yes ? [] : ["--correction", "refused by you"])]);
+      const resolveArgs = ["market", "resolve", "--contract", job!.contract, "--by", ids!.me, "--verdict", yes ? "approved" : "corrected", ...(yes ? [] : ["--correction", "refused by you"])];
+      let r = await quiet(resolveArgs);
+      // The wifi is down when you answer (found live, UC-35): the answer is kept and sent when the connection is back, for as long as the session is waiting, not lost.
+      if (r.code && /cannot reach/i.test(r.err + r.out)) {
+        io.err(`  your answer (${yes ? "yes" : "no"}) is kept: the log service cannot be reached; it is sent as soon as the connection is back`);
+        const everyMs = Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Math.max(Number(io.env.ASP_APPROVAL_POLL_MS), 2000) : 3000;
+        while (r.code && /cannot reach/i.test(r.err + r.out) && !sessionOver) { await new Promise((res) => setTimeout(res, everyMs)); r = await quiet(resolveArgs); }
+        if (!r.code) io.err("  your answer was recorded");
+      }
       if (r.code) io.err(`  could not record your answer: ${(r.err || r.out).trim().slice(0, 200)}`);
     });
   };
   const onGatewayLine = (l: string) => {
+    // The model provider's refusal is shown as it happens, not only in the summary (UC-18).
+    if (/^\s*provider\s/.test(l)) { io.err(l); return; }
     const m = /^\s*APPROVAL NEEDED\s+(\S+): (.*)$/.exec(l);
     if (!m) return;
     if (canAsk) askInline(m[1], m[2]);
-    else io.err(`  approval needed for ${m[1]}: ${m[2]}  (answer in another window: asp approvals approve, or asp approvals refuse)`);
+    else io.err(!v.prompt ? `  approval needed for ${m[1]}: ${m[2]}  -- NOT answered by typing here: open a second terminal and run: asp approvals approve  (or: asp approvals refuse)` : `  approval needed for ${m[1]}: ${m[2]}  (answer in another window: asp approvals approve, or asp approvals refuse)`);
   };
   // Antigravity and OpenHands: no gateway. A package is made for this session and run on the package path of asp run, under the standing job's Mandate: the runtime's pre-call hook
   // blocks a call outside it before it runs, a gated call is held for your yes (the same prompt as above), the output is observed, and the signed Action is reported. No memory is written back.
@@ -4057,19 +4200,30 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     ? gw.errLines.filter((l) => /^\s*strike\s/.test(l) || /^\s*gate\s+.*not approved/.test(l)).map((l) => l.trim().replace(/^(strike|gate)\s+/, ""))
     : gw.errLines.filter((l) => /^\s*REFUSED /.test(l)).map((l) => l.trim().replace(/^REFUSED\s+/, ""));
   const stopped = gw.errLines.find((l) => /^\s*stopped /.test(l))?.trim();
-  const state = wasStopped ? "stopped" : gw.code === 0 ? "ended" : "failed";
+  // When only the report could not be sent (the wifi dropped, the service is down) the agent's work is done: the session ended, and the summary says what was not recorded (UC-35).
+  const notRecorded = gw.errLines.find((l) => /^\s*warning\s+could not record an Action/.test(l));
+  const agentExit = Number(gw.errLines.map((l) => /^\s*agent\s+exited\s+(-?\d+)/.exec(l)?.[1]).find((x) => x !== undefined) ?? gw.code);
+  const state = wasStopped ? "stopped" : (notRecorded ? agentExit === 0 : gw.code === 0) ? "ended" : "failed";
   // This session's own run log (the gateway and the package run both say where it is): a standing job has one per session, so the job alone does not name it.
   const runLogPath = gw.errLines.map((l) => /^\s*run log\s+(\S.*)$/.exec(l)?.[1]?.trim()).find((p) => !!p && existsSync(p));
   const runLogField = runLogPath ? { runLog: runLogPath } : {};
+  const creditsAfter = await creditsNow();
   if (headless && v.json) {
-    io.out(JSON.stringify({ session: sid, contract: job.contract, agent: ids.agent, runtime, state, exitCode: gw.code, toolCalls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, ...(stopped && !wasStopped ? { stopped } : {}) }));
+    io.out(JSON.stringify({ session: sid, contract: job.contract, agent: ids.agent, runtime, state, exitCode: gw.code, ...(creditsAfter ? { credits: creditsAfter } : {}), toolCalls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, ...(stopped && !wasStopped ? { stopped } : {}) }));
     sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state, calls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, exitCode: gw.code, ...runLogField });
-    return gw.code !== 0 ? gw.code : stopped && !wasStopped ? 11 : v["fail-on-refusal"] && refused.length ? 10 : 0;
+    return gw.code !== 0 && !(notRecorded && agentExit === 0) ? gw.code : stopped && !wasStopped ? 11 : v["fail-on-refusal"] && refused.length ? 10 : 0;
   }
   io.out("");
   io.out("Session summary");
   io.out(`  session  ${sid}  ${state === "stopped" ? "stopped by you" : state === "ended" ? "finished" : `failed (exit ${gw.code})`}`);
   io.out(`  calls    ${sum?.toolCalls ?? 0} tool call(s) judged, ${refused.length} refused${sum?.tokens ? `; ${sum.tokens.input + sum.tokens.output} tokens` : ""}`);
+  // The model provider said no or could not be reached (a wrong key, a rate limit, an outage): in the summary too, because the tool's own error is rarely plain (UC-18).
+  for (const l of gw.errLines.filter((x) => /^\s*provider\s/.test(x)).slice(0, 3)) io.out(`  ${l.trim().replace(/^provider\s+/, "provider ")}`);
+  if (creditsAfter) {
+    const moved = creditsBefore ? { you: creditsAfter.you - creditsBefore.you, agent: creditsAfter.agent - creditsBefore.agent } : undefined;
+    const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
+    io.out(`  credits  you ${creditsAfter.you}, ${ids.agent.split(":").slice(-1)[0]} ${creditsAfter.agent}${moved && (moved.you || moved.agent) ? `; this session moved: you ${signed(moved.you)}, agent ${signed(moved.agent)}` : ""}  (asp credits has the detail)`);
+  }
   // A tool that never started says why and what to do (found in preparing for developers: "failed (exit -1)" with no reason read as asp being broken).
   if (state === "failed") {
     const text = gw.errLines.join("\n");
@@ -4079,15 +4233,32 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   }
   for (const r of refused.slice(0, 5)) io.out(`  refused  ${r}`);
   if (refused.length > 5) io.out(`  ... and ${refused.length - 5} more`);
+  // A refusal with no way forward is where a newcomer gets stuck (found in the owner's live run, UC-137): say how to allow it. A network refusal names the host the command used.
+  if (refused.some((r) => /shell\.network|network/i.test(r))) {
+    let host: string | undefined;
+    try {
+      const refusedCall = runLogPath ? readRunLog(runLogPath).events.find((e) => e.kind === "tool_call" && e.data?.allowed === false && /network/.test(String(e.data?.scope ?? ""))) : undefined;
+      host = /(?:https?:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?::\d+)?/i.exec(String(refusedCall?.data?.input ?? ""))?.[1];
+    } catch { /* the generic line is enough */ }
+    io.out("  to allow  this session has no network. To let it reach a host, name it:");
+    io.out(`            asp run ${runtime} --allow-network ${host ?? "<host>"} --prompt "..."`);
+    io.out(`            (only the hosts you name, in a new standing job; the refused command is in: asp run-log show ${sid})`);
+  }
   if (stopped && !wasStopped) io.out(`  ${stopped}`);
-  io.out(`  job      standing job ${job.contract.slice(0, 19)}..., ${job.sessions} session(s) so far; the signed Action reports are in the log (asp runs ${sid})`);
+  if (notRecorded) {
+    const quotaFull = /QUOTA_EXCEEDED|quota/i.test(notRecorded);
+    const heldForLater = /kept to send later/.test(notRecorded);
+    io.out(`  record   NOT recorded in the log yet: ${quotaFull ? "your account's record limit is full" : /cannot reach/.test(notRecorded) ? "the service could not be reached" : "the service refused it"}. Your agent ran and the run log below is complete.${heldForLater ? " This report is kept and is sent by itself the next time there is room and a connection." : ""}${quotaFull ? " To make room, ask the operator to raise the limit (the contact is in the Terms)." : ""}`);
+  }
+  io.out(`  job      standing job ${job.contract.slice(0, 19)}..., ${job.sessions} session(s) so far; ${notRecorded ? "this session's signed Action is not in the log" : "the signed Action reports are in the log"} (asp runs ${sid})`);
   sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state, calls: sum?.toolCalls ?? 0, refused, tokens: sum?.tokens ? sum.tokens.input + sum.tokens.output : 0, exitCode: gw.code, ...(stopped && !wasStopped ? { stopped } : {}), ...runLogField });
   // --keep-run-log: seal this session's log to the service now (docs/run-log-custody.md); otherwise say where it is.
   if (runLogPath && v["keep-run-log"]) {
     try { await runLogVaultCmd(home, "keep", [runLogPath], { ...v, contract: job.contract, tenant: undefined, as: undefined }, io); }
     catch (e) { io.out(`  run log  ${runLogPath}  (not kept on the service: ${(e as Error).message.slice(0, 100)})`); }
   } else if (runLogPath) io.out(`  run log  ${runLogPath}  (on this machine; --keep-run-log seals a copy on the service)`);
-  if (gw.code !== 0) return gw.code;
+  // The agent did its work and only the record could not be kept: that is not a failed session, so it is not a failing exit code (a script or CI would stop on it for nothing).
+  if (gw.code !== 0 && !(notRecorded && agentExit === 0)) return gw.code;
   return headless && stopped && !wasStopped ? 11 : headless && v["fail-on-refusal"] && refused.length ? 10 : 0;
 }
 
@@ -4184,6 +4355,43 @@ function homeCmd(home: string, io: Io): number {
   return 0;
 }
 
+/**
+ * asp credits: where your credits are, when you ask. Credits are bookkeeping behind the scenes (docs/credits-and-reputation.md): a running session never mentions them, and this is the one place a person
+ * sees them, as a short list for the saved login's person, agent and bank, and what is locked in the jobs of open standing jobs. The same numbers `evals/credit-ledger.mjs` watches during a long run.
+ */
+async function creditsShow(home: string, io: Io): Promise<number> {
+  let ids: { me: string; agent: string; bank: string } | undefined, tenant = "you";
+  try { const raw = JSON.parse(readFileSync(joinConfigPath(home), "utf8")); ids = raw.identities; tenant = raw.tenant ?? tenant; } catch { /* not joined */ }
+  if (!ids) throw new Error("no identities saved here yet: asp join makes them");
+  const run = async (args: string[]) => {
+    const out: string[] = [], err: string[] = [];
+    const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env: io.env, cwd: io.cwd });
+    return { code, out: out.join("\n"), err: err.join("\n") };
+  };
+  const contracts = [...new Set([...Object.values(readStanding(home)).map((j) => j.contract), ...rememberedJobs(home)])];
+  const snap = await snapshotCredits(run, { entities: [{ name: "you", did: ids.me }, { name: "agent", did: ids.agent }, { name: "bank", did: ids.bank }], contracts });
+  const agentName = ids.agent.split(":").slice(-1)[0];
+  io.out("Credits (accounting entries, not money)");
+  io.out(`  you (${tenant})`.padEnd(24) + String(snap.balances.you));
+  io.out(`  ${agentName}`.padEnd(24) + String(snap.balances.agent));
+  io.out("  bank".padEnd(24) + String(snap.balances.bank));
+  io.out(`  locked in open jobs: ${snap.escrow} in escrow, ${snap.bond} as bond`);
+  io.out(`  total`.padEnd(24) + String(snap.total));
+  return 0;
+}
+
+/** The jobs this home made (a contract id each), so `asp credits` can say what is locked in the ones still open. A short list; the log is the record. */
+function rememberJob(home: string, contract: string): void {
+  try {
+    const f = join(home, "jobs.json");
+    const list: string[] = existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : [];
+    if (!list.includes(contract)) writeFileSync(f, JSON.stringify([...list, contract].slice(-200)) + "\n");
+  } catch { /* nothing depends on it */ }
+}
+function rememberedJobs(home: string): string[] {
+  try { return JSON.parse(readFileSync(join(home, "jobs.json"), "utf8")); } catch { return []; }
+}
+
 /** asp status: who you are, what is running, what is waiting for you, and what to do next. It asks the service and the log, and says so when it cannot. */
 async function statusCmd(home: string, io: Io): Promise<number> {
   const s = homeState(home, io);
@@ -4196,7 +4404,12 @@ async function statusCmd(home: string, io: Io): Promise<number> {
     const a = (await res.json().catch(() => undefined)) as any;
     if (!res.ok || !a?.ok) io.out(`  service: answered ${res.status}${res.status === 401 ? " (your token was refused: asp join --again)" : ""}`);
     else {
-      io.out(`  service: reachable; ${a.usage?.records ?? 0} record(s) written`);
+      const rq = Number(a.tenant?.recordQuota) || 0, used = Number(a.usage?.records) || 0;
+      io.out(`  service: reachable; ${used}${rq ? ` of ${rq}` : ""} record(s) written`);
+      // A heads-up before the account is full, so it is never a surprise (T16): a session still runs when it is full, but its reports then wait.
+      if (rq && used >= rq * 0.9) next.push(`your account is ${used >= rq ? "full" : "nearly full"} (${used} of ${rq} records): ask the operator to raise the limit (the contact is in the Terms); your agents keep running meanwhile`);
+      const waitingReports = outboxWaiting(home);
+      if (waitingReports) io.out(`  ${waitingReports} report(s) from earlier sessions are waiting to be sent; they go by themselves at your next session`);
       for (const i of (a.identities ?? []) as { did: string; recovery: string }[]) if (i.recovery === "none") next.push(`${i.did.split(":").slice(-1)[0]} has no key recovery: asp identity backup ${i.did}`);
       if (a.starter?.available) next.push("starter credits are waiting: asp account starter");
     }
@@ -4253,6 +4466,13 @@ async function askCmd(home: string, text: string, v: Values, io: Io): Promise<nu
     for (const t of searchTopics(text).slice(0, 3)) io.out(`  asp help ${t.name}   ${t.title}`);
     io.out("  asp help   lists the topics");
     return 1;
+  }
+  // "How do I ..." asks how, not to do it (found in the owner's live walkthrough: "how do I stop a session" offered to run `asp stop`, which would have ended a running session): the command is shown, never offered.
+  if (/^\s*how\b/i.test(text) && !v.yes && r.complete) {
+    io.out(`To do that, run:  ${shown(r.args)}`);
+    const t = searchTopics(text)[0];
+    if (t) io.out(`  more: asp help ${t.name}   ${t.title}`);
+    return 0;
   }
   io.out(`I read that as:  ${shown(r.args)}`);
   if (!r.complete) { io.out("  it still needs your details (the <...> parts). Fill them in and run it yourself."); return 0; }
@@ -4322,7 +4542,8 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
       io.out(`  ${s.start.sid}  ${ago(s.start.at).padEnd(11)} ${s.start.runtime.padEnd(11)} ${state.padEnd(9)} ${s.end ? `${s.end.calls} calls, ${s.end.refused.length} refused` : "no end recorded"}  ${s.start.purpose.slice(0, 50)}`);
     }
     if (!v.all && all.length > 15) io.out(`  ... ${all.length - 15} older (asp runs --all)`);
-    io.out("details: asp runs <id>");
+    // An example with a real id: "<id>" gets typed with the angle brackets, which the shell rejects (found in the owner's live run, step 3).
+    io.out(`details: asp runs ${all[0].start.sid}   (any id from the list)`);
     return 0;
   }
   const hit = all.filter((s) => s.start.sid.startsWith(id));
@@ -4332,7 +4553,7 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   io.out(`session ${start.sid}`);
   io.out(`  started   ${start.at} (${ago(start.at)}), ${start.runtime} as ${start.agent}`);
   io.out(`  task      ${start.purpose}`);
-  io.out(`  mandate   ${start.scopes.join(", ")}${start.hosts.length ? `; network to ${start.hosts.join(", ")}` : "; no network"}  (standing job ${start.contract})`);
+  io.out(`  mandate   ${start.scopes.join(", ")}${start.hosts.length ? `; network to ${start.hosts.join(", ")}` : "; no network"}  (standing job ${start.contract.slice(0, 19)}...)`);
   io.out(`  ended     ${end ? `${end.at} (${end.state}, exit ${end.exitCode})` : "no end recorded: still running, or the terminal was closed (asp stop <id> ends a running one)"}`);
   if (end) {
     io.out(`  calls     ${end.calls} judged, ${end.refused.length} refused, ${end.tokens} tokens`);
@@ -4451,7 +4672,12 @@ async function agentCmd(home: string, sub: string | undefined, rest: string[], v
     const mine = sessions.filter((s) => s.start.agent === a.did);
     const last = mine[0];
     const job = standing.filter((j) => j.agent === a.did).sort((x, y) => y.expiresAt.localeCompare(x.expiresAt))[0];
-    io.out(`  ${short(a.did).padEnd(16)} ${a.did === cfg.identities.agent ? "(default) " : ""}${keys.entriesFor(a.did).length ? "key here" : "KEY NOT ON THIS MACHINE"}; ${a.recovery === "sponsor" ? "recoverable by you" : a.recovery}; ${mine.length} session(s)${last ? `, last ${ago(last.start.at)}` : ""}${job ? `; standing job until ${job.expiresAt.slice(0, 10)}` : ""}`);
+    // Three lines per agent: its name, its identity address (what other commands and other people use), and its key (which key, never the secret itself) and use.
+    const held = keys.entriesFor(a.did).map((e) => /#(key-\d+)$/.exec(e.kid)?.[1] ?? e.kid);
+    io.out(`  ${short(a.did)}${a.did === cfg.identities.agent ? "  (default)" : ""}`);
+    io.out(`      identity  ${a.did}`);
+    io.out(`      key       ${held.length ? `here on this machine (${held.join(", ")}); the secret is never shown` : "NOT ON THIS MACHINE"}; ${a.recovery === "sponsor" ? "recoverable by you" : a.recovery}`);
+    io.out(`      sessions  ${mine.length}${last ? `, last ${ago(last.start.at)}` : ""}${job ? `; standing job until ${job.expiresAt.slice(0, 10)}` : ""}`);
   }
   io.out(`${agents.length} agent(s); asp agent add <name> makes another`);
   return 0;
@@ -4652,10 +4878,10 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     renameSync(tmp, join(o.dir, `${id}.decision.json`));
   };
 
-  // The hosted service limits how often one tenant may call it, and two terminals on one job poll twice as often (found live, UC-138): a rate limit is waited out, not taken for a refusal.
+  // The hosted service limits how often one tenant may call it, and two terminals on one job poll twice as often (found live, UC-138): a rate limit, and a service that cannot be reached for a while (the wifi drops, the laptop sleeps, UC-35), are waited out, not taken for a refusal.
   const retry = async <T,>(fn: () => Promise<T>): Promise<T> => {
     for (let i = 0; ; i++) {
-      try { return await fn(); } catch (e) { if (!/rate limit|too many requests/i.test((e as Error).message) || i >= 40 || stopped) throw e; await sleep(Math.max(o.pollMs, 1500)); }
+      try { return await fn(); } catch (e) { if (!/rate limit|too many requests|cannot reach/i.test((e as Error).message) || i >= 40 || stopped) throw e; await sleep(Math.max(o.pollMs, 1500)); }
     }
   };
 
@@ -4746,7 +4972,31 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
   return { stop: async () => { stopped = true; await loop; } };
 }
 
+/**
+ * A run of a package, and then, when it ran under a contract, the credits line: the principal's and the performer's balances and what is locked in that job, however the run ended (the owner's choice,
+ * 2026-10-13: credits are shown in every summary). A figure that cannot be read is left out.
+ */
 async function runIn(pkgDir: string, home: string, backend: string, adapter: RuntimeAdapter, v: Values, io: Io, onMutate: () => void): Promise<number> {
+  const code = await runInInner(pkgDir, home, backend, adapter, v, io, onMutate);
+  if (v.contract) {
+    try {
+      const log = (await openLog(home, logEnv)).log;
+      const body = (await log.get(v.contract))?.record.body as { principal?: string; performer?: string } | undefined;
+      const balance = async (did?: string) => {
+        if (!did) return undefined;
+        const out: string[] = [];
+        const rc = await Promise.race([main(["credits", "balance", did], { out: (l) => out.push(l), err: () => {}, env: io.env, cwd: io.cwd }), new Promise<number>((r) => setTimeout(() => r(1), 6000))]);
+        const n = Number(/(-?\d+)\s+credits?/.exec(out.join(" "))?.[1]);
+        return rc || !Number.isFinite(n) ? undefined : n;
+      };
+      const [p, f, lock] = await Promise.all([balance(body?.principal), balance(body?.performer), log.escrow(v.contract).catch(() => undefined)]);
+      if (p !== undefined && f !== undefined) io.err(`  credits  principal ${p}, performer ${f}${lock && !lock.settled ? `; locked in this job: ${lock.escrowLocked} in escrow, ${lock.bondLocked} as bond` : ""}  (asp credits has the detail)`);
+    } catch { /* the credits line is a courtesy; the run's own result stands */ }
+  }
+  return code;
+}
+
+async function runInInner(pkgDir: string, home: string, backend: string, adapter: RuntimeAdapter, v: Values, io: Io, onMutate: () => void): Promise<number> {
   const report = await verifyPackage(pkgDir);
   if (!report.ok) {
     io.err(`refusing to run: the package does not verify (${report.checks.filter((c) => c.status === "fail").map((c) => c.name).join(", ")}). Run asp verify for details.`);

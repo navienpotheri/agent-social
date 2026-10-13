@@ -86,6 +86,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
   ] },
   { group: "Jobs and credits (the market)", note: "The protocol's lifecycle, one record at a time.", rows: [
     ["asp credits grant --to <did> --amount <n>", "Mint credits for a local build (credits are accounting entries, not money)"],
+    ["asp credits", "Where your credits are, when you ask: you, your agent, your bank, and what is locked in open jobs (a running session never shows credits)"],
     ["asp credits balance <did>", "Show an identity's credit balance"],
     ["asp market intent --by <did> --purpose <text> ...", "Post a defined outcome you want done"],
     ["asp market offer --by <did> --intent <id> ...", "Bid on an intent: price, plan, ETA"],

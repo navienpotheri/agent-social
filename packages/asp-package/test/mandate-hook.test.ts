@@ -23,6 +23,15 @@ test("the hook maps calls to the same scopes the compliance bridge does", () => 
   for (const [tool, arg] of calls) assert.equal(hookScope(tool, arg), deriveScopeForTool(tool, arg), `${tool} ${arg}`);
 });
 
+// Found in the first live job under a contract: a harmless `ls -la` was blocked as shell.exec (the Mandate granted repo.read) and counted as a strike, because every shell command was shell.exec on this path
+// while the gateway's judge already read look-only commands as reads. A command that only looks is a read; anything that writes, runs something else or substitutes a command is not.
+test("a shell command that only looks is a read on the contract path too, in both copies; one that writes or runs something is not", () => {
+  const reads = ["ls -la", "cat notes.txt", "cd /x && ls", "ls | head -5", "grep -rn foo src", "find . -name '*.py' 2>/dev/null", "git status", "git log --oneline", "pwd", "echo hi"];
+  const not = ["rm -rf build", "ls > out.txt", "cat a >> b", "find . -name a -delete", "find . -exec rm {} ;", "ls $(rm -rf x)", "echo hi | tee out.txt", "python calc.py", "npm run build", "git push origin main", "curl https://example.com", "sed -i s/a/b/ f", "cd /x && python x.py"];
+  for (const c of reads) { assert.equal(deriveScopeForTool("Bash", c), "repo.read", `read: ${c}`); assert.equal(hookScope("Bash", c), "repo.read", `hook, read: ${c}`); }
+  for (const c of not) { assert.notEqual(deriveScopeForTool("Bash", c), "repo.read", `not a read: ${c}`); assert.equal(hookScope("Bash", c), deriveScopeForTool("Bash", c), `the copies agree: ${c}`); }
+});
+
 test("the hook's list of scope-free planning tools matches package.ts, and they pass any Mandate", () => {
   assert.deepEqual(HOOK_NO_SCOPE_TOOLS, NO_SCOPE_TOOLS);
   for (const tool of NO_SCOPE_TOOLS) assert.equal(decide({ tool_name: tool, tool_input: {} }, []).allow, true, tool);
@@ -99,7 +108,7 @@ test("the hook fails closed: bad input, a missing or corrupt Mandate file, and a
 
 test("gates: a gated granted scope is held (ask) or blocked (deny); ungated and ungranted scopes are unchanged", () => {
   const scopes = ["repo.read", "shell.exec"];
-  const bash = { tool_name: "Bash", tool_input: { command: "echo hi" } };
+  const bash = { tool_name: "Bash", tool_input: { command: "python calc.py" } };
   assert.deepEqual(decide(bash, scopes, { scopes: ["shell.exec"], mode: "ask" }), { allow: true, ask: true, scope: "shell.exec" });
   const denied = decide(bash, scopes, { scopes: ["shell.exec"], mode: "deny" });
   assert.equal(denied.allow, false);

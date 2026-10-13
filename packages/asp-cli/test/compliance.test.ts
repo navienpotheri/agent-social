@@ -118,6 +118,9 @@ test("asp run --contract kills the process when an out-of-scope call actually ra
 
   // The economic consequence fires automatically: full fault, same as a Courts ruling would produce.
   assert.match(run.err, /kill-switch settlement: bond fully slashed, escrow returned to the principal/);
+  // A run under a contract ends with the credits line, however it ended: both balances, and nothing locked once the job is settled.
+  assert.match(run.err, /credits {2}principal \d+, performer \d+ {2}\(asp credits has the detail\)/, run.err);
+  assert.doesNotMatch(run.err, /locked in this job/, "the job is settled, so nothing is locked in it");
   const local = await LocalLog.open(f.aspHome);
   const escrow = await local.log.escrow(contractId);
   assert.equal(escrow?.settled, true);

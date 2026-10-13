@@ -48,7 +48,8 @@ test("asp agent: add more agents, list them with their state, choose the default
 
     const one = await call(["agent", "list"]);
     assert.equal(one.code, 0, one.err);
-    assert.match(one.out, /my-agent\s+\(default\) key here; recoverable by you; 0 session\(s\)/);
+    // Three lines per agent: the name, the identity address, the key (which one, never the secret), and the use.
+    assert.match(one.out, /my-agent {2}\(default\)\n {6}identity {2}did:\S+\n {6}key {7}here on this machine \(key-1\); the secret is never shown; recoverable by you\n {6}sessions {2}0\n/);
     // Add one; it is a different identity with its own key, sponsored by you.
     const added = await call(["agent", "add", "helper", "--purpose", "Writes the tests"]);
     assert.equal(added.code, 0, added.err);
@@ -61,8 +62,9 @@ test("asp agent: add more agents, list them with their state, choose the default
     assert.equal(ran.code, 0, ran.err);
     assert.match(ran.err, /session [0-9a-f]{8}: helper may read and write files/);
     const list = await call(["agent", "list"]);
-    assert.match(list.out, /helper\s+key here; recoverable by you; 1 session\(s\), last \d+s ago; standing job until /);
-    assert.match(list.out, /my-agent\s+\(default\) key here; recoverable by you; 0 session\(s\)/);
+    assert.match(list.out, /helper\n {6}identity {2}did:\S+\n {6}key {7}here on this machine[^\n]*recoverable by you\n {6}sessions {2}1, last \d+s ago; standing job until /);
+    assert.match(list.out, /my-agent {2}\(default\)\n {6}identity {2}did:\S+\n {6}key {7}here on this machine[^\n]*\n {6}sessions {2}0\n/);
+    assert.ok(!/seed|[0-9a-f]{64}/.test(list.out), "the secret is never in the list");
     assert.match(list.out, /2 agent\(s\)/);
     // The default: asp run without --agent uses it.
     assert.equal((await call(["agent", "use", "helper"])).code, 0);

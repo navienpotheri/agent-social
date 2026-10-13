@@ -31,7 +31,11 @@ export class RemoteLog implements LogHandle {
         signal: AbortSignal.timeout(60_000),
       });
     } catch (e) {
-      throw new Error(`cannot reach the log service at ${this.url}: ${(e as Error).message}`);
+      // In words (a bare "fetch failed" tells a person nothing): what happened, and that trying again is safe.
+      const code = (e as { cause?: { code?: string } }).cause?.code ?? "";
+      const timedOut = (e as Error).name === "TimeoutError" || /TIMEDOUT|TIMEOUT/.test(code);
+      const why = /ENOTFOUND|EAI_AGAIN/.test(code) ? "the address could not be found: check your connection" : code === "ECONNREFUSED" ? "nothing is answering there: the service may be down" : timedOut ? "it did not answer in time: check your connection" : "check your connection";
+      throw new Error(`cannot reach the log service at ${this.url} (${why}). Try again in a moment; \`asp run --local\` runs an agent with no service and no account.`);
     }
     if (res.status === 429) {
       const b: any = await res.json().catch(() => undefined);
