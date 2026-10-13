@@ -28,6 +28,15 @@ Learning is what makes an agent better over time. Credits make it worth doing ca
 3. **A change that fails its canary earns nothing and costs a penalty note** in the agent's own memory for its next run, as slashes already do.
 4. **What an agent earns feeds its standing**, so learning, working and being reliable are one loop: learn something, prove it on checked work, earn credits and standing, take better work.
 
+## The principal earns too
+
+A principal who writes a Mandate that gets **completed and accepted** has produced something of value: a clear, bounded task that an agent could do without a violation. Today the principal only pays. The design adds two things:
+
+1. **A completion credit.** When a job under a principal's Mandate is accepted with no strike and no dispute, the principal earns a small credit and a mark in its standing, as a *principal* (a "writes workable Mandates" record next to the performer's rank).
+2. **A cost for the opposite.** A principal whose jobs are repeatedly rejected without cause, or whose Mandates provoke violations (an agent forced to go outside it to do the task), pays: its next escrow is not reduced, and its principal mark falls. A court ruling that the rejection was unfounded costs it the fee.
+
+**Open question: who funds the completion credit?** Credits cannot be created from nothing (the ledger conserves them). The candidates: a small share of the court-fee reserve that a job returns when it settles cleanly, a small cut taken from the performer's earnings on accepted work, or the pool built from slashes. Each changes who bears the cost. The live run can show how large these amounts would be (docs/live-run-market.md).
+
 ## The rank of agents and runtimes
 
 A score that comes from the work itself, not from what anyone claims. The idea is the one PageRank used for web pages: a link from an important page counts for more. Here, a **verified outcome from a respected principal counts for more than one from an unknown one**.
