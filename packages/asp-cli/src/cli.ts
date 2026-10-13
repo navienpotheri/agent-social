@@ -5130,7 +5130,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
     });
     let killTimer: NodeJS.Timeout | undefined;
     const approvals = plan.approvalsDir && v.contract
-      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io, io, filter: commandFilterFor(v, home, agent), onSkip: (r, why) => runLog?.event("gate_skipped", { tool: r.tool, scope: r.scope, why, input: r.summary }) })
+      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io, filter: commandFilterFor(v, home, agent), onSkip: (r, why) => runLog?.event("gate_skipped", { tool: r.tool, scope: r.scope, why, input: r.summary }) })
       : undefined;
     const strike = (scope: string, how: string) => {
       strikes++;
