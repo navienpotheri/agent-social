@@ -179,6 +179,24 @@ export function createGateway(opts: GatewayOptions): Gateway {
     return { approved: false, reason: stopped ? "the run was stopped" : `no answer within ${g.waitSeconds} seconds` };
   }
 
+  /**
+   * One approval request per distinct command at a time. Found in the long-horizon run: Claude Code gave up on a call held for approval after about three minutes and sent the same call
+   * again, and each retry made another request while the first was still held (the second waited behind the first, the person was shown copies, and one answer could not settle them all).
+   * A call that is the same as one already waiting joins it and gets the same answer. The unanswered count is of requests, not of callers.
+   */
+  const pendingAsks = new Map<string, Promise<{ approved: boolean; reason?: string }>>();
+  function askPrincipalOnce(call: ToolCall, scope: string): Promise<{ approved: boolean; reason?: string }> {
+    const key = `${scope}|${commandOf(call.args) ?? JSON.stringify(call.args)}`;
+    const existing = pendingAsks.get(key);
+    if (existing) return existing;
+    const made = askPrincipal(call, scope).then((a) => {
+      if (!a.approved && /^no answer within/.test(a.reason ?? "")) unansweredApprovals++;
+      return a;
+    }).finally(() => { pendingAsks.delete(key); });
+    pendingAsks.set(key, made);
+    return made;
+  }
+
   /** Judges one call; records it. Returns the refusal reason when it is refused. */
   async function decide(call: ToolCall): Promise<string | undefined> {
     toolCalls++;
@@ -206,11 +224,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
         allow = false;
         reason = `the scope ${gateScope} needs the principal's approval, and ${unansweredApprovals} earlier approval request(s) in this session went unanswered, so no more are asked: continue without this call, or stop and tell the person`;
       } else {
-        const a = await askPrincipal(call, gateScope);
-        if (!a.approved) {
-          if (/^no answer within/.test(a.reason ?? "")) unansweredApprovals++;
-          allow = false; reason = `the scope ${gateScope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`;
-        }
+        const a = await askPrincipalOnce(call, gateScope);
+        if (!a.approved) { allow = false; reason = `the scope ${gateScope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`; }
       }
     }
     // A rate limit is not a violation either (like a gate): the call is refused, with no strike, and counted.

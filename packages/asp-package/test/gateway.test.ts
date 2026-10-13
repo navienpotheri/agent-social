@@ -278,6 +278,20 @@ test("approval gates: a gated call is held until the principal answers; approved
   const approved: any = await pending;
   assert.equal(approved.choices[0].message.tool_calls.length, 1, "approved: the call reaches the agent");
 
+  // The same command asked twice while the first is still waiting is one request: one file for the person, one answer for both callers (the long-horizon run: Claude Code re-sent a held call
+  // after about three minutes, and every retry became another request).
+  const dirD = mkdtempSync(join(tmpdir(), "gw-approvals-"));
+  const dup = await gateway(up, { scopes: ["repo.read", "shell.exec"], gate: { scopes: ["shell.exec"], mode: "ask", waitSeconds: 5, approvalsDir: dirD } });
+  const first = post(`${dup.url}/v1/chat/completions`, { model: "m", messages: [] }).then((r) => r.json());
+  for (let i = 0; i < 100 && !readdirSync(dirD).some((f) => f.endsWith(".request.json")); i++) await new Promise((r) => setTimeout(r, 20));
+  const again = post(`${dup.url}/v1/chat/completions`, { model: "m", messages: [] }).then((r) => r.json());
+  await new Promise((r) => setTimeout(r, 300));
+  const requests = readdirSync(dirD).filter((f) => f.endsWith(".request.json"));
+  assert.equal(requests.length, 1, "the repeated call did not make a second request");
+  writeFileSync(join(dirD, requests[0].replace(".request.json", ".decision.json")), JSON.stringify({ approved: true }));
+  assert.equal(((await first) as any).choices[0].message.tool_calls.length, 1, "the first caller is answered");
+  assert.equal(((await again) as any).choices[0].message.tool_calls.length, 1, "and so is the repeat");
+
   const dir2 = mkdtempSync(join(tmpdir(), "gw-approvals-"));
   const second = await gateway(up, { scopes: ["shell.exec"], gate: { scopes: ["shell.exec"], mode: "ask", waitSeconds: 5, approvalsDir: dir2 } });
   const refusedP = post(`${second.url}/v1/chat/completions`, { model: "m", messages: [] }).then((r) => r.json());

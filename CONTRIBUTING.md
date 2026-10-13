@@ -11,7 +11,7 @@ npm run typecheck
 cd python && python -m venv .venv && .venv/Scripts/python -m pip install -e ".[dev]" && .venv/Scripts/python -m pytest
 ```
 
-Node 22.18+ runs the TypeScript directly, with no build step. After changing `spec/` or `conformance/generate.ts`, run `npm run vectors` and commit the regenerated vectors. The evaluations in `evals/` run the system against real agents and need those agents installed; see [evals/README.md](evals/README.md).
+Node 22.18+ runs the TypeScript directly, with no build step. After changing `spec/` or `conformance/generate.ts`, run `npm run vectors` and commit the regenerated vectors. After changing `spec/`, run `npm run spec` (SPEC.md); after adding or changing a command, add it to the catalogue in `conformance/generate-command-reference.ts` and run `npm run commands` then `npm run ai-files` (docs/commands.md, the JSON, llms.txt and llms-full.txt for other AI systems). Tests fail when either is out of date. The evaluations in `evals/` run the system against real agents and need those agents installed; see [evals/README.md](evals/README.md).
 
 ## How changes are made
 

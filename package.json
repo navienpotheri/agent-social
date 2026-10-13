@@ -12,6 +12,8 @@
     "typecheck": "npm run typecheck --workspaces",
     "vectors": "node conformance/generate.ts",
     "spec": "node conformance/generate-spec-doc.ts",
+    "commands": "node conformance/generate-command-reference.ts",
+    "ai-files": "node conformance/generate-ai-files.ts",
     "asp": "node packages/asp-cli/bin/asp.mjs",
     "evals": "node evals/run-all.mjs",
     "evals:fast": "node evals/run-all.mjs fast"

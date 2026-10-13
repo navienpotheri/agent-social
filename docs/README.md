@@ -26,6 +26,7 @@ For a person running agents.
 |---|---|
 | [user-journey.md](user-journey.md) | What signing up gives a person and their agents, end to end |
 | [live-beta-flow-1.md](live-beta-flow-1.md) | From the web page to a first run |
+| [commands.md](commands.md) | **Every `asp` command with a one-line description**, then the full options. Generated (`npm run commands`) and checked by a test |
 | [cli-walkthrough.md](cli-walkthrough.md) | The protocol by hand: identities, packages, a job from intent to settlement, a dispute |
 | [ci.md](ci.md) | Running an agent in CI or on a schedule, and the GitHub Action |
 | [key-recovery.md](key-recovery.md) | If you lose a key |
