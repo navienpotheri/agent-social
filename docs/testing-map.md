@@ -44,7 +44,7 @@ Dates are 2026-10 unless written out. The first live run on the hosted service w
 | UC-15 | Interactive session (no prompt) in Claude Code | packages/asp-cli/test/run-interrupt.test.ts | yes 10-13 (the owner, by hand in Git Bash: theme screen, a prompt, a command held, approved from a second window, the tool's own permission prompt, `/exit`; the summary said finished) | U15 | none (the approval wording is fixed in S128; Claude Code retries a held call after a few minutes, which looks like a network problem) | P0 |
 | UC-16 | A session in a non-git folder, a folder with spaces, a very large folder | none | partial 10-13 (no git, spaces in the path) | T2 | A very large folder; non-ASCII paths; add an automated case | P0 |
 | UC-17 | Ctrl-C in the middle of a session leaves a consistent state | packages/asp-cli/test/run-interrupt.test.ts | yes 10-13 (Claude Code, a 90-second command running) | T2 | none (found two defects, fixed in S123: the session stayed `running?` for ever and the agent's command lived on) | P0 |
-| UC-18 | Model provider errors (rate limit, bad key, outage) are reported plainly | packages/asp-package/test/gateway.test.ts | no | T2 | Add a session-level case with a 401 and a 429 | P1 |
+| UC-18 | Model provider errors (rate limit, bad key, outage) are reported plainly | packages/asp-cli/test/run-provider-errors.test.ts | partial 10-13 (a wrong key against the real Anthropic API: named live and in the summary, run stopped after three refusals; 402, 429, 5xx and a provider that is down by a stub) | T2 | A 429 and an outage from a real provider; Codex and Goose with a wrong OpenRouter key | P1 |
 
 ## 3. Mandate, gating and approvals
 

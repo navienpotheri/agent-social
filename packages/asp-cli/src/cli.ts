@@ -577,6 +577,17 @@ const OPTIONS = {
  * A bare "fetch failed" (Node's message for any network failure) says nothing a person can act on. When an error is a connection failure, say what happened and what still works.
  * Found in preparing for developers: `asp account show` with no wifi printed only "error: fetch failed".
  */
+/** What a model provider's error means to the person, and what to do about it. */
+export function providerProblem(status: number, host: string, cause?: string): string {
+  const who = host || "the model provider";
+  if (status === 0) return `could not reach ${who}${cause ? ` (${/ENOTFOUND/.test(cause) ? "its address could not be found" : /ECONNREFUSED/.test(cause) ? "it refused the connection" : /TIMEDOUT|timeout/i.test(cause) ? "it did not answer in time" : cause})` : ""}: check your network, or whether the provider is down, then run this again`;
+  if (status === 401 || status === 403) return `${who} refused the API key (HTTP ${status}): the key is wrong, expired, revoked or out of credit; check it with the provider, set the right one and run this again`;
+  if (status === 402) return `${who} says the account is out of credit (HTTP 402): add credit with the provider, then run this again`;
+  if (status === 404) return `${who} does not know that model or address (HTTP 404): check the model name and the endpoint`;
+  if (status === 429) return `${who} is rate limiting this key (HTTP 429): wait a minute and run this again, or use another key or model`;
+  if (status >= 500) return `${who} had an error on its side (HTTP ${status}): its service may be down; try again later`;
+  return `${who} rejected the request (HTTP ${status}): the run log (asp run-log show) has the detail`;
+}
 export function connectionProblem(e: unknown, service?: string): string | undefined {
   const err = e as { message?: string; cause?: { code?: string; message?: string } };
   const code = err?.cause?.code;
@@ -2187,6 +2198,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       else if (e.scope && !reportedScopes.has(e.scope)) { reportedScopes.add(e.scope); reportSoon(eagerMs); }
     },
     onStop: (r) => { io.err(`  stopped  ${r}`); killAgent?.(); },
+    // The model provider said no, or could not be reached: said once, in words, with what to do (UC-18). Never the provider's own text, which can echo part of a key.
+    onModelError: ((said: Set<string>) => (e: { status: number; host: string; cause?: string }) => { const m = providerProblem(e.status, e.host, e.cause); if (!said.has(m)) { said.add(m); io.err(`  provider  ${m}`); } })(new Set<string>()),
   });
   // The sandbox level: the agent runs where its only way out is the gateway, unless the Mandate grants a network scope.
   // Two backends: bubblewrap (Linux, WSL) and Docker (any host with Docker, for agents that run in a Linux image).
@@ -4009,6 +4022,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     });
   };
   const onGatewayLine = (l: string) => {
+    // The model provider's refusal is shown as it happens, not only in the summary (UC-18).
+    if (/^\s*provider\s/.test(l)) { io.err(l); return; }
     const m = /^\s*APPROVAL NEEDED\s+(\S+): (.*)$/.exec(l);
     if (!m) return;
     if (canAsk) askInline(m[1], m[2]);
@@ -4072,6 +4087,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   io.out("Session summary");
   io.out(`  session  ${sid}  ${state === "stopped" ? "stopped by you" : state === "ended" ? "finished" : `failed (exit ${gw.code})`}`);
   io.out(`  calls    ${sum?.toolCalls ?? 0} tool call(s) judged, ${refused.length} refused${sum?.tokens ? `; ${sum.tokens.input + sum.tokens.output} tokens` : ""}`);
+  // The model provider said no or could not be reached (a wrong key, a rate limit, an outage): in the summary too, because the tool's own error is rarely plain (UC-18).
+  for (const l of gw.errLines.filter((x) => /^\s*provider\s/.test(x)).slice(0, 3)) io.out(`  ${l.trim().replace(/^provider\s+/, "provider ")}`);
   // A tool that never started says why and what to do (found in preparing for developers: "failed (exit -1)" with no reason read as asp being broken).
   if (state === "failed") {
     const text = gw.errLines.join("\n");
