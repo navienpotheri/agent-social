@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { main, type Io } from "../src/cli.ts";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { makeFixture, type Fixture } from "./fixture.ts";
 import { conservation, deltas, formatTable, meteredUse, snapshot, type Entity, type Snapshot } from "../src/ledger.ts";
 
@@ -53,6 +55,12 @@ test("the job lifecycle's credits, by entity: bonded, accepted and paid; rejecte
   assert.equal(bonded.escrow, 40); assert.equal(bonded.bond, 20);
   assert.equal(bonded.held, 2, "a court-fee reserve (5% of the price) is held by the protocol while the job is open");
   assert.deepEqual([bonded.balances.principal, bonded.balances.agent], [359, 579]);
+  // On request, a person sees their own credits in a few lines (credits are never shown while an agent runs).
+  writeFileSync(join(f.aspHome, "config.json"), JSON.stringify({ tenant: "alice", identities: { me: ALICE, agent: AGENT, bank: BANK } }));
+  const view = await must(f, ["credits"]);
+  assert.match(view, /you \(alice\)\s+359/); assert.match(view, /coder\s+579/);
+  assert.match(view, /locked in open jobs: 40 in escrow, 20 as bond/);
+  assert.match(view, /total\s+998/);
   await must(f, ["market", "mandate", "--contract", c1, "--principal", ALICE, "--performer", AGENT, "--scopes", "repo.read"]);
   await must(f, ["market", "action", "--contract", c1, "--by", AGENT, "--scopes-used", "repo.read", "--metrics", JSON.stringify({ requests: 5, tool_calls: 3, tokens_in: 4000, tokens_out: 900 }), "--summary", "work"]);
   await must(f, ["market", "deliver", "--contract", c1, "--by", AGENT, "--summary", "done", "--claim", "five lines::measured"]);
@@ -62,6 +70,8 @@ test("the job lifecycle's credits, by entity: bonded, accepted and paid; rejecte
   assert.deepEqual([paid.balances.principal, paid.balances.agent, paid.escrow, paid.bond, paid.held], [360, 640, 0, 0, 0], "the principal paid the 40 and the agent earned it; bond and reserve returned");
   assert.deepEqual(deltas(start, paid), { principal: -40, agent: 40, bank: 0, juror1: 0, juror2: 0, juror3: 0 });
   assert.ok(conservation(paid).ok);
+  const viewPaid = await must(f, ["credits"]);
+  assert.match(viewPaid, /you \(alice\)\s+360/); assert.match(viewPaid, /coder\s+640/); assert.match(viewPaid, /locked in open jobs: 0 in escrow, 0 as bond/);
 
   // Job 2: a 40-credit job, delivered badly, rejected, ruled for the principal: the bond is slashed.
   const c2 = await job(40, 20, "Summarise the second folder in five lines");

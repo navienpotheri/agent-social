@@ -265,6 +265,10 @@
           "description": "Mint credits for a local build (credits are accounting entries, not money)"
         },
         {
+          "command": "asp credits",
+          "description": "Where your credits are, when you ask: you, your agent, your bank, and what is locked in open jobs (a running session never shows credits)"
+        },
+        {
           "command": "asp credits balance <did>",
           "description": "Show an identity's credit balance"
         },

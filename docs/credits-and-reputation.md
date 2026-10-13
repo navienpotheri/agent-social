@@ -4,6 +4,8 @@ Status: design, 2026-10-13. Part 5 of the walk-through of the money and trust fl
 
 ## The rule
 
+**Credits are shown only when the person asks.** A running session, its summary, its approvals and the day's view never mention credits unless asked; `asp credits` is the one place they appear, as a few lines (you, your agent, your bank, what is locked in open jobs). The table by entity that the live runs print belongs to the test harness (`evals/credit-ledger.mjs`, `evals/live-job.mjs`), not to the product.
+
 A person never types a credit command. Credits move because a job was agreed, done, accepted or disputed. They are bookkeeping behind the scenes, and **they never gate a person running their own agent** (checked: an account with zero credits has run sessions all day, and its standing job's escrow and bond are 0).
 
 ## Where credits are used, and how each is automated

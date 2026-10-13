@@ -65,6 +65,8 @@ test("asp run --local: the same governed session with no service and no account,
     assert.match(local.err, /local mode: made local identities on this machine/);
     assert.match(local.out, /Session summary[\s\S]*finished/);
     assert.match(local.out, /refused\s+Bash -> shell\.network/);
+    // Credits are bookkeeping behind the scenes: a running session never mentions them. A person sees them only when they ask (`asp credits`).
+    assert.doesNotMatch(local.out + "\n" + local.err, /credit/i, "a session says nothing about credits");
     // A refusal says what to do next, with the host the command used (a newcomer is stuck without it, UC-137).
     assert.match(local.out, /to allow {2}this session has no network\. To let it reach a host, name it:\n {12}asp run claude-code --allow-network example\.com --prompt/);
     assert.ok(!/tool_use:Bash/.test(local.out), "the call never reached the agent");

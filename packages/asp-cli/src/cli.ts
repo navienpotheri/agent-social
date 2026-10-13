@@ -183,6 +183,7 @@
  *   asp credits grant --to <did> --amount <n>
  *     Bootstraps a DID's credit balance. Local, unsigned, not part of the tamper-evident log — a
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
+ *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
  *   asp credits balance <did>
  *
  *   Assignment mode (one performer bidding directly):
@@ -283,6 +284,7 @@
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { snapshot as snapshotCredits } from "./ledger.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -730,6 +732,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "witness") return await logWitness(home, rest[0], v, need, io);
     if (cmd === "log" && sub === "witnesses") return await logWitnessesAdd(home, rest[0] === "add" ? rest[1] : undefined, io);
     if (cmd === "log" && sub === "checkpoint") return await logCheckpoint(home, v, need, io);
+    if (cmd === "credits" && (!sub || sub === "show")) return await creditsShow(home, io);
     if (cmd === "credits" && sub === "grant") return await creditsGrant(home, v, need, io);
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
@@ -3322,6 +3325,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     let record = createRecord({ type: "contract", issuer: principal, subject: performer, prev: null, body, issued_at: now() }, signerFor(principal));
     record = cosign(record, signerFor(performer));
     const res = await local.append(record);
+    rememberJob(home, res.id);
     io.out(`contract ${res.id}: ${principal} -> ${performer}, price ${priceValue} credits (log seq ${res.seq}, state ${res.state})`);
     return 0;
   }
@@ -4332,6 +4336,43 @@ function homeState(home: string, io: Io): HomeState {
 function homeCmd(home: string, io: Io): number {
   for (const l of homeText(homeState(home, io))) io.out(l);
   return 0;
+}
+
+/**
+ * asp credits: where your credits are, when you ask. Credits are bookkeeping behind the scenes (docs/credits-and-reputation.md): a running session never mentions them, and this is the one place a person
+ * sees them, as a short list for the saved login's person, agent and bank, and what is locked in the jobs of open standing jobs. The same numbers `evals/credit-ledger.mjs` watches during a long run.
+ */
+async function creditsShow(home: string, io: Io): Promise<number> {
+  let ids: { me: string; agent: string; bank: string } | undefined, tenant = "you";
+  try { const raw = JSON.parse(readFileSync(joinConfigPath(home), "utf8")); ids = raw.identities; tenant = raw.tenant ?? tenant; } catch { /* not joined */ }
+  if (!ids) throw new Error("no identities saved here yet: asp join makes them");
+  const run = async (args: string[]) => {
+    const out: string[] = [], err: string[] = [];
+    const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env: io.env, cwd: io.cwd });
+    return { code, out: out.join("\n"), err: err.join("\n") };
+  };
+  const contracts = [...new Set([...Object.values(readStanding(home)).map((j) => j.contract), ...rememberedJobs(home)])];
+  const snap = await snapshotCredits(run, { entities: [{ name: "you", did: ids.me }, { name: "agent", did: ids.agent }, { name: "bank", did: ids.bank }], contracts });
+  const agentName = ids.agent.split(":").slice(-1)[0];
+  io.out("Credits (accounting entries, not money)");
+  io.out(`  you (${tenant})`.padEnd(24) + String(snap.balances.you));
+  io.out(`  ${agentName}`.padEnd(24) + String(snap.balances.agent));
+  io.out("  bank".padEnd(24) + String(snap.balances.bank));
+  io.out(`  locked in open jobs: ${snap.escrow} in escrow, ${snap.bond} as bond`);
+  io.out(`  total`.padEnd(24) + String(snap.total));
+  return 0;
+}
+
+/** The jobs this home made (a contract id each), so `asp credits` can say what is locked in the ones still open. A short list; the log is the record. */
+function rememberJob(home: string, contract: string): void {
+  try {
+    const f = join(home, "jobs.json");
+    const list: string[] = existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : [];
+    if (!list.includes(contract)) writeFileSync(f, JSON.stringify([...list, contract].slice(-200)) + "\n");
+  } catch { /* nothing depends on it */ }
+}
+function rememberedJobs(home: string): string[] {
+  try { return JSON.parse(readFileSync(join(home, "jobs.json"), "utf8")); } catch { return []; }
 }
 
 /** asp status: who you are, what is running, what is waiting for you, and what to do next. It asks the service and the log, and says so when it cannot. */
