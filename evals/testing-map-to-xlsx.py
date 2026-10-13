@@ -29,7 +29,7 @@ def cells(line: str) -> list[str]:
 
 
 def parse_map():
-    section, rows, backlog, matrix = "", [], [], []
+    section, rows, backlog, matrix, nodes = "", [], [], [], []
     mode = ""
     for line in (ROOT / "docs/testing-map.md").read_text(encoding="utf-8").splitlines():
         h = re.match(r"^## (.+)$", line)
@@ -40,13 +40,15 @@ def parse_map():
         if re.match(r"^\| UC-\d+ \|", line):
             c = cells(line)
             rows.append({"id": c[0], "section": re.sub(r"^\d+\.\s*", "", section), "use": c[1], "auto": c[2], "live": c[3], "gap": c[4], "todo": c[5], "pri": c[6]})
+        elif re.match(r"^\| N\d+ ", line):
+            nodes.append(cells(line))
         elif mode == "backlog" and re.match(r"^\d+\. ", line):
             n, rest = line.split(". ", 1)
             title, _, body = rest.partition(". ")
             backlog.append((int(n), title.strip("* "), body.strip()))
         elif mode == "matrix" and line.startswith("|") and not re.match(r"^\|[-| ]+\|$", line):
             matrix.append(cells(line))
-    return rows, backlog, matrix
+    return rows, backlog, matrix, nodes
 
 
 def parse_register():
@@ -91,8 +93,8 @@ def fill(c):
 TERMS = [
     ("What we are testing", "Every row of 'Use cases' is one thing a real person does with Agent Social: sign up, run an agent, answer an approval, lose a key, close an account, run the service, build on the protocol. We want to know, for each one, 'does it actually work, and how do we know?'"),
     ("Use case", "One such thing, written as a sentence you could check (for example 'Ctrl-C in the middle of a session leaves a consistent state')."),
-    ("P0", "Must work before the developer conference on 17 October 2026. A developer will hit it in their first 15 minutes, or it would embarrass us if it failed in front of them."),
-    ("P1", "Needed before we invite more people than a handful of watched testers."),
+    ("P0", "On the common path (see the Common path sheet) and must work before the developer conference on 17 October 2026: most developers hit it in their first 15 minutes. A failure that hits few users is not P0."),
+    ("P1", "Needed before we invite more people than a handful of watched testers. Real failures, but not ones most users hit."),
     ("P2", "Later. Real, but nobody needs it for the conference or the first testers."),
     ("Automated by", "The test file(s) in the repository that check this on every change. 'none' means no automated test exists yet. A test using stand-in tools is good, but it is not the real thing."),
     ("Live status", "Did we do it for real, on the hosted service, with the real tools? yes = done for real (the date and what was faked are in 'Live detail'). partial = some of it, or some variants. no = never done for real. n/a = pure logic that has no live version (for example the maths of the lifecycle)."),
@@ -105,7 +107,7 @@ TERMS = [
 
 
 def main():
-    uc, backlog, matrix = parse_map()
+    uc, backlog, matrix, nodes = parse_map()
     wb = Workbook()
     n_rows = len(uc)
     last = n_rows + 1
@@ -157,7 +159,7 @@ def main():
     for row in rd.iter_rows(min_row=5):
         row[0].font = Font(name=FONT, size=10, bold=True)
     rd.cell(rd.max_row + 2, 1, "The sheets").font = Font(name=FONT, bold=True, size=11)
-    for name, what in [("Summary", "The counts, calculated from the Use cases sheet."), ("P0 to do", "Only what remains for the conference, in plain English (a snapshot made when this file was generated)."),
+    for name, what in [("Common path", "The steps every user takes in order, the failures that hit most of them, and how many of those rows are done live. Start here."), ("Summary", "The counts, calculated from the Use cases sheet."), ("P0 to do", "Only what remains for the conference, in plain English (a snapshot made when this file was generated)."),
                        ("Use cases", "Everything, filterable. Edit Priority, Live status, Owner and Notes; the Summary recalculates."), ("Gaps register", "Every known gap and what would close it."),
                        ("Analysis backlog", "Deeper analysis still to do on the long-horizon run."), ("Install matrix", "Which operating systems and Node versions have been tried.")]:
         rd.append([name, what])
@@ -165,6 +167,19 @@ def main():
         rd.cell(rd.max_row, 2).font = Font(name=FONT, size=10)
         rd.cell(rd.max_row, 2).alignment = Alignment(wrap_text=True, vertical="top")
     widths(rd, [24, 120])
+
+    # ---- Common path (the steps every user takes, and the failures that hit most of them)
+    cp = wb.create_sheet("Common path", 1)
+    cp.append(["Node", "What every user does here", "The failures that hit most users", "Rows in 'Use cases'", "P0 rows", "Done live (yes)"])
+    for k, n in enumerate(nodes, 2):
+        ids = re.findall(r"UC-\d+", n[3])
+        cp.append([n[0], n[1], n[2], n[3], "=" + "+".join(f"COUNTIFS({U}!$A$2:$A${last},\"{i}\",{U}!$D$2:$D${last},\"P0\")" for i in ids) if ids else 0,
+                   "=" + "+".join(f"COUNTIFS({U}!$A$2:$A${last},\"{i}\",{U}!$E$2:$E${last},\"yes\")" for i in ids) if ids else 0])
+    head(cp)
+    body(cp)
+    widths(cp, [22, 44, 60, 30, 10, 14])
+    cp.freeze_panes = "B2"
+    cp.cell(cp.max_row + 2, 1, "P0 is only what sits on this path. A row for a failure that hits few users is P1 or P2.").font = Font(name=FONT, italic=True, size=9, color="555555")
 
     # ---- Summary
     sm = wb.create_sheet("Summary", 1)

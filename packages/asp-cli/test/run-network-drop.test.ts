@@ -9,11 +9,11 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hashToken } from "@agent-social/asp-log";
 import { main, type Io } from "../src/cli.ts";
-import { makeFixture } from "./fixture.ts";
+import { makeFixture, ownPort } from "./fixture.ts";
 
 const cli = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
 const fakeClaude = fileURLToPath(new URL("./fake-claude-gateway.mjs", import.meta.url));
-const freePort = () => new Promise<number>((resolve) => { const s = createNet(); s.listen(0, "127.0.0.1", () => { const p = (s.address() as { port: number }).port; s.close(() => resolve(p)); }); });
+const freePort = ownPort;
 const until = async (what: string, fn: () => boolean | Promise<boolean>, ms = 25_000) => { const t0 = Date.now(); while (!(await fn())) { if (Date.now() - t0 > ms) throw new Error(`timed out waiting for ${what}`); await new Promise((r) => setTimeout(r, 150)); } };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -28,7 +28,7 @@ function startService(dir: string, tokens: string, port: number): Promise<ChildP
 }
 
 // UC-35: the laptop sleeps or the wifi drops in the middle of a session. Two places it hurts: while a call is held for the person's yes (the service is out of reach), and while the model is answering.
-test("the service is unreachable for a few seconds while a call is held for approval: the session waits it out, and the approval still works when the service is back", async () => {
+test("the service is unreachable for a few seconds while a call is held for approval: the session waits it out, and the approval still works when the service is back", { timeout: 120_000 }, async () => {
   const upstream = createHttp(async (req, res) => {
     for await (const _ of req) { /* not inspected */ }
     res.writeHead(200, { "content-type": "application/json" });
@@ -72,7 +72,7 @@ test("the service is unreachable for a few seconds while a call is held for appr
   } finally { server.kill(); upstream.close(); }
 });
 
-test("you answer yes at the prompt while the service cannot be reached: the answer is kept and sent when it is back, and the call goes through", async () => {
+test("you answer yes at the prompt while the service cannot be reached: the answer is kept and sent when it is back, and the call goes through", { timeout: 120_000 }, async () => {
   const upstream = createHttp(async (req, res) => {
     for await (const _ of req) { /* not inspected */ }
     res.writeHead(200, { "content-type": "application/json" });
@@ -112,7 +112,7 @@ test("you answer yes at the prompt while the service cannot be reached: the answ
   } finally { server.kill(); upstream.close(); }
 });
 
-test("the service drops during an ordinary session and stays down until it ends: the session still ends cleanly and says what could not be recorded, and the next session works once the service is back", async () => {
+test("the service drops during an ordinary session and stays down until it ends: the session still ends cleanly and says what could not be recorded, and the next session works once the service is back", { timeout: 120_000 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "asp-drop2-e2e-"));
   const tokens = join(dir, "tokens.json");
   writeFileSync(tokens, JSON.stringify([{ name: "drop", role: "tenant", tokenSha256: hashToken("tok-d") }]));
@@ -156,7 +156,7 @@ test("the service drops during an ordinary session and stays down until it ends:
   } finally { server.kill(); upstream.close(); }
 });
 
-test("the provider cuts the connection while the model is answering: the person is told which provider and why, and the next session works", async () => {
+test("the provider cuts the connection while the model is answering: the person is told which provider and why, and the next session works", { timeout: 120_000 }, async () => {
   let cut = true;
   const upstream = createHttp(async (req, res) => {
     for await (const _ of req) { /* not inspected */ }

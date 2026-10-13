@@ -252,8 +252,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
       const v = limiter.take(requestsOf(call, j.scope), opts.rate);
       if (!v.ok) { allow = false; reason = v.reason; strike = false; rateLimited = true; rateLimitedTotal++; rateLimitedSince++; }
     }
-    opts.onCall?.({ tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}) });
-    rec?.event("tool_call", { tool: call.name, scope: j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && gateScope ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
+    opts.onCall?.({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}) });
+    rec?.event("tool_call", { tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && gateScope ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
     if (allow) {
       if (j.scope) { used.add(j.scope); pendingUsed.add(j.scope); }
       if (j.artifact) { artifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); pendingArtifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); }

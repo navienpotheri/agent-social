@@ -29,7 +29,7 @@ test("provider errors in words: what each status means and what to do, never the
 });
 
 // UC-18: a wrong key, a rate limit, an outage, or no network to the provider. Found when written: the person saw only the tool's own error, and the gateway passed the provider's body on without saying anything.
-test("a model provider's refusal or outage is named plainly in the session summary, and a key the provider echoes is never printed", async () => {
+test("a model provider's refusal or outage is named plainly in the session summary, and a key the provider echoes is never printed", { timeout: 120_000 }, async () => {
   let status = 401;
   const upstream = createHttp(async (req, res) => {
     for await (const _ of req) { /* not inspected */ }

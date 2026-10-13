@@ -624,6 +624,15 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   const home = aspHome(v.home ?? io.env.ASP_HOME);
   if (!cmd) return homeCmd(home, io);
   // After `asp join` the service and the token are saved in the ASP home, so nothing has to be exported: the environment, when set, wins.
+  // The environment wins, so say so when it overrides a different saved login: an old ASP_LOG_URL / ASP_LOG_TOKEN left in a shell silently made `account show` and `account export` act as
+  // another account than the one being tested (found in the owner's live walkthrough). Names only; a token is never printed.
+  if (cmd !== "join" && cmd !== "help" && cmd !== "ask" && io.env.ASP_LOG_URL) {
+    const saved = readJoinConfig(home);
+    const sameService = saved && saved.service.replace(/\/$/, "") === io.env.ASP_LOG_URL.replace(/\/$/, "");
+    if (saved && (!sameService || (io.env.ASP_LOG_TOKEN && io.env.ASP_LOG_TOKEN !== saved.token))) {
+      io.err(`  note: ASP_LOG_URL${io.env.ASP_LOG_TOKEN ? " and ASP_LOG_TOKEN are" : " is"} set in this shell and override the login saved for ${saved.tenant}, so this command acts as the account they name, not ${saved.tenant}. To use the saved login: unset ASP_LOG_URL ASP_LOG_TOKEN`);
+    }
+  }
   if (cmd !== "join" && !io.env.ASP_LOG_URL) {
     const cfg = readJoinConfig(home);
     if (cfg) { io = { ...io, env: { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token } }; logEnv = io.env; }
@@ -669,7 +678,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "init") return initCmd(home, io);
     if (cmd === "trust") return trustCmd(home, sub, io);
     if (cmd === "shim") return shimCmd(sub, io);
-    if (cmd === "account") return await accountCmd(sub, v, io);
+    if (cmd === "account") return await accountCmd(sub, v, io, home);
     if (cmd === "join") return await joinCmd(home, v, io);
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
     if (cmd === "stop") return await stopCmd(home, sub, v, io);
@@ -903,22 +912,41 @@ async function identityShow(home: string, did: string | undefined, io: Io): Prom
   return 0;
 }
 
-/** The passphrase for a key backup: from an environment variable (default ASP_BACKUP_PASSPHRASE), never a flag, so it stays out of shell history. */
-function backupPassphrase(v: Values, io: Io): string {
+/** A line typed at the terminal with nothing echoed (a passphrase): the typed characters are not shown and not kept anywhere. */
+async function promptHidden(question: string): Promise<string> {
+  const { createInterface } = await import("node:readline");
+  const { Writable } = await import("node:stream");
+  let muted = false;
+  const sink = new Writable({ write(chunk, _enc, cb) { if (!muted) process.stderr.write(chunk); cb(); } });
+  const rl = createInterface({ input: process.stdin, output: sink, terminal: true });
+  return await new Promise<string>((resolve) => {
+    rl.question(question, (answer) => { rl.close(); process.stderr.write("\n"); resolve(answer); });
+    muted = true; // from here nothing typed is echoed
+  });
+}
+
+/**
+ * The passphrase for a key backup: from an environment variable (default ASP_BACKUP_PASSPHRASE, for scripts and CI), never a flag, so it stays out of shell history; at a terminal with no
+ * variable it is asked for with nothing echoed (twice when making a backup, so a typing slip does not lock the backup).
+ */
+async function backupPassphrase(v: Values, io: Io, confirm = false): Promise<string> {
   const name = v["passphrase-env"] ?? "ASP_BACKUP_PASSPHRASE";
   const p = io.env[name];
-  if (!p) throw new UsageError(`put the passphrase in the environment variable ${name} (at least ${MIN_PASSPHRASE} characters); it is read from there so it stays out of your shell history`);
-  return p;
+  if (p) return p;
+  if (!process.stdin.isTTY) throw new UsageError(`put the passphrase in the environment variable ${name} (at least ${MIN_PASSPHRASE} characters); it is read from there so it stays out of your shell history`);
+  const first = await promptHidden(`Passphrase for the backup (at least ${MIN_PASSPHRASE} characters; nothing shows as you type): `);
+  if (confirm && (await promptHidden("Type it again: ")) !== first) throw new Error("the two passphrases differ; nothing was written");
+  return first;
 }
 
 /** asp identity backup <did> --out <file>: the keys held here for an identity, encrypted with a passphrase. */
 async function identityBackup(home: string, did: string | undefined, v: Values, io: Io): Promise<number> {
-  if (!did || !v.out) throw new UsageError("asp identity backup <did> --out <file>   (passphrase in ASP_BACKUP_PASSPHRASE)");
+  if (!did || !v.out) throw new UsageError("asp identity backup <did> --out <file>   (it asks for a passphrase; scripts set ASP_BACKUP_PASSPHRASE instead)");
   const entries = new Keystore(home).entriesFor(did);
   if (!entries.length) throw new Error(`no key for ${did} is held in ${join(home, "keys")}`);
   const file = resolve(io.cwd, v.out);
   if (existsSync(file)) throw new Error(`${file} already exists; choose another name`);
-  writeFileSync(file, JSON.stringify(encryptKeys(did, entries, backupPassphrase(v, io), now()), null, 2) + "\n", { mode: 0o600 });
+  writeFileSync(file, JSON.stringify(encryptKeys(did, entries, await backupPassphrase(v, io, true), now()), null, 2) + "\n", { mode: 0o600 });
   io.out(`${entries.length} key(s) for ${did} written to ${file}, encrypted`);
   io.out("  keep this file and the passphrase in different places; with both, anyone can act as this identity");
   return 0;
@@ -926,9 +954,9 @@ async function identityBackup(home: string, did: string | undefined, v: Values, 
 
 /** asp identity restore <file>: puts the keys of a backup back on this machine. */
 async function identityRestore(home: string, file: string | undefined, v: Values, io: Io): Promise<number> {
-  if (!file) throw new UsageError("asp identity restore <file>   (passphrase in ASP_BACKUP_PASSPHRASE)");
+  if (!file) throw new UsageError("asp identity restore <file>   (it asks for the passphrase; scripts set ASP_BACKUP_PASSPHRASE instead)");
   const backup = JSON.parse(readFileSync(resolve(io.cwd, file), "utf8"));
-  const entries = decryptKeys(backup, backupPassphrase(v, io));
+  const entries = decryptKeys(backup, await backupPassphrase(v, io));
   const keys = new Keystore(home);
   let restored = 0;
   for (const e of entries) { if (keys.importEntry(e)) restored++; else io.out(`  ${e.kid} is already here; left as it is`); }
@@ -1230,7 +1258,7 @@ async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io
  * asp account show | export [--out <dir>] | close --confirm <tenant> [--skip-export] [--out <dir>] (an admin adds --tenant <name>): a tenant's own data on the service named by
  * ASP_LOG_URL and ASP_LOG_TOKEN. Export writes account.json, records.ndjson, commons.json, the packages and a README; close exports first (unless --skip-export), then deletes.
  */
-async function accountCmd(sub: string | undefined, v: Values, io: Io): Promise<number> {
+async function accountCmd(sub: string | undefined, v: Values, io: Io, home: string): Promise<number> {
   const url = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
   if (!url || !token) throw new UsageError("set ASP_LOG_URL and ASP_LOG_TOKEN to the service and your token");
   const base = url.endsWith("/") ? url : url + "/";
@@ -1296,15 +1324,16 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io): Promise<n
     return e;
   };
   if (sub === "export") {
-    const dir = resolve(io.cwd, v.out ?? `asp-export-${now().slice(0, 10)}`);
+    // Into the ASP home by default, not the current folder: run from a repository, an export (your records, in the clear) landed in the repo and could have been committed.
+    const dir = resolve(io.cwd, v.out ?? join(home, "exports", `asp-export-${now().slice(0, 10)}`));
     const e = await exportTo(dir);
-    io.out(`exported to ${dir}: ${e.records.length} record(s), ${e.packages.length} package(s), ${e.commons.entries.length} commons entr(ies); your keys were never on the service, so keep their backups`);
+    io.out(`exported tenant ${e.tenant.name} to ${dir}: ${e.records.length} record(s), ${e.packages.length} package(s), ${e.commons.entries.length} commons entr(ies); your keys were never on the service, so keep their backups`);
     return 0;
   }
   if (sub === "close") {
     if (!v.confirm) throw new UsageError("asp account close --confirm <your tenant name> [--skip-export]: this deletes your packages and commons entries and cannot be undone (the records in the log stay)");
     if (!v["skip-export"]) {
-      const dir = resolve(io.cwd, v.out ?? `asp-export-before-close-${now().slice(0, 10)}`);
+      const dir = resolve(io.cwd, v.out ?? join(home, "exports", `asp-export-before-close-${now().slice(0, 10)}`));
       const e = await exportTo(dir);
       io.out(`exported to ${dir} first (${e.records.length} record(s), ${e.packages.length} package(s))`);
     }
@@ -1387,26 +1416,36 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
     const res = await fetchRetry(new URL(path, service + "/"), init);
     return { status: res.status, body: (await res.json().catch(() => undefined)) as any };
   };
-  const info = await get("signup");
+  const info = await get("signup").catch((e) => { const m = connectionProblem(e, service); throw m ? new Error(m) : e; });
   if (info.status !== 200 || !info.body?.ok) throw new Error(`${service} does not offer sign-up (it answered ${info.status})`);
   if (!info.body.open) throw new Error(`sign-up is not open on ${service}${info.body.reason ? `: ${info.body.reason}` : ""}`);
 
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const url = `${service}/join?c=${challenge}`;
-  io.out("Opening your browser to sign up. If it does not open, go to this address:");
+  io.out(v["no-open"] ? "Go to this address in a browser to sign up:" : "Opening your browser to sign up. If it does not open, go to this address:");
   io.out(`  ${url}`);
+  io.out("  (On a machine with no browser, over SSH or in a container: open that address on any other device. This terminal picks up the result by itself.)");
   if (!v["no-open"]) openBrowser(url);
-  io.out("Waiting for you to finish in the browser (up to 10 minutes) ...");
+  const waitMs = Number(io.env.ASP_JOIN_TIMEOUT_MS) > 0 ? Number(io.env.ASP_JOIN_TIMEOUT_MS) : 10 * 60_000;
+  io.out(`Waiting for you to finish in the browser (up to ${Math.round(waitMs / 60_000) || 1} minutes) ...`);
   let picked: { tenant: string; token: string } | undefined;
-  const deadline = Date.now() + 10 * 60_000;
+  const deadline = Date.now() + waitMs;
   const every = Math.max(50, Number(io.env.ASP_JOIN_POLL_MS) || 2000);
+  let said = false;
   while (Date.now() < deadline) {
-    const r = await get("join/pickup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ verifier }) });
-    if (r.status === 200 && r.body?.token) { picked = r.body; break; }
+    try {
+      const r = await get("join/pickup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ verifier }) });
+      said = false;
+      if (r.status === 200 && r.body?.token) { picked = r.body; break; }
+    } catch (e) {
+      // The connection drops while you are signing up in the browser (UC-04, UC-35): keep waiting, the sign-up is not lost.
+      if (!connectionProblem(e, service)) throw e;
+      if (!said) { said = true; io.out("  (cannot reach the service right now; still waiting, and trying again)"); }
+    }
     await new Promise((res) => setTimeout(res, every));
   }
-  if (!picked) throw new Error("timed out waiting for the sign-up; run asp join again");
+  if (!picked) throw new Error(`gave up waiting for the sign-up after ${Math.round(waitMs / 60_000) || 1} minutes. Run asp join again. If you did finish signing up in the browser after that, that account exists but this terminal never received its login, so pick a different name this time (one Google account may sign up a few times); the contact in the Terms can close the unused one.`);
   mkdirSync(home, { recursive: true });
   writeFileSync(joinConfigPath(home), JSON.stringify({ service, token: picked.token, tenant: picked.tenant, joinedAt: now() } satisfies JoinConfig, null, 2) + "\n", { mode: 0o600 });
   io.out("");
@@ -1446,7 +1485,7 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   io.out(`You are set up on ${service}:`);
   io.out(`  you      ${me}`);
   io.out(`  agent    ${agent}`);
-  io.out(`  credits  ${creditsNote ? `none (${creditsNote})` : /\+(\d+) credits/.exec(credits) ? "500 each for you and your agent" : "claimed"}`);
+  io.out(`  credits  ${creditsNote ? (/already claimed/i.test(creditsNote) ? "none this time: starter credits are given once per Google account, and this one has had them (this does not affect anything else)" : `none (${creditsNote})`) : /\+(\d+) credits/.exec(credits) ? "500 each for you and your agent" : "claimed"}`);
   if (code) {
     if (process.stdin.isTTY && !v.yes) {
       const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stdout });
@@ -2722,6 +2761,14 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
     const latest = existsSync(runs) ? readdirSync(runs).filter((d) => existsSync(join(runs, d, "run-log.ndjson"))).sort((a, b) => stamp(a).localeCompare(stamp(b))).at(-1) : undefined;
     if (!latest) throw new Error(`no run with a run log in ${runs}; give the file or folder`);
     target = join(runs, latest);
+  }
+  // The session id that `asp runs` prints works too (a person tries exactly that): it is looked up to the session's own run log.
+  if (/^[0-9a-f]{4,16}$/.test(target) && !existsSync(resolve(io.cwd, target))) {
+    const hit = sessionsOf(home).filter((s) => s.start.sid.startsWith(target));
+    const log = hit.length === 1 ? hit[0].end?.runLog : undefined;
+    if (hit.length > 1) throw new Error(`more than one session starts with ${target}; asp runs lists them`);
+    if (hit.length === 1 && !log) throw new Error(`session ${hit[0].start.sid} has no run log (it has not ended, or it ran without one)`);
+    if (log) target = log;
   }
   const file = target.endsWith(".ndjson") ? resolve(io.cwd, target) : join(resolve(io.cwd, target), "run-log.ndjson");
   const check = readRunLog(file);
@@ -4003,7 +4050,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
           const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stderr });
           const timer = setInterval(() => { if (sessionOver) rl.close(); }, 500); timer.unref();
           // At a terminal, readline takes Ctrl-C for itself; it means "leave", not "no" (found live, UC-220): end the session, and the held call is refused as part of ending it.
-          rl.on("SIGINT", () => { onInterrupt(); rl.close(); });
+          rl.on("SIGINT", () => { io.err(""); onInterrupt(); rl.close(); }); // (the empty line ends the question's line, so the message starts on its own line)
           // A closed prompt (Ctrl-C, the session over) never settles its own question, so the question is raced against the close.
           const closed = new Promise<string>((res) => rl.once("close", () => res("")));
           try { answer = await Promise.race([rl.question(`\n  Allow ${scope}: ${shown}? ${options}${canAlways ? " (a = yes, and never ask about this exact command again)" : ""} `), closed]); } catch { answer = ""; } finally { clearInterval(timer); rl.close(); }
@@ -4112,6 +4159,17 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   }
   for (const r of refused.slice(0, 5)) io.out(`  refused  ${r}`);
   if (refused.length > 5) io.out(`  ... and ${refused.length - 5} more`);
+  // A refusal with no way forward is where a newcomer gets stuck (found in the owner's live run, UC-137): say how to allow it. A network refusal names the host the command used.
+  if (refused.some((r) => /shell\.network|network/i.test(r))) {
+    let host: string | undefined;
+    try {
+      const refusedCall = runLogPath ? readRunLog(runLogPath).events.find((e) => e.kind === "tool_call" && e.data?.allowed === false && /network/.test(String(e.data?.scope ?? ""))) : undefined;
+      host = /(?:https?:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?::\d+)?/i.exec(String(refusedCall?.data?.input ?? ""))?.[1];
+    } catch { /* the generic line is enough */ }
+    io.out("  to allow  this session has no network. To let it reach a host, name it:");
+    io.out(`            asp run ${runtime} --allow-network ${host ?? "<host>"} --prompt "..."`);
+    io.out(`            (only the hosts you name, in a new standing job; the refused command is in: asp run-log show ${sid})`);
+  }
   if (stopped && !wasStopped) io.out(`  ${stopped}`);
   if (notRecorded) io.out(`  record   NOT recorded in the log: ${/cannot reach/.test(notRecorded) ? "the service could not be reached" : "the service refused it"}. The run log below is the record on this machine; nothing was lost, but the log service does not have this session's Action.`);
   io.out(`  job      standing job ${job.contract.slice(0, 19)}..., ${job.sessions} session(s) so far; ${notRecorded ? "this session's signed Action is not in the log" : "the signed Action reports are in the log"} (asp runs ${sid})`);
@@ -4288,6 +4346,13 @@ async function askCmd(home: string, text: string, v: Values, io: Io): Promise<nu
     io.out("  asp help   lists the topics");
     return 1;
   }
+  // "How do I ..." asks how, not to do it (found in the owner's live walkthrough: "how do I stop a session" offered to run `asp stop`, which would have ended a running session): the command is shown, never offered.
+  if (/^\s*how\b/i.test(text) && !v.yes && r.complete) {
+    io.out(`To do that, run:  ${shown(r.args)}`);
+    const t = searchTopics(text)[0];
+    if (t) io.out(`  more: asp help ${t.name}   ${t.title}`);
+    return 0;
+  }
   io.out(`I read that as:  ${shown(r.args)}`);
   if (!r.complete) { io.out("  it still needs your details (the <...> parts). Fill them in and run it yourself."); return 0; }
   if (r.risk === "destructive") { io.out("  that cannot be undone, so asp ask only shows it. Run it yourself if you mean it."); return 0; }
@@ -4356,7 +4421,8 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
       io.out(`  ${s.start.sid}  ${ago(s.start.at).padEnd(11)} ${s.start.runtime.padEnd(11)} ${state.padEnd(9)} ${s.end ? `${s.end.calls} calls, ${s.end.refused.length} refused` : "no end recorded"}  ${s.start.purpose.slice(0, 50)}`);
     }
     if (!v.all && all.length > 15) io.out(`  ... ${all.length - 15} older (asp runs --all)`);
-    io.out("details: asp runs <id>");
+    // An example with a real id: "<id>" gets typed with the angle brackets, which the shell rejects (found in the owner's live run, step 3).
+    io.out(`details: asp runs ${all[0].start.sid}   (any id from the list)`);
     return 0;
   }
   const hit = all.filter((s) => s.start.sid.startsWith(id));
@@ -4366,7 +4432,7 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   io.out(`session ${start.sid}`);
   io.out(`  started   ${start.at} (${ago(start.at)}), ${start.runtime} as ${start.agent}`);
   io.out(`  task      ${start.purpose}`);
-  io.out(`  mandate   ${start.scopes.join(", ")}${start.hosts.length ? `; network to ${start.hosts.join(", ")}` : "; no network"}  (standing job ${start.contract})`);
+  io.out(`  mandate   ${start.scopes.join(", ")}${start.hosts.length ? `; network to ${start.hosts.join(", ")}` : "; no network"}  (standing job ${start.contract.slice(0, 19)}...)`);
   io.out(`  ended     ${end ? `${end.at} (${end.state}, exit ${end.exitCode})` : "no end recorded: still running, or the terminal was closed (asp stop <id> ends a running one)"}`);
   if (end) {
     io.out(`  calls     ${end.calls} judged, ${end.refused.length} refused, ${end.tokens} tokens`);
@@ -4485,7 +4551,12 @@ async function agentCmd(home: string, sub: string | undefined, rest: string[], v
     const mine = sessions.filter((s) => s.start.agent === a.did);
     const last = mine[0];
     const job = standing.filter((j) => j.agent === a.did).sort((x, y) => y.expiresAt.localeCompare(x.expiresAt))[0];
-    io.out(`  ${short(a.did).padEnd(16)} ${a.did === cfg.identities.agent ? "(default) " : ""}${keys.entriesFor(a.did).length ? "key here" : "KEY NOT ON THIS MACHINE"}; ${a.recovery === "sponsor" ? "recoverable by you" : a.recovery}; ${mine.length} session(s)${last ? `, last ${ago(last.start.at)}` : ""}${job ? `; standing job until ${job.expiresAt.slice(0, 10)}` : ""}`);
+    // Three lines per agent: its name, its identity address (what other commands and other people use), and its key (which key, never the secret itself) and use.
+    const held = keys.entriesFor(a.did).map((e) => /#(key-\d+)$/.exec(e.kid)?.[1] ?? e.kid);
+    io.out(`  ${short(a.did)}${a.did === cfg.identities.agent ? "  (default)" : ""}`);
+    io.out(`      identity  ${a.did}`);
+    io.out(`      key       ${held.length ? `here on this machine (${held.join(", ")}); the secret is never shown` : "NOT ON THIS MACHINE"}; ${a.recovery === "sponsor" ? "recoverable by you" : a.recovery}`);
+    io.out(`      sessions  ${mine.length}${last ? `, last ${ago(last.start.at)}` : ""}${job ? `; standing job until ${job.expiresAt.slice(0, 10)}` : ""}`);
   }
   io.out(`${agents.length} agent(s); asp agent add <name> makes another`);
   return 0;

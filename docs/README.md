@@ -52,6 +52,9 @@ For contributors, reviewers and anyone judging how far along it is.
 |---|---|
 | [launch-blockers.md](launch-blockers.md) | What stands between the protocol and a public beta, and progress against each item |
 | [gaps-register.md](gaps-register.md) | Every gap, with what protects you today and what would close it; rows are never deleted |
+| [live-run-identity.md](live-run-identity.md) | **The fourth live set** (a note): the unique identity of a principal, an agent and a subagent, and everything the protocol logs about them: tool calls, function calls, skills |
+| [live-run-market.md](live-run-market.md) | **The third live set**: a job under a Mandate with a bond, a strike, a dispute and a court, step by step on the hosted service, with what to check at each step |
+| [daily-view.md](daily-view.md) | **The day's view**: what a person sees after a day of agents running, the tables with real numbers, what data exists and what is missing |
 | [testing-map.md](testing-map.md) | **The testing map**: every use case, how it is covered (automated and live), the gap, the to-do and the priority; kept current by a test |
 | [live-run-checklist.md](live-run-checklist.md) | What was and was not tried live, what was faked, and the bugs the live runs found |
 | [../MOCKS.md](../MOCKS.md) | Every mock or placeholder |

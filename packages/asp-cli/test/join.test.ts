@@ -110,7 +110,7 @@ test("asp join: one command signs you up in the browser, the token comes back to
     assert.equal(await joining2, 0, err2.join("\n"));
     const text2 = out2.join("\n");
     assert.ok(text2.indexOf("YOUR RECOVERY CODE") > 0 && text2.indexOf("YOUR RECOVERY CODE") < text2.indexOf("You are set up on"), "the recovery code comes first");
-    assert.match(text2, /credits  none \(.*already claimed/);
+    assert.match(text2, /credits  none this time: starter credits are given once per Google account, and this one has had them/);
     const cfg2 = JSON.parse(readFileSync(join(f2.aspHome, "config.json"), "utf8"));
     assert.ok(cfg2.identities?.me && cfg2.identities?.agent && cfg2.identities?.bank, "the identities are saved with the login");
   } finally {

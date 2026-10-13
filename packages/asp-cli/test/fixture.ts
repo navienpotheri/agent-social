@@ -125,3 +125,17 @@ export function makeCodexFixture(): Fixture {
   put(join(codexHome, "sessions", "2026", "09", "21", "rollout-2026-09-21T10-00-00-bbb.jsonl"), rollout(join(root, "other-repo"), "bbb"));
   return { root, project, home, aspHome };
 }
+
+/**
+ * A free port that no other test file running at the same time will pick: each process takes ports from its own band (by process id), so two files that start a service at the same moment
+ * cannot be handed the same "free" port (found when the multi-process tests were run together). A port is checked free before it is returned.
+ */
+let ownPortNext = 0;
+export async function ownPort(): Promise<number> {
+  const { createServer } = await import("node:net");
+  for (;;) {
+    const port = 20_000 + (process.pid % 450) * 60 + (ownPortNext++ % 60);
+    const free = await new Promise<boolean>((resolve) => { const s = createServer(); s.once("error", () => resolve(false)); s.listen(port, "127.0.0.1", () => s.close(() => resolve(true))); });
+    if (free) return port;
+  }
+}

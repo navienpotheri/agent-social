@@ -17,7 +17,7 @@ async function asp(home: string, args: string[], env: Record<string, string> = {
 }
 
 // Found by the Ctrl-C test (2026-10-13): interrupting `asp run` left the session "running? no end recorded" for ever and the agent's command alive.
-test("Ctrl-C in the middle of a session ends it as stopped, removes the stop file, and the next session works", async () => {
+test("Ctrl-C in the middle of a session ends it as stopped, removes the stop file, and the next session works", { timeout: 120_000 }, async () => {
   const upstream = createHttp(async (req, res) => { for await (const _ of req) { /* not inspected */ } res.writeHead(200); res.end("{}"); });
   await new Promise<void>((r) => upstream.listen(0, "127.0.0.1", r));
   const upUrl = `http://127.0.0.1:${(upstream.address() as { port: number }).port}`;

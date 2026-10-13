@@ -9,15 +9,15 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hashToken } from "@agent-social/asp-log";
 import { main, type Io } from "../src/cli.ts";
-import { makeFixture } from "./fixture.ts";
+import { makeFixture, ownPort } from "./fixture.ts";
 
 const cli = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
 const fakeClaude = fileURLToPath(new URL("./fake-claude-gateway.mjs", import.meta.url));
-const freePort = () => new Promise<number>((resolve) => { const s = createNet(); s.listen(0, "127.0.0.1", () => { const p = (s.address() as { port: number }).port; s.close(() => resolve(p)); }); });
+const freePort = ownPort;
 const until = async (what: string, fn: () => boolean | Promise<boolean>, ms = 20_000) => { const t0 = Date.now(); while (!(await fn())) { if (Date.now() - t0 > ms) throw new Error(`timed out waiting for ${what}`); await new Promise((r) => setTimeout(r, 150)); } };
 
 // The interruption cases that need a service and a held approval (flow stage: a call held for approval; action: Ctrl-C or the terminal closing). docs/testing-map.md section 24.
-test("Ctrl-C (or the terminal closing) while a call is held for approval ends the session as stopped and closes the Checkpoint, so nothing is left waiting for an answer nobody can give", async () => {
+test("Ctrl-C (or the terminal closing) while a call is held for approval ends the session as stopped and closes the Checkpoint, so nothing is left waiting for an answer nobody can give", { timeout: 120_000 }, async () => {
   const upstream = createHttp(async (req, res) => {
     for await (const _ of req) { /* not inspected */ }
     res.writeHead(200, { "content-type": "application/json" });

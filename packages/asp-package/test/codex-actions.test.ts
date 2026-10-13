@@ -61,3 +61,15 @@ test("the same shell command gets the same fingerprint on every runtime, so the 
   assert.notDeepEqual(shellArtifact("node other.js"), codex[0].artifact);
   assert.equal(normalizeCommand("  git   status "), "git status");
 });
+
+// Found in the owner's live run (UC-25): an agent's `find ... 2>/dev/null` was classed as writing files, because any `>` counted as a write. A redirect to nowhere writes nothing.
+test("a redirect to nowhere is not a file write; a redirect to a file still is", () => {
+  assert.equal(scopeForShellCommand('find . -maxdepth 2 -iname "calc.py" 2>/dev/null'), "repo.read");
+  assert.equal(scopeForShellCommand("ls 2>&1"), "repo.read");
+  assert.equal(scopeForShellCommand("cat notes.txt 2>nul"), "repo.read");
+  assert.equal(scopeForShellCommand('cd proj && echo "exit: $?"; find . -name a 2>/dev/null; ls'), "shell.exec", "a cd is not read-only, so it is a command, not a file write");
+  assert.equal(scopeForShellCommand("python calc.py 2>/dev/null"), "shell.exec");
+  assert.equal(scopeForShellCommand("echo hi > out.txt"), "repo.write");
+  assert.equal(scopeForShellCommand("echo hi >> out.txt 2>/dev/null"), "repo.write");
+  assert.equal(scopeForShellCommand("cat a.txt > b.txt"), "repo.write");
+});
