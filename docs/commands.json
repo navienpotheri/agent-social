@@ -22,6 +22,10 @@
           "description": "Run a real coding agent under a Mandate: files and commands in your folder, no network unless you name hosts"
         },
         {
+          "command": "asp run <runtime> --local --prompt \"...\"",
+          "description": "The same governed session with no service and no account: identities and records live only on this machine (for a demo with no wifi)"
+        },
+        {
           "command": "asp runs",
           "description": "List your recent sessions: what ran, how many calls, how many were refused"
         },

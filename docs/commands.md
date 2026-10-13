@@ -15,6 +15,7 @@ Most people use only these.
 | `asp` | A short home screen: the everyday commands and what to do next |
 | `asp join` | Sign up (opens your browser), make your person and first agent, claim starter credits, show your recovery code |
 | `asp run <claude-code|codex|goose|antigravity|openhands> --prompt "..."` | Run a real coding agent under a Mandate: files and commands in your folder, no network unless you name hosts |
+| `asp run <runtime> --local --prompt "..."` | The same governed session with no service and no account: identities and records live only on this machine (for a demo with no wifi) |
 | `asp runs` | List your recent sessions: what ran, how many calls, how many were refused |
 | `asp runs <id>` | One session in detail: the task, what was refused and why, the Action reports, the run log |
 | `asp stop [<id>]` | End a running session from another window; the standing job stays |
@@ -167,6 +168,9 @@ asp: the Agent Social portability tool. This is the complete reference (asp --he
   asp | asp status | asp help [topic|words|all] | asp ask "<words>" [--yes] | asp init | asp trust [asp.yaml] | asp shim bash|zsh|powershell
     The home, where things stand and what to do next, help by topic or search (the same text is at /help on the service), a rule-based words-to-command that shows the command first
     (S110), a starter asp.yaml of project defaults (allow-network is used only from a file you trust), and a script for your shell (completion; claude starts a governed session).
+  asp run <runtime> --local --prompt <text>   (S122) the same governed session with no service and no account: did:key identities and a log under <ASP_HOME>/local, nothing shared
+  asp token create <name> [--days n] | list | revoke <name>   machine tokens for CI (S107); asp leave   forget the saved login
+  asp court seat [--count n] [--stake n] | status | docket | rule --contract <id> --verdict ... --fault <did>=<permille>   the operator's court during the beta
   asp identity new --kind human (--did <did> | --method did:key) [--sponsor <did>]
   asp identity new --kind agent (--did <did> | --method did:key) --sponsor <did> [--fleet <did>] [--purpose <text>]
     --did <did> uses a DID you already have (e.g. did:web:your-own-domain:...). --method did:key

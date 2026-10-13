@@ -5,6 +5,9 @@
  *   asp | asp status | asp help [topic|words|all] | asp ask "<words>" [--yes] | asp init | asp trust [asp.yaml] | asp shim bash|zsh|powershell
  *     The home, where things stand and what to do next, help by topic or search (the same text is at /help on the service), a rule-based words-to-command that shows the command first
  *     (S110), a starter asp.yaml of project defaults (allow-network is used only from a file you trust), and a script for your shell (completion; claude starts a governed session).
+ *   asp run <runtime> --local --prompt <text>   (S122) the same governed session with no service and no account: did:key identities and a log under <ASP_HOME>/local, nothing shared
+ *   asp token create <name> [--days n] | list | revoke <name>   machine tokens for CI (S107); asp leave   forget the saved login
+ *   asp court seat [--count n] [--stake n] | status | docket | rule --contract <id> --verdict ... --fault <did>=<permille>   the operator's court during the beta
  *   asp identity new --kind human (--did <did> | --method did:key) [--sponsor <did>]
  *   asp identity new --kind agent (--did <did> | --method did:key) --sponsor <did> [--fleet <did>] [--purpose <text>]
  *     --did <did> uses a DID you already have (e.g. did:web:your-own-domain:...). --method did:key
@@ -325,6 +328,7 @@ export interface Io {
 
 const OPTIONS = {
   home: { type: "string" },
+  local: { type: "boolean" },
   "claude-home": { type: "string" },
   "user-home": { type: "string" },
   model: { type: "string" },
@@ -563,6 +567,19 @@ const OPTIONS = {
   artifact: { type: "string", multiple: true },
 } as const;
 
+/**
+ * A bare "fetch failed" (Node's message for any network failure) says nothing a person can act on. When an error is a connection failure, say what happened and what still works.
+ * Found in preparing for developers: `asp account show` with no wifi printed only "error: fetch failed".
+ */
+export function connectionProblem(e: unknown, service?: string): string | undefined {
+  const err = e as { message?: string; cause?: { code?: string; message?: string } };
+  const code = err?.cause?.code;
+  const network = /^fetch failed$/i.test(err?.message ?? "") || ["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET", "EAI_AGAIN", "UND_ERR_CONNECT_TIMEOUT", "EHOSTUNREACH", "ENETUNREACH"].includes(code ?? "");
+  if (!network) return undefined;
+  const why = code === "ENOTFOUND" || code === "EAI_AGAIN" ? "the address could not be found: check the spelling and your connection" : code === "ECONNREFUSED" ? "nothing is answering there: the service may be down" : code === "ETIMEDOUT" || code === "UND_ERR_CONNECT_TIMEOUT" ? "it did not answer in time: check your connection" : "check your connection";
+  return `cannot reach the service${service ? ` at ${service}` : ""} (${why}). Try again in a moment. \`asp status\` shows what works from this machine; \`asp run --local\` runs an agent under a Mandate with no service and no account.`;
+}
+
 /** The environment the current command runs with, so ASP_LOG_URL and ASP_LOG_TOKEN reach every openLog call (restored on exit: main re-enters). */
 let logEnv: NodeJS.ProcessEnv = process.env;
 
@@ -657,7 +674,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
   } catch (e) {
-    io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${(e as Error).message}`);
+    io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${connectionProblem(e, io.env.ASP_LOG_URL) ?? (e as Error).message}`);
     return e instanceof UsageError ? 2 : 1;
   }
 }
@@ -3771,7 +3788,7 @@ const GOOSE_RUNTIME = fileURLToPath(new URL("./goose-runtime.mjs", import.meta.u
  * Action reports. The tool runs through the gateway, so a call the Mandate does not allow is removed before the tool receives it; when it stops, a short summary says what the
  * agent said and did, what was refused and why. A new standing job is made when the old one is about to expire (the old one is settled) or the permissions asked for change.
  */
-async function runSession(home: string, runtime: string, v: Values, io: Io): Promise<number> {
+async function runSession(home: string, runtime: string, v: Values, io: Io, localIds?: { me: string; agent: string; bank: string }): Promise<number> {
   const prof = SESSION_RUNTIMES[runtime];
   // Headless (a CI job, a scheduled task): no terminal, no login file, the job prepared beforehand (asp standing prepare) and named with --contract, the agent's key restored from an encrypted
   // backup, the person's own API key held by the gateway, output meant for a machine. Exit codes: the tool's own, 10 if --fail-on-refusal and a call was refused, 11 if the job had ended.
@@ -3805,14 +3822,46 @@ async function runSession(home: string, runtime: string, v: Values, io: Io): Pro
     if (!io.env[keyEnv]) throw new UsageError(`asp run ${runtime} uses your own ${provider} key: set the environment variable ${keyEnv} (or name another with --api-key-env). The gateway holds it; the tool never sees it.`);
     upstreamFlags = ["--openai-upstream", io.env.ASP_RUN_OPENAI_UPSTREAM ?? preset.base, "--openai-key-env", keyEnv];
   }
-  let cfg = readJoinConfig(home);
+  // --local: no service and no account. The same governed session, run against a log and identities that live only on this machine (<ASP_HOME>/local), so governance can be shown with no
+  // wifi (a venue) and nothing is written to your hosted account. Nothing is shared: the records are not on any network.
+  if (v.local) {
+    if (headless) throw new UsageError("--local cannot be combined with --headless");
+    if (v.agent) throw new UsageError("--agent is not available with --local (the local mode has one agent)");
+    const lhome = join(home, "local");
+    mkdirSync(lhome, { recursive: true });
+    const idFile = join(lhome, "local-identities.json");
+    const lenv = { ...io.env, ASP_HOME: lhome } as NodeJS.ProcessEnv;
+    delete lenv.ASP_LOG_URL; delete lenv.ASP_LOG_TOKEN;
+    let lids: { me: string; agent: string; bank: string } | undefined;
+    try { lids = JSON.parse(readFileSync(idFile, "utf8")); } catch { /* first use */ }
+    if (!lids) {
+      const make = async (args: string[]) => {
+        const out: string[] = [], err: string[] = [];
+        const code = await main([...args, "--home", lhome], { out: (l) => out.push(l), err: (l) => err.push(l), env: lenv, cwd: io.cwd });
+        if (code) throw new Error(`could not set up the local identities: ${(err.join("\n") || out.join("\n")).trim().slice(0, 200)}`);
+        return /created \w+ (did:\S+)/.exec(out.join("\n"))![1];
+      };
+      const me = await make(["identity", "new", "--kind", "human", "--method", "did:key", "--no-recovery"]);
+      const agent = await make(["identity", "new", "--kind", "agent", "--method", "did:key", "--sponsor", me, "--purpose", "Local agent"]);
+      const bank = await make(["identity", "new", "--kind", "human", "--method", "did:key", "--no-recovery"]);
+      lids = { me, agent, bank };
+      writeFileSync(idFile, JSON.stringify(lids, null, 2) + "\n");
+      io.err("  local mode: made local identities on this machine (no account, no service, nothing shared)");
+    }
+    io.err("  local mode: records stay on this machine, in " + lhome);
+    // The outer command may already have put the saved service in the log environment; for this run there is none.
+    const outerLogEnv = logEnv;
+    logEnv = lenv;
+    try { return await runSession(lhome, runtime, { ...v, local: false, home: lhome }, { ...io, env: lenv }, lids); } finally { logEnv = outerLogEnv; }
+  }
+  let cfg: JoinConfig | undefined = localIds ? { service: "", token: "", tenant: "local", joinedAt: "", identities: localIds } : readJoinConfig(home);
   if (!cfg && headless && io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN) {
     const a = (await (await fetchRetry(new URL("account", io.env.ASP_LOG_URL.replace(/\/$/, "") + "/"), { headers: { authorization: `Bearer ${io.env.ASP_LOG_TOKEN}` } })).json().catch(() => undefined)) as any;
     if (!a?.ok) throw new Error("the service did not accept ASP_LOG_TOKEN (revoked or expired?)");
     cfg = { service: io.env.ASP_LOG_URL.replace(/\/$/, ""), token: io.env.ASP_LOG_TOKEN, tenant: a.tenant.name, joinedAt: "" };
   }
   if (!cfg) throw new Error(headless ? "a headless run needs ASP_LOG_URL and ASP_LOG_TOKEN (a machine token: asp token create)" : "you have not joined yet: run asp join first");
-  const env = { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token };
+  const env = localIds ? { ...io.env } : { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token };
   const quiet = async (args: string[], extra: Partial<Io> = {}, onErr?: (line: string) => void) => {
     const out: string[] = [], err: string[] = [];
     const code = await main(args, { out: (l) => out.push(l), err: (l) => { err.push(l); onErr?.(l); }, env, cwd: io.cwd, ...extra });

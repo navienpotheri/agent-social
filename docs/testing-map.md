@@ -27,7 +27,7 @@ Dates are 2026-10 unless written out. The first live run on the hosted service w
 | UC-13 | Antigravity session, held by its own hook | packages/asp-cli/test/run-hooked.test.ts | no | P21 | Run with the real `agy` signed in | P1 |
 | UC-14 | OpenHands session (inside WSL on Windows) | packages/asp-cli/test/run-hooked.test.ts | no | P21 | Run with the real OpenHands | P1 |
 | UC-15 | Interactive session (no prompt) in Claude Code | packages/asp-cli/test/run-session.test.ts | no | U15 | Try it live; approvals rely on another window | P0 |
-| UC-16 | A session in a non-git folder, a folder with spaces, a very large folder | none | no | T2 | Add cases; check Windows paths | P0 |
+| UC-16 | A session in a non-git folder, a folder with spaces, a very large folder | none | partial 10-13 (no git, spaces in the path) | T2 | A very large folder; non-ASCII paths; add an automated case | P0 |
 | UC-17 | Ctrl-C in the middle of a session leaves a consistent state | none | no | T2 | Test; `asp runs` should show it as stopped, the job should stay usable | P0 |
 | UC-18 | Model provider errors (rate limit, bad key, outage) are reported plainly | packages/asp-package/test/gateway.test.ts | no | T2 | Add a session-level case with a 401 and a 429 | P1 |
 
@@ -58,6 +58,7 @@ Dates are 2026-10 unless written out. The first live run on the hosted service w
 | UC-36 | Work spread over hours (a live driver, not part of npm test): nine stages of a real task, ten-minute idle gaps, one standing job, the service watched throughout | evals/long-horizon.mjs | yes 10-12 (2.2 h, 9 stages, 76 tool calls, 0 crashes) | R1 | Repeat after the redeploy; add a gap longer than the standing job's refresh window | P0 |
 | UC-37 | One session that runs continuously for hours (many hundreds of calls) | none | no | R1 | Run one; measure records, memory and the Mandate expiring mid-run | P1 |
 | UC-38 | Dissect a long-horizon run in depth: what the agent did and why, record by record, run against run | evals/long-horizon-report.mjs | partial 10-12 (first report run on the 2.2 h run) | R1 | The analysis backlog below | P1 |
+| UC-39 | A demo with no wifi and no account: `asp run <runtime> --local` shows a governed session and a refusal, with records only on this machine | packages/asp-cli/test/run-local.test.ts | yes 10-13 (against a dead service) | T4 | Try it on a clean machine, with the real Claude Code, before the 17th | P0 |
 
 ## 5. Run logs, custody and disclosure
 
@@ -168,7 +169,7 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 | UC-137 | "It refused something I need": the refusal says how to allow it | none | no | U6 | Put the fix (`--allow-network host`, `--ask`) in the refusal message; test it | P0 |
 | UC-138 | Two sessions at once for one agent (two terminals) | none | no | T3 | Test the standing job, approvals and the one-open-Checkpoint rule under concurrency | P0 |
 | UC-139 | The standing job expires after seven days; the next run makes a new one without fuss | packages/asp-cli/test/run-history.test.ts | no | R1 | Test the expiry boundary | P1 |
-| UC-140 | The service is down, or there is no network: `asp run` says so and what still works | none | no | T4 | Define offline behaviour; a local-only mode for demos at a venue | P0 |
+| UC-140 | The service is down, or there is no network: every command says so plainly and what still works | packages/asp-cli/test/run-local.test.ts | partial 10-13 (a dead service address) | T4 | Run it with real wifi off; the environment variable should override the saved login for `run` and `status` as documented | P0 |
 | UC-141 | Choose a model and a provider (`--model`, `--provider`, `--api-key-env`) | packages/asp-cli/test/run-runtimes.test.ts | no | P22 | Run live with OpenRouter | P1 |
 | UC-142 | A project with its own `asp.yaml`, and the trust step | packages/asp-cli/test/discover.test.ts | no | U16 | Try in a real repo | P1 |
 | UC-143 | The shell shim: typing `claude` starts a governed session | packages/asp-package/test/guide.test.ts | no | U16 | Try it in bash, zsh and PowerShell | P1 |
