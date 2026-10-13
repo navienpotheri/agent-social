@@ -4,6 +4,21 @@ Every use case the protocol and the network must support, how each is tested tod
 
 **Columns.** *Automated* is the test file(s) that cover it. *Live* is whether it has been run against the real hosted service with real tools (date), `partial` if only part was, `no` if never. *Gap* is the row in [gaps-register.md](gaps-register.md), or `none` when there is nothing open. A to-do that reveals a gap gets a register row first (the testing-map gaps are the `T` series). *Pri*: **P0** before the developer conference on 2026-10-17, **P1** before wider invitations, **P2** later. A use case counts as **proven** only when both Automated and Live are filled in.
 
+**In plain words.** What we are testing: each row is one thing a real person does with Agent Social (sign up, run an agent, answer an approval, lose a key, run the service), and the question is "does it work, and how do we know?"
+
+| Term | One-line meaning |
+|---|---|
+| P0 | Must work before the conference on 2026-10-17; a developer hits it in their first 15 minutes |
+| P1 | Needed before we invite more than a few watched testers |
+| P2 | Later; not needed for the conference or the first testers |
+| Automated | The test file that checks it on every change; `none` means no test yet |
+| Live `yes` | Done for real on the hosted service with the real tool (date, and what was faked, in brackets) |
+| Live `partial` | Some of it, or some variants, done for real |
+| Live `no` | Never done for real |
+| Live `n/a` | Pure logic with no live version |
+| proven | Automated filled in AND Live `yes`: the strongest evidence |
+| Open P0 | A P0 row whose Live is `partial` or `no`: what remains for the conference (the "Open to-dos by priority" list below, and the "P0 to do" sheet in the workbook) |
+
 Dates are 2026-10 unless written out. The first live run on the hosted service was 2026-10-12 (docs/live-run-checklist.md).
 
 ## 1. Install and first run (the first 15 minutes)
