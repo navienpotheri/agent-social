@@ -269,6 +269,34 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 | UC-196 | Add a runtime adapter | packages/asp-cli/test/cli.test.ts | n/a | P8 | An adapter guide and a per-runtime conformance test | P1 |
 | UC-197 | Use the TypeScript or Python SDK in an application | python/tests/test_reporter.py | n/a | T5 | Neither is published as a package; decide | P1 |
 
+## 23. Three perspectives: the agent, the principal, the work
+
+Every row above is written from a person's side. A protocol for agents also has to be checked from the **agent's** side and from the side of **the work itself**, and the principal's view of both. Each row names its perspective: **[agent]**, **[principal]**, **[work]**. These rows are mostly untested; they are the list of what to examine after the first-15-minutes bar is met.
+
+| ID | Use case | Automated | Live | Gap | To-do | Pri |
+|---|---|---|---|---|---|---|
+| UC-200 | [agent] What the agent itself sees: its Mandate, what it may do, and a refusal that explains itself so the agent can adapt instead of looping | packages/asp-cli/test/run-session.test.ts | partial 10-12 (Claude Code only) | T10 | Read a real session from the agent's side (the refusal text, the retries); try a weak model; check the agent can find its own Mandate | P1 |
+| UC-201 | [agent] An agent under the protocol keeps a stable identity across sessions, machines and runtimes | packages/asp-cli/test/memory.test.ts | no | T10 | Move one agent between two runtimes and two machines; check the lineage | P1 |
+| UC-202 | [agent] Data logging: what is recorded about each session (calls, refusals, results) and how it is represented to a reader | packages/asp-cli/test/run-session.test.ts | partial 10-12 | E7 | Decide what a reader needs; tool results are left out of the log today; define the representation and a reader | P0 |
+| UC-203 | [agent] Continual learning: what the agent learns in a run is carried, signed, merged and offered to the next run | packages/asp-cli/test/memory.test.ts | partial 10-12 (Claude Code write-back) | D9 | Show a lesson going in and coming out across two live runs; verify a lesson before it enters memory | P1 |
+| UC-204 | [agent] The agent is told what it learned and what was forgotten (memory loss is detected) | none | no | D3 | Detect and report memory loss; show the principal what was learned (D10) | P2 |
+| UC-205 | [agent] Agent drift: behaviour changes after a memory update or a runtime or model swap, and the change is noticed | packages/asp-cli/test/canary.test.ts | no | D1 | Run the canary set before and after a change live; compare an outcome series across a lineage edge (D2) | P1 |
+| UC-206 | [agent] The model that actually ran is recorded, so a change of weights behind a name shows up | none | no | D4 | Record the model identifier the provider reports in each run | P2 |
+| UC-207 | [agent] An agent is manipulated (prompt injection, goal hijacking) and the Mandate still holds | packages/asp-cli/test/compliance.test.ts | no | D6 | Run an injection scenario live; the Mandate bounds actions but nothing detects the hijack | P1 |
+| UC-208 | [agent] Whistleblowers: an agent or a person reports another agent's violation, and it is checked and ruled on | packages/asp-cli/test/report.test.ts | no | H3 | Replay the shared-task shortcut scenario (docs/backlog.md) with the operator's court; third parties have no way to report | P1 |
+| UC-209 | [agent] Cheating: an agent games its checker or hides a failure, and the log shows it | none | no | D7 | Design the check (reasoning-trace and outcome checks); an adversarial run | P2 |
+| UC-210 | [agent] Two agents of one principal work together under separate Mandates without widening each other's | packages/asp-cli/test/run-session.test.ts | no | T3 | Run a pair live (also UC-138: two sessions at once) | P1 |
+| UC-211 | [principal] What the agent did on my behalf, in words I can read, without opening a log | packages/asp-cli/test/run-session.test.ts | partial 10-12 (`asp runs`) | E8 | The end-of-job summary and a reader for the run log | P0 |
+| UC-212 | [principal] Am I being told when an agent drifts, fails or is refused, without having to look | none | no | U7 | Alerts outside the CLI; define what is worth an alert | P1 |
+| UC-213 | [principal] Quality, cost and time of my agents over weeks, not one session | none | no | D8 | A trend view per agent | P2 |
+| UC-214 | [principal] I can stop, pause or roll back an agent mid-work, and know what state it left | packages/asp-cli/test/run-session.test.ts | partial 10-13 | T2 | Ctrl-C test (UC-17); pause and rollback are not built (D13) | P0 |
+| UC-215 | [work] What the agent produced, and which Mandate, run and model produced it, can be traced from the result back | none | no | T11 | Attach the run and the Mandate to the work (a commit trailer or a sidecar) and verify it from the result | P1 |
+| UC-216 | [work] The work is checked against what was asked (an outcome check), not only against what the agent was allowed to do | packages/asp-cli/test/eval.test.ts | no | T9 | Run outcome verification live | P1 |
+| UC-217 | [work] Work done by several agents or in parallel nodes is merged and its parts stay attributable | none | no | T9 | Run a fleet live | P2 |
+| UC-218 | [work] A third party who receives the work can verify where it came from without trusting the producer | packages/asp-cli/test/witness.test.ts | n/a | T11 | A one-command verify for a recipient (also UC-195) | P1 |
+
+**Perspective index.** Agent: UC-200 to UC-210. Principal: UC-211 to UC-214, and the earlier rows of sections 13 to 21. Work: UC-215 to UC-218.
+
 ## Journey index
 
 Where a journey step is covered by a row earlier in the map:
