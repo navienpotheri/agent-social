@@ -22,6 +22,13 @@ const STATE = join(HOME, "live-job.json");
 const id = JSON.parse(readFileSync(join(HOME, "config.json"), "utf8")).identities;
 const { me: ME, agent: AGENT, bank: BANK } = id;
 const entities = [{ name: "principal", did: ME }, { name: "agent", did: AGENT }, { name: "bank", did: BANK }];
+// The court's jurors, when the operator has seated them (asp court seat): they hold and stake credits, so they are counted, or a ruling would look like credits leaving the job.
+const domain = ME.split(":")[2];
+async function findJurors() {
+  const found = [];
+  for (let n = 1; n <= 3; n++) { const did = `did:web:${domain}:court:juror-${n}`; const r = await run(["market", "juror", "show", did]); if (/staked [1-9]/.test(r.out)) found.push({ name: `juror${n}`, did }); }
+  return found;
+}
 const PROJECT = resolve(opt("project", join(process.env.HOME ?? process.env.USERPROFILE ?? ".", "asp-live-project")));
 const PKG = resolve(opt("package", join(process.env.HOME ?? process.env.USERPROFILE ?? ".", "asp-market-pkg")));
 
@@ -46,16 +53,17 @@ const SAYS = {
   accept: "You accepted the delivery.",
   reject: "You rejected the delivery. The job is Disputed: three neutral jurors would now rule.",
   settle: "The job was settled and the credits moved.",
+  ruled: "The court ruled, and the job was settled by the ruling: the escrow went back to you, the bond was slashed to you, and the jurors were paid.",
 };
 const NEXT = { intent: "offer", offer: "contract", contract: "bond", bond: "mandate", mandate: "work", work: "deliver", deliver: "decide", decide: "settle", settle: "done" };
 
 async function show(state, label) {
   const contracts = state.contract && !state.settled ? [state.contract] : [];
   const snaps = [...(state.rows ?? [])];
-  const s = await snapshot(run, { entities, contracts, granted: state.granted, label });
+  const s = await snapshot(run, { entities, jurors: state.jurors ?? [], contracts, granted: state.granted, label });
   snaps.push(s);
   state.rows = snaps.map((x) => ({ ...x })).slice(-12);
-  console.log("\n" + formatTable(snaps.slice(-8), ["principal", "agent", "bank"]));
+  console.log("\n" + formatTable(snaps.slice(-8), ["principal", "agent", "bank", ...(state.jurors ?? []).map((j) => j.name)]));
   const c = conservation(s, contracts.length);
   console.log(`credits: ${c.ok ? "OK" : "PROBLEM"}: ${c.note}`);
   return s;
@@ -65,17 +73,19 @@ if (cmd === "reset") { rmSync(STATE, { force: true }); console.log("saved job fo
 let state = load();
 if (cmd === "status") {
   if (!state) { console.log("no job in progress. `node evals/live-job.mjs next` starts one."); process.exit(0); }
-  console.log(`job in progress: ${state.contract ? `contract ${state.contract.slice(0, 19)}...` : "not yet contracted"}; next step: ${state.step}`);
+  console.log(`job in progress: ${state.contract ? `contract ${state.contract}` : "not yet contracted"}; next step: ${state.step}`);
   await show(state, "now"); save(state); process.exit(0);
 }
 if (cmd !== "next" && cmd !== "reject") { console.error("usage: node evals/live-job.mjs next|status|reject|reset [--home <ASP_HOME>]"); process.exit(2); }
 
 if (!state) {
-  const first = await snapshot(run, { entities, label: "start" });
+  const jurors = await findJurors();
+  const first = await snapshot(run, { entities, jurors, label: "start" });
   const granted = first.total;
-  state = { step: "intent", price: Number(opt("price", "40")), bond: Number(opt("bond", "20")), gate: flag("gate"), skipWork: flag("skip-work"), granted, rows: [first], purpose: `Summarise the project folder in five lines (${new Date().toISOString().slice(0, 19)})` };
+  state = { jurors, step: "intent", price: Number(opt("price", "40")), bond: Number(opt("bond", "20")), gate: flag("gate"), skipWork: flag("skip-work"), granted, rows: [first], purpose: `Summarise the project folder in five lines (${new Date().toISOString().slice(0, 19)})` };
   console.log(`Starting a job. You, the principal: ${ME.split(":").slice(-1)[0]}. Your agent: ${AGENT.split(":").slice(-1)[0]}. Credits in play: ${granted}.`);
-  console.log(`\n${formatTable([first], ["principal", "agent", "bank"])}`);
+  console.log(jurors.length ? `The court is seated: ${jurors.length} juror(s) are counted too.` : "No court is seated yet, so a rejected job could not be ruled on.");
+  console.log(`\n${formatTable([first], ["principal", "agent", "bank", ...jurors.map((j) => j.name)])}`);
 }
 
 const step = cmd === "reject" ? "decide" : state.step;
@@ -108,16 +118,34 @@ if (step === "intent") {
 } else if (step === "deliver") {
   await must(["market", "deliver", "--contract", state.contract, "--by", AGENT, "--summary", "Five-line summary of the project folder", "--claim", "The summary is five lines::measured"]);
 } else if (step === "decide") {
-  if (cmd === "reject") { await must(["market", "reject", "--contract", state.contract, "--by", ME, "--reasons", "Not what I asked for"]); state.rejected = true; }
+  if (cmd === "reject") {
+    await must(["market", "reject", "--contract", state.contract, "--by", ME, "--reasons", "Not what I asked for"]);
+    state.rejected = true;
+    console.log(`The contract is ${state.contract}`);
+    console.log("The jurors are not you, not the agent and not anyone either of you sponsors. The operator now seats or uses the court and rules (see the next step).");
+  }
   else await must(["market", "accept", "--contract", state.contract, "--by", ME]);
 } else if (step === "settle") {
-  if (state.rejected) { console.log("A rejected job goes to the court: see Act 3 of docs/live-run-market.md (the operator seats the jurors and rules, then settle with --basis ruling)."); await show(state, "disputed"); save(state); process.exit(0); }
+  if (state.rejected) {
+    const shown = await must(["market", "show", state.contract]);
+    const rulings = (shown.match(/attestation/g) ?? []).length;
+    if (rulings < 2) {
+      console.log("The job is Disputed and the court has not ruled yet. The operator, in the operator window, runs:");
+      console.log(`  node packages/asp-cli/bin/asp.mjs court docket`);
+      console.log(`  node packages/asp-cli/bin/asp.mjs court rule --contract ${state.contract} --verdict for_principal --fault ${AGENT}=1000`);
+      console.log("Then run `node evals/live-job.mjs next` here to settle by the ruling.");
+      await show(state, "disputed"); save(state); process.exit(0);
+    }
+    await must(["market", "settle", "--contract", state.contract, "--bank", BANK, "--basis", "ruling"]);
+    state.settled = true;
+  } else {
   await must(["market", "settle", "--contract", state.contract, "--bank", BANK, "--basis", "accepted"]);
   state.settled = true;
+  }
 } else if (step === "done") { console.log("This job is finished. `reset` clears it so you can start another."); process.exit(0); }
 
-console.log(SAYS[step === "decide" ? (state.rejected ? "reject" : "accept") : step]);
-state.step = state.rejected ? "settle" : NEXT[step];
+console.log(SAYS[step === "decide" ? (state.rejected ? "reject" : "accept") : step === "settle" && state.rejected ? "ruled" : step]);
+state.step = state.settled ? "done" : state.rejected ? "settle" : NEXT[step];
 await show(state, step === "decide" ? (state.rejected ? "rejected" : "accepted") : step);
 save(state);
 const hint = { offer: "your agent makes its offer", contract: "you and the agent agree", bond: "the money is locked", mandate: "you state what it may do", work: "the agent works (this runs Claude Code)", deliver: "the agent delivers", decide: "you accept or reject", settle: "the job is settled and the credits move", done: "the job is finished" }[state.step];
