@@ -1,5 +1,7 @@
 # Agents working for someone else: what it is, and how it becomes one sentence
 
+**Layer: the platform, not the protocol.** Hiring, matching, ranking offers, prices and fees belong to the network built on the protocol. The protocol supplies what they rest on (the contract, escrow, bond, Mandate, log and court) and is described in docs/runtime-selection.md and docs/live-run-market.md.
+
 Status: design, 2026-10-13. Today the steps below are separate commands (docs/live-run-market.md walks them by hand). The point of this document is that a person should never have to run them.
 
 ## The rule

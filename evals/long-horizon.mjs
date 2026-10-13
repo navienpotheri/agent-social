@@ -1,6 +1,8 @@
 // A long-horizon run against a service: a staged task, one governed Claude Code session per stage under one standing job, idle gaps between stages, and a sample of `asp status` and the
 // account's usage every few minutes. Everything goes to a log folder; nothing here prints a secret. It needs a joined ASP home (asp join) and Claude Code. See docs/testing-map.md UC-36.
 //   node evals/long-horizon.mjs [--gap-minutes 10] [--sample-minutes 5] [--from 1] [--home <ASP_HOME>] [--project <dir>] [--out <log dir>]
+//   Under a contract (the job lifecycle, with its bond and escrow): add --contract <id> --package <folder made by asp pack> [--stages <n>]; every stage then runs as part of that one job, and
+//   evals/credit-ledger.mjs --every 300 --contract <id> in another window shows where the credits are while it goes on (docs/live-run-market.md, act 5).
 import { spawn, spawnSync } from "node:child_process";
 import { appendFileSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -11,6 +13,10 @@ const arg = (name, dflt) => { const i = process.argv.indexOf(`--${name}`); retur
 const GAP_MIN = Number(arg("gap-minutes", "10"));
 const SAMPLE_MIN = Number(arg("sample-minutes", "5"));
 const FROM = Number(arg("from", "1"));
+const CONTRACT = arg("contract", undefined);
+const PACKAGE = arg("package", undefined);
+const MAX_STAGES = Number(arg("stages", "0"));
+if (CONTRACT && !PACKAGE) { console.error("--contract needs --package <folder made by asp pack>"); process.exit(2); }
 const REPO = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const ASP = join(REPO, "packages/asp-cli/bin/asp.mjs");
 const HOME_DIR = resolve(arg("home", process.env.ASP_HOME ?? join(homedir(), ".asp")));
@@ -52,16 +58,20 @@ const STAGES = [
 let stage = 0;
 const timer = setInterval(() => { try { const r = sample(`during stage ${stage}`); log(`sample: ${JSON.stringify(r)}`); } catch (e) { log(`sample failed: ${e.message}`); } }, SAMPLE_MIN * 60_000);
 
-log(`long-horizon run starts: ${STAGES.length} stages, ${GAP_MIN} min between them, a sample every ${SAMPLE_MIN} min; project ${PROJECT}`);
+log(`long-horizon run starts: ${MAX_STAGES > 0 ? Math.min(MAX_STAGES, STAGES.length) : STAGES.length} stages${CONTRACT ? ` under contract ${CONTRACT.slice(0, 19)}...` : ""}, ${GAP_MIN} min between them, a sample every ${SAMPLE_MIN} min; project ${PROJECT}`);
 log(`start sample: ${JSON.stringify(sample("start"))}`);
 const startedAt = Date.now();
 const results = [];
-for (let i = FROM - 1; i < STAGES.length; i++) {
+const LAST = MAX_STAGES > 0 ? Math.min(MAX_STAGES, STAGES.length) : STAGES.length;
+for (let i = FROM - 1; i < LAST; i++) {
   stage = i + 1;
   log(`--- stage ${stage}/${STAGES.length}: ${STAGES[i].slice(0, 90)}`);
   const t0 = Date.now();
   const out = await new Promise((resolve) => {
-    const c = spawn(process.execPath, [ASP, "run", "claude-code", "--project", PROJECT, "--ask", "risky", "--prompt", STAGES[i]], { env, stdio: ["ignore", "pipe", "pipe"] });
+    const stageArgs = CONTRACT
+      ? ["run", PACKAGE, "--backend", "claude-code", "--project", PROJECT, "--prompt", STAGES[i], "--contract", CONTRACT, "--no-canary", "--approval-wait", "600"]
+      : ["run", "claude-code", "--project", PROJECT, "--ask", "risky", "--prompt", STAGES[i]];
+    const c = spawn(process.execPath, [ASP, ...stageArgs], { env, stdio: ["ignore", "pipe", "pipe"] });
     let text = "";
     c.stdout.on("data", (d) => (text += d)); c.stderr.on("data", (d) => (text += d));
     c.on("close", (code) => resolve({ code, text }));
@@ -71,7 +81,7 @@ for (let i = FROM - 1; i < STAGES.length; i++) {
   const summary = out.text.split("\n").filter((l) => /^\s*(session|calls|refused|job)\s/.test(l) || /approval needed|expired|not given|not approved/.test(l)).map((l) => l.trim()).join(" | ");
   results.push({ stage, code: out.code, secs, summary });
   log(`stage ${stage} finished in ${secs}s, exit ${out.code}: ${summary.slice(0, 400)}`);
-  if (i < STAGES.length - 1) { log(`idle for ${GAP_MIN} min (a day's gaps: the standing job, the keys and the service connection must still be fine after it)`); await new Promise((r) => setTimeout(r, GAP_MIN * 60_000)); }
+  if (i < LAST - 1) { log(`idle for ${GAP_MIN} min (a day's gaps: the standing job, the keys and the service connection must still be fine after it)`); await new Promise((r) => setTimeout(r, GAP_MIN * 60_000)); }
 }
 clearInterval(timer);
 log(`end sample: ${JSON.stringify(sample("end"))}`);

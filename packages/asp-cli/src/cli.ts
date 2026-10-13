@@ -3653,7 +3653,14 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
 
     let escrowReleased = v["escrow-released"] !== undefined ? Math.trunc(Number(v["escrow-released"])) : undefined;
     let bondSlashed = v["bond-slashed"] !== undefined ? Math.trunc(Number(v["bond-slashed"])) : undefined;
-    const bondReturned = Math.trunc(Number(v["bond-returned"] ?? "0"));
+    let bondReturned = Math.trunc(Number(v["bond-returned"] ?? "0"));
+    // An accepted job (or one settled on silence) pays what was agreed and gives the bond back: nobody does credit arithmetic (found in the credit-ledger rehearsal, where
+    // `settle --basis accepted` with no amounts paid the performer nothing and handed the escrow back).
+    if ((basis === "accepted" || basis === "silence") && (escrowReleased === undefined || v["bond-returned"] === undefined)) {
+      const e = await local.log.escrow(contract);
+      escrowReleased ??= Math.max(0, (e?.escrowLocked ?? 0) - Math.trunc(Number(v.fees ?? 0)));
+      if (v["bond-returned"] === undefined) bondReturned = Math.max(0, (e?.bondLocked ?? 0) - (bondSlashed ?? 0));
+    }
     let cited: string | undefined = v.cites;
     // An upheld report forces full fault (the log refuses anything else): default to exactly that.
     const forced = (await local.log.escrow(contract))?.forcedFault ? await local.log.escrow(contract) : undefined;
