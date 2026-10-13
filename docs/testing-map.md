@@ -43,7 +43,7 @@ Dates are 2026-10 unless written out. The first live run on the hosted service w
 | UC-14 | OpenHands session (inside WSL on Windows) | packages/asp-cli/test/run-hooked.test.ts | no | P21 | Run with the real OpenHands | P1 |
 | UC-15 | Interactive session (no prompt) in Claude Code | packages/asp-cli/test/run-session.test.ts | no | U15 | Try it live; approvals rely on another window | P0 |
 | UC-16 | A session in a non-git folder, a folder with spaces, a very large folder | none | partial 10-13 (no git, spaces in the path) | T2 | A very large folder; non-ASCII paths; add an automated case | P0 |
-| UC-17 | Ctrl-C in the middle of a session leaves a consistent state | none | no | T2 | Test; `asp runs` should show it as stopped, the job should stay usable | P0 |
+| UC-17 | Ctrl-C in the middle of a session leaves a consistent state | packages/asp-cli/test/run-interrupt.test.ts | yes 10-13 (Claude Code, a 90-second command running) | T2 | none (found two defects, fixed in S123: the session stayed `running?` for ever and the agent's command lived on) | P0 |
 | UC-18 | Model provider errors (rate limit, bad key, outage) are reported plainly | packages/asp-package/test/gateway.test.ts | no | T2 | Add a session-level case with a 401 and a 429 | P1 |
 
 ## 3. Mandate, gating and approvals
@@ -297,6 +297,34 @@ Every row above is written from a person's side. A protocol for agents also has 
 
 **Perspective index.** Agent: UC-200 to UC-210. Principal: UC-211 to UC-214, and the earlier rows of sections 13 to 21. Work: UC-215 to UC-218.
 
+## 24. Where a failure sits on the flow
+
+Each thing found or fixed is placed on the flow: the **stage** a session is in and the **action** of the person or the agent at that moment. This is how the interruption cases are enumerated, so that a fix for one cell does not leave its neighbours unexamined. Rows with a UC id are in the tables above or below; "done" cells name the test.
+
+| Stage of a session | Action (who) | What must hold | Status |
+|---|---|---|---|
+| Starting (Mandate being made, tool launching) | Ctrl-C (person) | no half-made job or stray stop file; the next run starts clean | UC-219, untested |
+| Agent working, no command running | Ctrl-C (person) | the session is recorded as stopped; the job stays usable | done: UC-17 |
+| Agent running a long command (a build, a script) | Ctrl-C (person) | the command is ended with the session, not left running | done: UC-17 (Windows tree kill) |
+| A call held for approval | Ctrl-C (person) | the Checkpoint is closed, not left open for the 10-minute wait | UC-220, untested |
+| A call held for approval | no answer in time (person away) | expiry settles it; the agent is told once | done: UC-23, UC-25 (S118 to S121) |
+| Any | Ctrl-C twice | leaves at once, records the end | done: UC-17 (second press path, by code; not exercised live) |
+| Any | terminal closed or hung up (SIGHUP) | same as Ctrl-C | UC-221, by code, not exercised |
+| Any | process killed outright, power cut, crash | the session reads as interrupted, not running | done: UC-17 (`asp runs` says interrupted) |
+| Any | a second terminal starts a session for the same agent | the job and the one-open-Checkpoint rule hold | UC-138, untested |
+| Hooked runtime (Antigravity, OpenHands) | Ctrl-C (person) | the same, through the package path | UC-222, untested |
+| Interactive session (no prompt) | Ctrl-C (person) | Ctrl-C belongs to the tool (it usually means "cancel this answer"); the session must not end by accident | UC-223, untested |
+| Agent (its own code) | the agent starts a process that outlives it | that process is ended with the session | UC-224, Windows only so far (taskkill); macOS and Linux rely on the terminal's process group |
+
+| ID | Use case | Automated | Live | Gap | To-do | Pri |
+|---|---|---|---|---|---|---|
+| UC-219 | Ctrl-C while the session is still starting (before the tool launches) leaves no half-made state | none | no | T2 | Interrupt at each step of the start; check the standing job and the stop file | P1 |
+| UC-220 | Ctrl-C while a call is held for approval closes the Checkpoint | none | no | T2 | Run live with a gated command and press Ctrl-C at the prompt | P0 |
+| UC-221 | Closing the terminal window ends the session the same way | none | no | T2 | Try on Windows (closing the tab) and Linux | P1 |
+| UC-222 | Ctrl-C of a hooked runtime session (Antigravity, OpenHands) | none | no | T2 | Run with the real runtime | P1 |
+| UC-223 | Ctrl-C in an interactive session does not end the whole session by accident | none | no | T2 | Decide the behaviour (the tool usually claims Ctrl-C), then test it | P0 |
+| UC-224 | A process the agent started is ended with the session on macOS and Linux | none | no | T1 | Test on both; kill the process group if the terminal does not | P1 |
+
 ## Journey index
 
 Where a journey step is covered by a row earlier in the map:
@@ -347,5 +375,6 @@ The P0 rows above, in the order to do them: redeploy (UC-90) and re-run the live
 - A change that adds, removes or changes a use case updates its row in the same commit. A bug found live gets a new row or changes an existing one, and a row in the gaps register.
 - When something is run live, put the date in **Live** and say what was faked.
 - `packages/asp-cli/test/testing-map.test.ts` fails when a row names a test file or a gap that does not exist, uses a priority that is not P0, P1 or P2, names a gap that is not a row of the register, or repeats an ID.
+- Every bug found or fixed is placed on the flow (section 24): which stage of the session, and which action of the person or the agent. Fill in its neighbouring cells as rows, not only the one that was hit.
 - Review the P0 list at the start of each working day until the conference.
 - An Excel view (a summary driven by formulas, the use cases with filters, the gaps register, the analysis backlog) is made by `python evals/testing-map-to-xlsx.py out.xlsx`. The markdown stays the source of truth; regenerate the workbook when the map changes.

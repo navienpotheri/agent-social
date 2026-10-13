@@ -282,7 +282,13 @@
  *
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
-import { spawn, spawnSync } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+
+/** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
+function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
+  if (process.platform === "win32" && child.pid) { spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" }); return; }
+  child.kill(signal);
+}
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget, runtimeTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
@@ -2334,8 +2340,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         const grace = Number(io.env.ASP_GATEWAY_KILL_GRACE_MS) >= 0 && io.env.ASP_GATEWAY_KILL_GRACE_MS !== undefined ? Number(io.env.ASP_GATEWAY_KILL_GRACE_MS) : 5000;
         setTimeout(() => {
           if (child.exitCode !== null || child.signalCode !== null) return;
-          child.kill("SIGTERM");
-          setTimeout(() => { if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL"); }, 5000).unref();
+          killTree(child, "SIGTERM");
+          setTimeout(() => { if (child.exitCode === null && child.signalCode === null) killTree(child, "SIGKILL"); }, 5000).unref();
         }, grace).unref();
       };
       if (capturing) {
@@ -3946,7 +3952,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   if (!headless) { standing[key] = job; writeStanding(home, standing); }
   const sid = randomBytes(4).toString("hex");
   const stopFile = join(home, `stop-${sid}`);
-  sessionIndexAdd(home, { t: "start", sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
+  sessionIndexAdd(home, { t: "start", pid: process.pid, sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
   io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
   // The tool, through the gateway. A prompt runs once and its answer is shown as it comes; without one the tool is interactive.
@@ -4014,7 +4020,19 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
         { cwd: project, ...(io.raw ? { raw: io.raw } : {}) }, onGatewayLine);
     } finally { rmSync(pkgDir, { recursive: true, force: true }); }
   };
-  const gw = hooked ? await runHooked() : await quiet(["gateway", "--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  // Ctrl-C (or the terminal closing) ends the session the way `asp stop` does, so it is recorded as stopped, the agent's processes are ended and the stop file is removed; a second Ctrl-C leaves at once.
+  let interrupts = 0;
+  const onInterrupt = () => {
+    interrupts += 1;
+    if (interrupts === 1) { try { writeFileSync(stopFile, "interrupted\n"); } catch { /* the second Ctrl-C still leaves */ } io.err("  Ctrl-C: ending the session (press again to leave at once)"); return; }
+    sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state: "stopped", calls: 0, refused: [], tokens: 0, exitCode: 130 });
+    rmSync(stopFile, { force: true });
+    process.exit(130);
+  };
+  const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
+  for (const s of signals) process.on(s, onInterrupt);
+  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  for (const s of signals) process.off(s, onInterrupt);
   sessionOver = true;
   await asking;
   rmSync(capture, { force: true });
@@ -4257,7 +4275,7 @@ function readStanding(home: string): Record<string, StandingJob> { try { return 
 function writeStanding(home: string, s: Record<string, StandingJob>): void { mkdirSync(home, { recursive: true }); writeFileSync(standingPath(home), JSON.stringify(s, null, 2) + "\n"); }
 const standingKey = (agent: string, scopes: string[], hosts: string[], gate: string[] = []) => createHash("sha256").update(JSON.stringify(gate.length ? [agent, [...scopes].sort(), [...hosts].sort(), [...gate].sort()] : [agent, [...scopes].sort(), [...hosts].sort()])).digest("hex").slice(0, 16);
 
-interface SessionStart { t: "start"; sid: string; contract: string; at: string; runtime: string; agent: string; me: string; bank: string; purpose: string; scopes: string[]; hosts: string[] }
+interface SessionStart { t: "start"; /** The process of `asp run`, so a session whose process has gone without an end record can be called interrupted. */ pid?: number; sid: string; contract: string; at: string; runtime: string; agent: string; me: string; bank: string; purpose: string; scopes: string[]; hosts: string[] }
 interface SessionEnd { t: "end"; sid: string; contract: string; at: string; state: string; calls: number; refused: string[]; tokens: number; exitCode: number; stopped?: string; /** This session's own run log (a standing job has one per session). */ runLog?: string }
 const sessionIndexPath = (home: string) => join(home, "runs.ndjson");
 function sessionIndexAdd(home: string, rec: SessionStart | SessionEnd): void {
@@ -4280,13 +4298,16 @@ function sessionsOf(home: string): { start: SessionStart; end?: SessionEnd }[] {
 }
 const ago = (iso: string) => { const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000)); return s < 90 ? `${s}s ago` : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`; };
 
+function pidAlive(pid: number): boolean {
+  try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; }
+}
 /** asp runs [--all] | asp runs <id>: what your governed sessions did, and what was refused. */
 async function runsCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
   const all = sessionsOf(home);
   if (!id) {
     if (!all.length) { io.out("no sessions yet: asp run claude-code --prompt \"...\" starts one"); return 0; }
     for (const s of all.slice(0, v.all ? all.length : 15)) {
-      const state = s.end?.state ?? "running?";
+      const state = s.end?.state ?? (s.start.pid && !pidAlive(s.start.pid) ? "interrupted" : "running?");
       io.out(`  ${s.start.sid}  ${ago(s.start.at).padEnd(11)} ${s.start.runtime.padEnd(11)} ${state.padEnd(9)} ${s.end ? `${s.end.calls} calls, ${s.end.refused.length} refused` : "no end recorded"}  ${s.start.purpose.slice(0, 50)}`);
     }
     if (!v.all && all.length > 15) io.out(`  ... ${all.length - 15} older (asp runs --all)`);
@@ -4852,9 +4873,9 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
       killed = k;
       runLog?.event("kill", { scope: k.scope, reason: k.reason, message });
       io.err(`  KILL SWITCH  ${message}`);
-      child.kill("SIGTERM");
+      killTree(child, "SIGTERM");
       killTimer = setTimeout(() => {
-        if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+        if (child.exitCode === null && child.signalCode === null) killTree(child, "SIGKILL");
       }, KILL_GRACE_MS);
     };
     if (plan.checkOutputForFailure || plan.checkOutputForAction) {
@@ -4919,8 +4940,8 @@ async function runIn(pkgDir: string, home: string, backend: string, adapter: Run
       if (!existsSync(v["stop-file"]!) || child.exitCode !== null || child.signalCode !== null || killed) return;
       io.err("  stopped  stopped by you (asp stop)");
       runLog?.event("stopped", { reason: "stopped by you (asp stop)" });
-      child.kill("SIGTERM");
-      killTimer ??= setTimeout(() => { if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL"); }, KILL_GRACE_MS);
+      killTree(child, "SIGTERM");
+      killTimer ??= setTimeout(() => { if (child.exitCode === null && child.signalCode === null) killTree(child, "SIGKILL"); }, KILL_GRACE_MS);
     }, 300) : undefined;
     child.on("close", (c) => {
       if (stopWatch) clearInterval(stopWatch);
