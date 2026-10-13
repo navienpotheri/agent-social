@@ -305,3 +305,4 @@ The P0 rows above, in the order to do them: redeploy (UC-90) and re-run the live
 - When something is run live, put the date in **Live** and say what was faked.
 - `packages/asp-cli/test/testing-map.test.ts` fails when a row names a test file or a gap that does not exist, uses a priority that is not P0, P1 or P2, names a gap that is not a row of the register, or repeats an ID.
 - Review the P0 list at the start of each working day until the conference.
+- An Excel view (a summary driven by formulas, the use cases with filters, the gaps register, the analysis backlog) is made by `python evals/testing-map-to-xlsx.py out.xlsx`. The markdown stays the source of truth; regenerate the workbook when the map changes.
