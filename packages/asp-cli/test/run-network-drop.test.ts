@@ -72,6 +72,46 @@ test("the service is unreachable for a few seconds while a call is held for appr
   } finally { server.kill(); upstream.close(); }
 });
 
+test("you answer yes at the prompt while the service cannot be reached: the answer is kept and sent when it is back, and the call goes through", async () => {
+  const upstream = createHttp(async (req, res) => {
+    for await (const _ of req) { /* not inspected */ }
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ id: "msg", type: "message", role: "assistant", model: "m", stop_reason: "tool_use", usage: { input_tokens: 3, output_tokens: 2 }, content: [{ type: "text", text: "Running it." }, { type: "tool_use", id: "tu_1", name: "Bash", input: { command: "npm run build" } }] }));
+  });
+  await new Promise<void>((r) => upstream.listen(0, "127.0.0.1", r));
+  const upUrl = `http://127.0.0.1:${(upstream.address() as { port: number }).port}`;
+  const dir = mkdtempSync(join(tmpdir(), "asp-drop3-e2e-"));
+  const tokens = join(dir, "tokens.json");
+  writeFileSync(tokens, JSON.stringify([{ name: "drop", role: "tenant", tokenSha256: hashToken("tok-d") }]));
+  const port = await freePort();
+  let server = await startService(dir, tokens, port);
+  try {
+    const f = makeFixture();
+    const project = join(f.root, "project"); mkdirSync(project, { recursive: true });
+    mkdirSync(f.aspHome, { recursive: true });
+    const me = `did:web:127.0.0.1%3A${port}:u:drop`, agent = `did:web:127.0.0.1%3A${port}:a:drop:my-agent`, bank = `did:web:127.0.0.1%3A${port}:u:drop:bank`;
+    writeFileSync(join(f.aspHome, "config.json"), JSON.stringify({ service: `http://127.0.0.1:${port}`, token: "tok-d", tenant: "drop", joinedAt: "2026-10-11T00:00:00Z", identities: { me, agent, bank } }));
+    const env = { ASP_HOME: f.aspHome, ASP_CLAUDE_BIN: process.execPath, ASP_CLAUDE_SCRIPT: fakeClaude, ASP_RUN_ANTHROPIC_UPSTREAM: upUrl, ASP_APPROVAL_POLL_MS: "150", ASP_GATEWAY_POLL_MS: "300" };
+    const call = async (args: string[], ask?: (q: string) => Promise<string>) => {
+      const out: string[] = [], err: string[] = [];
+      const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env, cwd: f.root, raw: (b) => out.push(b.toString("utf8").trimEnd()), ...(ask ? { ask } : {}) } as Io);
+      return { code, out: out.join("\n"), err: err.join("\n") };
+    };
+    for (const a of [["identity", "new", "--kind", "human", "--me", "--no-recovery"], ["identity", "new", "--kind", "agent", "--name", "my-agent", "--sponsor", me, "--purpose", "Test"], ["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]]) assert.equal((await call(a)).code, 0);
+    // The wifi drops just as you type y: the service goes away while the prompt is open, and comes back a few seconds later.
+    const done = await call(["run", "claude-code", "--prompt", "Build it", "--project", project, "--ask", "commands"], async () => {
+      server.kill();
+      setTimeout(() => { void startService(dir, tokens, port).then((s) => { server = s; }); }, 4000);
+      await sleep(500);
+      return "y";
+    });
+    assert.equal(done.code, 0, done.err + done.out);
+    assert.match(done.err, /your answer \(yes\) is kept: the log service cannot be reached/, done.err);
+    assert.match(done.err, /your answer was recorded/, done.err);
+    assert.match(done.out, /agent received: text, tool_use:Bash/, "the call went through once the answer was recorded\n" + done.err);
+  } finally { server.kill(); upstream.close(); }
+});
+
 test("the service drops during an ordinary session and stays down until it ends: the session still ends cleanly and says what could not be recorded, and the next session works once the service is back", async () => {
   const dir = mkdtempSync(join(tmpdir(), "asp-drop2-e2e-"));
   const tokens = join(dir, "tokens.json");

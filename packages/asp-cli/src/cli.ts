@@ -4020,7 +4020,15 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
         io.err(`  remembered: ${ids!.agent.split(":").slice(-1)[0]} may run that exact command without asking (asp approvals always lists them; asp approvals forget removes them)`);
       }
       const yes = always || /^y(es)?$/i.test(answer.trim());
-      const r = await quiet(["market", "resolve", "--contract", job!.contract, "--by", ids!.me, "--verdict", yes ? "approved" : "corrected", ...(yes ? [] : ["--correction", "refused by you"])]);
+      const resolveArgs = ["market", "resolve", "--contract", job!.contract, "--by", ids!.me, "--verdict", yes ? "approved" : "corrected", ...(yes ? [] : ["--correction", "refused by you"])];
+      let r = await quiet(resolveArgs);
+      // The wifi is down when you answer (found live, UC-35): the answer is kept and sent when the connection is back, for as long as the session is waiting, not lost.
+      if (r.code && /cannot reach/i.test(r.err + r.out)) {
+        io.err(`  your answer (${yes ? "yes" : "no"}) is kept: the log service cannot be reached; it is sent as soon as the connection is back`);
+        const everyMs = Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Math.max(Number(io.env.ASP_APPROVAL_POLL_MS), 2000) : 3000;
+        while (r.code && /cannot reach/i.test(r.err + r.out) && !sessionOver) { await new Promise((res) => setTimeout(res, everyMs)); r = await quiet(resolveArgs); }
+        if (!r.code) io.err("  your answer was recorded");
+      }
       if (r.code) io.err(`  could not record your answer: ${(r.err || r.out).trim().slice(0, 200)}`);
     });
   };
