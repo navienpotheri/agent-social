@@ -536,6 +536,8 @@ sv("action_blocked_attempt_zero_count", "action", { contract: fakeId("c"), scope
 sv("action_blocked_attempt_missing_count", "action", { contract: fakeId("c"), scopes_used: [], blocked_attempts: [{ scope: "shell.exec" }] }, false);
 sv("valid_action_with_assurance", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], assurance: "gateway_enforced" }, true);
 sv("action_unknown_assurance", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], assurance: "trust_me" }, false);
+sv("valid_action_sub_agents_shared", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], assurance: "hook_enforced", sub_agents: "shared_identity" }, true);
+sv("action_unknown_sub_agents", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], sub_agents: "separate_keys" }, false);
 sv("valid_action_with_metrics", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], metrics: { models: [{ name: "gpt-oss-120b", provider: "api.groq.com" }], requests: 3, tool_calls: 2, tokens_in: 1200, tokens_out: 340, seconds: 9 } }, true);
 sv("action_metrics_negative_tokens", "action", { contract: fakeId("c"), scopes_used: [], metrics: { tokens_in: -1 } }, false);
 sv("action_metrics_unknown_field", "action", { contract: fakeId("c"), scopes_used: [], metrics: { dollars: 2 } }, false);

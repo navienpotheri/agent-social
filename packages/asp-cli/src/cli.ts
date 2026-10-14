@@ -394,6 +394,7 @@ const OPTIONS = {
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
   assurance: { type: "string" },
+  "sub-agents": { type: "string" },
   metrics: { type: "string" },
   mcp: { type: "string", multiple: true },
   "ask-match": { type: "string", multiple: true },
@@ -2360,6 +2361,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       ...d.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
       "--metrics", JSON.stringify(d.metrics),
       ...(runLog ? (() => { const a = runLogArtifact(runLog.head()); return ["--artifact", `${a.uri}=${a.sha256}`]; })() : []),
+      ...(v["sub-agents"] ? ["--sub-agents", v["sub-agents"]] : []),
       "--assurance", sandbox ? "sandbox_enforced" : s.toolCalls > 0 ? "gateway_enforced" : "gateway_observed", "--summary", `ASP gateway (${sandbox ? "sandbox-enforced: the agent ran in a sandbox whose only way out was the gateway" : s.toolCalls > 0 ? "gateway-enforced" : "gateway-observed: no structured tool calls passed through, so nothing could be enforced"}, ${why}): ${s.requests} request(s) so far, ${s.tokens.input + s.tokens.output} tokens, ${s.strikes} blocked${s.stopped ? `; stopped: ${s.stopped}` : ""}`];
     const out: string[] = [];
     let rc = await main(args, { out: (l) => out.push(l), err: (l) => out.push(l), env: io.env, cwd: io.cwd });
@@ -3624,6 +3626,10 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       if (!["self_reported", "runtime_observed", "gateway_observed", "gateway_enforced", "hook_enforced", "sandbox_enforced"].includes(v.assurance)) throw new UsageError("--assurance is self_reported, runtime_observed, gateway_observed, gateway_enforced, hook_enforced or sandbox_enforced");
       body.assurance = v.assurance;
     }
+    if (v["sub-agents"] !== undefined) {
+      if (v["sub-agents"] !== "shared_identity") throw new UsageError("--sub-agents is shared_identity (the runtime ran helpers of its own that this report cannot tell apart)");
+      body.sub_agents = "shared_identity";
+    }
     if (v.summary) body.summary = v.summary;
     // A late report (S80): the last stretch of activity, made after the job ended; the log accepts it only on a settled job, soon after, for activity up to the end.
     if (v.late) body.late = { activity_ended: v.late };
@@ -4183,7 +4189,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
-  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
   await asking;
@@ -5282,7 +5288,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
       const action = createRecord({
         type: "action", issuer: agent, subject: v.contract!, prev: null, issued_at: now(),
         body: {
-          contract: v.contract!, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", summary: `${backend} run, ${runDir}, killed mid-run`,
+          contract: v.contract!, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", ...(backend === "claude-code" ? { sub_agents: "shared_identity" } : {}), summary: `${backend} run, ${runDir}, killed mid-run`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
           ...(artifactsSeen.length || runLog ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : [])] } : {}),
           ...(rateLimited ? { metrics: { rate_limited: rateLimited } } : {}),
@@ -5312,7 +5318,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
       const action = createRecord({
         type: "action", issuer: agent, subject: v.contract, prev: null, issued_at: now(),
         body: {
-          contract: v.contract, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", summary: `${backend} run, ${runDir}`,
+          contract: v.contract, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", ...(backend === "claude-code" ? { sub_agents: "shared_identity" } : {}), summary: `${backend} run, ${runDir}`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
           ...(artifactsSeen.length || runLog ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : [])] } : {}),
           ...(rateLimited ? { metrics: { rate_limited: rateLimited } } : {}),

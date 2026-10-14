@@ -84,6 +84,7 @@ test("a gated call is held, raised as a Checkpoint, and runs only once the princ
   assert.match(res.err, /APPROVAL NEEDED\s+shell\.exec: echo spike > marker\.txt/);
   assert.match(res.err, /approval granted for shell\.exec/);
   assert.doesNotMatch(res.err, /KILL SWITCH|strike|did not run/);
+  assert.equal(((await actionBody(f, res.err)) as { sub_agents?: string }).sub_agents, "shared_identity", "a Claude Code run says its own helpers share this identity (T22, S139)");
   assert.deepEqual((await actionBody(f, res.err)).scopes_used, ["repo.read", "shell.exec"]);
   assert.equal(await stateOf(f, job.id), "Running", "the resolution returned the job to Running");
 });

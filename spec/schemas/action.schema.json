@@ -18,6 +18,10 @@
       "description": "How strong the evidence behind this Action is, the strongest mechanism that applied: self_reported (the agent signed its own report), runtime_observed (the run's output was parsed as it happened; a violation is detected and stopped, not prevented), gateway_observed (a gateway saw the traffic but could not refuse), gateway_enforced (tool calls were checked and refused before the agent received them), hook_enforced (the runtime's own pre-call hook blocked disallowed calls), sandbox_enforced (the process ran in a sandbox with egress rules). Absent means unspecified. Lets a principal or a Court weigh the Action.",
       "enum": ["self_reported", "runtime_observed", "gateway_observed", "gateway_enforced", "hook_enforced", "sandbox_enforced"]
     },
+    "sub_agents": {
+      "description": "Whether the runtime ran helpers of its own (parallel agents inside Claude Code, say) that this report cannot tell apart: shared_identity means every call in this Action is signed as one identity although more than one agent may have made them, so the report is coarser than its assurance suggests. Absent means nothing is claimed either way. Helpers run as protocol nodes (asp orchestrate) have keys of their own and are not marked this way. A label for a reader; it grants nothing.",
+      "enum": ["shared_identity"]
+    },
     "metrics": {
       "description": "What this stretch of the run cost and what ran, measured by whoever observed it (see assurance): the models the agent called, how many model requests and tool calls, tokens in and out, and seconds. A gateway counts from the traffic it relayed; a self-report is the agent's own figure. Counts are for this Action only (the interval since the previous Action of the run), so a trend adds them up. The model name is what the provider was asked for; a digest is recorded only when the provider reports one.",
       "type": "object",
