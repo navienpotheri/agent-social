@@ -4982,6 +4982,9 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
 
   const loop = (async () => {
     mkdirSync(o.dir, { recursive: true });
+    // A run folder is named to the second, so a run that starts in the same second as an earlier one shares its approvals folder: a decision left there (a command this server let through
+    // unasked) would answer the new run's request with a yes that nobody gave (found by CI on Linux, where the two runs fall in one second). Decisions are only ever written after this point.
+    for (const f of readdirSync(o.dir)) if (f.endsWith(".decision.json") || f.endsWith(".decision.tmp")) { try { rmSync(join(o.dir, f), { force: true }); } catch { /* already gone */ } }
     while (!stopped) {
       const files = readdirSync(o.dir).filter((f) => f.endsWith(".request.json")).sort();
       for (const f of files) {
