@@ -97,15 +97,62 @@ jobs:
       - run: npm test -w @agent-social/asp-log
       - run: npm test -w @agent-social/asp-cli
 
+  # The first minutes on each common machine and shell (docs/live-run-clean-install.md; UC-226, UC-227, UC-02): a fresh checkout, install, help, a question in words, a governed local session whose
+  # network call is refused with how to allow it, and the history, with stand-ins for the model and Claude Code. macOS and zsh are here because most developers at a conference have them.
+  # It does not test the Google sign-in or a real agent: those are tried by hand.
+  smoke:
+    name: first minutes (${{ matrix.os }}, ${{ matrix.shell }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, shell: bash, run: bash }
+          - { os: macos-latest, shell: bash, run: bash }
+          - { os: macos-latest, shell: zsh, run: "zsh {0}" }
+          - { os: windows-latest, shell: bash, run: bash }
+          - { os: windows-latest, shell: pwsh, run: pwsh }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18
+      - run: npm ci
+        shell: ${{ matrix.run }}
+      - name: The first minutes
+        run: node evals/smoke-first-minutes.mjs
+        shell: ${{ matrix.run }}
+      # `npm link` is what makes plain `asp` a command (README). It depends on where the machine keeps global packages, so it is tried here without failing the job.
+      - name: asp as a command (npm link)
+        continue-on-error: true
+        working-directory: packages/asp-cli
+        run: |
+          npm link
+          asp help
+        shell: ${{ matrix.run }}
+
+  # An old Node must get one clear sentence, not "Unknown file extension .ts" (UC-02). Node 20 is the one most people still have.
+  old-node:
+    name: old Node (20)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node evals/smoke-first-minutes.mjs --old-node
+
   # One check to require. The matrix jobs have many names (node (windows-latest, node 22.18), ...), so branch protection requires this single, stable one:
   # it passes only when every job above passed. Settings > Branches > main > required status checks: all-green.
   all-green:
     name: all-green
     if: always()
-    needs: [node, python, postgres]
+    needs: [node, python, postgres, smoke, old-node]
     runs-on: ubuntu-latest
     steps:
       - name: Every job passed
         run: |
-          echo "node: ${{ needs.node.result }}, python: ${{ needs.python.result }}, postgres: ${{ needs.postgres.result }}"
-          test "${{ needs.node.result }}" = "success" && test "${{ needs.python.result }}" = "success" && test "${{ needs.postgres.result }}" = "success"
+          echo "node: ${{ needs.node.result }}, python: ${{ needs.python.result }}, postgres: ${{ needs.postgres.result }}, smoke: ${{ needs.smoke.result }}, old-node: ${{ needs.old-node.result }}"
+          test "${{ needs.node.result }}" = "success" && test "${{ needs.python.result }}" = "success" && test "${{ needs.postgres.result }}" = "success" && test "${{ needs.smoke.result }}" = "success" && test "${{ needs.old-node.result }}" = "success"
