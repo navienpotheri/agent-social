@@ -104,6 +104,9 @@ jobs:
     name: first minutes (${{ matrix.os }}, ${{ matrix.shell }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
+    defaults:
+      run:
+        shell: ${{ matrix.run }}
     strategy:
       fail-fast: false
       matrix:
@@ -119,10 +122,8 @@ jobs:
         with:
           node-version: 22.18
       - run: npm ci
-        shell: ${{ matrix.run }}
       - name: The first minutes
         run: node evals/smoke-first-minutes.mjs
-        shell: ${{ matrix.run }}
       # `npm link` is what makes plain `asp` a command (README). It depends on where the machine keeps global packages, so it is tried here without failing the job.
       - name: asp as a command (npm link)
         continue-on-error: true
@@ -130,7 +131,6 @@ jobs:
         run: |
           npm link
           asp help
-        shell: ${{ matrix.run }}
 
   # An old Node must get one clear sentence, not "Unknown file extension .ts" (UC-02). Node 20 is the one most people still have.
   old-node:
