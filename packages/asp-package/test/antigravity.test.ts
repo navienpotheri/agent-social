@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { agyActionParser, agyFailure, scopeForAgyTool } from "../src/adapters/antigravity.ts";
+import { agyActionParser, agyFailure, agyReadable, scopeForAgyTool } from "../src/adapters/antigravity.ts";
 
 test("agy tools map to scopes: reads, writes, web, shell by what the command does, bookkeeping none, unknown fails safe", () => {
   assert.equal(scopeForAgyTool("view_file", { AbsolutePath: "/p/a.ts" }), "repo.read");
@@ -45,4 +45,22 @@ test("a result with status ERROR is a failed run even though agy may exit 0", ()
   assert.match(agyFailure(JSON.stringify({ event: "result", result: { status: "ERROR", error: "quota" } }))!, /ERROR: quota/);
   assert.equal(agyFailure(JSON.stringify({ event: "result", result: { status: "SUCCESS" } })), undefined);
   assert.equal(agyFailure("plain text"), undefined);
+});
+
+// Found in the owner's live run (UC-13): about thirty lines of agy's JSON events were printed to the terminal, and agy's own headless denial was a line in the middle of them.
+test("agy's event stream is shown as readable lines: the answer, a failed tool in a short line, and a note when headless mode denied a command; other events show nothing", () => {
+  const init = JSON.stringify({ event: "init", init: { cwd: "C:\\x", tools: ["list_dir"] } });
+  const done = JSON.stringify({ event: "step_update", step_update: { state: "DONE", step_type: "agent_response", usage: { total_tokens: 5 } } });
+  const active = JSON.stringify({ event: "step_update", step_update: { state: "ACTIVE", step_type: "tool", tool_name: "run_command" } });
+  const failed = JSON.stringify({ event: "step_update", step_update: { state: "ERROR", step_type: "tool", tool_name: "run_command", error: { type: "TOOL_ERROR", message: "permission check failed for command Get-ChildItem -Force: user denied permission to run command\nDo not attempt to circumvent this denial" } } });
+  for (const quiet of [init, done, active, "", "   "]) assert.equal(agyReadable(quiet), undefined, quiet);
+  assert.equal(agyReadable(failed), "  agy      run_command failed: user denied permission to run command");
+  const note = agyReadable('jetski: no output produced — a tool required the "command" permission that headless mode cannot prompt for, so it was auto-denied. Add an allow-rule');
+  assert.match(note!, /note\s+agy's headless mode cannot ask you/);
+  assert.match(note!, /ASP_ANTIGRAVITY_ARGS=--dangerously-skip-permissions/);
+  const answered = JSON.stringify({ event: "result", result: { status: "SUCCESS", response: "There are 3 files.", denied_actions: [] } });
+  assert.equal(agyReadable(answered), "There are 3 files.");
+  const denied = JSON.stringify({ event: "result", result: { status: "SUCCESS", response: "", denied_actions: [{ action: "command", display_name: "RunCommand" }] } });
+  assert.equal(agyReadable(denied), "  note     agy's own permission check denied: RunCommand");
+  assert.equal(agyReadable("plain text from agy"), "plain text from agy", "anything that is not an event passes as it is");
 });

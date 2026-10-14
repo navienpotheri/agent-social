@@ -5181,8 +5181,16 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
     };
     if (plan.checkOutputForFailure || plan.checkOutputForAction) {
       let carry = "";
+      let shownCarry = "";
       child.stdout!.on("data", (chunk: Buffer) => {
-        (io.raw ?? ((c: Buffer) => process.stdout.write(c)))(chunk);
+        const show = io.raw ?? ((c: Buffer) => process.stdout.write(c));
+        // A runtime whose output is an event stream (agy) is shown as readable lines, not as JSON; ASP_RAW_OUTPUT=1 shows it unchanged.
+        if (plan.readableOutput && !io.env.ASP_RAW_OUTPUT) {
+          shownCarry += chunk.toString("utf8");
+          const shownLines = shownCarry.split("\n");
+          shownCarry = shownLines.pop() ?? "";
+          for (const l of shownLines) { const r = plan.readableOutput(l); if (r !== undefined) show(Buffer.from(r + "\n")); }
+        } else show(chunk);
         carry += chunk.toString("utf8");
         const lines = carry.split("\n");
         carry = lines.pop() ?? "";
