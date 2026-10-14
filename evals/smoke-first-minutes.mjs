@@ -55,6 +55,12 @@ try {
   check("a local session runs and finishes (no account, no service)", session.code === 0 && /Session summary[\s\S]*finished/.test(text), text);
   check("the network call is refused before the agent sees it", /refused\s+Bash -> shell\.network/.test(text) && !/tool_use:Bash/.test(text), text);
   check("the refusal says how to allow it, with the host", /to allow\s+this session has no network/.test(text) && /--allow-network example\.com/.test(text), text);
+  // A project folder with spaces and characters outside ASCII in its path (UC-16) is an ordinary folder.
+  const odd = join(home, "my projéct ñ 日本");
+  mkdirSync(odd, { recursive: true });
+  const oddSession = await run(["run", "claude-code", "--local", "--prompt", "Fetch it", "--project", odd], { ...env, ASP_CLAUDE_BIN: process.execPath, ASP_CLAUDE_SCRIPT: FAKE_CLAUDE, ASP_RUN_ANTHROPIC_UPSTREAM: upUrl });
+  const oddText = oddSession.out + "\n" + oddSession.err;
+  check("a project folder with spaces and non-ASCII characters in its path runs the same", oddSession.code === 0 && /Session summary[\s\S]*finished/.test(oddText) && /refused\s+Bash -> shell\.network/.test(oddText), oddText);
   const runs = await run(["runs"], { ...env, ASP_HOME: join(home, "local") });
   check("asp runs lists the session and what was refused", runs.code === 0 && /claude-code\s+ended\s+1 calls, 1 refused/.test(runs.out), runs.out + runs.err);
 } finally { upstream.close(); }
