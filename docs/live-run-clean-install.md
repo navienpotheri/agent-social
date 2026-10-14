@@ -17,6 +17,7 @@ Use a machine or user account that has never had this repository, Node 22.18 or 
    ```bash
    npm run asp -- help
    ```
+   Optional: `cd packages/asp-cli && npm link && cd ../..` makes `asp` a command on your path, so the messages that say `asp stop` work as written; without it every command is typed `npm run asp -- ...`. Note whether `npm link` worked, and which form you used.
 3. Sign up (opens the browser for Google sign-in; on Ubuntu without a desktop it prints a link to open on another machine).
    ```bash
    npm run asp -- join

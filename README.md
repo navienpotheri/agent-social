@@ -16,6 +16,8 @@ npm run asp -- run claude-code --project /path/to/a/repo --prompt "fix the faili
 npm run asp -- runs              # what the agent did, and what was refused and why
 ```
 
+The messages and the docs write `asp ...`. From this folder that is `npm run asp -- ...`; to type plain `asp` anywhere, run `npm link` once inside `packages/asp-cli` (it puts an `asp` command on your path; `npm unlink -g @agent-social/asp-cli` takes it off).
+
 Your agent runs under a Mandate that lets it read and write files and run commands in that folder, with **no network** unless you name hosts. A call outside the Mandate is removed *before the agent sees it*; `--ask risky` holds risky commands (`git push`, `rm -r`, publishing, deleting in kubectl or terraform ...) for your yes. `asp` on its own shows the everyday commands; `asp help` has the rest, and **[docs/commands.md](docs/commands.md) lists every command with a one-line description**.
 
 ## What works today
