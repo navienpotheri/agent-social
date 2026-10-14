@@ -360,7 +360,11 @@ async function askPrincipal(root, event, scope, waitSeconds) {
     if (existsSync(decisionFile)) {
       let decision;
       try { decision = JSON.parse(readFileSync(decisionFile, "utf8")); } catch { decision = undefined; } // half written: read it again on the next poll
-      if (decision) return decision.approved === true ? { approved: true } : { approved: false, reason: decision.reason };
+      if (decision) {
+        // The decision is used once: it is removed when read, so a later request with the same id (two runs started in the same second share a folder) cannot be answered by it.
+        try { rmSync(decisionFile, { force: true }); } catch { /* the answer stands whether or not it could be removed */ }
+        return decision.approved === true ? { approved: true } : { approved: false, reason: decision.reason };
+      }
     }
     await new Promise((r) => setTimeout(r, poll));
   }
