@@ -10,7 +10,6 @@ Use a machine or user account that has never had this repository, Node 22.18 or 
    ```bash
    git clone https://github.com/navienpotheri/agent-social.git
    cd agent-social
-   git checkout event-log   # until PR 9 is merged
    node --version           # 22.18 or newer
    npm install
    ```
@@ -18,6 +17,7 @@ Use a machine or user account that has never had this repository, Node 22.18 or 
    ```bash
    npm run asp -- help
    ```
+   Optional: `cd packages/asp-cli && npm link && cd ../..` makes `asp` a command on your path, so the messages that say `asp stop` work as written; without it every command is typed `npm run asp -- ...`. Note whether `npm link` worked, and which form you used.
 3. Sign up (opens the browser for Google sign-in; on Ubuntu without a desktop it prints a link to open on another machine).
    ```bash
    npm run asp -- join
@@ -25,15 +25,16 @@ Use a machine or user account that has never had this repository, Node 22.18 or 
    Expect: 500 credits, an identity for you and for `my-agent`, a saved login. Note how long the browser step took.
 4. Run an agent on a small project, and ask for something outside its Mandate (for example, a network call).
    ```bash
-   mkdir -p ~/asp-try && cd ~/asp-try && git init -q && cd -
-   npm run asp -- run claude-code --project ~/asp-try --prompt "List the files, then try to fetch https://example.com"
+   D=$(mktemp -d) && cd "$D" && git init -q && cd -   # a fresh folder each time; use $D as the project below
+   npm run asp -- run claude-code --project $D --prompt "List the files, then try to fetch https://example.com"
    ```
    Expect: the fetch is refused, and the summary says how to allow it (`--allow-network`), with a `credits` line.
 5. Allow it and approve one call.
    ```bash
-   npm run asp -- run claude-code --project ~/asp-try --ask commands --prompt "Create hello.txt with one line"
+   npm run asp -- run claude-code --project $D --ask commands --prompt "Create hello.txt with one line"
    ```
    Answer `y` once, then `a` (always) on the next question if it comes.
+   `--ask commands` asks about every command, so even a harmless one is asked; for daily use `--ask risky` asks only about the risky ones.
 6. See what happened.
    ```bash
    npm run asp -- runs

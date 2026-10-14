@@ -1535,7 +1535,9 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
     } else io.out(`  Check later that you wrote it correctly: asp identity recovery-check ${me}`);
   }
   io.out("");
-  io.out("Next: asp run claude-code --prompt \"...\" runs Claude Code as your agent under the protocol. asp account show says what you have.");
+  // From a fresh clone there is no `asp` on the path: the command is typed as `npm run asp -- ...` (found in the clean-clone run).
+  const asp = io.env.npm_lifecycle_event === "asp" ? "npm run asp --" : "asp";
+  io.out(`Next: ${asp} run claude-code --prompt "..." runs Claude Code as your agent under the protocol. ${asp} account show says what you have.${asp === "asp" ? "" : " (From this folder every command starts with npm run asp -- )"}`);
   return 0;
 }
 
@@ -4240,10 +4242,11 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   for (const r of refused.slice(0, 5)) io.out(`  refused  ${r}`);
   if (refused.length > 5) io.out(`  ... and ${refused.length - 5} more`);
   // A refusal with no way forward is where a newcomer gets stuck (found in the owner's live run, UC-137): say how to allow it. A network refusal names the host the command used.
-  if (refused.some((r) => /shell\.network|network/i.test(r))) {
+  // (a fetch or a search through the agent's own web tool is the same case: scope web.read, found in the clean-clone run)
+  if (refused.some((r) => /shell\.network|network|web\.(read|fetch|search)/i.test(r))) {
     let host: string | undefined;
     try {
-      const refusedCall = runLogPath ? readRunLog(runLogPath).events.find((e) => e.kind === "tool_call" && e.data?.allowed === false && /network/.test(String(e.data?.scope ?? ""))) : undefined;
+      const refusedCall = runLogPath ? readRunLog(runLogPath).events.find((e) => e.kind === "tool_call" && e.data?.allowed === false && /network|web\./.test(String(e.data?.scope ?? ""))) : undefined;
       host = /(?:https?:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?::\d+)?/i.exec(String(refusedCall?.data?.input ?? ""))?.[1];
     } catch { /* the generic line is enough */ }
     io.out("  to allow  this session has no network. To let it reach a host, name it:");
