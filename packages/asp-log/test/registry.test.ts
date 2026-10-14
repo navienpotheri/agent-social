@@ -239,6 +239,39 @@ for (const h of [memory, postgres] as Harness[]) {
       await rejects(log.append(byPrincipal), "WRONG_ISSUER");
     });
 
+    // Gap T22: what stops a holder minting keys without end.
+    test("churning grants under a Mandate never exceeds max_parallel live nodes; revoking frees a slot at once", async () => {
+      const clock = { now: "2026-10-01T10:00:00Z" };
+      const log = await jobLog(clock);
+      const max = (mandate.body as any).nodes.max_parallel as number;
+      const granted: { key: Signer; id: string }[] = [];
+      for (let n = 1; n <= max; n++) { const key = nodeKey(n); granted.push({ key, id: (await log.append(grant(key, "2026-10-01T10:00:00Z", "2026-10-01T11:00:00Z"))).id }); }
+      for (let n = max + 1; n <= max + 20; n++) await rejects(log.append(grant(nodeKey(n), "2026-10-01T10:01:00Z", "2026-10-01T11:00:00Z")), "GUARD_FAILED", "node_max_parallel");
+      // Revoking one (a chained grant that ends now) frees exactly one slot.
+      await log.append(grant(granted[0].key, "2026-10-01T10:02:00Z", "2026-10-01T10:02:00Z", { prev: granted[0].id }));
+      await log.append(grant(nodeKey(500), "2026-10-01T10:03:00Z", "2026-10-01T11:00:00Z"));
+      await rejects(log.append(grant(nodeKey(501), "2026-10-01T10:04:00Z", "2026-10-01T11:00:00Z")), "GUARD_FAILED", "node_max_parallel");
+    });
+
+    test("grants under no Mandate are not capped in number, but none of those keys can sign for a contract", async () => {
+      const clock = { now: "2026-10-01T10:00:00Z" };
+      const log = await jobLog(clock);
+      const keys = Array.from({ length: 25 }, (_, n) => nodeKey(100 + n));
+      for (const key of keys) await log.append(grant(key, "2026-10-01T10:00:00Z", "2026-10-01T11:00:00Z", { mandate: null }));
+      // The only limits on how many are the tenant's record quota and rate limit (the service's), which the log itself does not apply.
+      await rejects(log.append(delivery(keys[0], keys[0].kid, "2026-10-01T10:10:00Z")), "GUARD_FAILED", "node_no_mandate");
+      await rejects(log.append(delivery(keys[24], keys[24].kid, "2026-10-01T10:10:00Z")), "GUARD_FAILED", "node_no_mandate");
+    });
+
+    test("one public key cannot be registered under two node ids", async () => {
+      const clock = { now: "2026-10-01T10:00:00Z" };
+      const log = await jobLog(clock);
+      const first = nodeKey(1);
+      await log.append(grant(first, "2026-10-01T10:00:00Z", "2026-10-01T11:00:00Z"));
+      const twin: Signer = { kid: `${coder.did}#node-2`, seed: first.seed };
+      await rejects(log.append(grant(twin, "2026-10-01T10:00:00Z", "2026-10-01T11:00:00Z")), "GUARD_FAILED", "node_key_reused");
+    });
+
     test("a Mandate's max_parallel caps live nodes; expired nodes free their slot", async () => {
       const clock = { now: "2026-10-01T10:00:00Z" };
       const log = await jobLog(clock);

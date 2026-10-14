@@ -387,6 +387,8 @@ export class EventLog {
       throw rule("node_chain_start", `the first grant for ${body.node} must start its own chain (prev: null)`);
     }
     if (!existing && !after(body.expires, r.issued_at)) throw rule("node_ttl", "a node must expire after it is granted");
+    // One public key is one key id (gap T22, S138): the same key under a second node id, or a node reusing one of the person's own keys, would let a node pass as something it is not.
+    if (!existing && (await tx.keysForDid(r.issuer)).some((k) => k.publicKey === body.public_key)) throw rule("node_key_reused", `the public key of ${body.node} is already registered under ${r.issuer}`);
     if (Date.parse(body.expires) - Date.parse(r.issued_at) > this.maxNodeTtlMs) {
       throw rule("node_ttl", `a node may live at most ${this.maxNodeTtlMs / 3_600_000} hours`);
     }
@@ -397,7 +399,8 @@ export class EventLog {
       const mandate = m.record.body as { expires: string; nodes: { max_parallel: number } };
       if (m.record.subject !== r.issuer) throw rule("node_mandate_subject", `the Mandate was issued to ${m.record.subject}, not ${r.issuer}`);
       if (after(body.expires, mandate.expires)) throw rule("node_outlives_mandate", `the Mandate expires at ${mandate.expires}`);
-      const live = (await tx.nodeKeysForMandate(body.mandate)).filter((k) => after(k.expiresAt!, r.issued_at));
+      // The node itself is not counted against its own slot: a node at the limit can still be revoked, rotated or extended.
+      const live = (await tx.nodeKeysForMandate(body.mandate)).filter((k) => k.kid !== body.node && after(k.expiresAt!, r.issued_at));
       if (live.length >= mandate.nodes.max_parallel) {
         throw rule("node_max_parallel", `the Mandate allows ${mandate.nodes.max_parallel} parallel nodes`);
       }
