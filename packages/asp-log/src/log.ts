@@ -133,6 +133,7 @@ export class EventLog {
     const { resolve, rows } = await this.resolverFor(tx, r, type);
     const verified = verifyRecord(r, resolve, this.schemas);
     this.checkKeyUse(verified, type!, rows, appendedAt);
+    await this.checkNodeContract(tx, verified, rows);
 
     // Chain placement: a new chain, or the successor of its chain's head.
     let chain: ChainRow | undefined;
@@ -214,6 +215,21 @@ export class EventLog {
     }
     const resolve: KeyResolver = (kid) => found.get(kid) ?? this.fallback?.(kid);
     return { resolve, rows };
+  }
+
+  /**
+   * A node key that signs for a contract must be tied to that contract's own Mandate (gap T22, S137): a node with no Mandate is bookkeeping only (asp orchestrate outside a contract), and a node
+   * granted under one contract's Mandate cannot sign for another. Without this a short-lived key could be granted outside any limits, or carried to a job it was never meant for.
+   */
+  private async checkNodeContract(tx: LogTx, r: AspRecord, rows: Map<string, KeyRow>): Promise<void> {
+    const signer = rows.get(r.sig.kid);
+    if (signer?.kind !== "node") return;
+    const contract = (r.body as { contract?: unknown }).contract;
+    if (typeof contract !== "string") return;
+    if (!signer.mandate) throw rule("node_no_mandate", `node key ${r.sig.kid} was granted under no Mandate, so it cannot sign for the contract ${contract}`);
+    const m = await tx.getRecord(signer.mandate);
+    const mandatedContract = (m?.record.body as { contract?: string } | undefined)?.contract;
+    if (mandatedContract !== contract) throw rule("node_wrong_contract", `node key ${r.sig.kid} was granted under the Mandate of ${mandatedContract ?? "another contract"}, so it cannot sign for ${contract}`);
   }
 
   /** A node key signs only as its own node, only while it is live, never identity records, never as a co-signer. */

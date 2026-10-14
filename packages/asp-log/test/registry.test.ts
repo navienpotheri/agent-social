@@ -213,6 +213,21 @@ for (const h of [memory, postgres] as Harness[]) {
       await rejects(log.append(delivery(n7, n7.kid, "2026-10-01T11:59:00Z")), "GUARD_FAILED", "node_key_expired");
     });
 
+    // Gap T22 / S137: a node key signing for a contract must be tied to that contract's own Mandate.
+    test("a node granted under no Mandate cannot sign for a contract, and a node of one contract's Mandate cannot sign for another", async () => {
+      const clock = { now: "2026-10-01T10:00:00Z" };
+      const log = await jobLog(clock);
+      const bare = nodeKey(5);
+      await log.append(grant(bare, "2026-10-01T10:00:00Z", "2026-10-01T12:00:00Z", { mandate: null }));
+      await rejects(log.append(delivery(bare, bare.kid, "2026-10-01T10:10:00Z")), "GUARD_FAILED", "node_no_mandate");
+      const bound = nodeKey(6);
+      await log.append(grant(bound, "2026-10-01T10:00:00Z", "2026-10-01T12:00:00Z"));
+      const other = make("delivery", bound, coder.did, { ...(happy[5].body as Record<string, unknown>), contract: "sha256:" + "0".repeat(64) }, "2026-10-01T10:10:00Z", { prev: mandate.id, subject: contract.id, actor: bound.kid });
+      await rejects(log.append(other), "GUARD_FAILED", "node_wrong_contract");
+      // Its own contract still works.
+      await log.append(delivery(bound, bound.kid, "2026-10-01T10:15:00Z"));
+    });
+
     test("a Mandate's max_parallel caps live nodes; expired nodes free their slot", async () => {
       const clock = { now: "2026-10-01T10:00:00Z" };
       const log = await jobLog(clock);
