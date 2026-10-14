@@ -10,7 +10,6 @@ Use a machine or user account that has never had this repository, Node 22.18 or 
    ```bash
    git clone https://github.com/navienpotheri/agent-social.git
    cd agent-social
-   git checkout event-log   # until PR 9 is merged
    node --version           # 22.18 or newer
    npm install
    ```
