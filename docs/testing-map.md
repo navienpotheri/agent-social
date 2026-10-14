@@ -64,7 +64,7 @@ The rest of this map is long. **What decides whether the conference goes well is
 | ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-10 | Claude Code session: allowed calls run, a call outside the Mandate is removed before the agent sees it | packages/asp-cli/test/run-session.test.ts | yes 10-12 | P22 | none | P0 |
-| UC-11 | Codex session with the person's own API key (held by the gateway) | packages/asp-cli/test/run-runtimes.test.ts | no | P21 | Run live with an OpenRouter key | P0 |
+| UC-11 | Codex session with the person's own API key (held by the gateway) | packages/asp-cli/test/run-runtimes.test.ts | yes 10-14 (real Codex 0.157.1 on Windows with an OpenRouter key and the free nvidia/nemotron-3-super-120b-a12b model: `ls` ran, a fetch was refused before it ran with the how-to-allow hint, 3 calls judged and 1 refused, credits line shown; not tried with an OpenAI key) | P21 | Try it once with an OpenAI key; a Codex run on macOS or Linux | P0 |
 | UC-12 | Goose session, same | packages/asp-cli/test/run-runtimes.test.ts | no | P21 | Run live | P1 |
 | UC-13 | Antigravity session, held by its own hook | packages/asp-cli/test/run-hooked.test.ts | no | P21 | Run with the real `agy` signed in | P1 |
 | UC-14 | OpenHands session (inside WSL on Windows) | packages/asp-cli/test/run-hooked.test.ts | no | P21 | Run with the real OpenHands | P1 |
