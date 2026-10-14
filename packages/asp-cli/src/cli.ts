@@ -631,7 +631,7 @@ export function connectionProblem(e: unknown, service?: string): string | undefi
   const code = err?.cause?.code;
   const network = /^fetch failed$/i.test(err?.message ?? "") || ["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET", "EAI_AGAIN", "UND_ERR_CONNECT_TIMEOUT", "EHOSTUNREACH", "ENETUNREACH"].includes(code ?? "");
   if (!network) return undefined;
-  const why = code === "ENOTFOUND" || code === "EAI_AGAIN" ? "the address could not be found: check the spelling and your connection" : code === "ECONNREFUSED" ? "nothing is answering there: the service may be down" : code === "ETIMEDOUT" || code === "UND_ERR_CONNECT_TIMEOUT" ? "it did not answer in time: check your connection" : "check your connection";
+  const why = code === "ENOTFOUND" || code === "EAI_AGAIN" ? "the address could not be found: you may be offline (check your connection), or the address is mistyped" : code === "ECONNREFUSED" ? "nothing is answering there: the service may be down" : code === "ETIMEDOUT" || code === "UND_ERR_CONNECT_TIMEOUT" ? "it did not answer in time: check your connection" : "check your connection";
   return `cannot reach the service${service ? ` at ${service}` : ""} (${why}). Try again in a moment. \`asp status\` shows what works from this machine; \`asp run --local\` runs an agent under a Mandate with no service and no account.`;
 }
 
