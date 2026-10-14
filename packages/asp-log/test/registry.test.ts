@@ -228,6 +228,17 @@ for (const h of [memory, postgres] as Harness[]) {
       await log.append(delivery(bound, bound.kid, "2026-10-01T10:15:00Z"));
     });
 
+    // Gap T22: a helper that is a separate identity (not the performer, not a node of it) cannot work on the contract; it would have to be hired through a subcontract.
+    test("a separate identity cannot sign work on the contract: only the performer (or its node) can deliver", async () => {
+      const clock = { now: "2026-10-01T10:00:00Z" };
+      const log = await jobLog(clock);
+      const stranger: Signer = { kid: "did:web:example.com:agents:helper#key-1", seed: new Uint8Array(randomBytes(32)) };
+      const byStranger = make("delivery", stranger, "did:web:example.com:agents:helper", happy[5].body as Record<string, unknown>, "2026-10-01T10:10:00Z", { prev: mandate.id, subject: contract.id });
+      await rejects(log.append(byStranger), "UNKNOWN_KEY");
+      const byPrincipal = make("delivery", alice, alice.did, happy[5].body as Record<string, unknown>, "2026-10-01T10:10:00Z", { prev: mandate.id, subject: contract.id });
+      await rejects(log.append(byPrincipal), "WRONG_ISSUER");
+    });
+
     test("a Mandate's max_parallel caps live nodes; expired nodes free their slot", async () => {
       const clock = { now: "2026-10-01T10:00:00Z" };
       const log = await jobLog(clock);
