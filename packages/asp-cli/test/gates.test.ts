@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LocalLog } from "@agent-social/asp-package";
@@ -50,8 +51,9 @@ async function gatedJob(f: Fixture, mandateFlags: string[] | null) {
   assert.equal((await asp(f, ["pack", "--runtime", "claude-code", "--agent", CODER, "--project", f.project, "--user-home", f.home, "--out", pkg])).code, 0);
   return { id, pkg };
 }
+// These tests are about the gate itself, so they ask about every command (--ask commands). What a gate asks about by default is the last tests of this file (gap T21).
 const run = (f: Fixture, job: { id: string; pkg: string }, calls: unknown[], extra: string[] = []) =>
-  asp(f, ["run", job.pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", "--contract", job.id, ...extra],
+  asp(f, ["run", job.pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", "--contract", job.id, ...(extra.includes("--ask") ? [] : ["--ask", "commands"]), ...extra],
     // A call the runtime refuses never gets a record, so those tests must not wait out the generous grace period.
     runtime(calls, JSON.stringify(calls).includes("runtimeRefuses") ? "500" : "20000"));
 
@@ -82,6 +84,7 @@ test("a gated call is held, raised as a Checkpoint, and runs only once the princ
   assert.match(res.err, /APPROVAL NEEDED\s+shell\.exec: echo spike > marker\.txt/);
   assert.match(res.err, /approval granted for shell\.exec/);
   assert.doesNotMatch(res.err, /KILL SWITCH|strike|did not run/);
+  assert.equal(((await actionBody(f, res.err)) as { sub_agents?: string }).sub_agents, "shared_identity", "a Claude Code run says its own helpers share this identity (T22, S139)");
   assert.deepEqual((await actionBody(f, res.err)).scopes_used, ["repo.read", "shell.exec"]);
   assert.equal(await stateOf(f, job.id), "Running", "the resolution returned the job to Running");
 });
@@ -190,4 +193,34 @@ test("secrets in a gated command never reach the log or the terminal, but the pr
   const logged = JSON.stringify(checkpoint.record);
   for (const secret of ["hunter2hunter2", "s3cr3t-value-123", ghp]) assert.ok(!logged.includes(secret), `${secret} reached the log`);
   assert.match((checkpoint.record.body as { proposed_action: string }).proposed_action, /deploy\.sh/);
+});
+
+// Gap T21 / UC-248: under a contract a gate on shell commands asks about the risky ones, not every command, so an hour of work is a few questions and not dozens.
+test("a gate asks only about risky commands by default: an ordinary command runs unasked, a risky one is held", async () => {
+  const f = makeFixture();
+  const job = await gatedJob(f, ["--gate", "shell.exec"]);
+  const ordinary = await run(f, job, [READ, SHELL], ["--ask", "risky"]);
+  assert.equal(ordinary.code, 0, ordinary.err);
+  assert.doesNotMatch(ordinary.err, /APPROVAL NEEDED/);
+  assert.deepEqual((await actionBody(f, ordinary.err)).scopes_used, ["repo.read", "shell.exec"], "the ordinary command ran under the Mandate");
+  assert.equal(await stateOf(f, job.id), "Running");
+  const risky = { name: "Bash", input: { command: "rm -rf build" } };
+  const [res] = await Promise.all([run(f, job, [READ, risky], ["--ask", "risky"]), answerWhenAsked(f, job.id, "approved")]);
+  assert.equal(res.code, 0, res.err);
+  assert.match(res.err, /APPROVAL NEEDED\s+shell\.exec: rm -rf build/);
+  assert.match(res.err, /approval granted for shell\.exec/);
+});
+
+test("an exact command the person said always to is not asked about again, even with --ask commands; any other command still is", async () => {
+  const f = makeFixture();
+  const job = await gatedJob(f, ["--gate", "shell.exec"]);
+  const { commandKey } = await import("@agent-social/asp-package");
+  writeFileSync(join(f.aspHome, "always-allow.json"), JSON.stringify({ [CODER]: [{ hash: commandKey(SHELL.input.command), command: SHELL.input.command, at: "2026-10-13T00:00:00Z" }] }));
+  const known = await run(f, job, [READ, SHELL]);
+  assert.equal(known.code, 0, known.err);
+  assert.doesNotMatch(known.err, /APPROVAL NEEDED/);
+  assert.deepEqual((await actionBody(f, known.err)).scopes_used, ["repo.read", "shell.exec"]);
+  const other = { name: "Bash", input: { command: "echo different > other.txt" } };
+  const [res] = await Promise.all([run(f, job, [READ, other]), answerWhenAsked(f, job.id, "approved")]);
+  assert.match(res.err, /APPROVAL NEEDED\s+shell\.exec: echo different/);
 });

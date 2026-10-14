@@ -133,6 +133,7 @@ export class EventLog {
     const { resolve, rows } = await this.resolverFor(tx, r, type);
     const verified = verifyRecord(r, resolve, this.schemas);
     this.checkKeyUse(verified, type!, rows, appendedAt);
+    await this.checkNodeContract(tx, verified, rows);
 
     // Chain placement: a new chain, or the successor of its chain's head.
     let chain: ChainRow | undefined;
@@ -214,6 +215,21 @@ export class EventLog {
     }
     const resolve: KeyResolver = (kid) => found.get(kid) ?? this.fallback?.(kid);
     return { resolve, rows };
+  }
+
+  /**
+   * A node key that signs for a contract must be tied to that contract's own Mandate (gap T22, S137): a node with no Mandate is bookkeeping only (asp orchestrate outside a contract), and a node
+   * granted under one contract's Mandate cannot sign for another. Without this a short-lived key could be granted outside any limits, or carried to a job it was never meant for.
+   */
+  private async checkNodeContract(tx: LogTx, r: AspRecord, rows: Map<string, KeyRow>): Promise<void> {
+    const signer = rows.get(r.sig.kid);
+    if (signer?.kind !== "node") return;
+    const contract = (r.body as { contract?: unknown }).contract;
+    if (typeof contract !== "string") return;
+    if (!signer.mandate) throw rule("node_no_mandate", `node key ${r.sig.kid} was granted under no Mandate, so it cannot sign for the contract ${contract}`);
+    const m = await tx.getRecord(signer.mandate);
+    const mandatedContract = (m?.record.body as { contract?: string } | undefined)?.contract;
+    if (mandatedContract !== contract) throw rule("node_wrong_contract", `node key ${r.sig.kid} was granted under the Mandate of ${mandatedContract ?? "another contract"}, so it cannot sign for ${contract}`);
   }
 
   /** A node key signs only as its own node, only while it is live, never identity records, never as a co-signer. */
@@ -371,6 +387,8 @@ export class EventLog {
       throw rule("node_chain_start", `the first grant for ${body.node} must start its own chain (prev: null)`);
     }
     if (!existing && !after(body.expires, r.issued_at)) throw rule("node_ttl", "a node must expire after it is granted");
+    // One public key is one key id (gap T22, S138): the same key under a second node id, or a node reusing one of the person's own keys, would let a node pass as something it is not.
+    if (!existing && (await tx.keysForDid(r.issuer)).some((k) => k.publicKey === body.public_key)) throw rule("node_key_reused", `the public key of ${body.node} is already registered under ${r.issuer}`);
     if (Date.parse(body.expires) - Date.parse(r.issued_at) > this.maxNodeTtlMs) {
       throw rule("node_ttl", `a node may live at most ${this.maxNodeTtlMs / 3_600_000} hours`);
     }
@@ -381,7 +399,8 @@ export class EventLog {
       const mandate = m.record.body as { expires: string; nodes: { max_parallel: number } };
       if (m.record.subject !== r.issuer) throw rule("node_mandate_subject", `the Mandate was issued to ${m.record.subject}, not ${r.issuer}`);
       if (after(body.expires, mandate.expires)) throw rule("node_outlives_mandate", `the Mandate expires at ${mandate.expires}`);
-      const live = (await tx.nodeKeysForMandate(body.mandate)).filter((k) => after(k.expiresAt!, r.issued_at));
+      // The node itself is not counted against its own slot: a node at the limit can still be revoked, rotated or extended.
+      const live = (await tx.nodeKeysForMandate(body.mandate)).filter((k) => k.kid !== body.node && after(k.expiresAt!, r.issued_at));
       if (live.length >= mandate.nodes.max_parallel) {
         throw rule("node_max_parallel", `the Mandate allows ${mandate.nodes.max_parallel} parallel nodes`);
       }

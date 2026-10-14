@@ -394,6 +394,7 @@ const OPTIONS = {
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
   assurance: { type: "string" },
+  "sub-agents": { type: "string" },
   metrics: { type: "string" },
   mcp: { type: "string", multiple: true },
   "ask-match": { type: "string", multiple: true },
@@ -2360,6 +2361,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       ...d.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
       "--metrics", JSON.stringify(d.metrics),
       ...(runLog ? (() => { const a = runLogArtifact(runLog.head()); return ["--artifact", `${a.uri}=${a.sha256}`]; })() : []),
+      ...(v["sub-agents"] ? ["--sub-agents", v["sub-agents"]] : []),
       "--assurance", sandbox ? "sandbox_enforced" : s.toolCalls > 0 ? "gateway_enforced" : "gateway_observed", "--summary", `ASP gateway (${sandbox ? "sandbox-enforced: the agent ran in a sandbox whose only way out was the gateway" : s.toolCalls > 0 ? "gateway-enforced" : "gateway-observed: no structured tool calls passed through, so nothing could be enforced"}, ${why}): ${s.requests} request(s) so far, ${s.tokens.input + s.tokens.output} tokens, ${s.strikes} blocked${s.stopped ? `; stopped: ${s.stopped}` : ""}`];
     const out: string[] = [];
     let rc = await main(args, { out: (l) => out.push(l), err: (l) => out.push(l), env: io.env, cwd: io.cwd });
@@ -3624,6 +3626,10 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       if (!["self_reported", "runtime_observed", "gateway_observed", "gateway_enforced", "hook_enforced", "sandbox_enforced"].includes(v.assurance)) throw new UsageError("--assurance is self_reported, runtime_observed, gateway_observed, gateway_enforced, hook_enforced or sandbox_enforced");
       body.assurance = v.assurance;
     }
+    if (v["sub-agents"] !== undefined) {
+      if (v["sub-agents"] !== "shared_identity") throw new UsageError("--sub-agents is shared_identity (the runtime ran helpers of its own that this report cannot tell apart)");
+      body.sub_agents = "shared_identity";
+    }
     if (v.summary) body.summary = v.summary;
     // A late report (S80): the last stretch of activity, made after the job ended; the log accepts it only on a settled job, soon after, for activity up to the end.
     if (v.late) body.late = { activity_ended: v.late };
@@ -4183,7 +4189,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
-  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
   await asking;
@@ -4687,6 +4693,19 @@ async function agentCmd(home: string, sub: string | undefined, rest: string[], v
  * asp approvals [approve|refuse [<n>]]: the calls your agents are waiting to make that need your yes (a gate in the Mandate: asp run --ask commands). Answer from here, in another
  * window from the session, or inline when the session asks you. Your answer is signed with your key and goes in the log.
  */
+/**
+ * Which gated shell commands of a job under a contract the person is asked about (gap T21): by default the risky ones (the gateway path's list), every command with --ask commands, or the ones
+ * --ask-match names; and never an exact command they said "always" to (asp approvals always). The signed gate stays the ceiling.
+ */
+function commandFilterFor(v: Values, home: string, agent: string): (command: string) => "ask" | "remembered" | "no-match" {
+  const askTokens = (v.ask ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  const patterns = askTokens.includes("commands") ? [] : [...(askTokens.includes("risky") || !v["ask-match"]?.length ? ["risky"] : []), ...(v["ask-match"] ?? [])];
+  let compiled: RegExp[] = [];
+  try { compiled = compilePatterns(patterns); } catch (e) { throw new UsageError((e as Error).message); }
+  const file = join(home, "always-allow.json");
+  return (cmd) => askAbout(cmd, { ...(compiled.length ? { patterns: compiled } : {}), remembered: readAlways(file)[agent] ?? [] });
+}
+
 /** The commands the person said "always" to, per agent (gap U15): a file in the ASP home the gateway reads at each decision. */
 function readAlways(file: string): AlwaysAllow { try { return JSON.parse(readFileSync(file, "utf8")) as AlwaysAllow; } catch { return {}; } }
 function writeAlways(file: string, a: AlwaysAllow): void { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify(a, null, 2) + "\n"); }
@@ -4868,7 +4887,7 @@ async function autoSettleOnKill(local: LogHandle, home: string, contract: string
  * approved only for an `approved` resolution. Each request reopens the log fresh, because the principal
  * answers from another process, and requests are served one at a time (a job has one open Checkpoint).
  */
-function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; waitSeconds: number; io: Io }) {
+function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; waitSeconds: number; io: Io; filter?: (command: string) => "ask" | "remembered" | "no-match"; onSkip?: (req: { tool: string; scope: string; summary: string }, why: string) => void }) {
   let stopped = false;
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   // Written to a temporary name and renamed, so a hook polling for the file never reads half of it (found by the Postgres CI job: it failed closed on "Unexpected end of JSON input").
@@ -4886,6 +4905,12 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
   };
 
   async function handle(req: { id: string; tool: string; scope: string; summary: string; requested_at?: string }) {
+    // Gap T21: a gate on shell commands asks only about the risky ones (or the ones the person named), and never about an exact command they said "always" to, as on the personal gateway path.
+    // The signed gate stays the ceiling; this only decides which gated commands the person is asked about. Every other kind of call is asked as before.
+    if (o.filter && (req.tool === "Bash" || req.tool === "PowerShell") && req.scope === "shell.exec") {
+      const verdict = o.filter(req.summary);
+      if (verdict !== "ask") { o.onSkip?.(req, verdict); return decide(req.id, { approved: true }); }
+    }
     const signer = new Keystore(o.home).forDid(o.agent);
     if (!signer) return decide(req.id, { approved: false, reason: `no key for ${o.agent} to raise the Checkpoint` });
     // The gateway's wait started when the request was made, not when this turn comes (found in the long-horizon run: a retried call queued behind an earlier approval was refused by the
@@ -5111,7 +5136,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
     });
     let killTimer: NodeJS.Timeout | undefined;
     const approvals = plan.approvalsDir && v.contract
-      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io })
+      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io, filter: commandFilterFor(v, home, agent), onSkip: (r, why) => runLog?.event("gate_skipped", { tool: r.tool, scope: r.scope, why, input: r.summary }) })
       : undefined;
     const strike = (scope: string, how: string) => {
       strikes++;
@@ -5263,7 +5288,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
       const action = createRecord({
         type: "action", issuer: agent, subject: v.contract!, prev: null, issued_at: now(),
         body: {
-          contract: v.contract!, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", summary: `${backend} run, ${runDir}, killed mid-run`,
+          contract: v.contract!, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", ...(backend === "claude-code" ? { sub_agents: "shared_identity" } : {}), summary: `${backend} run, ${runDir}, killed mid-run`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
           ...(artifactsSeen.length || runLog ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : [])] } : {}),
           ...(rateLimited ? { metrics: { rate_limited: rateLimited } } : {}),
@@ -5293,7 +5318,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
       const action = createRecord({
         type: "action", issuer: agent, subject: v.contract, prev: null, issued_at: now(),
         body: {
-          contract: v.contract, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", summary: `${backend} run, ${runDir}`,
+          contract: v.contract, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", ...(backend === "claude-code" ? { sub_agents: "shared_identity" } : {}), summary: `${backend} run, ${runDir}`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
           ...(artifactsSeen.length || runLog ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : [])] } : {}),
           ...(rateLimited ? { metrics: { rate_limited: rateLimited } } : {}),

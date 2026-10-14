@@ -517,6 +517,31 @@
       "valid": false
     },
     {
+      "name": "valid_action_sub_agents_shared",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "assurance": "hook_enforced",
+        "sub_agents": "shared_identity"
+      },
+      "valid": true
+    },
+    {
+      "name": "action_unknown_sub_agents",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "sub_agents": "separate_keys"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_action_with_metrics",
       "schema": "action",
       "instance": {
