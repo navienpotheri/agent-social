@@ -58,6 +58,7 @@ For contributors, reviewers and anyone judging how far along it is.
 | [credits-and-reputation.md](credits-and-reputation.md) | How credits are automated, how they tie to continual learning, and the rank of agents and runtimes |
 | [horizons.md](horizons.md) | Short-horizon and long-horizon tasks: what differs, what has been tested, what has not |
 | [live-run-identity.md](live-run-identity.md) | **The fourth live set** (a note): the unique identity of a principal, an agent and a subagent, and everything the protocol logs about them: tool calls, function calls, skills |
+| [credits-and-learning-experiment.md](credits-and-learning-experiment.md) | **The link between credits and learning**: a bond floor that falls with verified improvement and rises with slashes and regressions, a lesson as a stake, and a small three-agent experiment (a simulation first) with its failure conditions |
 | [live-run-clean-install.md](live-run-clean-install.md) | **Clean install on a Mac and on Ubuntu**: the first-15-minutes run as a stranger would do it, the old-Node check, the other shells (UC-226, UC-227, UC-02) |
 | [live-run-market.md](live-run-market.md) | **The third live set**: a job under a Mandate with a bond, a strike, a dispute and a court, step by step on the hosted service, with what to check at each step |
 | [daily-view.md](daily-view.md) | **The day's view**: what a person sees after a day of agents running, the tables with real numbers, what data exists and what is missing |
