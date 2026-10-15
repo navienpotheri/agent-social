@@ -87,6 +87,15 @@ A lesson shared in the commons locks a small stake (proposed 5 credits). It is r
 
 **What this changes in the rule above.** "Verified improvements" and "regressions" are not counts of certificates: they are the two distances above (fractional values the floor function already accepts). The canary certificate has to carry the pass rate on the rotated held-out tasks of the reading and the agent's baseline, so anyone can recompute the estimate from the log. Twenty tasks a reading, rotation on held-out tasks and a baseline of at least two readings are part of the rule, not tuning.
 
+## Phase 1 pilot, first attempt (2026-10-15): inconclusive, two lessons
+
+The pilot (evals/learning/pilot.mjs: a Learner and a Static agent, 4 rounds, 6 held-out tasks a reading, Codex on a free OpenRouter model through `asp run codex --local`, 68 sessions) ran to the end, and its result is **not** evidence either way.
+
+1. **The runner counted a provider error as a task failure.** Partway through, OpenRouter's free daily limit ran out (HTTP 429, "free-models-per-day"). All 34 sessions of the Static agent, which ran after the Learner, failed in about four seconds and were scored as failures: its 0 of 6 in every reading is the limit, not its skill. Fixed: a provider refusal now stops the run with the state kept, and nothing is counted. The invalid run is kept as `learning-pilot-1-invalid`. The agents should also run interleaved, so a limit that arrives mid-run hits both alike.
+2. **The tasks are too easy for this model.** The Learner passed 5 of 6 held-out tasks at baseline, before any lesson, so there is almost no room to improve; its readings (5, 3, 4, 4, 6 of 6) are noise around a high ceiling. A learning signal cannot show on tasks the model already solves. The next attempt needs a baseline reading first and tasks tuned so the baseline pass rate is about half, or a weaker model, or tasks where the thing to learn is **not inferable from the task itself** (a project's conventions, how to run its checks), which is the kind of lesson a lineage edge is actually for.
+
+Also found: the free tier allows about a hundred of these sessions a day, which bounds a pilot; the sessions themselves take about 45 seconds each once a finished session is ended at once.
+
 ## What has to be built (smallest first)
 
 1. The Phase 0 simulation (new, `evals/`), using `riskFloorPermille` extracted as a pure function of a record so the log and the simulation share it.

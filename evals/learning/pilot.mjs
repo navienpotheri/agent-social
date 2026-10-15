@@ -57,12 +57,18 @@ async function attempt(key, agent, index, notes) {
   rmSync(dir, { recursive: true, force: true });
   const prompt = makeTask(index, dir) + (notes.length ? `\n\nNotes from your earlier work on similar tasks (use them if they help):\n${notes.map((n) => `- ${n}`).join("\n")}` : "");
   const t0 = Date.now();
+  let ran = { out: "" };
   if (FAKE) { if (hash(key) < Math.min(0.9, 0.4 + (agent === "learner" ? 0.07 * notes.length : 0))) solve(index, dir); }
   else {
-    await run(process.execPath, [ASP, "run", "codex", "--local", "--provider", "openrouter", "--model", MODEL, "--project", dir, "--prompt", prompt],
+    ran = await run(process.execPath, [ASP, "run", "codex", "--local", "--provider", "openrouter", "--model", MODEL, "--project", dir, "--prompt", prompt],
       { ...process.env, ASP_HOME: join(OUT, "asp-home"), ASP_NO_FOCUS: "1", OPENROUTER_API_KEY: KEY }, dir, () => check(index, dir).pass);
   }
   const r = check(index, dir);
+  // A provider that refuses the call is not a task that failed: the first pilot counted a day's free-model limit (HTTP 429) as thirty-four failures of one agent. The run stops here, the state is kept, and it is started again later.
+  if (!r.pass && /HTTP 429|rate limit exceeded|free-models-per-day|Too Many Requests|refused the API key/i.test(ran.out)) {
+    const why = (ran.out.match(/rate limit[^\n]{0,80}|HTTP 4\d\d[^\n]{0,80}/i) ?? ["rate limit"])[0].trim();
+    throw Object.assign(new Error(`the model provider refused the call (${why})`), { infra: true });
+  }
   const res = { pass: r.pass, why: r.why, secs: Math.round((Date.now() - t0) / 1000), task: index, family: TASKS[index].family };
   state.done[key] = res; save();
   log(`${key.padEnd(24)} task ${String(index).padStart(2)} ${TASKS[index].family.padEnd(13)} ${res.pass ? "pass" : "FAIL"}  ${res.secs}s${res.pass ? "" : "  " + res.why.slice(0, 60)}`);
@@ -135,4 +141,11 @@ export async function pilot() {
   return report;
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) await pilot();
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  try { await pilot(); } catch (e) {
+    if (!e.infra) throw e;
+    save();
+    console.error(`\nStopped: ${e.message}. Nothing was counted as a failure. Progress is kept in ${STATE}; run the same command later to carry on (a free model's daily limit resets in a day).`);
+    process.exit(3);
+  }
+}
