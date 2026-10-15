@@ -65,7 +65,7 @@ const results = [];
 const LAST = MAX_STAGES > 0 ? Math.min(MAX_STAGES, STAGES.length) : STAGES.length;
 for (let i = FROM - 1; i < LAST; i++) {
   stage = i + 1;
-  log(`--- stage ${stage}/${STAGES.length}: ${STAGES[i].slice(0, 90)}`);
+  log(`--- stage ${stage}/${LAST}: ${STAGES[i].slice(0, 90)}`);
   const t0 = Date.now();
   const out = await new Promise((resolve) => {
     const stageArgs = CONTRACT
