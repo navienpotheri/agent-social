@@ -5,3 +5,9 @@ __pycache__/
 .pytest_cache/
 dist/
 asp-export-*/
+
+# Provider keys and env files never belong in the repository (keys live in the environment or in ~/.asp-<provider>-key)
+.env
+.env.*
+*.key
+*-key
