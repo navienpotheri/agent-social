@@ -104,7 +104,7 @@ Started 2026-10-09. One place to track what is **not** covered, so we can come b
 
 | ID | Gap | Covered today by | Fix | Detail | Pri | Status |
 |---|---|---|---|---|---|---|
-| P1 | Only four runtimes have adapters (Claude Code, Codex, Antigravity, OpenHands) | The gateway reaches any agent that can set a base URL or an MCP server | Top 20 runtimes through the gateway, then deeper adapters for the few that matter | backlog "Portability", `docs/gateway-design.md` | A | partial |
+| P1 | Only four runtimes have adapters (Claude Code, Codex, Antigravity, OpenHands) | The gateway reaches any agent that can set a base URL or an MCP server | Top 20 runtimes through the gateway, then deeper adapters for the few that matter. **Designed 2026-10-15: docs/portability-at-scale.md (a declarative runtime descriptor and a generic adapter, MCP tools with annotation defaults, a generated support matrix)** | backlog "Portability", `docs/gateway-design.md` | A | partial |
 | P2 | Gemini API and non-OpenAI-compatible local APIs are not judged | OpenAI chat, Responses and Anthropic are | Gemini adapter in the gateway; Ollama native | backlog | B | open |
 | P3 | Codex under a ChatGPT login cannot be pointed at the gateway | Codex with an API key or a custom provider can | An API-key route, or a network-level redirect | S58 | B | open |
 | P4 | Hosted and enterprise agents that cannot be wrapped | none | Self-report SDK (assurance level 1) | gateway doc P4 (S60: TypeScript and Python self-report SDKs built and checked across languages; no real vendor trial) | B | partial |
