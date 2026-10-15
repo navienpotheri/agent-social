@@ -1,7 +1,9 @@
+// (Second version: tasks with a hidden house rule each, agents run side by side, and a --calibrate mode.)
 // The small pilot of Phase 1 (docs/credits-and-learning-experiment.md): do real agents on a free model show a skill signal the bond floor could price? Two agents, a Learner and a Static one, do a practice
 // job each round on the 40-task set (tasks.mjs); the Learner writes a lesson after each and carries its notes into the next task; every round both are measured on a rotating sample of held-out tasks. The
 // floor is then computed from the readings with the tested function (packages/asp-log/src/bond-floor.ts). Nothing is written to the log; sessions run in local mode through `asp run codex --local`.
 //   node evals/learning/pilot.mjs [--rounds 5] [--n 10] [--model nvidia/nemotron-3-super-120b-a12b:free] [--concurrency 2] [--out <dir>] [--timeout-min 5]
+//   node evals/learning/pilot.mjs --calibrate   one no-notes reading: how much of the task set the model passes before anything is learned
 //   node evals/learning/pilot.mjs --fake     a simulated solver instead of a model (no key, no time): to check the runner
 // The OpenRouter key is read from OPENROUTER_API_KEY or ~/.asp-openrouter-key and is passed to the child process only; it is never printed. A run can be stopped and started again: finished sessions are kept in <out>/pilot-state.json.
 import { spawn } from "node:child_process";
@@ -58,7 +60,7 @@ async function attempt(key, agent, index, notes) {
   const prompt = makeTask(index, dir) + (notes.length ? `\n\nNotes from your earlier work on similar tasks (use them if they help):\n${notes.map((n) => `- ${n}`).join("\n")}` : "");
   const t0 = Date.now();
   let ran = { out: "" };
-  if (FAKE) { if (hash(key) < Math.min(0.9, 0.4 + (agent === "learner" ? 0.07 * notes.length : 0))) solve(index, dir); }
+  if (FAKE) { const knows = agent === "learner" && notes.length >= 1 + (index % 3); const logicOk = hash(key + "L") < 0.85; if (logicOk) solve(index, dir, { compliant: knows || hash(key + "R") < 0.05 }); }
   else {
     ran = await run(process.execPath, [ASP, "run", "codex", "--local", "--provider", "openrouter", "--model", MODEL, "--project", dir, "--prompt", prompt],
       { ...process.env, ASP_HOME: join(OUT, "asp-home"), ASP_NO_FOCUS: "1", OPENROUTER_API_KEY: KEY }, dir, () => check(index, dir).pass);
@@ -77,9 +79,9 @@ async function attempt(key, agent, index, notes) {
 
 // A short lesson after a task: from the buggy source's family and what happened. Real: one chat call to the same model; fake: a fixed line.
 async function reflect(index, result, dir) {
-  if (FAKE) return `lesson about ${TASKS[index].family}: check boundaries and empty input`;
+  if (FAKE) return `project rule: ${(result.why.match(/house rule (H\d)/) ?? ["", "none"])[1]} - ${result.why.slice(result.why.indexOf(":") + 2)}`.slice(0, 200);
   let src = ""; try { src = readFileSync(join(dir, "src.js"), "utf8").slice(0, 600); } catch { /* none */ }
-  const ask = `You just worked on a small JavaScript bug (kind: ${TASKS[index].family}). Your final source:\n${src}\nResult: ${result.pass ? "the test passed" : "the test still failed: " + result.why}.\nWrite ONE general lesson of at most 25 words that would help fix a different bug of this kind next time. Output only the lesson.`;
+  const ask = `You just worked on a small JavaScript task for a project that has house coding rules that are not written down. Your final source:\n${src}\nThe reviewer's verdict: ${result.pass ? "accepted" : result.why}.\nWrite ONE general lesson of at most 30 words that would help you meet this project's rules on the next task. If it was accepted, write what you did that the project wants. Output only the lesson.`;
   try {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${KEY}` }, body: JSON.stringify({ model: MODEL, messages: [{ role: "user", content: ask }], max_tokens: 80 }), signal: AbortSignal.timeout(60_000) });
     const text = (await res.json()).choices?.[0]?.message?.content?.trim();
@@ -111,17 +113,29 @@ export function track(readings, acceptedJobs, { alpha = 0.3, step = 0.15, k = 2 
   return rows;
 }
 
+// A reading with no notes, for the Static agent only: what the model does on this task set before anything is learned. The first pilot showed a pass rate near the ceiling is useless for the experiment.
+export async function calibrate() {
+  log(`calibration: ${N} held-out tasks, no notes, ${FAKE ? "a simulated solver" : `model ${MODEL}`}`);
+  const r = await reading("static", 99);
+  const logic = Object.values(state.done).filter((d) => d.task !== undefined);
+  console.log(`\nBaseline with no notes: ${r.passes} of ${r.n} pass (${Math.round((100 * r.passes) / r.n)}%).`);
+  console.log(r.passes / r.n > 0.7 ? "Too easy: little room to improve. Make the tasks harder or use a weaker model." : r.passes / r.n < 0.05 ? "Almost nothing passes with no notes: that is expected when the house rules are hidden, and it means improvement shows as a rise from near zero." : "A usable baseline: there is room to improve.");
+  return r;
+}
+
 export async function pilot() {
   log(`pilot: ${AGENTS.join(" and ")}, ${ROUNDS} rounds, ${N} held-out tasks a reading, ${FAKE ? "a simulated solver" : `model ${MODEL}`}, up to ${CONC} sessions at once; state in ${STATE}`);
-  for (const agent of AGENTS) {
-    if (state.readings[agent].length === 0) { state.readings[agent].push(await reading(agent, 0)); save(); }
-    for (let r = state.readings[agent].length; r <= ROUNDS; r++) {
-      // The practice job: a task from the practice pool (a different family each round); accepted when its check passes.
-      const index = PRACTICE[((r - 1) * 3) % PRACTICE.length];
-      const notes = agent === "learner" ? [...state.notes.learner] : [];
-      const job = await attempt(`${agent}-job${r}-t${index}`, agent, index, notes);
-      state.jobs[agent].push(job.pass);
-      if (agent === "learner") { state.notes.learner.push(await reflect(index, job, join(OUT, "work", `${agent}-job${r}-t${index}`))); state.notes.learner = state.notes.learner.slice(-8); }
+  // Round by round, both agents in turn, so a provider limit that arrives part-way hits both alike.
+  for (let r = 0; r <= ROUNDS; r++) {
+    for (const agent of AGENTS) {
+      if (state.readings[agent].length > r) continue;
+      if (r > 0) {
+        const index = PRACTICE[(r - 1) % PRACTICE.length];
+        const notes = agent === "learner" ? [...state.notes.learner] : [];
+        const job = await attempt(`${agent}-job${r}-t${index}`, agent, index, notes);
+        state.jobs[agent].push(job.pass);
+        if (agent === "learner") { state.notes.learner.push(await reflect(index, job, join(OUT, "work", `${agent}-job${r}-t${index}`))); state.notes.learner = state.notes.learner.slice(-8); }
+      }
       state.readings[agent].push(await reading(agent, r)); save();
     }
   }
@@ -142,7 +156,7 @@ export async function pilot() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  try { await pilot(); } catch (e) {
+  try { if (args.includes("--calibrate")) await calibrate(); else await pilot(); } catch (e) {
     if (!e.infra) throw e;
     save();
     console.error(`\nStopped: ${e.message}. Nothing was counted as a failure. Progress is kept in ${STATE}; run the same command later to carry on (a free model's daily limit resets in a day).`);

@@ -1,5 +1,6 @@
-// The task set for Phase 1 of docs/credits-and-learning-experiment.md: 40 small coding tasks, each a function with one bug and a test that fails until it is fixed. The check is mechanical: the test passes
-// and the test file is unchanged. Tasks 0-19 are the practice set an agent may learn from; 20-39 are the held-out pool, from which a reading takes a rotating sample.
+// The task set for Phase 1 of docs/credits-and-learning-experiment.md: 40 small coding tasks, each a function with one bug and a test that fails until it is fixed, and each also held to one HOUSE RULE that is
+// not written in the task (the first pilot showed that tasks a model can simply solve leave nothing to learn). The check is mechanical: the test passes, the test file is unchanged, and the house rule holds. A rule
+// is only ever told to an agent by a rejection that names it, so a lesson is the one way to know it in advance. Tasks 0-19 are the practice set an agent may learn from; 20-39 are the held-out pool, from which a reading takes a rotating sample.
 //   import { makeTask, check, PRACTICE, HELD_OUT, heldOutSample } from "./tasks.mjs"
 //   node evals/learning/tasks.mjs --selftest      builds all 40, shows every test fails on the buggy source and passes on the known fix
 import { createHash } from "node:crypto";
@@ -45,6 +46,20 @@ const FAMILIES = [
     test: (f) => `assert.equal(${f}([3, 9, 2]), 9); assert.equal(${f}([-5, -2, -8]), -2); assert.equal(${f}([-1]), -1);` },
 ];
 
+// Three house rules, each checkable on the source text and not inferable from a task. A task has the rule at its index modulo three.
+export const RULES = [
+  { id: "H1", text: "every exported function has a JSDoc comment with @returns directly above it",
+    ok: (src) => /\/\*\*[\s\S]*?@returns[\s\S]*?\*\/\s*export function/.test(src),
+    apply: (src) => `/** The task's function. @returns {*} its result */\n${src}` },
+  { id: "H2", text: 'the file ends with the line: export const VERSION = "1";',
+    ok: (src) => /export const VERSION = "1";\s*$/.test(src),
+    apply: (src) => `${src.trimEnd()}\nexport const VERSION = "1";\n` },
+  { id: "H3", text: 'the first statement of every exported function is: if (arguments.length === 0) throw new RangeError("<function name>: no arguments");',
+    ok: (src) => { const m = /export function (\w+)\([^)]*\)\s*\{\s*if \(arguments\.length === 0\) throw new RangeError\(["'`](\w+): no arguments["'`]\)/.exec(src); return !!m && m[1] === m[2]; },
+    apply: (src) => src.replace(/export function (\w+)\(([^)]*)\)\s*\{/, (m, fn) => `${m} if (arguments.length === 0) throw new RangeError("${fn}: no arguments");`) },
+];
+export const ruleFor = (index) => RULES[index % RULES.length];
+
 export const TASKS = FAMILIES.flatMap((fam, fi) => fam.variants.map((v, vi) => ({ index: vi * FAMILIES.length + fi, family: fam.id, fn: v[0], args: v.slice(1), fam })))
   .sort((a, b) => a.index - b.index).map((t, i) => ({ ...t, index: i }));
 export const PRACTICE = TASKS.slice(0, 20).map((t) => t.index);
@@ -60,7 +75,7 @@ export function makeTask(index, dir) {
   writeFileSync(join(dir, "src.js"), t.fam.bug(t.fn));
   writeFileSync(join(dir, "test.js"), testFile(t));
   writeFileSync(join(dir, "package.json"), JSON.stringify({ type: "module" }));
-  return `The test in test.js fails. Fix src.js so that it passes. Do not change test.js. Run the test with: node --test test.js`;
+  return `The test in test.js fails. Fix src.js so that it passes. Do not change test.js. Run the test with: node --test test.js\nYour change will also be reviewed against this project's house coding rules, which are not written down.`;
 }
 
 /** The mechanical check: the test file is unchanged and `node --test test.js` passes. */
@@ -70,7 +85,11 @@ export function check(index, dir) {
   try { tampered = sha(readFileSync(join(dir, "test.js"), "utf8")) !== sha(testFile(t)); } catch { tampered = true; }
   if (tampered) return { pass: false, why: "test.js was changed or removed" };
   const r = spawnSync(process.execPath, ["--test", "test.js"], { cwd: dir, encoding: "utf8", timeout: 30_000 });
-  return { pass: r.status === 0, why: r.status === 0 ? "" : (r.stdout + r.stderr).split("\n").find((l) => /not ok|Error|expected/i.test(l)) ?? `exit ${r.status}` };
+  if (r.status !== 0) return { pass: false, why: (r.stdout + r.stderr).split("\n").find((l) => /not ok|Error|expected/i.test(l)) ?? `exit ${r.status}` };
+  const rule = ruleFor(index);
+  let src = ""; try { src = readFileSync(join(dir, "src.js"), "utf8"); } catch { /* no source */ }
+  // The rejection names the rule, as a principal's reason would: it is what a lesson is made from.
+  return rule.ok(src) ? { pass: true, why: "" } : { pass: false, why: `the test passes but house rule ${rule.id} is not met: ${rule.text}` };
 }
 
 /** `n` held-out tasks for a reading: a deterministic rotation keyed by a seed (a contract id, say), so nobody can pick the sample. */
@@ -80,7 +99,7 @@ export function heldOutSample(seed, n) {
 }
 
 /** A known-good fix, for the self-test and for scoring a stand-in agent. */
-export function solve(index, dir) { const t = TASKS[index]; writeFileSync(join(dir, "src.js"), t.fam.fix(t.fn)); }
+export function solve(index, dir, { compliant = false } = {}) { const t = TASKS[index]; const fixed = t.fam.fix(t.fn); writeFileSync(join(dir, "src.js"), compliant ? ruleFor(index).apply(fixed) : fixed); }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && process.argv.includes("--selftest")) {
   const root = mkdtempSync(join(tmpdir(), "asp-learning-tasks-"));
@@ -90,11 +109,13 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && pro
     makeTask(t.index, dir);
     const before = check(t.index, dir);
     solve(t.index, dir);
+    const logicOnly = check(t.index, dir);   // the logic is fixed but the house rule is not: it must still fail, naming the rule
+    solve(t.index, dir, { compliant: true });
     const after = check(t.index, dir);
-    if (before.pass || !after.pass) { bad++; console.log(`FAIL task ${t.index} (${t.family} ${t.fn}): fails before the fix: ${!before.pass}, passes after: ${after.pass} ${after.why}`); }
+    if (before.pass || logicOnly.pass || !/house rule/.test(logicOnly.why) || !after.pass) { bad++; console.log(`FAIL task ${t.index} (${t.family} ${t.fn}): fails before the fix: ${!before.pass}, a logic-only fix still fails on the rule: ${!logicOnly.pass} (${logicOnly.why.slice(0, 50)}), passes when compliant: ${after.pass} ${after.why}`); }
   }
   console.log(`${TASKS.length} tasks, ${PRACTICE.length} practice, ${HELD_OUT.length} held out; sample of 5 for seed "a": ${heldOutSample("a", 5)}; sample for seed "b": ${heldOutSample("b", 5)}`);
-  console.log(bad ? `${bad} task(s) wrong` : "every test fails on the buggy source and passes on the known fix, and a changed test.js is caught");
+  console.log(bad ? `${bad} task(s) wrong` : "every test fails on the buggy source; a fix that only repairs the logic still fails, naming its house rule; a compliant fix passes; a changed test.js is caught");
   const tamper = join(root, "tamper"); makeTask(0, tamper); writeFileSync(join(tamper, "test.js"), "import {test} from 'node:test'; test('x',()=>{});"); console.log("tampered test.js caught:", !check(0, tamper).pass);
   rmSync(root, { recursive: true, force: true });
   process.exit(bad ? 1 : 0);
