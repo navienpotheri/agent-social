@@ -22,16 +22,21 @@ export interface Snapshot {
   total: number;
   /** granted - total: what the protocol itself holds (the court-fee reserve of an open job); 0 once every job is settled. null when the grand total is not known. */
   held: number | null;
+  /** Entities whose balance could not be read (the command failed or printed no number), with the first message: a reading with holes is never reported as OK. */
+  unreadable?: { names: string[]; why: string };
 }
 
 const NUM = /(-?\d+)\s+credits?/;
 
 export async function snapshot(run: Runner, o: { entities: Entity[]; jurors?: Entity[]; contracts?: string[]; granted?: number; label?: string }): Promise<Snapshot> {
   const balances: Record<string, number> = {};
+  const unreadable: string[] = [];
+  let why = "";
   for (const e of [...o.entities, ...(o.jurors ?? [])]) {
     const r = await run(["credits", "balance", e.did]);
     const n = Number(NUM.exec(r.out)?.[1]);
     balances[e.name] = Number.isFinite(n) ? n : NaN;
+    if (!Number.isFinite(n)) { unreadable.push(e.name); why ||= (r.err || r.out).trim().split("\n").find((l) => l.trim() && !/^>/.test(l)) ?? `exit code ${r.code}`; }
   }
   const stakes: Record<string, number> = {};
   for (const j of o.jurors ?? []) {
@@ -46,7 +51,7 @@ export async function snapshot(run: Runner, o: { entities: Entity[]; jurors?: En
   }
   const free = Object.values(balances).reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
   const total = free + Object.values(stakes).reduce((a, b) => a + b, 0) + escrow + bond;
-  return { at: new Date().toISOString(), label: o.label ?? "", balances, stakes, escrow, bond, total, held: o.granted === undefined ? null : o.granted - total };
+  return { at: new Date().toISOString(), label: o.label ?? "", balances, stakes, escrow, bond, total, held: o.granted === undefined ? null : o.granted - total, ...(unreadable.length ? { unreadable: { names: unreadable, why: why.slice(0, 200) } } : {}) };
 }
 
 /** What each entity gained or lost between two snapshots (free balance plus stake). */
@@ -58,6 +63,7 @@ export function deltas(a: Snapshot, b: Snapshot): Record<string, number> {
 
 /** Does it add up? Nothing is created or lost: the only credits not in a balance, a stake or a lock are the protocol's court-fee reserve of an open job. */
 export function conservation(s: Snapshot, openJobs = 0): { ok: boolean; note: string } {
+  if (s.unreadable) return { ok: false, note: `could not read the balance of ${s.unreadable.names.join(", ")}: ${s.unreadable.why} (so nothing is checked; a login override in this shell (ASP_LOG_URL, ASP_LOG_TOKEN) or a service that cannot be reached are the usual causes)` };
   if (s.held === null) return { ok: true, note: "grand total not given, so not checked" };
   if (s.held < 0) return { ok: false, note: `${-s.held} credit(s) more than were granted: credits were created` };
   if (openJobs === 0 && s.held !== 0) return { ok: false, note: `${s.held} credit(s) are unaccounted for with every job settled` };

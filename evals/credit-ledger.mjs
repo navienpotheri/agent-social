@@ -32,6 +32,8 @@ const rate = Number(one("rate", "1"));
 const every = Number(one("every", "0"));
 const out = one("out");
 
+// An old login override in this shell changes whose balances are read, and a revoked token reads none: said at the start, as the CLI says it.
+if (process.env.ASP_LOG_URL || process.env.ASP_LOG_TOKEN) console.log("note: ASP_LOG_URL or ASP_LOG_TOKEN is set in this shell and overrides the saved login; unset them (unset ASP_LOG_URL ASP_LOG_TOKEN) unless that is what you want to watch");
 const run = async (a) => { const r = spawnSync(process.execPath, ["--experimental-strip-types", ASP, ...a], { env: { ...process.env, ASP_HOME: HOME, ASP_NO_FOCUS: "1" }, encoding: "utf8", timeout: 60_000 }); return { code: r.status ?? 1, out: r.stdout ?? "", err: r.stderr ?? "" }; };
 const run0 = run;
 // The court's seated jurors (asp court seat) hold and stake credits, so they are counted without being told; and with no total given, the first reading is the baseline the rest are checked against.
