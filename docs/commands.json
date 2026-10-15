@@ -62,6 +62,10 @@
           "description": "Say what you want in words; it shows the command it understood and asks before running it"
         },
         {
+          "command": "asp runtimes",
+          "description": "The runtimes asp run can start: how each is held to your rules, and the evidence for it (live, partial or only a stand-in)"
+        },
+        {
           "command": "asp init",
           "description": "Write a starter asp.yaml of defaults for this project"
         },

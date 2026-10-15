@@ -301,6 +301,7 @@ Most people use only these.
 | `asp status` | Where things stand: who you are, what is running, what waits for you, what to do next |
 | `asp help [<topic>|<words>|all]` | Help by topic or search; `all` prints the complete reference |
 | `asp ask "<words>" [--yes]` | Say what you want in words; it shows the command it understood and asks before running it |
+| `asp runtimes` | The runtimes asp run can start: how each is held to your rules, and the evidence for it (live, partial or only a stand-in) |
 | `asp init` | Write a starter asp.yaml of defaults for this project |
 | `asp trust [asp.yaml]` | Trust a project's asp.yaml that asks for network access |
 | `asp shim bash|zsh|powershell` | Print a script: tab completion, and `claude` starting a governed session |
