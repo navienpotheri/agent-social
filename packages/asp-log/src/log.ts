@@ -2,6 +2,7 @@ import {
   AspError, Job, isNetworkScope, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
 } from "@agent-social/asp-core";
+import { bondFloorPermille } from "./bond-floor.ts";
 import { MemoryStore } from "./memory.ts";
 import { DEFAULT_PANEL_SIZE, drawPanel, findRejection } from "./panel.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
@@ -52,6 +53,11 @@ export interface EventLogOptions {
   maxNodeTtlMs?: number;
   /** How many jurors a Courts ruling panel draws. Default 3 (see panel.ts, DEFAULT_PANEL_SIZE). */
   panelSize?: number;
+  /**
+   * The minimum-bond rule for an agent backer. `legacy` (the default): its slashes, its fleet's slashes and its recent strikes raise the floor from zero. `v2` (S143, opt-in): the same, from a base for an
+   * agent nobody knows (400 permille of the price), lowered by jobs it has had accepted with nothing slashed (docs/credits-and-learning-experiment.md; the proposed numbers in bond-floor.ts).
+   */
+  bondFloor?: "legacy" | "v2";
 }
 
 export interface AppendResult {
@@ -102,6 +108,8 @@ export class EventLog {
   private readonly maxNodeTtlMs: number;
   private readonly panelSize: number;
 
+  private readonly bondFloor: "legacy" | "v2";
+
   constructor(store: Store, opts: EventLogOptions = {}) {
     this.store = store;
     this.schemas = opts.schemas ?? defaultSchemas();
@@ -109,6 +117,7 @@ export class EventLog {
     this.now = opts.now ?? (() => new Date());
     this.maxNodeTtlMs = opts.maxNodeTtlMs ?? DEFAULT_MAX_NODE_TTL_MS;
     this.panelSize = opts.panelSize ?? DEFAULT_PANEL_SIZE;
+    this.bondFloor = opts.bondFloor ?? "legacy";
   }
 
   append(raw: unknown): Promise<AppendResult> {
@@ -442,22 +451,29 @@ export class EventLog {
    * mechanism. Falls back to the agent's self-declared Passport tier until its first slash.
    * Takes anything with these three reads — a LogTx mid-append, or the Store for a plain query.
    */
-  private async reputation(tx: Pick<LogTx, "getPassport" | "getRecord" | "getReputation">, did: string): Promise<{ tier: number; slashCount: number; strikeLog: StrikeEntry[] } | null> {
+  private async reputation(tx: Pick<LogTx, "getPassport" | "getRecord" | "getReputation">, did: string): Promise<{ tier: number; slashCount: number; strikeLog: StrikeEntry[]; acceptedJobs: number } | null> {
     const passport = await tx.getPassport(did);
     if (!passport) return null;
     const existing = await tx.getReputation(did);
-    if (existing) return { tier: existing.tier, slashCount: existing.slashCount, strikeLog: existing.strikeLog };
+    if (existing) return { tier: existing.tier, slashCount: existing.slashCount, strikeLog: existing.strikeLog, acceptedJobs: existing.acceptedJobs ?? 0 };
     const head = await tx.getRecord(passport.head);
     const body = head?.record.body as { kind: string; tier?: number } | undefined;
     if (body?.kind !== "agent") return null;
-    return { tier: body.tier ?? 1, slashCount: 0, strikeLog: [] };
+    return { tier: body.tier ?? 1, slashCount: 0, strikeLog: [], acceptedJobs: 0 };
   }
 
   /** Demotes a slashed backer by one tier (floor 0) and counts the slash, for its next Bond's risk floor. */
   private async demote(tx: LogTx, did: string): Promise<void> {
     const rep = await this.reputation(tx, did);
     if (!rep) return; // not an agent (or has no passport at all): this mechanism doesn't apply
-    await tx.putReputation({ did, tier: Math.max(0, rep.tier - 1), slashCount: rep.slashCount + 1, strikeLog: rep.strikeLog });
+    await tx.putReputation({ did, tier: Math.max(0, rep.tier - 1), slashCount: rep.slashCount + 1, strikeLog: rep.strikeLog, ...(rep.acceptedJobs > 0 ? { acceptedJobs: rep.acceptedJobs } : {}) });
+  }
+
+  /** A job settled `accepted` with nothing slashed counts toward the backer's clean record (the bond floor v2). Agents only, like the rest of reputation. */
+  private async countAcceptedJob(tx: LogTx, did: string): Promise<void> {
+    const rep = await this.reputation(tx, did);
+    if (!rep) return;
+    await tx.putReputation({ did, tier: rep.tier, slashCount: rep.slashCount, strikeLog: rep.strikeLog, acceptedJobs: rep.acceptedJobs + 1 });
   }
 
   /** Counts an Action's blocked attempts as strikes on the performer (agents only; no demotion, no slash). */
@@ -467,7 +483,7 @@ export class EventLog {
     if (total === 0) return;
     const rep = await this.reputation(tx, r.issuer);
     if (!rep) return;
-    await tx.putReputation({ did: r.issuer, tier: rep.tier, slashCount: rep.slashCount, strikeLog: [...rep.strikeLog.filter((s) => Date.parse(s.at) >= Date.parse(r.issued_at) - STRIKE_WINDOW_MS), { at: r.issued_at, count: total }],
+    await tx.putReputation({ did: r.issuer, tier: rep.tier, slashCount: rep.slashCount, strikeLog: [...rep.strikeLog.filter((s) => Date.parse(s.at) >= Date.parse(r.issued_at) - STRIKE_WINDOW_MS), { at: r.issued_at, count: total }], ...(rep.acceptedJobs > 0 ? { acceptedJobs: rep.acceptedJobs } : {}),
     });
   }
 
@@ -625,7 +641,9 @@ export class EventLog {
         strikes += recentStrikes((await this.reputation(tx, performerDid))?.strikeLog ?? [], r.issued_at);
       }
       const strikePermille = Math.min(RISK_PERMILLE_STRIKE_CAP, strikes * RISK_PERMILLE_PER_STRIKE);
-      const riskFloorPermille = Math.min(1000, backerRep.slashCount * RISK_PERMILLE_PER_OWN_SLASH + fleetSlashes * RISK_PERMILLE_PER_FLEET_SLASH + strikePermille);
+      const riskFloorPermille = this.bondFloor === "v2"
+        ? bondFloorPermille({ ownSlashes: backerRep.slashCount, fleetSlashes, recentStrikes: strikes, verifiedImprovements: 0, acceptedCleanJobs: backerRep.acceptedJobs, regressions: 0 })
+        : Math.min(1000, backerRep.slashCount * RISK_PERMILLE_PER_OWN_SLASH + fleetSlashes * RISK_PERMILLE_PER_FLEET_SLASH + strikePermille);
       if (riskFloorPermille > 0) {
         const contract = await tx.getRecord(body.contract);
         const price = (contract?.record.body as { price?: { value: number } } | undefined)?.price?.value ?? 0;
@@ -763,6 +781,7 @@ export class EventLog {
     await this.credit(tx, cbody.principal, escrowLeftover + slashedToPrincipal + principalReserve);
     await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover + backerReserve);
     if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer);
+    else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer);
     await tx.putEscrow({ ...escrow, settled: true });
   }
 
@@ -992,7 +1011,7 @@ export class EventLog {
   juror(did: string) { return this.store.getJuror(did); }
   async reputationOf(did: string) {
     const rep = await this.reputation(this.store, did);
-    return rep && { tier: rep.tier, slashCount: rep.slashCount, strikes: rep.strikeLog.reduce((n, s) => n + s.count, 0) };
+    return rep && { tier: rep.tier, slashCount: rep.slashCount, strikes: rep.strikeLog.reduce((n, s) => n + s.count, 0), ...(rep.acceptedJobs > 0 ? { acceptedJobs: rep.acceptedJobs } : {}) };
   }
   mandateOf(contract: string) { return this.store.getMandate(contract); }
   verificationOf(delivery: string) { return this.store.getVerification(delivery); }
@@ -1044,7 +1063,7 @@ export class EventLog {
    */
   async verifyCheckpoint(at: { seq: number; logHash: string }): Promise<boolean> {
     const replay = new EventLog(new MemoryStore(await this.store.allMints()), {
-      schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize,
+      schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor,
     });
     for (let afterSeq = 0; ; ) {
       const page = await this.store.since(afterSeq, 500);
@@ -1100,7 +1119,7 @@ export class EventLog {
    */
   async verify(pageSize = 500): Promise<VerifyReport> {
     const replay = new EventLog(new MemoryStore(await this.store.allMints()), {
-      schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize,
+      schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor,
     });
     let afterSeq = 0;
     let count = 0;

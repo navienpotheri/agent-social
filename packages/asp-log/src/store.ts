@@ -138,6 +138,8 @@ export interface ReputationRow {
   slashCount: number;
   /** Blocked attempts across the DID's Action records, dated; only recent ones weigh on its next Bond's risk floor. */
   strikeLog: { at: string; count: number }[];
+  /** Settlements on basis `accepted` with nothing slashed, for the bond floor v2 (S143); left out while 0, so the row reads the same on every store. */
+  acceptedJobs?: number;
 }
 
 /**

@@ -6,7 +6,8 @@ import type { LogHandle } from "./server.ts";
 export async function postgresHandle(config: string): Promise<LogHandle & { close(): Promise<void> }> {
   const store = new PostgresStore(config);
   await store.migrate();
-  const log = new EventLog(store);
+  // ASP_BOND_FLOOR=v2 turns on the bond floor of S143 (default: the legacy rule); a log must be replayed with the rule it ran with.
+  const log = new EventLog(store, { bondFloor: process.env.ASP_BOND_FLOOR === "v2" ? "v2" : "legacy" });
   return {
     log,
     append: (record) => log.append(record),

@@ -1,7 +1,7 @@
 /**
  * The bond floor as a pure function of an agent's record (docs/credits-and-learning-experiment.md). The log's `projectBond` today applies only the negative terms (slashes, fleet slashes, strikes)
  * starting from zero; this adds the positive ones (verified improvements, accepted clean jobs) and a base for an agent nobody knows, so the bond an agent must lock falls as evidence builds and
- * rises when it is slashed, struck or regresses. It is not called by the log yet: it exists so the simulation (evals/bond-floor-sim.mjs) and, later, the log use one definition.
+ * rises when it is slashed, struck or regresses. The log calls it only under the opt-in `bondFloor: "v2"` option (S143, with accepted jobs as the only positive term so far); the simulation (evals/bond-floor-sim.mjs) uses the same definition.
  */
 export interface FloorRecord {
   ownSlashes: number;
