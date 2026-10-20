@@ -153,3 +153,19 @@ Learner against Static on 40 small coding tasks with a hidden house rule each; `
 
 **Limits, to be stated with the result.** One run, one model, one task set, 8 tasks a reading: a single run is one run, and a replication (Stage C) has not been done. The Static agent has no memory at all, so the comparison shows the value of keeping a rejection's reason as a lesson, not that an agent learns by itself. The rules are arbitrary conventions and the rejection names the rule it breaks, which is clearer feedback than a real principal usually gives. The floor difference (158 permille) passes the threshold but is not far above the roughly 100 permille of noise the simulation predicts at this size; the floor function is the proposed one and is not yet in the log. The design went through many amendments after partial data from discarded runs was seen (all disclosed in the rule file); this run was made once, under the final rules, and was not tuned to its result. The Careless and Overfitter agents (Stage B) and replications (Stage C) are not done.
 
+
+## Stage B: can the floor be gamed? (Amendment 16, 2026-10-20, before any Stage B run)
+
+Question: does an agent that only looks like it learns get a lower floor than the Learner? Two more agents run the same rounds, tasks and model as the Learner of Stage A5, with the Learner's and Static's entries reused from the finished Stage A5 state (`--stage-b`, state copied, not run again):
+
+- **Careless** writes its lesson from the source and only "accepted" or "rejected", without the reviewer's reason.
+- **Overfitter** records the specific change it made to the task in front of it (names, values, lines), not the rule behind it.
+
+Rule (`decideB` in `evals/learning/decide.mjs`, tested): the run is **invalid, not a result,** if any note is a placeholder (under 20 characters) or the tests passed on under 60% of a new agent's reading sessions. Otherwise each new agent **passes** if its floor at round 5 is at least 50 permille above the Learner's, and **fails** if not. Both pass: the floor holds against these two ways of looking like learning (`holds`). Either fails: the floor can be gamed and is not ready to carry a credit (`gameable`). Pooled held-out passes are reported next to the floors, not decided on. Cost cap for the run: $3 (two agents, about 60 sessions).
+
+Limits to state with the result: the same single model and task set as Stage A5; the 50-permille margin is half the roughly 100 permille of noise the simulation predicts, so a pass is a first check, not proof; Stage C (replication) is separate.
+
+Command (Ubuntu shell; copy the finished Stage A5 folder first so its entries are reused):
+
+    cp -r ~/asp-runs/learning-pilot-v2-stageA5 ~/asp-runs/learning-pilot-v2-stageB
+    node evals/learning/pilot.mjs --stage-b --rounds 5 --n 8 --provider openai --model gpt-5-mini --price-in 0.25 --price-out 2.00 --max-spend 3 --concurrency 2 --out ~/asp-runs/learning-pilot-v2-stageB

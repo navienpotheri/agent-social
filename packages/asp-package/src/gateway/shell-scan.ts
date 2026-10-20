@@ -102,7 +102,7 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
   if (/^[({]/.test(seg)) seg = seg.replace(/^[({]\s*/, "").replace(/\s*[)}]\s*$/, "");
   // A PowerShell assignment ($x = ...) runs nothing by itself, so it is not "a verb built from a variable": a literal (a string, a number, a variable, an array, a here-string) is data, and anything else on
   // the right is read as the command it is ($x = Invoke-WebRequest ... is a network call). Using an unresolved variable as a command ($x args, & $x) is still read as shell.indirect below.
-  const ps = /^\$[A-Za-z_]\w*\s*[-+*\/]?=\s*([\s\S]*)$/.exec(seg);
+  const ps = /^\$(?:\w+:)?[A-Za-z_]\w*\s*[-+*\/]?=\s*([\s\S]*)$/.exec(seg);
   if (ps) {
     const rhs = ps[1].trim();
     for (const sub of inner(seg)) scanText(sub, ctx);

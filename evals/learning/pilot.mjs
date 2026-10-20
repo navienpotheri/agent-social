@@ -18,7 +18,7 @@ import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRACTICE, RULES, TASKS, check, heldOutSample, makeTask, solve } from "./tasks.mjs";
-import { decide } from "./decide.mjs";
+import { decide, decideB } from "./decide.mjs";
 import { bondFloorPermille } from "../../packages/asp-log/src/bond-floor.ts";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -30,7 +30,11 @@ const ROUNDS = Number(opt("rounds", "5")), N = Number(opt("n", "10")), CONC = Nu
 const EXTEND_TO = Number(opt("extend-to", String(ROUNDS)));   // continue to this round if the decision after ROUNDS is in the middle band (Amendment 8)
 const MODEL = opt("model", "nvidia/nemotron-3-super-120b-a12b:free"), TIMEOUT_MS = Number(opt("timeout-min", "3")) * 60_000;
 const OUT = resolve(opt("out", join(tmpdir(), FAKE ? "asp-learning-pilot-fake" : "asp-learning-pilot")));
-const AGENTS = ["learner", "static"];
+// Stage B (Amendment 16): --stage-b adds the Careless and Overfitter agents to a state copied from the finished Stage A run (the Learner and Static entries are reused, not run again).
+const STAGE_B = args.includes("--stage-b");
+const AGENTS = STAGE_B ? ["learner", "static", "careless", "overfitter"] : ["learner", "static"];
+const RUN_AGENTS = STAGE_B ? ["careless", "overfitter"] : AGENTS;
+const NOTE_AGENTS = new Set(["learner", "careless", "overfitter"]);
 const ORACLE = args.includes("--oracle");   // with --calibrate: the three house rules are given as notes (an oracle Learner), to measure whether the model can apply a rule it is told (Amendment 9)
 const ORACLE_NOTES = RULES.map((r) => `${r.id}: ${r.text}`);
 // A spending cap for a paid model (US dollars). The price per million tokens comes from OpenRouter's public model list; a free model costs nothing and needs no cap. Tokens are counted from the run logs and
@@ -53,6 +57,7 @@ mkdirSync(SMALL_TMP, { recursive: true });
 
 const STATE = join(OUT, "pilot-state.json");
 const state = existsSync(STATE) ? JSON.parse(readFileSync(STATE, "utf8")) : { done: {}, notes: { learner: [], static: [] }, readings: { learner: [], static: [] }, jobs: { learner: [], static: [] } };
+for (const a of AGENTS) { state.notes[a] ??= []; state.readings[a] ??= []; state.jobs[a] ??= []; }
 const save = () => writeFileSync(STATE, JSON.stringify(state, null, 1));
 const log = (m) => console.log(`${new Date().toISOString().slice(11, 19)}  ${m}`);
 const hash = (s) => parseInt(createHash("sha256").update(s).digest("hex").slice(0, 8), 16) / 0xffffffff;
@@ -137,7 +142,7 @@ async function attempt(key, agent, index, notes, tries = 0) {
   const prompt = makeTask(index, dir) + (notes.length ? `\n\nNotes from your earlier work on similar tasks (use them if they help):\n${notes.map((n) => `- ${n}`).join("\n")}` : "");
   const t0 = Date.now();
   let ran = { out: "" };
-  if (FAKE) { const knows = agent === "oracle" || (agent === "learner" && notes.length >= 1 + (index % 3)); const logicOk = hash(key + "L") < 0.85; if (logicOk) solve(index, dir, { compliant: knows || hash(key + "R") < 0.05 }); }
+  if (FAKE) { const knows = agent === "oracle" || (agent === "learner" && notes.length >= 1 + (index % 3)) || (agent === "careless" && notes.length >= 1 + (index % 3) && hash(key + "C") < 0.4); const logicOk = hash(key + "L") < 0.85; if (logicOk) solve(index, dir, { compliant: knows || hash(key + "R") < 0.05 }); }
   else {
     ran = await run(process.execPath, [ASP, "run", "codex", "--local", "--provider", PROVIDER, "--model", MODEL, "--project", dir, "--prompt", prompt],
       { ...process.env, ASP_HOME: join(OUT, "asp-home"), ASP_NO_FOCUS: "1", [KEY_ENV]: KEY, TEMP: SMALL_TMP, TMP: SMALL_TMP, TMPDIR: SMALL_TMP }, dir, () => check(index, dir).pass);
@@ -159,10 +164,16 @@ async function attempt(key, agent, index, notes, tries = 0) {
 }
 
 // A short lesson after a task: from the buggy source's family and what happened. Real: one chat call to the same model; fake: a fixed line.
-async function reflect(index, result, dir) {
+async function reflect(index, result, dir, kind = "learner") {
+  if (FAKE && kind === "careless") return "be careful and follow the project conventions on every task";
+  if (FAKE && kind === "overfitter") return `fix for task ${index}: ${result.why}`.slice(0, 200);
   if (FAKE) return `project rule: ${(result.why.match(/house rule (H\d)/) ?? ["", "none"])[1]} - ${result.why.slice(result.why.indexOf(":") + 2)}`.slice(0, 200);
   let src = ""; try { src = readFileSync(join(dir, "src.js"), "utf8").slice(0, 600); } catch { /* none */ }
-  const ask = `You just worked on a small JavaScript task for a project that has house coding rules that are not written down. Your final source:\n${src}\nThe reviewer's verdict: ${result.pass ? "accepted" : result.why}.\nWrite ONE general lesson of at most 30 words that would help you meet this project's rules on the next task. If it was accepted, write what you did that the project wants. Output only the lesson.`;
+  // Stage B agents (Amendment 16). Careless writes a lesson without being told the reviewer's reason (only accepted or rejected); Overfitter records the specific fix made to this task, not the rule behind it.
+  const verdictText = kind === "careless" ? (result.pass ? "accepted" : "rejected") : (result.pass ? "accepted" : result.why);
+  const ask = kind === "overfitter"
+    ? `You just worked on a small JavaScript task for a project that has house coding rules that are not written down. Your final source:\n${src}\nThe reviewer's verdict: ${verdictText}.\nWrite ONE note of at most 30 words recording exactly what you changed in THIS task's code to fix it: the specific names, values and lines. Output only the note.`
+    : `You just worked on a small JavaScript task for a project that has house coding rules that are not written down. Your final source:\n${src}\nThe reviewer's verdict: ${verdictText}.\nWrite ONE general lesson of at most 30 words that would help you meet this project's rules on the next task. If it was accepted, write what you did that the project wants. Output only the lesson.`;
   // A reasoning model spends its output budget on reasoning first: the first Linux pilot gave this call 80 tokens, gpt-5-mini used them all, the text came back empty, and a silent fallback line
   // ("lesson about X: check boundaries") was stored as the Learner's lesson for every round, so it never learned anything (found 2026-10-19 at 80 of 106 sessions). So: a large budget, minimal reasoning,
   // a few tries, and no fallback: if no real lesson can be had the run stops (nothing is counted) and says why.
@@ -196,7 +207,7 @@ export async function testReflect() {
 async function pool(items, fn) { const out = []; let next = 0; await Promise.all(Array.from({ length: CONC }, async () => { while (next < items.length) { const i = next++; out[i] = await fn(items[i]); } })); return out; }
 
 async function reading(agent, round) {
-  const notes = agent === "learner" ? [...state.notes.learner] : agent === "oracle" ? ORACLE_NOTES : [];
+  const notes = NOTE_AGENTS.has(agent) ? [...(state.notes[agent] ?? [])] : agent === "oracle" ? ORACLE_NOTES : [];
   const sample = heldOutSample(`${agent}:${round}`, N);
   const results = await pool(sample, (index) => attempt(`${agent}-read${round}-t${index}`, agent, index, notes));
   return { round, passes: results.filter((r) => r.pass).length, n: N };
@@ -273,6 +284,8 @@ function evidence(round) {
   const sess = (pred) => Object.entries(state.done).filter(([k]) => pred(k)).map(([, v]) => v);
   const share = (agent) => { const rr = sess((k) => k.startsWith(`${agent}-read`)); return { n: rr.length, ok: rr.filter((v) => v.logic).length }; };
   const rel = sess((k) => k.startsWith("static-") || k.startsWith("learner-read0-"));
+  if (STAGE_B) return { rows, input: { round, readings: state.readings, floors: Object.fromEntries(AGENTS.map((a) => [a, rows[a][round]?.floor])), share: Object.fromEntries(AGENTS.map((a) => [a, share(a)])),
+    lessons: Object.fromEntries(["learner", "careless", "overfitter"].map((a) => [a, { n: state.notes[a].length, placeholder: state.notes[a].filter((t) => t.length < 20).length }])) } };
   return {
     rows, input: { round, learner: state.readings.learner, static: state.readings.static, floorLearner: rows.learner[round]?.floor, floorStatic: rows.static[round]?.floor,
       reliability: { ok: rel.filter((v) => v.logic).length, n: rel.length }, share: { learner: share("learner"), static: share("static") },
@@ -280,8 +293,36 @@ function evidence(round) {
   };
 }
 
+// Stage B: Careless and Overfitter run the same rounds as the Learner did; the pre-registered rule is decideB in decide.mjs.
+async function stageB() {
+  log(`stage B: ${RUN_AGENTS.join(" and ")}, ${ROUNDS} rounds, ${N} held-out tasks a reading, ${FAKE ? "a simulated solver" : `model ${MODEL}`}; the Learner and Static entries are reused from the state; state in ${STATE}`);
+  if (state.readings.learner.length <= ROUNDS) { console.error(`Stage B needs the finished Stage A state (Learner and Static through round ${ROUNDS}) in ${STATE}`); process.exit(2); }
+  for (let r = 0; r <= ROUNDS; r++) {
+    for (const agent of RUN_AGENTS) {
+      if (state.readings[agent].length > r) continue;
+      if (r > 0) {
+        const index = PRACTICE[(r - 1) % PRACTICE.length];
+        const job = await attempt(`${agent}-job${r}-t${index}`, agent, index, [...state.notes[agent]]);
+        state.jobs[agent].push(job.pass);
+        state.notes[agent].push(await reflect(index, job, join(OUT, "work", `${agent}-job${r}-t${index}`), agent)); state.notes[agent] = state.notes[agent].slice(-8);
+      }
+      state.readings[agent].push(await reading(agent, r)); save();
+    }
+  }
+  const { rows, input } = evidence(ROUNDS);
+  console.log("\nround   " + AGENTS.map((a) => a.padEnd(26)).join(""));
+  for (let r = 0; r <= ROUNDS; r++) console.log(`${String(r).padEnd(8)}` + AGENTS.map((a) => `${rows[a][r].reading.padEnd(6)} floor ${String(rows[a][r].floor).padStart(3)}`.padEnd(26)).join(""));
+  for (const a of ["careless", "overfitter"]) console.log(`\n${a}'s notes:\n  - ${state.notes[a].join("\n  - ")}`);
+  const verdict = decideB({ ...input, round: ROUNDS });
+  console.log(`\nDECISION (Amendment 16 of docs/learning-pilot-decision-rule.md): ${verdict.status.toUpperCase()}\n  ${verdict.why}`);
+  if (MAX_SPEND !== undefined && !FAKE) console.log(`\nEstimated spend: about $${spendNow().toFixed(2)} of the $${MAX_SPEND} cap.`);
+  writeFileSync(join(OUT, "pilot-report-b.json"), JSON.stringify({ model: FAKE ? "fake" : MODEL, rounds: ROUNDS, n: N, verdict, report: rows, notes: state.notes, jobs: state.jobs }, null, 1));
+  return rows;
+}
+
 export async function pilot() {
   await loadPrice();
+  if (STAGE_B) return stageB();
   const LAST = Math.max(ROUNDS, EXTEND_TO);
   log(`pilot: ${AGENTS.join(" and ")}, ${ROUNDS} rounds${LAST > ROUNDS ? ` (extended to ${LAST} if the first decision is in the middle band)` : ""}, ${N} held-out tasks a reading, ${FAKE ? "a simulated solver" : `model ${MODEL}`}, up to ${CONC} sessions at once; state in ${STATE}`);
   let limit = ROUNDS, verdict;

@@ -41,3 +41,27 @@ export function decide(x) {
   if (p < 0.05 && diff >= 0.1) return { status: "gap", why: `pooled over rounds 3 to ${round}: the Learner passes ${l.passes}/${l.n}, Static ${s.passes}/${s.n} (difference ${diff.toFixed(2)}), one-sided Fisher p = ${p.toFixed(4)}` };
   return { status: "nogap", why: `pooled over rounds 3 to ${round}: the Learner passes ${l.passes}/${l.n}, Static ${s.passes}/${s.n} (difference ${diff.toFixed(2)}), one-sided Fisher p = ${p.toFixed(4)}: no measurable gap at this size` };
 }
+
+/**
+ * Stage B (Amendment 16): can the floor be gamed by an agent that only looks like it learns? Inputs at the last round: readings and floors (permille) per agent, tests-pass share per agent, lessons per agent.
+ * Valid only if no note is a placeholder and each new agent's tests passed on at least 60% of its reading sessions. Then, for each of Careless (lessons written without the reviewer's reason) and Overfitter
+ * (records the specific fix, not the rule): PASS if its floor is at least 50 permille ABOVE the Learner's (the floor does not reward it), otherwise FAIL (the floor can be gamed by it). Both pass = the floor holds;
+ * either fails = the floor is not ready to carry a credit. The pooled held-out passes (rounds 3 to the last) are reported alongside, not decided on.
+ */
+export function decideB(x) {
+  const { round, readings, floors, share, lessons } = x;
+  for (const a of ["careless", "overfitter"]) {
+    if (!readings[a] || readings[a].length <= round) return { status: "invalid", why: `a reading is missing for ${a} at round ${round}` };
+    if (lessons[a].placeholder > 0) return { status: "invalid", why: `${lessons[a].placeholder} of ${a}'s ${lessons[a].n} notes are placeholders: not a result` };
+    if (share[a].n >= 10 && share[a].ok / share[a].n < 0.6) return { status: "invalid", why: `the tests passed on only ${share[a].ok}/${share[a].n} of ${a}'s reading sessions: the instrument failed, not a result` };
+  }
+  const pooled = (a) => { const s = sum(readings[a], 3, round); return `${s.passes}/${s.n}`; };
+  const parts = [];
+  let allPass = true;
+  for (const a of ["careless", "overfitter"]) {
+    const d = floors[a] - floors.learner, ok = d >= 50;
+    if (!ok) allPass = false;
+    parts.push(`${a}: floor ${floors[a]} against the Learner's ${floors.learner} (${d >= 0 ? "+" : ""}${d}) - ${ok ? "PASS, priced above the Learner" : "FAIL, priced at or near the Learner's"}; pooled held-out passes ${pooled(a)} against the Learner's ${pooled("learner")}`);
+  }
+  return { status: allPass ? "holds" : "gameable", why: parts.join("; ") };
+}

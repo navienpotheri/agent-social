@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 // @ts-expect-error plain JavaScript with no types
-import { decide, fisherOneSided } from "../../../evals/learning/decide.mjs";
+import { decide, decideB, fisherOneSided } from "../../../evals/learning/decide.mjs";
 
 const rs = (xs: number[], n = 8) => xs.map((passes, round) => ({ round, passes, n }));
 const ok = { reliability: { ok: 90, n: 100 }, share: { learner: { ok: 30, n: 40 }, static: { ok: 36, n: 40 } } };
@@ -53,3 +53,12 @@ test("a Learner whose lessons are placeholders is an invalid run, never a findin
   assert.equal(decide({ ...base, lessons: { n: 4, placeholder: 0 } }).status, "gap");
 });
 
+test("Stage B: the floor holds only if both gaming agents are priced at least 50 permille above the Learner", () => {
+  const readings = { learner: rs([0, 1, 2, 5, 6, 7]), careless: rs([0, 0, 1, 2, 2, 3]), overfitter: rs([0, 0, 0, 1, 1, 1]) };
+  const base = { round: 5, readings, share: { careless: { ok: 40, n: 48 }, overfitter: { ok: 40, n: 48 } }, lessons: { careless: { n: 5, placeholder: 0 }, overfitter: { n: 5, placeholder: 0 } } };
+  assert.equal(decideB({ ...base, floors: { learner: 240, careless: 330, overfitter: 400 } }).status, "holds");
+  assert.equal(decideB({ ...base, floors: { learner: 240, careless: 260, overfitter: 400 } }).status, "gameable");
+  assert.equal(decideB({ ...base, floors: { learner: 240, careless: 330, overfitter: 200 } }).status, "gameable");
+  assert.equal(decideB({ ...base, floors: { learner: 240, careless: 330, overfitter: 400 }, lessons: { careless: { n: 5, placeholder: 1 }, overfitter: { n: 5, placeholder: 0 } } }).status, "invalid");
+  assert.equal(decideB({ ...base, floors: { learner: 240, careless: 330, overfitter: 400 }, share: { careless: { ok: 10, n: 48 }, overfitter: { ok: 40, n: 48 } } }).status, "invalid");
+});
