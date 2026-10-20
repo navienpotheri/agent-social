@@ -115,6 +115,25 @@ Learner against Static on 40 small coding tasks with a hidden house rule each; `
 
 **Limits, to be stated with the result.** One run, one model, one task set, 8 tasks a reading: a single run is one run, and a replication (Stage C) has not been done. The Static agent has no memory at all, so the comparison shows the value of keeping a rejection's reason as a lesson, not that an agent learns by itself. The rules are arbitrary conventions and the rejection names the rule it breaks, which is clearer feedback than a real principal usually gives. The floor difference (158 permille) passes the threshold but is not far above the roughly 100 permille of noise the simulation predicts at this size; the floor function is the proposed one and is not yet in the log. The design went through many amendments after partial data from discarded runs was seen (all disclosed in the rule file); this run was made once, under the final rules, and was not tuned to its result. The Careless and Overfitter agents (Stage B) and replications (Stage C) are not done.
 
+## Phase 1 Stage B result (2026-10-20): the floor was not fooled by Careless or Overfitter, in one run
+
+Careless and Overfitter against the Learner of Stage A5 (reused from the state, not run again); `gpt-5-mini` on Codex (Linux, WSL Ubuntu), OpenAI directly; 5 rounds of 8 held-out tasks; run once under Amendment 16, unchanged during the run; about $2.52 (the spend counter reads $4.89 because it includes the $2.37 of Stage A5). Evidence kept in `C:\Users\Navie\asp-backups\learning-pilot-v2-stageB-RESULT` (state and report). The run was stopped twice by the spending cap (the counter included Stage A5's spend; the cap was raised to $4.5 and then $5.2 and the run resumed from its saved state); nothing was counted as a failure.
+
+| Round | Learner passes / floor | Careless passes / floor | Overfitter passes / floor |
+|---|---|---|---|
+| 0 (baseline) | 0 of 8 / 400 | 0 of 8 / 400 | 0 of 8 / 400 |
+| 1 | 3 of 8 / 400 | 0 of 8 / 400 | 0 of 8 / 400 |
+| 2 | 1 of 8 / 400 | 0 of 8 / 400 | 0 of 8 / 400 |
+| 3 | 6 of 8 / 352 | 1 of 8 / 385 | 0 of 8 / 400 |
+| 4 | 5 of 8 / 299 | 1 of 8 / 375 | 0 of 8 / 400 |
+| 5 | 7 of 8 / 242 | 4 of 8 / 322 | 0 of 8 / 400 |
+
+**Decision, by the rule as written: HOLDS.** Careless: floor 322 against the Learner's 242 (+80, above the 50 required): PASS. Overfitter: floor 400 against 242 (+158): PASS. Pooled held-out passes over rounds 3 to 5: Learner 18 of 24, Careless 6 of 24, Overfitter 0 of 24. No note was a placeholder, and the tests passed on at least 60% of each new agent's reading sessions (the validity checks of Amendment 16).
+
+**What the agents did.** Careless wrote generic style advice ("follow the project's unstated style", "include JSDoc and validation") and none of the three hidden rules by name; it still reached 4 of 8 at round 5 because some of that advice (JSDoc comments) overlaps rule H1, so its floor fell to 322, not staying at 400. Overfitter recorded what it changed in one task ("added final line `export const VERSION = "1"` ... line 5"), which did not carry to other tasks: 0 of 24 pooled held-out passes, floor flat at 400.
+
+**Limits, to be stated with the result.** One run, one model, one task set: the same as Stage A5, and not replicated (Stage C). The Careless margin (+80) is above the pre-registered 50 but below the roughly 100 permille of noise the simulation predicts, and Careless's round-5 reading (4 of 8) is a single reading, so its pass is the weaker of the two; the Overfitter result is clear. Only two ways of looking like learning were tried; others (an agent that games the held-out sample, one that learns the rules and then forgets them) are not. The floor function is still the proposed one and is not in the log.
+
 ## What has to be built (smallest first)
 
 1. The Phase 0 simulation (new, `evals/`), using `riskFloorPermille` extracted as a pure function of a record so the log and the simulation share it.
