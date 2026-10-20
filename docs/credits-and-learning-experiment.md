@@ -134,6 +134,25 @@ Careless and Overfitter against the Learner of Stage A5 (reused from the state, 
 
 **Limits, to be stated with the result.** One run, one model, one task set: the same as Stage A5, and not replicated (Stage C). The Careless margin (+80) is above the pre-registered 50 but below the roughly 100 permille of noise the simulation predicts, and Careless's round-5 reading (4 of 8) is a single reading, so its pass is the weaker of the two; the Overfitter result is clear. Only two ways of looking like learning were tried; others (an agent that games the held-out sample, one that learns the rules and then forgets them) are not. The floor function is still the proposed one and is not in the log.
 
+## Phase 1 Stage C result (2026-10-20): the gap replicated
+
+The pilot repeated with a different draw (`--seed 1`: a different five practice tasks and different held-out samples), everything else as Stage A5 and unchanged (Amendment 17); `gpt-5-mini` on Codex (Linux, WSL Ubuntu), OpenAI directly; 5 rounds of 8 held-out tasks; a fresh folder, no reused state; about $2.39. Evidence kept in `C:\Users\Navie\asp-backups\learning-pilot-v2-stageC-RESULT` (state and report).
+
+| Round | Learner full-check passes | Learner floor (permille) | Static full-check passes | Static floor |
+|---|---|---|---|---|
+| 0 (baseline) | 0 of 8 | 400 | 0 of 8 | 400 |
+| 1 | 3 of 8 | 400 | 0 of 8 | 400 |
+| 2 | 5 of 8 | 369 | 0 of 8 | 400 |
+| 3 | 6 of 8 | 310 | 0 of 8 | 400 |
+| 4 | 5 of 8 | 270 | 0 of 8 | 400 |
+| 5 | 5 of 8 | 237 | 0 of 8 | 400 |
+
+**Decision, by the rule as written: GAP FOUND, so the Stage A5 result replicated.** At round 5 the Learner passes 0.63 against 0.00 for Static (a gap of 0.63, above the 0.30 required), its floor is 163 permille lower (above the 100 required), and Static did not improve by itself. Over all rounds the Learner passed the full check on 24 of 48 reading sessions and Static on 0 of 48. The instrument was equal for both agents: the tests passed on 48 of 48 sessions of each, and tool reliability was 61 of 61.
+
+**Compared with Stage A5:** the gap is a little smaller (0.63 against 0.88 at round 5), the Learner's floor ended at 237 against 242, and the Learner plateaued at 5 of 8 over rounds 3 to 5 while Static stayed at 0, so the effect is the same in kind and size but the Learner did not keep rising in this draw.
+
+**Limits, to be stated with the result.** Two runs, one model, one task set (a different draw of its tasks, not a different set of rules); the Static agent has no memory, so the comparison shows the value of keeping a rejection's reason, not that an agent learns by itself; the rules are arbitrary conventions and the rejection names the rule it breaks; the floor function is the proposed one and is not in the log; the floor difference (163) is above, but not far above, the roughly 100 permille of noise the simulation predicts. Not tested: another model, another runtime, other rules, a human reviewer.
+
 ## What has to be built (smallest first)
 
 1. The Phase 0 simulation (new, `evals/`), using `riskFloorPermille` extracted as a pure function of a record so the log and the simulation share it.
