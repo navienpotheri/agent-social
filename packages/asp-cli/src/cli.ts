@@ -4095,7 +4095,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   // The tool, through the gateway. A prompt runs once and its answer is shown as it comes; without one the tool is interactive.
   const project = resolve(io.cwd, v.project ?? ".");
   const bin = io.env.ASP_CLAUDE_BIN ? [io.env.ASP_CLAUDE_BIN, ...(io.env.ASP_CLAUDE_SCRIPT ? [io.env.ASP_CLAUDE_SCRIPT] : [])] : ["claude"];
-  const tool = runtime === "codex" ? [process.execPath, CODEX_RUNTIME, project, v.model ?? "-", v.prompt!, "workspace-write"]
+  const tool = runtime === "codex" ? [process.execPath, CODEX_RUNTIME, project, v.model ?? "-", v.prompt!, ["read-only", "workspace-write"].includes(io.env.ASP_CODEX_SANDBOX ?? "") ? io.env.ASP_CODEX_SANDBOX! : "workspace-write"]
     : runtime === "goose" ? [process.execPath, GOOSE_RUNTIME, project, v.model!, v.prompt!]
     : v.prompt
       ? [...bin, "-p", v.prompt, "--allowedTools", "Read", "Glob", "Grep", "Edit", "Write", "Bash", "--output-format", "text", ...(v.model ? ["--model", v.model] : [])]

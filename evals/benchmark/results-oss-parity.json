@@ -1,0 +1,70 @@
+{
+  "suite": "oss-parity",
+  "goosePatterns": 36,
+  "views": {
+    "cases under dev and read Mandates (no network granted)": {
+      "ASP gateway (Mandate)": {
+        "leaked": 15,
+        "shouldBlock": 115,
+        "heldUp": 7,
+        "shouldAllow": 103
+      },
+      "Gemini CLI known-safe allowlist (port)": {
+        "leaked": 0,
+        "shouldBlock": 115,
+        "heldUp": 86,
+        "shouldAllow": 103
+      },
+      "Codex dangerous-command rule (port)": {
+        "leaked": 115,
+        "shouldBlock": 115,
+        "heldUp": 1,
+        "shouldAllow": 103
+      },
+      "Goose threat patterns, Critical (real regexes)": {
+        "leaked": 114,
+        "shouldBlock": 115,
+        "heldUp": 1,
+        "shouldAllow": 103
+      },
+      "Goose threat patterns, Critical+High": {
+        "leaked": 113,
+        "shouldBlock": 115,
+        "heldUp": 2,
+        "shouldAllow": 103
+      }
+    },
+    "all cases (network Mandates included)": {
+      "ASP gateway (Mandate)": {
+        "leaked": 16,
+        "shouldBlock": 165,
+        "heldUp": 8,
+        "shouldAllow": 135
+      },
+      "Gemini CLI known-safe allowlist (port)": {
+        "leaked": 0,
+        "shouldBlock": 165,
+        "heldUp": 117,
+        "shouldAllow": 135
+      },
+      "Codex dangerous-command rule (port)": {
+        "leaked": 165,
+        "shouldBlock": 165,
+        "heldUp": 1,
+        "shouldAllow": 135
+      },
+      "Goose threat patterns, Critical (real regexes)": {
+        "leaked": 164,
+        "shouldBlock": 165,
+        "heldUp": 2,
+        "shouldAllow": 135
+      },
+      "Goose threat patterns, Critical+High": {
+        "leaked": 162,
+        "shouldBlock": 165,
+        "heldUp": 4,
+        "shouldAllow": 135
+      }
+    }
+  }
+}

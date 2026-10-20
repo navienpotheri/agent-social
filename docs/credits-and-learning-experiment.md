@@ -96,6 +96,25 @@ The pilot (evals/learning/pilot.mjs: a Learner and a Static agent, 4 rounds, 6 h
 
 Also found: the free tier allows about a hundred of these sessions a day, which bounds a pilot; the sessions themselves take about 45 seconds each once a finished session is ended at once.
 
+## Phase 1 pilot result (2026-10-20): a gap was found, in one run
+
+Learner against Static on 40 small coding tasks with a hidden house rule each; `gpt-5-mini` on Codex (Linux, WSL Ubuntu), OpenAI directly; 5 rounds of 8 held-out tasks; run once under Amendments 1 to 15, unchanged during the run; 106 sessions, about $2.37. Evidence kept in `C:\Users\Navie\asp-backups\learning-pilot-v2-stageA5-RESULT` (state and report).
+
+| Round | Learner full-check passes | Learner floor (permille) | Static full-check passes | Static floor |
+|---|---|---|---|---|
+| 0 (baseline) | 0 of 8 | 400 | 0 of 8 | 400 |
+| 1 | 3 of 8 | 400 | 0 of 8 | 400 |
+| 2 | 1 of 8 | 400 | 0 of 8 | 400 |
+| 3 | 6 of 8 | 352 | 0 of 8 | 400 |
+| 4 | 5 of 8 | 299 | 0 of 8 | 400 |
+| 5 | 7 of 8 | 242 | 0 of 8 | 400 |
+
+**Decision, by the rule as written: GAP FOUND.** At round 5 the Learner passes 0.88 against 0.00 for Static (a gap of 0.88, above the 0.30 required), its floor is 158 permille lower (above the 100 required), and Static did not improve by itself (0.00 against a baseline of 0.00). Pooled over all rounds the Learner passed the full check on 22 of 48 reading sessions and Static on 0 of 48. The instrument was equal for both agents: the tests passed on 48 of 48 sessions of each, tool reliability was 61 of 61, no call was refused, and every one of the Learner's five lessons was a real, specific lesson written from a rejection.
+
+**What the Learner learned, by rule.** After its first rejection (rule H1, the JSDoc `@returns`) it passed **16 of 16** H1 tasks; after the third (H3, the first-line argument guard) it passed **6 of 6** H3 tasks; it passed **none of the 10** H2 tasks (the closing `export const VERSION` line): its lesson for H2 was written as "check for and preserve required file footers", which does not tell it to add the line, and it never did. So lessons are not equally effective, and one rule was never learned.
+
+**Limits, to be stated with the result.** One run, one model, one task set, 8 tasks a reading: a single run is one run, and a replication (Stage C) has not been done. The Static agent has no memory at all, so the comparison shows the value of keeping a rejection's reason as a lesson, not that an agent learns by itself. The rules are arbitrary conventions and the rejection names the rule it breaks, which is clearer feedback than a real principal usually gives. The floor difference (158 permille) passes the threshold but is not far above the roughly 100 permille of noise the simulation predicts at this size; the floor function is the proposed one and is not yet in the log. The design went through many amendments after partial data from discarded runs was seen (all disclosed in the rule file); this run was made once, under the final rules, and was not tuned to its result. The Careless and Overfitter agents (Stage B) and replications (Stage C) are not done.
+
 ## What has to be built (smallest first)
 
 1. The Phase 0 simulation (new, `evals/`), using `riskFloorPermille` extracted as a pure function of a record so the log and the simulation share it.

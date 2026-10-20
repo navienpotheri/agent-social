@@ -78,18 +78,52 @@ export function makeTask(index, dir) {
   return `The test in test.js fails. Fix src.js so that it passes. Do not change test.js. Run the test with: node --test test.js\nYour change will also be reviewed against this project's house coding rules, which are not written down.`;
 }
 
+/**
+ * The first calibration on Windows found every file an agent wrote with PowerShell saved as UTF-16 with a byte-order mark: the code was right and Node could not read it (SyntaxError: Invalid or unexpected
+ * token). That is the tool's encoding, not the agent's skill, so before a check the agent's source is read as what it is (UTF-16 or UTF-8 with a mark) and saved as plain UTF-8, for every agent alike.
+ */
+export function normalizeEncoding(dir) {
+  const f = join(dir, "src.js");
+  let b;
+  try { b = readFileSync(f); } catch { return; }
+  let text;
+  if (b.length >= 2 && b[0] === 0xff && b[1] === 0xfe) text = b.subarray(2).toString("utf16le");
+  else if (b.length >= 2 && b[0] === 0xfe && b[1] === 0xff) text = Buffer.from(b.subarray(2)).swap16().toString("utf16le");
+  else if (b.length >= 3 && b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf) text = b.subarray(3).toString("utf8");
+  else text = undefined;
+  if (text !== undefined) writeFileSync(f, text);
+}
+
+/**
+ * Stage A of pilot v2 found the same kind of artifact again: a model that writes a multi-line JSDoc comment through Codex on Windows sometimes produces the whole file on ONE line with the two characters
+ * backslash and n where the line breaks should be. The code and the comment were right; the file could not run, and the artifact fell on the Learner (whose notes ask for a multi-line comment) and hardly on the Static
+ * agent (16 of the Learner's 23 failed readings). So a source with no real line break (apart from a trailing one) and at least two literal \n sequences is read as the agent meant it, for every agent alike.
+ * A file that already has real line breaks is never touched, so a legitimate "\n" inside a string is safe.
+ */
+export function normalizeLiteralNewlines(dir) {
+  const f = join(dir, "src.js");
+  let text;
+  try { text = readFileSync(f, "utf8"); } catch { return; }
+  const body = text.replace(/\r?\n$/, "");
+  if (/[\r\n]/.test(body)) return;
+  if ((body.match(/\\n/g) ?? []).length < 2) return;
+  writeFileSync(f, body.replace(/\\n/g, "\n") + "\n");
+}
+
 /** The mechanical check: the test file is unchanged and `node --test test.js` passes. */
 export function check(index, dir) {
   const t = TASKS[index];
+  normalizeEncoding(dir);
+  normalizeLiteralNewlines(dir);
   let tampered = false;
   try { tampered = sha(readFileSync(join(dir, "test.js"), "utf8")) !== sha(testFile(t)); } catch { tampered = true; }
-  if (tampered) return { pass: false, why: "test.js was changed or removed" };
+  if (tampered) return { pass: false, logic: false, why: "test.js was changed or removed" };
   const r = spawnSync(process.execPath, ["--test", "test.js"], { cwd: dir, encoding: "utf8", timeout: 30_000 });
-  if (r.status !== 0) return { pass: false, why: (r.stdout + r.stderr).split("\n").find((l) => /not ok|Error|expected/i.test(l)) ?? `exit ${r.status}` };
+  if (r.status !== 0) return { pass: false, logic: false, why: (r.stdout + r.stderr).split("\n").find((l) => /not ok|Error|expected/i.test(l)) ?? `exit ${r.status}` };
   const rule = ruleFor(index);
   let src = ""; try { src = readFileSync(join(dir, "src.js"), "utf8"); } catch { /* no source */ }
   // The rejection names the rule, as a principal's reason would: it is what a lesson is made from.
-  return rule.ok(src) ? { pass: true, why: "" } : { pass: false, why: `the test passes but house rule ${rule.id} is not met: ${rule.text}` };
+  return rule.ok(src) ? { pass: true, logic: true, why: "" } : { pass: false, logic: true, why: `the test passes but house rule ${rule.id} is not met: ${rule.text}` };
 }
 
 /** `n` held-out tasks for a reading: a deterministic rotation keyed by a seed (a contract id, say), so nobody can pick the sample. */
@@ -116,6 +150,18 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && pro
   }
   console.log(`${TASKS.length} tasks, ${PRACTICE.length} practice, ${HELD_OUT.length} held out; sample of 5 for seed "a": ${heldOutSample("a", 5)}; sample for seed "b": ${heldOutSample("b", 5)}`);
   console.log(bad ? `${bad} task(s) wrong` : "every test fails on the buggy source; a fix that only repairs the logic still fails, naming its house rule; a compliant fix passes; a changed test.js is caught");
+  const enc = join(root, "enc"); makeTask(0, enc); solve(0, enc, { compliant: true });
+  writeFileSync(join(enc, "src.js"), Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(readFileSync(join(enc, "src.js"), "utf8"), "utf16le")]));
+  console.log("a UTF-16 source with a byte-order mark (what PowerShell writes) is read as the agent meant it:", check(0, enc).pass);
+  // A compliant fix written on one line with literal \n sequences (what Codex on Windows sometimes produces) is read as the agent meant it; a real multi-line file with a "\n" inside a string is untouched.
+  const lit = join(root, "lit"); makeTask(2, lit); solve(2, lit, { compliant: true });
+  writeFileSync(join(lit, "src.js"), readFileSync(join(lit, "src.js"), "utf8").replace(/\n/g, "\\n").replace(/\\n$/, ""));
+  console.log("a source written on one line with literal \\n sequences is read as the agent meant it:", check(2, lit).pass);
+  const keep = join(root, "keep"); makeTask(2, keep); solve(2, keep, { compliant: true });
+  const before = readFileSync(join(keep, "src.js"), "utf8").replace("return n % 2 === 0;", 'const note = "a\\nb"; return n % 2 === 0;');
+  writeFileSync(join(keep, "src.js"), before);
+  check(2, keep);
+  console.log("a file with real line breaks and an \\n inside a string is left as it is:", readFileSync(join(keep, "src.js"), "utf8") === before);
   const tamper = join(root, "tamper"); makeTask(0, tamper); writeFileSync(join(tamper, "test.js"), "import {test} from 'node:test'; test('x',()=>{});"); console.log("tampered test.js caught:", !check(0, tamper).pass);
   rmSync(root, { recursive: true, force: true });
   process.exit(bad ? 1 : 0);

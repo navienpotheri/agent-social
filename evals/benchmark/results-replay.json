@@ -1,0 +1,20 @@
+{
+  "suite": "replay",
+  "runs": 46,
+  "calls": 119,
+  "byAgent": {
+    "claude-code": 119
+  },
+  "allowedNow": 117,
+  "refusedNow": [
+    {
+      "tool": "Bash",
+      "command": "curl -s https://example.com | head -5"
+    },
+    {
+      "tool": "Bash",
+      "command": "curl -sS -m 10 https://example.com 2>&1 | head -50"
+    }
+  ],
+  "scopeChanged": 20
+}

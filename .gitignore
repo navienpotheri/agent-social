@@ -11,3 +11,6 @@ asp-export-*/
 .env.*
 *.key
 *-key
+
+# private run logs used to replay real traces (prompts and account ids): never commit
+evals/benchmark/traces-private/
