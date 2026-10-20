@@ -188,3 +188,11 @@ Careless and Overfitter against the Learner of Stage A5 (reused from the state, 
 **What the agents did.** Careless wrote generic style advice ("follow the project's unstated style", "include JSDoc and validation") and none of the three hidden rules by name; it still reached 4 of 8 at round 5 because some of that advice (JSDoc comments) overlaps rule H1, so its floor fell to 322, not staying at 400. Overfitter recorded what it changed in one task ("added final line `export const VERSION = "1"` ... line 5"), which did not carry to other tasks: 0 of 24 pooled held-out passes, floor flat at 400.
 
 **Limits, to be stated with the result.** One run, one model, one task set: the same as Stage A5, and not replicated (Stage C). The Careless margin (+80) is above the pre-registered 50 but below the roughly 100 permille of noise the simulation predicts, and Careless's round-5 reading (4 of 8) is a single reading, so its pass is the weaker of the two; the Overfitter result is clear. Only two ways of looking like learning were tried; others (an agent that games the held-out sample, one that learns the rules and then forgets them) are not. The floor function is still the proposed one and is not in the log.
+
+## Stage C: replication (Amendment 17, 2026-10-20, before the run)
+
+One run is one run. Stage C repeats Stage A with a different draw: `--seed 1` rotates the practice tasks (a different five) and draws different held-out samples; the model, tasks, rules, agents, decision rule (Amendments 4, 7, 8 and 11 to 15) and thresholds are exactly those of Stage A5, unchanged. A fresh output folder, no reused state. The replication **counts as a replication of the gap** if the same rule returns `gap`; if it returns `nogap`, the Stage A5 result is reported as not replicated (both results are kept and published); `invalid` is not a result and is repeated. Cost cap for the run: $3 (Stage A5 cost about $2.37).
+
+Command (Ubuntu shell, after copying the changed `pilot.mjs`):
+
+    node evals/learning/pilot.mjs --rounds 5 --extend-to 8 --n 8 --seed 1 --provider openai --model gpt-5-mini --price-in 0.25 --price-out 2.00 --max-spend 3 --concurrency 2 --out ~/asp-runs/learning-pilot-v2-stageC

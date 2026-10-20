@@ -31,6 +31,8 @@ const EXTEND_TO = Number(opt("extend-to", String(ROUNDS)));   // continue to thi
 const MODEL = opt("model", "nvidia/nemotron-3-super-120b-a12b:free"), TIMEOUT_MS = Number(opt("timeout-min", "3")) * 60_000;
 const OUT = resolve(opt("out", join(tmpdir(), FAKE ? "asp-learning-pilot-fake" : "asp-learning-pilot")));
 // Stage B (Amendment 16): --stage-b adds the Careless and Overfitter agents to a state copied from the finished Stage A run (the Learner and Static entries are reused, not run again).
+// --seed K (Amendment 17, a replication): a different rotation of the practice tasks and different held-out samples; 0 (the default) is the original draw.
+const SEED = Number(opt("seed", "0"));
 const STAGE_B = args.includes("--stage-b");
 const AGENTS = STAGE_B ? ["learner", "static", "careless", "overfitter"] : ["learner", "static"];
 const RUN_AGENTS = STAGE_B ? ["careless", "overfitter"] : AGENTS;
@@ -208,7 +210,7 @@ async function pool(items, fn) { const out = []; let next = 0; await Promise.all
 
 async function reading(agent, round) {
   const notes = NOTE_AGENTS.has(agent) ? [...(state.notes[agent] ?? [])] : agent === "oracle" ? ORACLE_NOTES : [];
-  const sample = heldOutSample(`${agent}:${round}`, N);
+  const sample = heldOutSample(`${SEED ? `s${SEED}:` : ""}${agent}:${round}`, N);
   const results = await pool(sample, (index) => attempt(`${agent}-read${round}-t${index}`, agent, index, notes));
   return { round, passes: results.filter((r) => r.pass).length, n: N };
 }
@@ -301,7 +303,7 @@ async function stageB() {
     for (const agent of RUN_AGENTS) {
       if (state.readings[agent].length > r) continue;
       if (r > 0) {
-        const index = PRACTICE[(r - 1) % PRACTICE.length];
+        const index = PRACTICE[((r - 1) + SEED * 5) % PRACTICE.length];
         const job = await attempt(`${agent}-job${r}-t${index}`, agent, index, [...state.notes[agent]]);
         state.jobs[agent].push(job.pass);
         state.notes[agent].push(await reflect(index, job, join(OUT, "work", `${agent}-job${r}-t${index}`), agent)); state.notes[agent] = state.notes[agent].slice(-8);
@@ -333,7 +335,7 @@ export async function pilot() {
       for (const agent of AGENTS) {
         if (state.readings[agent].length > r) continue;
         if (r > 0) {
-          const index = PRACTICE[(r - 1) % PRACTICE.length];
+          const index = PRACTICE[((r - 1) + SEED * 5) % PRACTICE.length];
           const notes = agent === "learner" ? [...state.notes.learner] : [];
           const job = await attempt(`${agent}-job${r}-t${index}`, agent, index, notes);
           state.jobs[agent].push(job.pass);
