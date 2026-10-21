@@ -58,11 +58,11 @@ test("per-command approval: only risky commands (or the ones you match) are aske
     assert.match(quiet.out, /tool_use:Bash/);
 
     // A risky one is asked about; no keeps it from the agent.
-    command = "cd app && git push origin main";
+    command = "cd app && git reset --hard";
     const asked: string[] = [];
     const no = await session(["--ask", "risky"], async (q) => { asked.push(q); return "n"; });
     assert.equal(no.code, 0, no.err);
-    assert.match(asked[0], /Allow shell\.exec: cd app && git push origin main\? \[y\/N\/a\]/);
+    assert.match(asked[0], /Allow shell\.exec: cd app && git reset --hard\? \[y\/N\/a\]/);
     assert.ok(!/tool_use:Bash/.test(no.out));
 
     // "a": allowed now, and remembered as that exact command for this agent.
@@ -72,19 +72,19 @@ test("per-command approval: only risky commands (or the ones you match) are aske
     const file = join(f.aspHome, "always-allow.json");
     assert.ok(existsSync(file));
     assert.equal(Object.values(JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown[]>)[0].length, 1);
-    assert.match((await call(["approvals", "always"])).out, /1\s+my-agent\s+cd app && git push origin main/);
+    assert.match((await call(["approvals", "always"])).out, /1\s+my-agent\s+cd app && git reset --hard/);
     // The next session runs it without asking (even with --ask commands, which asks about everything else) ...
     const again = await session(["--ask", "commands"], neverAsked);
     assert.equal(again.code, 0, again.err);
     assert.match(again.out, /tool_use:Bash/);
     // ... but a different command is still asked about, and so is the same words with something added.
-    command = "cd app && git push origin main --force";
+    command = "cd app && git reset --hard --force";
     const other: string[] = [];
     await session(["--ask", "commands"], async (q) => { other.push(q); return "n"; });
     assert.equal(other.length, 1);
 
     // Taking it back: it is asked about again.
-    command = "cd app && git push origin main";
+    command = "cd app && git reset --hard";
     assert.match((await call(["approvals", "forget", "1"])).out, /forgot 1 command/);
     assert.match((await call(["approvals", "always"])).out, /no command is allowed for always/);
     const back: string[] = [];
@@ -99,7 +99,7 @@ test("per-command approval: only risky commands (or the ones you match) are aske
     command = "make docs";
     assert.match((await session(["--ask-match", "re:\\bdeploy\\b"], neverAsked)).out, /tool_use:Bash/);
     // A masked or cut-short command is shown but cannot be remembered: no "a" is offered.
-    command = "GH_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz0123456789 git push origin main";
+    command = "GH_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz0123456789 git reset --hard";
     const masked: string[] = [];
     await session(["--ask", "risky"], async (q) => { masked.push(q); return "n"; });
     assert.match(masked[0], /\[y\/N\] $/);

@@ -305,7 +305,7 @@ import {
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
-import { askAbout, commandKey, compilePatterns, type AlwaysAllow } from "@agent-social/asp-package";
+import { askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
@@ -631,7 +631,7 @@ export function connectionProblem(e: unknown, service?: string): string | undefi
   const code = err?.cause?.code;
   const network = /^fetch failed$/i.test(err?.message ?? "") || ["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET", "EAI_AGAIN", "UND_ERR_CONNECT_TIMEOUT", "EHOSTUNREACH", "ENETUNREACH"].includes(code ?? "");
   if (!network) return undefined;
-  const why = code === "ENOTFOUND" || code === "EAI_AGAIN" ? "the address could not be found: check the spelling and your connection" : code === "ECONNREFUSED" ? "nothing is answering there: the service may be down" : code === "ETIMEDOUT" || code === "UND_ERR_CONNECT_TIMEOUT" ? "it did not answer in time: check your connection" : "check your connection";
+  const why = code === "ENOTFOUND" || code === "EAI_AGAIN" ? "the address could not be found: you may be offline (check your connection), or the address is mistyped" : code === "ECONNREFUSED" ? "nothing is answering there: the service may be down" : code === "ETIMEDOUT" || code === "UND_ERR_CONNECT_TIMEOUT" ? "it did not answer in time: check your connection" : "check your connection";
   return `cannot reach the service${service ? ` at ${service}` : ""} (${why}). Try again in a moment. \`asp status\` shows what works from this machine; \`asp run --local\` runs an agent under a Mandate with no service and no account.`;
 }
 
@@ -712,6 +712,13 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "help") return helpCmd(sub ? [sub, ...rest] : [], io);
     if (cmd === "status") return await statusCmd(home, io);
     if (cmd === "ask") return await askCmd(home, [sub, ...rest].filter(Boolean).join(" "), v, io);
+    if (cmd === "runtimes") {
+      // The support matrix: which runtimes asp run can start, how each is held to the Mandate, and the evidence behind the claim (docs/portability-at-scale.md).
+      for (const l of supportMatrix()) io.out(l);
+      io.out("reach: gateway = the tool is pointed at the local gateway; hook = the tool's own pre-call hook. evidence: live = run by hand on a real machine; partial = live with known gaps; stand-in = tested only with a stand-in for the tool.");
+      io.out("A runtime that is not listed can still run under `asp gateway` if it can be pointed at an OpenAI or Anthropic base URL; it is not claimed until a row says so.");
+      return 0;
+    }
     if (cmd === "init") return initCmd(home, io);
     if (cmd === "trust") return trustCmd(home, sub, io);
     if (cmd === "shim") return shimCmd(sub, io);
@@ -3884,23 +3891,11 @@ interface SessionProfile {
   needsPrompt: boolean;
   needsModel: boolean;
 }
-/** What to tell a person whose tool did not start. */
-const TOOL_INSTALL_HINT: Record<string, string> = {
-  "claude-code": "Install Claude Code (https://claude.com/claude-code), sign in once by running `claude`,",
-  codex: "Install the Codex CLI (`npm install -g @openai/codex`),",
-  goose: "Install Goose,",
-  antigravity: "Install the Antigravity CLI (agy) and sign in,",
-  openhands: "Install OpenHands (on Windows it runs inside WSL),",
-};
+/** What to tell a person whose tool did not start: from the runtime descriptors (packages/asp-package/src/runtimes.ts). */
+const TOOL_INSTALL_HINT: Record<string, string> = Object.fromEntries(RUNTIMES.map((r) => [r.name, r.installHint]));
 const SESSION_SCOPES = ["repo.read", "repo.write", "shell.exec", "tests.run"];
-const SESSION_RUNTIMES: Record<string, SessionProfile> = {
-  "claude-code": { scopes: SESSION_SCOPES, wire: "anthropic", needsPrompt: false, needsModel: false },
-  codex: { scopes: SESSION_SCOPES, wire: "openai", needsPrompt: true, needsModel: false },
-  goose: { scopes: SESSION_SCOPES, wire: "openai", needsPrompt: true, needsModel: true },
-  // Governed by the runtime's own pre-call hook and the observation of its output, not by the gateway (the package path of asp run, with the standing job as its contract).
-  antigravity: { scopes: SESSION_SCOPES, wire: "hooked", needsPrompt: true, needsModel: false },
-  openhands: { scopes: SESSION_SCOPES, wire: "hooked", needsPrompt: true, needsModel: false },
-};
+// How each runtime is reached and what it needs to start also come from the descriptors; a runtime held by its own pre-call hook is governed by the package path of asp run, with the standing job as its contract.
+const SESSION_RUNTIMES: Record<string, SessionProfile> = Object.fromEntries(RUNTIMES.map((r) => [r.name, { scopes: SESSION_SCOPES, wire: r.wire, needsPrompt: r.needsPrompt, needsModel: r.needsModel }]));
 /** Where an OpenAI-style tool's model calls go, and the environment variable that holds the person's own key for it (held by the gateway, removed from the tool's environment). */
 const OPENAI_PROVIDERS: Record<string, { base: string; keyEnv: string }> = {
   openai: { base: "https://api.openai.com/v1", keyEnv: "OPENAI_API_KEY" },
@@ -4100,7 +4095,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   // The tool, through the gateway. A prompt runs once and its answer is shown as it comes; without one the tool is interactive.
   const project = resolve(io.cwd, v.project ?? ".");
   const bin = io.env.ASP_CLAUDE_BIN ? [io.env.ASP_CLAUDE_BIN, ...(io.env.ASP_CLAUDE_SCRIPT ? [io.env.ASP_CLAUDE_SCRIPT] : [])] : ["claude"];
-  const tool = runtime === "codex" ? [process.execPath, CODEX_RUNTIME, project, v.model ?? "-", v.prompt!, "workspace-write"]
+  const tool = runtime === "codex" ? [process.execPath, CODEX_RUNTIME, project, v.model ?? "-", v.prompt!, ["read-only", "workspace-write"].includes(io.env.ASP_CODEX_SANDBOX ?? "") ? io.env.ASP_CODEX_SANDBOX! : "workspace-write"]
     : runtime === "goose" ? [process.execPath, GOOSE_RUNTIME, project, v.model!, v.prompt!]
     : v.prompt
       ? [...bin, "-p", v.prompt, "--allowedTools", "Read", "Glob", "Grep", "Edit", "Write", "Bash", "--output-format", "text", ...(v.model ? ["--model", v.model] : [])]
@@ -5181,8 +5176,16 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
     };
     if (plan.checkOutputForFailure || plan.checkOutputForAction) {
       let carry = "";
+      let shownCarry = "";
       child.stdout!.on("data", (chunk: Buffer) => {
-        (io.raw ?? ((c: Buffer) => process.stdout.write(c)))(chunk);
+        const show = io.raw ?? ((c: Buffer) => process.stdout.write(c));
+        // A runtime whose output is an event stream (agy) is shown as readable lines, not as JSON; ASP_RAW_OUTPUT=1 shows it unchanged.
+        if (plan.readableOutput && !io.env.ASP_RAW_OUTPUT) {
+          shownCarry += chunk.toString("utf8");
+          const shownLines = shownCarry.split("\n");
+          shownCarry = shownLines.pop() ?? "";
+          for (const l of shownLines) { const r = plan.readableOutput(l); if (r !== undefined) show(Buffer.from(r + "\n")); }
+        } else show(chunk);
         carry += chunk.toString("utf8");
         const lines = carry.split("\n");
         carry = lines.pop() ?? "";

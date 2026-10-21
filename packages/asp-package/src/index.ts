@@ -35,6 +35,7 @@ export const ADAPTERS: Record<string, RuntimeAdapter> = { [claudeCode.name]: cla
 export { COMMONS_VERSION, commonsId, commonsRoutes, signCommons, verifyCommonsSignature, type CommonsBody, type CommonsCitationBody, type CommonsEntryBody, type CommonsReviewBody, type EntryStatus, type EntryView, type Signed } from "./commons.ts";
 export { addKnownBad, fetchKnownBad, isKnownBadFingerprint, knownBadRoutes, postKnownBad, readKnownBad, type KnownBadEntry } from "./known-bad.ts";
 export * from "./gateway/index.ts";
+export { RUNTIMES, runtimeByName, supportMatrix, type RuntimeDescriptor, type RuntimeReach, type RuntimeWire, type RuntimeAssurance, type RuntimeEvidence } from "./runtimes.ts";
 export { AgentReporter, MandateRefusal, type Assurance, type ReporterOptions } from "./sdk/reporter.ts";
 export { NETWORK_SCOPES, RELAY_JS, RELAY_PY, bwrapArgs, policyNeedsNetwork, sandboxAvailable, type SandboxPolicy } from "./sandbox.ts";
 export { RELAY_TCP_PY, dockerPlan, type DockerPlan, type DockerPolicy } from "./sandbox.ts";

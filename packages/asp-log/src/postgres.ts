@@ -67,7 +67,7 @@ const toEscrow = (e: any): EscrowRow => ({
 });
 const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_minted) });
 const toJuror = (j: any): JurorRow => ({ did: j.did, head: j.head, staked: Number(j.staked) });
-const toReputation = (r: any): ReputationRow => ({ did: r.did, tier: Number(r.tier), slashCount: Number(r.slash_count), strikeLog: r.strike_log ?? [] });
+const toReputation = (r: any): ReputationRow => ({ did: r.did, tier: Number(r.tier), slashCount: Number(r.slash_count), strikeLog: r.strike_log ?? [], ...(Number(r.accepted_jobs) > 0 ? { acceptedJobs: Number(r.accepted_jobs) } : {}) });
 // lateActions is left out while it is 0, so the row reads the same on every store.
 const toMandate = (m: any): MandateRow => ({ contract: m.contract, scopes: m.scopes, ...(Number(m.late_actions) > 0 ? { lateActions: Number(m.late_actions) } : {}) });
 const toReport = (r: any): ReportRow => ({ id: r.id, contract: r.contract, reporter: r.reporter, accused: r.accused, deposit: Number(r.deposit), status: r.status });
@@ -332,9 +332,9 @@ class PgTx implements LogTx {
   }
   async putReputation(row: ReputationRow) {
     await this.c.query(
-      `INSERT INTO reputations (did, tier, slash_count, strike_log) VALUES ($1, $2, $3, $4::jsonb)
-       ON CONFLICT (did) DO UPDATE SET tier = $2, slash_count = $3, strike_log = $4::jsonb`,
-      [row.did, row.tier, row.slashCount, JSON.stringify(row.strikeLog)],
+      `INSERT INTO reputations (did, tier, slash_count, strike_log, accepted_jobs) VALUES ($1, $2, $3, $4::jsonb, $5)
+       ON CONFLICT (did) DO UPDATE SET tier = $2, slash_count = $3, strike_log = $4::jsonb, accepted_jobs = $5`,
+      [row.did, row.tier, row.slashCount, JSON.stringify(row.strikeLog), row.acceptedJobs ?? 0],
     );
   }
   async putMandate(row: MandateRow) {

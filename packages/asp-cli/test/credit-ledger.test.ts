@@ -99,3 +99,15 @@ test("the job lifecycle's credits, by entity: bonded, accepted and paid; rejecte
   // Metering: tokens used by sessions are an estimate in credits, never a charge.
   assert.deepEqual(meteredUse(f.aspHome, "2000-01-01T00:00:00Z", 1), { sessions: 0, tokens: 0, estimate: 0 }, "no sessions in this home");
 });
+
+// Found in the owner's overnight run: balances that could not be read were printed as nothing and the check said OK ("every credit is accounted for", a total of 0) for hours.
+test("a reading with a balance that could not be read is a PROBLEM that says why, never OK", async () => {
+  const run = async (a: string[]) => a[0] === "credits" ? { code: 1, out: "", err: "error: the log service refused the token (HTTP 401)" } : { code: 0, out: "", err: "" };
+  const e: Entity[] = [{ name: "principal", did: "did:web:x:u:a" }, { name: "agent", did: "did:web:x:a:a:b" }];
+  const s = await snapshot(run, { entities: e, label: "t0" });
+  assert.deepEqual(s.unreadable?.names, ["principal", "agent"]);
+  const c = conservation(s, 1);
+  assert.equal(c.ok, false);
+  assert.match(c.note, /could not read the balance of principal, agent: error: the log service refused the token \(HTTP 401\)/);
+  assert.match(c.note, /ASP_LOG_TOKEN/);
+});

@@ -25,9 +25,23 @@ Most people use only these.
 | `asp status` | Where things stand: who you are, what is running, what waits for you, what to do next |
 | `asp help [<topic>|<words>|all]` | Help by topic or search; `all` prints the complete reference |
 | `asp ask "<words>" [--yes]` | Say what you want in words; it shows the command it understood and asks before running it |
+| `asp runtimes` | The runtimes asp run can start: how each is held to your rules, and the evidence for it (live, partial or only a stand-in) |
 | `asp init` | Write a starter asp.yaml of defaults for this project |
 | `asp trust [asp.yaml]` | Trust a project's asp.yaml that asks for network access |
 | `asp shim bash|zsh|powershell` | Print a script: tab completion, and `claude` starting a governed session |
+
+### Designing the Mandate
+
+A plain `asp run` uses a default development Mandate (read and write files, run commands and tests in the project folder; no network, no push) and does not ask. These are the ways to narrow or widen it today. Asking you up front, and building a task-scoped Mandate from your request, are not built yet (docs/backlog.md; gap BM17).
+
+| Command | What it does |
+|---|---|
+| `asp run <runtime> --allow-network a.com,b.com` | Name the hosts the agent may reach; with none named, a session has no network and a call outside the Mandate is refused before the agent sees it |
+| `asp run <runtime> --ask commands|writes|network|risky` | Hold those calls for your yes before they run; your answer (y, N or a for always) is signed into the log |
+| `asp run <runtime> --ask-match "git push"` | Hold only the commands that match words, or re:<regular expression>, you give; everything else runs as the Mandate allows |
+| `asp init` | Write a starter asp.yaml of project defaults: runtime, agent, project, model, ask, ask-match, allow-network, standing-days, keep-run-log; flags on the command line win over the file |
+| `asp trust [asp.yaml]` | A file you did not write cannot widen what an agent may reach: its allow-network is used only after you trust it |
+| `asp market mandate --contract <id> --principal <did> --performer <did>` | In a priced job, the principal states exactly what the performer may do, and the job starts running |
 
 ### Your agents, your account, your login
 

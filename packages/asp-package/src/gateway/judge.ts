@@ -4,7 +4,8 @@
  * for any agent, using the same mappings the compliance bridge and the pre-call hooks use.
  */
 import { hostAllowed, isNetworkScope, sha256Id } from "@agent-social/asp-core";
-import { scopeForShellCommand, shellArtifact } from "../adapters/codex-actions.ts";
+import { scopeForShellCommand, shellArtifact, unwrapShell } from "../adapters/codex-actions.ts";
+import { rankOf, scanShell } from "./shell-scan.ts";
 import { deriveScopeForTool } from "../package.ts";
 
 export interface ToolCall { id?: string; name: string; args: Record<string, unknown> }
@@ -34,6 +35,18 @@ export function commandOf(args: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
+/**
+ * The first reading (word matching) can be fooled both ways, so a second, token-based reading (shell-scan.ts) is applied: it may make the scope stricter (a push or a network tool
+ * the first reading missed), and it may make it weaker only when every verb in the command is an ordinary local tool and the network words are plain text (a commit message, an echoed
+ * string, a file name). It never lowers a write or a push.
+ */
+function refineShellScope(first: string, cmd: string): string {
+  const scan = scanShell(unwrapShell(cmd));
+  if (scan.stricter && rankOf(scan.stricter) > rankOf(first)) return scan.stricter;
+  if (scan.dataOnly && (first === "shell.network" || first === "shell.exec") && rankOf(scan.dataOnly.scope) < rankOf(first)) return scan.dataOnly.scope;
+  return first;
+}
+
 /** A tool call's scope and fingerprint, without deciding anything. */
 export function classify(call: ToolCall): { scope: string; artifact?: { uri: string; sha256: string }; shell?: string } {
   const n = call.name.toLowerCase();
@@ -41,7 +54,7 @@ export function classify(call: ToolCall): { scope: string; artifact?: { uri: str
   const cmd = SHELL.has(n) ? commandOf(call.args) : undefined;
   if (SHELL.has(n)) {
     if (cmd === undefined) return { scope: "shell.exec", artifact: { uri: `asp://tool-call/${call.name}`, sha256: sha256Id(new TextEncoder().encode(JSON.stringify(call.args))) } };
-    return { scope: scopeForShellCommand(cmd), artifact: shellArtifact(cmd), shell: cmd };
+    return { scope: refineShellScope(scopeForShellCommand(cmd), cmd), artifact: shellArtifact(cmd), shell: cmd };
   }
   const generic = { uri: `asp://tool-call/${call.name}`, sha256: sha256Id(new TextEncoder().encode(JSON.stringify(call.args))) };
   if (READ.has(n)) return { scope: "repo.read", artifact: generic };
@@ -54,6 +67,8 @@ export function classify(call: ToolCall): { scope: string; artifact?: { uri: str
 const URL_RE = /\b[a-z][a-z0-9+.-]*:\/\/(?:[^\s\/@'"<>]*@)?(\[[0-9a-f:]+\]|[a-z0-9._-]+)/gi;
 /** Commands that take a host as an argument without a URL: curl example.com, nc host 80, ssh user@host, scp file host:path. */
 const HOST_VERB_RE = /\b(?:curl|wget|nc|ncat|netcat|ssh|scp|sftp|rsync|telnet|ping|nslookup|dig)\b([^|;&\n]*)/gi;
+/** Flags of curl and wget that take a value, which is not a host. */
+const VALUE_FLAGS = new Set(["-o", "-O", "-T", "-d", "-H", "-X", "-u", "-A", "-e", "-F", "-b", "-c", "-m", "-w", "-x", "-E", "-K", "-r", "-z", "-D", "-P", "-a", "-t", "-U", "--output", "--upload-file", "--data", "--data-raw", "--data-binary", "--header", "--request", "--user", "--user-agent", "--referer", "--form", "--cookie", "--cookie-jar", "--max-time", "--proxy", "--retry", "--connect-timeout", "--output-document", "--post-data", "--post-file", "--directory-prefix"]);
 const BARE_HOST_RE = /^(?:[^@\s]+@)?((?:[a-z0-9-]+\.)+[a-z]{2,}|\d{1,3}(?:\.\d{1,3}){3}|localhost)(?::|$|\/)/i;
 
 /** The hosts a network-bound call would reach, as far as they can be read from it. `[]` means the call reaches the network but no host could be read. */
@@ -63,7 +78,10 @@ export function hostsOf(call: ToolCall, scope: string): string[] {
   const fromText = (text: string) => {
     for (const m of text.matchAll(URL_RE)) add(m[1]);
     for (const verb of text.matchAll(HOST_VERB_RE)) {
-      for (const tok of verb[1].trim().split(/\s+/)) {
+      const toks = verb[1].trim().split(/\s+/);
+      for (let i = 0; i < toks.length; i++) {
+        const tok = toks[i];
+        if (VALUE_FLAGS.has(tok)) { i++; continue; } // -o out.json, -T file, -H header: the next word is not a host
         if (tok.startsWith("-") || tok.includes("://")) continue;
         const m = BARE_HOST_RE.exec(tok.replace(/^["']|["']$/g, ""));
         if (m) add(m[1]);

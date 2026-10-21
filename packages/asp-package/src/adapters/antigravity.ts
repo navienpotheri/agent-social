@@ -109,6 +109,31 @@ export function agyActionParser(): (line: string) => { id?: string; scope: strin
 }
 
 /** `agy` can exit 0 on some failures; the final result event carries the status. */
+/**
+ * What a person sees for one line of agy's headless output (stream-json). The events are for asp, not for reading (about thirty lines of JSON for a short task), so they are turned into: the
+ * agent's answer, a short line for a tool that failed, and a note when agy's own permission check denied something because headless mode cannot ask. Anything that is not an event passes as it is.
+ */
+export function agyReadable(line: string): string | undefined {
+  const text = line.trim();
+  if (!text) return undefined;
+  if (/headless mode cannot prompt/i.test(text)) {
+    return "  note     agy's headless mode cannot ask you, so it denied a command that is not pre-approved and the agent could not run it. For a run you trust: set ASP_ANTIGRAVITY_ARGS=--dangerously-skip-permissions";
+  }
+  if (!text.startsWith("{")) return line;
+  let e: { event?: string; result?: { response?: string; status?: string; denied_actions?: { display_name?: string }[] }; step_update?: { state?: string; step_type?: string; tool_name?: string; error?: { message?: string } } };
+  try { e = JSON.parse(text); } catch { return line; }
+  if (e.event === "result") {
+    const answer = (e.result?.response ?? "").trim();
+    const denied = (e.result?.denied_actions ?? []).map((d) => d.display_name).filter(Boolean);
+    return [answer, denied.length ? `  note     agy's own permission check denied: ${denied.join(", ")}` : ""].filter(Boolean).join("\n") || undefined;
+  }
+  if (e.event === "step_update" && e.step_update?.state === "ERROR" && e.step_update.step_type === "tool") {
+    const why = (e.step_update.error?.message ?? "").split("\n")[0].replace(/^permission check failed for command .*?: /i, "").slice(0, 160);
+    return `  agy      ${e.step_update.tool_name ?? "a tool"} failed${why ? `: ${why}` : ""}`;
+  }
+  return undefined;
+}
+
 export function agyFailure(line: string): string | undefined {
   if (!line.includes('"result"')) return undefined;
   let o: any;
@@ -314,7 +339,7 @@ async function materialize(opts: {
   const finalArgs = opts.env.ASP_ANTIGRAVITY_SCRIPT ? [opts.env.ASP_ANTIGRAVITY_SCRIPT, ...args] : args;
   return {
     command: resolveAgy(opts.env), args: finalArgs, cwd: hooked ? workspace : project, env: {}, files, runDir, memoryDir: memDir, missingSecrets: [], notes,
-    ...(opts.prompt !== undefined ? { checkOutputForAction: agyActionParser(), checkOutputForFailure: agyFailure } : {}),
+    ...(opts.prompt !== undefined ? { checkOutputForAction: agyActionParser(), checkOutputForFailure: agyFailure, readableOutput: agyReadable } : {}),
     ...(hooked ? { preventsCalls, checkOutputForResult: agyResultParser(), executedCallsFile: join(runDir, "executed-calls.ndjson"), blockedCallsFile: join(runDir, "blocked-calls.ndjson"), rateLimitedFile: join(runDir, "rate-limited.ndjson"), ...(approvalsDir ? { approvalsDir } : {}) } : {}),
   };
 }

@@ -1,0 +1,10 @@
+[0:v]fps=30,format=yuv420p,split=8[a][b][c][d][e][f][g][h];
+[a]trim=9.0:15.0,setpts=PTS-STARTPTS[v1];
+[b]trim=15.0:26.9,setpts=(PTS-STARTPTS)/3[v2];
+[c]trim=26.9:44.9,setpts=(PTS-STARTPTS)/8,drawtext=text='Claude Code working under the Mandate (sped up 8x)':fontfile='C\:/Windows/Fonts/arial.ttf':fontsize=30:fontcolor=white:box=1:boxcolor=black@0.65:boxborderw=14:x=40:y=h-90[v3];
+[d]trim=44.9:52.0,setpts=PTS-STARTPTS[v4];
+[e]trim=56.5:62.2,setpts=PTS-STARTPTS[v5];
+[f]trim=62.2:69.5,setpts=PTS-STARTPTS[v6];
+[g]trim=70.1:76.5,setpts=PTS-STARTPTS[v7];
+[h]trim=76.5:83.0,setpts=PTS-STARTPTS[v8];
+[v1][v2][v3][v4][v5][v6][v7][v8]concat=n=8:v=1:a=0[out]

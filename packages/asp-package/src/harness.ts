@@ -113,6 +113,11 @@ export interface LaunchPlan {
    * calls the compliance bridge saw.
    */
   describeOutput?: (line: string) => { kind: string; data: Record<string, unknown> }[];
+  /**
+   * What to show a person for one line of the runtime's output, when the output is an event stream that is not meant to be read as it is (agy's stream-json): the line to print, or `undefined` to print nothing.
+   * Absent: the output is shown as it comes. ASP_RAW_OUTPUT=1 shows it unchanged either way.
+   */
+  readableOutput?: (line: string) => string | undefined;
   /** Reads a call's outcome from a line of output: `blocked` means the pre-call hook stopped it before it ran. */
   checkOutputForResult?: (line: string) => { id: string; blocked: boolean }[] | undefined;
 }
