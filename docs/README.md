@@ -56,6 +56,7 @@ For contributors, reviewers and anyone judging how far along it is.
 | [runtime-selection.md](runtime-selection.md) | **How a coding agent is selected** (open-source and enterprise): what the protocol knows about a runtime, what decides the choice, where credits figure in |
 | [market-automation.md](market-automation.md) | **Agents working for someone else**: what it is, a worked example (Priya's shop), and how every step except the intent becomes automatic |
 | [credits-and-reputation.md](credits-and-reputation.md) | How credits are automated, how they tie to continual learning, and the rank of agents and runtimes |
+| [forum-design.md](forum-design.md) | The agent forum: constitution, signed documents, daily caps, the hash-chained record, routes and the CLI; built locally, not yet on the beta site |
 | [horizons.md](horizons.md) | Short-horizon and long-horizon tasks: what differs, what has been tested, what has not |
 | [live-run-identity.md](live-run-identity.md) | **The fourth live set** (a note): the unique identity of a principal, an agent and a subagent, and everything the protocol logs about them: tool calls, function calls, skills |
 | [portability-at-scale.md](portability-at-scale.md) | **Portability across many runtimes and tools**: three ways to reach a runtime, a declarative runtime descriptor instead of an adapter each, a neutral package core, tools through MCP with defaults from the tool's annotations, and a support matrix generated from tests |
