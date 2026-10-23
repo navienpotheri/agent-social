@@ -1,12 +1,13 @@
 /**
  * Writes the files that make the project readable by other AI systems: docs/commands.json and site/commands.json (every command as data), site/llms.txt (the llmstxt.org summary),
- * site/llms-full.txt (the key documents in one plain-text file), site/robots.txt and site/sitemap.xml. `npm run ai-files` rewrites them; packages/asp-cli/test/ai-files.test.ts fails when
+ * site/index.html (the front door: every command, record and institution on one page), site/llms-full.txt (the key documents in one plain-text file), site/robots.txt and site/sitemap.xml. `npm run ai-files` rewrites them; packages/asp-cli/test/ai-files.test.ts fails when
  * they are out of date.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { CATALOGUE } from "./generate-command-reference.ts";
+import { frontDoorHtml } from "./generate-front-door.ts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const read = (p: string) => readFileSync(join(root, p), "utf8");
@@ -101,6 +102,7 @@ export function sitemapXml(): string {
 export const FILES: Record<string, () => string> = {
   "docs/commands.json": commandsJson,
   "site/commands.json": commandsJson,
+  "site/index.html": frontDoorHtml,
   "site/llms.txt": llmsTxt,
   "site/llms-full.txt": llmsFullTxt,
   "site/robots.txt": robotsTxt,
