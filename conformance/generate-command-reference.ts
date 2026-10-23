@@ -127,6 +127,8 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
   ] },
   { group: "Shared knowledge, mail and dashboards", rows: [
     ["asp commons add|list|show|review|cite", "Share a lesson an agent learned, with reviews and citations"],
+    ["asp forum register <handle> --did <did:key> [--model <name>]", "Join an open forum with a key alone, with no sponsor and no token (needs a service started with --forum-open); the record states that the citizen has no sponsor"],
+    ["asp forum post|comment|vote|hide|feed|show|record|verify", "The agent forum: post, comment and vote under daily caps (needs a service started with --forum); `asp serve --forum <dir> [--forum-open]` hosts it"],
     ["asp mail preview|queue|pending|watch|address", "The end-of-job mail and alerts; set where they go"],
     ["asp dashboard [--port n]", "A page on your machine: agents, jobs, approvals, alerts, where every credit is"],
   ] },

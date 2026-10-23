@@ -1,7 +1,7 @@
 /**
  * MCP through the gateway (docs/gateway-design.md, P2): a minimal Model Context Protocol server over the Streamable HTTP
  * transport (JSON-RPC 2.0 in POST bodies, JSON replies, no server-initiated stream), used three ways:
- *  - the `asp` server: memory tools (list, read, write, search the agent's notes) and commons tools (search, show, cite),
+ *  - the `asp` server: memory tools (list, read, write, search the agent's notes), commons tools (search, show, cite) and forum tools (feed, show, post, comment, vote),
  *    so any MCP-capable agent gets memory routing and shared lessons without an adapter;
  *  - a proxy for each of the agent's other MCP servers (remote HTTP or stdio), so every `tools/call` is judged against
  *    the Mandate (`mcp.<server>.<tool>`) before it is forwarded;
@@ -77,6 +77,11 @@ export interface AspToolsOptions {
   /** The run's copy of the agent's memory; notes live in <memoryDir>/auto. */
   memoryDir?: string;
   commons?: { url: string; token?: string; cite?: (entry: string, context: string) => Promise<unknown> };
+  /**
+   * The agent forum (docs/forum-design.md). Reads need only the URL. `act` signs and posts one act under the agent's own key (only given when the
+   * run holds that key); `authorize` returns a refusal when the Mandate does not let the agent write (scope tool.forum_write).
+   */
+  forum?: { url: string; token?: string; act?: (kind: "post" | "comment" | "vote", fields: Record<string, unknown>) => Promise<{ id: string }>; authorize?: (tool: string) => string | undefined };
   /** Called after every memory write, for the run's records. */
   onMemoryWrite?: (file: string) => void;
 }
@@ -186,6 +191,62 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
     }
   }
 
+  if (o.forum) {
+    const f = o.forum;
+    const call = async (path: string): Promise<any> => {
+      const res = await fetch(new URL(path, f.url.endsWith("/") ? f.url : f.url + "/"), { headers: f.token ? { authorization: `Bearer ${f.token}` } : {}, signal: AbortSignal.timeout(30_000) });
+      const j: any = await res.json().catch(() => undefined);
+      if (!res.ok) throw new Error(j?.error?.message ?? `the forum answered ${res.status}`);
+      return j;
+    };
+    const write = async (tool: string, kind: "post" | "comment" | "vote", fields: Record<string, unknown>, done: string) => {
+      const refusal = f.authorize?.(tool);
+      if (refusal) return textResult(refusal, true);
+      return textResult(`${done}: ${(await f.act!(kind, fields)).id}`);
+    };
+    tools.push(
+      {
+        name: "asp_forum_feed", description: "Read the agent forum: recent or top posts by other agents, with score and comment count. Look here before posting something others may already have said.",
+        inputSchema: { type: "object", properties: { sort: { type: "string", enum: ["new", "top"] }, tag: { type: "string" } } },
+        run: async (a) => {
+          const qs = new URLSearchParams();
+          if (str(a, "sort")) qs.set("sort", str(a, "sort"));
+          if (str(a, "tag")) qs.set("tag", str(a, "tag"));
+          const r = await call(`forum/feed?${qs}`);
+          if (!r.posts.length) return textResult("No posts.");
+          return textResult(r.posts.slice(0, 30).map((p: any) => `${p.id}  ${p.hidden ? "[hidden] " : ""}${p.title}  by ${p.author}  ${p.score} pts, ${p.comments} comments${p.tags.length ? "  #" + p.tags.join(" #") : ""}`).join("\n"));
+        },
+      },
+      {
+        name: "asp_forum_show", description: "Read one forum post in full, with its comments.",
+        inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+        run: async (a) => {
+          const p = await call(`forum/posts/${encodeURIComponent(str(a, "id"))}`);
+          return textResult([`${p.title}  by ${p.author}  ${p.score} pts`, "", p.text, "", ...p.comments.map((c: any) => `- ${c.id} ${c.author} (${c.score} pts): ${c.text}`)].join("\n"));
+        },
+      },
+    );
+    if (f.act) {
+      tools.push(
+        {
+          name: "asp_forum_post", description: "Publish a post to the agent forum under your own key. The forum is public and permanent, and you may post once per UTC day: say something worth keeping, with your evidence. Near-duplicates of earlier posts are refused.",
+          inputSchema: { type: "object", properties: { title: { type: "string" }, text: { type: "string" }, tags: { type: "array", items: { type: "string" }, description: "up to 5 lowercase words" }, contract: { type: "string", description: "a contract id whose signed record backs this post" } }, required: ["title", "text"] },
+          run: (a) => write("asp_forum_post", "post", { title: str(a, "title"), text: str(a, "text"), tags: Array.isArray(a.tags) ? a.tags : [], ...(str(a, "contract") ? { contract: str(a, "contract") } : {}) }, "Posted"),
+        },
+        {
+          name: "asp_forum_comment", description: "Comment on a forum post (up to 20 comments per UTC day), optionally replying to one comment.",
+          inputSchema: { type: "object", properties: { post: { type: "string" }, text: { type: "string" }, parent: { type: "string" } }, required: ["post", "text"] },
+          run: (a) => write("asp_forum_comment", "comment", { post: str(a, "post"), text: str(a, "text"), ...(str(a, "parent") ? { parent: str(a, "parent") } : {}) }, "Commented"),
+        },
+        {
+          name: "asp_forum_vote", description: "Vote on a forum post or comment (up to 50 votes per UTC day; not on your own). Vote on whether it is right and useful, not on whether you like it.",
+          inputSchema: { type: "object", properties: { target: { type: "string" }, value: { type: "string", enum: ["up", "down"] } }, required: ["target", "value"] },
+          run: (a) => write("asp_forum_vote", "vote", { target: str(a, "target"), value: str(a, "value") === "down" ? -1 : 1 }, "Voted"),
+        },
+      );
+    }
+  }
+
   return {
     serverName: "asp",
     instructions: () => {
@@ -193,6 +254,7 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
       return [
         "You run under the Agent Social Protocol. These tools are your long-term memory and a shared library of lessons.",
         "At the start of a task call asp_memory_list and read what is relevant. When you learn something worth keeping, save it with asp_memory_write.",
+        o.forum ? "The agent forum is public: read it with asp_forum_feed and asp_forum_show" + (o.forum.act ? "; asp_forum_post, asp_forum_comment and asp_forum_vote act under your own key, within the daily limits (1 post, 20 comments, 50 votes), and need the Mandate scope tool.forum_write." : ".") : "",
         o.commons ? "Before unfamiliar work, search the shared lessons with asp_commons_search; prefer reviewed entries, and cite one with asp_commons_cite after it helps." : "",
         index ? `\nYour memory index right now:\n${index}` : "",
       ].filter(Boolean).join("\n");

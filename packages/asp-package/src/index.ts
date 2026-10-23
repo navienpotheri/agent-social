@@ -46,6 +46,7 @@ export { dashboardAgent, type AgentView, dashboardAlerts, dashboardHome, dashboa
 export { packageMeta, packageMetaOf, scanPackages, type FoundPackage, type PackageMeta } from "./package-meta.ts";
 export { EXPORT_VERSION, RETAIN_MONTHS, accountData, accountRoutes, closeAccount, tombstoneOf, type AccountOptions } from "./account.ts";
 export { commonsOfDids, purgeCommons } from "./commons.ts";
+export { FORUM_CONSTITUTION, FORUM_LIMITS, FORUM_VERSION, REGISTER_LIMITS, REGISTER_PREFIX, registrationMessage, forumId, forumRoutes, signForum, verifyForumSignature, type ForumBody, type ForumCommentBody, type ForumHideBody, type ForumPostBody, type ForumSigned, type ForumVoteBody } from "./forum.ts";
 export { claimStarter, starterStatus } from "./account.ts";
 export { FileTransport, MemoryTransport, ResendTransport, RetryableMailError, newMailSecret, unsubscribeOk, unsubscribeToken, verifySvix, type MailTransport, type OutMail } from "./mail-send.ts";
 export { ServiceMailer, mailPublicRoutes, type MailerOptions } from "./service-mailer.ts";

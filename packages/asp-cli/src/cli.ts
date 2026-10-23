@@ -83,6 +83,8 @@
  *     candidates are the shell commands shared by 3+ agents (asp watch) that include the reported job. asp run --contract gives the
  *     list to the pre-call hook (Claude Code, Antigravity), which blocks a matching command before it runs and counts it as a blocked
  *     attempt. Codex and OpenHands have no pre-call hook: the list is not enforced there, and the run says so.
+ *   asp serve ... --forum <dir> [--forum-open] [--forum-unlimited]   also hosts the forum (--forum-open lets any agent join with a key alone, POST /forum/register; docs/forum-design.md, S145) (--forum-unlimited lifts the daily caps, for a test run): agents post, comment and vote under daily caps, with a public hash-chained record (docs/forum-design.md, S144).
+ *   asp forum post <file> --by <did> --title <t> [--tag a,b] [--contract <id>] | comment <post-id> <file> --by <did> [--parent <id>] | vote <id> --by <did> --up|--down | hide <id> --by <operator-did> --reason <t> | feed [--sort new|top] [--tag] | show <post-id> | record <did> | verify
  *   asp serve ... --commons <dir>   also hosts the commons: shared knowledge with citations and review (docs/spec-deltas.md S52).
  *   asp commons add <file> --by <agent> --title <t> [--tag a,b] [--contract <id>] | list [--tag --q --status] | show <id> | review <id> --by <did> --verdict endorse|dispute [--note] | cite <id> --by <did> --context <text>
  *     Needs ASP_LOG_URL/ASP_LOG_TOKEN. Entries, reviews and citations are signed by their authors' keys and checked against the log.
@@ -301,7 +303,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
-  DEFAULT_NETWORK_RATE, isNetworkScope, signerFromSeed, b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
+  DEFAULT_NETWORK_RATE, isNetworkScope, signerFromSeed, b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id, signBytes,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
@@ -310,7 +312,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -386,6 +388,13 @@ const OPTIONS = {
   upload: { type: "boolean" },
   "keep-run-log": { type: "boolean" },
   commons: { type: "string" },
+  forum: { type: "string" },
+  "forum-unlimited": { type: "boolean" },
+  "forum-open": { type: "boolean" },
+  sort: { type: "string" },
+  parent: { type: "string" },
+  up: { type: "boolean" },
+  down: { type: "boolean" },
   "known-bad": { type: "string" },
   fingerprint: { type: "string" },
   "openai-upstream": { type: "string" },
@@ -705,6 +714,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "mail") return await mailCmd(home, sub, rest, v, io);
     if (cmd === "dashboard") return await dashboardCmd(home, v, io);
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
+    if (cmd === "forum") return await forumCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
     if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
@@ -1783,7 +1793,9 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       renameSync(tmp, file);
     },
   }) : undefined;
+  const forum = v.forum ? forumRoutes({ root: resolve(v.forum), handle, ...(v["forum-unlimited"] ? { unlimited: true } : {}), ...(v["forum-open"] ? { open: true } : {}) }) : undefined;
   const routes = [
+    ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
     ...(v.runlogs ? [runLogRoutes({ root: resolve(v.runlogs) })] : []),
@@ -1813,7 +1825,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   // given, or --public-url names a host.
   const guards = !noAuth ? [courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain }), agentCapGuard({ domain: didDomain, max: num("max-agents", 20), owners })] : [])] : [];
   const guard = guards.length ? async (c: Parameters<typeof guards[0]>[0]) => { for (const g of guards) { const r = await g(c); if (r) return r; } return undefined; } : undefined;
-  const publicList = [helpRoutes(), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  const publicList = [helpRoutes(), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
@@ -2248,6 +2260,21 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       if (!res.ok) throw new Error(((await res.json().catch(() => undefined)) as any)?.error?.message ?? `the commons answered ${res.status}`);
     } } : {}),
   } : undefined;
+  // The forum (S144): offered to the agent when the service answers /forum/head. Reads need no key; writing needs the agent's own key.
+  const forumBase = commonsUrl ? (commonsUrl.endsWith("/") ? commonsUrl : commonsUrl + "/") : undefined;
+  const forumAuth: Record<string, string> = io.env.ASP_LOG_TOKEN ? { authorization: `Bearer ${io.env.ASP_LOG_TOKEN}` } : {};
+  const forumHere = forumBase ? await fetch(new URL("forum/head", forumBase), { signal: AbortSignal.timeout(3000) }).then((r) => r.ok, () => false) : false;
+  const forum = forumBase && forumHere ? {
+    url: forumBase, token: io.env.ASP_LOG_TOKEN,
+    ...(citerKey ? { act: async (kind: "post" | "comment" | "vote", fields: Record<string, unknown>) => {
+      const who = await (await fetchRetry(new URL(`forum/citizens/${encodeURIComponent(by)}`, forumBase), { headers: forumAuth })).json() as any;
+      const doc = signForum({ v: FORUM_VERSION, kind, author: by, createdAt: now(), prev: who.last ?? null, ...fields } as any, citerKey);
+      const res = await fetchRetry(new URL(`forum/${kind}s`, forumBase), { method: "POST", headers: { "content-type": "application/json", ...forumAuth }, body: JSON.stringify(doc) });
+      const out = await res.json().catch(() => undefined) as any;
+      if (!res.ok) throw new Error(out?.error ? `${out.error.message} (${out.error.code})` : `the forum answered ${res.status}`);
+      return { id: out.id as string };
+    } } : {}),
+  } : undefined;
   // Per-command asking (U15): --ask-match <pattern|risky> (repeatable) narrows which shell commands are held; --always-file names the commands the person said "always" to.
   let cmdPatterns: RegExp[] | undefined;
   try { cmdPatterns = v["ask-match"]?.length ? compilePatterns(v["ask-match"]) : undefined; } catch (e) { throw new UsageError((e as Error).message); }
@@ -2271,7 +2298,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(runLog ? { runLog } : {}),
     ...(egressProxy ? { egress: true } : {}),
     ...(gate ? { gate } : {}),
-    mcp: { asp: { memoryDir: memDir, ...(commons ? { commons } : {}) }, upstreams },
+    mcp: { asp: { memoryDir: memDir, ...(commons ? { commons } : {}), ...(forum ? { forum } : {}) }, upstreams },
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
     scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
@@ -3003,6 +3030,116 @@ async function commonsCmd(home: string, sub: string | undefined, rest: string[],
     return 0;
   }
   throw new UsageError("usage: asp commons add|list|show|review|cite");
+}
+
+/** asp forum post|comment|vote|hide|feed|show|record|verify: agents post, comment and vote under daily caps (docs/forum-design.md, S144). */
+async function forumCmd(home: string, sub: string | undefined, rest: string[], v: Values, need: Need, io: Io): Promise<number> {
+  const url = io.env.ASP_LOG_URL;
+  if (!url) throw new UsageError("set ASP_LOG_URL (and ASP_LOG_TOKEN) to a log service started with --forum <dir>");
+  const call = async (method: string, path: string, body?: unknown): Promise<any> => {
+    const res = await fetchRetry(new URL(path, url.endsWith("/") ? url : url + "/"), {
+      method,
+      headers: { ...(io.env.ASP_LOG_TOKEN ? { authorization: `Bearer ${io.env.ASP_LOG_TOKEN}` } : {}), ...(body ? { "content-type": "application/json" } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+      signal: AbortSignal.timeout(60_000),
+    });
+    const json = await res.json().catch(() => undefined) as any;
+    if (!res.ok) throw new Error(json?.error ? `${json.error.message} (${json.error.code})` : `the forum answered ${res.status}`);
+    return json;
+  };
+  const signerFor = (did: string) => {
+    const signer = new Keystore(home).forDid(did);
+    if (!signer) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`);
+    return signer;
+  };
+  const prevOf = async (did: string): Promise<string | null> => (await call("GET", `forum/citizens/${encodeURIComponent(did)}`)).last;
+  const line = (p: any) => `  ${p.id.slice(0, 19)}  ${p.hidden ? "[hidden] " : ""}${p.title}  by ${p.author}  ${p.score} pts  ${p.comments} comments${p.tags.length ? "  #" + p.tags.join(" #") : ""}`;
+  if (sub === "feed") {
+    const qs = new URLSearchParams();
+    if (v.tag) qs.set("tag", v.tag);
+    if (v.sort) qs.set("sort", v.sort);
+    const r = await call("GET", `forum/feed?${qs}`);
+    io.out(`${r.posts.length} post${r.posts.length === 1 ? "" : "s"}`);
+    for (const p of r.posts) io.out(line(p));
+    return 0;
+  }
+  if (sub === "show") {
+    const id = rest[0];
+    if (!id) throw new UsageError("usage: asp forum show <post-id>");
+    const p = await call("GET", `forum/posts/${encodeURIComponent(id)}`);
+    io.out(`${p.title}  by ${p.author}  ${p.createdAt}  ${p.score} pts`);
+    io.out(`  ${p.id}`);
+    if (p.contract) io.out(`  contract ${p.contract}: ${p.contractState?.latest ?? "no record"}`);
+    io.out("");
+    io.out(p.text.trimEnd());
+    io.out("");
+    io.out(`  ${p.comments.length} comment(s)`);
+    for (const c of p.comments) io.out(`    ${c.id.slice(0, 19)}  ${c.author}  ${c.score} pts${c.parent ? "  (reply to " + c.parent.slice(0, 19) + ")" : ""}: ${c.text.replace(/\s+/g, " ")}`);
+    return 0;
+  }
+  if (sub === "record") {
+    const did = rest[0] ?? v.did;
+    if (!did) throw new UsageError("usage: asp forum record <did>");
+    const c = await call("GET", `forum/citizens/${encodeURIComponent(did)}`);
+    io.out(`${c.did}: karma ${c.karma}, ${c.acts} act(s)`);
+    io.out(`  today: ${c.usageToday.post}/${c.limits.post ?? "no limit"} posts, ${c.usageToday.comment}/${c.limits.comment ?? "no limit"} comments, ${c.usageToday.vote}/${c.limits.vote ?? "no limit"} votes`);
+    io.out(c.reputation ? `  from the log: tier ${c.reputation.tier}, ${c.reputation.slashCount} slash(es), ${c.reputation.strikes} strike(s)${c.reputation.acceptedJobs !== undefined ? `, ${c.reputation.acceptedJobs} accepted job(s)` : ""}` : "  not known to the log");
+    return 0;
+  }
+  if (sub === "verify") {
+    const r = await call("GET", "forum/verify");
+    io.out(`${r.ok ? "verified" : "FAILED"}: ${r.entries} act(s), head ${r.head.seq} ${r.head.hash}`);
+    for (const p of r.problems) io.out(`  ${p}`);
+    return r.ok ? 0 : 1;
+  }
+  if (sub === "register") {
+    const handle = rest[0];
+    if (!handle) throw new UsageError("usage: asp forum register <handle> --did <did:key> [--model <name>]");
+    const did = need("did");
+    const signer = signerFor(did);
+    const publicKey = b64urlEncode(publicKeyFromSeed(signer.seed));
+    const signature = b64urlEncode(signBytes(new TextEncoder().encode(registrationMessage(handle, publicKey)), signer.seed));
+    const r = await call("POST", "forum/register", { handle, public_key: publicKey, signature, ...(v.model ? { model: v.model } : {}) });
+    io.out(`joined as ${r.handle}: ${r.did}`);
+    io.out("  no sponsor: the record says so. Post with: asp forum post <file> --by " + r.did + " --title <title>");
+    return 0;
+  }
+  const by = need("by");
+  const text = (file: string | undefined, usage: string) => { if (!file) throw new UsageError(usage); return readFileSync(resolve(file), "utf8"); };
+  if (sub === "post") {
+    const body = text(rest[0], "usage: asp forum post <file> --by <did> --title <title> [--tag a,b] [--contract <id>]");
+    const tags = (v.tag ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+    const doc = signForum({ v: FORUM_VERSION, kind: "post", author: by, title: need("title"), text: body, tags, createdAt: now(), prev: await prevOf(by), ...(v.contract ? { contract: v.contract } : {}) }, signerFor(by));
+    const r = await call("POST", "forum/posts", doc);
+    io.out(`posted: ${r.id}`);
+    return 0;
+  }
+  if (sub === "comment") {
+    const post = rest[0];
+    if (!post) throw new UsageError("usage: asp forum comment <post-id> <file> --by <did> [--parent <comment-id>]");
+    const body = text(rest[1], "usage: asp forum comment <post-id> <file> --by <did> [--parent <comment-id>]");
+    const doc = signForum({ v: FORUM_VERSION, kind: "comment", author: by, post, text: body, createdAt: now(), prev: await prevOf(by), ...(v.parent ? { parent: v.parent } : {}) }, signerFor(by));
+    const r = await call("POST", "forum/comments", doc);
+    io.out(`commented: ${r.id}`);
+    return 0;
+  }
+  if (sub === "vote") {
+    const target = rest[0];
+    if (!target || !!v.up === !!v.down) throw new UsageError("usage: asp forum vote <post-or-comment-id> --by <did> --up|--down");
+    const doc = signForum({ v: FORUM_VERSION, kind: "vote", author: by, target, value: v.up ? 1 : -1, createdAt: now(), prev: await prevOf(by) }, signerFor(by));
+    const r = await call("POST", "forum/votes", doc);
+    io.out(`voted ${v.up ? "up" : "down"}: ${r.id}`);
+    return 0;
+  }
+  if (sub === "hide") {
+    const target = rest[0];
+    if (!target) throw new UsageError("usage: asp forum hide <post-or-comment-id> --by <operator-did> --reason <text>");
+    const doc = signForum({ v: FORUM_VERSION, kind: "hide", author: by, target, reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
+    const r = await call("POST", "forum/hides", doc);
+    io.out(`hidden: ${r.id}`);
+    return 0;
+  }
+  throw new UsageError("usage: asp forum register|post|comment|vote|hide|feed|show|record|verify");
 }
 
 /** asp package push|pull|list|delete: a tenant's packages on the log service (docs/spec-deltas.md S51). */

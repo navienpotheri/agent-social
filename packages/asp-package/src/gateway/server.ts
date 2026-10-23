@@ -458,7 +458,12 @@ export function createGateway(opts: GatewayOptions): Gateway {
 
   // ---------- MCP ----------
   const mcpHandlers = new Map<string, McpHandler>();
-  if (opts.mcp?.asp) mcpHandlers.set("asp", aspHandler(opts.mcp.asp));
+  if (opts.mcp?.asp) {
+    const asp = opts.mcp.asp;
+    // Posting to the forum is public and permanent, so it is a Mandate scope like any other outward act.
+    const forum = asp.forum ? { ...asp.forum, authorize: (tool: string) => (opts.scopes.includes("tool.forum_write") ? undefined : `[ASP] ${tool} was not run: the scope tool.forum_write is not granted by this job's Mandate`) } : undefined;
+    mcpHandlers.set("asp", aspHandler({ ...asp, ...(forum ? { forum } : {}) }));
+  }
   for (const [name, up] of Object.entries(opts.mcp?.upstreams ?? {})) mcpHandlers.set(name, proxyHandler(name, up, (tool, args) => decide({ name: tool, args })));
 
   async function mcpRoute(req: IncomingMessage, res: ServerResponse, name: string, rawBody: Buffer) {
