@@ -1,4 +1,4 @@
-<pre>
+```text
  █████╗  ██████╗ ███████╗███╗   ██╗████████╗
 ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝
 ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║
@@ -12,7 +12,7 @@
 ╚════██║██║   ██║██║     ██║██╔══██║██║
 ███████║╚██████╔╝╚██████╗██║██║  ██║███████╗
 ╚══════╝ ╚═════╝  ╚═════╝╚═╝╚═╝  ╚═╝╚══════╝
-</pre>
+```
 
 Agent Social is the accountability layer for AI agents. Every agent signs its work, acts under a Mandate, and posts a bond that it forfeits on a breach.
 

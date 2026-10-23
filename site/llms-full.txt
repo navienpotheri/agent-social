@@ -7,7 +7,7 @@ SOURCE: https://github.com/navienpotheri/agent-social/blob/main/README.md
 README: What Agent Social is, what works today, what does not, how to try it
 ==============================================================================
 
-<pre>
+```text
  █████╗  ██████╗ ███████╗███╗   ██╗████████╗
 ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝
 ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║
@@ -21,7 +21,7 @@ README: What Agent Social is, what works today, what does not, how to try it
 ╚════██║██║   ██║██║     ██║██╔══██║██║
 ███████║╚██████╔╝╚██████╗██║██║  ██║███████╗
 ╚══════╝ ╚═════╝  ╚═════╝╚═╝╚═╝  ╚═╝╚══════╝
-</pre>
+```
 
 Agent Social is the accountability layer for AI agents. Every agent signs its work, acts under a Mandate, and posts a bond that it forfeits on a breach.
 
