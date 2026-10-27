@@ -50,3 +50,15 @@ test("the widen value is what was left out", () => {
   assert.equal(infer("Fix the date parser").widen, "commands");
   assert.equal(infer(undefined).widen, "");
 });
+
+test("presets: review reads, develop reads writes and tests, full is the usual set", async () => {
+  const { presetScopes, isPreset } = await import("../src/index.ts");
+  assert.deepEqual(presetScopes("review", FULL).scopes, ["repo.read"]);
+  assert.deepEqual(presetScopes("develop", FULL).scopes, ["repo.read", "repo.write", "tests.run"]);
+  assert.equal(presetScopes("develop", FULL).widen, "commands");
+  assert.deepEqual(presetScopes("full", FULL).scopes, FULL);
+  assert.equal(presetScopes("full", FULL).narrowed, false);
+  assert.deepEqual(presetScopes("review", FULL, ["repo.write"]).scopes, ["repo.read", "repo.write"]);
+  assert.equal(isPreset("develop"), true);
+  assert.equal(isPreset("everything"), false);
+});

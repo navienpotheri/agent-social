@@ -308,7 +308,7 @@ import {
 } from "@agent-social/asp-core";
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
 import { askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
-import { allowScopes, inferScopes } from "@agent-social/asp-package";
+import { allowScopes, inferScopes, isPreset, presetScopes, type Preset } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
@@ -484,6 +484,7 @@ const OPTIONS = {
   "standing-days": { type: "string" },
   "allow-network": { type: "string" },
   allow: { type: "string" },
+  permissions: { type: "string" },
   "also-dir": { type: "string" },
   "widen-hint": { type: "string" },
   "no-open": { type: "boolean" },
@@ -4178,7 +4179,35 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const days = Math.max(1, Math.trunc(Number(v["standing-days"] ?? "7")));
   const hosts = (v["allow-network"] ?? "").split(",").map((h) => h.trim()).filter(Boolean);
   // A task gets the permissions it seems to need, not the usual full set (gap BM17); --ask on a scope and --allow add to it. A headless run uses its existing contract's Mandate as it is.
-  const inferred = headless ? { scopes: prof.scopes, narrowed: false, why: "", widen: "" } : inferScopes(v.prompt, prof.scopes, [...allowScopes(v.allow, prof.scopes), ...gate.filter((g) => prof.scopes.includes(g))]);
+  // A session with no task is sized by the person's choice for this project, asked once and kept in the ASP home (not in the project, so a cloned repository cannot set it).
+  const allowed = [...allowScopes(v.allow, prof.scopes), ...gate.filter((g) => prof.scopes.includes(g))];
+  if (v.permissions !== undefined && v.permissions !== "ask" && !isPreset(v.permissions)) throw new UsageError("--permissions review|develop|full (or ask, to be asked again)");
+  let preset: Preset | undefined;
+  if (!headless) {
+    const prefsFile = join(home, "project-permissions.json");
+    const prefs = ((): Record<string, string> => { try { return JSON.parse(readFileSync(prefsFile, "utf8")); } catch { return {}; } })();
+    const projKey = resolve(io.cwd, v.project ?? ".");
+    const keep = (p: Preset) => { prefs[projKey] = p; mkdirSync(home, { recursive: true }); writeFileSync(`${prefsFile}.part`, JSON.stringify(prefs, null, 2)); renameSync(`${prefsFile}.part`, prefsFile); };
+    if (isPreset(v.permissions)) { preset = v.permissions; keep(preset); }
+    else if (!v.prompt) {
+      const saved = v.permissions === "ask" ? undefined : prefs[projKey];
+      preset = isPreset(saved) ? saved : undefined;
+      if (!preset && !v.allow) {
+        const q = "  permissions for this project, asked once (change later with --permissions):\n    1) review   read files only\n    2) develop  read and write files, run tests   [recommended]\n    3) full     also run any command\n  choose 1, 2 or 3 [2]: ";
+        let answer: string | undefined;
+        try {
+          if (io.ask) answer = await io.ask(q);
+          else if (process.stdin.isTTY) { const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stderr }); try { answer = await rl.question(q); } finally { rl.close(); } }
+        } catch { answer = undefined; }
+        if (answer !== undefined) {
+          const a = answer.trim().toLowerCase();
+          preset = a === "1" || a === "review" ? "review" : a === "3" || a === "full" ? "full" : "develop";
+          keep(preset);
+        }
+      }
+    }
+  }
+  const inferred = headless ? { scopes: prof.scopes, narrowed: false, why: "", widen: "" } : preset ? presetScopes(preset, prof.scopes, allowed) : inferScopes(v.prompt, prof.scopes, allowed);
   const scopes = [...inferred.scopes, ...(hosts.length ? ["shell.network"] : [])];
   for (const g of gate) if (!scopes.includes(g)) throw new UsageError(`--ask ${g}: that scope is not in this session's Mandate (${scopes.join(", ")})`);
   const purpose = (v.prompt ?? "An interactive session").replace(/\s+/g, " ").slice(0, 80);

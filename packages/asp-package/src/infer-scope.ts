@@ -29,6 +29,29 @@ const ALIAS: Record<string, string[]> = {
   protected: ["repo.write.protected"],
 };
 
+/**
+ * A session with no task (an interactive one) cannot be sized from a prompt, so the person chooses once per project: `review` reads only, `develop` reads, writes and runs tests, `full` is the
+ * usual set (also any command). The choice is kept for the project and a run can add to it with `--allow`.
+ */
+export const PRESETS = ["review", "develop", "full"] as const;
+export type Preset = (typeof PRESETS)[number];
+const PRESET_SCOPES: Record<Preset, string[] | undefined> = { review: ["repo.read"], develop: ["repo.read", "repo.write", "tests.run"], full: undefined };
+export const isPreset = (x: string | undefined): x is Preset => !!x && (PRESETS as readonly string[]).includes(x);
+
+export function presetScopes(preset: Preset, full: readonly string[], allow: readonly string[] = []): InferredScopes {
+  const base = PRESET_SCOPES[preset];
+  const want = new Set([...(base ?? full), ...allow]);
+  const scopes = [...full.filter((s) => want.has(s)), ...allow.filter((a) => !full.includes(a))];
+  const narrowed = scopes.length < full.length;
+  const missing = full.filter((s) => !scopes.includes(s));
+  const widen = missing.map((s) => (s === "repo.write" ? "writes" : s === "shell.exec" ? "commands" : s === "tests.run" ? "tests" : s)).join(",");
+  const parts = ["read files", ...(scopes.includes("repo.write") ? ["write files"] : []), ...(scopes.includes("shell.exec") ? ["run commands"] : scopes.includes("tests.run") ? ["run tests"] : [])];
+  return {
+    scopes, narrowed, widen,
+    why: narrowed ? `your choice for this project (${preset}): ${parts.join(", ")}; no network. Add to one run with --allow ${widen}, or change it with --permissions review|develop|full` : "your choice for this project: the usual permissions",
+  };
+}
+
 /** The scopes `--allow` names (writes, commands, tests, protected, all, or a scope itself). */
 export function allowScopes(list: string | undefined, full: readonly string[]): string[] {
   const out: string[] = [];

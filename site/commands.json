@@ -88,6 +88,10 @@
           "description": "With a prompt, the Mandate is sized to the task (a review reads only; a change may write and run tests; running or building adds commands; never network) and the start line says how to widen it; --allow widens it"
         },
         {
+          "command": "asp run <runtime> [--permissions review|develop|full|ask]",
+          "description": "With no prompt, asks once per project what the session may do (review: read files; develop: also write files and run tests; full: also any command), keeps the answer, and uses it next time; --permissions changes it, ask asks again"
+        },
+        {
           "command": "asp run <runtime> --also-dir ../shared,~/notes",
           "description": "The gateway confines the agent to the project; name another directory it may also read and write"
         },
