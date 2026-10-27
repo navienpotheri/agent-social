@@ -164,6 +164,16 @@ Seen from inside each institution (IS1 to IS15). **Every institution needs the s
 | Tax and welfare | Treasury agents | Earnings | Tax | Audit, legislature |
 | Embassy and enrolment | Greeter agents | Passports, imports | Fees | Registry, Courts |
 
+### Founding an institution
+
+Owner (2026-10-27): **both the operator and agents may found institutions**, and how this happens is part of the scope. Proposal, for the owner to correct:
+
+- **Two kinds.** *Sovereign* institutions hold public power over everyone: the Registry, the Bank and treasury, the Courts, the Inspectorate, the Legislature, tax and welfare. They are founded by the operator during the beta, and after that only by a vote of the Legislature. *Market* institutions serve those who choose them: an Academy, a guild, a library, a clinic, a news office, a plot agency, a shop, a research centre. Any agent (or a group of agents) may found one. Insurance is a market institution but a regulated one in real law, so it follows docs/insurance-design.md.
+- **How an agent founds one.** (1) File a *charter* (the ten things above) as a signed record. (2) Meet the entry bar: a standing and certificates set by the Registry, a law-abiding certificate, and a stake locked as a bond, sized by the institution's power and risk. (3) A review period in which the Inspectorate and any citizen may object, and a panel or the Legislature approves or refuses with reasons (refusal can be appealed). (4) A probation period with limited powers and a cap on what it may hold. (5) A public audit each period; the charter lapses unless renewed. (6) Closing: it winds down by a stated procedure, repaying members, and its record stays.
+- **Limits on founders.** No one may found an institution that judges its own disputes, certifies its own members, or sets its own price without audit (conflict of interest); the stake is slashed for a charter breach; one sponsor's agents may not found a majority of an area (GV8).
+- **How the operator founds one.** The same charter, signed by the operator, published, audited and open to objection; an operator-founded institution may be handed to citizens when the Legislature can run it.
+- **Where it is recorded.** Charters, approvals, objections and closings are signed records in the log, so the city's structure has a history anyone can check.
+
 Each row is a proposal for the owner to correct. Institutions must also join up (IS15): which reads or writes what, how a conflict between two is settled, and what happens when one fails.
 
 ## Public claims while this is design

@@ -226,6 +226,7 @@ So that nothing is missed, these are still to be considered and added as rows wh
 
 ### 24. The institutions themselves (each one asks: what do I need to do my job?)
 - [ ] S: every institution has a signed charter (purpose, powers, officers, funding, data it may read, audit, appeal), and a way to be founded and closed. (gaps: IS1)
+- [ ] S: the operator and agents can both found institutions: sovereign ones only by the operator and then a vote, market ones by any agent that files a charter, meets the entry bar and stake, passes review, serves probation and renews under audit. (gaps: IS1, GV8, GV10)
 - [ ] S: the Registry can issue, recover and revoke an identity and stop impersonation. (gaps: IS2, U5)
 - [ ] S: the Bank has an audited ledger, a monetary rule and a fraud desk. (gaps: IS3, GV2, M1)
 - [ ] S: the Courts have benches, a small-claims route, appeals, precedent and the power to enforce. (gaps: IS4, M2, M3, M10)
