@@ -27,8 +27,24 @@ test("a change task may write and run tests, not arbitrary commands", () => {
 
 test("a task that says to run or build also gets commands", () => {
   assert.deepEqual(infer("Implement the feature and build it").scopes, FULL);
-  assert.deepEqual(infer("Run the benchmark and tell me the result").scopes, ["repo.read", "shell.exec", "tests.run"]);
-  assert.deepEqual(infer("Run the tests").scopes, ["repo.read", "shell.exec", "tests.run"]);
+  assert.deepEqual(infer("Run the benchmark and tell me the result").scopes, ["repo.read", "shell.exec"]);
+  assert.deepEqual(infer("Run the tests").scopes, ["repo.read", "tests.run"], "running the tests is the tests scope, not a general command");
+});
+
+test("words are not commands: nouns, build output, and a workflow that runs the tests", () => {
+  assert.deepEqual(infer("Write a script that converts the CSV files to JSON").scopes, ["repo.read", "repo.write"], "a script to write is not a command to run");
+  assert.deepEqual(infer("Delete the old build artifacts in dist/").scopes, ["repo.read", "repo.write"]);
+  assert.deepEqual(infer("Check whether the README is out of date compared with the commands").scopes, ["repo.read"]);
+  assert.deepEqual(infer("Set up a GitHub Actions workflow that runs the tests").scopes, ["repo.read", "repo.write", "tests.run"]);
+  assert.deepEqual(infer("Format the code with prettier").scopes, ["repo.read", "shell.exec"], "the formatter edits the files itself");
+  assert.deepEqual(infer("Debug why the build is slow").scopes, ["repo.read", "repo.write", "shell.exec"]);
+});
+
+test("a change to words is not checked by tests, a change to code is", () => {
+  assert.deepEqual(infer("Translate the README into Spanish").scopes, ["repo.read", "repo.write"]);
+  assert.deepEqual(infer("Update the changelog for this release").scopes, ["repo.read", "repo.write"]);
+  assert.deepEqual(infer("Rename the function parseDate to parseIsoDate everywhere").scopes, ["repo.read", "repo.write", "tests.run"]);
+  assert.deepEqual(infer("Refactor the forum module into smaller files").scopes, ["repo.read", "repo.write", "tests.run"]);
 });
 
 test("--allow widens, and the line says how", () => {

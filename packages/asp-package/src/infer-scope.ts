@@ -14,9 +14,14 @@ export interface InferredScopes {
   widen: string;
 }
 
-const WRITE = /\b(fix|fixes|fixing|add|adds|adding|implement|implements|implementing|write|writes|writing|create|creates|creating|edit|edits|editing|change|changes|changing|update|updates|updating|refactor|refactors|refactoring|rename|renaming|remove|removing|delete|deleting|replace|replacing|rewrite|rewriting|migrate|migrating|generate|generating|patch|patching|port|porting|convert|converting|translate|translating|build\s+(?:a|an|the|me)\b|make\s+(?:a|an|the|it|this)\b|set\s*up|scaffold|document|documenting|format|reformat|clean\s*up|resolve|apply|commit|bump|bumping|upgrade|upgrading|downgrade|modify|modifying|improve|improving|adjust|adjusting|tweak|move|moving|copy|extend|extending|optimi[sz]e|simplify|insert|append|split|merge|polish|look\s+better|looks\s+better)\b/i;
+const WRITE = /\b(fix|fixes|fixing|add|adds|adding|implement|implements|implementing|write|writes|writing|create|creates|creating|edit|edits|editing|change|changes|changing|update|updates|updating|refactor|refactors|refactoring|rename|renaming|remove|removing|delete|deleting|replace|replacing|rewrite|rewriting|migrate|migrating|generate|generating|patch|patching|port|porting|convert|converting|translate|translating|build\s+(?:a|an|me)\b|make\s+(?:a|an|the|it|this)\b|set\s*up|scaffold|document|documenting|clean\s*up|resolve|apply|commit|bump|bumping|upgrade|upgrading|downgrade|modify|modifying|improve|improving|adjust|adjusting|tweak|move|moving|copy|extend|extending|optimi[sz]e|simplify|insert|append|split|merge|polish|look\s+better|looks\s+better|debug|debugging|troubleshoot|troubleshooting)\b/i;
 const TESTS = /\b(test|tests|testing|lint|linting|typecheck|type-check|type\s+check|pytest|jest|vitest|coverage|ci)\b/i;
-const RUN = /\b(run|runs|running|execute|executing|build|compile|compiling|install|installing|script|scripts|benchmark|start|launch|deploy|npm|yarn|pnpm|make|cargo|docker|pip|python|node|bash|shell|command|commands|prettier|eslint|black|gofmt|rustfmt|clang-format|formatter)\b/i;
+/** A change to what code does is checked by running the tests; a change to words (docs, a translation, a changelog) is not. */
+const CODE = /\b(fix|fixes|fixing|bug|bugs|refactor|refactors|refactoring|rename|renaming|implement|implements|implementing|feature|features|remove|removing|unused|failing|fails|broken|migrate|migrating|port|porting)\b/i;
+/** Words that ask for something to be run: verbs and tools, not the nouns "script" or "commands", and not "build artifacts" (a folder). */
+const RUN = /\b(run|runs|running|execute|executing|build|builds|building|compile|compiling|install|installing|start|launch|deploy|prettier|eslint|black|gofmt|rustfmt|clang-format|formatter|format|reformat)\b(?!\s+(?:artifacts?|output|outputs|files?|dir|directory|folders?|cache|logs?)\b)/i;
+/** Running the tests or the linter is the tests scope, not a general command; and "a workflow that runs the tests" describes the workflow, not an instruction. */
+const RUN_TESTS = /\b(?:(?:that|which)\s+)?(?:runs?|running)\s+(?:the\s+|all\s+|our\s+)?(?:tests?|test\s+suite|linter|lint|type\s*check(?:er)?)\b/gi;
 
 const ALIAS: Record<string, string[]> = {
   writes: ["repo.write"],
@@ -72,10 +77,10 @@ export function inferScopes(prompt: string | undefined, full: readonly string[],
   const want = new Set<string>(["repo.read"]);
   const writes = WRITE.test(prompt);
   const tests = TESTS.test(prompt);
-  const runs = RUN.test(prompt);
-  if (writes) { want.add("repo.write"); want.add("tests.run"); }
+  const runs = RUN.test(prompt.replace(RUN_TESTS, " "));
+  if (writes) { want.add("repo.write"); if (CODE.test(prompt)) want.add("tests.run"); }
   if (tests) want.add("tests.run");
-  if (runs) { want.add("shell.exec"); want.add("tests.run"); }
+  if (runs) want.add("shell.exec");
   for (const a of allow) want.add(a);
   const scopes = [...keep([...want]), ...allow.filter((a) => !full.includes(a))];
   const narrowed = scopes.length < full.length;
