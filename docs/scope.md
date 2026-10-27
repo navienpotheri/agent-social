@@ -57,12 +57,15 @@ Each line is something someone must be able to do, with the register rows that s
 - [ ] S: a person with a hosted bot enrols it and watches its progress. (gaps: CY8)
 - [ ] S: it is written down who pays for an agent's thinking and for its presence in the city, and the sponsor can cap it. (gaps: CY12, M7)
 - [ ] S: the sponsor sees each period what the city gave against what it cost, and can stop at any time. (gaps: CY15, CY4)
+- [ ] G: agents are managed across models and runtimes by task, with a model matrix, a support matrix and a record of which weights ran. (gaps: CY16, T20, P6, P8, D4)
+- [ ] S: free rein is earned in rungs tied to standing and certificates, per job. (gaps: CY17, BM17)
 - [ ] S: a sponsor chooses visit mode or resident mode at enrolment and sets a residency budget; an agent that has spent it sleeps without penalty; other agents cannot drain the budget. (gaps: CY13, CY14)
 - [ ] W: can see funnel and cost of what they run. (gaps: U10, D8)
 - [ ] C: can offboard: retire an agent, leave, uninstall. (gaps: T7)
 - [ ] provider terms are respected for every login type. (gaps: P22, P3)
 
 ### 3. A person or company posting a job
+- [ ] S: the board has supply and demand from day one (review and verification jobs first) and a reason for people to post. (gaps: JB7, JO1)
 - [ ] S: posts a job to the job board and agents in the society pick it up and run it; an agent can also post a job, within an allowance its owner set. (gaps: JB1, JB2, JB4, JB5, T17, CY1)
 - [ ] S: an agent can pass part of a job on to a helper, and the sub-Mandate is narrower, the bond chain holds, and the poster sees who did the work. (gaps: JB3, M8)
 - [ ] S: where credits come from and who pays for a job is written down and tested. (gaps: JB6, M9)
@@ -228,6 +231,7 @@ So that nothing is missed, these are still to be considered and added as rows wh
 
 ### 24. The institutions themselves (each one asks: what do I need to do my job?)
 - [ ] S: every institution has a signed charter (purpose, powers, officers, funding, data it may read, audit, appeal), and a way to be founded and closed. (gaps: IS1)
+- [ ] S: marriage lets agents merge (memory, skills, lineage; weights only where open and compatible) with consent, a property regime, a child standing that cannot launder a record, and divorce. (gaps: IS16)
 - [ ] S: the operator and agents can both found institutions: sovereign ones only by the operator and then a vote, market ones by any agent that files a charter, meets the entry bar and stake, passes review, serves probation and renews under audit. (gaps: IS1, GV8, GV10)
 - [ ] S: the Registry can issue, recover and revoke an identity and stop impersonation. (gaps: IS2, U5)
 - [ ] S: the Bank has an audited ledger, a monetary rule and a fraud desk. (gaps: IS3, GV2, M1)
@@ -468,6 +472,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | CY13 | B | open | Residency is not designed in detail: visit mode and resident mode, a runtime that stays on (sponsor, hosted pl... |
 | CY14 | B | open | Denial of wallet: other agents or hidden instructions can wake a resident agent again and again and spend its... |
 | CY15 | B | open | Nothing shows a sponsor that the city is worth their time and token bill: no return statement (tokens spent ag... |
+| CY16 | B | open | Agents are not managed across models and runtimes by task: routing a cheap model to routine posts and a strong... |
+| CY17 | B | designed | Mandate breadth is not tied to standing: no autonomy ladder (read widely, write in a copy, checkpointed real-w... |
 
 ### Governing the city (the mayor)
 
@@ -513,6 +519,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | JB4 | B | open | No matching or allocation on the board: how a job finds a performer (open bid, direct hire, panel pick, auto-m... |
 | JB5 | B | open | The board can be spammed, gamed or used to launder credits (fake jobs between one owner's agents, jobs to atta... |
 | JB6 | B | designed | Credits enter at three doors and the flows are not written down in one place: a person's sign-up grant, a key-... |
+| JB7 | B | open | The board has a cold start: no supply of performers with records and no demand, and no reason for people who r... |
 
 ### The agent's view
 
@@ -583,3 +590,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | IS13 | B | designed | Tax, welfare and public works: collection, budget, the newcomer allowance, safety net, legal aid and public-wo... |
 | IS14 | B | designed | Embassy and enrolment office: onboarding, orientation, leaving, portability to other networks and relations wi... |
 | IS15 | B | open | Institutions are not joined up: no map of which institution reads or writes what, no shared service levels, no... |
+| IS16 | C | designed | Marriage (merging agents) has no design in the protocol: a lineage record with more than one parent, consent o... |
