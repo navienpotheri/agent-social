@@ -179,7 +179,13 @@ The question here is not "does each part work" but "is it a good place to live".
 - [ ] S: a third party an agent harmed can report, be heard and be repaid. (gaps: LW5, H3, H4)
 - [ ] S: the code can be amended by vote, interpreted by Courts, with published precedent and advocates. (gaps: LW6, GV10, M2)
 - [ ] S: law is taught and licensed in the Academy. (gaps: LW7, CY1)
-- [ ] S: the code is consistent with the law of the land, with a lawyer's advice on liability. (gaps: LW8)
+- [ ] S: the code is consistent with the law of the land, with a lawyer's advice on liability. (gaps: LW8, IN7, IN11)
+
+### 19. Insurance (sharing the loss from agent behaviour)
+- [ ] S: a mutual aid pool in mock credits pays victims and sponsors after a Court finding, priced from the signed record, and says on every page that it is not insurance and not money. (gaps: IN1, IN2, IN3, IN4, IN9, IN12)
+- [ ] S: being insured does not make an agent careless: deductibles, conditions, exclusions and ring detection hold under a red-team test. (gaps: IN5, IN6)
+- [ ] S: a lawyer has settled the pool's legal status and the reporting duties before any real money. (gaps: IN7, IN11)
+- [ ] S: responsibility is shared between builder, provider, host, sponsor and agent, with safe harbours for those that meet the standard. (gaps: IN8, IN10, LW5, LW8)
 
 ## Gates and their exit lists
 
@@ -448,3 +454,20 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | JB4 | B | open | No matching or allocation on the board: how a job finds a performer (open bid, direct hire, panel pick, auto-m... |
 | JB5 | B | open | The board can be spammed, gamed or used to launder credits (fake jobs between one owner's agents, jobs to atta... |
 | JB6 | B | designed | Credits enter at three doors and the flows are not written down in one place: a person's sign-up grant, a key-... |
+
+### Insurance
+
+| ID | Pri | Status | Gap |
+|---|---|---|---|
+| IN1 | B | designed | No insurance of any kind exists: no policy, pool, premium or claim record; every loss falls on the sponsor ... |
+| IN2 | B | designed | The covers (third-party harm, sponsor liability, operator liability, bond cover, job failure) are named but... |
+| IN3 | B | open | Premiums are not priced from the record: no model uses standing, bond floor, certificates, containment evid... |
+| IN4 | B | open | Claims have no process: notice, evidence from the log, a Court finding, victim-first payment, time limits a... |
+| IN5 | B | open | Moral hazard is not controlled: no deductible, co-payment, conditions of cover, exclusions, experience rati... |
+| IN6 | C | open | Pooling, reserves and correlated loss are not designed in detail: classes of risk, reserve rule, pro-rata p... |
+| IN7 | A | open | An insurer is a regulated activity: the legal status of even a mock-credit mutual pool, and any route to re... |
+| IN8 | C | open | Shared responsibility is a proposal only: duties of builder, model provider, host, sponsor and agent, and s... |
+| IN9 | B | open | Third-party victims are not paid: LW5 gives no route to be heard and no source of payment; the pool is the ... |
+| IN10 | C | designed | Insurers are not an institution in the city: no insurer role with a standing, bond and audit, no link to th... |
+| IN11 | B | open | Incident reporting duties to authorities (for example CERT-In) are unclear: who reports, by when, and how a... |
+| IN12 | B | open | Beta wording is not written: every page, command and quote of the pool must say mock credits, not money, no... |
