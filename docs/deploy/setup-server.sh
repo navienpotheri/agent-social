@@ -138,6 +138,7 @@ EnvironmentFile=$ETC/asp.env
 ExecStart=/usr/bin/node $APP/packages/asp-cli/bin/asp.mjs serve --db \${DATABASE_URL} --tokens $DATA/tokens.json --host 127.0.0.1 --port 8787 --trust-proxy \\
   --packages $DATA/packages --runlogs $DATA/runlogs --commons $DATA/commons --known-bad $DATA/known-bad \\
   --forum $DATA/forum --forum-open \\
+  --limits-state $DATA/limits-state.json \\
   --signup --signup-terms-url https://$DOMAIN/terms --signup-terms-version 2026-10 --signup-daily-cap $SIGNUP_DAILY_CAP \\
   --public-url https://$DOMAIN --mail-from "$MAIL_FROM" --mail-operator $MAIL_OPERATOR $GOOGLE_FLAGS
 Restart=always

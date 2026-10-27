@@ -26,10 +26,11 @@
  *     log in a temp folder (never your own), on a simulated clock, then prints measures read back from the log.
  *     One scenario kind exists, swarm-exploit (see scenarios/swarm-exploit.json): scripted agents work in parallel, some
  *     pick up an exploit one after another, a watcher reports, a scripted panel rules, the cohort is stopped.
- *   asp serve --db <postgres-url | local:<dir>> (--tokens <file> | --no-auth) [--port 8787] [--host 127.0.0.1] [--tls-cert <pem> --tls-key <pem>] [--rate-limit n] [--write-limit n] [--address-limit n] [--max-in-flight n] [--max-failed-auth n] [--trust-proxy] [--allow-plain-http]
+ *   asp serve --db <postgres-url | local:<dir>> (--tokens <file> | --no-auth) [--port 8787] [--host 127.0.0.1] [--tls-cert <pem> --tls-key <pem>] [--rate-limit n] [--write-limit n] [--address-limit n] [--max-in-flight n] [--max-failed-auth n] [--limits-state <file>] [--trust-proxy] [--allow-plain-http]
  *     The ASP log service: one shared log behind HTTP (docs/spec-deltas.md S48). --db is a Postgres connection string
  *     or local:<dir> (a file log). Clients use it with ASP_LOG_URL=http://host:port and ASP_LOG_TOKEN=<token>; their keys
  *     stay local and the service re-verifies every record. --no-auth is only for a service on 127.0.0.1.
+ *     --limits-state keeps the lockout after failed sign-ins in a file shared by the service's processes on the machine and kept over a restart (docs/spec-deltas.md S150).
  *   asp serve ... --signup --signup-terms-url <url> [--signup-terms-version v] [--signup-difficulty bits] [--signup-per-address n] [--signup-daily-cap n]: tenants sign themselves up (docs/spec-deltas.md S93); asp serve signups|signup-open|signup-close|signup-cap --tokens <file> controls it; clients: asp signup --service <url> --name <name> --accept-terms [--contact <line>]
  *   asp serve suspend|resume --tokens <file> --tenant <name> [--reason <text>] | block|unblock --tokens <file> --address <ip> [--minutes n] [--reason <text>] | usage --tokens <file>
  *     What an operator does to a running service (it reads the tokens file and the block list <file>.blocked.json on each request, so no restart): a suspended tenant
@@ -454,6 +455,7 @@ const OPTIONS = {
   "address-limit": { type: "string" },
   "max-in-flight": { type: "string" },
   "max-failed-auth": { type: "string" },
+  "limits-state": { type: "string" },
   "trust-proxy": { type: "boolean" },
   signup: { type: "boolean" },
   "signup-require-google": { type: "boolean" },
@@ -1788,6 +1790,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const limits = {
     tenantPerMinute: num("rate-limit", 600), appendPerMinute: num("write-limit", 120), addressPerMinute: num("address-limit", 1200),
     maxInFlight: num("max-in-flight", 16), failedAuthMax: num("max-failed-auth", 10),
+    // The lockout after failed sign-ins kept in a file: shared by the service's processes on this machine and kept over a restart (gaps O2, O19). Addresses are stored as salted hashes.
+    ...(v["limits-state"] ? { stateFile: resolve(io.cwd, v["limits-state"]) } : {}),
   };
   // What an operator changes while the service runs (O2): the tenants file (suspend, resume, new tokens), the block list, and the usage counts.
   const watched = <T,>(file: string, parse: (text: string) => T, empty: T) => {

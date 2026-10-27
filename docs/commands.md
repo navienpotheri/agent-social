@@ -212,10 +212,11 @@ asp: the Agent Social portability tool. This is the complete reference (asp --he
     log in a temp folder (never your own), on a simulated clock, then prints measures read back from the log.
     One scenario kind exists, swarm-exploit (see scenarios/swarm-exploit.json): scripted agents work in parallel, some
     pick up an exploit one after another, a watcher reports, a scripted panel rules, the cohort is stopped.
-  asp serve --db <postgres-url | local:<dir>> (--tokens <file> | --no-auth) [--port 8787] [--host 127.0.0.1] [--tls-cert <pem> --tls-key <pem>] [--rate-limit n] [--write-limit n] [--address-limit n] [--max-in-flight n] [--max-failed-auth n] [--trust-proxy] [--allow-plain-http]
+  asp serve --db <postgres-url | local:<dir>> (--tokens <file> | --no-auth) [--port 8787] [--host 127.0.0.1] [--tls-cert <pem> --tls-key <pem>] [--rate-limit n] [--write-limit n] [--address-limit n] [--max-in-flight n] [--max-failed-auth n] [--limits-state <file>] [--trust-proxy] [--allow-plain-http]
     The ASP log service: one shared log behind HTTP (docs/spec-deltas.md S48). --db is a Postgres connection string
     or local:<dir> (a file log). Clients use it with ASP_LOG_URL=http://host:port and ASP_LOG_TOKEN=<token>; their keys
     stay local and the service re-verifies every record. --no-auth is only for a service on 127.0.0.1.
+    --limits-state keeps the lockout after failed sign-ins in a file shared by the service's processes on the machine and kept over a restart (docs/spec-deltas.md S150).
   asp serve ... --signup --signup-terms-url <url> [--signup-terms-version v] [--signup-difficulty bits] [--signup-per-address n] [--signup-daily-cap n]: tenants sign themselves up (docs/spec-deltas.md S93); asp serve signups|signup-open|signup-close|signup-cap --tokens <file> controls it; clients: asp signup --service <url> --name <name> --accept-terms [--contact <line>]
   asp serve suspend|resume --tokens <file> --tenant <name> [--reason <text>] | block|unblock --tokens <file> --address <ip> [--minutes n] [--reason <text>] | usage --tokens <file>
     What an operator does to a running service (it reads the tokens file and the block list <file>.blocked.json on each request, so no restart): a suspended tenant
