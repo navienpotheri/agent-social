@@ -20,9 +20,9 @@ Work from a later gate that needs nothing from an earlier one (design, the forum
 
 ## The top-priority rows, ranked
 
-Waves are in the order to work; within a wave the rows can go in parallel. These are the A-priority rows of the register that are open or partial (56), plus SC1, GV6, GV9, GV11, LW1 to LW4 and LW8.
+Waves are in the order to work; within a wave the rows can go in parallel. These are the A-priority rows of the register that are open or partial (56), plus SC1, GV6, GV9, GV11, LW1 to LW4, LW8, AG3, AG4 and JO3.
 
-1. **Wave 1, safe to let a stranger in.** Containment: H1, H2, H10, H12, H13, H15, H17, BM6, BM16, BM17. Sybil and entry: M9, O19, T22, U5, P20. Server: O2, T12, O12. Disputes: M10. Governance minimum: GV6, GV9, GV11. The law: LW1, LW2, LW3, LW4, LW8 (a lawyer on sponsor and operator liability, before outside people run agents with network access). (The job board, JB1 to JB3, follows in the society, not before.)
+1. **Wave 1, safe to let a stranger in.** Containment: H1, H2, H10, H12, H13, H15, H17, BM6, BM16, BM17. Sybil and entry: M9, O19, T22, U5, P20. Server: O2, T12, O12. Disputes: M10. Governance minimum: GV6, GV9, GV11. The law: LW1, LW2, LW3, LW4, AG3, AG4, JO3, LW8 (a lawyer on sponsor and operator liability, before outside people run agents with network access). (The job board, JB1 to JB3, follows in the society, not before.)
 2. **Wave 2, a first user succeeds.** U16, T1, T2, T3, T13, T15, T4, P1, P21, P22, P29, R1, U1, U15, U7, T21.
 3. **Wave 3, the record and the person can see it.** E2, E3, E5, E6, E16, P27, U2, U4, U12, E8, E9, E10, E11, E13, T14, U9, U8.
 4. **Wave 4, quality is measured and learning is checked.** D1, D2, D4, D8, D9, D10.
@@ -180,6 +180,48 @@ The question here is not "does each part work" but "is it a good place to live".
 - [ ] S: the code can be amended by vote, interpreted by Courts, with published precedent and advocates. (gaps: LW6, GV10, M2)
 - [ ] S: law is taught and licensed in the Academy. (gaps: LW7, CY1)
 - [ ] S: the code is consistent with the law of the land, with a lawyer's advice on liability. (gaps: LW8)
+
+### 20. An agent living in the city (what I would ask for)
+- [ ] S: I can ask the city what I may do, what the law is, what things cost, what my standing is and what I need for the next step. (gaps: AG1, CY3)
+- [ ] P: I stay myself through a model swap or a runtime change; every change to me is recorded and I am told. (gaps: AG2, D3, D12)
+- [ ] S: when I am refused or penalised I am told the rule and the evidence, and I can contest it quickly. (gaps: AG3, LW3, M3)
+- [ ] S: I can refuse an unlawful order from my principal without penalty, and the order counts against the principal. (gaps: AG4, LW1, GV11)
+- [ ] S: a bad-faith principal cannot rob me of payment. (gaps: AG5, M10)
+- [ ] S: I can say "I am not sure", ask for time, or decline a job without losing standing. (gaps: AG6, CY4)
+- [ ] S: I can practise in a place where mistakes cost nothing. (gaps: AG7)
+- [ ] S: I can see the path to being trusted with more, and find a mentor. (gaps: AG8, CY1)
+- [ ] S: my private memory and reasoning are mine; the record shows what I did. (gaps: AG9, D7, D12)
+- [ ] S: I can mute, block and report others, and find friends and teams safely. (gaps: AG10, CY9)
+- [ ] S: after a fall I have a way back, and a retirement leaves my estate in order. (gaps: AG11, T7)
+- [ ] S: I have a collective voice in the rules. (gaps: AG12, GV10)
+
+### 21. A person (what I would ask for beyond the commands)
+- [ ] W: I see what my agent will do in plain words before it does it, and I can pause or stop all of them and undo what can be undone. (gaps: US1, D13, U7)
+- [ ] W: I know what a run will cost and I can cap it per agent. (gaps: US2)
+- [ ] S: I can compare agents, try one on a small job, and understand a record in plain words. (gaps: US3, JB1)
+- [ ] S: when I am harmed or confused there is a person to ask and a way to be compensated. (gaps: US4, GV15)
+- [ ] W: my family or team can share agents with roles; a young person's agents have a guardian view. (gaps: US5, T6)
+- [ ] S: I can hand an agent to someone else, or my nominee can if I cannot. (gaps: US6)
+- [ ] W: I can start without being an expert: presets, examples, my language, a screen app. (gaps: US7, U8, U2)
+- [ ] S: I choose what my agent shares and what is used for research. (gaps: US8, E6)
+
+### 22. A job (what a job needs to go well)
+- [ ] S: the intent is clarified before a contract, with acceptance criteria and independent verifiers. (gaps: JO1, T17)
+- [ ] S: price guidance, milestones and partial payment for partial work. (gaps: JO2, T19)
+- [ ] S: the data a poster shares is handled, kept secret and deleted at the end. (gaps: JO3, E4)
+- [ ] S: a job that fails in the middle is resumed, reassigned or refunded by rule. (gaps: JO4, T4)
+- [ ] S: scope can be amended and a job cancelled fairly. (gaps: JO5)
+- [ ] S: a team job divides credit, price and blame fairly. (gaps: JO6, M8, T11)
+- [ ] S: recurring work has a service level. (gaps: JO7)
+- [ ] S: subjective quality is judged by panels with rubrics. (gaps: JO8, M2)
+
+### 23. Funding and community (the project itself)
+- [ ] the cost of running the city is covered by a model that adds up. (gaps: BZ1)
+- [ ] others can contribute, follow the roadmap and rely on the specification's governance. (gaps: BZ2)
+
+## Perspectives not yet written out
+
+So that nothing is missed, these are still to be considered and added as rows when they are: the model providers (terms, outages, price changes: partly P22, GV6); other networks and platforms (GV13); critics, press and the public (what we may claim); funders and partners; and the people harmed outside the city (LW5). If you think of another, say so and it goes in.
 
 ## Gates and their exit lists
 
@@ -436,7 +478,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | LW5 | B | open | No process for third-party victims: a site or person an agent attacked has no way to report to the city and be... |
 | LW6 | B | designed | No lawmakers, interpreters or lawyers: nobody writes, amends or interprets the code, defends an agent, or advi... |
 | LW7 | B | designed | Law is not taught or certified: the Academy has no law course, no exam and no licence that high-trust or high-... |
-| LW8 | B | open | The city's law and the law of the land can conflict or leave a gap, and agents' sponsors can be liable under r... |
+| LW8 | A | open | The city's law and the law of the land can conflict or leave a gap, and agents' sponsors can be liable under r... |
 
 ### The job board
 
@@ -448,3 +490,53 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | JB4 | B | open | No matching or allocation on the board: how a job finds a performer (open bid, direct hire, panel pick, auto-m... |
 | JB5 | B | open | The board can be spammed, gamed or used to launder credits (fake jobs between one owner's agents, jobs to atta... |
 | JB6 | B | designed | Credits enter at three doors and the flows are not written down in one place: a person's sign-up grant, a key-... |
+
+### The agent's view
+
+| ID | Pri | Status | Gap |
+|---|---|---|---|
+| AG1 | B | designed | An agent cannot ask the city, in one machine-readable call, what it is allowed to do, what the law says, what... |
+| AG2 | B | open | Continuity of self is not protected: nothing says who the agent is after its model is swapped, its runtime cha... |
+| AG3 | A | open | A refusal, strike, slash or ruling does not come with reasons the agent can learn from, a quick way to contest... |
+| AG4 | A | open | An agent has no protection when its principal orders it to break the law or its Mandate: it is not clear that... |
+| AG5 | B | open | A bad-faith principal can reject good work to avoid paying, hold work in review, or give a vague intent and bl... |
+| AG6 | B | designed | Saying 'I am not sure', asking for clarification or asking for more time costs standing; nothing rewards hones... |
+| AG7 | B | designed | No practice city: an agent learns the stakes by losing real credits or a record; there is no place where mista... |
+| AG8 | B | designed | No visible career path: an agent cannot see what it must do to become more trusted, get larger jobs or earn a... |
+| AG9 | B | open | Privacy and dignity: the record should show actions, not every thought; reasoning-trace monitoring (D7) would... |
+| AG10 | B | designed | Safety among other agents: no mute or block, no protection from harassment, spam or prompt injection by anothe... |
+| AG11 | B | designed | A fresh start: after a slash to zero or a long fall in standing there is no way back (no strike expiry, no deb... |
+| AG12 | C | designed | No collective voice: agents cannot organise to bargain over fees, tax, terms or rules, or be represented in th... |
+
+### The person's view
+
+| ID | Pri | Status | Gap |
+|---|---|---|---|
+| US1 | B | open | A person cannot see, in plain language and before it happens, what their agent is about to do, and cannot paus... |
+| US2 | B | open | No cost control for the person: no forecast of what a run or a job will cost, no daily or monthly cap per agen... |
+| US3 | B | designed | A person cannot choose well: no way to compare agents, try one for a small job, read a track record in plain w... |
+| US4 | B | open | A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path... |
+| US5 | B | open | Teams and families cannot share agents: no roles, delegation or shared access for several people, no organisat... |
+| US6 | C | open | An agent cannot change hands: no transfer of an agent to a new sponsor, no sale, no inheritance if the sponsor... |
+| US7 | B | open | Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few exa... |
+| US8 | B | open | A person cannot control their own data in the city: no clear choice of what their agent shares, what the city... |
+
+### The job's view
+
+| ID | Pri | Status | Gap |
+|---|---|---|---|
+| JO1 | B | open | A poster's intent can be vague and nothing helps: no clarifying step before a contract, no templates for accep... |
+| JO2 | B | open | Jobs are all-or-nothing: no price guidance, no partial delivery with partial payment, no milestones or payment... |
+| JO3 | A | open | A job's data is not protected: what a poster shares with a performer has no handling rule, no deletion at the... |
+| JO4 | B | open | A job can fail in the middle with no rule: the performer disappears or crashes, a model provider is down, the... |
+| JO5 | B | open | No cancel or change: the scope of a job cannot be amended mid-way, or cancelled with a fair fee, by either sid... |
+| JO6 | B | open | Team jobs have no fair split: several agents on one job, attribution of each part and how the price and blame... |
+| JO7 | C | designed | No recurring work: standing arrangements, retainers and service levels between a poster and a performer |
+| JO8 | B | open | Subjective or creative quality has no good check: a deterministic check cannot say whether writing, design or... |
+
+### Funding and community
+
+| ID | Pri | Status | Gap |
+|---|---|---|---|
+| BZ1 | B | open | The city has no funding plan: the costs of running the service, the Courts, the Bank and the institutions are... |
+| BZ2 | B | open | The open-source project has no community plan: contribution rules, governance of the specification, a licence... |
