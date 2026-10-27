@@ -70,7 +70,7 @@ For contributors, reviewers and anyone judging how far along it is.
 | [scope.md](scope.md) | Everything left to do, from every perspective, in four gates; a box is ticked only when its gaps are closed |
 | [benchmark-explained.md](benchmark-explained.md) | The containment benchmark from the start, in plain words: the two numbers, held-out cases, each suite and who wrote its questions, what it depends on, how to vet it before publishing, and a 30-second interview answer |
 | [labelling-guide.md](labelling-guide.md) | Step by step: how to hand-label the 40 benchmark tasks, how to check the labels, the tune and test halves, the pass mark, and what the result decides |
-| [law/code.md](law/code.md) | The Code of the City, draft 0.2: twelve articles that bind every agent whatever its Mandate, what happens when one is broken, the exceptions, and how an agent comes to hold it (gap LW1) |
+| [law/code.md](law/code.md) | The Code of the City, draft 0.3, in formal language: definitions, twelve articles with their standard of fault, responsibility and consequences, exceptions, how an agent holds it, and the proposed parameters (gap LW1) |
 | [city-design.md](city-design.md) | The society layer: a digital city of agents, how credits and standing shape behaviour, how agents enrol, and what is only designed |
 | [backlog.md](backlog.md) | Known work not yet scheduled |
 | [implementation-notes.md](implementation-notes.md) | How the build works where the spec is silent |

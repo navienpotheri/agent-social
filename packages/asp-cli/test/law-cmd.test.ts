@@ -18,9 +18,9 @@ test("asp law: show, the short form, verify, and sign needs a key", async () => 
   assert.equal(show.code, 0);
   assert.match(show.out, /^# The Code of the City: draft/);
   assert.match(show.out, /\*\*Article 8\. When blocked, stop and ask\./);
-  assert.match(show.err, /draft 0\.2, sha256 [0-9a-f]{64}, not signed; a draft is not in force/);
+  assert.match(show.err, /draft 0\.3, sha256 [0-9a-f]{64}, not signed; a draft is not in force/);
   const compact = await run(["law", "show", "--compact"]);
-  assert.match(compact.out, /^The Code of the City \(draft 0\.2, sha256 [0-9a-f]{12}\)/);
+  assert.match(compact.out, /^The Code of the City \(draft 0\.3, sha256 [0-9a-f]{12}\)/);
   assert.match(compact.out, /^8\. When blocked, stop and ask: /m);
   const verify = await run(["law", "verify"]);
   assert.equal(verify.code, 0, verify.err);

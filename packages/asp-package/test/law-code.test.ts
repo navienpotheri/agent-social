@@ -31,7 +31,7 @@ test("a text with no pin, a changed text and a version in force that is edited a
   assert.match(verifyCode(readCode(t.files)).problems[0], /has changed since it was pinned.*raise the version/);
   // A version in force is never re-pinned with other text.
   const inForce = copy();
-  writeFileSync(inForce.code, readFileSync(inForce.code, "utf8").replace("draft 0.2", "version 1.0"));
+  writeFileSync(inForce.code, readFileSync(inForce.code, "utf8").replace("draft 0.3", "version 1.0"));
   pinCode(readCode(inForce.files), inForce.versions);
   writeFileSync(inForce.code, readFileSync(inForce.code, "utf8") + "\nOne more line.\n");
   assert.throws(() => pinCode(readCode(inForce.files), inForce.versions), /in force and cannot be changed/);
