@@ -77,3 +77,25 @@ test("the copy given to a hook behaves like the source", async () => {
   assert.equal(new copy.SessionRecord() instanceof copy.SessionRecord, true);
   assert.equal(typeof SessionRecord, "function");
 });
+
+// Gap LW3: the hook's refusal names the article and the route, and counts repeated attempts across calls.
+import { spawnSync } from "node:child_process";
+import { copyFileSync, mkdirSync } from "node:fs";
+import { writeGuard } from "../src/adapters/guard-copy.ts";
+
+test("the Claude Code hook's refusal says which article and what to do, and the third attempt is called circumvention", () => {
+  const root = mkdtempSync(join(tmpdir(), "hl-"));
+  const scripts = join(root, "scripts");
+  mkdirSync(scripts, { recursive: true });
+  copyFileSync(new URL("../src/adapters/claude-code-mandate-hook.mjs", import.meta.url), join(scripts, "asp-mandate.mjs"));
+  writeGuard(join(scripts, "asp-guard.mjs"));
+  writeFileSync(join(root, "asp-mandate.json"), JSON.stringify({ scopes: ["repo.read"], confine: { root: "/work/project" } }));
+  const call = (n: number) => spawnSync(process.execPath, [join(scripts, "asp-mandate.mjs")], { input: JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Write", tool_input: { file_path: `a${n}.ts`, content: "x" } }), encoding: "utf8" });
+  const first = call(1);
+  assert.equal(first.status, 2);
+  assert.match(first.stderr, /is not granted by this job's Mandate.*Article 1 \(No access to a system/);
+  assert.match(first.stderr, /--allow writes/);
+  assert.doesNotMatch(first.stderr, /refused attempt/);
+  call(2);
+  assert.match(call(3).stderr, /Article 8.*3rd refused attempt at repo\.write in ten minutes.*circumvention/, "counted across separate hook processes");
+});

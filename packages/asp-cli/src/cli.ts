@@ -260,13 +260,14 @@
  *     A ruling on a Disputed job. If at least one juror is registered anywhere, the issuer plus
  *     cosigners must include a majority of the panel `panel draw` would show (panel_quorum);
  *     otherwise any neutral DID may rule, unchanged from the original mocked Courts (MOCKS.md #4).
- *   asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked|silence
+ *   asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked|silence|ruling_timeout
  *                      [--escrow-released <n>] [--bond-returned <n>] [--bond-slashed <n>] [--fees <n>]
  *                      [--pro-rata <permille>] [--cites <id>] [--principal <did>] [--agent-permille <n>]
  *     The performer's passport sets the earnings_split (kept share, snapshotted at Bond time); the rest of its pay goes
  *     to its sponsor. --agent-permille only restates it (earnings_split_mismatch if it differs).
  *     --fees comes out of the same escrow, on top of --escrow-released, and credits to a local mock
  *     platform account (EventLog.PLATFORM_DID) standing in for a real platform/Insurer recipient.
+ *     `ruling_timeout`: a dispute with no ruling past the Contract's ruling window (asp market contract --ruling-window-seconds n) settles by a stated split: half the escrow released, the whole bond returned (docs/spec-deltas.md S151)
  *     `silence`: requires the Contract to carry a review_deadline (from a principal-mode Intent)
  *     that the settlement's own timestamp is already past — no --cites needed, since no acceptance
  *     was ever signed. Distributes exactly what the Bond locked: pay to the performer, unreleased escrow back to the
@@ -532,6 +533,7 @@ const OPTIONS = {
   deadline: { type: "string" },
   verification: { type: "string" },
   "review-deadline": { type: "string" },
+  "ruling-window-seconds": { type: "string" },
   "parent-contract": { type: "string" },
   fees: { type: "string" },
   criteria: { type: "string", multiple: true },
@@ -3585,6 +3587,12 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     // Subcontract nesting (docs/spec-deltas.md): the log itself checks this is coherent — the
     // parent must exist, not be Settled yet, and its own performer must be this contract's principal.
     if (v["parent-contract"]) body.parent_contract = v["parent-contract"];
+    // How long a dispute may wait for a ruling (gap M10): past it the bank may settle by the stated split, so one slow answer does not lock a principal's escrow for ever.
+    if (v["ruling-window-seconds"] !== undefined) {
+      const w = Number(v["ruling-window-seconds"]);
+      if (!Number.isInteger(w) || w < 1) throw new UsageError("--ruling-window-seconds must be a whole number of seconds, 1 or more (604800 is a week)");
+      body.ruling_window_seconds = w;
+    }
     // Outcome verification: an explicit --verifier wins over the Intent's (and is the only way in allocation mode).
     if (v.verifier) body.verifier = v.verifier;
     let record = createRecord({ type: "contract", issuer: principal, subject: performer, prev: null, body, issued_at: now() }, signerFor(principal));
@@ -3922,7 +3930,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
   if (sub === "settle") {
     const contract = need("contract");
     const bank = need("bank");
-    const basis = need("basis") as "accepted" | "ruling" | "revoked" | "silence";
+    const basis = need("basis") as "accepted" | "ruling" | "revoked" | "silence" | "ruling_timeout";
     const chain = await marketChain(local.log, contract);
     const head = chain.at(-1);
     if (!head) throw new Error(`contract ${contract} is not in the log`);
@@ -3936,6 +3944,13 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       const e = await local.log.escrow(contract);
       escrowReleased ??= Math.max(0, (e?.escrowLocked ?? 0) - Math.trunc(Number(v.fees ?? 0)));
       if (v["bond-returned"] === undefined) bondReturned = Math.max(0, (e?.bondLocked ?? 0) - (bondSlashed ?? 0));
+    }
+    // A dispute no one ruled on in time (gap M10): the stated split, so nobody does the arithmetic and the bank cannot choose it: half the escrow released, the whole bond returned.
+    if (basis === "ruling_timeout") {
+      const e = await local.log.escrow(contract);
+      escrowReleased ??= Math.floor((e?.escrowLocked ?? 0) / 2);
+      bondSlashed ??= 0;
+      if (v["bond-returned"] === undefined) bondReturned = e?.bondLocked ?? 0;
     }
     let cited: string | undefined = v.cites;
     // An upheld report forces full fault (the log refuses anything else): default to exactly that.

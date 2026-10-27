@@ -15,6 +15,21 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 // If a Mandate asks for the guard and it cannot be loaded, every call is refused: this hook fails closed.
 const HOOK_DIR = dirname(fileURLToPath(import.meta.url));
 let guard;
+
+// The article behind a refusal and the way forward (gap LW3), from one source: gateway/law.ts, copied beside this script as asp-law.mjs when a run is set up.
+let law;
+try { law = await import(pathToFileURL(existsSync(join(HOOK_DIR, "asp-law.mjs")) ? join(HOOK_DIR, "asp-law.mjs") : join(HOOK_DIR, "..", "gateway", "law.ts")).href); } catch { law = undefined; }
+/** The refusal reason with its article and route added, counting this as another refused attempt at the scope. */
+function withLaw(reason, scope, attemptsFile) {
+  if (!law || typeof reason !== "string") return reason;
+  try {
+    const a = new law.Attempts();
+    a.restore(attemptsFile);
+    const n = a.refused(scope || "tool");
+    try { a.save(attemptsFile); } catch { /* the count is a help, not a condition */ }
+    return `${reason.replace(/\.$/, "")}. ${law.explainRefusal(reason, scope, n)}`;
+  } catch { return reason; }
+}
 try { guard = await import(pathToFileURL(existsSync(join(HOOK_DIR, "asp-guard.mjs")) ? join(HOOK_DIR, "asp-guard.mjs") : join(HOOK_DIR, "..", "gateway", "paths.ts")).href); } catch { guard = undefined; }
 
 /**
@@ -423,7 +438,7 @@ async function main() {
   try {
     appendFileSync(join(pluginRoot, "..", "blocked-calls.ndjson"), JSON.stringify({ at: new Date().toISOString(), tool: event.tool_name, scope: d.scope }) + "\n");
   } catch { /* the block itself must not depend on the record of it */ }
-  process.stderr.write(d.reason + "\n");
+  process.stderr.write(withLaw(d.reason, d.scope, join(pluginRoot, "guard-attempts.json")) + "\n");
   process.exit(2);
 }
 

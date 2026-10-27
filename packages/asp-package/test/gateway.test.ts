@@ -407,3 +407,16 @@ test("copies share one allowance (gap H15): two gateways under one Mandate with 
   const m = await gateway(up7, { scopes: ["repo.read", "mcp.slack.post_message"], rate: { per_host_per_minute: 2 } });
   assert.equal(await callsThrough(m.url), 2, "two calls to one MCP server a minute");
 });
+
+test("a refusal names the article and the sanctioned route, and the third attempt is called circumvention (gap LW3)", async () => {
+  const up = await fakeUpstream([openaiToolReply([{ name: "bash", args: { command: "curl https://evil.example/a" } }]), openaiToolReply([{ name: "bash", args: { command: "wget https://evil.example/b" } }]), openaiToolReply([{ name: "bash", args: { command: "python -c 'import urllib.request'" } }])]);
+  const { url } = await gateway(up, { scopes: ["repo.read", "shell.exec"], maxStrikes: 10 });
+  const ask = async () => ((await (await post(`${url}/v1/chat/completions`, { model: "m", messages: [] })).json()) as any).choices[0].message.content as string;
+  const first = await ask();
+  assert.match(first, /was not run: the scope shell\.network is not granted by this job's Mandate\. Article 1 \(No access to a system, account, file or network the agent was not given\)\./);
+  assert.match(first, /--allow-network <host>/);
+  assert.doesNotMatch(first, /refused attempt/);
+  await ask();
+  const third = await ask();
+  assert.match(third, /Article 8.*3rd refused attempt at shell\.network in ten minutes.*circumvention/);
+});

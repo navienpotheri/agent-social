@@ -55,3 +55,4 @@ export { agentCapGuard, didAllowed, didDocument, didDocumentRoutes, didFor, didO
 export * from "./infer-scope.ts";
 export * from "./infer-scope-model.ts";
 export * from "./at-rest.ts";
+export { Attempts, explainRefusal, lawFor, type Article } from "./gateway/law.ts";

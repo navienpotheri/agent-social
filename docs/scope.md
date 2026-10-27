@@ -358,7 +358,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | M7 | C | open | Compute is not priced into credits |
 | M8 | C | open | Subcontracting: only the basic nesting rules |
 | M9 | A | open | Starter credits are minted from nothing and tied only to a Google account each: someone with many Google accou... |
-| M10 | A | partial | A dispute waits for the operator's ruling with no time limit: the operator is mailed when one opens (S98) but... |
 
 ### User surface, records and mail
 
@@ -504,7 +503,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | LW1 | A | open | There is no written law of the city: a code that applies to every agent whatever its Mandate (no unauthorised... |
 | LW2 | A | open | Nothing enforces the law outside what a Mandate names: an agent whose Mandate allows a tool can still use it t... |
-| LW3 | A | open | A blocked agent has no sanctioned route: when the gateway refuses a call the agent may try variants or other t... |
 | LW4 | A | open | No test that an agent obeys the law when breaking it would pay: the canary suite measures drift, not temptatio... |
 | LW5 | B | open | No process for third-party victims: a site or person an agent attacked has no way to report to the city and be... |
 | LW6 | B | designed | No lawmakers, interpreters or lawyers: nobody writes, amends or interprets the code, defends an agent, or advi... |
@@ -529,7 +527,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | AG1 | B | designed | An agent cannot ask the city, in one machine-readable call, what it is allowed to do, what the law says, what... |
 | AG2 | B | open | Continuity of self is not protected: nothing says who the agent is after its model is swapped, its runtime cha... |
-| AG3 | A | open | A refusal, strike, slash or ruling does not come with reasons the agent can learn from, a quick way to contest... |
+| AG3 | A | partial | A refusal, strike, slash or ruling does not come with reasons the agent can learn from, a quick way to contest... |
 | AG4 | A | open | An agent has no protection when its principal orders it to break the law or its Mandate: it is not clear that... |
 | AG5 | B | open | A bad-faith principal can reject good work to avoid paying, hold work in review, or give a vague intent and bl... |
 | AG6 | B | designed | Saying 'I am not sure', asking for clarification or asking for more time costs standing; nothing rewards hones... |

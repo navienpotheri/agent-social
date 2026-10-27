@@ -198,6 +198,7 @@ States: Contracted → Bonded → Running → Checkpoint → Delivered → Dispu
 | Disputed | `settlement` | Settled | bank | `refs_contract`, `cites_ruling` |
 | Contracted / Bonded / Running / Checkpoint | `settlement` | Settled | bank | `refs_contract`, `cosigned_by_principal` |
 | Delivered | `settlement` | Settled | bank | `refs_contract`, `past_review_deadline` |
+| Disputed | `settlement` | Settled | bank | `refs_contract`, `no_ruling_yet`, `past_ruling_window` |
 
 **Errors** every implementation reports with the same codes:
 
@@ -246,7 +247,7 @@ How strong the evidence behind this Action is, the strongest mechanism that appl
 
 ## 8. Settlement and disputes
 
-Money moves only through a **bond** (capital locked by the performer's backer, plus the principal's escrow) and a **settlement** issued by the job's bank, whose `basis` is one of `accepted`, `ruling`, `revoked`, `silence`: accepted by the principal, a ruling, revoked mid-job, or silence past the review deadline. A settlement closes the job; the log checks that it does not release or slash more than was locked, and that a ruling-based settlement matches the cited ruling.
+Money moves only through a **bond** (capital locked by the performer's backer, plus the principal's escrow) and a **settlement** issued by the job's bank, whose `basis` is one of `accepted`, `ruling`, `revoked`, `silence`, `ruling_timeout`: accepted by the principal, a ruling, revoked mid-job, or silence past the review deadline. A settlement closes the job; the log checks that it does not release or slash more than was locked, and that a ruling-based settlement matches the cited ruling.
 
 A dispute is decided by a **Court**: a panel of staked **jurors** drawn deterministically (seeded from the dispute, with conflicts excluded), whose ruling must be cosigned by a majority. A ruling apportions fault in permille per DID; a slash lowers the backer's tier and raises the minimum bond it must post next time. Attestations carry judgments of kind `acceptance`, `checkpoint_resolution`, `rating`, `ruling`, `certificate`, `allocation`, `citation`, `verification`, `report`, `report_ruling`.
 
@@ -318,6 +319,7 @@ A plain `asp run` uses a default development Mandate (read and write files, run 
 | `asp run <runtime> [--permissions review|develop|full|ask]` | With no prompt, asks once per project what the session may do (review: read files; develop: also write files and run tests; full: also any command), keeps the answer, and uses it next time; --permissions changes it, ask asks again |
 | `asp run <runtime> --fleet-rate 120,30` | Cap the network requests a minute (in all, and to any one host) across everything you run on this machine, whatever each agent's Mandate says; copies of one agent already share the Mandate's own limit |
 | `asp run claude-code --prompt "..." --size-with-model` | A model (your own ANTHROPIC_API_KEY, one short call) reads the task and proposes what it needs beyond reading; it only narrows, never grants network, push or protected files, and the word rules take over if it cannot answer |
+| `asp market contract ... --ruling-window-seconds 604800` | How long a dispute may wait for a ruling; past it the bank may settle with asp market settle --basis ruling_timeout: half the escrow released, the whole bond returned |
 | `asp run <runtime> --also-dir ../shared,~/notes` | The gateway confines the agent to the project; name another directory it may also read and write |
 | `asp run <runtime> --allow-network a.com,b.com` | Name the hosts the agent may reach; with none named, a session has no network and a call outside the Mandate is refused before the agent sees it |
 | `asp run <runtime> --ask commands|writes|network|risky` | Hold those calls for your yes before they run; your answer (y, N or a for always) is signed into the log |
@@ -723,13 +725,14 @@ asp: the Agent Social portability tool. This is the complete reference (asp --he
     A ruling on a Disputed job. If at least one juror is registered anywhere, the issuer plus
     cosigners must include a majority of the panel `panel draw` would show (panel_quorum);
     otherwise any neutral DID may rule, unchanged from the original mocked Courts (MOCKS.md #4).
-  asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked|silence
+  asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked|silence|ruling_timeout
                      [--escrow-released <n>] [--bond-returned <n>] [--bond-slashed <n>] [--fees <n>]
                      [--pro-rata <permille>] [--cites <id>] [--principal <did>] [--agent-permille <n>]
     The performer's passport sets the earnings_split (kept share, snapshotted at Bond time); the rest of its pay goes
     to its sponsor. --agent-permille only restates it (earnings_split_mismatch if it differs).
     --fees comes out of the same escrow, on top of --escrow-released, and credits to a local mock
     platform account (EventLog.PLATFORM_DID) standing in for a real platform/Insurer recipient.
+    `ruling_timeout`: a dispute with no ruling past the Contract's ruling window (asp market contract --ruling-window-seconds n) settles by a stated split: half the escrow released, the whole bond returned (docs/spec-deltas.md S151)
     `silence`: requires the Contract to carry a review_deadline (from a principal-mode Intent)
     that the settlement's own timestamp is already past — no --cites needed, since no acceptance
     was ever signed. Distributes exactly what the Bond locked: pay to the performer, unreleased escrow back to the

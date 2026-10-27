@@ -56,7 +56,8 @@
     {
       "from": ["Delivered"], "type": "attestation", "when": { "kind": "acceptance", "verdict": "rejected" }, "to": "Disputed",
       "issuer": "principal",
-      "guards": ["about_latest_delivery", "not_yet_accepted"]
+      "guards": ["about_latest_delivery", "not_yet_accepted"],
+      "effects": ["mark_disputed"]
     },
     {
       "from": ["Disputed"], "type": "delivery", "to": "Delivered",
@@ -89,6 +90,11 @@
       "from": ["Delivered"], "type": "settlement", "when": { "basis": "silence" }, "to": "Settled",
       "issuer": "bank",
       "guards": ["refs_contract", "past_review_deadline"]
+    },
+    {
+      "from": ["Disputed"], "type": "settlement", "when": { "basis": "ruling_timeout" }, "to": "Settled",
+      "issuer": "bank",
+      "guards": ["refs_contract", "no_ruling_yet", "past_ruling_window"]
     }
   ],
   "errors": {

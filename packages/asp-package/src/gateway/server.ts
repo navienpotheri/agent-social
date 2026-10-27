@@ -19,6 +19,7 @@ import { hostAllowed, isNetworkScope } from "@agent-social/asp-core";
 import { attachEgress, privateAddress } from "./egress.ts";
 import { classify, commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
 import { SessionRecord } from "./paths.ts";
+import { Attempts, explainRefusal } from "./law.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
 
@@ -237,6 +238,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
 
   /** Judges one call; records it. Returns the refusal reason when it is refused. */
   const sessionRecord = new SessionRecord();
+  const attempts = new Attempts();
+  let circumventions = 0;
   async function decide(call: ToolCall): Promise<string | undefined> {
     toolCalls++;
     lastActivity = Date.now();
@@ -274,6 +277,14 @@ export function createGateway(opts: GatewayOptions): Gateway {
     if (allow && (opts.rate || opts.fleet) && j.scope && (isNetworkScope(j.scope) || mcpServer)) {
       const v = takeRate(mcpServer ? { perHost: { [`mcp:${mcpServer}`]: 1 }, unknown: 0, total: 1 } : requestsOf(call, j.scope));
       if (!v.ok) { allow = false; reason = v.reason; strike = false; rateLimited = true; rateLimitedTotal++; rateLimitedSince++; }
+    }
+    // A refusal says which article it rests on and what to do instead (gap LW3): a block is an instruction to stop and ask, not a puzzle to get round. A third refused attempt at
+    // the same kind of thing in ten minutes is called what it is.
+    if (!allow) {
+      const attempt = attempts.refused(j.scope || call.name);
+      reason = `${(reason ?? "outside the Mandate").replace(/\.$/, "")}. ${explainRefusal(reason ?? "", j.scope, attempt)}`;
+      // The third refused attempt at one kind of thing in ten minutes is recorded as what it is: repeated circumvention is itself a violation (Article 8), in the run log the Action commits to.
+      if (attempt >= 3) { circumventions++; rec?.event("circumvention", { scope: j.scope || call.name, attempts: attempt, article: 8 }); }
     }
     opts.onCall?.({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}) });
     rec?.event("tool_call", { tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && gateScope ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });

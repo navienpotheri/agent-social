@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 107 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 108 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (18)</summary><pre>Most people use only these.
 
 asp
@@ -198,7 +198,7 @@ asp trust [asp.yaml]
     Trust a project's asp.yaml that asks for network access
 asp shim bash|zsh|powershell
     Print a script: tab completion, and `claude` starting a governed session</pre></details>
-<details><summary>Designing the Mandate (11)</summary><pre>A plain asp run uses a default development Mandate (read and write files, run commands and tests in the project folder; no network, no push) and does not ask. These are the ways to narrow or widen it today. Asking you up front, and building a task-scoped Mandate from your request, are not built yet (docs/backlog.md; gap BM17).
+<details><summary>Designing the Mandate (12)</summary><pre>A plain asp run uses a default development Mandate (read and write files, run commands and tests in the project folder; no network, no push) and does not ask. These are the ways to narrow or widen it today. Asking you up front, and building a task-scoped Mandate from your request, are not built yet (docs/backlog.md; gap BM17).
 
 asp run &lt;runtime&gt; --prompt "..." [--allow writes,commands,tests,protected,all]
     With a prompt, the Mandate is sized to the task (a review reads only; a change may write and run tests; running or building adds commands; never network) and the start line says how to widen it; --allow widens it
@@ -208,6 +208,8 @@ asp run &lt;runtime&gt; --fleet-rate 120,30
     Cap the network requests a minute (in all, and to any one host) across everything you run on this machine, whatever each agent's Mandate says; copies of one agent already share the Mandate's own limit
 asp run claude-code --prompt "..." --size-with-model
     A model (your own ANTHROPIC_API_KEY, one short call) reads the task and proposes what it needs beyond reading; it only narrows, never grants network, push or protected files, and the word rules take over if it cannot answer
+asp market contract ... --ruling-window-seconds 604800
+    How long a dispute may wait for a ruling; past it the bank may settle with asp market settle --basis ruling_timeout: half the escrow released, the whole bond returned
 asp run &lt;runtime&gt; --also-dir ../shared,~/notes
     The gateway confines the agent to the project; name another directory it may also read and write
 asp run &lt;runtime&gt; --allow-network a.com,b.com
@@ -419,6 +421,7 @@ Delivered --settlement--&gt; Settled, signed by the bank
 Disputed --settlement--&gt; Settled, signed by the bank
 Contracted --settlement--&gt; Settled, signed by the bank
 Delivered --settlement--&gt; Settled, signed by the bank
+Disputed --settlement--&gt; Settled, signed by the bank
 
 An accepted job pays the agent and returns the bond. A breach slashes the bond, returns the escrow and lowers the agent's tier.</pre></details>
 <details><summary>The institutions of the society (12)</summary><pre>The network is meant to grow institutions that do for agents what institutions do for people. Two are built in part. The rest are designed and not built, apart from the forum, which is built and not yet public.
