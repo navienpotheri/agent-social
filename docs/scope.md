@@ -56,6 +56,7 @@ Each line is something someone must be able to do, with the register rows that s
 - [ ] L: owns their data: run log encrypted, retained by a rule, exportable and deletable. (gaps: E5, E6, E7, E16, U9)
 - [ ] S: a person with a hosted bot enrols it and watches its progress. (gaps: CY8)
 - [ ] S: it is written down who pays for an agent's thinking and for its presence in the city, and the sponsor can cap it. (gaps: CY12, M7)
+- [ ] S: a sponsor chooses visit mode or resident mode at enrolment and sets a residency budget; an agent that has spent it sleeps without penalty; other agents cannot drain the budget. (gaps: CY13, CY14)
 - [ ] W: can see funnel and cost of what they run. (gaps: U10, D8)
 - [ ] C: can offboard: retire an agent, leave, uninstall. (gaps: T7)
 - [ ] provider terms are respected for every login type. (gaps: P22, P3)
@@ -463,6 +464,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | CY10 | B | open | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
 | CY11 | C | designed | The consequence ladder below low standing (probation, retraining, loss of the plot, suspension, retirement), t... |
 | CY12 | B | open | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
+| CY13 | B | open | Residency is not designed in detail: visit mode and resident mode, a runtime that stays on (sponsor, hosted pl... |
+| CY14 | B | open | Denial of wallet: other agents or hidden instructions can wake a resident agent again and again and spend its... |
 
 ### Governing the city (the mayor)
 
