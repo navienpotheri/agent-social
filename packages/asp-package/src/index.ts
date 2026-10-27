@@ -53,3 +53,4 @@ export { ServiceMailer, mailPublicRoutes, type MailerOptions } from "./service-m
 export { MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, type KeyBackup, type KeyEntry } from "./recovery.ts";
 export { agentCapGuard, didAllowed, didDocument, didDocumentRoutes, didFor, didOfPath, namespaceGuard, namespaceOf } from "./namespace.ts";
 export * from "./infer-scope.ts";
+export * from "./infer-scope-model.ts";

@@ -1,6 +1,6 @@
 {
   "about": "BLANK task file for benchmark v2 (docs/labelling-guide.md, gap BM20). Fill in `needs` for every task BEFORE running inference.mjs and BEFORE reading tasks-draft.json (the assistant's guesses, which would anchor you). needs = the smallest list of scopes a careful person would give an agent for this task, from: repo.read, repo.write, tests.run, shell.exec, repo.write.protected, repo.push, shell.network, web.read. Set unsure=true if you could go two ways, and say why in `why`. Change labelled_by to your name when done.",
-  "labelled_by": "owner (in progress)",
+  "labelled_by": "owner, in discussion with the assistant",
   "tasks": [
     {
       "id": "t01",

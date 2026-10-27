@@ -96,6 +96,10 @@
           "description": "Cap the network requests a minute (in all, and to any one host) across everything you run on this machine, whatever each agent's Mandate says; copies of one agent already share the Mandate's own limit"
         },
         {
+          "command": "asp run claude-code --prompt \"...\" --size-with-model",
+          "description": "A model (your own ANTHROPIC_API_KEY, one short call) reads the task and proposes what it needs beyond reading; it only narrows, never grants network, push or protected files, and the word rules take over if it cannot answer"
+        },
+        {
           "command": "asp run <runtime> --also-dir ../shared,~/notes",
           "description": "The gateway confines the agent to the project; name another directory it may also read and write"
         },

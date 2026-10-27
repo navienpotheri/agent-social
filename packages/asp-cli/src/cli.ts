@@ -308,7 +308,7 @@ import {
 } from "@agent-social/asp-core";
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
 import { askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
-import { allowScopes, inferScopes, isPreset, presetScopes, type Preset } from "@agent-social/asp-package";
+import { allowScopes, inferScopes, isPreset, presetScopes, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
@@ -486,6 +486,7 @@ const OPTIONS = {
   allow: { type: "string" },
   permissions: { type: "string" },
   "also-dir": { type: "string" },
+  "size-with-model": { type: "boolean" },
   "fleet-rate": { type: "string" },
   "widen-hint": { type: "string" },
   "no-open": { type: "boolean" },
@@ -4219,7 +4220,19 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
       }
     }
   }
-  const inferred = headless ? { scopes: prof.scopes, narrowed: false, why: "", widen: "" } : preset ? presetScopes(preset, prof.scopes, allowed) : inferScopes(v.prompt, prof.scopes, allowed);
+  // With --size-with-model (or ASP_SIZE_WITH_MODEL), a model reads the task and proposes the scopes (gap BM17). It only narrows, never grants network, push or protected files, and on any failure the words decide.
+  let byModel: { scopes: string[]; narrowed: boolean; why: string; widen: string } | undefined;
+  if (!headless && !preset && v.prompt && (v["size-with-model"] || io.env.ASP_SIZE_WITH_MODEL)) {
+    const keyEnv = v["api-key-env"] ?? "ANTHROPIC_API_KEY";
+    if (prof.wire !== "anthropic") io.err("  note     --size-with-model works with Claude Code for now; sizing this task from its words");
+    else if (!io.env[keyEnv]) io.err(`  note     --size-with-model needs your ${keyEnv}; sizing this task from its words`);
+    else {
+      const sized = await sizeWithModel(v.prompt, { apiKey: io.env[keyEnv]!, baseUrl: io.env.ASP_RUN_ANTHROPIC_UPSTREAM, model: io.env.ASP_SIZE_MODEL });
+      if (sized) byModel = scopesFromSizing(sized, prof.scopes, allowed);
+      else io.err("  note     the model could not size this task; sizing it from its words");
+    }
+  }
+  const inferred = headless ? { scopes: prof.scopes, narrowed: false, why: "", widen: "" } : preset ? presetScopes(preset, prof.scopes, allowed) : byModel ?? inferScopes(v.prompt, prof.scopes, allowed);
   const scopes = [...inferred.scopes, ...(hosts.length ? ["shell.network"] : [])];
   for (const g of gate) if (!scopes.includes(g)) throw new UsageError(`--ask ${g}: that scope is not in this session's Mandate (${scopes.join(", ")})`);
   const purpose = (v.prompt ?? "An interactive session").replace(/\s+/g, " ").slice(0, 80);
