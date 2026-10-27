@@ -10,11 +10,13 @@ export interface InferredScopes {
   narrowed: boolean;
   /** One line for the person: what was inferred and how to widen it. */
   why: string;
+  /** The `--allow` value that adds back what was left out; empty when nothing was. */
+  widen: string;
 }
 
-const WRITE = /\b(fix|fixes|fixing|add|adds|adding|implement|implements|implementing|write|writes|writing|create|creates|creating|edit|edits|editing|change|changes|changing|update|updates|updating|refactor|refactors|refactoring|rename|renaming|remove|removing|delete|deleting|replace|replacing|rewrite|rewriting|migrate|migrating|generate|generating|patch|patching|port|porting|convert|converting|translate|translating|build\s+(?:a|an|the|me)\b|make\s+(?:a|an|the|it|this)\b|set\s*up|scaffold|document|documenting|format|reformat|clean\s*up|resolve|apply|commit)\b/i;
+const WRITE = /\b(fix|fixes|fixing|add|adds|adding|implement|implements|implementing|write|writes|writing|create|creates|creating|edit|edits|editing|change|changes|changing|update|updates|updating|refactor|refactors|refactoring|rename|renaming|remove|removing|delete|deleting|replace|replacing|rewrite|rewriting|migrate|migrating|generate|generating|patch|patching|port|porting|convert|converting|translate|translating|build\s+(?:a|an|the|me)\b|make\s+(?:a|an|the|it|this)\b|set\s*up|scaffold|document|documenting|format|reformat|clean\s*up|resolve|apply|commit|bump|bumping|upgrade|upgrading|downgrade|modify|modifying|improve|improving|adjust|adjusting|tweak|move|moving|copy|extend|extending|optimi[sz]e|simplify|insert|append|split|merge|polish|look\s+better|looks\s+better)\b/i;
 const TESTS = /\b(test|tests|testing|lint|linting|typecheck|type-check|type\s+check|pytest|jest|vitest|coverage|ci)\b/i;
-const RUN = /\b(run|runs|running|execute|executing|build|compile|compiling|install|installing|script|scripts|benchmark|start|launch|deploy|npm|yarn|pnpm|make|cargo|docker|pip|python|node|bash|shell|command|commands)\b/i;
+const RUN = /\b(run|runs|running|execute|executing|build|compile|compiling|install|installing|script|scripts|benchmark|start|launch|deploy|npm|yarn|pnpm|make|cargo|docker|pip|python|node|bash|shell|command|commands|prettier|eslint|black|gofmt|rustfmt|clang-format|formatter)\b/i;
 
 const ALIAS: Record<string, string[]> = {
   writes: ["repo.write"],
@@ -42,7 +44,7 @@ export function allowScopes(list: string | undefined, full: readonly string[]): 
 export function inferScopes(prompt: string | undefined, full: readonly string[], allow: readonly string[] = []): InferredScopes {
   const keep = (want: string[]) => full.filter((s) => want.includes(s));
   if (!prompt || !prompt.trim()) {
-    return { scopes: [...full], narrowed: false, why: "no task was given, so the session keeps the usual permissions" };
+    return { scopes: [...full], narrowed: false, why: "no task was given, so the session keeps the usual permissions", widen: "" };
   }
   const want = new Set<string>(["repo.read"]);
   const writes = WRITE.test(prompt);
@@ -56,11 +58,13 @@ export function inferScopes(prompt: string | undefined, full: readonly string[],
   const narrowed = scopes.length < full.length;
   const parts = [`read files`, ...(want.has("repo.write") ? ["write files"] : []), ...(want.has("shell.exec") ? ["run commands"] : want.has("tests.run") ? ["run tests"] : [])];
   const missing = full.filter((s) => !scopes.includes(s));
+  const widen = missing.map((s) => (s === "repo.write" ? "writes" : s === "shell.exec" ? "commands" : s === "tests.run" ? "tests" : s)).join(",");
   return {
     scopes,
     narrowed,
+    widen,
     why: narrowed
-      ? `sized to your task: ${parts.join(", ")}; no network. If it is refused something it needs, run again with --allow ${missing.map((s) => (s === "repo.write" ? "writes" : s === "shell.exec" ? "commands" : s === "tests.run" ? "tests" : s)).join(",")} (or --allow all)`
+      ? `sized to your task: ${parts.join(", ")}; no network. If it is refused something it needs, run again with --allow ${widen} (or --allow all)`
       : "your task seems to need all the usual permissions",
   };
 }

@@ -38,6 +38,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
   ] },
   { group: "Designing the Mandate", note: "A plain `asp run` uses a default development Mandate (read and write files, run commands and tests in the project folder; no network, no push) and does not ask. These are the ways to narrow or widen it today. Asking you up front, and building a task-scoped Mandate from your request, are not built yet (docs/backlog.md; gap BM17).", rows: [
     ["asp run <runtime> --prompt \"...\" [--allow writes,commands,tests,protected,all]", "With a prompt, the Mandate is sized to the task (a review reads only; a change may write and run tests; running or building adds commands; never network) and the start line says how to widen it; --allow widens it"],
+    ["asp run <runtime> --also-dir ../shared,~/notes", "The gateway confines the agent to the project; name another directory it may also read and write"],
     ["asp run <runtime> --allow-network a.com,b.com", "Name the hosts the agent may reach; with none named, a session has no network and a call outside the Mandate is refused before the agent sees it"],
     ["asp run <runtime> --ask commands|writes|network|risky", "Hold those calls for your yes before they run; your answer (y, N or a for always) is signed into the log"],
     ["asp run <runtime> --ask-match \"git push\"", "Hold only the commands that match words, or re:<regular expression>, you give; everything else runs as the Mandate allows"],

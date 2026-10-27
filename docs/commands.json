@@ -88,6 +88,10 @@
           "description": "With a prompt, the Mandate is sized to the task (a review reads only; a change may write and run tests; running or building adds commands; never network) and the start line says how to widen it; --allow widens it"
         },
         {
+          "command": "asp run <runtime> --also-dir ../shared,~/notes",
+          "description": "The gateway confines the agent to the project; name another directory it may also read and write"
+        },
+        {
           "command": "asp run <runtime> --allow-network a.com,b.com",
           "description": "Name the hosts the agent may reach; with none named, a session has no network and a call outside the Mandate is refused before the agent sees it"
         },

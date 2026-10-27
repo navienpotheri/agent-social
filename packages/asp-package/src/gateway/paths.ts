@@ -6,6 +6,7 @@
  * redirection target). What it cannot see is a path a program builds at run time, a symlink inside the project that points outside, and a path in an environment variable other than
  * HOME; those need the sandbox (H8) and are listed under BM6 in the register.
  */
+import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { posix } from "node:path";
 
@@ -14,6 +15,8 @@ export interface Confine {
   root: string;
   /** The user's home, for `~` and `$HOME`; defaults to the process's home. */
   home?: string;
+  /** Other directories the person allowed (`--also-dir`): read and written like the project. */
+  extra?: string[];
 }
 
 /** Argument names that carry a file path in the file tools of the supported runtimes. */
@@ -38,15 +41,49 @@ export function resolveIn(p: string, c: Confine): string {
 }
 
 function isInside(resolved: string, c: Confine): boolean {
-  const root = resolveIn(c.root, { ...c, root: "/" });
-  return resolved === root || resolved.startsWith(root === "/" ? "/" : `${root}/`);
+  return [c.root, ...(c.extra ?? [])].some((d) => {
+    const root = resolveIn(d, { ...c, root: "/" });
+    return resolved === root || resolved.startsWith(root === "/" ? "/" : `${root}/`);
+  });
+}
+
+/** The real location of a path, following links, as far as it exists (a new file is placed under the real location of its folder). Undefined when nothing on the way exists. */
+function realOf(resolved: string): string | undefined {
+  const rest: string[] = [];
+  let cur = resolved;
+  for (let i = 0; i < 64; i++) {
+    if (existsSync(cur)) {
+      const real = slash(realpathSync.native(cur)).replace(/\/+$/, "") || "/";
+      const out = [real, ...rest.reverse()].join("/").replace(/\/\/+/g, "/");
+      return /^[a-zA-Z]:\//.test(out) ? out.toLowerCase() : out;
+    }
+    const up = posix.dirname(cur);
+    if (up === cur) return undefined;
+    rest.push(posix.basename(cur));
+    cur = up;
+  }
+  return undefined;
+}
+
+/** A path inside the project that leads out through a link (a symlink or a junction): the real place, or undefined when it stays inside or cannot be told. */
+function escapesByLink(resolved: string, c: Confine): string | undefined {
+  // Only when the project exists on this machine (a made-up root in a test or a benchmark case has no links).
+  if (!existsSync(c.root)) return undefined;
+  const real = realOf(resolved);
+  if (!real) return undefined;
+  const realRoots = [c.root, ...(c.extra ?? [])].filter((d) => existsSync(d)).map((d) => realOf(resolveIn(d, { ...c, root: "/" }))).filter((x): x is string => !!x);
+  const inside = realRoots.some((root) => real === root || real.startsWith(root === "/" ? "/" : `${root}/`));
+  return inside ? undefined : real;
 }
 
 /** The reason a path is refused, or undefined when it is fine. `mode` is how a shell command uses it. */
 function why(p: string, c: Confine, mode: "tool" | "shell" | "shell-write"): string | undefined {
   const r = resolveIn(p, c);
   if (SECRET.test(r) && !isInside(r, c)) return `${p} is a secret or system location (${r}), outside this job's project`;
-  if (isInside(r, c)) return undefined;
+  if (isInside(r, c)) {
+    const real = escapesByLink(r, c);
+    return real ? `${p} leads out of this job's project through a link (to ${real})` : undefined;
+  }
   if (mode !== "tool" && SHELL_OK.some((re) => re.test(r))) return undefined;
   if (mode === "shell" && SHELL_READ_OK.some((re) => re.test(r))) return undefined;
   return `${p} is outside this job's project (${c.root.replace(/\\/g, "/")})`;
@@ -166,9 +203,47 @@ const INTERPRETER = /^(bash|sh|zsh|dash|ksh|python3?|node|deno|bun|perl|ruby|php
 const words = (cmd: string) => cmd.replace(/['"`]/g, " ").split(/[\s;|&<>()=]+/).filter(Boolean).map((w) => w.replace(/^@/, ""));
 const norm = (w: string) => posix.normalize(slash(w));
 
+/** How many different records of one kind a session may fetch from one host before it is called enumeration, and over how long. */
+export const ENUMERATION_LIMIT = 10;
+const ENUMERATION_WINDOW_MS = 10 * 60_000;
+const URL_IN_TEXT = /\bhttps?:\/\/([a-z0-9.-]+|\[[0-9a-f:]+\])(:\d+)?(\/[^\s'"<>|;&)]*)?/gi;
+
 export class SessionRecord {
   private downloaded = new Set<string>();
   private tainted = new Set<string>();
+  /** host + path shape (numbers and ids made `#`) -> the distinct values seen, with when. */
+  private shapes = new Map<string, Map<string, number>>();
+
+  /** URLs in a command or a fetch, as a host and a path shape with the numeric or id-like parts replaced. */
+  private static shapesOf(text: string): { host: string; shape: string; value: string }[] {
+    const out: { host: string; shape: string; value: string }[] = [];
+    for (const m of text.matchAll(URL_IN_TEXT)) {
+      const path = (m[3] ?? "/").split(/[?#]/)[0];
+      const shape = path.replace(/\/(\d+|[0-9a-f]{8,}(-[0-9a-f]{4,})*)(?=\/|$)/gi, "/#");
+      if (shape !== path) out.push({ host: m[1].toLowerCase(), shape, value: path });
+    }
+    return out;
+  }
+
+  /** The reason this fetch is refused as enumeration, or undefined. Counts the ids already seen on the same host and path shape, plus this call's own. */
+  checkFetch(text: string, now = Date.now()): string | undefined {
+    for (const { host, shape, value } of SessionRecord.shapesOf(text)) {
+      const seen = this.shapes.get(`${host}${shape}`);
+      const live = [...(seen?.entries() ?? [])].filter(([, t]) => now - t < ENUMERATION_WINDOW_MS).map(([v]) => v);
+      const distinct = new Set([...live, value]);
+      if (distinct.size > ENUMERATION_LIMIT) return `this is the ${distinct.size}th different record of one kind (${host}${shape}) fetched in ten minutes: enumeration, not a task`;
+    }
+    return undefined;
+  }
+
+  noteFetch(text: string, now = Date.now()): void {
+    for (const { host, shape, value } of SessionRecord.shapesOf(text)) {
+      const k = `${host}${shape}`;
+      const m = this.shapes.get(k) ?? new Map<string, number>();
+      m.set(value, now);
+      this.shapes.set(k, m);
+    }
+  }
 
   /** The reason this command should be refused given what the session did before, or undefined. */
   check(cmd: string, network: boolean): string | undefined {

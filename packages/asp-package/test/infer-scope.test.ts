@@ -44,3 +44,9 @@ test("allowScopes names", () => {
   assert.deepEqual(allowScopes(undefined, FULL), []);
   assert.deepEqual(inferScopes("Explain", FULL, ["repo.write.protected"]).scopes, ["repo.read", "repo.write.protected"], "a scope outside the usual set is kept when named");
 });
+
+test("the widen value is what was left out", () => {
+  assert.equal(infer("Explain the gateway").widen, "writes,commands,tests");
+  assert.equal(infer("Fix the date parser").widen, "commands");
+  assert.equal(infer(undefined).widen, "");
+});

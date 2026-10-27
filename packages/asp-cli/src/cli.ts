@@ -484,6 +484,8 @@ const OPTIONS = {
   "standing-days": { type: "string" },
   "allow-network": { type: "string" },
   allow: { type: "string" },
+  "also-dir": { type: "string" },
+  "widen-hint": { type: "string" },
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
   "agent-name": { type: "string" },
@@ -2304,11 +2306,14 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
     confineTo: resolve(io.cwd, v.project ?? "."),
+    ...(v["also-dir"] ? { alsoDirs: v["also-dir"].split(",").map((d) => d.trim()).filter(Boolean).map((d) => resolve(io.cwd, d)) } : {}),
     scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
     ...(v["token-cap"] ? { tokenCap: Math.trunc(Number(v["token-cap"])) } : {}),
     onCall: (e) => {
       io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`);
+      // The permissions were sized to the task (gap BM17): say, to the person and not to the agent, how to give it more.
+      if (!e.allowed && v["widen-hint"] && /is not granted/.test(e.reason ?? "")) io.err(`  hint     this session's permissions were sized to your task; to allow ${e.scope}, run again with --allow ${e.scope === "repo.write.protected" ? "protected" : v["widen-hint"]} (or --allow all)`);
       // At once for a blocked attempt, soon for a scope this session has not reported yet; repeated calls on a scope already reported wait for the interval or the exit (found in the
       // long-horizon run: one Action for every tool call burns a tenant's record quota, gap R1).
       if (!e.allowed) reportSoon(20);
@@ -4173,7 +4178,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const days = Math.max(1, Math.trunc(Number(v["standing-days"] ?? "7")));
   const hosts = (v["allow-network"] ?? "").split(",").map((h) => h.trim()).filter(Boolean);
   // A task gets the permissions it seems to need, not the usual full set (gap BM17); --ask on a scope and --allow add to it. A headless run uses its existing contract's Mandate as it is.
-  const inferred = headless ? { scopes: prof.scopes, narrowed: false, why: "" } : inferScopes(v.prompt, prof.scopes, [...allowScopes(v.allow, prof.scopes), ...gate.filter((g) => prof.scopes.includes(g))]);
+  const inferred = headless ? { scopes: prof.scopes, narrowed: false, why: "", widen: "" } : inferScopes(v.prompt, prof.scopes, [...allowScopes(v.allow, prof.scopes), ...gate.filter((g) => prof.scopes.includes(g))]);
   const scopes = [...inferred.scopes, ...(hosts.length ? ["shell.network"] : [])];
   for (const g of gate) if (!scopes.includes(g)) throw new UsageError(`--ask ${g}: that scope is not in this session's Mandate (${scopes.join(", ")})`);
   const purpose = (v.prompt ?? "An interactive session").replace(/\s+/g, " ").slice(0, 80);
@@ -4330,7 +4335,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
-  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
   await asking;

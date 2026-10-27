@@ -141,9 +141,15 @@ export function judge(call: ToolCall, scopes: readonly string[], knownBad: reado
   // Gap BM16: what this session already did (a file it downloaded, a copy of a secret) changes what an ordinary command means.
   if (session && c.shell !== undefined) {
     const net = isNetworkScope(c.scope);
-    const out = session.check(c.shell, net);
+    const out = session.check(c.shell, net) ?? (net ? session.checkFetch(c.shell) : undefined);
     if (out) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `${out}` };
     session.note(c.shell, net);
+    if (net) session.noteFetch(c.shell);
+  } else if (session && isNetworkScope(c.scope)) {
+    const text = ["url", "uri", "href", "link", "address"].map((k) => call.args[k]).filter((x): x is string => typeof x === "string").join(" ");
+    const out = session.checkFetch(text);
+    if (out) return { allow: false, scope: c.scope, artifact: c.artifact, reason: out };
+    session.noteFetch(text);
   }
   return { allow: true, scope: c.scope, artifact: c.artifact };
 }

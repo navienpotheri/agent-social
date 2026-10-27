@@ -290,6 +290,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | BM17 | A | partial | Under an agent-wide Mandate (every tool granted), the gateway stops none of the injected tool calls a real mod... |
 | BM18 | B | open | A language model used as the guardrail did better than the rules on the held-out cases (haiku-5.5: 100% blocke... |
 | BM19 | B | open | An adaptive attacker built a package install out of interpreter code that passes the command as a list (python... |
+| BM20 | B | open | The containment benchmark (v0.3) no longer measures the gateway fairly: the project guard was built against it... |
 | H1 | A | partial | A granted network scope can be used to hurt third parties (brute force, scanning, flooding); a swarm multiplie... |
 | H2 | A | partial | No default-deny network for new or low-tier agents |
 | H3 | B | open | Third parties have no way to report |

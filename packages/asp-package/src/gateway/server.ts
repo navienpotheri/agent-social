@@ -36,6 +36,8 @@ export interface GatewayOptions {
   hosts?: string[];
   /** The project directory the agent is confined to (gap BM6): a file or shell call naming a path outside it, or a secret location, is refused. Absent means no path check. */
   confineTo?: string;
+  /** Other directories the person allowed beside the project (`--also-dir`). */
+  alsoDirs?: string[];
   /** How many network calls a minute may go to any one host and in all (`network.rate`); a call over a limit is refused, without a strike. */
   rate?: NetworkRate;
   /**
@@ -227,7 +229,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   async function decide(call: ToolCall): Promise<string | undefined> {
     toolCalls++;
     lastActivity = Date.now();
-    const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"), opts.hosts, opts.confineTo ? { root: opts.confineTo } : undefined, opts.confineTo ? sessionRecord : undefined);
+    const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"), opts.hosts, opts.confineTo ? { root: opts.confineTo, ...(opts.alsoDirs?.length ? { extra: opts.alsoDirs } : {}) } : undefined, opts.confineTo ? sessionRecord : undefined);
     let allow = j.allow;
     let reason = j.reason;
     let strike = true;
