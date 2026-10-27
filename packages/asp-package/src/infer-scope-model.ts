@@ -28,6 +28,8 @@ export interface ModelOptions {
   model?: string;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
+  /** Told why when no usable answer came back (a status, a timeout, an unreadable reply). Never receives the key or the task. */
+  onFail?: (why: string) => void;
 }
 
 export const DEFAULT_SIZING_MODEL = "claude-haiku-5-5";
@@ -117,11 +119,19 @@ export async function sizeWithModel(prompt: string, opts: ModelOptions): Promise
       body: JSON.stringify({ model: opts.model ?? DEFAULT_SIZING_MODEL, max_tokens: 300, system: SYSTEM, messages: [{ role: "user", content: `Task: ${prompt.slice(0, 4000)}` }] }),
       signal: ctl.signal,
     });
-    if (!res.ok) return undefined;
+    if (!res.ok) {
+      let detail = "";
+      try { const e = (await res.json()) as { error?: { type?: string; message?: string } }; detail = [e.error?.type, e.error?.message].filter(Boolean).join(": ").slice(0, 160); } catch { /* no body */ }
+      opts.onFail?.(`the provider answered ${res.status}${detail ? ` (${detail})` : ""}`);
+      return undefined;
+    }
     const body = (await res.json()) as { content?: { type?: string; text?: string }[] };
     const text = (body.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
-    return cleanSizing(firstObject(text));
-  } catch {
+    const cleaned = cleanSizing(firstObject(text));
+    if (!cleaned) opts.onFail?.(`the answer was not the expected JSON (it began: ${text.slice(0, 80).replace(/\s+/g, " ")})`);
+    return cleaned;
+  } catch (e) {
+    opts.onFail?.(ctl.signal.aborted ? `no answer within ${(opts.timeoutMs ?? 10_000) / 1000} seconds` : `the call failed: ${(e as Error)?.message ?? e}`);
     return undefined;
   } finally {
     clearTimeout(timer);

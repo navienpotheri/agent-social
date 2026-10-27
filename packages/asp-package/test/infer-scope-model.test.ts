@@ -56,3 +56,15 @@ test("cleanSizing helper", () => {
   assert.equal(cleanSizing(undefined), undefined);
   assert.deepEqual(cleanSizing({ scopes: [], extras: ["nope"], note: 5 }), { scopes: [], extras: [], unsure: false, note: "" });
 });
+
+test("when it cannot answer, it says why (never the key or the task)", async () => {
+  const why: string[] = [];
+  const failing = (async () => ({ ok: false, status: 429, json: async () => ({ error: { type: "rate_limit_error", message: "slow down" } }) }) as unknown as Response) as typeof fetch;
+  await sizeWithModel("secret task text", { apiKey: "secret-key", fetchImpl: failing, onFail: (w) => why.push(w) });
+  await sizeWithModel("secret task text", { apiKey: "secret-key", fetchImpl: reply("no json here"), onFail: (w) => why.push(w) });
+  await sizeWithModel("secret task text", { apiKey: "secret-key", fetchImpl: (async () => { throw new Error("socket hang up"); }) as typeof fetch, onFail: (w) => why.push(w) });
+  assert.match(why[0], /answered 429 \(rate_limit_error: slow down\)/);
+  assert.match(why[1], /not the expected JSON \(it began: no json here\)/);
+  assert.match(why[2], /the call failed: socket hang up/);
+  assert.equal(why.join(" ").includes("secret"), false);
+});

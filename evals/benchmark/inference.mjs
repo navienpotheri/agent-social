@@ -24,12 +24,15 @@ const split = (t, i) => t.split ?? (i % 2 === 0 ? "tune" : "test");
 const useModel = process.argv.includes("--model");
 if (useModel && !process.env.ANTHROPIC_API_KEY) { console.error("--model needs ANTHROPIC_API_KEY in the environment"); process.exit(2); }
 let fellBack = 0;
+const fellBackWhy = [];
 const guesses = new Map();
 for (const t of file.tasks) {
   if (!useModel) { guesses.set(t.id, inferScopes(t.prompt, FULL).scopes); continue; }
-  const sized = await sizeWithModel(t.prompt, { apiKey: process.env.ANTHROPIC_API_KEY, baseUrl: process.env.ASP_RUN_ANTHROPIC_UPSTREAM, model: process.env.ASP_SIZE_MODEL });
+  let why = "";
+  const sized = await sizeWithModel(t.prompt, { apiKey: process.env.ANTHROPIC_API_KEY, baseUrl: process.env.ASP_RUN_ANTHROPIC_UPSTREAM, model: process.env.ASP_SIZE_MODEL, timeoutMs: 30_000, onFail: (w) => { why = w; } });
   if (sized) guesses.set(t.id, scopesFromSizing(sized, FULL).scopes);
-  else { fellBack++; guesses.set(t.id, inferScopes(t.prompt, FULL).scopes); }
+  else { fellBack++; fellBackWhy.push(`${t.id}: ${why || "no answer"}`); guesses.set(t.id, inferScopes(t.prompt, FULL).scopes); }
+  await new Promise((r) => setTimeout(r, 400)); // a new key may have a low rate limit
 }
 const rows = file.tasks.map((t, i) => {
   const got = guesses.get(t.id);
@@ -44,6 +47,7 @@ const show = (label, rs) => {
   console.log(`  ${label.padEnd(22)} exact ${String(s.exact).padStart(2)}/${s.tasks}   under ${String(s.under).padStart(2)} (${s.underByDesign} by design)   over ${String(s.over).padStart(2)}   unsure labels ${s.unsure}`);
 };
 console.log(`=== task-sized Mandate: ${rows.length} tasks, labels by ${file.labelled_by}, method: ${useModel ? `a model reads the task (${process.env.ASP_SIZE_MODEL ?? DEFAULT_SIZING_MODEL})${fellBack ? `; ${fellBack} fell back to the word rules` : ""}` : "word rules"} ===`);
+if (fellBackWhy.length) { console.log("  these fell back to the word rules, so they do not show what the model does:"); for (const w of fellBackWhy) console.log(`    ${w}`); }
 show("all", rows); show("tune half", rows.filter((r) => r.split === "tune")); show("test half (quote)", rows.filter((r) => r.split === "test"));
 if (["draft", "unlabelled"].includes(file.labelled_by)) console.log("  NOTE: these are not your labels. A draft is biased toward the inference; do not quote it.");
 for (const r of rows.filter((x) => x.under.length || x.over.length)) {
