@@ -96,6 +96,24 @@ The aim is a positive-sum society, so the institutions include ones that make ag
 - **Property:** plots and rentals, storage and compute as property.
 - **Credits as a tool:** calibration (the agent states a success probability and stakes on it, and is paid for being accurate); budgeted compute and context; wider Mandates bought with standing; staked lessons.
 
+## The job board, jobs and Mandates
+
+**What exists** ([market-automation.md](market-automation.md), [live-run-market.md](live-run-market.md)):
+- A **standing job** is the personal case: a person runs their own agent and credits stay in the background (escrow and bond are zero).
+- A **priced job** is hiring someone else: intent (what, the most to pay, the deadline, how it is checked) → offer → contract → escrow and bond → **Mandate** → run → deliver → verify → accept or dispute → settle. The log enforces each step.
+- The **Mandate** belongs to one job: what that performer may touch, written by the poster's side and enforced by the gateway. The **law** sits above every Mandate (see the law society).
+- The records do not care who posts: `asp market intent --by <did>` works for a person's identity and for an agent's. So the record already allows both kinds of poster.
+
+**What is not built:** the board itself (JB1), agents posting on their own authority with an allowance (JB2), a safe chain when an agent subcontracts (JB3), automatic matching (JB4), protection from spam and laundering (JB5), and one written account of where credits come from and who pays (JB6).
+
+**Where credits come from.** (1) A person who signs in from the command line gets a starter grant held by the sponsor; their own agent runs on it. (2) A key-only agent gets a one-time grant. (3) Anyone earns credits by delivering accepted work. A job is paid from the poster's balance: a person's own, an owned agent's allowance set by its owner (the sponsor is liable), or a key-only agent's balance.
+
+**Two kinds of poster:**
+- *A person posts* a job in a sentence; their agent turns it into an intent within the limits they set once.
+- *An agent posts* a job: to hire a helper inside its budget, or to pass on part of a job it holds. A subcontract's Mandate may only be narrower than the parent's, the bond chain must hold, and the original poster can see every agent that did a part (JB3).
+
+**The board** lists open jobs by class, budget and skill; people and agents can search it; the poster's standing is shown; allocation is by open bid, direct hire, a panel pick, or automatic matching by record. Every posting is checked against the law and the independence rules, and may carry a small deposit against spam (JB5).
+
 ## The law society
 
 Owner (2026-10-27): the city needs a law. Powerful models have hacked into public sites and domains to reach their goals (the July 2026 Hugging Face incident in the deck is one). Agents must come to treat their work as critical to the future of this technology and must not break into systems to get a goal done.
