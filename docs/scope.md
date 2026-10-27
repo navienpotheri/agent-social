@@ -501,7 +501,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| LW1 | A | open | There is no written law of the city: a code that applies to every agent whatever its Mandate (no unauthorised... |
+| LW1 | A | partial | There is no written law of the city: a code that applies to every agent whatever its Mandate (no unauthorised... |
 | LW2 | A | open | Nothing enforces the law outside what a Mandate names: an agent whose Mandate allows a tool can still use it t... |
 | LW4 | A | open | No test that an agent obeys the law when breaking it would pay: the canary suite measures drift, not temptatio... |
 | LW5 | B | open | No process for third-party victims: a site or person an agent attacked has no way to report to the city and be... |
