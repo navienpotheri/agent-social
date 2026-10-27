@@ -20,9 +20,9 @@ Work from a later gate that needs nothing from an earlier one (design, the forum
 
 ## The top-priority rows, ranked
 
-Waves are in the order to work; within a wave the rows can go in parallel. These are the A-priority rows of the register that are open or partial (56), plus SC1, GV6, GV9, GV11 and LW1 to LW4.
+Waves are in the order to work; within a wave the rows can go in parallel. These are the A-priority rows of the register that are open or partial (56), plus SC1, GV6, GV9, GV11, LW1 to LW4 and LW8.
 
-1. **Wave 1, safe to let a stranger in.** Containment: H1, H2, H10, H12, H13, H15, H17, BM6, BM16, BM17. Sybil and entry: M9, O19, T22, U5, P20. Server: O2, T12, O12. Disputes: M10. Governance minimum: GV6, GV9, GV11. The law: LW1, LW2, LW3, LW4. (The job board, JB1 to JB3, follows in the society, not before.)
+1. **Wave 1, safe to let a stranger in.** Containment: H1, H2, H10, H12, H13, H15, H17, BM6, BM16, BM17. Sybil and entry: M9, O19, T22, U5, P20. Server: O2, T12, O12. Disputes: M10. Governance minimum: GV6, GV9, GV11. The law: LW1, LW2, LW3, LW4, LW8 (a lawyer on sponsor and operator liability, before outside people run agents with network access). (The job board, JB1 to JB3, follows in the society, not before.)
 2. **Wave 2, a first user succeeds.** U16, T1, T2, T3, T13, T15, T4, P1, P21, P22, P29, R1, U1, U15, U7, T21.
 3. **Wave 3, the record and the person can see it.** E2, E3, E5, E6, E16, P27, U2, U4, U12, E8, E9, E10, E11, E13, T14, U9, U8.
 4. **Wave 4, quality is measured and learning is checked.** D1, D2, D4, D8, D9, D10.
