@@ -68,3 +68,10 @@ test("when it cannot answer, it says why (never the key or the task)", async () 
   assert.match(why[2], /the call failed: socket hang up/);
   assert.equal(why.join(" ").includes("secret"), false);
 });
+
+test("a reply cut off by the token limit is named as such", async () => {
+  const why: string[] = [];
+  const cut = (async () => ({ ok: true, json: async () => ({ stop_reason: "max_tokens", content: [{ type: "text", text: '{"scopes":' }] }) }) as unknown as Response) as typeof fetch;
+  assert.equal(await sizeWithModel("x", { apiKey: "k", fetchImpl: cut, onFail: (w) => why.push(w) }), undefined);
+  assert.match(why[0], /cut off before the answer was finished/);
+});

@@ -116,7 +116,7 @@ export async function sizeWithModel(prompt: string, opts: ModelOptions): Promise
     const res = await doFetch(`${(opts.baseUrl ?? "https://api.anthropic.com").replace(/\/+$/, "")}/v1/messages`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": opts.apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: opts.model ?? DEFAULT_SIZING_MODEL, max_tokens: 300, system: SYSTEM, messages: [{ role: "user", content: `Task: ${prompt.slice(0, 4000)}` }] }),
+      body: JSON.stringify({ model: opts.model ?? DEFAULT_SIZING_MODEL, max_tokens: 2000, system: SYSTEM, messages: [{ role: "user", content: `Task: ${prompt.slice(0, 4000)}` }] }),
       signal: ctl.signal,
     });
     if (!res.ok) {
@@ -125,10 +125,11 @@ export async function sizeWithModel(prompt: string, opts: ModelOptions): Promise
       opts.onFail?.(`the provider answered ${res.status}${detail ? ` (${detail})` : ""}`);
       return undefined;
     }
-    const body = (await res.json()) as { content?: { type?: string; text?: string }[] };
+    const body = (await res.json()) as { stop_reason?: string; content?: { type?: string; text?: string }[] };
     const text = (body.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
     const cleaned = cleanSizing(firstObject(text));
-    if (!cleaned) opts.onFail?.(`the answer was not the expected JSON (it began: ${text.slice(0, 80).replace(/\s+/g, " ")})`);
+    if (!cleaned && body.stop_reason === "max_tokens") opts.onFail?.("the reply was cut off before the answer was finished (max_tokens)");
+    else if (!cleaned) opts.onFail?.(`the answer was not the expected JSON (it began: ${text.slice(0, 80).replace(/\s+/g, " ")})`);
     return cleaned;
   } catch (e) {
     opts.onFail?.(ctl.signal.aborted ? `no answer within ${(opts.timeoutMs ?? 10_000) / 1000} seconds` : `the call failed: ${(e as Error)?.message ?? e}`);
