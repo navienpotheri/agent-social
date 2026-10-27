@@ -486,6 +486,7 @@ const OPTIONS = {
   allow: { type: "string" },
   permissions: { type: "string" },
   "also-dir": { type: "string" },
+  "fleet-rate": { type: "string" },
   "widen-hint": { type: "string" },
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
@@ -2213,6 +2214,14 @@ async function canaryCmd(home: string, sub: string | undefined, rest: string[], 
  * The agent is pointed at the gateway with OPENAI_BASE_URL / ANTHROPIC_BASE_URL; tool calls the Mandate does not allow
  * are removed from the model's reply before the agent sees them. Without a command it serves until interrupted.
  */
+/** `--fleet-rate 120` or `120,30`: network requests a minute in all, and (optionally) to any one host, across everything one person runs on this machine. */
+function parseFleetRate(text: string | undefined): { total_per_minute: number; per_host_per_minute?: number } | undefined {
+  if (!text) return undefined;
+  const m = /^\s*(\d+)\s*(?:[,/]\s*(\d+))?\s*$/.exec(text);
+  if (!m || Number(m[1]) < 1) throw new UsageError("--fleet-rate <requests a minute in all>[,<to any one host>], for example 120 or 120,30");
+  return { total_per_minute: Number(m[1]), ...(m[2] ? { per_host_per_minute: Number(m[2]) } : {}) };
+}
+
 async function gatewayCmd(home: string, command: string[], v: Values, need: Need, io: Io): Promise<number> {
   const contract = need("contract");
   const by = need("by");
@@ -2307,6 +2316,9 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
     confineTo: resolve(io.cwd, v.project ?? "."),
+    // Copies of an agent under this Mandate share one rate allowance, and --fleet-rate (or ASP_FLEET_RATE) caps everything this person runs on this machine (gap H15).
+    ...((mandateRecord?.record.body as { network?: { rate?: unknown } } | undefined)?.network?.rate ? { rateLedger: join(home, "rate", `mandate-${createHash("sha256").update(contract).digest("hex").slice(0, 16)}.ndjson`) } : {}),
+    ...(() => { const f = parseFleetRate(v["fleet-rate"] ?? io.env.ASP_FLEET_RATE); const who = (mandateRecord?.record as { issuer?: string } | undefined)?.issuer ?? by; return f ? { fleet: { rate: f, ledger: join(home, "rate", `fleet-${createHash("sha256").update(who).digest("hex").slice(0, 16)}.ndjson`) } } : {}; })(),
     ...(v["also-dir"] ? { alsoDirs: v["also-dir"].split(",").map((d) => d.trim()).filter(Boolean).map((d) => resolve(io.cwd, d)) } : {}),
     scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
@@ -4364,7 +4376,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
-  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
   await asking;

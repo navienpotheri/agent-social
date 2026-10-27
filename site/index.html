@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 104 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 105 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (17)</summary><pre>Most people use only these.
 
 asp
@@ -196,12 +196,14 @@ asp trust [asp.yaml]
     Trust a project's asp.yaml that asks for network access
 asp shim bash|zsh|powershell
     Print a script: tab completion, and `claude` starting a governed session</pre></details>
-<details><summary>Designing the Mandate (9)</summary><pre>A plain asp run uses a default development Mandate (read and write files, run commands and tests in the project folder; no network, no push) and does not ask. These are the ways to narrow or widen it today. Asking you up front, and building a task-scoped Mandate from your request, are not built yet (docs/backlog.md; gap BM17).
+<details><summary>Designing the Mandate (10)</summary><pre>A plain asp run uses a default development Mandate (read and write files, run commands and tests in the project folder; no network, no push) and does not ask. These are the ways to narrow or widen it today. Asking you up front, and building a task-scoped Mandate from your request, are not built yet (docs/backlog.md; gap BM17).
 
 asp run &lt;runtime&gt; --prompt "..." [--allow writes,commands,tests,protected,all]
     With a prompt, the Mandate is sized to the task (a review reads only; a change may write and run tests; running or building adds commands; never network) and the start line says how to widen it; --allow widens it
 asp run &lt;runtime&gt; [--permissions review|develop|full|ask]
     With no prompt, asks once per project what the session may do (review: read files; develop: also write files and run tests; full: also any command), keeps the answer, and uses it next time; --permissions changes it, ask asks again
+asp run &lt;runtime&gt; --fleet-rate 120,30
+    Cap the network requests a minute (in all, and to any one host) across everything you run on this machine, whatever each agent's Mandate says; copies of one agent already share the Mandate's own limit
 asp run &lt;runtime&gt; --also-dir ../shared,~/notes
     The gateway confines the agent to the project; name another directory it may also read and write
 asp run &lt;runtime&gt; --allow-network a.com,b.com

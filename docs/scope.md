@@ -308,6 +308,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | H15 | A | partial | Tier 1 and 2 now must carry a rate (log rule, S92) and every Mandate with a network scope gets a default from... |
 | H17 | A | partial | The rate limit counted tool calls, not requests, so one shell command with many requests (a loop around curl,... |
 | H18 | B | open | The rate limit has one window, a minute: no per-second burst limit and no hourly or daily cap, so an agent can... |
+| H19 | B | open | The shared rate count (H15) is a file on one machine: a person's agents on two machines, or a tenant's on many... |
 | SB3 | B | open | The sandbox policy is coarse: network is all or nothing from the scopes; no per-host allow list; the agent's t... |
 | SB5 | B | open | Self-report is only as good as the agent: an agent that omits an action is not caught |
 | SB6 | B | open | The Docker backend runs the agent inside a Linux image, so the agent's program must exist in that image; host-... |
