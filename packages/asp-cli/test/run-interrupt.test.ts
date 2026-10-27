@@ -28,7 +28,7 @@ test("Ctrl-C in the middle of a session ends it as stopped, removes the stop fil
     const env = { ASP_CLAUDE_BIN: process.execPath, ASP_CLAUDE_SCRIPT: sleeper, ASP_RUN_ANTHROPIC_UPSTREAM: upUrl, ASP_GATEWAY_KILL_GRACE_MS: "0" };
     const lhome = join(f.aspHome, "local");
 
-    const running = asp(f.aspHome, ["run", "claude-code", "--local", "--prompt", "Wait", "--project", project], env);
+    const running = asp(f.aspHome, ["run", "claude-code", "--local", "--prompt", "Wait", "--project", project, "--allow", "all"], env);
     // The session is up once its start is in the index; then the user presses Ctrl-C.
     const started = Date.now();
     while (Date.now() - started < 20000) {
@@ -65,7 +65,7 @@ test("Ctrl-C in the middle of a session ends it as stopped, removes the stop fil
 
     // The handler is gone after the session, and the next session is a normal one.
     assert.equal(process.listenerCount("SIGINT") <= 1, true);
-    const again = await asp(f.aspHome, ["run", "claude-code", "--local", "--prompt", "Again", "--project", project], { ...env, ASP_CLAUDE_SCRIPT: fileURLToPath(new URL("./fake-claude-gateway.mjs", import.meta.url)) });
+    const again = await asp(f.aspHome, ["run", "claude-code", "--local", "--prompt", "Again", "--project", project, "--allow", "all"], { ...env, ASP_CLAUDE_SCRIPT: fileURLToPath(new URL("./fake-claude-gateway.mjs", import.meta.url)) });
     assert.match(again.err, /standing job, session 4/);
   } finally { upstream.close(); }
 });

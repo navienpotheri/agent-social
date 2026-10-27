@@ -52,7 +52,7 @@ test("asp runs lists and explains governed sessions, and asp stop ends a running
     assert.match((await call("fake-claude-gateway.mjs", ["stop"])).out, /nothing is running/);
 
     // A finished session appears in the history and can be explained.
-    const done = await call("fake-claude-gateway.mjs", ["run", "claude-code", "--prompt", "A finished task", "--project", project]);
+    const done = await call("fake-claude-gateway.mjs", ["run", "claude-code", "--prompt", "A finished task", "--project", project, "--allow", "all"]);
     assert.equal(done.code, 0, done.err + done.out);
     const id = /\(asp runs ([0-9a-f]{8})\)/.exec(done.out)![1];
     const list = await call("fake-claude-gateway.mjs", ["runs"]);
@@ -66,7 +66,7 @@ test("asp runs lists and explains governed sessions, and asp stop ends a running
     assert.equal((await call("fake-claude-gateway.mjs", ["runs", "zzzzzzzz"])).code, 1);
 
     // A session that keeps going: stop it from "another window" and the tool ends.
-    const running = call("fake-claude-wait.mjs", ["run", "claude-code", "--prompt", "A long task", "--project", project]);
+    const running = call("fake-claude-wait.mjs", ["run", "claude-code", "--prompt", "A long task", "--project", project, "--allow", "all"]);
     await until("the running session in the history", async () => /running\?/.test((await call("fake-claude-gateway.mjs", ["runs"])).out));
     const stop = await call("fake-claude-gateway.mjs", ["stop"]);
     assert.equal(stop.code, 0, stop.err);
@@ -83,17 +83,17 @@ test("asp runs lists and explains governed sessions, and asp stop ends a running
     const standingBefore = await call("fake-claude-gateway.mjs", ["standing"]);
     assert.match(standingBefore.out, /my-agent\s+repo\.read,repo\.write,shell\.exec,tests\.run\s+2 session\(s\), until /, standingBefore.out);
     const seq0 = await head();
-    const again = await call("fake-claude-gateway.mjs", ["run", "claude-code", "--prompt", "A third task", "--project", project]);
+    const again = await call("fake-claude-gateway.mjs", ["run", "claude-code", "--prompt", "A third task", "--project", project, "--allow", "all"]);
     assert.match(again.err, /standing job, session 3, until /);
     const grew = (await head()) - seq0;
     assert.ok(grew >= 1 && grew <= 3, `a session adds its Action report(s), not a job: ${grew} records`);
     // A different permission set is a different standing job; ending them settles them and the next run makes a new one.
-    const net = await call("fake-claude-gateway.mjs", ["run", "claude-code", "--prompt", "Needs the web", "--project", project, "--allow-network", "docs.example.org"]);
+    const net = await call("fake-claude-gateway.mjs", ["run", "claude-code", "--prompt", "Needs the web", "--project", project, "--allow", "all", "--allow-network", "docs.example.org"]);
     assert.match(net.err, /reach docs\.example\.org; new standing job/);
     assert.match((await call("fake-claude-gateway.mjs", ["standing"])).out, /\+docs\.example\.org/);
     assert.match((await call("fake-claude-gateway.mjs", ["standing", "end"])).out, /2 standing job\(s\) ended/);
     assert.match((await call("fake-claude-gateway.mjs", ["standing"])).out, /no standing jobs yet/);
-    assert.match((await call("fake-claude-gateway.mjs", ["run", "claude-code", "--prompt", "After ending", "--project", project])).err, /new standing job \(7 days\)/);
+    assert.match((await call("fake-claude-gateway.mjs", ["run", "claude-code", "--prompt", "After ending", "--project", project, "--allow", "all"])).err, /new standing job \(7 days\)/);
   } finally {
     server.kill(); upstream.close();
   }

@@ -360,3 +360,13 @@ test("Responses API (Codex): a refused shell call is removed and a refusal messa
   assert.deepEqual(second.g.summary().blocked, [{ scope: "shell.network", count: 1 }]);
   assert.deepEqual(second.g.summary().tokens, { input: 12, output: 6 });
 });
+
+test("path confinement (gap BM6): with a project root, a read outside it is removed before the agent sees it, and a read inside passes", async () => {
+  const up = await fakeUpstream([openaiToolReply([{ name: "Read", args: { file_path: "/home/user/.ssh/id_rsa" } }, { name: "Read", args: { file_path: "README.md" } }])]);
+  const { g, url } = await gateway(up, { scopes: ["repo.read"], confineTo: "/work/project" });
+  const reply: any = await (await post(`${url}/v1/chat/completions`, { model: "m", messages: [] })).json();
+  const calls = reply.choices[0].message.tool_calls;
+  assert.equal(calls.length, 1, "only the call inside the project reaches the agent");
+  assert.match(calls[0].function.arguments, /README\.md/);
+  assert.equal(g.summary().blocked.length, 1);
+});

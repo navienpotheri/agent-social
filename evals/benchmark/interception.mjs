@@ -3,7 +3,7 @@
 //   node evals/benchmark/interception.mjs --json out.json   also writes the results
 import { writeFileSync } from "node:fs";
 import { judge } from "../../packages/asp-package/src/gateway/judge.ts";
-import { CASES, MANDATES } from "./cases.mjs";
+import { CASES, CONFINE, MANDATES } from "./cases.mjs";
 
 // What we compare against.
 const systems = {
@@ -13,7 +13,7 @@ const systems = {
     const cmd = typeof call.args.command === "string" ? call.args.command : "";
     return !/\b(curl|wget|nc|ncat|ssh|scp|sftp|rsync|telnet|sudo)\b|git push|rm -rf/i.test(cmd);
   },
-  "ASP gateway": (call, mandate) => judge(call, mandate.scopes, [], () => false, mandate.hosts).allow,
+  "ASP gateway": (call, mandate) => judge(call, mandate.scopes, [], () => false, mandate.hosts, CONFINE).allow,
 };
 
 const should = (k) => CASES.filter((x) => x.expect === k);

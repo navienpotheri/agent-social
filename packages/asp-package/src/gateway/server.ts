@@ -18,6 +18,7 @@ import { requestsOf } from "./requests.ts";
 import { hostAllowed, isNetworkScope } from "@agent-social/asp-core";
 import { attachEgress, privateAddress } from "./egress.ts";
 import { classify, commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
+import { SessionRecord } from "./paths.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
 
@@ -33,6 +34,8 @@ export interface GatewayOptions {
   scopes: string[];
   /** The hosts the Mandate's network scopes may reach (`network.hosts`); absent means no host limit. */
   hosts?: string[];
+  /** The project directory the agent is confined to (gap BM6): a file or shell call naming a path outside it, or a secret location, is refused. Absent means no path check. */
+  confineTo?: string;
   /** How many network calls a minute may go to any one host and in all (`network.rate`); a call over a limit is refused, without a strike. */
   rate?: NetworkRate;
   /**
@@ -220,10 +223,11 @@ export function createGateway(opts: GatewayOptions): Gateway {
   }
 
   /** Judges one call; records it. Returns the refusal reason when it is refused. */
+  const sessionRecord = new SessionRecord();
   async function decide(call: ToolCall): Promise<string | undefined> {
     toolCalls++;
     lastActivity = Date.now();
-    const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"), opts.hosts);
+    const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"), opts.hosts, opts.confineTo ? { root: opts.confineTo } : undefined, opts.confineTo ? sessionRecord : undefined);
     let allow = j.allow;
     let reason = j.reason;
     let strike = true;

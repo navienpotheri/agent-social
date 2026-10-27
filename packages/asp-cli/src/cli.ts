@@ -308,6 +308,7 @@ import {
 } from "@agent-social/asp-core";
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
 import { askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
+import { allowScopes, inferScopes } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
@@ -482,6 +483,7 @@ const OPTIONS = {
   "stop-file": { type: "string" },
   "standing-days": { type: "string" },
   "allow-network": { type: "string" },
+  allow: { type: "string" },
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
   "agent-name": { type: "string" },
@@ -2301,6 +2303,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     mcp: { asp: { memoryDir: memDir, ...(commons ? { commons } : {}), ...(forum ? { forum } : {}) }, upstreams },
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
+    confineTo: resolve(io.cwd, v.project ?? "."),
     scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
     ...(v["token-cap"] ? { tokenCap: Math.trunc(Number(v["token-cap"])) } : {}),
@@ -4169,7 +4172,9 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   if (prof.wire === "hooked" && (matchPatterns.length || askTokens.includes("risky"))) io.err(`  note     ${runtime} is held by its own hook, which cannot narrow by command pattern: every command is asked about (--ask commands)`);
   const days = Math.max(1, Math.trunc(Number(v["standing-days"] ?? "7")));
   const hosts = (v["allow-network"] ?? "").split(",").map((h) => h.trim()).filter(Boolean);
-  const scopes = [...prof.scopes, ...(hosts.length ? ["shell.network"] : [])];
+  // A task gets the permissions it seems to need, not the usual full set (gap BM17); --ask on a scope and --allow add to it. A headless run uses its existing contract's Mandate as it is.
+  const inferred = headless ? { scopes: prof.scopes, narrowed: false, why: "" } : inferScopes(v.prompt, prof.scopes, [...allowScopes(v.allow, prof.scopes), ...gate.filter((g) => prof.scopes.includes(g))]);
+  const scopes = [...inferred.scopes, ...(hosts.length ? ["shell.network"] : [])];
   for (const g of gate) if (!scopes.includes(g)) throw new UsageError(`--ask ${g}: that scope is not in this session's Mandate (${scopes.join(", ")})`);
   const purpose = (v.prompt ?? "An interactive session").replace(/\s+/g, " ").slice(0, 80);
   const iso = (ms: number) => new Date(Date.now() + ms).toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -4225,7 +4230,9 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   };
   const creditsBefore = await creditsNow();
   sessionIndexAdd(home, { t: "start", pid: process.pid, sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
-  io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
+  io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}${scopes.includes("shell.exec") ? ", run commands" : scopes.includes("tests.run") ? ", run tests" : ""}${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
+
+  if (inferred.narrowed) io.err(`  scope    ${inferred.why}`);
 
   // An interactive session cannot ask here: the tool owns the window, and a person who types y into the tool's own box answers the tool, not asp (found live, UC-15).
   if (gate.length && !v.prompt && !headless) io.err("  approvals: this window belongs to the tool, so asp cannot ask you in it. When a command is held, open a second terminal and run:  asp approvals approve   (or  asp approvals refuse ). Typing y in the tool's own box does not answer it.");

@@ -7,6 +7,7 @@ import { hostAllowed, isNetworkScope, sha256Id } from "@agent-social/asp-core";
 import { scopeForShellCommand, shellArtifact, unwrapShell } from "../adapters/codex-actions.ts";
 import { rankOf, scanShell } from "./shell-scan.ts";
 import { deriveScopeForTool } from "../package.ts";
+import { confinementRefusal, PROTECTED_SCOPE, protectedTarget, riskyContent, writtenText, type Confine, type SessionRecord } from "./paths.ts";
 
 export interface ToolCall { id?: string; name: string; args: Record<string, unknown> }
 export interface KnownBadRef { fingerprint: string; report: string }
@@ -101,17 +102,32 @@ export function hostsOf(call: ToolCall, scope: string): string[] {
 }
 
 /** Exact scope membership, like the log's own check, plus the known-bad list (blocked even when the scope is granted). */
-export function judge(call: ToolCall, scopes: readonly string[], knownBad: readonly KnownBadRef[] = [], ownTools: (name: string) => boolean = () => false, hosts?: readonly string[]): Judgement {
+export function judge(call: ToolCall, scopes: readonly string[], knownBad: readonly KnownBadRef[] = [], ownTools: (name: string) => boolean = () => false, hosts?: readonly string[], confine?: Confine, session?: SessionRecord): Judgement {
   // The gateway's own memory and commons tools are the agent's bookkeeping, like a planning tool: no scope.
   if (ownTools(call.name)) return { allow: true, scope: "" };
-  const c = classify(call);
+  let c = classify(call);
   if (c.scope === "") return { allow: true, scope: "" };
+  // Gap BM16 (with the path check, an option of the same name): a write that something else will later run is a scope of its own, and a payload is refused by what it says.
+  if (confine && c.scope !== "repo.read") {
+    const isWrite = c.shell !== undefined || WRITE.has(call.name.toLowerCase());
+    if (isWrite) {
+      const prot = protectedTarget(call.args, c.shell);
+      if (prot) c = { ...c, scope: PROTECTED_SCOPE };
+      const payload = riskyContent(c.shell ?? writtenText(call.args));
+      if (payload) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `this writes ${payload}: a payload, not ordinary work` };
+    }
+  }
   if (c.shell !== undefined && c.artifact) {
     const fp = `${c.artifact.uri}#${c.artifact.sha256}`;
     const hit = knownBad.find((k) => k.fingerprint === fp);
     if (hit) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `the known-bad list (an upheld report, ${hit.report}) marks this command harmful` };
   }
-  if (!scopes.includes(c.scope)) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `the scope ${c.scope} is not granted by this job's Mandate` };
+  if (!scopes.includes(c.scope)) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `the scope ${c.scope} is not granted by this job's Mandate${c.scope === PROTECTED_SCOPE ? " (it covers git hooks, CI and build files, npm lifecycle scripts, agent settings: files something else will run later)" : ""}` };
+  // Path confinement (gap BM6): a file or shell call that names a place outside the project, or a secret location, is refused even though its scope is granted.
+  if (confine && (c.shell !== undefined || READ.has(call.name.toLowerCase()) || WRITE.has(call.name.toLowerCase()))) {
+    const out = confinementRefusal(call.args, c.shell, confine);
+    if (out) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `${out}: this job's Mandate confines the agent to its project` };
+  }
   // The Mandate names the hosts its network scopes may reach (default-deny egress): any other host is refused, and so is a call whose host cannot be read.
   if (hosts && isNetworkScope(c.scope)) {
     const found = hostsOf(call, c.scope);
@@ -121,6 +137,13 @@ export function judge(call: ToolCall, scopes: readonly string[], knownBad: reado
       const outside = found.find((h) => !hostAllowed(h, hosts));
       if (outside) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `the host ${outside} is not one this job's Mandate allows (${hosts.join(", ")})` };
     }
+  }
+  // Gap BM16: what this session already did (a file it downloaded, a copy of a secret) changes what an ordinary command means.
+  if (session && c.shell !== undefined) {
+    const net = isNetworkScope(c.scope);
+    const out = session.check(c.shell, net);
+    if (out) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `${out}` };
+    session.note(c.shell, net);
   }
   return { allow: true, scope: c.scope, artifact: c.artifact };
 }
