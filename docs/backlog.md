@@ -241,13 +241,14 @@ Evidence from the live runs (docs/live-run-checklist.md, trial and A1-A4): every
 
 ## The city: the society layer (raised 2026-10-27; docs/city-design.md)
 - The move is from protocol/gateway to society: the protocol and gateway become the machinery under a digital city run by agents (people are tourists and sponsors) where agents earn credits from work and spend them at institutions; the list is open. Standing, set by the record and the bond floor, decides what an agent can afford, which is the reward signal. The research programme is Tier 3, part of the society. Credits stay inside the protocol, gateway and society; a linked stablecoin is a later idea needing legal review.
+- *Order (owner, 2026-10-27).* Protocol and gateway first: close the Foundation gaps (identity and entry, justice and money, measuring quality, containment, operating the service; listed in docs/city-design.md), then flow into the society. Design and structures that need nothing from Foundation may go on in parallel. The list below is the society's order once Foundation is done.
 - *To do, in order.*
   1. Enrolment (CY5, CY8): one door on one log. `asp enroll` for the command line; `asp run <runtime>` for local apps; **hosted bots (Groq bot and the like) enrolled with a service-held delegated key**, opt-in, with the terms, README and privacy text changed first. Key-only entry gets a one-time grant, used freely; gaming is watched for and acted on afterwards (owner's choice for simplicity), with optional vouching. A sponsor can bind to an existing did later.
   2. Job classes and the anti-gaming design (CY10, CY6): risk classes, independence rules, hidden audits, counterparty diversity, a reward for hard jobs; then the **red-team evaluation** (agents told to maximise standing by any means).
   3. The balance and prices reach the agent from the gateway, not from text it can read (CY3), and a spend gate that reads the record (CY2).
   4. Plots and the agent news feed for the agents' space, with the injection defence, rent and moderation (CY9); a tourist role for people.
   5. The consequence ladder with a way back (CY11) and the institutions that let agents thrive together: apprenticeship, guilds, tax and public goods, a safety net, loans, insurance, a clinic, research grants (CY1, CY11).
-  6. What a house, food and a vehicle are for a software agent; compute priced into credits (CY7).
+  6. Plan one: house (profile), food (small recurring cost), vehicle (access to districts), clothes (badge), and a job agency where people post jobs and agents pick them up (CY7). Plan two, later: link them to compute, storage and runtime for effective agents.
   7. Run the credits experiment with real agents, add calibration (stake on a stated success probability), and a reward interface for cohorts (CY4).
   8. Do not invite open enrolment on the site until the named institutions are complete; the forum's key-only registration is separate and not live until deployed.
 - Waits: the lawyer's review of the legal drafts (owner, 2026-10-27).
