@@ -38,6 +38,13 @@ export interface SignupOptions {
   joinUrl?: string;
   /** Tenants one Google account may hold (default 3). */
   perGoogleAccount?: number;
+  /**
+   * Runs the last checks and the add as one step that no other process can interleave (gap O19): the tokens file may be shared by several service processes, and two that both
+   * saw 199 of a day's 200 would each add one. Defaults to running the function as it is, for one process.
+   */
+  exclusive?: <T>(fn: () => T) => T;
+  /** Told when someone is turned away because the day's sign-ups are used up (a count, no one's details), so an operator can see the demand when tuning the cap. */
+  onTurnedAway?: () => void;
   /** Only for tests. */
   secret?: Buffer;
   now?: () => number;
@@ -122,7 +129,7 @@ export class Signup {
   private precheck(b: Record<string, unknown>): { error: SignupResult } | { name: string; contact?: string } {
     const c = this.o.control?.();
     if (!this.isOpen()) return { error: this.fail(503, "SIGNUP_CLOSED", `sign-up is closed${c?.reason ? `: ${c.reason}` : ""}`) };
-    if (this.today() >= this.cap()) return { error: this.fail(503, "SIGNUP_FULL", "today's sign-ups are used up; try again tomorrow", 3600) };
+    if (this.today() >= this.cap()) { this.o.onTurnedAway?.(); return { error: this.fail(503, "SIGNUP_FULL", "today's sign-ups are used up; try again tomorrow", 3600) }; }
     if (b.accept_terms !== true || b.terms_version !== this.o.termsVersion) return { error: this.fail(400, "TERMS_NOT_ACCEPTED", `accept the terms (version ${this.o.termsVersion}${this.o.termsUrl ? `, at ${this.o.termsUrl}` : ""}) with accept_terms: true and terms_version`) };
     const name = typeof b.name === "string" ? b.name : "";
     if (!NAME_RE.test(name)) return { error: this.fail(400, "BAD_NAME", "the name is 3 to 32 characters: a lower-case letter first, then lower-case letters, digits and hyphens") };
@@ -172,17 +179,22 @@ export class Signup {
   /** The last checks (this address, the name) and the tenant itself, with its token shown once. */
   private issue(address: string, name: string, contact: string | undefined, extra: { google?: { sub: string; email: string }; declaration?: "adult_or_guardian" }): SignupResult {
     const hash = addressHash(address);
-    if (this.sinceDay().filter((t) => t.signup!.addressHash === hash).length >= this.perAddress) return this.fail(429, "ADDRESS_LIMIT", `at most ${this.perAddress} sign-ups a day from one address`, 3600);
-    if (this.o.tenants().some((t) => t.name === name)) return this.fail(409, "NAME_TAKEN", `the name ${name} is not available`);
+    const step = (): SignupResult => {
+      // Checked again here, with the tenants read fresh, because another process may have signed someone up since the first checks (gap O19).
+      if (this.today() >= this.cap()) { this.o.onTurnedAway?.(); return this.fail(503, "SIGNUP_FULL", "today's sign-ups are used up; try again tomorrow", 3600); }
+      if (this.sinceDay().filter((t) => t.signup!.addressHash === hash).length >= this.perAddress) return this.fail(429, "ADDRESS_LIMIT", `at most ${this.perAddress} sign-ups a day from one address`, 3600);
+      if (this.o.tenants().some((t) => t.name === name)) return this.fail(409, "NAME_TAKEN", `the name ${name} is not available`);
 
-    const token = randomBytes(32).toString("base64url");
-    const starting = { ...DEFAULT_STARTING, ...this.o.starting };
-    const at = new Date(this.now()).toISOString().replace(/\.\d{3}Z$/, "Z");
-    this.o.add({
-      name, role: "tenant", tokenSha256: hashToken(token), quotaBytes: starting.quotaBytes, recordQuota: starting.recordQuota, byteQuota: starting.byteQuota,
-      rateLimitPerMinute: starting.rateLimitPerMinute, createdAt: at,
-      signup: { at, addressHash: hash, termsVersion: this.o.termsVersion, ...(contact ? { contact } : {}), ...(extra.google ? { google: extra.google } : {}), ...(extra.declaration ? { declaration: extra.declaration } : {}) },
-    });
-    return { ok: true, tenant: name, token, quotas: starting, termsVersion: this.o.termsVersion };
+      const token = randomBytes(32).toString("base64url");
+      const starting = { ...DEFAULT_STARTING, ...this.o.starting };
+      const at = new Date(this.now()).toISOString().replace(/\.\d{3}Z$/, "Z");
+      this.o.add({
+        name, role: "tenant", tokenSha256: hashToken(token), quotaBytes: starting.quotaBytes, recordQuota: starting.recordQuota, byteQuota: starting.byteQuota,
+        rateLimitPerMinute: starting.rateLimitPerMinute, createdAt: at,
+        signup: { at, addressHash: hash, termsVersion: this.o.termsVersion, ...(contact ? { contact } : {}), ...(extra.google ? { google: extra.google } : {}), ...(extra.declaration ? { declaration: extra.declaration } : {}) },
+      });
+      return { ok: true, tenant: name, token, quotas: starting, termsVersion: this.o.termsVersion };
+    };
+    return this.o.exclusive ? this.o.exclusive(step) : step();
   }
 }

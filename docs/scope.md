@@ -339,7 +339,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | P17 | C | open | A package's history is replayed in a fresh log, which has no slashes, so the fork rule's tier checks pass ther... |
 | P18 | C | open | Logs written before S87 may hold a passport an agent issued to itself naming a sponsor; replaying such a log (... |
 | P19 | B | open | Identities live in the tenant's namespace on the service (S100); what is left: a did:web identity on the perso... |
-| P20 | A | open | asp join stores the service token in plaintext in the ASP home (private to the user, but a file), like the key... |
+| P20 | A | partial | asp join stores the service token in plaintext in the ASP home (private to the user, but a file), like the key... |
 | P21 | A | partial | asp run now starts Claude Code, Codex and Goose as governed sessions (S106), and Antigravity and OpenHands (S1... |
 | P22 | A | partial | Provider terms limit how the gateway may be used with a Claude subscription login. Anthropic's Legal and compl... |
 | P27 | A | open | Found in the live run (2026-10-12): a standing job has one run log per session, but an Action's run-log artifa... |
@@ -440,7 +440,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | O15 | B | open | Certificates are the operator's problem: the service reads the files once at start (a renewed certificate need... |
 | O17 | B | open | The usage counts are the service's own tally of what it accepted, kept in a file beside the tokens file: they... |
 | O18 | B | open | Suspending and blocking are local commands that edit files next to the service: there is no remote admin inter... |
-| O19 | A | open | Sign-up with Google (S94) puts a verified Google account behind each tenant, but the command-line route (proof... |
+| O19 | A | partial | Sign-up with Google (S94) puts a verified Google account behind each tenant, but the command-line route (proof... |
 
 ### Process and scope
 

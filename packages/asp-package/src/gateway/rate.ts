@@ -120,8 +120,8 @@ export class SharedRateLimiter implements Limiter {
       // Keep the file short: when most of it is older than the window, rewrite it with what is still live.
       if (lines > 200 && recent.length < lines / 2) {
         const part = `${this.ledger}.part`;
-        writeFileSync(part, recent.map((e) => JSON.stringify(e)).join("\n") + "\n");
-        renameSync(part, this.ledger);
+        // Only to keep the file short: if the rename is refused (Windows, while another process reads it) the long file is still correct and is trimmed next time.
+        try { writeFileSync(part, recent.map((e) => JSON.stringify(e)).join("\n") + "\n"); renameSync(part, this.ledger); } catch { /* trimmed next time */ }
       }
       appendFileSync(this.ledger, JSON.stringify({ t, perHost: counts.perHost, total: counts.total }) + "\n");
       return { ok: true };

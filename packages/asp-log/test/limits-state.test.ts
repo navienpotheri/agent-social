@@ -76,3 +76,61 @@ console.log("done");`;
 
 function require_(m: string) { return { writeFileSync: (f: string, d: string) => writeFileSyncImpl(f, d) }; }
 import { writeFileSync as writeFileSyncImpl } from "node:fs";
+
+// Gaps O2, O19: the request buckets are shared the same way, by comparing notes about twice a second.
+const bucketOpts = (stateFile: string | undefined, now: () => number) => ({ tenantPerMinute: 40, appendPerMinute: 0, maxInFlight: 0, addressPerMinute: 0, failedAuthMax: 0, ...(stateFile ? { stateFile } : {}), now });
+const drain = (l: Limits, name: string) => { let n = 0; while (l.checkTenant(name).ok && n < 100) n++; return n; };
+
+test("without a state file each process has its own bucket (so two processes allow twice the burst)", () => {
+  const t = 1_000_000;
+  const a = new Limits(bucketOpts(undefined, () => t)), b = new Limits(bucketOpts(undefined, () => t));
+  assert.equal(drain(a, "alice"), 10);
+  assert.equal(drain(b, "alice"), 10);
+});
+
+test("with a state file two processes share one bucket: what one used, the other cannot use", () => {
+  let t = 1_000_000;
+  const f = state();
+  const a = new Limits(bucketOpts(f, () => t)), b = new Limits(bucketOpts(f, () => t));
+  b.checkTenant("alice"); // b meets alice: its bucket exists and it has started to compare notes
+  t += 600;
+  const usedByA = drain(a, "alice");
+  assert.ok(usedByA >= 9 && usedByA <= 10, `a used its burst (${usedByA})`);
+  t += 600; a.sync(); // a's beat: it publishes what it used
+  t += 600; // b's beat: it learns it
+  const rest = drain(b, "alice");
+  assert.ok(rest <= 3, `b is left with almost nothing (${rest}), not a second burst of 10`);
+});
+
+test("another tenant is not affected, and a bucket recovers when the others stop", () => {
+  let t = 1_000_000;
+  const f = state();
+  const a = new Limits(bucketOpts(f, () => t)), b = new Limits(bucketOpts(f, () => t));
+  b.checkTenant("alice"); b.checkTenant("bob");
+  t += 600; drain(a, "alice"); t += 600; a.sync();
+  t += 600;
+  assert.ok(drain(b, "bob") >= 9, "bob is untouched by what a spent on alice");
+  t += 60_000; // a minute later it has refilled for both
+  b.checkTenant("alice");
+  assert.ok(drain(b, "alice") >= 8, "alice's bucket refilled");
+});
+
+test("a process that stops is forgotten", () => {
+  let t = 1_000_000;
+  const f = state();
+  const a = new Limits(bucketOpts(f, () => t)), b = new Limits(bucketOpts(f, () => t));
+  b.checkTenant("alice");
+  t += 600; drain(a, "alice"); t += 600; a.sync();
+  t += 20_000; // a has been silent for longer than ten seconds
+  const left = drain(b, "alice");
+  assert.ok(left >= 8, `b is not held back by a process that is gone (${left})`);
+});
+
+test("the shared file holds no address", () => {
+  let t = 1_000_000;
+  const f = state();
+  const opts2 = { tenantPerMinute: 0, appendPerMinute: 0, maxInFlight: 0, addressPerMinute: 20, failedAuthMax: 0, stateFile: f, now: () => t };
+  const a = new Limits(opts2);
+  a.checkAddress("203.0.113.9"); t += 600; a.checkAddress("203.0.113.9");
+  assert.equal(readFileSync(`${f}.buckets`, "utf8").includes("203.0.113.9"), false);
+});

@@ -298,7 +298,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget, runtimeTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, UsageStore, type Tenant } from "@agent-social/asp-log";
+import { courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1705,15 +1705,24 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
     const name = need("tenant");
     const t = tenants.find((x) => x.name === name);
     if (!t) throw new Error(`no tenant called ${name} in ${file}`);
-    if (sub === "suspend") t.suspended = { at: now(), ...(v.reason ? { reason: v.reason } : {}) }; else delete t.suspended;
-    save(tenants);
+    // Under the lock sign-up uses, on a fresh read, so a tenant that signed up a moment ago is not written over.
+    withFileLock(file, () => {
+      const fresh: Tenant[] = JSON.parse(readFileSync(file, "utf8"));
+      const ft = fresh.find((x) => x.name === name);
+      if (!ft) return;
+      if (sub === "suspend") ft.suspended = { at: now(), ...(v.reason ? { reason: v.reason } : {}) }; else delete ft.suspended;
+      save(fresh);
+    });
     io.out(sub === "suspend" ? `${name} is suspended${v.reason ? `: ${v.reason}` : ""}; every request it makes is refused until you resume it` : `${name} is resumed`);
     return 0;
   }
   if (sub === "purge") {
     // Closed accounts keep a small tombstone for the retention period (the privacy notice); this removes the ones past it.
     const keep = tenants.filter((t) => !t.closed || Date.parse(t.closed.retainUntil) > Date.now());
-    if (keep.length !== tenants.length) save(keep);
+    if (keep.length !== tenants.length) withFileLock(file, () => {
+      const fresh: Tenant[] = JSON.parse(readFileSync(file, "utf8"));
+      save(fresh.filter((t) => !t.closed || Date.parse(t.closed.retainUntil) > Date.now()));
+    });
     io.out(`${tenants.length - keep.length} closed account(s) past their retention period removed; ${keep.filter((t) => t.closed).length} still kept`);
     return 0;
   }
@@ -1730,6 +1739,14 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
     if (sub !== "signups") save(control, controlPath);
     const dayAgo = Date.now() - 86_400_000;
     const recent = tenants.filter((t) => t.signup && Date.parse(t.signup.at) > dayAgo);
+    const demandPath = `${file}.demand.json`;
+    if (existsSync(demandPath)) {
+      try {
+        const d = JSON.parse(readFileSync(demandPath, "utf8")) as Record<string, number>;
+        const days = Object.entries(d).sort().slice(-7);
+        if (days.length) io.out(`turned away because the day was full: ${days.map(([day, n]) => `${day.slice(5)} ${n}`).join(", ")} (last ${days.length} day(s) with any); raise the cap with asp serve signup-cap if that is a lot of real people`);
+      } catch { /* an unreadable count is skipped */ }
+    }
     io.out(`sign-up is ${control.open === false ? `CLOSED${control.reason ? `: ${control.reason}` : ""}` : "open"}; day's cap ${control.dailyCap ?? "the service's default"}; ${recent.length} sign-up(s) in the last 24 hours, ${tenants.filter((t) => t.signup).length} in all`);
     return 0;
   }
@@ -1826,11 +1843,28 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
         current.push(t);
         const tmp = `${tokensFile}.${process.pid}.tmp`;
         writeFileSync(tmp, JSON.stringify(current, null, 2) + "\n");
-        renameSync(tmp, tokensFile);
+        renameSyncRetry(tmp, tokensFile);
       },
       termsVersion: v["signup-terms-version"] ?? "2026-10", termsUrl: v["signup-terms-url"],
       difficulty: num("signup-difficulty", 20), perAddressPerDay: num("signup-per-address", 3), dailyCap: num("signup-daily-cap", 200),
       anonymous: !v["signup-require-google"], ...(v["public-url"] ? { joinUrl: `${v["public-url"]}/join` } : {}),
+      // Two service processes sharing one tokens file must not both take the last place of the day, or one name (gap O19): the checks and the add are one locked step.
+      exclusive: (fn) => withFileLock(tokensFile, fn),
+      // A count of the people turned away because the day was full, a number a day and no one's details, so the cap can be set from what is asked for.
+      onTurnedAway: () => {
+        const f = `${tokensFile}.demand.json`;
+        try {
+          withFileLock(f, () => {
+            const day = new Date().toISOString().slice(0, 10);
+            const cur: Record<string, number> = existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : {};
+            cur[day] = (cur[day] ?? 0) + 1;
+            const keep = Object.fromEntries(Object.entries(cur).sort().slice(-30));
+            const part = `${f}.${process.pid}.tmp`;
+            writeFileSync(part, JSON.stringify(keep));
+            renameSyncRetry(part, f);
+          });
+        } catch { /* a count is never a reason to refuse differently */ }
+      },
     });
     // Sign in with Google (the /join page): the client id is a flag, the secret is read from the environment (GOOGLE_CLIENT_SECRET), never from a flag or a file in the repo.
     if (v["google-client-id"]) {
