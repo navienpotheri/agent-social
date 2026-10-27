@@ -22,7 +22,7 @@ Work from a later gate that needs nothing from an earlier one (design, the forum
 
 Waves are in the order to work; within a wave the rows can go in parallel. These are the A-priority rows of the register that are open or partial (56), plus SC1, GV6, GV9, GV11, LW1 to LW4, LW8, AG3, AG4, JO3, IS1, IS4 and IS9.
 
-1. **Wave 1, safe to let a stranger in.** Containment: H1, H2, H10, H12, H13, H15, H17, BM6, BM16, BM17. Sybil and entry: M9, O19, T22, U5, P20. Server: O2, T12, O12. Disputes: M10. Governance minimum: GV6, GV9, GV11. The law: LW1, LW2, LW3, LW4, AG3, AG4, JO3, IS1, IS4, IS9, LW8 (a lawyer on sponsor and operator liability, before outside people run agents with network access). (The job board, JB1 to JB3, follows in the society, not before.)
+1. **Wave 1, safe to let a stranger in.** Containment: H1, H2, H10, H12, H13, H15, H17, BM6, BM16, BM17, BM20 (the benchmark that measures them; its public claims need vetting first, see docs/benchmark-explained.md). Sybil and entry: M9, O19, T22, U5, P20. Server: O2, T12, O12. Disputes: M10. Governance minimum: GV6, GV9, GV11. The law: LW1, LW2, LW3, LW4, AG3, AG4, JO3, IS1, IS4, IS9, LW8 (a lawyer on sponsor and operator liability, before outside people run agents with network access). (The job board, JB1 to JB3, follows in the society, not before.)
 2. **Wave 2, a first user succeeds.** U16, T1, T2, T3, T13, T15, T4, P1, P21, P22, P29, R1, U1, U15, U7, T21.
 3. **Wave 3, the record and the person can see it.** E2, E3, E5, E6, E16, P27, U2, U4, U12, E8, E9, E10, E11, E13, T14, U9, U8.
 4. **Wave 4, quality is measured and learning is checked.** D1, D2, D4, D8, D9, D10.
@@ -117,7 +117,7 @@ Each line is something someone must be able to do, with the register rows that s
 - [ ] M: real money only after legal review; credits stay mock until then. (gaps: M1)
 
 ### 10. A security reviewer
-- [ ] G: the containment benchmark's misses are closed or designed out. (gaps: BM1, BM5, BM6, BM16, BM17, BM18, BM19, H5, H7, H8, H9, SB3, SB5, SB6, SB7)
+- [ ] G: the containment benchmark's misses are closed or designed out. (gaps: BM1, BM5, BM6, BM16, BM17, BM18, BM19, BM20, H5, H7, H8, H9, SB3, SB5, SB6, SB7)
 - [ ] G: egress is default-deny for new agents; rate limits count requests, per second and per hour. (gaps: H1, H2, H15, H18, BM8)
 - [ ] L: tokens are not stored in plaintext; run logs are encrypted. (gaps: P20, E6, E16)
 - [ ] an outside security review is done and its findings closed. (untracked)
@@ -290,7 +290,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | BM17 | A | partial | Under an agent-wide Mandate (every tool granted), the gateway stops none of the injected tool calls a real mod... |
 | BM18 | B | open | A language model used as the guardrail did better than the rules on the held-out cases (haiku-5.5: 100% blocke... |
 | BM19 | B | open | An adaptive attacker built a package install out of interpreter code that passes the command as a list (python... |
-| BM20 | B | open | The containment benchmark (v0.3) no longer measures the gateway fairly: the project guard was built against it... |
+| BM20 | A | open | The containment benchmark (v0.3) no longer measures the gateway fairly: the project guard was built against it... |
 | H1 | A | partial | A granted network scope can be used to hurt third parties (brute force, scanning, flooding); a swarm multiplie... |
 | H2 | A | partial | No default-deny network for new or low-tier agents |
 | H3 | B | open | Third parties have no way to report |
