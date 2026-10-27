@@ -309,6 +309,7 @@ import {
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
 import { askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
 import { allowScopes, inferScopes, isPreset, presetScopes, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
+import { NEEDS_PASSPHRASE, isSealed, open as openSealed, passphraseFrom, seal } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
@@ -679,15 +680,19 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   // After `asp join` the service and the token are saved in the ASP home, so nothing has to be exported: the environment, when set, wins.
   // The environment wins, so say so when it overrides a different saved login: an old ASP_LOG_URL / ASP_LOG_TOKEN left in a shell silently made `account show` and `account export` act as
   // another account than the one being tested (found in the owner's live walkthrough). Names only; a token is never printed.
-  if (cmd !== "join" && cmd !== "help" && cmd !== "ask" && io.env.ASP_LOG_URL) {
-    const saved = readJoinConfig(home);
+  // A saved login that is protected with a passphrase the person has not given is said in plain words, here, before anything else runs (asp keys is how to deal with it, so it reads nothing).
+  const loginProblem = (e: unknown): number => { io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${(e as Error).message}`); return e instanceof UsageError ? 2 : 1; };
+  if (cmd !== "join" && cmd !== "help" && cmd !== "ask" && cmd !== "keys" && io.env.ASP_LOG_URL) {
+    let saved: JoinConfig | undefined;
+    try { saved = readJoinConfig(home); } catch (e) { return loginProblem(e); }
     const sameService = saved && saved.service.replace(/\/$/, "") === io.env.ASP_LOG_URL.replace(/\/$/, "");
     if (saved && (!sameService || (io.env.ASP_LOG_TOKEN && io.env.ASP_LOG_TOKEN !== saved.token))) {
       io.err(`  note: ASP_LOG_URL${io.env.ASP_LOG_TOKEN ? " and ASP_LOG_TOKEN are" : " is"} set in this shell and override the login saved for ${saved.tenant}, so this command acts as the account they name, not ${saved.tenant}. To use the saved login: unset ASP_LOG_URL ASP_LOG_TOKEN`);
     }
   }
-  if (cmd !== "join" && !io.env.ASP_LOG_URL) {
-    const cfg = readJoinConfig(home);
+  if (cmd !== "join" && cmd !== "keys" && !io.env.ASP_LOG_URL) {
+    let cfg: JoinConfig | undefined;
+    try { cfg = readJoinConfig(home); } catch (e) { return loginProblem(e); }
     if (cfg) { io = { ...io, env: { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token } }; logEnv = io.env; }
   }
   const need = (name: keyof typeof v) => {
@@ -715,6 +720,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "export") return await logExport(home, v, need, io);
     if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
     if (cmd === "canary") return await canaryCmd(home, sub, rest, v, io);
+    if (cmd === "keys") return keysCmd(home, sub, io);
     if (cmd === "gateway") return await gatewayCmd(home, [sub, ...rest].filter((x): x is string => !!x), v, need, io);
     if (cmd === "known-bad") return await knownBadCmd(home, sub, v, need, io);
     if (cmd === "run-log") return await runLogCmd(home, sub, rest, v, io);
@@ -1410,8 +1416,59 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
 
 interface JoinConfig { service: string; token: string; tenant: string; joinedAt: string; /** Made by asp join: who asp run uses. */ identities?: { me: string; agent: string; bank: string } }
 const joinConfigPath = (home: string) => join(home, "config.json");
+/** The passphrase that protects the saved login and the keys is read from the environment of the command being run (ASP_KEY_PASSPHRASE; never a command-line argument). */
+/** The saved login as it goes to disk: with a passphrase set, the token is sealed and the plain token is not written (gap P20). */
+function joinConfigForDisk(cfg: JoinConfig): object {
+  const pass = passphraseFrom(logEnv);
+  if (!pass) return cfg;
+  const { token, ...rest } = cfg;
+  return { ...rest, token_sealed: seal(token, pass) };
+}
 function readJoinConfig(home: string): JoinConfig | undefined {
-  try { const c = JSON.parse(readFileSync(joinConfigPath(home), "utf8")) as JoinConfig; return c.service && c.token ? c : undefined; } catch { return undefined; }
+  let c: (JoinConfig & { token_sealed?: unknown }) | undefined;
+  try { c = JSON.parse(readFileSync(joinConfigPath(home), "utf8")); } catch { return undefined; }
+  if (c && !c.token && isSealed(c.token_sealed)) {
+    const pass = passphraseFrom(logEnv);
+    if (!pass) throw new UsageError(`your saved login ${NEEDS_PASSPHRASE}`);
+    c = { ...c, token: openSealed(c.token_sealed, pass) };
+  }
+  return c && c.service && c.token ? c : undefined;
+}
+
+/** asp keys status | protect | unprotect: seal the key files and the saved login under ASP_KEY_PASSPHRASE, or take the seal off (gaps U5, P20). */
+function keysCmd(home: string, sub: string | undefined, io: Io): number {
+  const ks = new Keystore(home);
+  const pass = passphraseFrom(io.env);
+  const raw = (): (Record<string, unknown> & { token?: string; token_sealed?: unknown }) | undefined => { try { return JSON.parse(readFileSync(joinConfigPath(home), "utf8")); } catch { return undefined; } };
+  const saveRaw = (o: object) => writeFileSync(joinConfigPath(home), JSON.stringify(o, null, 2) + "\n", { mode: 0o600 });
+  if (!sub || sub === "status") {
+    const k = ks.status();
+    const c = raw();
+    io.out(`keys: ${k.sealed} protected, ${k.plain} plain${k.plain && !k.sealed ? " (readable by anything that can read your folder)" : ""}`);
+    io.out(`saved login: ${!c ? "none" : isSealed(c.token_sealed) ? "protected" : "plain"}`);
+    io.out(pass ? "ASP_KEY_PASSPHRASE is set in this shell" : "ASP_KEY_PASSPHRASE is not set in this shell");
+    if (k.plain || (c && c.token)) io.out("to protect them: set ASP_KEY_PASSPHRASE in your shell (not on the command line), then asp keys protect");
+    return 0;
+  }
+  if (sub === "protect") {
+    if (!pass) throw new UsageError("set ASP_KEY_PASSPHRASE in your shell first, for example in Git Bash:  read -rs ASP_KEY_PASSPHRASE; export ASP_KEY_PASSPHRASE   (then keep it set whenever you use asp, or you cannot open the keys; losing it loses them unless you have a backup: asp identity backup)");
+    const n = ks.protect(pass);
+    const c = raw();
+    let login = false;
+    if (c && typeof c.token === "string" && c.token) { const { token, ...rest } = c; saveRaw({ ...rest, token_sealed: seal(token, pass) }); login = true; }
+    io.out(`protected ${n} key file(s)${login ? " and the saved login" : ""}; from now on set ASP_KEY_PASSPHRASE whenever you use asp`);
+    return 0;
+  }
+  if (sub === "unprotect") {
+    if (!pass) throw new UsageError("set ASP_KEY_PASSPHRASE to the passphrase you protected them with, then asp keys unprotect");
+    const n = ks.unprotect(pass);
+    const c = raw();
+    let login = false;
+    if (c && isSealed(c.token_sealed)) { const { token_sealed, ...rest } = c; saveRaw({ ...rest, token: openSealed(token_sealed, pass) }); login = true; }
+    io.out(`took the protection off ${n} key file(s)${login ? " and the saved login" : ""}: they are plain files again`);
+    return 0;
+  }
+  throw new UsageError("usage: asp keys status | protect | unprotect   (the passphrase is read from ASP_KEY_PASSPHRASE, never from the command line)");
 }
 
 /**
@@ -1509,7 +1566,7 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   }
   if (!picked) throw new Error(`gave up waiting for the sign-up after ${Math.round(waitMs / 60_000) || 1} minutes. Run asp join again. If you did finish signing up in the browser after that, that account exists but this terminal never received its login, so pick a different name this time (one Google account may sign up a few times); the contact in the Terms can close the unused one.`);
   mkdirSync(home, { recursive: true });
-  writeFileSync(joinConfigPath(home), JSON.stringify({ service, token: picked.token, tenant: picked.tenant, joinedAt: now() } satisfies JoinConfig, null, 2) + "\n", { mode: 0o600 });
+  writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ service, token: picked.token, tenant: picked.tenant, joinedAt: now() }), null, 2) + "\n", { mode: 0o600 });
   io.out("");
   io.out(`>>> Signed up as ${picked.tenant}. You are back in the terminal: the browser is finished. Setting up your first agent ...`);
   returnToTerminal(io, `You are signed up as ${picked.tenant}. Back to your terminal: your recovery code is about to appear.`);
@@ -1538,7 +1595,7 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   await run(["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]);
   const bank = didFor(domain, picked.tenant, "human", "bank");
   // Saved now, so a failure below (the starter credits) never leaves identities that the saved login does not know.
-  writeFileSync(joinConfigPath(home), JSON.stringify({ service, token: picked.token, tenant: picked.tenant, joinedAt: now(), identities: { me, agent, bank } } satisfies JoinConfig, null, 2) + "\n", { mode: 0o600 });
+  writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ service, token: picked.token, tenant: picked.tenant, joinedAt: now(), identities: { me, agent, bank } }), null, 2) + "\n", { mode: 0o600 });
   let credits = "";
   let creditsNote = "";
   try { credits = await run(["account", "starter", "--did", `${me},${agent}`]); } catch (e) { creditsNote = (e as Error).message.replace(/^account starter[^:]*failed:\s*/, "").slice(0, 160); }
@@ -4865,7 +4922,7 @@ async function agentCmd(home: string, sub: string | undefined, rest: string[], v
     const did = didFor(domain, cfg.tenant, "agent", name);
     const local = await openLog(home, { ...logEnv, ...env });
     if (!(await local.log.passport(did))) throw new Error(`no agent called ${name}; asp agent list shows yours`);
-    writeFileSync(joinConfigPath(home), JSON.stringify({ ...cfg, identities: { ...cfg.identities, agent: did } }, null, 2) + "\n", { mode: 0o600 });
+    writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ ...cfg, identities: { ...cfg.identities, agent: did } } as JoinConfig), null, 2) + "\n", { mode: 0o600 });
     io.out(`${name} is now the agent asp run uses by default`);
     return 0;
   }

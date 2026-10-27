@@ -304,6 +304,7 @@ Most people use only these.
 | `asp ask "<words>" [--yes]` | Say what you want in words; it shows the command it understood and asks before running it |
 | `asp runtimes` | The runtimes asp run can start: how each is held to your rules, and the evidence for it (live, partial or only a stand-in) |
 | `asp init` | Write a starter asp.yaml of defaults for this project |
+| `asp keys status|protect|unprotect` | Seal your key files and the saved login under the passphrase in ASP_KEY_PASSPHRASE (set it in your shell, never on a command line), or take the seal off; with no passphrase set nothing changes |
 | `asp trust [asp.yaml]` | Trust a project's asp.yaml that asks for network access |
 | `asp shim bash|zsh|powershell` | Print a script: tab completion, and `claude` starting a governed session |
 

@@ -70,6 +70,10 @@
           "description": "Write a starter asp.yaml of defaults for this project"
         },
         {
+          "command": "asp keys status|protect|unprotect",
+          "description": "Seal your key files and the saved login under the passphrase in ASP_KEY_PASSPHRASE (set it in your shell, never on a command line), or take the seal off; with no passphrase set nothing changes"
+        },
+        {
           "command": "asp trust [asp.yaml]",
           "description": "Trust a project's asp.yaml that asks for network access"
         },

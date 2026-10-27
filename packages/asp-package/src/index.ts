@@ -54,3 +54,4 @@ export { MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromReco
 export { agentCapGuard, didAllowed, didDocument, didDocumentRoutes, didFor, didOfPath, namespaceGuard, namespaceOf } from "./namespace.ts";
 export * from "./infer-scope.ts";
 export * from "./infer-scope-model.ts";
+export * from "./at-rest.ts";
