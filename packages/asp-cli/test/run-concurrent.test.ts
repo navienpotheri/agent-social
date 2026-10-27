@@ -60,9 +60,9 @@ test("two sessions of one agent at once share the standing job: approvals are as
     for (const a of [["identity", "new", "--kind", "human", "--me", "--no-recovery"], ["identity", "new", "--kind", "agent", "--name", "my-agent", "--sponsor", me, "--purpose", "Test"], ["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]]) assert.equal((await call(a)).code, 0);
 
     // Both sessions ask about the same command. A job has one open Checkpoint at a time, so the second request waits its turn and is shown once the first is answered; neither fails.
-    const A = call(["run", "claude-code", "--prompt", "Session A", "--project", project, "--ask", "commands"]);
+    const A = call(["run", "claude-code", "--prompt", "Session A", "--project", project, "--allow", "all", "--ask", "commands"]);
     await until("the first approval", async () => /npm run build/.test((await call(["approvals"])).out));
-    const B = call(["run", "claude-code", "--prompt", "Session B", "--project", project, "--ask", "commands"]);
+    const B = call(["run", "claude-code", "--prompt", "Session B", "--project", project, "--allow", "all", "--ask", "commands"]);
     await new Promise((r) => setTimeout(r, 2500));
     assert.equal((await call(["approvals"])).out.match(/npm run build/g)?.length, 1, "one request is shown at a time");
     await approve();
@@ -73,9 +73,9 @@ test("two sessions of one agent at once share the standing job: approvals are as
     assert.match((await call(["approvals"])).out, /nothing is waiting/);
 
     // One terminal is ended with asp stop while the other is still held: the ended one takes its own request with it, the other is not disturbed and is asked next.
-    const C = call(["run", "claude-code", "--prompt", "Session C", "--project", project, "--ask", "commands"]);
+    const C = call(["run", "claude-code", "--prompt", "Session C", "--project", project, "--allow", "all", "--ask", "commands"]);
     await until("C's approval", async () => /npm run build/.test((await call(["approvals"])).out));
-    const D = call(["run", "claude-code", "--prompt", "Session D", "--project", project, "--ask", "commands"]);
+    const D = call(["run", "claude-code", "--prompt", "Session D", "--project", project, "--allow", "all", "--ask", "commands"]);
     await new Promise((r) => setTimeout(r, 2500));
     const cId = (await call(["runs"])).out.split("\n").find((l) => /Session C/.test(l))!.trim().split(/\s+/)[0];
     assert.equal((await call(["stop", cId])).code, 0);
