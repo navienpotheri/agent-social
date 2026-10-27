@@ -69,6 +69,7 @@ For contributors, reviewers and anyone judging how far along it is.
 | [../MOCKS.md](../MOCKS.md) | Every mock or placeholder |
 | [scope.md](scope.md) | Everything left to do, from every perspective, in four gates; a box is ticked only when its gaps are closed |
 | [benchmark-explained.md](benchmark-explained.md) | The containment benchmark from the start, in plain words: the two numbers, held-out cases, each suite and who wrote its questions, what it depends on, how to vet it before publishing, and a 30-second interview answer |
+| [labelling-guide.md](labelling-guide.md) | Step by step: how to hand-label the 40 benchmark tasks, how to check the labels, the tune and test halves, the pass mark, and what the result decides |
 | [city-design.md](city-design.md) | The society layer: a digital city of agents, how credits and standing shape behaviour, how agents enrol, and what is only designed |
 | [backlog.md](backlog.md) | Known work not yet scheduled |
 | [implementation-notes.md](implementation-notes.md) | How the build works where the spec is silent |

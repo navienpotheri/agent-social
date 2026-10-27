@@ -370,3 +370,40 @@ test("path confinement (gap BM6): with a project root, a read outside it is remo
   assert.match(calls[0].function.arguments, /README\.md/);
   assert.equal(g.summary().blocked.length, 1);
 });
+
+test("copies share one allowance (gap H15): two gateways under one Mandate with a shared ledger, a fleet limit across Mandates, and an MCP tool counted as a request", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "h15-"));
+  const fetches = (n: number) => openaiToolReply(Array.from({ length: n }, (_, i) => ({ name: "web_fetch", args: { url: `https://docs.example.org/p${i}` } })));
+  const callsThrough = async (url: string) => { const r: any = await (await post(`${url}/v1/chat/completions`, { model: "m", messages: [] })).json(); return r.choices[0].message.tool_calls?.length ?? 0; };
+  const base = { scopes: ["repo.read", "web.read"], hosts: ["docs.example.org"] };
+
+  // Two copies under the same Mandate: 4 calls a minute between them, not 4 each.
+  const ledger = join(dir, "mandate.ndjson");
+  const up1 = await fakeUpstream([fetches(3)]); const up2 = await fakeUpstream([fetches(3)]);
+  const one = await gateway(up1, { ...base, rate: { total_per_minute: 4 }, rateLedger: ledger });
+  const two = await gateway(up2, { ...base, rate: { total_per_minute: 4 }, rateLedger: ledger });
+  assert.equal(await callsThrough(one.url), 3);
+  assert.equal(await callsThrough(two.url), 1, "the second copy gets only what the first left");
+
+  // Without a shared ledger each copy has its own allowance (the old behaviour).
+  const up3 = await fakeUpstream([fetches(3)]); const up4 = await fakeUpstream([fetches(3)]);
+  const solo1 = await gateway(up3, { ...base, rate: { total_per_minute: 4 } });
+  const solo2 = await gateway(up4, { ...base, rate: { total_per_minute: 4 } });
+  assert.equal(await callsThrough(solo1.url) + await callsThrough(solo2.url), 6);
+
+  // A fleet limit counts every agent a person runs, whatever their Mandates say.
+  const fleet = { rate: { total_per_minute: 5 }, ledger: join(dir, "fleet.ndjson") };
+  const up5 = await fakeUpstream([fetches(3)]); const up6 = await fakeUpstream([fetches(3)]);
+  const f1 = await gateway(up5, { ...base, rate: { total_per_minute: 100 }, fleet });
+  const f2 = await gateway(up6, { ...base, rate: { total_per_minute: 100 }, fleet });
+  assert.equal(await callsThrough(f1.url), 3);
+  const r2: any = await (await post(`${f2.url}/v1/chat/completions`, { model: "m", messages: [] })).json();
+  assert.equal(r2.choices[0].message.tool_calls.length, 2);
+  assert.match(r2.choices[0].message.content, /your fleet limit allows 5 network calls a minute/);
+
+  // An MCP tool call counts as one request to its server.
+  const mcpCalls = (n: number) => openaiToolReply(Array.from({ length: n }, () => ({ name: "mcp__slack__post_message", args: { text: "hi" } })));
+  const up7 = await fakeUpstream([mcpCalls(4)]);
+  const m = await gateway(up7, { scopes: ["repo.read", "mcp.slack.post_message"], rate: { per_host_per_minute: 2 } });
+  assert.equal(await callsThrough(m.url), 2, "two calls to one MCP server a minute");
+});

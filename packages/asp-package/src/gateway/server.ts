@@ -13,7 +13,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { lastUserText, replyText, toolResultsIn, type RunRecorder } from "./runlog.ts";
-import { RateLimiter, type NetworkRate } from "./rate.ts";
+import { RateLimiter, SharedRateLimiter, type Limiter, type NetworkRate, type RateVerdict } from "./rate.ts";
 import { requestsOf } from "./requests.ts";
 import { hostAllowed, isNetworkScope } from "@agent-social/asp-core";
 import { attachEgress, privateAddress } from "./egress.ts";
@@ -40,6 +40,10 @@ export interface GatewayOptions {
   alsoDirs?: string[];
   /** How many network calls a minute may go to any one host and in all (`network.rate`); a call over a limit is refused, without a strike. */
   rate?: NetworkRate;
+  /** A file shared by every gateway on this machine that runs under the same Mandate, so n copies of an agent share one allowance and do not make n times the calls (gap H15). */
+  rateLedger?: string;
+  /** A limit and a file for a person's whole fleet on this machine: every agent they run counts toward it, whatever its Mandate says (gap H15). */
+  fleet?: { rate: NetworkRate; ledger: string };
   /**
    * Answers proxy requests (CONNECT and absolute-URI HTTP) as an egress proxy (gap H13): for an agent in a sandbox with no network of its own, the Mandate's hosts and rate
    * are enforced on its connections too, not only on its model's tool calls. Off by default.
@@ -146,7 +150,14 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const tokens: { input: number; output: number; text: string } = { input: 0, output: 0, text: "" };
   const rec = opts.runLog;
   let lastActivity = Date.now();
-  const limiter = new RateLimiter();
+  const limiter: Limiter = opts.rateLedger ? new SharedRateLimiter(opts.rateLedger) : new RateLimiter();
+  const fleetLimiter: Limiter | undefined = opts.fleet ? new SharedRateLimiter(opts.fleet.ledger) : undefined;
+  /** The Mandate's limit first, then the fleet's: a call over either is refused whole. A call refused by the second has already been counted by the first (it over-counts a refused call, never under-counts). */
+  const takeRate = (counts: Parameters<Limiter["take"]>[0]): RateVerdict => {
+    if (opts.rate) { const v = limiter.take(counts, opts.rate); if (!v.ok) return v; }
+    if (fleetLimiter && opts.fleet) { const v = fleetLimiter.take(counts, opts.fleet.rate, "your fleet limit"); if (!v.ok) return v; }
+    return { ok: true };
+  };
   let rateLimitedTotal = 0;
   let rateLimitedSince = 0;
   const seenResults = new Set<string>();
@@ -258,8 +269,10 @@ export function createGateway(opts: GatewayOptions): Gateway {
     }
     // A rate limit is not a violation either (like a gate): the call is refused, with no strike, and counted.
     let rateLimited = false;
-    if (allow && opts.rate && j.scope && isNetworkScope(j.scope)) {
-      const v = limiter.take(requestsOf(call, j.scope), opts.rate);
+    // A call to an MCP tool counts as one request to its server (gap H15): the tool may reach anywhere, and its host is not in the call, so only the per-server and total limits apply to it.
+    const mcpServer = j.scope.startsWith("mcp.") ? j.scope.split(".")[1] : undefined;
+    if (allow && (opts.rate || opts.fleet) && j.scope && (isNetworkScope(j.scope) || mcpServer)) {
+      const v = takeRate(mcpServer ? { perHost: { [`mcp:${mcpServer}`]: 1 }, unknown: 0, total: 1 } : requestsOf(call, j.scope));
       if (!v.ok) { allow = false; reason = v.reason; strike = false; rateLimited = true; rateLimitedTotal++; rateLimitedSince++; }
     }
     opts.onCall?.({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}) });
@@ -534,8 +547,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
       // A name the Mandate lists as an address (127.0.0.1) may be private; any other name that resolves to a private address is an attempt to reach the inside (SSRF).
       const listed = opts.hosts?.some((h) => h.toLowerCase() === host);
       if (!listed && addresses.some(privateAddress)) return turnedAway(`the host ${host} resolves to a private or loopback address`);
-      if (opts.rate) {
-        const v = limiter.take({ perHost: { [host]: 1 }, unknown: 0, total: 1 }, opts.rate);
+      if (opts.rate || opts.fleet) {
+        const v = takeRate({ perHost: { [host]: 1 }, unknown: 0, total: 1 });
         if (!v.ok) {
           rateLimitedTotal++; rateLimitedSince++;
           rec?.event("egress", { host, port, allowed: false, rate_limited: true, reason: v.reason });
