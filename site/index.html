@@ -159,8 +159,8 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 108 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
-<details><summary>Everyday (18)</summary><pre>Most people use only these.
+  <p class="small">The page is generated from the repository, so it matches the 110 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+<details><summary>Everyday (20)</summary><pre>Most people use only these.
 
 asp
     A short home screen: the everyday commands and what to do next
@@ -192,6 +192,10 @@ asp runtimes
     The runtimes asp run can start: how each is held to your rules, and the evidence for it (live, partial or only a stand-in)
 asp init
     Write a starter asp.yaml of defaults for this project
+asp law show [--compact] | verify | pin | sign --by &lt;did&gt;
+    The Code of the City with its version and hash: show it (or its short form), check it against what was pinned and signed, pin a new version, or sign it with your own key (the operator's step); a draft is not in force
+asp run &lt;runtime&gt; --no-law-context
+    Do not add the Code of the City to the agent's context for this run (it is added by default)
 asp keys status|protect|unprotect
     Seal your key files and the saved login under the passphrase in ASP_KEY_PASSPHRASE (set it in your shell, never on a command line), or take the seal off; with no passphrase set nothing changes
 asp trust [asp.yaml]

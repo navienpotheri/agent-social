@@ -70,6 +70,14 @@
           "description": "Write a starter asp.yaml of defaults for this project"
         },
         {
+          "command": "asp law show [--compact] | verify | pin | sign --by <did>",
+          "description": "The Code of the City with its version and hash: show it (or its short form), check it against what was pinned and signed, pin a new version, or sign it with your own key (the operator's step); a draft is not in force"
+        },
+        {
+          "command": "asp run <runtime> --no-law-context",
+          "description": "Do not add the Code of the City to the agent's context for this run (it is added by default)"
+        },
+        {
           "command": "asp keys status|protect|unprotect",
           "description": "Seal your key files and the saved login under the passphrase in ASP_KEY_PASSPHRASE (set it in your shell, never on a command line), or take the seal off; with no passphrase set nothing changes"
         },

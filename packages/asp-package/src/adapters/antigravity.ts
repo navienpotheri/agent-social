@@ -29,6 +29,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sha256Id } from "@agent-social/asp-core";
 import { copyInto, sha256File, toPosix, writeJson } from "../files.ts";
+import { compactCode, readCode } from "../law-code.ts";
 import { frontmatter } from "../frontmatter.ts";
 import type { Capture, Harness, LaunchPlan, RuntimeAdapter } from "../harness.ts";
 import { deriveScopeForTool } from "../package.ts";
@@ -293,6 +294,8 @@ async function materialize(opts: {
   if (hooked) {
     parts.push(`## Your workspace\n\nYour project is in ${toPosix(project)}. The current directory is an empty scratch workspace: do your work in the project, with absolute paths.`);
   }
+  // The Code of the City, in short, near the top so the length limit never cuts it (gap LW1).
+  try { parts.splice(1, 0, `## The Code of the City\n\n${compactCode(readCode())}`); } catch { /* no Code on this machine: nothing to add */ }
   let preamble = parts.join("\n\n");
   if (preamble.length > PREAMBLE_LIMIT) {
     preamble = preamble.slice(0, PREAMBLE_LIMIT) + "\n\n[the rest of the standing instructions was cut to fit the command line]";

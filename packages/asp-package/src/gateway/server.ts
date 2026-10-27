@@ -20,6 +20,7 @@ import { attachEgress, privateAddress } from "./egress.ts";
 import { classify, commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
 import { SessionRecord } from "./paths.ts";
 import { Attempts, explainRefusal } from "./law.ts";
+import { CODE_MARKER } from "../law-code.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
 
@@ -31,6 +32,8 @@ export interface GatewayOptions {
   /** Replaces the client's credentials when set, so the agent never holds the provider key. */
   openaiKey?: string;
   anthropicKey?: string;
+  /** The short form of the Code of the City (law-code.ts): added to the system context of every model request the agent makes, so the agent holds the rules it is judged by (gap LW1). */
+  lawContext?: string;
   /** The live Mandate's scopes. */
   scopes: string[];
   /** The hosts the Mandate's network scopes may reach (`network.hosts`); absent means no host limit. */
@@ -323,6 +326,24 @@ export function createGateway(opts: GatewayOptions): Gateway {
     ? { error: { message: `ASP gateway: this run was stopped (${stopped})`, type: "asp_stopped", code: "asp_stopped" } }
     : { type: "error", error: { type: "permission_error", message: `ASP gateway: this run was stopped (${stopped})` } };
 
+  /** Adds the Code to the request's system context, once: after the system messages the client sent, or in the field its API uses for them. */
+  function addCode(body: Record<string, any>, api: "chat" | "anthropic" | "responses"): void {
+    const note = opts.lawContext;
+    if (!note || JSON.stringify(body).includes(CODE_MARKER)) return;
+    if (api === "anthropic") {
+      if (typeof body.system === "string" && body.system) body.system = `${body.system}\n\n${note}`;
+      else if (Array.isArray(body.system)) body.system = [...body.system, { type: "text", text: note }];
+      else body.system = note;
+    } else if (api === "chat") {
+      const msgs: { role?: string; content?: string }[] = Array.isArray(body.messages) ? body.messages : (body.messages = []);
+      let i = 0;
+      while (i < msgs.length && (msgs[i].role === "system" || msgs[i].role === "developer")) i++;
+      msgs.splice(i, 0, { role: "system", content: note });
+    } else {
+      body.instructions = typeof body.instructions === "string" && body.instructions ? `${body.instructions}\n\n${note}` : note;
+    }
+  }
+
   async function readBody(req: IncomingMessage): Promise<Buffer> {
     const chunks: Buffer[] = [];
     for await (const c of req) chunks.push(c as Buffer);
@@ -348,6 +369,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
     noteModel(body.model, opts.openaiUpstream);
+    addCode(body, "chat");
     const snap = beginModelCall("chat.completions", body);
     if (!wantsStream) body.stream = false;
     if (wantsStream) body.stream_options = { ...(body.stream_options ?? {}), include_usage: true };
@@ -392,6 +414,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
     noteModel(body.model, opts.openaiUpstream);
+    addCode(body, "responses");
     const snap = beginModelCall("responses", body);
     const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/responses`, { method: "POST", headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
@@ -431,6 +454,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
     noteModel(body.model, opts.anthropicUpstream);
+    addCode(body, "anthropic");
     const snap = beginModelCall("messages", body);
     if (!wantsStream) body.stream = false;
     const up = await f(`${opts.anthropicUpstream!.replace(/\/$/, "")}/v1/messages`, { method: "POST", headers: upstreamHeaders(req, opts.anthropicKey, "anthropic"), body: JSON.stringify(body) });

@@ -19,6 +19,7 @@ import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { copyInto, listFiles, readJsonIfExists, sha256File, writeJson } from "../files.ts";
+import { compactCode, readCode } from "../law-code.ts";
 import { asList, frontmatter } from "../frontmatter.ts";
 import type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter, SessionSummary } from "../harness.ts";
 import { sha256Id } from "@agent-social/asp-core";
@@ -282,6 +283,8 @@ async function materialize(opts: {
     if (i.applies_to?.length) scoped.push({ name: i.name, globs: i.applies_to, text });
     else parts.push(`## ${i.name}\n\n${text}`);
   }
+  // The Code of the City, in short, in the agent's standing instructions every run (gap LW1).
+  try { parts.splice(1, 0, `## The Code of the City\n\n${compactCode(readCode())}`); } catch { /* no Code on this machine: nothing to add */ }
   put("instructions.md", () => writeFileSync(join(runDir, "instructions.md"), parts.join("\n\n") + "\n"));
 
   const hooks = structuredClone(harness.hooks) as Record<string, unknown[]>;

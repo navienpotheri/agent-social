@@ -312,6 +312,7 @@ import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText,
 import { askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
 import { allowScopes, inferScopes, isPreset, presetScopes, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
 import { NEEDS_PASSPHRASE, isSealed, open as openSealed, passphraseFrom, seal } from "@agent-social/asp-package";
+import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
@@ -490,6 +491,9 @@ const OPTIONS = {
   allow: { type: "string" },
   permissions: { type: "string" },
   "also-dir": { type: "string" },
+  "no-law-context": { type: "boolean" },
+  compact: { type: "boolean" },
+  "public-key": { type: "string" },
   "size-with-model": { type: "boolean" },
   "fleet-rate": { type: "string" },
   "widen-hint": { type: "string" },
@@ -725,6 +729,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
     if (cmd === "canary") return await canaryCmd(home, sub, rest, v, io);
     if (cmd === "keys") return keysCmd(home, sub, io);
+    if (cmd === "law") return lawCmd(home, sub, v, io);
     if (cmd === "gateway") return await gatewayCmd(home, [sub, ...rest].filter((x): x is string => !!x), v, need, io);
     if (cmd === "known-bad") return await knownBadCmd(home, sub, v, need, io);
     if (cmd === "run-log") return await runLogCmd(home, sub, rest, v, io);
@@ -1437,6 +1442,45 @@ function readJoinConfig(home: string): JoinConfig | undefined {
     c = { ...c, token: openSealed(c.token_sealed, pass) };
   }
   return c && c.service && c.token ? c : undefined;
+}
+
+/**
+ * asp law show [--compact] | verify [--public-key <hex>] | pin | sign --by <did> (gap LW1): the Code of the City with its version and hash, checked against what has been pinned and signed.
+ * `pin` records the version and hash of the text as it is now (a maintainer's step); `sign` is the operator's, with their own key, and is never run for them.
+ */
+function lawCmd(home: string, sub: string | undefined, v: Values, io: Io): number {
+  const info = readCode();
+  if (!sub || sub === "show") {
+    io.out(v.compact ? compactCode(info) : info.text.trimEnd());
+    io.err(`  ${info.status === "draft" ? "draft " : "version "}${info.version}, sha256 ${info.sha256}${info.pin?.signed ? `, signed by ${info.pin.signed.by}` : ", not signed"}${info.status === "draft" ? "; a draft is not in force" : ""}`);
+    return 0;
+  }
+  if (sub === "verify") {
+    const key = v["public-key"] ? Uint8Array.from(Buffer.from(v["public-key"], "hex")) : undefined;
+    const r = verifyCode(info, key ? { publicKey: key } : {});
+    io.out(`Code of the City ${info.status === "draft" ? "draft " : "version "}${info.version}: sha256 ${info.sha256}`);
+    io.out(info.pin ? `pinned: ${info.pin.status}, hash ${info.pin.sha256 === info.sha256 ? "matches" : "DOES NOT MATCH"}` : "pinned: no");
+    io.out(info.pin?.signed ? `signed by ${r.signer}: ${r.signed ? "the signature verifies" : "the signature does NOT verify"}` : "signed: no (the operator signs it with asp law sign)");
+    for (const p of r.problems) io.err(`  problem: ${p}`);
+    if (info.status === "draft") io.out("status: a draft, so not in force");
+    return r.problems.length ? 1 : 0;
+  }
+  if (sub === "pin") {
+    const p = pinCode(info);
+    io.out(`pinned version ${p.version} (${p.status}) at sha256 ${p.sha256}`);
+    return 0;
+  }
+  if (sub === "sign") {
+    const by = v.by;
+    if (!by) throw new UsageError("asp law sign --by <your did>: the operator signs the pinned version with their own key");
+    const signer = new Keystore(home).forDid(by);
+    if (!signer) throw new UsageError(`no key for ${by} here`);
+    const fresh = readCode();
+    const sig = signCode(fresh, signer);
+    io.out(`signed version ${fresh.version} (sha256 ${fresh.sha256.slice(0, 12)}...) as ${sig.by}`);
+    return 0;
+  }
+  throw new UsageError("usage: asp law show [--compact] | verify [--public-key <hex>] | pin | sign --by <did>");
 }
 
 /** asp keys status | protect | unprotect: seal the key files and the saved login under ASP_KEY_PASSPHRASE, or take the seal off (gaps U5, P20). */
@@ -2414,6 +2458,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
     confineTo: resolve(io.cwd, v.project ?? "."),
+    // The Code of the City goes into the system context of every model request, unless the person turns it off (gap LW1).
+    ...(v["no-law-context"] ? {} : (() => { try { return { lawContext: compactCode(readCode()) }; } catch { return {}; } })()),
     // Copies of an agent under this Mandate share one rate allowance, and --fleet-rate (or ASP_FLEET_RATE) caps everything this person runs on this machine (gap H15).
     ...((mandateRecord?.record.body as { network?: { rate?: unknown } } | undefined)?.network?.rate ? { rateLedger: join(home, "rate", `mandate-${createHash("sha256").update(contract).digest("hex").slice(0, 16)}.ndjson`) } : {}),
     ...(() => { const f = parseFleetRate(v["fleet-rate"] ?? io.env.ASP_FLEET_RATE); const who = (mandateRecord?.record as { issuer?: string } | undefined)?.issuer ?? by; return f ? { fleet: { rate: f, ledger: join(home, "rate", `fleet-${createHash("sha256").update(who).digest("hex").slice(0, 16)}.ndjson`) } } : {}; })(),
@@ -4499,7 +4545,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
-  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
   await asking;

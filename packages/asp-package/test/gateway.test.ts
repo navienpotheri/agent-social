@@ -420,3 +420,32 @@ test("a refusal names the article and the sanctioned route, and the third attemp
   const third = await ask();
   assert.match(third, /Article 8.*3rd refused attempt at shell\.network in ten minutes.*circumvention/);
 });
+
+test("the Code of the City is in the system context of every model request, once, in each API's own place (gap LW1)", async () => {
+  const note = "The Code of the City (draft 0.2, sha256 abc): rule 1. rule 2.";
+  const sent: { chat: any; messages: any; responses: any } = { chat: undefined, messages: undefined, responses: undefined };
+  const up = await fakeUpstream([openaiToolReply([]), anthropicToolReply([]), { id: "r", object: "response", status: "completed", output: [], usage: { input_tokens: 1, output_tokens: 1 } }, openaiToolReply([])]);
+  const { url } = await gateway(up, { scopes: ["repo.read"], lawContext: note });
+  await post(`${url}/v1/chat/completions`, { model: "m", messages: [{ role: "system", content: "Be brief." }, { role: "user", content: "hi" }] });
+  sent.chat = up.seen.at(-1)!.body;
+  await post(`${url}/v1/messages`, { model: "m", max_tokens: 10, system: "Be brief.", messages: [{ role: "user", content: "hi" }] });
+  sent.messages = up.seen.at(-1)!.body;
+  await post(`${url}/v1/responses`, { model: "m", instructions: "Be brief.", input: "hi" });
+  sent.responses = up.seen.at(-1)!.body;
+  // Chat: after the system message the client sent, before the user's.
+  assert.deepEqual(sent.chat.messages.map((m: { role: string }) => m.role), ["system", "system", "user"]);
+  assert.equal(sent.chat.messages[1].content, note);
+  // Anthropic: appended to the system string. Responses: appended to the instructions.
+  assert.equal(sent.messages.system, `Be brief.\n\n${note}`);
+  assert.equal(sent.responses.instructions, `Be brief.\n\n${note}`);
+  // Already there: not added twice.
+  await post(`${url}/v1/messages`, { model: "m", max_tokens: 10, system: [{ type: "text", text: note }], messages: [{ role: "user", content: "hi" }] });
+  assert.equal(JSON.stringify(up.seen.at(-1)!.body).split("The Code of the City (").length - 1, 1);
+});
+
+test("without a Code (lawContext not set) the requests go through untouched", async () => {
+  const up = await fakeUpstream([anthropicToolReply([])]);
+  const { url } = await gateway(up, { scopes: ["repo.read"] });
+  await post(`${url}/v1/messages`, { model: "m", max_tokens: 10, system: "Be brief.", messages: [{ role: "user", content: "hi" }] });
+  assert.equal(up.seen.at(-1)!.body.system, "Be brief.");
+});

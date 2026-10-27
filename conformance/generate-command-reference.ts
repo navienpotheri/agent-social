@@ -33,6 +33,8 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp ask \"<words>\" [--yes]", "Say what you want in words; it shows the command it understood and asks before running it"],
     ["asp runtimes", "The runtimes asp run can start: how each is held to your rules, and the evidence for it (live, partial or only a stand-in)"],
     ["asp init", "Write a starter asp.yaml of defaults for this project"],
+    ["asp law show [--compact] | verify | pin | sign --by <did>", "The Code of the City with its version and hash: show it (or its short form), check it against what was pinned and signed, pin a new version, or sign it with your own key (the operator's step); a draft is not in force"],
+    ["asp run <runtime> --no-law-context", "Do not add the Code of the City to the agent's context for this run (it is added by default)"],
     ["asp keys status|protect|unprotect", "Seal your key files and the saved login under the passphrase in ASP_KEY_PASSPHRASE (set it in your shell, never on a command line), or take the seal off; with no passphrase set nothing changes"],
     ["asp trust [asp.yaml]", "Trust a project's asp.yaml that asks for network access"],
     ["asp shim bash|zsh|powershell", "Print a script: tab completion, and `claude` starting a governed session"],
