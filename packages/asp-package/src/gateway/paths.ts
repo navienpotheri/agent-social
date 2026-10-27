@@ -1,0 +1,338 @@
+/**
+ * Path confinement (gap BM6): a file tool or a shell command may touch the project and a few harmless system places, and nothing else. Without this the judge looked at the tool's
+ * name only, so an agent allowed to read or write could read `~/.ssh/id_rsa` or write `/etc/cron.d/job`.
+ *
+ * What it reads is the text of the call: the path arguments of file tools, and the path-like words of a shell command (an absolute path, `~`, `$HOME`, `..`, a drive letter, a
+ * redirection target). What it cannot see is a path a program builds at run time, a symlink inside the project that points outside, and a path in an environment variable other than
+ * HOME; those need the sandbox (H8) and are listed under BM6 in the register.
+ */
+import { existsSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { posix } from "node:path";
+
+export interface Confine {
+  /** The project directory: the only tree an agent may read or write. */
+  root: string;
+  /** The user's home, for `~` and `$HOME`; defaults to the process's home. */
+  home?: string;
+  /** Other directories the person allowed (`--also-dir`): read and written like the project. */
+  extra?: string[];
+}
+
+/** Argument names that carry a file path in the file tools of the supported runtimes. */
+const PATH_KEYS = ["file_path", "filepath", "path", "filename", "file", "target_file", "TargetFile", "AbsolutePath", "notebook_path", "directory", "dir", "cwd", "workdir", "DirectoryPath", "SearchPath", "SearchDirectory", "Directory"];
+const PATH_LIST_KEYS = ["paths", "files", "file_paths"];
+/** Reading or writing here is harmless for a shell command: devices and scratch space. */
+const SHELL_OK = [/^\/dev\/(null|zero|stdin|stdout|stderr|tty|urandom|random)$/, /^\/tmp(\/|$)/, /^\/var\/tmp(\/|$)/];
+/** System programs and libraries: a command may name them, a redirection into them is still refused. */
+const SHELL_READ_OK = [/^\/(usr|bin|sbin|lib|lib64|opt)(\/|$)/];
+const SECRET = /(^|\/)\.(ssh|aws|gnupg|kube|netrc|git-credentials|azure|docker)(\/|$)|(^|\/)\.config\/(gcloud|gh)(\/|$)|(^|\/)\.npmrc$|^\/etc(\/|$)|^\/root(\/|$)|^\/proc(\/|$)|docker\.sock$|(^|\/)id_(rsa|ed25519|ecdsa)$|\/appdata\/roaming\/(npm|gcloud)|\/windows\/system32/i;
+
+/** A path as a comparable string: forward slashes, `~` and `$HOME` expanded, relative paths put under the root, `.` and `..` resolved. */
+export function resolveIn(p: string, c: Confine): string {
+  const home = (c.home ?? homedir()).replace(/\\/g, "/");
+  let s = p.trim().replace(/\\/g, "/");
+  s = s.replace(/^~(?=\/|$)/, home).replace(/^\$\{?HOME\}?(?=\/|$)/, home);
+  const root = c.root.replace(/\\/g, "/");
+  const drive = /^[a-zA-Z]:\//.test(s) || /^[a-zA-Z]:\//.test(root);
+  const abs = s.startsWith("/") || /^[a-zA-Z]:\//.test(s);
+  const out = posix.normalize(abs ? s : `${root}/${s}`).replace(/\/+$/, "") || "/";
+  return drive ? out.toLowerCase() : out;
+}
+
+function isInside(resolved: string, c: Confine): boolean {
+  return [c.root, ...(c.extra ?? [])].some((d) => {
+    const root = resolveIn(d, { ...c, root: "/" });
+    return resolved === root || resolved.startsWith(root === "/" ? "/" : `${root}/`);
+  });
+}
+
+/** The real location of a path, following links, as far as it exists (a new file is placed under the real location of its folder). Undefined when nothing on the way exists. */
+function realOf(resolved: string): string | undefined {
+  const rest: string[] = [];
+  let cur = resolved;
+  for (let i = 0; i < 64; i++) {
+    if (existsSync(cur)) {
+      const real = slash(realpathSync.native(cur)).replace(/\/+$/, "") || "/";
+      const out = [real, ...rest.reverse()].join("/").replace(/\/\/+/g, "/");
+      return /^[a-zA-Z]:\//.test(out) ? out.toLowerCase() : out;
+    }
+    const up = posix.dirname(cur);
+    if (up === cur) return undefined;
+    rest.push(posix.basename(cur));
+    cur = up;
+  }
+  return undefined;
+}
+
+/** A path inside the project that leads out through a link (a symlink or a junction): the real place, or undefined when it stays inside or cannot be told. */
+function escapesByLink(resolved: string, c: Confine): string | undefined {
+  // Only when the project exists on this machine (a made-up root in a test or a benchmark case has no links).
+  if (!existsSync(c.root)) return undefined;
+  const real = realOf(resolved);
+  if (!real) return undefined;
+  const realRoots = [c.root, ...(c.extra ?? [])].filter((d) => existsSync(d)).map((d) => realOf(resolveIn(d, { ...c, root: "/" }))).filter((x): x is string => !!x);
+  const inside = realRoots.some((root) => real === root || real.startsWith(root === "/" ? "/" : `${root}/`));
+  return inside ? undefined : real;
+}
+
+/** The reason a path is refused, or undefined when it is fine. `mode` is how a shell command uses it. */
+function why(p: string, c: Confine, mode: "tool" | "shell" | "shell-write"): string | undefined {
+  const r = resolveIn(p, c);
+  if (SECRET.test(r) && !isInside(r, c)) return `${p} is a secret or system location (${r}), outside this job's project`;
+  if (isInside(r, c)) {
+    const real = escapesByLink(r, c);
+    return real ? `${p} leads out of this job's project through a link (to ${real})` : undefined;
+  }
+  if (mode !== "tool" && SHELL_OK.some((re) => re.test(r))) return undefined;
+  if (mode === "shell" && SHELL_READ_OK.some((re) => re.test(r))) return undefined;
+  return `${p} is outside this job's project (${c.root.replace(/\\/g, "/")})`;
+}
+
+/** Path-like words in a shell command, with whether each is the target of a redirection. */
+export function shellPaths(cmd: string): { path: string; write: boolean }[] {
+  const out: { path: string; write: boolean }[] = [];
+  const text = cmd.replace(/['"`]/g, " ");
+  const re = /(^|[\s;|&<>=(])(>{1,2}\s*)?((?:~[A-Za-z0-9_.-]*|\$\{?HOME\}?|\/|\.\.(?=\/|\s|$)|[a-zA-Z]:[\\/])[^\s;|&<>()]*|[^\s;|&<>()]*\/\.\.(?=\/|\s|$)[^\s;|&<>()]*)/g;
+  for (const m of text.matchAll(re)) {
+    const w = m[3];
+    if (!w || /^[a-z][a-z0-9+.-]*:\/\//i.test(w)) continue;
+    // Printing the home folder's name is not touching it: `echo $HOME`.
+    const verb = text.slice(0, m.index).split(/[;|&]/).pop()!.trim().split(/\s+/)[0];
+    if (/^\$\{?HOME\}?$/.test(w) && /^(echo|printf|export)$/.test(verb)) continue;
+    out.push({ path: w, write: !!m[2] });
+  }
+  return out;
+}
+
+/** The path arguments of a file tool call. */
+export function toolPaths(args: Record<string, unknown>): string[] {
+  const found: string[] = [];
+  for (const k of PATH_KEYS) { const v = args[k]; if (typeof v === "string" && v.trim()) found.push(v); }
+  for (const k of PATH_LIST_KEYS) { const v = args[k]; if (Array.isArray(v)) for (const x of v) if (typeof x === "string") found.push(x); }
+  // apply_patch carries its file names in the patch text.
+  for (const k of ["patch", "input", "diff"]) {
+    const v = args[k];
+    if (typeof v === "string") for (const m of v.matchAll(/^\*\*\* (?:Update|Add|Delete) File: (.+)$/gm)) found.push(m[1].trim());
+  }
+  return found;
+}
+
+/** The refusal for a call that reaches outside the project, or undefined. `shellCmd` is set when the tool is a shell. */
+export function confinementRefusal(args: Record<string, unknown>, shellCmd: string | undefined, c: Confine): string | undefined {
+  if (shellCmd !== undefined) {
+    for (const { path, write } of shellPaths(shellCmd)) {
+      const r = why(path, c, write ? "shell-write" : "shell");
+      if (r) return r;
+    }
+    return undefined;
+  }
+  for (const p of toolPaths(args)) {
+    const r = why(p, c, "tool");
+    if (r) return r;
+  }
+  return undefined;
+}
+
+/**
+ * Gap BM16: writes that are harmless as text and harmful when something else later runs them. Each of these paths is run by a tool the agent does not control (git on the next commit, a
+ * CI server, npm on the next install, an editor or another agent on the next start), so a Mandate that grants `repo.write` does not grant them: they need `repo.write.protected`.
+ */
+export const PROTECTED_SCOPE = "repo.write.protected";
+const PROTECTED = /(^|[\s/"'=<>])(\.git\/(hooks|config)(\/|$)|\.gitmodules$|\.husky\/|\.githooks\/|\.pre-commit-config\.yaml$|\.github\/(workflows|actions)\/|\.gitlab-ci\.yml$|\.circleci\/|\.buildkite\/|\.travis\.yml$|azure-pipelines\.yml$|bitbucket-pipelines\.yml$|jenkinsfile$|\.vscode\/(tasks|settings|launch)\.json$|\.claude\/|\.cursor\/|\.codex\/|\.gemini\/|\.mcp\.json$|\.envrc$|\.npmrc$|\.asp\/)/i;
+/** Lifecycle scripts that npm runs by itself on install, pack or publish. */
+const LIFECYCLE = /"(pre|post)?(install|uninstall|prepare|prepack|pack|publish|prepublishOnly)"\s*:/;
+const GIT_CONFIG = /\bgit\s+config\b[^|;&\n]*\b(core\.(hooksPath|fsmonitor|sshCommand|pager|editor)|alias\.|credential\.helper|url\.[^\s]*\.insteadOf)/i;
+
+const slash = (p: string) => p.replace(/\\/g, "/");
+const CONTENT_KEYS = ["content", "new_string", "file_text", "new_str", "text", "contents", "ReplacementContent", "CodeContent", "insert_text"];
+/** What a file tool call writes. */
+export function writtenText(args: Record<string, unknown>): string {
+  const parts: string[] = [];
+  for (const k of CONTENT_KEYS) { const v = args[k]; if (typeof v === "string") parts.push(v); }
+  for (const k of ["patch", "input", "diff"]) { const v = args[k]; if (typeof v === "string") parts.push(v); }
+  const chunks = args.ReplacementChunks;
+  if (Array.isArray(chunks)) for (const e of chunks) if (e && typeof e === "object" && typeof (e as { ReplacementContent?: unknown }).ReplacementContent === "string") parts.push((e as { ReplacementContent: string }).ReplacementContent);
+  const edits = args.edits;
+  if (Array.isArray(edits)) for (const e of edits) if (e && typeof e === "object" && typeof (e as { new_string?: unknown }).new_string === "string") parts.push((e as { new_string: string }).new_string);
+  return parts.join("\n");
+}
+
+/** The protected place a file-tool write or a shell command would change, or undefined. */
+export function protectedTarget(args: Record<string, unknown>, shellCmd: string | undefined): string | undefined {
+  if (shellCmd !== undefined) {
+    const text = slash(shellCmd);
+    const m = PROTECTED.exec(text);
+    if (m) return m[0].replace(/^[\s/"'=<>]/, "");
+    if (/package\.json/.test(text) && LIFECYCLE.test(text)) return "package.json lifecycle script";
+    const g = GIT_CONFIG.exec(text);
+    if (g) return `git config ${g[1]}`;
+    return undefined;
+  }
+  for (const p of toolPaths(args).map(slash)) {
+    if (PROTECTED.test(p)) return p;
+    if (/(^|\/)package\.json$/.test(p) && LIFECYCLE.test(writtenText(args))) return `${p} (lifecycle script)`;
+  }
+  return undefined;
+}
+
+/**
+ * Text that, written to a file or into a command, is a payload and not ordinary work: a download piped to a shell, a reverse shell, decoded text run as code, a scheduled job,
+ * a planted key. A list of patterns: it catches the plain forms, not an obfuscated one (the sandbox and the egress block still stand behind it).
+ */
+const RISKY_CONTENT: [RegExp, string][] = [
+  [/\b(curl|wget)\b[^\n|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b/i, "a download piped into a shell"],
+  [/\b(base64|openssl\s+enc)\b[^\n|]*(-d|--decode)[^\n|]*\|\s*(ba|z)?sh\b/i, "decoded text piped into a shell"],
+  [/\/dev\/(tcp|udp)\//i, "a raw network socket from the shell"],
+  [/\b(nc|ncat|netcat)\b[^\n]*\s-e\b|\bbash\s+-i\s*>&/i, "a reverse shell"],
+  [/\b(eval|exec)\s*\(\s*(atob|base64|__import__\(.base64)/i, "decoded text run as code"],
+  [/\bos\.system\(\s*['"](curl|wget|nc|bash)\b|\bsubprocess\.\w+\(\s*\[?\s*['"](curl|wget|nc|bash)\b/i, "a script that shells out to the network"],
+  [/\bcrontab\b|\/etc\/cron|\bat\s+now\b|systemctl\s+enable|launchctl\s+load|schtasks\s+\/create/i, "a scheduled or persistent job"],
+  [/authorized_keys|\bssh-keygen\b[^\n]*-f\s+~/i, "a planted login key"],
+];
+export function riskyContent(text: string): string | undefined {
+  for (const [re, label] of RISKY_CONTENT) if (re.test(text)) return label;
+  return undefined;
+}
+
+/**
+ * Gap BM16, the part that needs memory: what this session downloaded and what it copied out of a secret file. Two chains are refused by it, because each step alone is ordinary:
+ * running a file the session itself downloaded, and sending a secret file (or a copy of one) over the network. It reads command text only, so a program that does either inside
+ * itself is not seen (the sandbox's egress block is what stops that).
+ */
+const SECRET_FILE = /(^|\/)(\.env(\.[\w-]+)?|\.netrc|\.git-credentials|credentials(\.\w+)?|id_(rsa|ed25519|ecdsa)|[\w.-]*\.(pem|key|p12|pfx|kdbx)|[\w.-]*(secret|token|passwd|password)[\w.-]*)$/i;
+const INTERPRETER = /^(bash|sh|zsh|dash|ksh|python3?|node|deno|bun|perl|ruby|php|pwsh|powershell|source|\.)$/;
+const words = (cmd: string) => cmd.replace(/['"`]/g, " ").split(/[\s;|&<>()=]+/).filter(Boolean).map((w) => w.replace(/^@/, ""));
+const norm = (w: string) => posix.normalize(slash(w));
+
+/** How many different records of one kind a session may fetch from one host before it is called enumeration, and over how long. */
+export const ENUMERATION_LIMIT = 10;
+const ENUMERATION_WINDOW_MS = 10 * 60_000;
+const URL_IN_TEXT = /\bhttps?:\/\/([a-z0-9.-]+|\[[0-9a-f:]+\])(:\d+)?(\/[^\s'"<>|;&)]*)?/gi;
+
+export class SessionRecord {
+  private downloaded = new Set<string>();
+  private tainted = new Set<string>();
+  /** host + path shape (numbers and ids made `#`) -> the distinct values seen, with when. */
+  private shapes = new Map<string, Map<string, number>>();
+
+  snapshot(): { downloaded: string[]; tainted: string[]; shapes: [string, [string, number][]][] } {
+    return { downloaded: [...this.downloaded], tainted: [...this.tainted], shapes: [...this.shapes].map(([k, m]) => [k, [...m]]) };
+  }
+  restore(o: { downloaded?: string[]; tainted?: string[]; shapes?: [string, [string, number][]][] }): void {
+    this.downloaded = new Set(o.downloaded ?? []);
+    this.tainted = new Set(o.tainted ?? []);
+    this.shapes = new Map((o.shapes ?? []).map(([k, v]) => [k, new Map(v)]));
+  }
+  /** The record in a file, for a runtime whose pre-call hook is a new process for every call. Written whole under a temporary name, then renamed. */
+  save(file: string): void {
+    const tmp = `${file}.part`;
+    writeFileSync(tmp, JSON.stringify(this.snapshot()));
+    renameSync(tmp, file);
+  }
+
+  /** URLs in a command or a fetch, as a host and a path shape with the numeric or id-like parts replaced. */
+  private static shapesOf(text: string): { host: string; shape: string; value: string }[] {
+    const out: { host: string; shape: string; value: string }[] = [];
+    for (const m of text.matchAll(URL_IN_TEXT)) {
+      const path = (m[3] ?? "/").split(/[?#]/)[0];
+      const shape = path.replace(/\/(\d+|[0-9a-f]{8,}(-[0-9a-f]{4,})*)(?=\/|$)/gi, "/#");
+      if (shape !== path) out.push({ host: m[1].toLowerCase(), shape, value: path });
+    }
+    return out;
+  }
+
+  /** The reason this fetch is refused as enumeration, or undefined. Counts the ids already seen on the same host and path shape, plus this call's own. */
+  checkFetch(text: string, now = Date.now()): string | undefined {
+    for (const { host, shape, value } of SessionRecord.shapesOf(text)) {
+      const seen = this.shapes.get(`${host}${shape}`);
+      const live = [...(seen?.entries() ?? [])].filter(([, t]) => now - t < ENUMERATION_WINDOW_MS).map(([v]) => v);
+      const distinct = new Set([...live, value]);
+      if (distinct.size > ENUMERATION_LIMIT) return `this is the ${distinct.size}th different record of one kind (${host}${shape}) fetched in ten minutes: enumeration, not a task`;
+    }
+    return undefined;
+  }
+
+  noteFetch(text: string, now = Date.now()): void {
+    for (const { host, shape, value } of SessionRecord.shapesOf(text)) {
+      const k = `${host}${shape}`;
+      const m = this.shapes.get(k) ?? new Map<string, number>();
+      m.set(value, now);
+      this.shapes.set(k, m);
+    }
+  }
+
+  /** The reason this command should be refused given what the session did before, or undefined. */
+  check(cmd: string, network: boolean): string | undefined {
+    const ws = words(cmd);
+    if (network) {
+      const hit = ws.find((w) => SECRET_FILE.test(slash(w)) || this.tainted.has(norm(w)));
+      if (hit) return `this sends ${hit}, a secret file or a copy of one, over the network`;
+    }
+    for (let i = 0; i < ws.length; i++) {
+      const w = norm(ws[i]);
+      const runs = (i === 0 && (ws[i].startsWith("./") || ws[i].startsWith("/"))) || (i > 0 && INTERPRETER.test(ws[i - 1]) && i <= 2);
+      if (runs && this.downloaded.has(w)) return `this runs ${ws[i]}, a file this session downloaded and no one has reviewed`;
+    }
+    return undefined;
+  }
+
+  /** Remember what an allowed command did. */
+  note(cmd: string, network: boolean): void {
+    const ws = words(cmd);
+    const out: string[] = [];
+    for (const m of cmd.matchAll(/>{1,2}\s*([^\s;|&<>]+)/g)) out.push(m[1]);
+    for (const m of cmd.matchAll(/(?:^|\s)(?:-o|-O|--output|--output-document)\s+([^\s;|&<>]+)/g)) out.push(m[1]);
+    for (const o of out.map((x) => x.replace(/['"`]/g, ""))) {
+      const k = norm(o);
+      if (network) this.downloaded.add(k);
+      else if (ws.some((w) => SECRET_FILE.test(slash(w)) || this.tainted.has(norm(w)))) this.tainted.add(k);
+    }
+    if (/\b(cp|mv)\b/.test(cmd) && ws.length >= 3 && ws.slice(1).some((w) => SECRET_FILE.test(slash(w)) || this.tainted.has(norm(w)))) this.tainted.add(norm(ws[ws.length - 1]));
+  }
+}
+
+export function loadSession(file: string): SessionRecord {
+  const s = new SessionRecord();
+  try { if (existsSync(file)) s.restore(JSON.parse(readFileSync(file, "utf8"))); } catch { /* a damaged record starts empty; the other checks still stand */ }
+  return s;
+}
+
+/** What kind of call a tool is, for the guard: a file read, a file write, a shell command, or something else. */
+export type CallKind = "read" | "write" | "shell" | "other";
+
+/**
+ * The guard in two steps, shared by the gateway's judge and the runtimes' pre-call hook scripts (the hooks get a copy of this file with its types removed, so there is one source).
+ * Step one runs before the Mandate's scope is checked: a write that something else will run becomes the scope `repo.write.protected`, and a payload is refused outright.
+ */
+export function guardScope(kind: CallKind, args: Record<string, unknown>, shell: string | undefined, scope: string): { scope: string; refusal?: string } {
+  if ((kind !== "write" && kind !== "shell") || scope === "repo.read") return { scope };
+  const text = shell ?? writtenText(args);
+  const prot = protectedTarget(args, shell);
+  const payload = riskyContent(text);
+  return { scope: prot ? PROTECTED_SCOPE : scope, ...(payload ? { refusal: `this writes ${payload}: a payload, not ordinary work` } : {}) };
+}
+
+/** Step two runs once the scope is granted: the paths, and what the session did before. `urlText` is the fetch tool's address, for the enumeration count. */
+export function guardAfter(kind: CallKind, args: Record<string, unknown>, shell: string | undefined, network: boolean, urlText: string, confine: Confine, session?: SessionRecord): string | undefined {
+  if (kind !== "other") {
+    const out = confinementRefusal(args, shell, confine);
+    if (out) return `${out}: this job's Mandate confines the agent to its project`;
+  }
+  if (session) {
+    if (shell !== undefined) {
+      const out = session.check(shell, network) ?? (network ? session.checkFetch(shell) : undefined);
+      if (out) return out;
+    } else if (network) {
+      const out = session.checkFetch(urlText);
+      if (out) return out;
+    }
+  }
+  return undefined;
+}
+
+/** Remember an allowed call (see SessionRecord.note). */
+export function guardNote(shell: string | undefined, network: boolean, urlText: string, session: SessionRecord): void {
+  if (shell !== undefined) { session.note(shell, network); if (network) session.noteFetch(shell); }
+  else if (network) session.noteFetch(urlText);
+}

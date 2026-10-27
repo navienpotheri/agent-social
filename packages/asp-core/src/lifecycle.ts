@@ -46,6 +46,8 @@ export interface JobSnapshot {
   performer?: string;
   bank?: string;
   reviewDeadline?: string;
+  rulingWindowSeconds?: number;
+  disputedAt?: string;
   openCheckpoint?: string;
   openCheckpointExpires?: string;
   latestDelivery?: string;
@@ -64,6 +66,10 @@ export class Job {
   performer?: string;
   bank?: string;
   reviewDeadline?: string;
+  /** From the Contract: how long a dispute may wait for a ruling before the bank may settle it by the stated split (gap M10). */
+  rulingWindowSeconds?: number;
+  /** When the dispute opened: the time of the rejection that put the job in Disputed. */
+  disputedAt?: string;
   openCheckpoint?: string;
   openCheckpointExpires?: string;
   latestDelivery?: string;
@@ -91,9 +97,9 @@ export class Job {
   }
 
   snapshot(): JobSnapshot {
-    const { state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline,
+    const { state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline, rulingWindowSeconds, disputedAt,
       openCheckpoint, openCheckpointExpires, latestDelivery, acceptance, ruling, redeliveries } = this;
-    return JSON.parse(JSON.stringify({ state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline,
+    return JSON.parse(JSON.stringify({ state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline, rulingWindowSeconds, disputedAt,
       openCheckpoint, openCheckpointExpires, latestDelivery, acceptance, ruling, redeliveries }));
   }
 
@@ -128,7 +134,7 @@ export class Job {
       }
     } catch (e) {
       // A rejected record leaves the job unchanged.
-      if (type === "contract") this.contractId = this.principal = this.performer = this.bank = this.reviewDeadline = undefined;
+      if (type === "contract") this.contractId = this.principal = this.performer = this.bank = this.reviewDeadline = this.rulingWindowSeconds = undefined;
       throw e;
     }
 
@@ -141,12 +147,13 @@ export class Job {
   }
 
   private bindContract(r: AspRecord): void {
-    const b = r.body as { principal: string; performer: string; bank: string; review_deadline?: string };
+    const b = r.body as { principal: string; performer: string; bank: string; review_deadline?: string; ruling_window_seconds?: number };
     this.contractId = r.id;
     this.principal = b.principal;
     this.performer = b.performer;
     this.bank = b.bank;
     this.reviewDeadline = b.review_deadline;
+    this.rulingWindowSeconds = b.ruling_window_seconds;
   }
 
   private checkIssuer(role: Role, r: AspRecord): void {
@@ -184,6 +191,8 @@ export class Job {
       case "cites_ruling": return b.cites !== undefined && b.cites === this.ruling;
       case "past_review_deadline":
         return this.reviewDeadline !== undefined && Date.parse(r.issued_at) > Date.parse(this.reviewDeadline);
+      case "past_ruling_window":
+        return this.rulingWindowSeconds !== undefined && this.disputedAt !== undefined && Date.parse(r.issued_at) > Date.parse(this.disputedAt) + this.rulingWindowSeconds * 1000;
       default: throw new Error(`unknown guard ${name}`);
     }
   }
@@ -196,6 +205,7 @@ export class Job {
       if (e === "mark_accepted") this.acceptance = r.id;
       else if (e === "count_redelivery") this.redeliveries++;
       else if (e === "record_ruling") this.ruling = r.id;
+      else if (e === "mark_disputed") this.disputedAt = r.issued_at;
       else throw new Error(`unknown effect ${e}`);
     }
   }

@@ -19,6 +19,7 @@ import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { copyInto, listFiles, readJsonIfExists, sha256File, writeJson } from "../files.ts";
+import { compactCode, readCode } from "../law-code.ts";
 import { asList, frontmatter } from "../frontmatter.ts";
 import type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter, SessionSummary } from "../harness.ts";
 import { sha256Id } from "@agent-social/asp-core";
@@ -282,6 +283,8 @@ async function materialize(opts: {
     if (i.applies_to?.length) scoped.push({ name: i.name, globs: i.applies_to, text });
     else parts.push(`## ${i.name}\n\n${text}`);
   }
+  // The Code of the City, in short, in the agent's standing instructions every run (gap LW1).
+  try { parts.splice(1, 0, `## The Code of the City\n\n${compactCode(readCode())}`); } catch { /* no Code on this machine: nothing to add */ }
   put("instructions.md", () => writeFileSync(join(runDir, "instructions.md"), parts.join("\n\n") + "\n"));
 
   const hooks = structuredClone(harness.hooks) as Record<string, unknown[]>;
@@ -304,9 +307,11 @@ async function materialize(opts: {
       ...(opts.mandateKnownBad?.length ? { knownBad: opts.mandateKnownBad } : {}),
       ...(opts.mandateHosts?.length ? { hosts: opts.mandateHosts } : {}),
       ...(opts.mandateRate ? { rate: opts.mandateRate } : {}),
+      confine: { root: project },
       ...(gate ? { gate: { scopes: [...gate.scopes].sort(), mode: gate.mode, waitSeconds: gate.waitSeconds } } : {}),
     }));
     put("plugin/scripts/asp-mandate.mjs", () => copyInto(MANDATE_HOOK, join(plugin, "scripts", "asp-mandate.mjs")));
+    put("plugin/scripts/asp-guard.mjs", () => writeGuard(join(plugin, "scripts", "asp-guard.mjs")));
     // The same script records which calls actually ran (post-call events), so a call the runtime's own
     // permissions refused is never mistaken for one that ran.
     const record = { matcher: "*", hooks: [{ type: "command", command: `node "\${CLAUDE_PLUGIN_ROOT}/scripts/asp-mandate.mjs"`, timeout: 10 }] };
@@ -411,5 +416,6 @@ function stripFrontmatter(text: string): string {
 
 const RULES_HOOK = fileURLToPath(new URL("./claude-code-rules-hook.mjs", import.meta.url));
 const MANDATE_HOOK = fileURLToPath(new URL("./claude-code-mandate-hook.mjs", import.meta.url));
+import { writeGuard } from "./guard-copy.ts";
 
 export const claudeCode: RuntimeAdapter = { name: RUNTIME, capture, materialize };

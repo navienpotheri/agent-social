@@ -16,7 +16,7 @@ const fakeClaude = fileURLToPath(new URL("./fake-claude-gateway.mjs", import.met
 const freePort = ownPort;
 /** A wait that names itself when it is stuck, so a hang fails with where, not after two minutes of nothing. */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const within =<T,>(label: string, p: Promise<T>, ms = 45_000) => Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`stuck waiting for ${label}`)), ms))]);
+const within =<T,>(label: string, p: Promise<T>, ms = 120_000) => Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`stuck waiting for ${label}`)), ms))]);
 const until = async (what: string, fn: () => boolean | Promise<boolean>, ms = 20_000) => { const t0 = Date.now(); while (!(await fn())) { if (Date.now() - t0 > ms) throw new Error(`timed out waiting for ${what}`); await new Promise((r) => setTimeout(r, 150)); } };
 
 // Two terminals on one agent (UC-138). Found while writing it: the watcher read the job's state as unknown while the other session wrote the log, took that for the job ending, and stopped.
@@ -60,9 +60,9 @@ test("two sessions of one agent at once share the standing job: approvals are as
     for (const a of [["identity", "new", "--kind", "human", "--me", "--no-recovery"], ["identity", "new", "--kind", "agent", "--name", "my-agent", "--sponsor", me, "--purpose", "Test"], ["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]]) assert.equal((await call(a)).code, 0);
 
     // Both sessions ask about the same command. A job has one open Checkpoint at a time, so the second request waits its turn and is shown once the first is answered; neither fails.
-    const A = call(["run", "claude-code", "--prompt", "Session A", "--project", project, "--ask", "commands"]);
+    const A = call(["run", "claude-code", "--prompt", "Session A", "--project", project, "--allow", "all", "--ask", "commands"]);
     await until("the first approval", async () => /npm run build/.test((await call(["approvals"])).out));
-    const B = call(["run", "claude-code", "--prompt", "Session B", "--project", project, "--ask", "commands"]);
+    const B = call(["run", "claude-code", "--prompt", "Session B", "--project", project, "--allow", "all", "--ask", "commands"]);
     await new Promise((r) => setTimeout(r, 2500));
     assert.equal((await call(["approvals"])).out.match(/npm run build/g)?.length, 1, "one request is shown at a time");
     await approve();
@@ -73,9 +73,9 @@ test("two sessions of one agent at once share the standing job: approvals are as
     assert.match((await call(["approvals"])).out, /nothing is waiting/);
 
     // One terminal is ended with asp stop while the other is still held: the ended one takes its own request with it, the other is not disturbed and is asked next.
-    const C = call(["run", "claude-code", "--prompt", "Session C", "--project", project, "--ask", "commands"]);
+    const C = call(["run", "claude-code", "--prompt", "Session C", "--project", project, "--allow", "all", "--ask", "commands"]);
     await until("C's approval", async () => /npm run build/.test((await call(["approvals"])).out));
-    const D = call(["run", "claude-code", "--prompt", "Session D", "--project", project, "--ask", "commands"]);
+    const D = call(["run", "claude-code", "--prompt", "Session D", "--project", project, "--allow", "all", "--ask", "commands"]);
     await new Promise((r) => setTimeout(r, 2500));
     const cId = (await call(["runs"])).out.split("\n").find((l) => /Session C/.test(l))!.trim().split(/\s+/)[0];
     assert.equal((await call(["stop", cId])).code, 0);

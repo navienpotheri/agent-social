@@ -204,7 +204,7 @@ class Chain {
       reasons: ["fix was correct but the acceptance criterion was ambiguous about CI retries"],
     });
   }
-  settle(basis: "accepted" | "ruling" | "revoked" | "silence", cites?: string, opts: { by?: Party; cosigners?: Party[] } = {}) {
+  settle(basis: "accepted" | "ruling" | "revoked" | "silence" | "ruling_timeout", cites?: string, opts: { by?: Party; cosigners?: Party[] } = {}) {
     const body: Record<string, unknown> = {
       contract: this.contract, basis,
       escrow_released: credits(0), bond_returned: credits(0), bond_slashed: credits(0),
@@ -268,6 +268,31 @@ lc("happy_path", "Contract, zero bond, mandate, plan checkpoint, delivery, accep
   c.deliver();
   c.settle("silence");
   lc("silence_after_deadline", "Principal-mode silence past review_deadline counts as acceptance", c, { state: "Settled" });
+}
+{
+  // Gap M10: a dispute that no one rules on. The rejection is at t=20 minutes and the settlement at t=25, 300 seconds later.
+  const c = new Chain(); c.contractRec({ body: { ruling_window_seconds: 200 } }); c.bond(); c.mandate();
+  const d = c.deliver(); c.reject(d.id);
+  c.settle("ruling_timeout");
+  lc("ruling_timeout_after_window", "A dispute with no ruling past the contract's ruling window settles by the stated split", c, { state: "Settled" });
+}
+{
+  const c = new Chain(); c.contractRec({ body: { ruling_window_seconds: 600 } }); c.bond(); c.mandate();
+  const d = c.deliver(); c.reject(d.id);
+  c.settle("ruling_timeout");
+  lc("ruling_timeout_before_window", "A settlement for a missing ruling before the window has passed is refused", c, err("GUARD_FAILED", 5, "past_ruling_window"));
+}
+{
+  const c = new Chain(); c.contractRec(); c.bond(); c.mandate();
+  const d = c.deliver(); c.reject(d.id);
+  c.settle("ruling_timeout");
+  lc("ruling_timeout_without_window", "Without a ruling window on the contract a dispute waits for its ruling: a timeout settlement is refused", c, err("GUARD_FAILED", 5, "past_ruling_window"));
+}
+{
+  const c = new Chain(); c.contractRec({ body: { ruling_window_seconds: 200 } }); c.bond(); c.mandate();
+  const d = c.deliver(); c.reject(d.id); c.ruling();
+  c.settle("ruling_timeout");
+  lc("ruling_timeout_after_ruling", "Once a ruling exists the settlement must follow it: a timeout settlement is refused", c, err("GUARD_FAILED", 6, "no_ruling_yet"));
 }
 {
   // Same shape, but review_deadline is a day after the bank's settlement attempt.

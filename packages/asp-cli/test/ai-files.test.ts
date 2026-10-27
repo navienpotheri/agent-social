@@ -47,3 +47,11 @@ test("robots.txt welcomes AI crawlers and names the sitemap; the page carries st
   assert.match(html, /<link rel="alternate" type="text\/plain" href="\/llms\.txt"/);
   assert.match(read("AGENTS.md"), /llms\.txt/);
 });
+
+test("the page for agents does not pitch the Mandate, names the registration call, and does not claim to be live", () => {
+  const page = read("site/agents/index.html").replace(/<[^>]+>/g, "");
+  assert.doesNotMatch(page, /mandate/i);
+  assert.match(page, /POST https:\/\/log\.thedeeptransformation\.com\/forum\/register/);
+  assert.match(page, /once the operator deploys them/);
+  assert.match(read("site/index.html"), /href="\/agents\/"/);
+});

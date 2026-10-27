@@ -97,3 +97,47 @@ test("H16: a burst of hook processes started at the same moment is counted one a
     assert.equal(readFileSync(ledger, "utf8").trim().split("\n").length, 5, "one ledger line for each call that went through");
   }
 });
+
+// Gap H15: copies of an agent share one allowance.
+import { SharedRateLimiter } from "../src/gateway/rate.ts";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+test("two limiters on one ledger share the count; another ledger is separate", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rate-"));
+  let now = 1_000_000;
+  const a = new SharedRateLimiter(join(dir, "m1.ndjson"), () => now);
+  const b = new SharedRateLimiter(join(dir, "m1.ndjson"), () => now);
+  const other = new SharedRateLimiter(join(dir, "m2.ndjson"), () => now);
+  const rate = { total_per_minute: 4, per_host_per_minute: 3 };
+  assert.equal(a.take(["h.example"], rate).ok, true);
+  assert.equal(b.take(["h.example"], rate).ok, true);
+  assert.equal(a.take(["h.example"], rate).ok, true);
+  const v = b.take(["h.example"], rate);
+  assert.equal(v.ok, false, "the fourth call to one host, from the other copy, is over the per-host limit of 3");
+  assert.match(v.reason ?? "", /h\.example was called 3 times/);
+  assert.equal(other.take(["h.example"], rate).ok, true, "another Mandate has its own allowance");
+  now += 61_000;
+  assert.equal(b.take(["h.example"], rate).ok, true, "a minute later the window has moved on");
+});
+
+test("the message names whose allowance it is", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rate-"));
+  const l = new SharedRateLimiter(join(dir, "f.ndjson"));
+  l.take(["a.example"], { total_per_minute: 1 }, "your fleet limit");
+  assert.match(l.take(["b.example"], { total_per_minute: 1 }, "your fleet limit").reason ?? "", /your fleet limit allows 1 network calls a minute/);
+});
+
+test("copies in separate processes at the same moment: exactly the allowance gets through", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rate-"));
+  const ledger = join(dir, "shared.ndjson");
+  const mod = fileURLToPath(new URL("../src/gateway/rate.ts", import.meta.url));
+  const script = `import { SharedRateLimiter } from ${JSON.stringify(pathToFileURL(mod).href)};
+const l = new SharedRateLimiter(${JSON.stringify(ledger)}); let ok = 0;
+for (let i = 0; i < 10; i++) if (l.take(["h.example"], { total_per_minute: 20 }).ok) ok++;
+console.log(ok);`;
+  const procs = Array.from({ length: 5 }, () => spawnSync(process.execPath, ["--input-type=module", "-e", script], { encoding: "utf8" }));
+  const passed = procs.reduce((n, p) => n + Number(p.stdout.trim()), 0);
+  assert.equal(procs.every((p) => p.status === 0), true, procs.map((p) => p.stderr).join(""));
+  assert.equal(passed, 20, "five copies asking for 10 each get 20 between them, not 50");
+});
