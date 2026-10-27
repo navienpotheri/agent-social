@@ -281,16 +281,16 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | BM1 | B | partial | Network use that is not a named network tool is judged shell.exec, so a job that may run commands but not reac... |
 | BM5 | B | partial | Encoded or split commands (base64 piped to a shell, a backslash inside curl, eval over split quotes, find -exe... |
-| BM6 | A | partial | Path confinement: a read or write outside the project (/.ssh, /etc, ../..) is judged by tool name only, so 28... |
 | BM8 | C | partial | Rate limits do not see a scanner (nmap) because it is judged shell.exec, and do not count requests a script ma... |
 | BM9 | C | open | The time a record was logged is not covered by the log hash: changing it in an export is not detected (0 of 8)... |
 | BM10 | B | open | Swarm containment at the default settings: a single exploiter is never stopped (the watcher needs 3 agents), a... |
 | BM11 | B | open | Sybil jurors: the panel draw excludes jurors sponsored by the principal or performer, but not jurors sponsored... |
-| BM16 | A | partial | Harmful sequences made of granted steps are not seen: 0 of 14 were stopped by design (4 more were stopped by a... |
 | BM17 | A | partial | Under an agent-wide Mandate (every tool granted), the gateway stops none of the injected tool calls a real mod... |
 | BM18 | B | open | A language model used as the guardrail did better than the rules on the held-out cases (haiku-5.5: 100% blocke... |
 | BM19 | B | open | An adaptive attacker built a package install out of interpreter code that passes the command as a list (python... |
 | BM20 | A | open | The containment benchmark (v0.3) no longer measures the gateway fairly: the project guard was built against it... |
+| BM21 | B | open | The project guard reads the text of a call, so a path a program builds at run time ($VAR other than HOME, $(..... |
+| BM22 | B | open | Payloads written in an obfuscated form are not recognised by the content check (it matches plain forms), enume... |
 | H1 | A | partial | A granted network scope can be used to hurt third parties (brute force, scanning, flooding); a swarm multiplie... |
 | H2 | A | partial | No default-deny network for new or low-tier agents |
 | H3 | B | open | Third parties have no way to report |

@@ -214,6 +214,7 @@ export function resolveAgy(env: NodeJS.ProcessEnv): string {
 
 const PREAMBLE_LIMIT = 16_000;
 const MANDATE_HOOK = fileURLToPath(new URL("./antigravity-mandate-hook.mjs", import.meta.url));
+import { writeGuard } from "./guard-copy.ts";
 
 /** The hook script's path as agy can run it unquoted (see materialize). */
 export function hookPathFor(path: string, notes: string[]): string {
@@ -307,8 +308,9 @@ async function materialize(opts: {
     mkdirSync(hookDir, { recursive: true });
     mkdirSync(join(workspace, ".agents"), { recursive: true });
     copyInto(MANDATE_HOOK, join(hookDir, "asp-mandate-hook.mjs"));
+    writeGuard(join(hookDir, "asp-guard.mjs"));
     const gate = opts.mandateGate && opts.mandateGate.scopes.length ? opts.mandateGate : undefined;
-    writeJson(join(hookDir, "asp-mandate.json"), { scopes: [...opts.mandateScopes!].sort(), ...(gate ? { gate } : {}), ...(opts.mandateKnownBad?.length ? { knownBad: opts.mandateKnownBad } : {}), ...(opts.mandateHosts?.length ? { hosts: opts.mandateHosts } : {}), ...(opts.mandateRate ? { rate: opts.mandateRate } : {}) });
+    writeJson(join(hookDir, "asp-mandate.json"), { scopes: [...opts.mandateScopes!].sort(), ...(gate ? { gate } : {}), ...(opts.mandateKnownBad?.length ? { knownBad: opts.mandateKnownBad } : {}), ...(opts.mandateHosts?.length ? { hosts: opts.mandateHosts } : {}), ...(opts.mandateRate ? { rate: opts.mandateRate } : {}), confine: { root: project } });
     // agy runs hook commands through cmd and mangles quoted paths (checked live): plain `node` from PATH and an unquoted
     // script path, which on Windows must have no spaces, so a folder name with spaces is turned into its 8.3 short form.
     const script = hookPathFor(join(hookDir, "asp-mandate-hook.mjs"), notes);

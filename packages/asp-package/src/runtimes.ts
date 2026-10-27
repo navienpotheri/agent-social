@@ -9,7 +9,7 @@ export type RuntimeReach = "gateway" | "hook";
 /** The API a gateway-reached tool talks to, so the gateway points at the right kind of upstream; `hooked` for a runtime held by its own hook. */
 export type RuntimeWire = "anthropic" | "openai" | "hooked";
 /** What the run's evidence supports, from the strongest practical level (assurance ladder in docs/ladder.md). */
-export type RuntimeAssurance = "gateway_enforced" | "hook_enforced";
+export type RuntimeAssurance = "gateway_enforced" | "hook_enforced" | "runtime_observed";
 /** `live`: run by hand on a real machine; `partial`: run live with known gaps; `stand-in`: tested only with a stand-in for the tool. */
 export type RuntimeEvidence = "live" | "partial" | "stand-in";
 
@@ -44,8 +44,8 @@ export const RUNTIMES: RuntimeDescriptor[] = [
     installHint: "Install the Antigravity CLI (agy) and sign in,", assurance: "hook_enforced",
     evidence: { level: "partial", row: "UC-13", note: "run by hand: a call was refused before it ran; headless agy denies shell commands that are not pre-approved" } },
   { name: "openhands", title: "OpenHands", reach: "hook", wire: "hooked", needsPrompt: true, needsModel: false,
-    installHint: "Install OpenHands (on Windows it runs inside WSL),", assurance: "hook_enforced",
-    evidence: { level: "stand-in", row: "UC-14", note: "tested with a stand-in; run live in an earlier evaluation, not through `asp run`" } },
+    installHint: "Install OpenHands (on Windows it runs inside WSL),", assurance: "runtime_observed",
+    evidence: { level: "stand-in", row: "UC-14", note: "tested with a stand-in; run live in an earlier evaluation, not through `asp run`. ASP installs no pre-call check for it (only its own hooks pass through), so its calls are observed and reported, not prevented (gap H11)" } },
 ];
 
 export const runtimeByName = (name: string): RuntimeDescriptor | undefined => RUNTIMES.find((r) => r.name === name);

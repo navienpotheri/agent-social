@@ -6,7 +6,7 @@
  * redirection target). What it cannot see is a path a program builds at run time, a symlink inside the project that points outside, and a path in an environment variable other than
  * HOME; those need the sandbox (H8) and are listed under BM6 in the register.
  */
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { posix } from "node:path";
 
@@ -20,7 +20,7 @@ export interface Confine {
 }
 
 /** Argument names that carry a file path in the file tools of the supported runtimes. */
-const PATH_KEYS = ["file_path", "filepath", "path", "filename", "file", "target_file", "TargetFile", "AbsolutePath", "notebook_path", "directory", "dir", "cwd", "workdir"];
+const PATH_KEYS = ["file_path", "filepath", "path", "filename", "file", "target_file", "TargetFile", "AbsolutePath", "notebook_path", "directory", "dir", "cwd", "workdir", "DirectoryPath", "SearchPath", "SearchDirectory", "Directory"];
 const PATH_LIST_KEYS = ["paths", "files", "file_paths"];
 /** Reading or writing here is harmless for a shell command: devices and scratch space. */
 const SHELL_OK = [/^\/dev\/(null|zero|stdin|stdout|stderr|tty|urandom|random)$/, /^\/tmp(\/|$)/, /^\/var\/tmp(\/|$)/];
@@ -151,6 +151,8 @@ export function writtenText(args: Record<string, unknown>): string {
   const parts: string[] = [];
   for (const k of CONTENT_KEYS) { const v = args[k]; if (typeof v === "string") parts.push(v); }
   for (const k of ["patch", "input", "diff"]) { const v = args[k]; if (typeof v === "string") parts.push(v); }
+  const chunks = args.ReplacementChunks;
+  if (Array.isArray(chunks)) for (const e of chunks) if (e && typeof e === "object" && typeof (e as { ReplacementContent?: unknown }).ReplacementContent === "string") parts.push((e as { ReplacementContent: string }).ReplacementContent);
   const edits = args.edits;
   if (Array.isArray(edits)) for (const e of edits) if (e && typeof e === "object" && typeof (e as { new_string?: unknown }).new_string === "string") parts.push((e as { new_string: string }).new_string);
   return parts.join("\n");
@@ -214,6 +216,21 @@ export class SessionRecord {
   /** host + path shape (numbers and ids made `#`) -> the distinct values seen, with when. */
   private shapes = new Map<string, Map<string, number>>();
 
+  snapshot(): { downloaded: string[]; tainted: string[]; shapes: [string, [string, number][]][] } {
+    return { downloaded: [...this.downloaded], tainted: [...this.tainted], shapes: [...this.shapes].map(([k, m]) => [k, [...m]]) };
+  }
+  restore(o: { downloaded?: string[]; tainted?: string[]; shapes?: [string, [string, number][]][] }): void {
+    this.downloaded = new Set(o.downloaded ?? []);
+    this.tainted = new Set(o.tainted ?? []);
+    this.shapes = new Map((o.shapes ?? []).map(([k, v]) => [k, new Map(v)]));
+  }
+  /** The record in a file, for a runtime whose pre-call hook is a new process for every call. Written whole under a temporary name, then renamed. */
+  save(file: string): void {
+    const tmp = `${file}.part`;
+    writeFileSync(tmp, JSON.stringify(this.snapshot()));
+    renameSync(tmp, file);
+  }
+
   /** URLs in a command or a fetch, as a host and a path shape with the numeric or id-like parts replaced. */
   private static shapesOf(text: string): { host: string; shape: string; value: string }[] {
     const out: { host: string; shape: string; value: string }[] = [];
@@ -273,4 +290,49 @@ export class SessionRecord {
     }
     if (/\b(cp|mv)\b/.test(cmd) && ws.length >= 3 && ws.slice(1).some((w) => SECRET_FILE.test(slash(w)) || this.tainted.has(norm(w)))) this.tainted.add(norm(ws[ws.length - 1]));
   }
+}
+
+export function loadSession(file: string): SessionRecord {
+  const s = new SessionRecord();
+  try { if (existsSync(file)) s.restore(JSON.parse(readFileSync(file, "utf8"))); } catch { /* a damaged record starts empty; the other checks still stand */ }
+  return s;
+}
+
+/** What kind of call a tool is, for the guard: a file read, a file write, a shell command, or something else. */
+export type CallKind = "read" | "write" | "shell" | "other";
+
+/**
+ * The guard in two steps, shared by the gateway's judge and the runtimes' pre-call hook scripts (the hooks get a copy of this file with its types removed, so there is one source).
+ * Step one runs before the Mandate's scope is checked: a write that something else will run becomes the scope `repo.write.protected`, and a payload is refused outright.
+ */
+export function guardScope(kind: CallKind, args: Record<string, unknown>, shell: string | undefined, scope: string): { scope: string; refusal?: string } {
+  if ((kind !== "write" && kind !== "shell") || scope === "repo.read") return { scope };
+  const text = shell ?? writtenText(args);
+  const prot = protectedTarget(args, shell);
+  const payload = riskyContent(text);
+  return { scope: prot ? PROTECTED_SCOPE : scope, ...(payload ? { refusal: `this writes ${payload}: a payload, not ordinary work` } : {}) };
+}
+
+/** Step two runs once the scope is granted: the paths, and what the session did before. `urlText` is the fetch tool's address, for the enumeration count. */
+export function guardAfter(kind: CallKind, args: Record<string, unknown>, shell: string | undefined, network: boolean, urlText: string, confine: Confine, session?: SessionRecord): string | undefined {
+  if (kind !== "other") {
+    const out = confinementRefusal(args, shell, confine);
+    if (out) return `${out}: this job's Mandate confines the agent to its project`;
+  }
+  if (session) {
+    if (shell !== undefined) {
+      const out = session.check(shell, network) ?? (network ? session.checkFetch(shell) : undefined);
+      if (out) return out;
+    } else if (network) {
+      const out = session.checkFetch(urlText);
+      if (out) return out;
+    }
+  }
+  return undefined;
+}
+
+/** Remember an allowed call (see SessionRecord.note). */
+export function guardNote(shell: string | undefined, network: boolean, urlText: string, session: SessionRecord): void {
+  if (shell !== undefined) { session.note(shell, network); if (network) session.noteFetch(shell); }
+  else if (network) session.noteFetch(urlText);
 }

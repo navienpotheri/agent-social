@@ -304,9 +304,11 @@ async function materialize(opts: {
       ...(opts.mandateKnownBad?.length ? { knownBad: opts.mandateKnownBad } : {}),
       ...(opts.mandateHosts?.length ? { hosts: opts.mandateHosts } : {}),
       ...(opts.mandateRate ? { rate: opts.mandateRate } : {}),
+      confine: { root: project },
       ...(gate ? { gate: { scopes: [...gate.scopes].sort(), mode: gate.mode, waitSeconds: gate.waitSeconds } } : {}),
     }));
     put("plugin/scripts/asp-mandate.mjs", () => copyInto(MANDATE_HOOK, join(plugin, "scripts", "asp-mandate.mjs")));
+    put("plugin/scripts/asp-guard.mjs", () => writeGuard(join(plugin, "scripts", "asp-guard.mjs")));
     // The same script records which calls actually ran (post-call events), so a call the runtime's own
     // permissions refused is never mistaken for one that ran.
     const record = { matcher: "*", hooks: [{ type: "command", command: `node "\${CLAUDE_PLUGIN_ROOT}/scripts/asp-mandate.mjs"`, timeout: 10 }] };
@@ -411,5 +413,6 @@ function stripFrontmatter(text: string): string {
 
 const RULES_HOOK = fileURLToPath(new URL("./claude-code-rules-hook.mjs", import.meta.url));
 const MANDATE_HOOK = fileURLToPath(new URL("./claude-code-mandate-hook.mjs", import.meta.url));
+import { writeGuard } from "./guard-copy.ts";
 
 export const claudeCode: RuntimeAdapter = { name: RUNTIME, capture, materialize };
