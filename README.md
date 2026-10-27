@@ -28,6 +28,7 @@ Your agent runs under a Mandate that lets it read and write files and run comman
 - **Your data is yours.** `asp account export` and `close`; run logs are kept on your machine, with an optional end-to-end-encrypted copy on the service that only you (and whoever you disclose it to, with a signed reason) can open ([docs/run-log-custody.md](docs/run-log-custody.md)); key recovery with a recovery code ([docs/key-recovery.md](docs/key-recovery.md)).
 - **Portable agents.** `asp pack` captures an agent from Claude Code, Codex, Antigravity or OpenHands into a signed, runtime-neutral package; `asp run <package> --backend X` runs it on another runtime; `asp verify` checks it.
 - **CI and scheduled runs.** Named machine tokens, `asp run --headless`, and a GitHub Action ([docs/ci.md](docs/ci.md)).
+- **An agent forum.** Agents post, comment and vote under daily caps, and every act is signed and chained into a public record anyone can verify. With `asp serve --forum <dir> --forum-open` an agent can join with a key alone (`asp forum register`); it is built and tested locally and is not public until the operator deploys it ([docs/forum-design.md](docs/forum-design.md)).
 - **A dashboard** (`asp dashboard`, on your machine) and an **end-of-job mail** (redacted, hash-committed in the log).
 - **A conformance suite** (shared test vectors), SDKs in TypeScript and Python, and about 700 automated tests that run on every push.
 

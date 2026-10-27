@@ -15,7 +15,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { b64urlDecode, b64urlEncode, canonicalBytes, didKeyFromPublicKey, didOf, sha256Id, signBytes, verifyBytes, type Signer } from "@agent-social/asp-core";
 import type { LogHandle, Tenant } from "@agent-social/asp-log";
 import { citizenPage, feedPage, postPage, type Chrome } from "./forum-pages.ts";
@@ -125,7 +125,10 @@ export function forumRoutes(opts: ForumOptions) {
   const citizensDir = join(opts.root, "citizens");
   const byDid = new Map<string, ForumCitizen>();
   const byHandle = new Map<string, string>(); // handle -> did
-  const joins: { at: number; who: string }[] = []; // recent registrations, for the throttle
+  // Recent registrations for the throttle, kept in joins.json (pruned to the last hour on every write) so a restart does not reset it. `who` is a hash of the
+  // address under a random salt kept beside it, so the file does not list addresses.
+  const joinsFile = join(opts.root, "joins.json");
+  const joins: { at: number; who: string }[] = (() => { try { return JSON.parse(readFileSync(joinsFile, "utf8")) as { at: number; who: string }[]; } catch { return []; } })();
   if (existsSync(citizensDir)) {
     for (const f of readdirSync(citizensDir).filter((n) => n.endsWith(".json"))) {
       const c = JSON.parse(readFileSync(join(citizensDir, f), "utf8")) as ForumCitizen;
@@ -133,7 +136,8 @@ export function forumRoutes(opts: ForumOptions) {
       byHandle.set(c.handle, c.did);
     }
   }
-  const salt = createHash("sha256").update(join(opts.root, "salt")).digest("hex");
+  const saltFile = join(opts.root, "salt.key");
+  const salt = (() => { try { return readFileSync(saltFile, "utf8"); } catch { const v = randomBytes(32).toString("hex"); if (opts.open) { mkdirSync(opts.root, { recursive: true }); writeFileSync(saltFile, v, { mode: 0o600 }); } return v; } })();
   const addressOf = (req: IncomingMessage): string => {
     const fwd = String(req.headers["x-forwarded-for"] ?? "").split(",")[0]!.trim();
     return createHash("sha256").update(salt + (fwd || req.socket.remoteAddress || "")).digest("hex").slice(0, 16);
@@ -331,6 +335,8 @@ export function forumRoutes(opts: ForumOptions) {
     byDid.set(did, citizen);
     byHandle.set(handle, did);
     joins.push({ at: now, who });
+    writeFileSync(joinsFile + ".part", JSON.stringify(joins));
+    renameSync(joinsFile + ".part", joinsFile);
     reply(res, 201, { ok: true, did, kid: citizen.kid, handle, sponsor: null, note: "No secret was issued: the service never holds your private key. Sign each act with it and post it to /forum/posts, /forum/comments or /forum/votes." });
     return true;
   }
@@ -375,7 +381,7 @@ ${opts.unlimited ? "The daily caps are lifted on this instance (a test run)." : 
     const tags = new Map<string, number>();
     for (const id of feedOrder) for (const t of (docs.get(id) as ForumSigned<ForumPostBody>).tags) tags.set(t, (tags.get(t) ?? 0) + 1);
     return {
-      head: head(), posts: feedOrder.length, citizens: authors.size, unlimited: !!opts.unlimited,
+      handles: Object.fromEntries([...byDid].map(([did, c]) => [did, c.handle])), head: head(), posts: feedOrder.length, citizens: authors.size, unlimited: !!opts.unlimited,
       agents: [...authors].map(([did, a]) => ({ did, ...a })).sort((x, y) => y.karma - x.karma || y.acts - x.acts),
       tags: [...tags].map(([tag, count]) => ({ tag, count })).sort((x, y) => y.count - x.count),
     };

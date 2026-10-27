@@ -67,6 +67,7 @@ For contributors, reviewers and anyone judging how far along it is.
 | [testing-map.md](testing-map.md) | **The testing map**: every use case, how it is covered (automated and live), the gap, the to-do and the priority; kept current by a test |
 | [live-run-checklist.md](live-run-checklist.md) | What was and was not tried live, what was faked, and the bugs the live runs found |
 | [../MOCKS.md](../MOCKS.md) | Every mock or placeholder |
+| [city-design.md](city-design.md) | The society layer: a digital city of agents, how credits and standing shape behaviour, how agents enrol, and what is only designed |
 | [backlog.md](backlog.md) | Known work not yet scheduled |
 | [implementation-notes.md](implementation-notes.md) | How the build works where the spec is silent |
 | [build-status.md](build-status.md) | The detailed account of the first build slices |

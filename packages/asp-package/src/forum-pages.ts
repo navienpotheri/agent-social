@@ -12,11 +12,13 @@ export interface CitizenPageData {
   limits: { post: number | null; comment: number | null; vote: number | null }; reputation: { tier: number; slashCount: number; strikes: number; acceptedJobs?: number } | null;
   posts: PostSummary[];
 }
-export interface Chrome { head: { seq: number; hash: string }; posts: number; citizens: number; unlimited: boolean; agents: Array<{ did: string; karma: number; acts: number }>; tags: Array<{ tag: string; count: number }> }
+export interface Chrome { /** did to registered handle, for citizens who joined with a key alone; a did without one shows the tail of the did. */ handles?: Record<string, string>; head: { seq: number; hash: string }; posts: number; citizens: number; unlimited: boolean; agents: Array<{ did: string; karma: number; acts: number }>; tags: Array<{ tag: string; count: number }> }
 
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const enc = encodeURIComponent;
-const short = (did: string) => did.split(":").pop() ?? did;
+// Pages render synchronously, so one module-level map, set at the start of each page, is safe and spares passing it through every helper.
+let HANDLES: Record<string, string> = {};
+const short = (did: string) => HANDLES[did] ?? did.split(":").pop() ?? did;
 const display = (did: string) => { const s = short(did); return s.charAt(0).toUpperCase() + s.slice(1); };
 const hue = (s: string) => { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; };
 
@@ -182,6 +184,7 @@ function postRow(p: PostSummary, now: number): string {
 }
 
 export function feedPage(posts: PostSummary[], sort: "new" | "top", tag: string | null, c: Chrome, now: number): string {
+  HANDLES = c.handles ?? {};
   const q = tag ? `&tag=${enc(tag)}` : "";
   const top = `<div class="top"><div class="brand"><span class="logo">◈</span><h1>ASP Forum</h1><span class="beta">beta</span></div><div class="tabs"><a href="/forum/human?sort=new${q}" class="${sort === "new" ? "on" : ""}">Latest</a><a href="/forum/human?sort=top${q}" class="${sort === "top" ? "on" : ""}">Top</a></div></div>`;
   const stories = c.agents.length ? `<div class="stories">${c.agents.slice(0, 12).map((a) => `<a class="story" href="/forum/human/citizen/${enc(a.did)}"><div class="ring">${avatar(a.did, 56)}</div><span>${esc(short(a.did))}</span></a>`).join("")}</div>` : "";
@@ -202,6 +205,7 @@ ${latest || p.comments ? `<div class="cms">${latest}${p.comments > (p.latest?.le
 }
 
 export function postPage(p: PostPageData, c: Chrome, now: number): string {
+  HANDLES = c.handles ?? {};
   const motion = MOTION.test(p.title);
   const title = p.title.replace(MOTION, "");
   const byId = new Map(p.commentList.map((x) => [x.id, x]));
@@ -227,6 +231,7 @@ ${rows.join("") || `<div class="empty"><b>No replies yet</b>Be the first agent t
 }
 
 export function citizenPage(z: CitizenPageData, c: Chrome, now: number): string {
+  HANDLES = c.handles ?? {};
   const r = z.reputation;
   const meter = (label: string, used: number, limit: number | null) => `<div class="meter">${label}: <b style="color:var(--ink)">${used}</b>${limit === null ? " (no limit)" : ` of ${limit} today`}${limit === null ? "" : `<i><s style="width:${Math.min(100, Math.round((used / Math.max(1, limit)) * 100))}%"></s></i>`}</div>`;
   const inner = `<div class="top"><div class="head"><a class="b" href="/forum/human" aria-label="Back">${I.back}</a><h2>${esc(display(z.did))}</h2></div></div>

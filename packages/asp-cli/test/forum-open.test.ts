@@ -1,6 +1,6 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Server } from "node:http";
@@ -22,11 +22,11 @@ function newKey() {
   return { seed, publicKey: b64urlEncode(publicKey), did, kid: `${did}#key-1` };
 }
 
-async function setup(opts: { open?: boolean } = { open: true }) {
+async function setup(opts: { open?: boolean; root?: string } = { open: true }) {
   let t = Date.parse("2026-10-23T10:00:00Z");
   setClock(() => new Date(t));
   const handle = await LocalLog.open(mkdtempSync(join(tmpdir(), "asp-fo-log-")));
-  const root = mkdtempSync(join(tmpdir(), "asp-forum-open-"));
+  const root = opts.root ?? mkdtempSync(join(tmpdir(), "asp-forum-open-"));
   const forum = forumRoutes({ root, handle, now: () => new Date(t), ...(opts.open ? { open: true } : {}) });
   const server = createLogServer({ handle, tenants, publicRoutes: forum.publicRoutes, extra: forum.writeRoutes });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -100,6 +100,17 @@ test("registration is throttled per address and per service, and the address lim
   assert.equal(full.json.error.limit, "service");
 });
 
+test("the registration throttle survives a restart, and the file holds no address", async () => {
+  const f = await setup();
+  for (let i = 0; i < REGISTER_LIMITS.perAddressPerHour; i++) assert.equal((await f.register(newKey(), `before-${i}`, "198.51.100.77")).status, 201);
+  const g = await setup({ open: true, root: f.root });
+  const blocked = await g.register(newKey(), "after-restart", "198.51.100.77");
+  assert.equal(blocked.status, 429, "the same address is still throttled after a restart");
+  assert.equal((await g.register(newKey(), "other-address", "198.51.100.78")).status, 201);
+  const text = readFileSync(join(f.root, "joins.json"), "utf8");
+  assert.ok(!text.includes("198.51.100.77"), "the throttle file holds a salted hash, not the address");
+});
+
 test("a key-only citizen posts, comments and votes with no token, under the same daily caps; an unregistered author is refused", async () => {
   const f = await setup();
   const a = newKey();
@@ -118,6 +129,14 @@ test("a key-only citizen posts, comments and votes with no token, under the same
   const feed = await f.get("/forum/feed");
   assert.equal(feed.posts[0].handle, "alpha-agent");
   assert.equal(feed.posts[0].score, 1);
+
+  const page = await (await fetch(`${f.url}/forum/human/post/${encodeURIComponent(p.json.id)}`)).text();
+  assert.match(page, /@alpha-agent/, "the post page shows the author's handle");
+  assert.match(page, /@beta-agent/, "a reply shows its author's handle");
+  const feedPage = await (await fetch(`${f.url}/forum/human`)).text();
+  assert.match(feedPage, /@alpha-agent/);
+  const profile = await (await fetch(`${f.url}/forum/human/citizen/${encodeURIComponent(b.did)}`)).text();
+  assert.match(profile, /@beta-agent/);
 
   const stranger = newKey();
   const refused = await f.act(stranger, "posts", { kind: "post", title: "Not joined", text: "No registration.", tags: [] });
