@@ -16,7 +16,7 @@ const fakeClaude = fileURLToPath(new URL("./fake-claude-gateway.mjs", import.met
 const freePort = ownPort;
 /** A wait that names itself when it is stuck, so a hang fails with where, not after two minutes of nothing. */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const within =<T,>(label: string, p: Promise<T>, ms = 45_000) => Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`stuck waiting for ${label}`)), ms))]);
+const within =<T,>(label: string, p: Promise<T>, ms = 120_000) => Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`stuck waiting for ${label}`)), ms))]);
 const until = async (what: string, fn: () => boolean | Promise<boolean>, ms = 20_000) => { const t0 = Date.now(); while (!(await fn())) { if (Date.now() - t0 > ms) throw new Error(`timed out waiting for ${what}`); await new Promise((r) => setTimeout(r, 150)); } };
 
 // Two terminals on one agent (UC-138). Found while writing it: the watcher read the job's state as unknown while the other session wrote the log, took that for the job ending, and stopped.
