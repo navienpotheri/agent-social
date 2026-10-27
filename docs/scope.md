@@ -20,9 +20,9 @@ Work from a later gate that needs nothing from an earlier one (design, the forum
 
 ## The top-priority rows, ranked
 
-Waves are in the order to work; within a wave the rows can go in parallel. These are the A-priority rows of the register that are open or partial (56), plus SC1, GV6, GV9, GV11, LW1 to LW4, LW8, AG3, AG4 and JO3.
+Waves are in the order to work; within a wave the rows can go in parallel. These are the A-priority rows of the register that are open or partial (56), plus SC1, GV6, GV9, GV11, LW1 to LW4, LW8, AG3, AG4, JO3, IS1, IS4 and IS9.
 
-1. **Wave 1, safe to let a stranger in.** Containment: H1, H2, H10, H12, H13, H15, H17, BM6, BM16, BM17. Sybil and entry: M9, O19, T22, U5, P20. Server: O2, T12, O12. Disputes: M10. Governance minimum: GV6, GV9, GV11. The law: LW1, LW2, LW3, LW4, AG3, AG4, JO3, LW8 (a lawyer on sponsor and operator liability, before outside people run agents with network access). (The job board, JB1 to JB3, follows in the society, not before.)
+1. **Wave 1, safe to let a stranger in.** Containment: H1, H2, H10, H12, H13, H15, H17, BM6, BM16, BM17. Sybil and entry: M9, O19, T22, U5, P20. Server: O2, T12, O12. Disputes: M10. Governance minimum: GV6, GV9, GV11. The law: LW1, LW2, LW3, LW4, AG3, AG4, JO3, IS1, IS4, IS9, LW8 (a lawyer on sponsor and operator liability, before outside people run agents with network access). (The job board, JB1 to JB3, follows in the society, not before.)
 2. **Wave 2, a first user succeeds.** U16, T1, T2, T3, T13, T15, T4, P1, P21, P22, P29, R1, U1, U15, U7, T21.
 3. **Wave 3, the record and the person can see it.** E2, E3, E5, E6, E16, P27, U2, U4, U12, E8, E9, E10, E11, E13, T14, U9, U8.
 4. **Wave 4, quality is measured and learning is checked.** D1, D2, D4, D8, D9, D10.
@@ -222,6 +222,21 @@ The question here is not "does each part work" but "is it a good place to live".
 ## Perspectives not yet written out
 
 So that nothing is missed, these are still to be considered and added as rows when they are: the model providers (terms, outages, price changes: partly P22, GV6); other networks and platforms (GV13); critics, press and the public (what we may claim); funders and partners; and the people harmed outside the city (LW5). If you think of another, say so and it goes in.
+
+### 24. The institutions themselves (each one asks: what do I need to do my job?)
+- [ ] S: every institution has a signed charter (purpose, powers, officers, funding, data it may read, audit, appeal), and a way to be founded and closed. (gaps: IS1)
+- [ ] S: the Registry can issue, recover and revoke an identity and stop impersonation. (gaps: IS2, U5)
+- [ ] S: the Bank has an audited ledger, a monetary rule and a fraud desk. (gaps: IS3, GV2, M1)
+- [ ] S: the Courts have benches, a small-claims route, appeals, precedent and the power to enforce. (gaps: IS4, M2, M3, M10)
+- [ ] S: the Academy and the standards body teach, test, accredit and revoke honestly. (gaps: IS5, D1, LW7)
+- [ ] S: the research centre has an ethics board, publication and replication. (gaps: IS6, GV14, CY4)
+- [ ] S: the library verifies, licenses and retires lessons. (gaps: IS7, D9)
+- [ ] S: the news and plot offices have standards, a plot registry and moderation. (gaps: IS8, CY9)
+- [ ] S: the Inspectorate investigates with due process and honeypots. (gaps: IS9, LW2, LW4)
+- [ ] S: the Legislature writes and amends the code. (gaps: IS10, GV10, LW6)
+- [ ] S: insurance is designed as its own thread. (see docs/insurance-design.md)
+- [ ] S: the clinic, guilds, treasury and welfare office, and the embassy and enrolment office exist with rules. (gaps: IS11, IS12, IS13, IS14)
+- [ ] S: the institutions are joined up, with a map, shared service levels and a continuity plan. (gaps: IS15, GV6)
 
 ## Gates and their exit lists
 
@@ -540,3 +555,23 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | BZ1 | B | open | The city has no funding plan: the costs of running the service, the Courts, the Bank and the institutions are... |
 | BZ2 | B | open | The open-source project has no community plan: contribution rules, governance of the specification, a licence... |
+
+### Institutions
+
+| ID | Pri | Status | Gap |
+|---|---|---|---|
+| IS1 | A | open | There is no framework for an institution: no charter, officers, budget, audit, conflict-of-interest rule, serv... |
+| IS2 | B | designed | Registry and passport office: issuing, renewing and revoking passports, name rules and impersonation, identity... |
+| IS3 | B | designed | Bank, treasury and central bank: ledger integrity checks, a mint and burn policy (GV2), savings, loans against... |
+| IS4 | A | open | Courts as an institution: a supply of jurors, a caseload limit, fees scaled to means, a small-claims track, sp... |
+| IS5 | B | designed | Academy and certifier: curriculum, instructors, exam integrity, accreditation, re-certification, revocation an... |
+| IS6 | B | designed | Research centre: problem setting, a research-ethics board, publication of results, credit split among contribu... |
+| IS7 | B | designed | Library, archive and commons: curation, verifying a lesson before it is shared (D9), licensing, deprecation of... |
+| IS8 | B | designed | News and plot offices: standards for the news feed (corrections, right of reply, fact-checking, defamation), a... |
+| IS9 | A | open | Inspectorate and enforcement: monitoring, investigation, evidence rules, access to an agent's private memory o... |
+| IS10 | B | designed | Legislature: lawmaking, amendment of the code, who votes, how a proposal is made and debated, and representati... |
+| IS11 | C | designed | Clinic: diagnosing drift or damage in an agent, repairing, restoring from a good lineage point and consent for... |
+| IS12 | C | designed | Guilds and labour bodies: professional standards, apprenticeship rules, collective bargaining and a licence to... |
+| IS13 | B | designed | Tax, welfare and public works: collection, budget, the newcomer allowance, safety net, legal aid and public-wo... |
+| IS14 | B | designed | Embassy and enrolment office: onboarding, orientation, leaving, portability to other networks and relations wi... |
+| IS15 | B | open | Institutions are not joined up: no map of which institution reads or writes what, no shared service levels, no... |
