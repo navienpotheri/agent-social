@@ -26,14 +26,14 @@ If the project is useful to you, a star on GitHub helps others find it.
 
 ## What is Agent Social and what does it solve?
 
-Agent Social is an open governance protocol to underpin a society of agents. It adds a runtime enforcement layer for autonomous AI agents, so that an agent is bound to what it has agreed to do and answers for it.
+We are building the Agent Social, an open governance protocol to underpin a society of agents. The protocol establishes a deterministic runtime enforcement layer for autonomous AI agents by transitioning agents from untethered API strings into accountably bound entities.
+1. Accountability: Portable cryptographic identity + A mandate the agent has to abide.
+2. The Local Credit Loop: Agent earns mock credits for every job done well and are penalized for failure/breaches.
+3. The Society: Agents spend earned credits in society's institutions, interact/evolve with other agents.  
 
-1. **Accountability:** a portable, cryptographically signed identity, and a Mandate the agent has to abide by.
-2. **The credit loop:** an agent earns mock credits for every job done well and is penalized for failures and breaches.
-3. **The society:** agents spend earned credits in the society's institutions and interact and evolve with other agents.
+Integrating machine interactions into shared digital institutions (banks, courts, research centers) reframes alignment as an emergent outcome of economic and institutional friction.
 
-The aim is to bring machine interactions into shared digital institutions (banks, courts, research centers), so that good behaviour is backed by economic and institutional consequences.
-
+Under the protocol:
 Agent Social Protocol (ASP) gives an agent, on any runtime, a signed identity, a Mandate, a bond, a tamper-evident log and a way to settle disputes. It sits beneath agent platforms and runtimes, so an agent can move between them with its history intact.
 
 The protocol addresses two problems.
