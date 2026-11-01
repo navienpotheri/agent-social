@@ -33,6 +33,8 @@ input[type=range]{flex:1;accent-color:var(--teal);min-width:80px}
 #result{position:fixed;inset:0;z-index:7;background:var(--bg);display:none;flex-direction:column;gap:12px;padding:max(16px,env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));overflow:auto}
 #result video{width:100%;max-height:60vh;background:#000;border-radius:12px}
 #result a.dl{display:block;text-align:center;text-decoration:none;font:600 16px/1 "IBM Plex Sans",system-ui,sans-serif;background:var(--teal);color:#04201c;border-radius:12px;padding:16px}
+@media (orientation:landscape){#prompt{height:52vh;min-height:0}#words{max-width:60ch}#ctl{padding-top:12px;gap:8px}#prep{gap:8px!important}}
+#shapeWarn{display:none;font:600 13px/1.4 "IBM Plex Sans",system-ui,sans-serif;color:#1a1200;background:var(--amber);border-radius:10px;padding:10px 12px}
 body.recording #prep{display:none}
 body:not(.recording) #live{display:none}
 </style>
@@ -43,10 +45,12 @@ body:not(.recording) #live{display:none}
   <div id="gap"></div>
   <div id="ctl">
     <div id="status">Tap the text to pause or resume.</div>
+    <div id="shapeWarn"></div>
     <div id="prep" style="display:flex;flex-direction:column;gap:12px">
       <div class="row">
         <select id="which" aria-label="Script"></select>
         <button id="edit">Edit</button>
+        <select id="shape" aria-label="Video shape"><option value="land">Landscape 16:9</option><option value="port">Portrait 9:16</option></select>
         <button id="camBtn">Turn on camera</button>
       </div>
       <div class="row">
@@ -126,12 +130,24 @@ document.body.classList.add("nocam");
 $("camBtn").onclick=function(){
   if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;$("cam").style.display="none";document.body.classList.add("nocam");$("recBtn").disabled=true;$("camBtn").textContent="Turn on camera";setStatus("Camera off. You can still rehearse.");return}
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||typeof MediaRecorder==="undefined"){setStatus("This page cannot reach the camera here. Rehearse here, or open it in a normal browser page to record.");return}
-  navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},audio:{echoCancellation:true,noiseSuppression:true}}).then(function(s){
+  var land=$("shape").value==="land";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:land?1920:1080},height:{ideal:land?1080:1920},aspectRatio:{ideal:land?16/9:9/16},frameRate:{ideal:30}},audio:{echoCancellation:true,noiseSuppression:true}}).then(function(s){
     stream=s;var v=$("cam");v.srcObject=s;v.style.display="block";v.play();
     document.body.classList.remove("nocam");$("recBtn").disabled=false;$("camBtn").textContent="Turn off camera";
-    setStatus("Camera on. Hold the phone in landscape or portrait, lens level with your eyes, then tap Record.");
+    setStatus(land?"Camera on. Turn the phone sideways, lens level with your eyes, then tap Record.":"Camera on. Hold the phone upright, lens level with your eyes, then tap Record.");
+    checkShape();
   }).catch(function(){setStatus("Camera or microphone was blocked. Allow both for this page, or just rehearse.")});
 };
+function checkShape(){
+  var v=$("cam"),w=$("shapeWarn");if(!stream||!v.videoWidth){w.style.display="none";return}
+  var isLand=v.videoWidth>=v.videoHeight,want=$("shape").value==="land";
+  if(isLand===want){w.style.display="none";return}
+  w.textContent=want?"The camera is still upright. Turn the phone sideways, or turn the camera off and on again, until this warning goes away.":"The camera is sideways. Hold the phone upright, or turn the camera off and on again, until this warning goes away.";
+  w.style.display="block";
+}
+$("cam").addEventListener("resize",checkShape);$("cam").addEventListener("loadedmetadata",checkShape);window.addEventListener("orientationchange",function(){setTimeout(checkShape,400)});
+$("shape").value=store.get("prompter-shape")||"land";
+$("shape").onchange=function(){store.set("prompter-shape",this.value);if(stream){$("camBtn").click();setStatus("Shape changed. Tap Turn on camera to apply it.")}else{checkShape()}};
 function pickMime(){var c=["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
   for(var i=0;i<c.length;i++){if(MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(c[i]))return c[i]}return""}
 function countdown(n,cb){var c=$("count");c.style.display="flex";(function step(k){if(k===0){c.style.display="none";cb();return}c.textContent=k;setTimeout(function(){step(k-1)},1000)})(n)}
@@ -156,6 +172,7 @@ function finish(){
   var d=new Date(),stamp=d.getFullYear()+("0"+(d.getMonth()+1)).slice(-2)+("0"+d.getDate()).slice(-2)+"-"+("0"+d.getHours()).slice(-2)+("0"+d.getMinutes()).slice(-2);
   $("playback").src=url;$("dl").href=url;$("dl").download="team-video-"+stamp+"."+ext;$("dl").textContent="Save video ("+Math.round(blob.size/1048576)+" MB, "+ext.toUpperCase()+")";
   $("fmt").textContent=ext==="mp4"?"MP4, ready for the form. Watch it once before you upload: check sound, framing and that you look at the lens.":"This browser saved WebM instead of MP4. The form wants MP4, so convert it first (send it to me and I will convert it).";
+  $("playback").onloadedmetadata=function(){var p=$("playback");$("fmt").textContent+=" Recorded at "+p.videoWidth+"x"+p.videoHeight+(p.videoWidth>=p.videoHeight?" (landscape).":" (portrait).")};
   $("result").style.display="flex";
 }
 $("again").onclick=function(){$("playback").removeAttribute("src");$("result").style.display="none";setStatus("Tap Record for another take.")};
