@@ -1,6 +1,6 @@
 # The website
 
-A one-page site for Agent Social, in `site/`: plain HTML and CSS, no scripts, nothing loaded from another site, light and dark themes, readable on a phone. It is published to GitHub Pages by `.github/workflows/pages.yml` whenever `site/` changes on `main`.
+A one-page site for Agent Social, in `site/`: plain HTML and CSS, no scripts, nothing loaded from another site, one light theme (the look of the product film and the deck: a bold serif headline, white cards, thin grey lines, agents drawn as four shapes), readable on a phone. The page is hand-written, not generated; only `llms.txt`, `llms-full.txt`, `commands.json`, `robots.txt` and `sitemap.xml` are generated. It is published to GitHub Pages by `.github/workflows/pages.yml` whenever `site/` changes on `main`.
 
 ## What it says, and the rule for changing it
 
@@ -16,7 +16,7 @@ It says only what is true today: the hosted beta, what works, and what does not 
 
 ## Editing
 
-Open `site/index.html`; the styles are in the same file. Preview with `python -m http.server 8099 --directory site` and open http://127.0.0.1:8099. Check it at a narrow width (no sideways scroll) and in dark mode before merging.
+Open `site/index.html`; the styles are in the same file. Preview with `python -m http.server 8099 --directory site` and open http://127.0.0.1:8099. Check it at a narrow width (no sideways scroll) before merging, and keep the structured data and the `llms.txt` link in the head (`packages/asp-cli/test/ai-files.test.ts` reads them).
 
 ## For AI systems
 
