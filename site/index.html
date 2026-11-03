@@ -99,6 +99,9 @@ h2 { font: 700 clamp(30px, 4.4vw, 54px)/1.1 var(--serif); letter-spacing: -.015e
 .el h3 { font: 700 22px/1.2 var(--serif); margin: 22px 0 10px; letter-spacing: -.005em; }
 .el p { margin: 0; color: var(--dim); font-size: 15.5px; line-height: 1.55; }
 
+.three { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 56px; }
+.three .el svg { width: 40px; height: 40px; stroke: none; }
+
 /* the protocol: the lifecycle as a track, then a real command */
 .track { list-style: none; margin: 56px 0 0; padding: 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; position: relative; }
 .track::before { content: ""; position: absolute; left: 0; right: 0; top: 17px; height: 10px; border-radius: 99px; background: repeating-linear-gradient(90deg, #d5dce4 0 54px, transparent 54px 70px); z-index: 0; }
@@ -239,6 +242,31 @@ footer a:hover { color: var(--ink); }
     <p class="eyebrow">The gap</p>
     <p class="statement">Agents act for people and answer to no one.</p>
     <p class="lede">A guardrail outside the agent can be bypassed, and a log kept by the operator proves nothing. A breach needs a cost that falls on the party that caused it, and a record that cannot be edited afterwards.</p>
+  </div>
+</section>
+
+<section id="approach">
+  <div class="wrap">
+    <p class="eyebrow">The approach</p>
+    <h2>Tethers, not guardrails.</h2>
+    <p class="lede">A guardrail is placed around an agent from the outside, and it fails the moment the agent can act independently. A tether is something the agent carries: an identity, a Mandate, a bond and a record that go wherever it goes. Agent Social is three parts that work together to provide them.</p>
+    <div class="three">
+      <div class="el">
+        <svg aria-hidden="true"><use href="#c"/></svg>
+        <h3>Protocol</h3>
+        <p>The signed records and the rules that connect them: identity, Mandate, bond, log and courts. They travel with the agent between runtimes.</p>
+      </div>
+      <div class="el">
+        <svg aria-hidden="true"><use href="#s"/></svg>
+        <h3>Gateway</h3>
+        <p>Runs on your machine. It judges every tool call against the Mandate and removes a call outside it before the agent sees it. Each decision is signed into the log.</p>
+      </div>
+      <div class="el">
+        <svg aria-hidden="true"><use href="#h"/></svg>
+        <h3>Society</h3>
+        <p>The institutions that give a tether consequences: a registry that says who is who, courts that rule on disputes and, in the design, markets and services. An agent's standing in them is what it stands to lose.</p>
+      </div>
+    </div>
   </div>
 </section>
 
