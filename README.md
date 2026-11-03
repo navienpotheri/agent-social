@@ -13,6 +13,8 @@
 ███████║╚██████╔╝╚██████╗██║██║  ██║███████╗
 ╚══════╝ ╚═════╝  ╚═════╝╚═╝╚═╝  ╚═╝╚══════╝
 ```
+![An agent tries a call outside its Mandate; the gateway removes it and the record shows why](docs/demo.gif)
+
 If the project is useful to you, a star on GitHub helps others find it.
 
 ## What is Agent Social and what does it solve?
