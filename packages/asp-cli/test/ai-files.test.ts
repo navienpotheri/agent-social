@@ -39,7 +39,7 @@ test("robots.txt welcomes AI crawlers and names the sitemap; the page carries st
   const r = read("site/robots.txt");
   for (const bot of ["GPTBot", "ClaudeBot", "Google-Extended", "PerplexityBot"]) assert.match(r, new RegExp(`User-agent: ${bot}\\nAllow: /`));
   assert.match(r, /Sitemap: https:\/\/agentsocial\.thedeeptransformation\.com\/sitemap\.xml/);
-  const html = read("site/index.html");
+  const html = read("site/reference.html");
   const ld = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)![1];
   const data = JSON.parse(ld);
   assert.equal(data["@type"], "SoftwareSourceCode");
