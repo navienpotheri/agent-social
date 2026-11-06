@@ -32,7 +32,7 @@ test("two sessions of one agent at once share the standing job: approvals are as
   const tokens = join(dir, "tokens.json");
   writeFileSync(tokens, JSON.stringify([{ name: "intr", role: "tenant", tokenSha256: hashToken("tok-i") }]));
   const port = await freePort();
-  const server = spawn(process.execPath, [cli, "serve", "--db", `local:${join(dir, "log")}`, "--tokens", tokens, "--port", String(port), "--did-domain", `127.0.0.1:${port}`], { stdio: ["ignore", "pipe", "pipe"] });
+  const server = spawn(process.execPath, [cli, "serve", "--db", `local:${join(dir, "log")}`, "--tokens", tokens, "--port", String(port), "--did-domain", `127.0.0.1:${port}`, "--rate-limit", "0", "--write-limit", "0", "--address-limit", "0"], { stdio: ["ignore", "pipe", "pipe"] });
   try {
     await new Promise<void>((resolve, reject) => {
       let buf = "";
@@ -46,9 +46,10 @@ test("two sessions of one agent at once share the standing job: approvals are as
     const me = `did:web:127.0.0.1%3A${port}:u:intr`, agent = `did:web:127.0.0.1%3A${port}:a:intr:my-agent`, bank = `did:web:127.0.0.1%3A${port}:u:intr:bank`;
     writeFileSync(join(f.aspHome, "config.json"), JSON.stringify({ service: `http://127.0.0.1:${port}`, token: "tok-i", tenant: "intr", joinedAt: "2026-10-11T00:00:00Z", identities: { me, agent, bank } }));
     const env = { ASP_HOME: f.aspHome, ASP_CLAUDE_BIN: process.execPath, ASP_CLAUDE_SCRIPT: fakeClaude, ASP_RUN_ANTHROPIC_UPSTREAM: upUrl, ASP_APPROVAL_POLL_MS: "150", ASP_GATEWAY_POLL_MS: "300", ASP_GATEWAY_KILL_GRACE_MS: "0" };
+    const live: string[] = [];
     const call = async (args: string[]) => {
       const out: string[] = [], err: string[] = [];
-      const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env, cwd: f.root, raw: (b) => out.push(b.toString("utf8").trimEnd()) } as Io);
+      const code = await main(args, { out: (l) => out.push(l), err: (l) => { err.push(l); if (args[0] === "run") live.push(`${new Date().toISOString().slice(11, 23)} [${args[3]}] ${l}`); }, env, cwd: f.root, raw: (b) => out.push(b.toString("utf8").trimEnd()) } as Io);
       return { code, out: out.join("\n"), err: err.join("\n") };
     };
     // Answering can fail for a moment on a busy machine (the service is slow to answer); a person just tries again, so the test does too, and shows the real error if it keeps failing.
@@ -80,8 +81,11 @@ test("two sessions of one agent at once share the standing job: approvals are as
     const cId = (await call(["runs"])).out.split("\n").find((l) => /Session C/.test(l))!.trim().split(/\s+/)[0];
     assert.equal((await call(["stop", cId])).code, 0);
     assert.match((await within("session C to stop", C)).out, /stopped by you/);
+    // C's own request may still be listed for a moment after it stopped, so a person answers whatever is waiting until D is through, not just once.
+    let dDone = false; D.finally(() => { dDone = true; });
     await until("D's approval", async () => /npm run build/.test((await call(["approvals"])).out));
     await approve();
+    for (let i = 0; i < 6 && !dDone; i++) { await Promise.race([D, sleep(4000)]); if (!dDone && /npm run build/.test((await call(["approvals"])).out)) await approve(); }
     const dd = await within("session D to finish", D).catch(async (e) => { const contract = Object.values(JSON.parse(readFileSync(join(f.aspHome, "standing.json"), "utf8")) as Record<string, { contract: string }>)[0].contract; console.error("DIAG approvals:", (await call(["approvals"])).out, "\nDIAG runs:", (await call(["runs"])).out, "\nDIAG job:", (await call(["market", "show", contract])).out.slice(0, 1500), "\nDIAG D stderr is not available until it ends"); throw e; });
     assert.equal(dd.code, 0, dd.err + dd.out);
     assert.match(dd.out, /finished/);
