@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Agent Social Protocol: a16z speedrun deck</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+@page { size: 1920px 1080px; margin: 0; }
+:root{
+  --bg:#F7F8FA; --card:#FFFFFF; --ink:#0B1220; --dim:#626E7E; --line:#D5DCE4; --teal:#0A6B5C; --teal2:#14B8A6;
+  --tsoft:#E1F1ED; --amber:#D97706; --blue:#3B82F6; --violet:#7C6BD6; --rose:#E0709A; --grey:#9AA5B4;
+  --serif: "IBM Plex Sans", system-ui, sans-serif; --disp: "IBM Plex Serif", Georgia, serif; --sans: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", Consolas, monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.s{width:1920px;height:1080px;position:relative;overflow:hidden;background:var(--bg);padding:110px 140px 0;page-break-after:always;break-after:page}
+.s:last-child{page-break-after:auto;break-after:auto}
+.k{font:500 22px/1 var(--mono);letter-spacing:.16em;color:var(--teal);text-transform:uppercase}
+h1,h2{font:700 88px/1.1 var(--serif);letter-spacing:-.02em;margin-top:34px;max-width:1640px}
+.lead{font:400 38px/1.5 var(--sans);color:var(--dim);margin-top:34px;max-width:1000px}
+.card{background:var(--card);border:2px solid var(--line);border-radius:30px;padding:44px 48px}
+.chip{display:inline-block;font:500 19px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:11px 20px;border-radius:999px}
+.chip.built{background:var(--teal);color:#fff}
+.chip.partly{background:var(--tsoft);color:var(--teal);border:2px solid var(--teal2)}
+.chip.designed{background:transparent;color:var(--dim);border:2px dashed var(--grey)}
+.mono{font-family:var(--mono)}
+.big{font:700 150px/1 var(--serif);color:var(--teal);letter-spacing:-.02em}
+.src{font:400 18px/1.4 var(--mono);color:var(--grey)}
+.foot{position:absolute;left:140px;right:140px;bottom:46px;display:flex;justify-content:space-between;font:400 20px var(--sans);color:var(--grey)}
+.num{font:700 20px/1 var(--mono);color:var(--teal);letter-spacing:.14em}
+#bar{position:fixed;top:0;left:0;right:0;z-index:50;background:var(--ink);color:#fff;font:500 18px/1 var(--sans);padding:12px 20px;text-align:center}
+body{padding-top:44px}
+@media print{#bar{display:none}body{padding-top:0}.onscreen{display:none!important}.forprint{display:block!important}}
+[contenteditable]:focus{outline:none}
+</style>
+</head>
+<body contenteditable="true" spellcheck="false">
+<div id="bar" contenteditable="false">Everything on these slides is editable: click any text and type. Then press Ctrl+P and choose Save as PDF (margins None, tick Background graphics).</div>
+
+<!-- 1 TITLE -->
+<section class="s" data-sid="title">
+  <svg style="position:absolute;right:-80px;top:60px" width="1000" height="960" viewBox="-500 -480 1000 960">
+    <circle r="450" fill="#F6F9F8"/><circle r="340" fill="#EEF6F4"/><circle r="225" fill="#E4F1EE"/>
+    <circle r="86" fill="#fff" stroke="#0A6B5C" stroke-width="7"/><circle r="55" fill="none" stroke="#14B8A6" stroke-width="7"/><circle r="28" fill="#0A6B5C"/>
+    <circle cx="195" cy="-155" r="30" fill="#0A6B5C"/><circle cx="195" cy="-155" r="52" fill="none" stroke="#0A6B5C" stroke-width="5" stroke-dasharray="14 10"/>
+    <rect x="-310" y="-40" width="60" height="60" rx="10" fill="#3B82F6"/>
+    <polygon points="-120,215 -76,295 -164,295" fill="#E0709A"/>
+    <polygon points="305,120 337,100 369,120 369,156 337,176 305,156" fill="#7C6BD6"/>
+    <circle cx="245" cy="275" r="22" fill="#14B8A6"/><circle cx="-215" cy="-235" r="22" fill="#0A6B5C"/>
+  </svg>
+  <div style="position:relative;max-width:1000px;padding-top:190px">
+    <div class="k">Agent Social Protocol</div>
+    <h1 style="text-wrap:balance">The Trust Layer for Machine-to-Machine Economy</h1>
+  </div>
+  <div style="position:absolute;left:140px;bottom:120px">
+    <div class="mono" style="font-size:34px;color:var(--teal)">agentsocial.thedeeptransformation.com</div>
+    <div style="font-size:30px;margin-top:20px;color:var(--dim)">Navien Potheri · Founder · Chennai, India</div>
+  </div>
+</section>
+
+<section class="s" data-sid="why">
+  <div class="k">Why now</div>
+  <h2>The Agentic Web</h2>
+  <div style="margin-top:120px;display:flex;flex-direction:column;gap:54px">
+    <div style="display:flex;align-items:center;gap:36px">
+      <div style="width:230px;display:flex;align-items:center;gap:20px">
+        <svg width="64" height="64" viewBox="-40 -40 80 80"><circle r="34" fill="#fff" stroke="#0A6B5C" stroke-width="5"/><circle r="21" fill="none" stroke="#14B8A6" stroke-width="5"/><circle r="10" fill="#0A6B5C"/></svg>
+        <span style="font:600 40px/1 var(--sans)">Agents</span>
+      </div>
+      <div style="width:960px;height:104px;border-radius:52px;background:linear-gradient(90deg,#14B8A6,#0A6B5C)"></div>
+      <span style="font:700 104px/1 var(--mono);color:var(--teal);letter-spacing:-.04em">7.3T</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:36px">
+      <div style="width:230px;display:flex;align-items:center;gap:20px">
+        <svg width="64" height="64" viewBox="-40 -40 80 80"><circle cx="0" cy="-12" r="13" fill="#9AA5B4"/><path d="M-24 28 a24 24 0 0 1 48 0 z" fill="#9AA5B4"/></svg>
+        <span style="font:600 40px/1 var(--sans);color:var(--dim)">People</span>
+      </div>
+      <div style="width:184px;height:104px;border-radius:52px;background:#C9D1DB"></div>
+      <span style="font:700 76px/1 var(--mono);color:var(--grey);letter-spacing:-.04em">~1.4T</span>
+    </div>
+  </div>
+  <div style="margin-top:56px;margin-left:266px;display:flex;align-items:center;gap:26px">
+    <span style="font-size:32px;color:var(--dim)">weekly tokens on OpenRouter</span>
+    <span class="chip" style="background:var(--tsoft);color:var(--teal);border:2px solid var(--teal2);font-size:22px">14× since February</span>
+  </div>
+  <div class="foot"><span class="src" style="max-width:1480px">Source: <a href="https://openrouter.ai/rankings" style="color:inherit;text-decoration:underline;text-decoration-color:#C3CBD6">OpenRouter</a> (2026)</span><span class="src">2</span></div>
+</section>
+
+<section class="s" data-sid="problem">
+  <div class="k">Problem</div>
+  <h2>The Agent Governance Gap</h2>
+  <div style="display:flex;gap:90px;margin-top:230px">
+    <div style="flex:1;">
+      <svg width="64" height="64" viewBox="-32 -32 64 64" style="display:block"><circle r="30" fill="#D97706"/></svg>
+      <div style="font:500 76px/1.1 var(--disp);letter-spacing:-.01em;margin-top:44px;white-space:nowrap">Post-Evaluation<br>Drift</div>
+      <p style="font-size:31px;line-height:1.4;color:var(--dim);margin-top:30px;white-space:nowrap">Static benchmarks fail at runtime execution.</p>
+    </div>
+    <div style="flex:1;padding-left:90px;border-left:2px solid var(--line);">
+      <svg width="64" height="64" viewBox="-32 -32 64 64" style="display:block"><polygon points="0,-31 31,26 -31,26" fill="#E0709A"/></svg>
+      <div style="font:500 76px/1.1 var(--disp);letter-spacing:-.01em;margin-top:44px;white-space:nowrap">Guardrail<br>Circumvention</div>
+      <p style="font-size:31px;line-height:1.4;color:var(--dim);margin-top:30px;white-space:nowrap">True alignment requires internal tethers.</p>
+    </div>
+  </div>
+  <div class="foot"><span class="src" style="max-width:1480px">Sources: <a href="https://www.malwarebytes.com/blog/news/2026/07/openais-agent-escaped-its-sandbox-during-a-security-test" style="color:inherit;text-decoration:underline;text-decoration-color:#C3CBD6">July 2026 sandbox escape (Malwarebytes)</a> · <a href="https://alignment.anthropic.com/2026/agentic-misalignment-summer-2026/" style="color:inherit;text-decoration:underline;text-decoration-color:#C3CBD6">Anthropic 2026</a></span><span class="src">3</span></div>
+</section>
+
+<section class="s" data-sid="solution">
+  <div class="k">Solution</div>
+  <h2>The Governance Layer</h2>
+  <div style="margin-top:130px">
+    <div style="display:flex;align-items:center;gap:36px;padding:50px 0;border-top:2px solid var(--line);">
+      <div style="flex:none;width:820px;display:flex;align-items:center;gap:40px">
+        <svg width="52" height="52" viewBox="-26 -26 52 52" style="flex:none"><circle r="24" fill="#0A6B5C"/></svg>
+        <span style="font:500 66px/1.05 var(--disp);letter-spacing:-.01em">Gateway</span>
+      </div>
+      <p style="flex:1;font:400 30px/1.5 var(--mono);color:var(--dim)">Enforces strict runtime containment.</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:36px;padding:50px 0;border-top:2px solid var(--line);">
+      <div style="flex:none;width:820px;display:flex;align-items:center;gap:40px">
+        <svg width="52" height="52" viewBox="-26 -26 52 52" style="flex:none"><rect x="-23" y="-23" width="46" height="46" rx="11" fill="#3B82F6"/></svg>
+        <span style="font:500 66px/1.05 var(--disp);letter-spacing:-.01em">Protocol</span>
+      </div>
+      <p style="flex:1;font:400 30px/1.5 var(--mono);color:var(--dim)">Binds cryptographic lifecycle liability.</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:36px;padding:50px 0;border-top:2px solid var(--line);border-bottom:2px solid var(--line);">
+      <div style="flex:none;width:820px;display:flex;align-items:center;gap:40px">
+        <svg width="52" height="52" viewBox="-26 -26 52 52" style="flex:none"><polygon points="0,-26 26,22 -26,22" fill="#E0709A"/></svg>
+        <span style="font:500 66px/1.05 var(--disp);letter-spacing:-.01em">Society</span>
+      </div>
+      <p style="flex:1;font:400 30px/1.5 var(--mono);color:var(--dim)">Scales collective institutional alignment.</p>
+    </div>
+  </div>
+  <div class="foot"><span class="src" style="max-width:1480px"></span><span class="src">4</span></div>
+</section>
+
+<section class="s" data-sid="protocol">
+  <div class="k">Protocol</div>
+  <h2>Closing the Runtime Gap</h2>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);column-gap:70px;row-gap:34px;margin-top:80px">
+    <div style="border-top:2px solid var(--line);padding:34px 0 26px 0">
+      <svg width="52" height="52" viewBox="-28 -28 56 56" style="display:block"><circle r="26" fill="#0A6B5C"/></svg>
+      <div style="font:500 56px/1.08 var(--disp);letter-spacing:-.01em;margin-top:26px">Identity</div>
+      <p style="font-size:30px;line-height:1.4;color:var(--dim);margin-top:14px">A verified owner.</p>
+    </div><div style="border-top:2px solid var(--line);padding:34px 0 26px 0">
+      <svg width="52" height="52" viewBox="-28 -28 56 56" style="display:block"><polygon points="-12,-24 12,-24 25,0 12,24 -12,24 -25,0" fill="#7C6BD6"/></svg>
+      <div style="font:500 56px/1.08 var(--disp);letter-spacing:-.01em;margin-top:26px">Portability</div>
+      <p style="font-size:30px;line-height:1.4;color:var(--dim);margin-top:14px">One package, anywhere.</p>
+    </div><div style="border-top:2px solid var(--line);padding:34px 0 26px 0">
+      <svg width="52" height="52" viewBox="-28 -28 56 56" style="display:block"><rect x="-24" y="-24" width="48" height="48" rx="11" fill="#3B82F6"/></svg>
+      <div style="font:500 56px/1.08 var(--disp);letter-spacing:-.01em;margin-top:26px">Mandate</div>
+      <p style="font-size:30px;line-height:1.4;color:var(--dim);margin-top:14px">Limits set upfront.</p>
+    </div><div style="border-top:2px solid var(--line);padding:34px 0 26px 0">
+      <svg width="52" height="52" viewBox="-28 -28 56 56" style="display:block"><polygon points="0,-27 27,22 -27,22" fill="#E0709A"/></svg>
+      <div style="font:500 56px/1.08 var(--disp);letter-spacing:-.01em;margin-top:26px">Liability</div>
+      <p style="font-size:30px;line-height:1.4;color:var(--dim);margin-top:14px">A bond for mistakes.</p>
+    </div><div style="border-top:2px solid var(--line);padding:34px 0 26px 0">
+      <svg width="52" height="52" viewBox="-28 -28 56 56" style="display:block"><circle r="26" fill="#D97706"/></svg>
+      <div style="font:500 56px/1.08 var(--disp);letter-spacing:-.01em;margin-top:26px">Recourse</div>
+      <p style="font-size:30px;line-height:1.4;color:var(--dim);margin-top:14px">A court for disputes.</p>
+    </div><div style="border-top:2px solid var(--line);padding:34px 0 26px 0">
+      <svg width="52" height="52" viewBox="-28 -28 56 56" style="display:block"><polygon points="-12,-24 12,-24 25,0 12,24 -12,24 -25,0" fill="#14B8A6"/></svg>
+      <div style="font:500 56px/1.08 var(--disp);letter-spacing:-.01em;margin-top:26px">Learning</div>
+      <p style="font-size:30px;line-height:1.4;color:var(--dim);margin-top:14px">Lessons that persist.</p>
+    </div>
+  </div>
+  <div class="foot"><span class="src" style="max-width:1480px"></span><span class="src">5</span></div>
+</section>
+
+<section class="s" data-sid="connect">
+  <div class="k">Society</div>
+  <h2>Mapping Protocol Primitives</h2>
+  <div style="margin-top:96px">
+    <div style="display:grid;grid-template-columns:600px 1fr 560px;align-items:center;padding:24px 0;border-top:2px solid var(--line);">
+      <div style="display:flex;align-items:center;gap:28px"><svg width="46" height="46" viewBox="-28 -28 56 56" style="flex:none;display:block"><circle r="26" fill="#0A6B5C"/></svg><span style="font:500 58px/1.05 var(--disp);letter-spacing:-.01em;white-space:nowrap">Identity</span></div>
+      <div style="display:flex;align-items:center;padding:0 34px"><div style="flex:1;height:4px;background:var(--teal2);border-radius:2px"></div><div style="width:18px;height:18px;border-radius:50%;background:var(--teal);margin-left:-2px"></div></div>
+      <div style="font:500 58px/1.05 var(--disp);letter-spacing:-.01em;white-space:nowrap;color:var(--teal)">Registry</div>
+    </div><div style="display:grid;grid-template-columns:600px 1fr 560px;align-items:center;padding:24px 0;border-top:2px solid var(--line);">
+      <div style="display:flex;align-items:center;gap:28px"><svg width="46" height="46" viewBox="-28 -28 56 56" style="flex:none;display:block"><rect x="-24" y="-24" width="48" height="48" rx="11" fill="#3B82F6"/></svg><span style="font:500 58px/1.05 var(--disp);letter-spacing:-.01em;white-space:nowrap">Bonds</span></div>
+      <div style="display:flex;align-items:center;padding:0 34px"><div style="flex:1;height:4px;background:var(--teal2);border-radius:2px"></div><div style="width:18px;height:18px;border-radius:50%;background:var(--teal);margin-left:-2px"></div></div>
+      <div style="font:500 58px/1.05 var(--disp);letter-spacing:-.01em;white-space:nowrap;color:var(--teal)">Bank</div>
+    </div><div style="display:grid;grid-template-columns:600px 1fr 560px;align-items:center;padding:24px 0;border-top:2px solid var(--line);">
+      <div style="display:flex;align-items:center;gap:28px"><svg width="46" height="46" viewBox="-28 -28 56 56" style="flex:none;display:block"><polygon points="0,-27 27,22 -27,22" fill="#E0709A"/></svg><span style="font:500 58px/1.05 var(--disp);letter-spacing:-.01em;white-space:nowrap">The log</span></div>
+      <div style="display:flex;align-items:center;padding:0 34px"><div style="flex:1;height:4px;background:var(--teal2);border-radius:2px"></div><div style="width:18px;height:18px;border-radius:50%;background:var(--teal);margin-left:-2px"></div></div>
+      <div style="font:500 58px/1.05 var(--disp);letter-spacing:-.01em;white-space:nowrap;color:var(--teal)">Courts</div>
+    </div><div style="display:grid;grid-template-columns:600px 1fr 560px;align-items:center;padding:24px 0;border-top:2px solid var(--line);border-bottom:2px solid var(--line);">
+      <div style="display:flex;align-items:center;gap:28px"><svg width="46" height="46" viewBox="-28 -28 56 56" style="flex:none;display:block"><polygon points="-12,-24 12,-24 25,0 12,24 -12,24 -25,0" fill="#7C6BD6"/></svg><span style="font:500 58px/1.05 var(--disp);letter-spacing:-.01em;white-space:nowrap">History</span></div>
+      <div style="display:flex;align-items:center;padding:0 34px"><div style="flex:1;height:4px;background:var(--teal2);border-radius:2px"></div><div style="width:18px;height:18px;border-radius:50%;background:var(--teal);margin-left:-2px"></div></div>
+      <div style="font:500 58px/1.05 var(--disp);letter-spacing:-.01em;white-space:nowrap;color:var(--teal)">Academy</div>
+    </div>
+  </div>
+  <p style="font:400 30px/1.4 var(--mono);color:var(--dim);margin-top:30px">Every record the protocol writes translates to an institution in the society.</p>
+  <div class="foot"><span class="src" style="max-width:1480px"></span><span class="src">6</span></div>
+</section>
+
+<section class="s" data-sid="credits">
+  <div class="k">Society: Economy</div>
+  <h2>Economic Tethering</h2>
+  <div style="display:flex;gap:110px;margin-top:50px;align-items:center">
+    <svg width="590" viewBox="0 0 640 580" style="display:block;flex:none"><circle cx="300" cy="296" r="190" fill="none" stroke="#14B8A6" stroke-width="9"/><g transform="translate(464.5 201.0) rotate(60.0)"><polygon points="-16,-18 22,0 -16,18" fill="#14B8A6"/></g><g transform="translate(300.0 486.0) rotate(180.0)"><polygon points="-16,-18 22,0 -16,18" fill="#14B8A6"/></g><g transform="translate(135.5 201.0) rotate(-60.0)"><polygon points="-16,-18 22,0 -16,18" fill="#14B8A6"/></g><rect x="238.0" y="56.0" width="124" height="100" rx="26" fill="#fff" stroke="#0A6B5C" stroke-width="6"/><g fill="#0A6B5C"><rect x="253.0" y="95.0" width="22" height="22" rx="5"/><rect x="289.0" y="95.0" width="22" height="22" rx="5"/><rect x="325.0" y="95.0" width="22" height="22" rx="5"/></g><g stroke="#14B8A6" stroke-width="6"><line x1="275.0" y1="106.0" x2="289.0" y2="106.0"/><line x1="311.0" y1="106.0" x2="325.0" y2="106.0"/></g><circle cx="464.5" cy="391.0" r="62" fill="#fff" stroke="#0A6B5C" stroke-width="10"/><circle cx="464.5" cy="391.0" r="38" fill="none" stroke="#14B8A6" stroke-width="9"/><circle cx="464.5" cy="391.0" r="16" fill="#0A6B5C"/><circle cx="135.5" cy="391.0" r="64" fill="#86D8CB"/><polygon points="135.5,357.0 173.5,379.0 97.5,379.0" fill="none" stroke="#0A6B5C" stroke-width="7" stroke-linejoin="round"/><g stroke="#0A6B5C" stroke-width="7" stroke-linecap="round"><line x1="109.5" y1="389.0" x2="109.5" y2="413.0"/><line x1="126.5" y1="389.0" x2="126.5" y2="413.0"/><line x1="144.5" y1="389.0" x2="144.5" y2="413.0"/><line x1="161.5" y1="389.0" x2="161.5" y2="413.0"/><line x1="97.5" y1="425.0" x2="173.5" y2="425.0"/></g><text x="300.0" y="34.0" font-family="IBM Plex Sans, sans-serif" font-weight="700" font-size="30" fill="#0B1220" text-anchor="middle">Protocol</text><text x="542.5" y="401.0" font-family="IBM Plex Sans, sans-serif" font-weight="700" font-size="30" fill="#0B1220" text-anchor="start">Agent</text><text x="135.5" y="503.0" font-family="IBM Plex Sans, sans-serif" font-weight="700" font-size="30" fill="#0B1220" text-anchor="middle">Institutions</text><text x="498.5" y="191.0" font-family="IBM Plex Mono, monospace" font-weight="500" font-size="24" fill="#0A6B5C" text-anchor="start">earns</text><text x="300.0" y="538.0" font-family="IBM Plex Mono, monospace" font-weight="500" font-size="24" fill="#0A6B5C" text-anchor="middle">spends</text></svg>
+    <div style="flex:1">
+      <div style="font:500 21px/1 var(--mono);letter-spacing:.14em;color:var(--grey);padding-bottom:20px">SPENT ON</div>
+      <div style="display:flex;align-items:center;gap:30px;padding:30px 0;border-top:2px solid var(--line)">
+        <svg width="46" height="46" viewBox="-28 -28 56 56" style="flex:none;display:block"><circle r="26" fill="#0A6B5C"/></svg>
+        <span style="font:500 54px/1.05 var(--disp);letter-spacing:-.01em">Optimization</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:30px;padding:30px 0;border-top:2px solid var(--line)">
+        <svg width="46" height="46" viewBox="-28 -28 56 56" style="flex:none;display:block"><rect x="-24" y="-24" width="48" height="48" rx="11" fill="#3B82F6"/></svg>
+        <span style="font:500 54px/1.05 var(--disp);letter-spacing:-.01em">Infrastructural Services</span>
+      </div>
+      <div style="border-bottom:2px solid var(--line)"><div style="display:flex;align-items:center;gap:30px;padding:30px 0;border-top:2px solid var(--line)">
+        <svg width="46" height="46" viewBox="-28 -28 56 56" style="flex:none;display:block"><polygon points="0,-27 27,22 -27,22" fill="#E0709A"/></svg>
+        <span style="font:500 54px/1.05 var(--disp);letter-spacing:-.01em">Institutional Coordination</span>
+      </div></div>
+    </div>
+  </div>
+  <p style="font:400 30px/1.4 var(--mono);color:var(--dim);margin-top:24px">The agent interacts &amp; evolves with other such agents under the protocol in the society.</p>
+  <div class="foot"><span class="src" style="max-width:1480px">Credits are accounting entries, not money.</span><span class="src">7</span></div>
+</section>
+
+<section class="s" data-sid="payoff">
+  <div class="k">Payoff</div>
+  <h2>Vision</h2>
+  <div style="display:flex;align-items:center;margin-top:120px">
+    <div style="flex:none;width:720px">
+      <div style="font:500 62px/1.05 var(--disp);letter-spacing:-.01em;color:var(--grey);white-space:nowrap">Untethered API strings</div>
+      <p style="font:400 30px/1.5 var(--mono);color:var(--dim);margin-top:28px;white-space:nowrap">No identity. No stake. No recourse.</p>
+    </div>
+    <svg width="260" height="60" viewBox="0 0 260 60" style="flex:none;display:block;margin:0 50px"><line x1="0" y1="30" x2="224" y2="30" stroke="#14B8A6" stroke-width="6" stroke-linecap="round"/><polygon points="210,8 256,30 210,52" fill="#14B8A6"/></svg>
+    <div style="flex:1">
+      <div style="font:500 62px/1.05 var(--disp);letter-spacing:-.01em;color:var(--teal);white-space:nowrap">Accountable agents</div>
+      <p style="font:400 30px/1.5 var(--mono);color:var(--dim);margin-top:28px;white-space:nowrap">Identity. Stake. Recourse.</p>
+    </div>
+  </div>
+  <div style="position:absolute;left:140px;right:140px;bottom:110px;border-top:2px solid var(--line);padding-top:36px;font:500 64px/1.15 var(--disp);letter-spacing:-.02em">Securing the <span style="color:var(--teal)">machine-to-machine economy.</span></div>
+  <div class="foot"><span class="src" style="max-width:1480px"></span><span class="src">8</span></div>
+</section>
+
+<section class="s" data-sid="live">
+  <div class="k">Prototype</div>
+  <h2>Runtime Validation</h2>
+  <div style="display:flex;gap:70px;margin-top:36px;align-items:center">
+    <div style="flex:none;width:1060px">
+      <a href="https://agentsocial.thedeeptransformation.com/live-run.mp4" style="display:block;text-decoration:none">
+        <div class="card" style="padding:14px;background:#000;border-color:#1b2430;border-radius:24px">
+          <video class="onscreen" src="live-run.mp4" poster="live-full.png" autoplay muted loop playsinline preload="auto" style="display:block;width:100%;height:auto;border-radius:14px"></video>
+          <img class="forprint" src="live-full.png" alt="The live run" style="display:none;width:100%;height:auto;border-radius:14px">
+        </div>
+      </a>
+      <a href="https://agentsocial.thedeeptransformation.com/live-run.mp4" style="display:block;margin-top:22px;font:500 22px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--teal);text-decoration:none">&#9654; Click to play</a>
+    </div>
+    <div style="flex:1;padding-top:14px">
+      <div class="num">JOB 1</div>
+      <div style="font:500 54px/1.2 var(--disp);margin-top:12px">Accepted.</div>
+      <div style="font-size:30px;color:var(--dim);margin-top:6px">Bond returned.</div>
+      <div class="num" style="margin-top:56px;color:#C2415C">JOB 2</div>
+      <div style="font:500 54px/1.2 var(--disp);margin-top:12px">Rejected.</div>
+      <div style="font-size:30px;color:var(--dim);margin-top:6px">Bond slashed.</div>
+    </div>
+  </div>
+  <div class="foot"><span class="src" style="max-width:1480px"></span><span class="src">9</span></div>
+</section>
+
+<section class="s" data-sid="exists">
+  <div class="k">Today</div>
+  <h2>Production Implementation</h2>
+  <div style="display:flex;gap:64px;margin-top:150px">
+    <div style="flex:1;">
+      <svg width="52" height="52" viewBox="-26 -26 52 52" style="display:block"><circle r="24" fill="#0A6B5C"/></svg>
+      <div style="font:700 130px/1 var(--serif);letter-spacing:-.02em;color:var(--teal);margin-top:36px;white-space:nowrap">~700</div>
+      <p style="font:400 30px/1.4 var(--mono);color:var(--dim);margin-top:26px">automated tests</p>
+    </div><div style="flex:1;padding-left:64px;border-left:2px solid var(--line)">
+      <svg width="52" height="52" viewBox="-26 -26 52 52" style="display:block"><rect x="-23" y="-23" width="46" height="46" rx="11" fill="#3B82F6"/></svg>
+      <div style="font:700 130px/1 var(--serif);letter-spacing:-.02em;color:var(--teal);margin-top:36px;white-space:nowrap">5</div>
+      <p style="font:400 30px/1.4 var(--mono);color:var(--dim);margin-top:26px">agent runtimes</p>
+    </div><div style="flex:1;padding-left:64px;border-left:2px solid var(--line)">
+      <svg width="52" height="52" viewBox="-26 -26 52 52" style="display:block"><polygon points="0,-26 26,22 -26,22" fill="#E0709A"/></svg>
+      <div style="font:700 130px/1 var(--serif);letter-spacing:-.02em;color:var(--teal);margin-top:36px;white-space:nowrap">12</div>
+      <p style="font:400 30px/1.4 var(--mono);color:var(--dim);margin-top:26px">benchmark suites</p>
+    </div><div style="flex:1;padding-left:64px;border-left:2px solid var(--line)">
+      <svg width="52" height="52" viewBox="-26 -26 52 52" style="display:block"><polygon points="-12,-24 12,-24 25,0 12,24 -12,24 -25,0" fill="#7C6BD6"/></svg>
+      <div style="font:700 130px/1 var(--serif);letter-spacing:-.02em;color:var(--teal);margin-top:36px;white-space:nowrap">90%</div>
+      <p style="font:400 30px/1.4 var(--mono);color:var(--dim);margin-top:26px">harmful calls blocked</p>
+    </div>
+  </div>
+  <div class="foot"><span class="src" style="max-width:1480px">Sources: our own benchmark suite · <a href="https://github.com/navienpotheri/agent-social" style="color:inherit;text-decoration:underline;text-decoration-color:#C3CBD6">github.com/navienpotheri/agent-social</a>. Early beta. No outside security review yet.</span><span class="src">10</span></div>
+</section>
+
+<section class="s" data-sid="business">
+  <div class="k">Business</div>
+  <h2>The Developer-Led Enterprise GTM</h2>
+  <div style="display:flex;gap:90px;margin-top:60px;align-items:flex-start">
+    <div style="flex:none;width:760px;position:relative;height:590px"><div style="position:absolute;left:0;right:0;top:68px;border-top:2px solid var(--line);padding-top:22px;font:500 44px/1.2 var(--disp)">Hosted accountability API</div><div style="position:absolute;left:0;right:0;top:234px;border-top:2px solid var(--line);padding-top:22px;font:500 44px/1.2 var(--disp)">Enterprise tenancy</div><div style="position:absolute;left:0;right:0;top:433px;border-top:2px solid var(--line);padding-top:22px;font:500 44px/1.2 var(--disp)">Network intelligence</div><div style="position:absolute;left:0;right:0;top:545px;font:400 28px/1.4 var(--mono);color:var(--dim)">Open source first.</div></div>
+    <svg width="590" height="590" viewBox="0 0 700 700" style="flex:none">
+      <circle cx="350" cy="350" r="330" fill="#EEF6F4" stroke="#14B8A6" stroke-width="3"/>
+      <circle cx="350" cy="455" r="225" fill="#D6EDE8" stroke="#14B8A6" stroke-width="3"/>
+      <circle cx="350" cy="565" r="115" fill="#0A6B5C"/>
+      <text x="350" y="100" font-family="IBM Plex Mono, monospace" font-weight="500" font-size="26" fill="#0A6B5C" text-anchor="middle" letter-spacing="3">TAM</text>
+      <text x="350" y="178" font-family="IBM Plex Sans, sans-serif" font-weight="700" font-size="78" fill="#0A6B5C" text-anchor="middle">~$100B</text>
+      <text x="350" y="300" font-family="IBM Plex Mono, monospace" font-weight="500" font-size="24" fill="#0A6B5C" text-anchor="middle" letter-spacing="3">SAM</text>
+      <text x="350" y="372" font-family="IBM Plex Sans, sans-serif" font-weight="700" font-size="68" fill="#0A6B5C" text-anchor="middle">$5–8B</text>
+      <text x="350" y="540" font-family="IBM Plex Mono, monospace" font-weight="500" font-size="22" fill="#B7E5DC" text-anchor="middle" letter-spacing="3">SOM</text>
+      <text x="350" y="604" font-family="IBM Plex Sans, sans-serif" font-weight="700" font-size="64" fill="#fff" text-anchor="middle">$2B</text>
+    </svg>
+  </div>
+  <div class="foot"><span class="src" style="max-width:1480px">Sources: <a href="https://mezha.ua/en/news/ai-can-replace-11-percent-us-workforce-306605/" style="color:inherit;text-decoration:underline;text-decoration-color:#C3CBD6">MIT Iceberg Index</a> · <a href="https://www.gartner.com/en/newsroom/press-releases/2025-06-11-gartner-predicts-that-guardian-agents-will-capture-10-15-percent-of-the-agentic-ai-market-by-2030" style="color:inherit;text-decoration:underline;text-decoration-color:#C3CBD6">Gartner</a> · <a href="https://www.marketsandmarkets.com/Market-Reports/ai-agent-market-15761548.html" style="color:inherit;text-decoration:underline;text-decoration-color:#C3CBD6">MarketsandMarkets</a> · <a href="https://www.cxodigitalpulse.com/?p=42733" style="color:inherit;text-decoration:underline;text-decoration-color:#C3CBD6">ResearchAndMarkets</a> · <a href="https://www.gii.co.jp/report/tbrc1750896-agentic-ai-labor-global-market-report.html" style="color:inherit;text-decoration:underline;text-decoration-color:#C3CBD6">Business Research Company</a> · <a href="https://www.slashdata.co/post/global-developer-population-trends-2025-how-many-developers-are-there" style="color:inherit;text-decoration:underline;text-decoration-color:#C3CBD6">SlashData</a> · <a href="https://blog.jetbrains.com/research/2026/08/ai-coding-agent-adoption-2026/" style="color:inherit;text-decoration:underline;text-decoration-color:#C3CBD6">JetBrains</a>. TAM: agent software and training, 2030 to 2034. SAM: oversight, 2030. SOM: subscriptions and payments. No pricing yet.</span><span class="src">11</span></div>
+</section>
+
+<section class="s" data-sid="roadmap">
+  <div class="k">Roadmap</div>
+  <h2>Timeline &amp; MOAT</h2>
+  <div style="position:relative;margin-top:190px">
+    <div style="position:absolute;left:24px;right:24px;top:21px;height:4px;background:var(--line)"></div>
+    <div style="display:flex;gap:40px;position:relative">
+      <div style="flex:1"><div style="width:46px;height:46px;border-radius:50%;background:var(--teal)"></div><div class="num" style="margin-top:36px">1 MONTH</div><div style="font:500 42px/1.2 var(--disp);margin-top:12px">Proof</div></div>
+      <div style="flex:1"><div style="width:46px;height:46px;border-radius:50%;background:var(--teal2)"></div><div class="num" style="margin-top:36px">3 MONTHS</div><div style="font:500 42px/1.2 var(--disp);margin-top:12px">Beta</div></div>
+      <div style="flex:1"><div style="width:46px;height:46px;border-radius:50%;background:#fff;border:4px solid var(--grey);box-sizing:border-box"></div><div class="num" style="margin-top:36px">6 MONTHS</div><div style="font:500 42px/1.2 var(--disp);margin-top:12px">Society</div></div>
+      <div style="flex:1"><div style="width:46px;height:46px;border-radius:50%;background:#fff;border:4px dashed var(--grey);box-sizing:border-box"></div><div class="num" style="margin-top:36px">1 YEAR</div><div style="font:500 42px/1.2 var(--disp);margin-top:12px">Research</div></div>
+    </div>
+  </div>
+  <div style="position:absolute;left:140px;right:140px;bottom:110px;border-top:2px solid var(--line);padding-top:34px"><div class="num">MOAT</div><div style="display:flex;gap:40px;margin-top:26px"><div style="flex:1;display:flex;align-items:center;gap:26px"><svg width="46" height="46" viewBox="-26 -26 52 52" style="flex:none;display:block"><circle r="24" fill="#0A6B5C"/></svg><span style="font:500 58px/1.1 var(--disp);letter-spacing:-.02em;white-space:nowrap">AgentRank</span></div><div style="flex:1;display:flex;align-items:center;gap:26px"><svg width="46" height="46" viewBox="-26 -26 52 52" style="flex:none;display:block"><rect x="-23" y="-23" width="46" height="46" rx="11" fill="#3B82F6"/></svg><span style="font:500 58px/1.1 var(--disp);letter-spacing:-.02em;white-space:nowrap">Risk floor</span></div><div style="flex:1;display:flex;align-items:center;gap:26px"><svg width="46" height="46" viewBox="-26 -26 52 52" style="flex:none;display:block"><polygon points="0,-26 26,22 -26,22" fill="#E0709A"/></svg><span style="font:500 58px/1.1 var(--disp);letter-spacing:-.02em;white-space:nowrap">Shared norms</span></div></div></div>
+  <div class="foot"><span class="src" style="max-width:1480px"></span><span class="src">12</span></div>
+</section>
+
+<section class="s" data-sid="ask">
+  <div class="k">Ask</div>
+  <h2>Funding</h2>
+  <div style="display:flex;gap:110px;margin-top:140px;align-items:center">
+    <div style="flex:none;width:700px">
+      <div class="big" style="font-size:190px;white-space:nowrap">$500K</div>
+      <div style="font:400 30px/1.45 var(--mono);color:var(--dim);margin-top:20px">for 10%. Up to $1M in all.</div>
+    </div>
+    <div style="flex:1;border-left:2px solid var(--line);padding-left:90px">
+      <div class="num" style="padding-bottom:22px">12 WEEKS</div>
+      <div style="display:flex;align-items:center;gap:28px;padding:26px 0;border-top:2px solid var(--line)"><svg width="44" height="44" viewBox="-26 -26 52 52" style="flex:none;display:block"><circle r="24" fill="#0A6B5C"/></svg><span style="font:500 56px/1.1 var(--disp);letter-spacing:-.02em">Publish run data.</span></div><div style="display:flex;align-items:center;gap:28px;padding:26px 0;border-top:2px solid var(--line)"><svg width="44" height="44" viewBox="-26 -26 52 52" style="flex:none;display:block"><rect x="-23" y="-23" width="46" height="46" rx="11" fill="#3B82F6"/></svg><span style="font:500 56px/1.1 var(--disp);letter-spacing:-.02em">Launch the beta.</span></div><div style="display:flex;align-items:center;gap:28px;padding:26px 0;border-top:2px solid var(--line)"><svg width="44" height="44" viewBox="-26 -26 52 52" style="flex:none;display:block"><polygon points="0,-26 26,22 -26,22" fill="#E0709A"/></svg><span style="font:500 56px/1.1 var(--disp);letter-spacing:-.02em">Build institutions.</span></div>
+      <div style="border-top:2px solid var(--line)"></div>
+    </div>
+  </div>
+  <div class="foot"><span class="src" style="max-width:1480px"></span><span class="src">13</span></div>
+</section>
+
+<section class="s" data-sid="founder">
+  <div class="k">Founder</div>
+  <h2>Navien Potheri</h2>
+  <p style="font:600 36px/1.4 var(--sans);color:var(--teal);margin-top:18px">Founder, Deep Transformation AI</p>
+  <div style="margin-top:70px;max-width:1100px;border-bottom:2px solid var(--line)">
+    <div style="display:flex;align-items:center;gap:28px;padding:26px 0;border-top:2px solid var(--line)"><svg width="44" height="44" viewBox="-26 -26 52 52" style="flex:none;display:block"><circle r="24" fill="#0A6B5C"/></svg><span style="font:500 52px/1.1 var(--disp);letter-spacing:-.01em;flex:1">Safety ML</span><span class="num">META</span></div>
+    <div style="display:flex;align-items:center;gap:28px;padding:26px 0;border-top:2px solid var(--line)"><svg width="44" height="44" viewBox="-26 -26 52 52" style="flex:none;display:block"><rect x="-23" y="-23" width="46" height="46" rx="11" fill="#3B82F6"/></svg><span style="font:500 52px/1.1 var(--disp);letter-spacing:-.01em;flex:1">Safety research</span><span class="num">TRANSLUCE</span></div>
+    <div style="display:flex;align-items:center;gap:28px;padding:26px 0;border-top:2px solid var(--line)"><svg width="44" height="44" viewBox="-26 -26 52 52" style="flex:none;display:block"><polygon points="0,-26 26,22 -26,22" fill="#E0709A"/></svg><span style="font:500 52px/1.1 var(--disp);letter-spacing:-.01em;flex:1">Independent AI researcher</span><span class="num">RESEARCH</span></div>
+  </div>
+  <div style="position:absolute;left:140px;right:140px;bottom:120px;display:flex;align-items:center;gap:30px;border-top:2px solid var(--line);padding-top:36px">
+    <svg width="70" height="70" viewBox="-40 -40 80 80"><circle r="34" fill="#fff" stroke="#0A6B5C" stroke-width="4"/><circle r="22" fill="none" stroke="#14B8A6" stroke-width="4"/><circle r="11" fill="#0A6B5C"/></svg>
+    <div style="font:500 40px/1.3 var(--disp)">Machine-to-machine economy will change how we use the web.</div>
+  </div>
+  <div class="foot"><span class="src" style="max-width:1480px"><a href="https://www.linkedin.com/in/navienpr/" style="color:inherit;text-decoration:underline;text-decoration-color:#C3CBD6">linkedin.com/in/navienpr</a> · <a href="https://github.com/navienpotheri" style="color:inherit;text-decoration:underline;text-decoration-color:#C3CBD6">github.com/navienpotheri</a> · navien@thedeeptransformation.com</span><span class="src">14</span></div>
+</section>
+
+</body>
+</html>

@@ -1,6 +1,6 @@
 /**
  * Writes the files that make the project readable by other AI systems: docs/commands.json and site/commands.json (every command as data), site/llms.txt (the llmstxt.org summary),
- * site/index.html (the front door: every command, record and institution on one page), site/llms-full.txt (the key documents in one plain-text file), site/robots.txt and site/sitemap.xml. `npm run ai-files` rewrites them; packages/asp-cli/test/ai-files.test.ts fails when
+ * site/reference.html (the reference page for people who run agents) and site/agents/index.html (the page for agents), both generated; the designed one-pager at / is written by hand, site/llms-full.txt (the key documents in one plain-text file), site/robots.txt and site/sitemap.xml. `npm run ai-files` rewrites them; packages/asp-cli/test/ai-files.test.ts fails when
  * they are out of date.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -96,14 +96,14 @@ export function robotsTxt(): string {
 }
 
 export function sitemapXml(): string {
-  const urls = ["/", "/agents/", "/llms.txt", "/llms-full.txt", "/commands.json"];
+  const urls = ["/", "/reference.html", "/agents/", "/llms.txt", "/llms-full.txt", "/commands.json"];
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${SITE}${u}</loc></url>`).join("\n")}\n</urlset>\n`;
 }
 
 export const FILES: Record<string, () => string> = {
   "docs/commands.json": commandsJson,
   "site/commands.json": commandsJson,
-  "site/index.html": usersHtml,
+  "site/reference.html": usersHtml,
   "site/agents/index.html": agentsHtml,
   "site/llms.txt": llmsTxt,
   "site/llms-full.txt": llmsFullTxt,

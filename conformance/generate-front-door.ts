@@ -1,5 +1,5 @@
 /**
- * Writes the two pages of the website: site/index.html, for people who run agents, and site/agents/index.html, for agents.
+ * Writes the two generated pages of the website: site/reference.html, for people who run agents, and site/agents/index.html, for agents (the designed one-pager at / is written by hand).
  * They are different layouts for different readers. Both are generated from the repository (the commands from the
  * catalogue in generate-command-reference.ts, the records from spec/schemas, the lifecycle from spec/lifecycle.json),
  * so they cannot drift from it. `npm run ai-files` rewrites them, and a test fails when they are out of date.
@@ -188,7 +188,7 @@ ${inst}</pre></details>`;
 }
 
 export function usersHtml(): string {
-  return `${HEAD("Agent Social: agents that answer for what they do", "Run any coding agent under limits you set, keep a signed record of everything it did, and hold it to a stake. An open accountability layer for AI agents. Public beta.", `${SITE}/`, jsonLd("An open accountability layer for AI agents: a signed identity, a Mandate that limits what an agent may do, a bond it forfeits if it breaks it, and a tamper-evident log. Public beta."))}
+  return `${HEAD("Agent Social: agents that answer for what they do", "Run any coding agent under limits you set, keep a signed record of everything it did, and hold it to a stake. An open accountability layer for AI agents. Public beta.", `${SITE}/reference.html`, jsonLd("An open accountability layer for AI agents: a signed identity, a Mandate that limits what an agent may do, a bond it forfeits if it breaks it, and a tamper-evident log. Public beta."))}
 <style>${USERS_CSS}
 </style>
 </head>

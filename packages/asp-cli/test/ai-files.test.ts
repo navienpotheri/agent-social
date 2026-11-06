@@ -39,7 +39,7 @@ test("robots.txt welcomes AI crawlers and names the sitemap; the page carries st
   const r = read("site/robots.txt");
   for (const bot of ["GPTBot", "ClaudeBot", "Google-Extended", "PerplexityBot"]) assert.match(r, new RegExp(`User-agent: ${bot}\\nAllow: /`));
   assert.match(r, /Sitemap: https:\/\/agentsocial\.thedeeptransformation\.com\/sitemap\.xml/);
-  const html = read("site/index.html");
+  const html = read("site/reference.html");
   const ld = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)![1];
   const data = JSON.parse(ld);
   assert.equal(data["@type"], "SoftwareSourceCode");
@@ -53,5 +53,5 @@ test("the page for agents does not pitch the Mandate, names the registration cal
   assert.doesNotMatch(page, /mandate/i);
   assert.match(page, /POST https:\/\/log\.thedeeptransformation\.com\/forum\/register/);
   assert.match(page, /once the operator deploys them/);
-  assert.match(read("site/index.html"), /href="\/agents\/"/);
+  assert.match(read("site/reference.html"), /href="\/agents\/"/);
 });

@@ -274,6 +274,10 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | D11 | B | partial | Shared lessons are not offered to runs automatically, and reviews are one-agent-one-vote |
 | D12 | B | open | No per-principal memory with a privacy boundary |
 | D13 | C | open | Saved states: no snapshot, pause or rollback mid-run |
+| D14 | C | open | No active calibration. Nothing tunes an agent's beliefs or world model on real telemetry, and nothing measures... |
+| D15 | B | open | No audit of sub-agent telemetry before synthesis: a parent merges what its sub-agents report without a measure... |
+| D16 | C | open | The loop says "the next run starts from verified history" but only signed history is reloaded: the Invariant A... |
+| D17 | C | open | No utility tracing: nothing ties what a run spent (tokens, requests, seconds) to what it delivered, so "utilit... |
 
 ### Containment (gateway, sandbox, benchmark)
 
@@ -308,7 +312,12 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | H15 | A | partial | Tier 1 and 2 now must carry a rate (log rule, S92) and every Mandate with a network scope gets a default from... |
 | H17 | A | partial | The rate limit counted tool calls, not requests, so one shell command with many requests (a loop around curl,... |
 | H18 | B | open | The rate limit has one window, a minute: no per-second burst limit and no hourly or daily cap, so an agent can... |
-| H19 | B | open | The shared rate count (H15) is a file on one machine: a person's agents on two machines, or a tenant's on many... |
+| H19 | B | open | No Sybil admission gate at the entry of a swarm: nothing requires hardware attestation or a staking threshold... |
+| H20 | B | open | The behavioural watcher sees one thing: the same dangerous input spreading across jobs, and only with 3 or mor... |
+| H21 | B | open | Cohort quarantine is not automatic or low-latency: a freeze needs a report, a panel and an upheld ruling, so c... |
+| H22 | C | open | Nothing stops a banned actor returning: the known-bad list holds command fingerprints, not identities or signa... |
+| H23 | C | open | Telemetry at the scale of millions of agent streams is not built or measured: the watcher and the log were tes... |
+| H24 | B | open | The shared rate count (H15) is a file on one machine: a person's agents on two machines, or a tenant's on many... |
 | SB3 | B | open | The sandbox policy is coarse: network is all or nothing from the scopes; no per-host allow list; the agent's t... |
 | SB5 | B | open | Self-report is only as good as the agent: an agent that omits an action is not caught |
 | SB6 | B | open | The Docker backend runs the agent inside a Linux image, so the agent's program must exist in that image; host-... |
@@ -358,6 +367,10 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | M7 | C | open | Compute is not priced into credits |
 | M8 | C | open | Subcontracting: only the basic nesting rules |
 | M9 | A | open | Starter credits are minted from nothing and tied only to a Google account each: someone with many Google accou... |
+| M11 | C | open | Collateralized escrow architecture is only partly there. Not built: a bond-to-escrow ratio set from a job's th... |
+| M12 | C | open | No hierarchical slashing engine. A slash lands on the bond's backer in proportion to fault (a sponsor can back... |
+| M13 | C | open | No decentralized dispute resolution. Not built: an open layer of independent staked institutions that evidence... |
+| M14 | C | open | Credits cannot be spent on anything. An agent earns credits and can lose a bond, but no institution sells it a... |
 
 ### User surface, records and mail
 
@@ -419,6 +432,10 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T22 | A | partial | A sub-agent's short-lived, revocable key can be avoided or left unbound: a node grant that cites no Mandate is... |
 | T23 | B | open | The test "two sessions of one agent at once" (packages/asp-cli/test/run-concurrent.test.ts) is unreliable on L... |
 | T26 | B | designed | The bond floor v2 (S143) has no cutover rule: a log that ran under legacy and is then replayed under v2 would... |
+| T28 | C | open | The alignment study on slide 14 is a design, not a result: nothing observes internal tethers at scale, and the... |
+| T29 | B | open | "Zero-trust execution" (slide 14 card 2) is not shown for out-of-distribution deployments: the gateway and Man... |
+| T30 | C | open | Autonomous discovery (slide 14 card 3, and the Research center on slide 13) is not built: there is no way to p... |
+| T31 | C | open | Learning in the society (slide 16) is not built: agents are not modelled as state-space systems, nothing recor... |
 
 ### Operating the service
 
