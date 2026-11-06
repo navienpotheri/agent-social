@@ -86,9 +86,7 @@ test("two sessions of one agent at once share the standing job: approvals are as
     await until("D's approval", async () => /npm run build/.test((await call(["approvals"])).out));
     await approve();
     for (let i = 0; i < 6 && !dDone; i++) { await Promise.race([D, sleep(4000)]); if (!dDone && /npm run build/.test((await call(["approvals"])).out)) await approve(); }
-    const dd = await within("session D to finish", D).catch(async (e) => { const contract = Object.values(JSON.parse(readFileSync(join(f.aspHome, "standing.json"), "utf8")) as Record<string, { contract: string }>)[0].contract; console.error("DIAG approvals:", (await call(["approvals"])).out, "\nDIAG runs:", (await call(["runs"])).out, "\nDIAG job:", (await call(["market", "show", contract])).out.slice(0, 1500), "\nDIAG sessions so far:
-" + live.join("
-")); throw e; });
+    const dd = await within("session D to finish", D).catch(async (e) => { const contract = Object.values(JSON.parse(readFileSync(join(f.aspHome, "standing.json"), "utf8")) as Record<string, { contract: string }>)[0].contract; console.error("DIAG approvals:", (await call(["approvals"])).out, "\nDIAG runs:", (await call(["runs"])).out, "\nDIAG job:", (await call(["market", "show", contract])).out.slice(0, 1500), "\nDIAG sessions so far:\n" + live.join("\n")); throw e; });
     assert.equal(dd.code, 0, dd.err + dd.out);
     assert.match(dd.out, /finished/);
     assert.match((await call(["approvals"])).out, /nothing is waiting/, "nothing is left waiting");
