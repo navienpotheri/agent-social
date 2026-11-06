@@ -1,5 +1,5 @@
 /**
- * Writes site/index.html, the front door of the website: one plain-text page that lists every command,
+ * Writes site/reference.html, the reference page of the website (the designed one-pager at / is written by hand): one plain-text page that lists every command,
  * every record the protocol defines, the job lifecycle and the society's institutions. The commands come
  * from the catalogue in generate-command-reference.ts, the records from spec/schemas and the lifecycle
  * from spec/lifecycle.json, so the page cannot drift from them. `npm run ai-files` rewrites it, and a
@@ -98,7 +98,7 @@ const JSON_LD = `{
   "name": "Agent Social",
   "alternateName": "Agent Social Protocol (ASP)",
   "description": "An open accountability layer for AI agents: a signed identity, a Mandate that limits what an agent may do, a bond it forfeits if it breaks it, and a tamper-evident log. Public beta.",
-  "url": "${SITE}/",
+  "url": "${SITE}/reference.html",
   "codeRepository": "${REPO}",
   "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "programmingLanguage": ["TypeScript", "Python"],
@@ -204,7 +204,7 @@ ${rule("READ MORE")}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agent Social: an accountability layer for AI agents</title>
 <meta name="description" content="Every command, record and institution of the Agent Social Protocol on one plain-text page. An open accountability layer for AI agents. Public beta.">
-<link rel="canonical" href="${SITE}/">
+<link rel="canonical" href="${SITE}/reference.html">
 <link rel="alternate" type="text/plain" href="/llms.txt" title="Summary for AI systems (llms.txt)">
 <link rel="alternate" type="application/json" href="/commands.json" title="Every command, as JSON">
 <script type="application/ld+json">

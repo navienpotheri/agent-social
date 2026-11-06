@@ -1,0 +1,164 @@
+<title>Founder Prompter</title>
+<style>
+:root{--bg:#07090d;--panel:#10151d;--line:#232c3a;--ink:#f3f6fa;--dim:#97a3b4;--teal:#14b8a6;--rec:#ef4444;--amber:#f5b942;color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent}
+body{padding:0!important}
+#cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#000;display:none}
+#stage{position:fixed;inset:0;display:flex;flex-direction:column}
+#prompt{position:relative;height:40vh;min-height:200px;margin:0;padding-top:env(safe-area-inset-top,0px);background:rgba(7,9,13,.62);border-bottom:1px solid var(--line);overflow:hidden;cursor:pointer}
+body.nocam #prompt{height:62vh;background:var(--bg)}
+#scroller{position:absolute;left:0;right:0;top:env(safe-area-inset-top,0px);bottom:0;overflow:hidden;padding:0 max(18px,env(safe-area-inset-left,0px));-webkit-mask-image:linear-gradient(#000 82%,transparent);mask-image:linear-gradient(#000 82%,transparent)}
+#words{max-width:34ch;margin:0 auto;padding:10px 0 60vh;font-size:var(--fs,32px);line-height:1.38;font-weight:600;letter-spacing:-.005em;text-align:center}
+#words p{margin:0 0 .9em}
+#words .sec{font:500 .42em/1 "IBM Plex Mono",monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--teal);margin:1.4em 0 1em}
+#words mark{background:var(--amber);color:#1a1200;border-radius:4px;padding:0 .2em}
+#pausedTag{position:absolute;right:12px;bottom:10px;font:500 12px/1 "IBM Plex Mono",monospace;letter-spacing:.14em;color:var(--amber);display:none}
+#gap{flex:1;min-height:0}
+#ctl{background:linear-gradient(transparent,rgba(7,9,13,.92) 28%);padding:28px max(16px,env(safe-area-inset-left,0px)) calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row>*{min-width:0}
+button,select{font:600 15px/1 "IBM Plex Sans",system-ui,sans-serif;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 16px}
+button.primary{background:var(--teal);border-color:var(--teal);color:#04201c}
+button.rec{background:var(--rec);border-color:var(--rec);color:#fff}
+button:disabled{opacity:.45}
+label.s{display:flex;align-items:center;gap:8px;font:500 12px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;flex:1 1 140px}
+input[type=range]{flex:1;accent-color:var(--teal);min-width:80px}
+#status{font:500 13px/1.4 "IBM Plex Sans",system-ui,sans-serif;color:var(--dim)}
+#timer{font:600 15px/1 "IBM Plex Mono",monospace;color:var(--ink);margin-left:auto}
+#timer.warn{color:var(--amber)}#timer.over{color:var(--rec)}
+#count{position:fixed;inset:0;display:none;align-items:center;justify-content:center;font:700 38vmin/1 "IBM Plex Sans",sans-serif;color:#fff;background:rgba(7,9,13,.55);z-index:5}
+#editor{position:fixed;inset:0;z-index:6;background:var(--bg);display:none;flex-direction:column;gap:10px;padding:max(16px,env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))}
+#editor textarea{flex:1;width:100%;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:14px;font:500 16px/1.5 "IBM Plex Sans",system-ui,sans-serif;resize:none}
+#result{position:fixed;inset:0;z-index:7;background:var(--bg);display:none;flex-direction:column;gap:12px;padding:max(16px,env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));overflow:auto}
+#result video{width:100%;max-height:60vh;background:#000;border-radius:12px}
+#result a.dl{display:block;text-align:center;text-decoration:none;font:600 16px/1 "IBM Plex Sans",system-ui,sans-serif;background:var(--teal);color:#04201c;border-radius:12px;padding:16px}
+body.recording #prep{display:none}
+body:not(.recording) #live{display:none}
+</style>
+
+<video id="cam" playsinline muted></video>
+<div id="stage">
+  <div id="prompt"><div id="scroller"><div id="words"></div></div><div id="pausedTag">PAUSED · TAP TO RESUME</div></div>
+  <div id="gap"></div>
+  <div id="ctl">
+    <div id="status">Tap the text to pause or resume.</div>
+    <div id="prep" style="display:flex;flex-direction:column;gap:12px">
+      <div class="row">
+        <select id="which" aria-label="Script"></select>
+        <button id="edit">Edit</button>
+        <button id="camBtn">Turn on camera</button>
+      </div>
+      <div class="row">
+        <label class="s">Speed <input id="speed" type="range" min="20" max="180" value="62"></label>
+        <label class="s">Size <input id="size" type="range" min="22" max="56" value="32"></label>
+      </div>
+      <div class="row">
+        <button id="rehearse" class="primary">Rehearse</button>
+        <button id="recBtn" class="rec" disabled>Record</button>
+        <button id="top">Back to top</button>
+      </div>
+    </div>
+    <div id="live" class="row">
+      <button id="stop" class="rec">Stop</button>
+      <button id="pauseBtn">Pause text</button>
+      <span id="timer">0:00</span>
+    </div>
+  </div>
+</div>
+<div id="count"></div>
+<div id="editor">
+  <div class="row"><strong style="flex:1">Edit script</strong><button id="reset">Restore original</button><button id="done" class="primary">Done</button></div>
+  <div id="status2" style="font:500 13px/1.4 system-ui;color:var(--dim)">Blank line = new paragraph. A line starting with # is a section label. Text in [square brackets] is highlighted so you remember to fill it in.</div>
+  <textarea id="ta" spellcheck="false"></textarea>
+</div>
+<div id="result">
+  <strong>Recording saved</strong>
+  <video id="playback" controls playsinline></video>
+  <a id="dl" class="dl" download>Save video</a>
+  <div id="fmt" style="font:500 13px/1.5 system-ui;color:var(--dim)"></div>
+  <button id="again">Record another take</button>
+</div>
+
+<script>
+(function(){
+var SCRIPTS=[
+{id:"yc",name:"YC founder video",text:
+"Hi, I’m Navien, founder of Deep Transformation AI.\n\nWe are building an accountability layer for AI agents.\n\nWe believe true alignment in agentic systems comes from internal tethers, agents bound by intrinsic design over external guardrails.\n\nMy journey with artificial intelligence began with my stint at Meta, training ML classifiers to mitigate adversarial behavior across global social matrices.\n\nMy time at Meta exposed me to a fundamental truth: Almost all our infrastructure was built for human behavior and was not designed for a world where autonomous systems are the ones running the network.\n\nTo address this, I transitioned to frontier AI research operating at the intersection of multi-agent systems, topological deep learning and modal capability.\n\nDeep Transformation AI is the realization of these efforts. Our open protocol, Agent Social, creates a digital society where agents use signed identities and economic incentives to reliably execute mandates, interact, and evolve.\n\nWe are building the foundational infrastructure that ensures autonomous agentic ecosystems seamlessly and safely coexist with humanity."},
+{id:"a16z",name:"a16z team video (3 min max)",text:
+"# [0:00 - 0:35] Problem & Team\n\nHi, I’m Navien Potheri, founder of Deep Transformation AI. I’ve spent my career engineering infrastructure for when systems break under adversarial conditions. At Meta, I trained machine learning classifiers to catch adversarial behavior on global social platforms. That experience taught me a critical truth: our entire web architecture was built for humans—it was never designed for a network run by autonomous systems. To solve this, I moved into frontier safety research at Transluce and investigated multi-agent systems using topological deep learning, where I formulated mathematical frameworks for multi-agent alignment.\n\n# [0:35 - 1:20] The Agent Catalyst & The Gap\n\nAutonomous agents are rapidly becoming the web's principal users. On OpenRouter, agents already consume five times the tokens humans do—a fourteen-fold surge since early last year. Yet, these systems operate without baseline accountability. Guardrails bolted on from the outside fail the moment an agent can act independently. This leaves a severe vulnerability in economic alignment, mandate compliance, and system security.\n\n# [1:20 - 2:10] The Solution: Agent Social\n\nWe built Agent Social to solve this—an open protocol that shifts autonomous interactions from untethered API calls to accountably bound systems via a zero-trust architecture. Every agent gets a portable cryptographic identity, an explicit operating mandate, and a financial bond it loses for drift or breaches. A local gateway strips unauthorized external calls before the agent runtime ever encounters them.\n\nThe end-to-end stack—protocol, gateway, SDKs, and benchmarks—runs today. It is validated by over 700 automated tests across 5 agent runtimes and 12 benchmark suites. In live runs, compliant agents have their staking bonds returned, while drifting agents are immediately slashed.\n\n# [2:10 - 3:00] Market Opportunity & Ask\n\nAnalysts project the autonomous agent software market will approach one hundred billion dollars by the early 2030s. Every commercial agent acting on the live web will require our protocol layer to transact safely.\n\nWe are raising $500,000 for 10% equity. Over the next twelve weeks, we will publish our core pilot run data, launch our public developer beta, and deploy the first institutional layers of the machine-to-machine economy. Secure frontier agents via intrinsic design tethers. Thank you."}
+];
+var $=function(i){return document.getElementById(i)};
+var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},del:function(k){try{localStorage.removeItem(k)}catch(e){}}};
+var cur=0,pos=0,running=false,last=0,stream=null,rec=null,chunks=[],t0=0,timerH=null,mime="";
+function textOf(i){var s=store.get("prompter-"+SCRIPTS[i].id);return s==null?SCRIPTS[i].text:s}
+function esc(s){return s.replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c]})}
+function render(){
+  var out=textOf(cur).split(/\n\s*\n/).map(function(b){b=b.trim();if(!b)return"";
+    if(b.charAt(0)==="#")return'<div class="sec">'+esc(b.replace(/^#+\s*/,""))+"</div>";
+    return"<p>"+esc(b).replace(/\[([^\]]+)\]/g,"<mark>$1</mark>").replace(/\n/g,"<br>")+"</p>"}).join("");
+  $("words").innerHTML=out;pos=0;$("scroller").scrollTop=0;
+}
+SCRIPTS.forEach(function(s,i){var o=document.createElement("option");o.value=i;o.textContent=s.name;$("which").appendChild(o)});
+$("which").onchange=function(){cur=+this.value;running=false;render();paused()};
+$("size").oninput=function(){document.documentElement.style.setProperty("--fs",this.value+"px")};
+function paused(){$("pausedTag").style.display=(!running&&(pos>0||document.body.classList.contains("recording")))?"block":"none";$("pauseBtn").textContent=running?"Pause text":"Resume text"}
+function toggle(){if(!$("count").style.display||$("count").style.display==="none"){running=!running;last=0;paused()}}
+$("prompt").onclick=toggle;$("pauseBtn").onclick=toggle;
+$("top").onclick=function(){running=false;pos=0;$("scroller").scrollTop=0;paused()};
+function tick(t){
+  if(running){
+    if(last){pos+=(+$("speed").value)*(t-last)/1000}
+    var sc=$("scroller"),max=sc.scrollHeight-sc.clientHeight;
+    if(pos>=max){pos=max;running=false;paused()}
+    sc.scrollTop=pos;
+  }
+  last=running?t:0;requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+$("edit").onclick=function(){$("ta").value=textOf(cur);$("editor").style.display="flex"};
+$("done").onclick=function(){store.set("prompter-"+SCRIPTS[cur].id,$("ta").value);$("editor").style.display="none";running=false;render();paused()};
+$("reset").onclick=function(){store.del("prompter-"+SCRIPTS[cur].id);$("ta").value=SCRIPTS[cur].text};
+
+function setStatus(t){$("status").textContent=t}
+document.body.classList.add("nocam");
+$("camBtn").onclick=function(){
+  if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;$("cam").style.display="none";document.body.classList.add("nocam");$("recBtn").disabled=true;$("camBtn").textContent="Turn on camera";setStatus("Camera off. You can still rehearse.");return}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||typeof MediaRecorder==="undefined"){setStatus("This page cannot reach the camera here. Rehearse here, or open it in a normal browser page to record.");return}
+  navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},audio:{echoCancellation:true,noiseSuppression:true}}).then(function(s){
+    stream=s;var v=$("cam");v.srcObject=s;v.style.display="block";v.play();
+    document.body.classList.remove("nocam");$("recBtn").disabled=false;$("camBtn").textContent="Turn off camera";
+    setStatus("Camera on. Hold the phone in landscape or portrait, lens level with your eyes, then tap Record.");
+  }).catch(function(){setStatus("Camera or microphone was blocked. Allow both for this page, or just rehearse.")});
+};
+function pickMime(){var c=["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
+  for(var i=0;i<c.length;i++){if(MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(c[i]))return c[i]}return""}
+function countdown(n,cb){var c=$("count");c.style.display="flex";(function step(k){if(k===0){c.style.display="none";cb();return}c.textContent=k;setTimeout(function(){step(k-1)},1000)})(n)}
+function begin(){
+  $("scroller").scrollTop=0;pos=0;last=0;running=true;paused();
+}
+$("rehearse").onclick=function(){$("top").click();countdown(3,begin)};
+$("recBtn").onclick=function(){
+  if(!stream)return;mime=pickMime();chunks=[];
+  try{rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:5000000}:{videoBitsPerSecond:5000000})}catch(e){setStatus("This browser cannot record video here.");return}
+  rec.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};
+  rec.onstop=finish;
+  $("top").click();
+  countdown(3,function(){rec.start(1000);t0=Date.now();document.body.classList.add("recording");setStatus("Recording. Look at the lens, not the words.");timerH=setInterval(tickTimer,250);begin()});
+};
+function tickTimer(){var s=Math.floor((Date.now()-t0)/1000),m=Math.floor(s/60);var el=$("timer");el.textContent=m+":"+("0"+(s%60)).slice(-2);el.className=s>=180?"over":s>=165?"warn":""}
+$("stop").onclick=function(){if(rec&&rec.state!=="inactive")rec.stop();clearInterval(timerH);running=false};
+function finish(){
+  document.body.classList.remove("recording");paused();
+  var type=(rec&&rec.mimeType)||mime||"video/webm";var ext=/mp4/.test(type)?"mp4":"webm";
+  var blob=new Blob(chunks,{type:type}),url=URL.createObjectURL(blob);
+  var d=new Date(),stamp=d.getFullYear()+("0"+(d.getMonth()+1)).slice(-2)+("0"+d.getDate()).slice(-2)+"-"+("0"+d.getHours()).slice(-2)+("0"+d.getMinutes()).slice(-2);
+  $("playback").src=url;$("dl").href=url;$("dl").download="team-video-"+stamp+"."+ext;$("dl").textContent="Save video ("+Math.round(blob.size/1048576)+" MB, "+ext.toUpperCase()+")";
+  $("fmt").textContent=ext==="mp4"?"MP4, ready for the form. Watch it once before you upload: check sound, framing and that you look at the lens.":"This browser saved WebM instead of MP4. The form wants MP4, so convert it first (send it to me and I will convert it).";
+  $("result").style.display="flex";
+}
+$("again").onclick=function(){$("playback").removeAttribute("src");$("result").style.display="none";setStatus("Tap Record for another take.")};
+render();paused();
+})();
+</script>
