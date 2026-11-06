@@ -20,7 +20,7 @@ class Job:
 
     _SNAPSHOT_FIELDS = (
         "state", "head", "last_issued_at", "length", "contract_id", "principal", "performer", "bank",
-        "review_deadline", "open_checkpoint", "open_checkpoint_expires", "latest_delivery", "acceptance", "ruling", "redeliveries",
+        "review_deadline", "ruling_window_seconds", "disputed_at", "open_checkpoint", "open_checkpoint_expires", "latest_delivery", "acceptance", "ruling", "redeliveries",
     )
 
     def __init__(self, resolve: KeyResolver | None = None, schemas: SchemaSet | None = None):
@@ -36,6 +36,8 @@ class Job:
         self.performer: str | None = None
         self.bank: str | None = None
         self.review_deadline: str | None = None
+        self.ruling_window_seconds: int | None = None
+        self.disputed_at: str | None = None
         self.open_checkpoint: str | None = None
         self.open_checkpoint_expires: str | None = None
         self.latest_delivery: str | None = None
@@ -97,6 +99,7 @@ class Job:
                 r["id"], b["principal"], b["performer"], b["bank"],
             )
             self.review_deadline = b.get("review_deadline")
+            self.ruling_window_seconds = b.get("ruling_window_seconds")
         try:
             self._check_issuer(t["issuer"], r)
             for g in t.get("guards", []):
@@ -105,7 +108,7 @@ class Job:
         except AspError:
             # A rejected record leaves the job unchanged.
             if rtype == "contract":
-                self.contract_id = self.principal = self.performer = self.bank = self.review_deadline = None
+                self.contract_id = self.principal = self.performer = self.bank = self.review_deadline = self.ruling_window_seconds = None
             raise
 
         self._record(t, rtype, r)
@@ -168,6 +171,9 @@ class Job:
             case "past_review_deadline":
                 return (self.review_deadline is not None
                         and datetime.fromisoformat(r["issued_at"]) > datetime.fromisoformat(self.review_deadline))
+            case "past_ruling_window":
+                return (self.ruling_window_seconds is not None and self.disputed_at is not None
+                        and (datetime.fromisoformat(r["issued_at"]) - datetime.fromisoformat(self.disputed_at)).total_seconds() > self.ruling_window_seconds)
         raise ValueError(f"unknown guard {name}")
 
     def _record(self, t: dict[str, Any], rtype: str, r: Record) -> None:
@@ -186,6 +192,8 @@ class Job:
                 self.redeliveries += 1
             elif e == "record_ruling":
                 self.ruling = r["id"]
+            elif e == "mark_disputed":
+                self.disputed_at = r["issued_at"]
             else:
                 raise ValueError(f"unknown effect {e}")
 

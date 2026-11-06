@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { didOf, randomSeed, signerFromSeed, type AspRecord, type Signer } from "@agent-social/asp-core";
 import { EventLog, GENESIS_LOG_HASH, MemoryStore, nextLogHash, type AppendResult, type LogHandle, type MemoryState } from "@agent-social/asp-log";
 import { RemoteLog } from "./remote.ts";
+import { isSealed, NEEDS_PASSPHRASE, open, passphraseFrom, seal, type Sealed } from "./at-rest.ts";
 
 /** The local ASP home: keys and the local event log. ASP_HOME overrides ~/.asp. */
 export function aspHome(override?: string): string {
@@ -13,14 +14,78 @@ export function aspHome(override?: string): string {
 const slug = (s: string) => s.replace(/[^A-Za-z0-9._-]+/g, "_");
 
 /**
- * Keys on disk, one JSON file per key: {kid, seed_hex}.
- * Mocked custody (MOCKS.md #10): plaintext files; should move to the OS keychain or an HSM.
+ * Keys on disk, one JSON file per key: {kid, seed_hex}, or {kid, sealed} when the person set a passphrase (ASP_KEY_PASSPHRASE; see at-rest.ts). A plain key keeps working
+ * after a passphrase is set and is sealed by `asp keys protect`. Still not the OS keychain (MOCKS #10).
  */
 export class Keystore {
   readonly dir: string;
+  private passphrase: () => string | undefined;
 
-  constructor(home: string) {
+  constructor(home: string, passphrase: () => string | undefined = () => passphraseFrom()) {
     this.dir = join(home, "keys");
+    this.passphrase = passphrase;
+  }
+
+  private file(kid: string): string { return join(this.dir, `${slug(kid)}.json`); }
+
+  /** Writes a key file whole under a temporary name, then renames it, so a crash never leaves half a key. */
+  private put(kid: string, body: { kid: string; seed_hex?: string; sealed?: Sealed }): void {
+    mkdirSync(this.dir, { recursive: true });
+    const f = this.file(kid);
+    writeFileSync(`${f}.part`, JSON.stringify(body, null, 2), { mode: 0o600 });
+    renameSync(`${f}.part`, f);
+  }
+
+  private store(kid: string, seedHex: string): void {
+    const pass = this.passphrase();
+    this.put(kid, pass ? { kid, sealed: seal(seedHex, pass) } : { kid, seed_hex: seedHex });
+  }
+
+  /** Reads a key file, opening it with the passphrase when it is sealed. */
+  private read(file: string): { kid: string; seed_hex: string } {
+    const raw = JSON.parse(readFileSync(file, "utf8")) as { kid: string; seed_hex?: string; sealed?: unknown };
+    if (isSealed(raw.sealed)) {
+      const pass = this.passphrase();
+      if (!pass) throw new Error(`the key ${raw.kid} ${NEEDS_PASSPHRASE}`);
+      return { kid: raw.kid, seed_hex: open(raw.sealed, pass) };
+    }
+    return { kid: raw.kid, seed_hex: raw.seed_hex as string };
+  }
+
+  /** How many key files are plain and how many are sealed. */
+  status(): { plain: number; sealed: number } {
+    let plain = 0, sealed = 0;
+    if (existsSync(this.dir)) for (const f of readdirSync(this.dir)) {
+      if (!f.endsWith(".json")) continue;
+      try { if (isSealed((JSON.parse(readFileSync(join(this.dir, f), "utf8")) as { sealed?: unknown }).sealed)) sealed++; else plain++; } catch { /* not a key file */ }
+    }
+    return { plain, sealed };
+  }
+
+  /** Seals every plain key file under the passphrase; how many were sealed. */
+  protect(passphrase: string): number {
+    let n = 0;
+    if (existsSync(this.dir)) for (const f of readdirSync(this.dir)) {
+      if (!f.endsWith(".json")) continue;
+      const raw = JSON.parse(readFileSync(join(this.dir, f), "utf8")) as { kid: string; seed_hex?: string; sealed?: unknown };
+      if (isSealed(raw.sealed) || typeof raw.seed_hex !== "string") continue;
+      this.put(raw.kid, { kid: raw.kid, sealed: seal(raw.seed_hex, passphrase) });
+      n++;
+    }
+    return n;
+  }
+
+  /** Turns every sealed key file back into a plain one (the passphrase must be right); how many. */
+  unprotect(passphrase: string): number {
+    let n = 0;
+    if (existsSync(this.dir)) for (const f of readdirSync(this.dir)) {
+      if (!f.endsWith(".json")) continue;
+      const raw = JSON.parse(readFileSync(join(this.dir, f), "utf8")) as { kid: string; sealed?: unknown };
+      if (!isSealed(raw.sealed)) continue;
+      this.put(raw.kid, { kid: raw.kid, seed_hex: open(raw.sealed, passphrase) });
+      n++;
+    }
+    return n;
   }
 
   create(kid: string): Signer & { publicKey: Uint8Array } {
@@ -32,14 +97,14 @@ export class Keystore {
     if (this.find(kid)) throw new Error(`key ${kid} already exists`);
     const signer = signerFromSeed(kid, seed);
     mkdirSync(this.dir, { recursive: true });
-    writeFileSync(join(this.dir, `${slug(kid)}.json`), JSON.stringify({ kid, seed_hex: Buffer.from(signer.seed).toString("hex") }, null, 2), { mode: 0o600 });
+    this.store(kid, Buffer.from(signer.seed).toString("hex"));
     return signer;
   }
 
   find(kid: string): (Signer & { publicKey: Uint8Array }) | undefined {
-    const file = join(this.dir, `${slug(kid)}.json`);
+    const file = this.file(kid);
     if (!existsSync(file)) return undefined;
-    const { seed_hex } = JSON.parse(readFileSync(file, "utf8"));
+    const { seed_hex } = this.read(file);
     return signerFromSeed(kid, Buffer.from(seed_hex, "hex"));
   }
 
@@ -47,16 +112,17 @@ export class Keystore {
   entriesFor(did: string): { kid: string; seed_hex: string }[] {
     if (!existsSync(this.dir)) return [];
     return readdirSync(this.dir)
-      .map((f) => JSON.parse(readFileSync(join(this.dir, f), "utf8")) as { kid: string; seed_hex: string })
+      .filter((f) => f.endsWith(".json"))
+      .map((f) => ({ f, kid: (JSON.parse(readFileSync(join(this.dir, f), "utf8")) as { kid: string }).kid }))
       .filter((e) => didOf(e.kid) === did && !e.kid.includes("#node-"))
+      .map((e) => this.read(join(this.dir, e.f)))
       .sort((a, b) => a.kid.localeCompare(b.kid));
   }
 
   /** Puts a key back from a backup; false when a key with that name is already here (nothing is overwritten). */
   importEntry(entry: { kid: string; seed_hex: string }): boolean {
     if (this.find(entry.kid)) return false;
-    mkdirSync(this.dir, { recursive: true });
-    writeFileSync(join(this.dir, `${slug(entry.kid)}.json`), JSON.stringify({ kid: entry.kid, seed_hex: entry.seed_hex }, null, 2), { mode: 0o600 });
+    this.store(entry.kid, entry.seed_hex);
     return true;
   }
 
@@ -64,6 +130,7 @@ export class Keystore {
   forDid(did: string): (Signer & { publicKey: Uint8Array }) | undefined {
     if (!existsSync(this.dir)) return undefined;
     const kids = readdirSync(this.dir)
+      .filter((f) => f.endsWith(".json"))
       .map((f) => JSON.parse(readFileSync(join(this.dir, f), "utf8")).kid as string)
       .filter((kid) => didOf(kid) === did && !kid.includes("#node-"))
       .sort();

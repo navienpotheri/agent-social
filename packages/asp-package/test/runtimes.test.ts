@@ -8,7 +8,9 @@ test("every runtime descriptor is whole and claims only what its way of being re
   for (const r of RUNTIMES) {
     assert.ok(r.title && r.installHint.endsWith(","), `${r.name}: a title and an install hint that runs on into the sentence`);
     // A runtime reached by the gateway can reach `gateway_enforced` at most; one held by its own hook, `hook_enforced`; and the wire says which.
-    assert.equal(r.assurance, r.reach === "gateway" ? "gateway_enforced" : "hook_enforced", `${r.name}: the level its reach gives`);
+    // A runtime ASP cannot stop calls in (no pre-call check, gap H11) only reaches `runtime_observed`; the others reach what their reach gives.
+    assert.equal(r.assurance, !r.preventsCalls ? "runtime_observed" : r.reach === "gateway" ? "gateway_enforced" : "hook_enforced", `${r.name}: the level its reach gives`);
+    assert.equal(r.preventsCalls, r.name !== "openhands", `${r.name}: only OpenHands has no pre-call check from ASP`);
     assert.equal(r.wire === "hooked", r.reach === "hook", `${r.name}: a hooked wire is the hook's reach`);
     assert.match(r.evidence.row, /^UC-\d+$/);
     assert.ok(r.evidence.note.length > 10, `${r.name}: says what was tried`);

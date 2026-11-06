@@ -9,7 +9,7 @@ export {
 } from "./store.ts";
 export { LOG_METHODS, authenticate, createLogServer, hashToken, type LogHandle, type ServerOptions, type Tenant } from "./server.ts";
 export { postgresHandle } from "./postgres-handle.ts";
-export { Limits, clientAddress, type LimitOptions, type Verdict } from "./limits.ts";
+export { Limits, clientAddress, renameSyncRetry, withFileLock, type LimitOptions, type Verdict } from "./limits.ts";
 export { UsageStore, type Usage } from "./usage.ts";
 export { DEFAULT_STARTING, Signup, addressHash, leadingZeroBits, powOk, solveChallenge, type SignupChallenge, type SignupInfo, type SignupOptions, type SignupResult } from "./signup.ts";
 export { GoogleSignIn, type GoogleOptions, type JoinForm } from "./google.ts";

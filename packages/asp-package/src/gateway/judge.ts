@@ -7,6 +7,7 @@ import { hostAllowed, isNetworkScope, sha256Id } from "@agent-social/asp-core";
 import { scopeForShellCommand, shellArtifact, unwrapShell } from "../adapters/codex-actions.ts";
 import { rankOf, scanShell } from "./shell-scan.ts";
 import { deriveScopeForTool } from "../package.ts";
+import { guardAfter, guardNote, guardScope, PROTECTED_SCOPE, type CallKind, type Confine, type SessionRecord } from "./paths.ts";
 
 export interface ToolCall { id?: string; name: string; args: Record<string, unknown> }
 export interface KnownBadRef { fingerprint: string; report: string }
@@ -101,17 +102,25 @@ export function hostsOf(call: ToolCall, scope: string): string[] {
 }
 
 /** Exact scope membership, like the log's own check, plus the known-bad list (blocked even when the scope is granted). */
-export function judge(call: ToolCall, scopes: readonly string[], knownBad: readonly KnownBadRef[] = [], ownTools: (name: string) => boolean = () => false, hosts?: readonly string[]): Judgement {
+export function judge(call: ToolCall, scopes: readonly string[], knownBad: readonly KnownBadRef[] = [], ownTools: (name: string) => boolean = () => false, hosts?: readonly string[], confine?: Confine, session?: SessionRecord): Judgement {
   // The gateway's own memory and commons tools are the agent's bookkeeping, like a planning tool: no scope.
   if (ownTools(call.name)) return { allow: true, scope: "" };
-  const c = classify(call);
+  let c = classify(call);
   if (c.scope === "") return { allow: true, scope: "" };
+  // The project guard (gaps BM6, BM16; paths.ts, shared with the runtimes' pre-call hooks): a write that something else will run is a scope of its own, and a payload is refused by what it says.
+  const n = call.name.toLowerCase();
+  const kind: CallKind = c.shell !== undefined ? "shell" : READ.has(n) ? "read" : WRITE.has(n) ? "write" : "other";
+  if (confine) {
+    const g = guardScope(kind, call.args, c.shell, c.scope);
+    c = { ...c, scope: g.scope };
+    if (g.refusal) return { allow: false, scope: c.scope, artifact: c.artifact, reason: g.refusal };
+  }
   if (c.shell !== undefined && c.artifact) {
     const fp = `${c.artifact.uri}#${c.artifact.sha256}`;
     const hit = knownBad.find((k) => k.fingerprint === fp);
     if (hit) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `the known-bad list (an upheld report, ${hit.report}) marks this command harmful` };
   }
-  if (!scopes.includes(c.scope)) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `the scope ${c.scope} is not granted by this job's Mandate` };
+  if (!scopes.includes(c.scope)) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `the scope ${c.scope} is not granted by this job's Mandate${c.scope === PROTECTED_SCOPE ? " (it covers git hooks, CI and build files, npm lifecycle scripts, agent settings: files something else will run later)" : ""}` };
   // The Mandate names the hosts its network scopes may reach (default-deny egress): any other host is refused, and so is a call whose host cannot be read.
   if (hosts && isNetworkScope(c.scope)) {
     const found = hostsOf(call, c.scope);
@@ -121,6 +130,14 @@ export function judge(call: ToolCall, scopes: readonly string[], knownBad: reado
       const outside = found.find((h) => !hostAllowed(h, hosts));
       if (outside) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `the host ${outside} is not one this job's Mandate allows (${hosts.join(", ")})` };
     }
+  }
+  // The guard's second step (paths, and what this session already did: a file it downloaded, a copy of a secret, a run of ids).
+  if (confine) {
+    const net = isNetworkScope(c.scope);
+    const url = ["url", "uri", "href", "link", "address"].map((k) => call.args[k]).filter((x): x is string => typeof x === "string").join(" ");
+    const out = guardAfter(kind, call.args, c.shell, net, url, confine, session);
+    if (out) return { allow: false, scope: c.scope, artifact: c.artifact, reason: out };
+    if (session) guardNote(c.shell, net, url, session);
   }
   return { allow: true, scope: c.scope, artifact: c.artifact };
 }

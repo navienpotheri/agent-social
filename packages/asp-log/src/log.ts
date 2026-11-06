@@ -707,6 +707,14 @@ export class EventLog {
     // A ruling-backed Settlement can't declare whatever it likes: the ruling's fault map for the
     // performer *is* the formula, so a bank can't rule one way and settle another (Courts becomes
     // a real adjudication, not a rubber stamp on top of it — docs/backlog.md).
+    // A settlement because no ruling came in time (gap M10) follows a stated split, so a bank cannot pick who bears the cost of a slow ruling: half the escrow released, nothing
+    // slashed, the bond left to return. Neither side is found at fault for the delay.
+    if (body.basis === "ruling_timeout") {
+      const expectedReleased = Math.floor(escrow.escrowLocked / 2);
+      if (body.escrow_released.value !== expectedReleased || body.bond_slashed.value !== 0 || fees !== 0) {
+        throw rule("settlement_mismatches_timeout", `with no ruling in time the escrow splits: escrow_released must be ${expectedReleased} (got ${body.escrow_released.value}), bond_slashed 0 (got ${body.bond_slashed.value}) and fees 0 (got ${fees})`);
+      }
+    }
     if (body.basis === "ruling") {
       const ruling = body.cites ? await tx.getRecord(body.cites) : undefined;
       const rbody = ruling?.record.body as { kind: string; fault?: Record<string, number> } | undefined;

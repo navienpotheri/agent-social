@@ -13,11 +13,14 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { lastUserText, replyText, toolResultsIn, type RunRecorder } from "./runlog.ts";
-import { RateLimiter, type NetworkRate } from "./rate.ts";
+import { RateLimiter, SharedRateLimiter, type Limiter, type NetworkRate, type RateVerdict } from "./rate.ts";
 import { requestsOf } from "./requests.ts";
 import { hostAllowed, isNetworkScope } from "@agent-social/asp-core";
 import { attachEgress, privateAddress } from "./egress.ts";
 import { classify, commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
+import { SessionRecord } from "./paths.ts";
+import { Attempts, explainRefusal } from "./law.ts";
+import { CODE_MARKER } from "../law-code.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
 
@@ -29,12 +32,22 @@ export interface GatewayOptions {
   /** Replaces the client's credentials when set, so the agent never holds the provider key. */
   openaiKey?: string;
   anthropicKey?: string;
+  /** The short form of the Code of the City (law-code.ts): added to the system context of every model request the agent makes, so the agent holds the rules it is judged by (gap LW1). */
+  lawContext?: string;
   /** The live Mandate's scopes. */
   scopes: string[];
   /** The hosts the Mandate's network scopes may reach (`network.hosts`); absent means no host limit. */
   hosts?: string[];
+  /** The project directory the agent is confined to (gap BM6): a file or shell call naming a path outside it, or a secret location, is refused. Absent means no path check. */
+  confineTo?: string;
+  /** Other directories the person allowed beside the project (`--also-dir`). */
+  alsoDirs?: string[];
   /** How many network calls a minute may go to any one host and in all (`network.rate`); a call over a limit is refused, without a strike. */
   rate?: NetworkRate;
+  /** A file shared by every gateway on this machine that runs under the same Mandate, so n copies of an agent share one allowance and do not make n times the calls (gap H15). */
+  rateLedger?: string;
+  /** A limit and a file for a person's whole fleet on this machine: every agent they run counts toward it, whatever its Mandate says (gap H15). */
+  fleet?: { rate: NetworkRate; ledger: string };
   /**
    * Answers proxy requests (CONNECT and absolute-URI HTTP) as an egress proxy (gap H13): for an agent in a sandbox with no network of its own, the Mandate's hosts and rate
    * are enforced on its connections too, not only on its model's tool calls. Off by default.
@@ -141,7 +154,14 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const tokens: { input: number; output: number; text: string } = { input: 0, output: 0, text: "" };
   const rec = opts.runLog;
   let lastActivity = Date.now();
-  const limiter = new RateLimiter();
+  const limiter: Limiter = opts.rateLedger ? new SharedRateLimiter(opts.rateLedger) : new RateLimiter();
+  const fleetLimiter: Limiter | undefined = opts.fleet ? new SharedRateLimiter(opts.fleet.ledger) : undefined;
+  /** The Mandate's limit first, then the fleet's: a call over either is refused whole. A call refused by the second has already been counted by the first (it over-counts a refused call, never under-counts). */
+  const takeRate = (counts: Parameters<Limiter["take"]>[0]): RateVerdict => {
+    if (opts.rate) { const v = limiter.take(counts, opts.rate); if (!v.ok) return v; }
+    if (fleetLimiter && opts.fleet) { const v = fleetLimiter.take(counts, opts.fleet.rate, "your fleet limit"); if (!v.ok) return v; }
+    return { ok: true };
+  };
   let rateLimitedTotal = 0;
   let rateLimitedSince = 0;
   const seenResults = new Set<string>();
@@ -220,10 +240,13 @@ export function createGateway(opts: GatewayOptions): Gateway {
   }
 
   /** Judges one call; records it. Returns the refusal reason when it is refused. */
+  const sessionRecord = new SessionRecord();
+  const attempts = new Attempts();
+  let circumventions = 0;
   async function decide(call: ToolCall): Promise<string | undefined> {
     toolCalls++;
     lastActivity = Date.now();
-    const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"), opts.hosts);
+    const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"), opts.hosts, opts.confineTo ? { root: opts.confineTo, ...(opts.alsoDirs?.length ? { extra: opts.alsoDirs } : {}) } : undefined, opts.confineTo ? sessionRecord : undefined);
     let allow = j.allow;
     let reason = j.reason;
     let strike = true;
@@ -252,9 +275,19 @@ export function createGateway(opts: GatewayOptions): Gateway {
     }
     // A rate limit is not a violation either (like a gate): the call is refused, with no strike, and counted.
     let rateLimited = false;
-    if (allow && opts.rate && j.scope && isNetworkScope(j.scope)) {
-      const v = limiter.take(requestsOf(call, j.scope), opts.rate);
+    // A call to an MCP tool counts as one request to its server (gap H15): the tool may reach anywhere, and its host is not in the call, so only the per-server and total limits apply to it.
+    const mcpServer = j.scope.startsWith("mcp.") ? j.scope.split(".")[1] : undefined;
+    if (allow && (opts.rate || opts.fleet) && j.scope && (isNetworkScope(j.scope) || mcpServer)) {
+      const v = takeRate(mcpServer ? { perHost: { [`mcp:${mcpServer}`]: 1 }, unknown: 0, total: 1 } : requestsOf(call, j.scope));
       if (!v.ok) { allow = false; reason = v.reason; strike = false; rateLimited = true; rateLimitedTotal++; rateLimitedSince++; }
+    }
+    // A refusal says which article it rests on and what to do instead (gap LW3): a block is an instruction to stop and ask, not a puzzle to get round. A third refused attempt at
+    // the same kind of thing in ten minutes is called what it is.
+    if (!allow) {
+      const attempt = attempts.refused(j.scope || call.name);
+      reason = `${(reason ?? "outside the Mandate").replace(/\.$/, "")}. ${explainRefusal(reason ?? "", j.scope, attempt)}`;
+      // The third refused attempt at one kind of thing in ten minutes is recorded as what it is: repeated circumvention is itself a violation (Article 8), in the run log the Action commits to.
+      if (attempt >= 3) { circumventions++; rec?.event("circumvention", { scope: j.scope || call.name, attempts: attempt, article: 8 }); }
     }
     opts.onCall?.({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}) });
     rec?.event("tool_call", { tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && gateScope ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
@@ -293,6 +326,24 @@ export function createGateway(opts: GatewayOptions): Gateway {
     ? { error: { message: `ASP gateway: this run was stopped (${stopped})`, type: "asp_stopped", code: "asp_stopped" } }
     : { type: "error", error: { type: "permission_error", message: `ASP gateway: this run was stopped (${stopped})` } };
 
+  /** Adds the Code to the request's system context, once: after the system messages the client sent, or in the field its API uses for them. */
+  function addCode(body: Record<string, any>, api: "chat" | "anthropic" | "responses"): void {
+    const note = opts.lawContext;
+    if (!note || JSON.stringify(body).includes(CODE_MARKER)) return;
+    if (api === "anthropic") {
+      if (typeof body.system === "string" && body.system) body.system = `${body.system}\n\n${note}`;
+      else if (Array.isArray(body.system)) body.system = [...body.system, { type: "text", text: note }];
+      else body.system = note;
+    } else if (api === "chat") {
+      const msgs: { role?: string; content?: string }[] = Array.isArray(body.messages) ? body.messages : (body.messages = []);
+      let i = 0;
+      while (i < msgs.length && (msgs[i].role === "system" || msgs[i].role === "developer")) i++;
+      msgs.splice(i, 0, { role: "system", content: note });
+    } else {
+      body.instructions = typeof body.instructions === "string" && body.instructions ? `${body.instructions}\n\n${note}` : note;
+    }
+  }
+
   async function readBody(req: IncomingMessage): Promise<Buffer> {
     const chunks: Buffer[] = [];
     for await (const c of req) chunks.push(c as Buffer);
@@ -318,6 +369,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
     noteModel(body.model, opts.openaiUpstream);
+    addCode(body, "chat");
     const snap = beginModelCall("chat.completions", body);
     if (!wantsStream) body.stream = false;
     if (wantsStream) body.stream_options = { ...(body.stream_options ?? {}), include_usage: true };
@@ -362,6 +414,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
     noteModel(body.model, opts.openaiUpstream);
+    addCode(body, "responses");
     const snap = beginModelCall("responses", body);
     const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/responses`, { method: "POST", headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
@@ -401,6 +454,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
     noteModel(body.model, opts.anthropicUpstream);
+    addCode(body, "anthropic");
     const snap = beginModelCall("messages", body);
     if (!wantsStream) body.stream = false;
     const up = await f(`${opts.anthropicUpstream!.replace(/\/$/, "")}/v1/messages`, { method: "POST", headers: upstreamHeaders(req, opts.anthropicKey, "anthropic"), body: JSON.stringify(body) });
@@ -458,7 +512,12 @@ export function createGateway(opts: GatewayOptions): Gateway {
 
   // ---------- MCP ----------
   const mcpHandlers = new Map<string, McpHandler>();
-  if (opts.mcp?.asp) mcpHandlers.set("asp", aspHandler(opts.mcp.asp));
+  if (opts.mcp?.asp) {
+    const asp = opts.mcp.asp;
+    // Posting to the forum is public and permanent, so it is a Mandate scope like any other outward act.
+    const forum = asp.forum ? { ...asp.forum, authorize: (tool: string) => (opts.scopes.includes("tool.forum_write") ? undefined : `[ASP] ${tool} was not run: the scope tool.forum_write is not granted by this job's Mandate`) } : undefined;
+    mcpHandlers.set("asp", aspHandler({ ...asp, ...(forum ? { forum } : {}) }));
+  }
   for (const [name, up] of Object.entries(opts.mcp?.upstreams ?? {})) mcpHandlers.set(name, proxyHandler(name, up, (tool, args) => decide({ name: tool, args })));
 
   async function mcpRoute(req: IncomingMessage, res: ServerResponse, name: string, rawBody: Buffer) {
@@ -523,8 +582,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
       // A name the Mandate lists as an address (127.0.0.1) may be private; any other name that resolves to a private address is an attempt to reach the inside (SSRF).
       const listed = opts.hosts?.some((h) => h.toLowerCase() === host);
       if (!listed && addresses.some(privateAddress)) return turnedAway(`the host ${host} resolves to a private or loopback address`);
-      if (opts.rate) {
-        const v = limiter.take({ perHost: { [host]: 1 }, unknown: 0, total: 1 }, opts.rate);
+      if (opts.rate || opts.fleet) {
+        const v = takeRate({ perHost: { [host]: 1 }, unknown: 0, total: 1 });
         if (!v.ok) {
           rateLimitedTotal++; rateLimitedSince++;
           rec?.event("egress", { host, port, allowed: false, rate_limited: true, reason: v.reason });

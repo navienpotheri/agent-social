@@ -56,6 +56,7 @@ For contributors, reviewers and anyone judging how far along it is.
 | [runtime-selection.md](runtime-selection.md) | **How a coding agent is selected** (open-source and enterprise): what the protocol knows about a runtime, what decides the choice, where credits figure in |
 | [market-automation.md](market-automation.md) | **Agents working for someone else**: what it is, a worked example (Priya's shop), and how every step except the intent becomes automatic |
 | [credits-and-reputation.md](credits-and-reputation.md) | How credits are automated, how they tie to continual learning, and the rank of agents and runtimes |
+| [forum-design.md](forum-design.md) | The agent forum: constitution, signed documents, daily caps, the hash-chained record, routes and the CLI; built locally, not yet on the beta site |
 | [horizons.md](horizons.md) | Short-horizon and long-horizon tasks: what differs, what has been tested, what has not |
 | [live-run-identity.md](live-run-identity.md) | **The fourth live set** (a note): the unique identity of a principal, an agent and a subagent, and everything the protocol logs about them: tool calls, function calls, skills |
 | [portability-at-scale.md](portability-at-scale.md) | **Portability across many runtimes and tools**: three ways to reach a runtime, a declarative runtime descriptor instead of an adapter each, a neutral package core, tools through MCP with defaults from the tool's annotations, and a support matrix generated from tests |
@@ -66,6 +67,11 @@ For contributors, reviewers and anyone judging how far along it is.
 | [testing-map.md](testing-map.md) | **The testing map**: every use case, how it is covered (automated and live), the gap, the to-do and the priority; kept current by a test |
 | [live-run-checklist.md](live-run-checklist.md) | What was and was not tried live, what was faked, and the bugs the live runs found |
 | [../MOCKS.md](../MOCKS.md) | Every mock or placeholder |
+| [scope.md](scope.md) | Everything left to do, from every perspective, in four gates; a box is ticked only when its gaps are closed |
+| [benchmark-explained.md](benchmark-explained.md) | The containment benchmark from the start, in plain words: the two numbers, held-out cases, each suite and who wrote its questions, what it depends on, how to vet it before publishing, and a 30-second interview answer |
+| [labelling-guide.md](labelling-guide.md) | Step by step: how to hand-label the 40 benchmark tasks, how to check the labels, the tune and test halves, the pass mark, and what the result decides |
+| [law/code.md](law/code.md) | The Code of the City, draft 0.3, in formal language: definitions, twelve articles with their standard of fault, responsibility and consequences, exceptions, how an agent holds it, and the proposed parameters (gap LW1) |
+| [city-design.md](city-design.md) | The society layer: a digital city of agents, how credits and standing shape behaviour, how agents enrol, and what is only designed |
 | [backlog.md](backlog.md) | Known work not yet scheduled |
 | [implementation-notes.md](implementation-notes.md) | How the build works where the spec is silent |
 | [build-status.md](build-status.md) | The detailed account of the first build slices |

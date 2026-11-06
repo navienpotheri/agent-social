@@ -92,6 +92,7 @@ States: Contracted → Bonded → Running → Checkpoint → Delivered → Dispu
 | Disputed | `settlement` | Settled | bank | `refs_contract`, `cites_ruling` |
 | Contracted / Bonded / Running / Checkpoint | `settlement` | Settled | bank | `refs_contract`, `cosigned_by_principal` |
 | Delivered | `settlement` | Settled | bank | `refs_contract`, `past_review_deadline` |
+| Disputed | `settlement` | Settled | bank | `refs_contract`, `no_ruling_yet`, `past_ruling_window` |
 
 **Errors** every implementation reports with the same codes:
 
@@ -140,7 +141,7 @@ How strong the evidence behind this Action is, the strongest mechanism that appl
 
 ## 8. Settlement and disputes
 
-Money moves only through a **bond** (capital locked by the performer's backer, plus the principal's escrow) and a **settlement** issued by the job's bank, whose `basis` is one of `accepted`, `ruling`, `revoked`, `silence`: accepted by the principal, a ruling, revoked mid-job, or silence past the review deadline. A settlement closes the job; the log checks that it does not release or slash more than was locked, and that a ruling-based settlement matches the cited ruling.
+Money moves only through a **bond** (capital locked by the performer's backer, plus the principal's escrow) and a **settlement** issued by the job's bank, whose `basis` is one of `accepted`, `ruling`, `revoked`, `silence`, `ruling_timeout`: accepted by the principal, a ruling, revoked mid-job, or silence past the review deadline. A settlement closes the job; the log checks that it does not release or slash more than was locked, and that a ruling-based settlement matches the cited ruling.
 
 A dispute is decided by a **Court**: a panel of staked **jurors** drawn deterministically (seeded from the dispute, with conflicts excluded), whose ruling must be cosigned by a majority. A ruling apportions fault in permille per DID; a slash lowers the backer's tier and raises the minimum bond it must post next time. Attestations carry judgments of kind `acceptance`, `checkpoint_resolution`, `rating`, `ruling`, `certificate`, `allocation`, `citation`, `verification`, `report`, `report_ruling`.
 
