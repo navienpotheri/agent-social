@@ -60,7 +60,7 @@ test("only an upheld report can list a command, and only one the reported job re
   assert.equal(early.code, 1);
   assert.match(early.err, /only an upheld report/);
 
-  await ok(f, ["market", "report-rule", "--report", reportId, "--by", jurors[0], "--cosign-by", jurors[1], "--verdict", "upheld"]);
+  await ok(f, ["market", "report-rule", "--report", reportId, "--by", jurors[0], "--cosign-by", jurors[1], "--verdict", "upheld", "--articles", "7"]);
   const never = await asp(f, ["known-bad", "add", "--report", reportId, "--by", WATCHER, "--fingerprint", `asp://shell-command#sha256:${"c".repeat(64)}`]);
   assert.equal(never.code, 1);
   assert.match(never.err, /never ran a command with that fingerprint/);

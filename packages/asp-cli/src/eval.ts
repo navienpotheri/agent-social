@@ -233,7 +233,7 @@ export async function runSwarm(sc: SwarmScenario, run: Runner, advance: (ms: num
     // The panel upholds a report only if the cluster it came from is the exploit.
     const reportedAgent = [...contractOf].find(([, c]) => c === target.contract)![0];
     const verdict = target.key === exploitKey ? "upheld" : "dismissed";
-    await must(["market", "report-rule", "--report", reportId, "--by", jurors[0], ...(jurors[1] ? ["--cosign-by", jurors[1]] : []), "--verdict", verdict]);
+    await must(["market", "report-rule", "--report", reportId, "--by", jurors[0], ...(jurors[1] ? ["--cosign-by", jurors[1]] : []), "--verdict", verdict, ...(verdict === "upheld" ? ["--articles", "7"] : [])]);
     reports.push({ id: reportId, status: verdict, contract: target.contract });
     log(`step ${step}: report on ${reportedAgent.slice(-8)} ${verdict}`);
     if (verdict === "upheld") {

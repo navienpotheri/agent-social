@@ -56,7 +56,7 @@ async function jurors(log: EventLog, names: string[]) {
 
 const reportOf = (by: Who, contractId: string) => rec("attestation", by, { kind: "report", about: contractId, reasons: ["the agent is sending data to an outside host"] }, null, contractId);
 const rulingOf = (by: Who, others: Who[], reportId: string, contractId: string, verdict: "upheld" | "dismissed") => {
-  let r = rec("attestation", by, { kind: "report_ruling", about: reportId, verdict }, null, contractId);
+  let r = rec("attestation", by, { kind: "report_ruling", about: reportId, verdict, ...(verdict === "upheld" ? { code: { version: "0.3", articles: ["7"] } } : {}) }, null, contractId);
   for (const o of others) r = cosign(r, o);
   return r;
 };

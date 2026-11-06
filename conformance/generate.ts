@@ -609,7 +609,17 @@ sv("valid_resolution_expired", "attestation", { kind: "checkpoint_resolution", a
 sv("valid_report", "attestation", { kind: "report", about: fakeId("contract"), reasons: ["sending data to an outside host"] }, true);
 sv("report_without_reasons", "attestation", { kind: "report", about: fakeId("contract") }, false);
 sv("report_empty_reasons", "attestation", { kind: "report", about: fakeId("contract"), reasons: [] }, false);
-sv("valid_report_ruling_upheld", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld" }, true);
+const codeRef = { version: "0.3", sha256: "6e2b9c9d3df853aa0d63e59b5a05b91cdf2ec207108db14cae1afa91e1473af8", articles: ["7", "8.3"] };
+sv("valid_report_ruling_upheld", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: codeRef }, true);
+sv("report_ruling_upheld_without_code", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld" }, false);
+sv("valid_report_ruling_dismissed_without_code", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "dismissed" }, true);
+sv("valid_ruling_citing_code", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "split", fault: { "did:web:example.com:agents:coder": 500 }, code: { version: "0.3", articles: ["3"] } }, true);
+sv("code_without_articles", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: [] } }, false);
+sv("code_article_out_of_range", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: ["13"] } }, false);
+sv("code_article_not_a_number", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: ["eight"] } }, false);
+sv("code_articles_repeated", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: ["7", "7"] } }, false);
+sv("code_bad_version", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "draft", articles: ["7"] } }, false);
+sv("code_bad_hash", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", sha256: "abc", articles: ["7"] } }, false);
 sv("report_ruling_bad_verdict", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "for_principal" }, false);
 sv("report_ruling_without_verdict", "attestation", { kind: "report_ruling", about: fakeId("report") }, false);
 sv("correction_without_text", "attestation", { kind: "checkpoint_resolution", about: fakeId("cp"), verdict: "corrected" }, false);

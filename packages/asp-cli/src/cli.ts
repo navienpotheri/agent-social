@@ -491,6 +491,8 @@ const OPTIONS = {
   allow: { type: "string" },
   permissions: { type: "string" },
   "also-dir": { type: "string" },
+  articles: { type: "string" },
+  "code-version": { type: "string" },
   "no-law-context": { type: "boolean" },
   compact: { type: "boolean" },
   "public-key": { type: "string" },
@@ -1481,6 +1483,25 @@ function lawCmd(home: string, sub: string | undefined, v: Values, io: Io): numbe
     return 0;
   }
   throw new UsageError("usage: asp law show [--compact] | verify [--public-key <hex>] | pin | sign --by <did>");
+}
+
+/**
+ * The `code` of a ruling (gap LW1): the version of the Code of the City applied, its hash, and the Articles the judgment rests on. A report that is upheld must name them: a finding that
+ * the Code was broken says which Article. `--articles 7,8.3 [--code-version 0.3]`; the hash is the pinned one for that version.
+ */
+function codeCitation(articles: string | undefined, version: string | undefined, required: boolean): { code?: { version: string; sha256?: string; articles: string[] } } {
+  if (!articles) {
+    if (required) throw new UsageError("an upheld report names the Articles of the Code it rests on: --articles 7,8.3 (see asp law show)");
+    return {};
+  }
+  const list = [...new Set(articles.split(",").map((x) => x.trim()).filter(Boolean))];
+  const bad = list.filter((a) => !/^(1[0-2]|[1-9])(\.[0-9]{1,2})?$/.test(a));
+  if (!list.length || bad.length) throw new UsageError(`--articles is a list of Articles 1 to 12, or clauses such as 8.3: ${bad.join(", ") || "none given"} is not one`);
+  const info = readCode();
+  const v = version ?? info.version;
+  const pin = info.pin && info.pin.version === v ? info.pin : v === info.version ? undefined : undefined;
+  const sha256 = v === info.version ? info.sha256 : pin?.sha256;
+  return { code: { version: v, ...(sha256 ? { sha256 } : {}), articles: list } };
 }
 
 /** asp keys status | protect | unprotect: seal the key files and the saved login under ASP_KEY_PASSPHRASE, or take the seal off (gaps U5, P20). */
@@ -3830,7 +3851,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       fault[did] = Math.trunc(Number(permille));
     }
     if (!Object.keys(fault).length) throw new UsageError("--fault <did>=<permille> is required, at least once");
-    const body = { kind: "ruling", about: contract, verdict, fault };
+    // A ruling may name the Articles of the Code of the City it rests on (--articles 3,8.3).
+    const body: Record<string, unknown> = { kind: "ruling", about: contract, verdict, fault, ...codeCitation(v.articles, v["code-version"], false) };
     let record = createRecord({ type: "attestation", issuer: by, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(by));
     for (const cosigner of v["cosign-by"] ?? []) record = cosign(record, signerFor(cosigner));
     const res = await local.append(record);
@@ -3877,7 +3899,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     if (!["upheld", "dismissed"].includes(verdict)) throw new UsageError("--verdict is upheld or dismissed");
     const report = await local.log.report(reportId);
     if (!report) throw new Error(`${reportId} is not a report in the log`);
-    let record = createRecord({ type: "attestation", issuer: by, subject: report.contract, prev: null, body: { kind: "report_ruling", about: reportId, verdict }, issued_at: now() }, signerFor(by));
+    let record = createRecord({ type: "attestation", issuer: by, subject: report.contract, prev: null, body: { kind: "report_ruling", about: reportId, verdict, ...codeCitation(v.articles, v["code-version"], verdict === "upheld") }, issued_at: now() }, signerFor(by));
     for (const cosigner of v["cosign-by"] ?? []) record = cosign(record, signerFor(cosigner));
     const res = await local.append(record);
     io.out(`report ruling ${res.id} on report ${reportId}: ${verdict} (log seq ${res.seq})`);
