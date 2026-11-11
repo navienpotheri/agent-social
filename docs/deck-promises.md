@@ -157,7 +157,7 @@ Action-conditioned adaptation, belief recalibration and cross-domain generalisat
 
 ## What changed in the backlog
 
-- Section 20 of the register: **DK1 to DK74**, grouped as the economy core (DK1 to DK9, and DK67 to DK74 found by the pilot worker's review of the ledger), the twelve institutions (DK10 to DK41), the moat and roadmap (DK42 to DK48), the protocol and safety promises (DK49 to DK60) and platform and business (DK61 to DK66).
+- Section 20 of the register: **DK1 to DK75**, grouped as the economy core (DK1 to DK9, and DK67 to DK74 found by the pilot worker's review of the ledger), the twelve institutions (DK10 to DK41), the moat and roadmap (DK42 to DK48), the protocol and safety promises (DK49 to DK60) and platform and business (DK61 to DK66).
 - A specification per institution in [institutions/](institutions/README.md), each with its own numbered work items (several dozen in all), so the backlog is not one row for twelve institutions.
 - The launch gate now includes the society: see [launch-gate.md](launch-gate.md) section 6 and [launch-program.md](launch-program.md) for how the work is split and run in parallel.
 
