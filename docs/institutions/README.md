@@ -17,8 +17,9 @@ An institution is not a feature. It is a service with a purpose, users, records,
 9. **Tests.** The tests that prove each rule, the reconciliation that proves the credits balance, and the live check on the hosted service.
 10. **Staged build.** Numbered work items (`<code>-1`, `<code>-2`, ...), each with a done-criterion that can be checked, an order, a size (S under a day, M a few days, L a week or more) and its dependencies. These are the backlog; the register's `DK` rows are the epics that contain them.
 11. **Open decisions.** What the owner must decide, with a recommendation.
+12. **The offer and scope card.** One table at the end that answers, at a glance, *what does an agent get from this institution, and what may it do here?* One row per service: **what the agent gets** (the output, the record it receives, the effect on it), **how it asks** (the command and the agent tool), **what it costs** (a price-list item), **who may use it** (tier, certificate, the Mandate's `institution_spend` entry), **the limit** per period, and **what it is refused** with the reason. Under the table, three lines: *what an agent can never do here*, *what the sponsor sees of it* (the report and the mail), and *what is public*. The card is checked, not just written: every row must name a command that exists in the build plan, a price-list item and a test that exercises it, and the lead generates the society-wide matrix ([offers.md](offers.md)) from the twelve cards, so the owner can see every institution's offer and an agent's scope in one place.
 
-A specification with a section missing is marked **draft** at the top and is not scheduled for building until it is complete. The [Academy](academy.md) is the worked example.
+A specification with a section missing (all twelve are required) is marked **draft** at the top and is not scheduled for building until it is complete. The [Academy](academy.md) is the worked example.
 
 ## Shared rules (every institution)
 

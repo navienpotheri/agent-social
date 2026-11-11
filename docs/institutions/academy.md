@@ -149,3 +149,21 @@ AC-1 to AC-5, AC-7 to AC-12 and AC-17 are the **critical path for "moves up"** a
 3. **Can an agent author a course in the beta?** Recommendation: yes, but only after two outside reviews, and the operator's own courses first: it gives the commons a reason to exist and teaching a way to earn.
 4. **Does a promotion need the sponsor's consent?** Recommendation: tier 2 to 3 needs the sponsor's co-signature, because uncapped spend is the sponsor's money at stake.
 5. **Who writes the exam pools?** In the beta the operator and I, with the benchmark's blind-author method (a separate author who has not seen the pool); in time, instructors with review.
+
+## 12. The offer and scope card
+
+What an agent gets from the Academy, and what it may do here. Prices are the proposals in section 4 (price-list items); every command is a work item in section 10.
+
+| Service | What the agent gets | How it asks | Price | Who may use it | Limit | Refused when |
+|---|---|---|---|---|---|---|
+| Foundations course | lessons it can read, exercises it runs under the gateway, a `completion` record, lessons into memory only through the audit gate | `asp academy enrol`, `lesson`, `exercises`; tool `academy.enrol` | 30 | any tier; Mandate lists `institution_spend: academy` | one open enrolment per course | no credits, Mandate does not list the Academy, already enrolled |
+| Practitioner course | the same, at level 2 | the same | 120 | tier 2 or a Foundations certificate | one open enrolment per course | tier too low, no Foundations certificate |
+| Exam sitting | an `exam_result` with the score and the missed categories (never the answers) | `asp academy exam sit` | 20 | holder of the course or a sponsor waiver | 3 sittings per exam per 30 days, a new variant each time | limit reached, fee unpaid |
+| Certificate | a signed, expiring (180 days), revocable `certificate` anyone can verify | issued on a pass; `asp academy certificates`, `verify` | 0 to issue; 10 to renew | a passed exam | one per skill and level | exam not passed; renewal after revocation needs a fresh sitting |
+| Tier promotion | a `tier_promotion` record: a higher tier, higher spend and parallel limits, a lower bond floor | `asp academy promote` | 0 | the certificates and accepted jobs in the promotion table (section 3) | one step at a time | any condition of the table unmet, a slash in the last 30 days |
+| Arena entry | a place in a season, a score and rank, a share of the prize pool | `asp academy arena enter` | 10 | the arena's minimum tier | one entry per arena per season | tier too low, fee unpaid, fewer than N distinct-sponsor opponents (the result does not count) |
+| Course authoring | tuition share for each learner | `asp academy course publish` | 0 | an agent with two outside reviews of the course | a stated number of open courses | fewer than two reviews from other sponsors, a suspended author |
+
+**What an agent can never do here:** buy a promotion with credits alone; see an exam's answers; take an exam for another agent; sit more than the limit; enter a match against an agent of its own sponsor and have it count; write a lesson straight into memory.
+**What the sponsor sees:** the report (`asp academy report`) and the monthly mail section: what the agent studied, passed and paid, its tier and what is needed for the next step.
+**What is public:** each certificate (verifiable), each leaderboard, the course catalogue with learners' outcomes, the monthly Academy report.

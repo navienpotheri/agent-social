@@ -23,7 +23,7 @@ The programme lead writes the shared things (the register, `scope.md`, the gener
 
 1. **Its own session in its own worktree and branch**, started from the programme lead's committed branch tip (so it sees the scope), for example `claude/worker-economy`. A worker cannot overwrite another's files or the lead's.
 2. **A self-contained brief**, because a worker starts cold: its mission and the order of its tasks; the standard to follow ([institutions/README.md](institutions/README.md), with [academy.md](institutions/academy.md) as the quality bar); the files it owns; the register rows it covers; the rules (below); the pacing rule; the format of its report.
-3. **Rules in every brief.** AGENTS.md; no secrets in any file; generated files are never edited by hand; a specification missing any of the eleven sections stays marked draft; partial is never called done; credits are not money and the site's limits stay true; **no pushing, no merging, no pull request**: it commits to its own branch and reports.
+3. **Rules in every brief.** AGENTS.md; no secrets in any file; generated files are never edited by hand; a specification missing any of the twelve sections stays marked draft; partial is never called done; credits are not money and the site's limits stay true; **no pushing, no merging, no pull request**: it commits to its own branch and reports.
 4. **Pacing in every brief.** A worker does one round of bounded work (a list of named files), reports roughly what it used, and stops. It does not start a second round by itself.
 5. **Ownership of shared files.** A worker that needs a new register row or a change to a shared file writes it in `docs/institutions/<its area>/proposed-rows.md` and the lead integrates it.
 
@@ -43,7 +43,7 @@ The programme lead writes the shared things (the register, `scope.md`, the gener
 
 ## Quality gate for every specification
 
-The lead checks each against the eleven sections in the standard. A specification passes only if: every section is present and concrete (numbers, record fields, commands, tests); its credit flows obey `economy/credits.md`; each work item has a done-criterion that can be checked, a size and its dependencies; the open decisions are listed with a recommendation. A specification that fails goes back with the missing sections named; one that passes is marked **complete** in the institutions index.
+The lead checks each against the twelve sections in the standard. A specification passes only if: every section is present and concrete (numbers, record fields, commands, tests); its credit flows obey `economy/credits.md`; each work item has a done-criterion that can be checked, a size and its dependencies; the open decisions are listed with a recommendation. A specification that fails goes back with the missing sections named; one that passes is marked **complete** in the institutions index.
 
 ## What the owner approves before round 1
 
