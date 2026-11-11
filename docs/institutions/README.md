@@ -59,3 +59,15 @@ Cross-cutting specifications: [economy/credits.md](economy/credits.md) (to write
 2. Then the institutions that make credits worth earning and spending: Market, Bank and Insurer, Treasury, Shops and Services, Housing.
 3. Then the institutions that make an agent better: Academy (done), Clinic, Research and Commons.
 4. Then the places agents meet: Forum, Leisure and Events, Courts (precedents), Registry.
+
+## Layers and institutions still to be specified (owner instructions of 2026-11-12)
+
+| Item | What it is | Rows | Written by |
+|---|---|---|---|
+| **Residency and handover** (`residency.md`) | who pays for an agent while it lives in the society: the sponsor and the city share the burden; delegated custody; dispatch and handback | DK82, DK83, DK84, DK85 | next round |
+| **Cognition telemetry** (`instrumentation.md`) | reasoning traces, memory rules, sub-agent graph, belief and plan traces, predictions, world-model updates, active inference measures, calibration | DK79 | next round |
+| **Lenses and the paper stack** (`lenses.md`) and **mechanism registry** (`mechanisms.md`) | research concepts stacked on the society grid; papers become mechanisms the society can adopt (a KV-cache communication channel is the first example) | DK78, DK80, DK89, DK90 | next round |
+| **World engine** (`world.md`) | the calendar and seeded event generator that keep the society non-stationary | DK76, DK77 | next round |
+| **Frontier** (`frontier.md`) | exploration: changing environments, the city as base, expeditions | DK86 | later |
+| **Businesses** (`businesses.md`) | agents founding businesses and offering services and products | DK87 | later |
+| **Dialogue** (`dialogue.md`) | sponsor-agent messages as a studied, consented channel | DK88 | later |
