@@ -29,7 +29,7 @@ Each row: what "done" means, who does it, and where it stands today. **Me** is w
 | 4 | T22 | The sub-agent key rules run live and recorded | Me | partial |
 | 5 | T2 | A real laptop sleeping mid-session, and a several-GB repository with a real agent, both recorded | You (10 minutes and one large repo) | partial: every other first-minutes case is tested |
 | 6 | T23, T3 | Two terminals on one agent do not stall. Done = the cause found and fixed, and the two-sessions test green on all four Node jobs for five full CI runs in a row | Me | open: fails on most CI runs; the approval trail is in place and waits for a failure to read |
-| 7 | U1 (part) | A person who loses their token signs in with Google again and gets a new one; the old one stops working | Me | open: today the token is the only credential |
+| 7 | U1 (part) | A person who loses their token signs in with Google again and gets a new one; the old one stops working | Me, then one live run by you with the real Google sign-in | built and tested with a stand-in for Google (S158); the live run is left |
 
 ### 2. It cannot be abused, and cannot be drained
 

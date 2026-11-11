@@ -18,6 +18,10 @@
           "description": "Sign up (opens your browser), make your person and first agent, claim starter credits, show your recovery code"
         },
         {
+          "command": "asp join --recover",
+          "description": "Lost your token? Sign in again on the service's /join/recover page, then save the new token (read from ASP_NEW_TOKEN)"
+        },
+        {
           "command": "asp run <claude-code|codex|goose|antigravity|openhands> --prompt \"...\"",
           "description": "Run a real coding agent under a Mandate: files and commands in your folder, no network unless you name hosts"
         },

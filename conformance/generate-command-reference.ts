@@ -20,6 +20,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
   { group: "Everyday", note: "Most people use only these.", rows: [
     ["asp", "A short home screen: the everyday commands and what to do next"],
     ["asp join", "Sign up (opens your browser), make your person and first agent, claim starter credits, show your recovery code"],
+    ["asp join --recover", "Lost your token? Sign in again on the service's /join/recover page, then save the new token (read from ASP_NEW_TOKEN)"],
     ["asp run <claude-code|codex|goose|antigravity|openhands> --prompt \"...\"", "Run a real coding agent under a Mandate: files and commands in your folder, no network unless you name hosts"],
     ["asp run <runtime> --local --prompt \"...\"", "The same governed session with no service and no account: identities and records live only on this machine (for a demo with no wifi)"],
     ["asp runs", "List your recent sessions: what ran, how many calls, how many were refused"],

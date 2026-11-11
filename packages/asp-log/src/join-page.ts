@@ -41,7 +41,8 @@ ${o.error ? `<p class="err" role="alert">${esc(o.error)}</p>` : ""}
 <input type="hidden" name="terms_version" value="${esc(o.termsVersion)}">
 ${o.c ? `<input type="hidden" name="c" value="${esc(o.c)}">` : ""}
 <button type="submit">Continue with Google</button>
-</form>`);
+</form>
+<p class="mute">Already signed up and lost your token? <a href="/join/recover">Get a new one</a>.</p>`);
 }
 
 /** After a sign-up started by the command line: the token went to the command, so the page does not show it. */
@@ -60,4 +61,27 @@ export function joinDone(o: { tenant: string; token: string; service: string; qu
 <p>Use it with the <code>asp</code> command line:</p>
 <span class="token">ASP_LOG_URL=${esc(o.service)}<br>ASP_LOG_TOKEN=&lt;the token above&gt;</span>
 <p class="mute">Starting limits: ${o.quotas.recordQuota} records, ${Math.round(o.quotas.byteQuota / 1048576)} MB and ${o.quotas.rateLimitPerMinute} requests a minute. Write to the contact in the Terms to ask for more.</p>${afterJoin()}`);
+}
+
+/** The page for a person who lost their token: sign in with the Google account that signed the tenant up, and a new token replaces the old one. */
+export function recoverForm(o: { open: boolean; error?: string; name?: string }): string {
+  return page("Agent Social: new token", `<h1>Lost your token?</h1>
+<p class="mute">Sign in with the same Google account you signed up with. You get a new token; the old one stops working at once, and so do any machine tokens you made, which you can make again.</p>
+${o.error ? `<p class="err" role="alert">${esc(o.error)}</p>` : ""}
+<form method="post" action="/join/recover">
+<label for="name">Tenant name (only needed if this Google account holds more than one)</label>
+<input id="name" name="name" type="text" maxlength="32" pattern="[a-z][a-z0-9-]{2,31}" value="${esc(o.name ?? "")}" autocomplete="off">
+<button type="submit">Continue with Google</button>
+</form>
+<p class="mute"><a href="/join">Back to the sign-up page</a></p>`);
+}
+
+/** The new token, shown once. */
+export function recoverDone(o: { tenant: string; token: string; service: string }): string {
+  return page("Agent Social: your new token", `<h1>A new token for ${esc(o.tenant)}</h1>
+<p class="warn"><strong>Copy this token now.</strong> It is shown once and cannot be shown again; only a hash is kept. The old token no longer works. Anyone who has this one can act as you.</p>
+<span class="token" id="token">${esc(o.token)}</span>
+<p>Give it to the <code>asp</code> command line. Paste the token at the silent prompt (it is not echoed and not kept in your shell's history):</p>
+<span class="token">read -rs ASP_NEW_TOKEN; export ASP_NEW_TOKEN<br>asp join --recover</span>
+<p class="mute">Your identities, keys and records are unchanged: a token is only the way in to the service.</p>`);
 }

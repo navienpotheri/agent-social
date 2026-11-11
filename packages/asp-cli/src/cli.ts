@@ -375,6 +375,7 @@ const OPTIONS = {
   all: { type: "boolean" },
   day: { type: "string" },
   from: { type: "string" },
+  recover: { type: "boolean" },
   text: { type: "string" },
   force: { type: "boolean" },
   spare: { type: "boolean" },
@@ -1602,6 +1603,21 @@ function openBrowser(url: string): void {
  */
 async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   const existing = readJoinConfig(home);
+  // A new token after the old one was lost (gap U1): sign in again on the service's /join/recover page, then give the token to this command through the environment (read -rs ASP_NEW_TOKEN), never as an argument.
+  if (v.recover) {
+    if (!existing) throw new UsageError("asp join --recover replaces the token saved by asp join, and there is none here: run asp join (on this machine's first sign-up) or asp join --again");
+    const fresh = io.env.ASP_NEW_TOKEN;
+    if (!fresh) throw new UsageError(`get a new token at ${existing.service}/join/recover (sign in with the Google account you signed up with), then:
+  read -rs ASP_NEW_TOKEN; export ASP_NEW_TOKEN
+  asp join --recover`);
+    const probe: string[] = [];
+    const checked = await main(["account", "show"], { out: (l) => probe.push(l), err: (l) => probe.push(l), env: { ...io.env, ASP_LOG_URL: existing.service, ASP_LOG_TOKEN: fresh }, cwd: io.cwd });
+    if (checked) throw new Error(`the service did not accept that token (${probe.join(" ").trim().slice(0, 200)}); the saved login is unchanged`);
+    mkdirSync(home, { recursive: true });
+    writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ ...existing, token: fresh }), null, 2) + "\n", { mode: 0o600 });
+    io.out(`the saved login for ${existing.tenant} now uses the new token; the old one no longer works. Machine tokens (asp token list) were revoked with it: make them again with asp token create. Your identities and keys are unchanged.`);
+    return 0;
+  }
   if (existing && !v.again) {
     io.out(`already joined as ${existing.tenant} on ${existing.service}; \`asp account show\` says what you have. (asp join --again signs up another account; asp leave forgets this login.)`);
     return 0;
@@ -1917,6 +1933,17 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
         // Read the file again, add, and replace it whole, so a tenant an operator added meanwhile is kept.
         const current: Tenant[] = existsSync(tokensFile) ? JSON.parse(readFileSync(tokensFile, "utf8")) : [];
         current.push(t);
+        const tmp = `${tokensFile}.${process.pid}.tmp`;
+        writeFileSync(tmp, JSON.stringify(current, null, 2) + "\n");
+        renameSyncRetry(tmp, tokensFile);
+      },
+      // A person who lost their token signs in with Google again and gets a new one (gap U1): the stored hash is replaced and the machine tokens are revoked, in the same locked step as sign-up.
+      rotate: (name, tokenSha256, at) => {
+        const current: Tenant[] = existsSync(tokensFile) ? JSON.parse(readFileSync(tokensFile, "utf8")) : [];
+        const t = current.find((x) => x.name === name);
+        if (!t) return;
+        t.tokenSha256 = tokenSha256; t.tokenRotatedAt = at;
+        if (t.machineTokens) t.machineTokens = t.machineTokens.map((m) => (m.revoked ? m : { ...m, revoked: at }));
         const tmp = `${tokensFile}.${process.pid}.tmp`;
         writeFileSync(tmp, JSON.stringify(current, null, 2) + "\n");
         renameSyncRetry(tmp, tokensFile);
