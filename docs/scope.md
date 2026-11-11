@@ -689,3 +689,5 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK73 | B | designed | The deflation side of the economy has no owner: burn and tax remove credits while the only faucets are new ten... |
 | DK74 | A | open | The starter pool is 200,000 credits (starter.ts line 21) while the deck promises 1,000 tenants at the three-mo... |
 | DK75 | A | open | The owner decided on 2026-11-12 that city structures (homes, plots, vehicles, shop items) may carry compute an...|
+| DK76 | A | open | The society has no engine of change. Nothing happens unless a person starts a job: no calendar, no seasons, no...|
+| DK77 | A | open | Nobody measures whether the society stays non-stationary or whether agents adapt to change, so a society that...|
