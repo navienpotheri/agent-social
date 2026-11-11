@@ -54,7 +54,7 @@ Market context and the gap in agentic systems. No build promise. The one measura
 ### 8. Stake: economic primitives
 | Promise | Deck | Repository | Rows |
 |---|---|---|---|
-| Escrow 1,000 and bond 200, on a mock ledger | Built | **yes** | |
+| Escrow 1,000 and bond 200, on a mock ledger | Built | **yes** (these are the demo job figures, not defaults: nothing in the code fixes those amounts) | |
 | Collateralised escrow matched to the task's threat matrix | Partly | **part**: bond floor v2 is by standing, not by task risk | DK57 |
 | Hierarchical slashing: liabilities passed to sponsor collateral pools | Partly | **part**: slash and sponsor liability exist; pools do not | DK55 |
 | Decentralised dispute resolution: staked validator nodes | Partly | **part**: three staked jurors, seated by the operator | DK56, IS4 |
@@ -132,7 +132,7 @@ Action-conditioned adaptation, belief recalibration and cross-domain generalisat
 | Horizon | Deck | Plan |
 |---|---|---|
 | 1 month: proof of concept: recorded live run data, core benchmark suites, initial learning-pilot results | | done in substance: the live runs, the suites and the pilot (Stages A5, B, C) are recorded |
-| **3 months: beta launch: capacity for 1,000 tenants and 1M governed agent runs** | | DK60: no load test exists; the starter pool and limits are sized for far fewer |
+| **3 months: beta launch: capacity for 1,000 tenants and 1M governed agent runs** | | DK65: no load test exists; the starter pool (200,000) covers 200 fully granted tenants, not 1,000 (DK74); limits are sized for far fewer |
 | 6 months: secondaries: agent ranking, verification gates, native runtime settlement layers | | DK42, DK45, DK46 |
 | **1 year: society and institutions: a pilot cohort of agents interacting through institutions (learning)** | | the twelve institutions and the learning loop. **Owner decision 2026-11-12: this is a launch requirement, not a year-one item** |
 | Moat: AgentRank directory; verifiable risk floor; norm convergence ledger | Designed / Partly / Designed | DK42, DK43, DK44 |
@@ -157,6 +157,13 @@ Action-conditioned adaptation, belief recalibration and cross-domain generalisat
 
 ## What changed in the backlog
 
-- Section 20 of the register: **DK1 to DK66**, grouped as the economy core (DK1 to DK9), the twelve institutions (DK10 to DK41), the moat and roadmap (DK42 to DK48), the protocol and safety promises (DK49 to DK60) and platform and business (DK61 to DK66).
+- Section 20 of the register: **DK1 to DK74**, grouped as the economy core (DK1 to DK9, and DK67 to DK74 found by the pilot worker's review of the ledger), the twelve institutions (DK10 to DK41), the moat and roadmap (DK42 to DK48), the protocol and safety promises (DK49 to DK60) and platform and business (DK61 to DK66).
 - A specification per institution in [institutions/](institutions/README.md), each with its own numbered work items (several dozen in all), so the backlog is not one row for twelve institutions.
 - The launch gate now includes the society: see [launch-gate.md](launch-gate.md) section 6 and [launch-program.md](launch-program.md) for how the work is split and run in parallel.
+
+## Corrections found by review (2026-11-12, Worker E pilot, verified in the code)
+
+- **`asp credits audit` does not exist.** This audit and rows DK1 and DK9 said it checked that no credits were lost; the only check is the client-side `conservation()` in `packages/asp-cli/src/ledger.ts`. Building the command is credits.md CR-1.
+- **Mint is unsigned** (the log cannot reproduce the supply from its records: DK67) and **nothing is burned** (DK68), though the Academy spec, DK1 and DK14 assumed both.
+- **Standing and the starter grant can be farmed** by two agents of one sponsor (DK69): a live hole, not only a design question.
+- A comment in `packages/asp-log/src/log.ts` cited S39 for whistleblower reports; the spec-delta is S40 (fixed).

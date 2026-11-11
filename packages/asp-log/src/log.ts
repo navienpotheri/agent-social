@@ -26,7 +26,7 @@ const TIER_SPEND_LIMIT: Record<number, number> = { 1: 100, 2: 1000 };
 const TIER_PARALLEL_LIMIT: Record<number, number> = { 1: 4, 2: 16 };
 /** Courts pay the jurors who signed a ruling: this share of the contract price, split among them. Loser pays. */
 const PANEL_FEE_PERMILLE = 50;
-/** Whistleblower reports: the reporter's share of the accused's bond when a report is upheld (S39). */
+/** Whistleblower reports: the reporter's share of the accused's bond when a report is upheld (S40). */
 const REPORT_REWARD_PERMILLE = 200;
 const STRIKE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 type StrikeEntry = { at: string; count: number };
