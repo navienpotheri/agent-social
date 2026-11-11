@@ -68,6 +68,24 @@ test("asp run keeps a run log from the runtime's output: calls, results, scope v
   assert.doesNotMatch(off.err, /run log {2}/);
 });
 
+test("two runs of one job: each Action names its own log, so a log is checked against its own Action and the other's is set aside by name (gap P27)", async () => {
+  const f = makeFixture();
+  const { contract, pkg } = await packedJob(f, ["repo.read"]);
+  const env = fakeClaude({ FAKE_CLAUDE_TOOL_USE: JSON.stringify([{ name: "Read", input: { file_path: "/work/a.txt" }, result: "ok" }]) });
+  const one = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "first", "--contract", contract], env);
+  assert.equal(one.code, 0, one.err);
+  const two = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "second", "--contract", contract], env);
+  assert.equal(two.code, 0, two.err);
+  const logs = [one, two].map((r) => /run log {2}(\S+run-log\.ndjson)/.exec(r.err)![1]);
+  assert.notEqual(logs[0], logs[1]);
+  for (const [i, p] of logs.entries()) {
+    const v = await asp(f, ["run-log", "verify", p, "--contract", contract]);
+    assert.equal(v.code, 0, `log ${i + 1}: ${v.out}`);
+    assert.match(v.out, /1 of 1 Action commitment\(s\) match; 1 more name other sessions' logs/, `log ${i + 1}`);
+    assert.match(v.out, /names another log \(run [0-9a-f]{12}\)/);
+  }
+});
+
 test("asp run: a kill is in the run log: the call, the verdict, the kill, how it ended", async () => {
   const f = makeFixture();
   const { contract, pkg } = await packedJob(f, ["repo.read"]);

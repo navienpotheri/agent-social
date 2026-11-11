@@ -351,7 +351,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | P20 | A | partial | asp join stores the service token in plaintext in the ASP home (private to the user, but a file), like the key... |
 | P21 | A | partial | asp run now starts Claude Code, Codex and Goose as governed sessions (S106), and Antigravity and OpenHands (S1... |
 | P22 | A | partial | Provider terms limit how the gateway may be used with a Claude subscription login. Anthropic's Legal and compl... |
-| P27 | A | open | Found in the live run (2026-10-12): a standing job has one run log per session, but an Action's run-log artifa... |
+| P27 | A | closed | Found in the live run (2026-10-12): a standing job has one run log per session, but an Action's run-log artifa... |
 | P29 | A | partial | Found in the long-horizon run (2026-10-12): an agent whose gated command went unanswered retried it (and varia... |
 
 ### Money and Courts
@@ -410,7 +410,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | R1 | A | partial | A governed session used to write about a dozen records; with a standing job (S103) it writes its Action report... |
 | T1 | A | open | Install on macOS and on an older Node has never been tried by hand (CI runs Linux and Windows only; the old-No... |
-| T2 | A | open | The failure modes of a session in the first minutes are untested: a non-git folder, spaces in a path, a very l... |
+| T2 | A | partial | The failure modes of a session in the first minutes are untested: a non-git folder, spaces in a path, a very l... |
 | T3 | A | open | Two sessions at once for one agent (two terminals) share a standing job and the rule that a job has one open C... |
 | T4 | A | partial | When the service is down or there is no network, there was no defined behaviour and no local-only mode, which... |
 | T5 | B | open | Nobody has implemented the protocol from SPEC.md alone: no third implementation, no guide for implementers (ve... |

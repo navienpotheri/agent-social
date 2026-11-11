@@ -3,7 +3,7 @@
  * run was kept) the run log. Pure text in, text out: this file makes the subject, a plain-text body and an HTML body, and the `.eml` that holds
  * both. It sends nothing; the CLI queues the `.eml` in an outbox folder and a delivery step (not built yet) would hand it to a mail provider.
  */
-import type { RunLogCheck } from "./gateway/runlog.ts";
+import { parseRunLogUri, type RunLogCheck } from "./gateway/runlog.ts";
 
 interface Stored { id: string; seq: number; record: { type: string; issuer: string; subject?: string | null; issued_at: string; body: any } }
 /** The part of a log handle the mail needs. */
@@ -74,8 +74,8 @@ export async function collectMandateFacts(log: MailLog, contract: string): Promi
     if (b.late) lateActions++;
     rateLimited += b.metrics?.rate_limited ?? 0;
     for (const x of b.artifacts ?? []) {
-      const m = /^asp:\/\/run-log\/(\d+)$/.exec(x.uri);
-      if (m) { commitments++; committedEvents = Math.max(committedEvents, Number(m[1])); }
+      const m = parseRunLogUri(x.uri);
+      if (m) { commitments++; committedEvents = Math.max(committedEvents, m.events); }
     }
   }
 

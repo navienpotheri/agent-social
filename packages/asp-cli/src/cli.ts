@@ -314,7 +314,7 @@ import { allowScopes, inferScopes, isPreset, presetScopes, scopesFromSizing, siz
 import { NEEDS_PASSPHRASE, isSealed, open as openSealed, passphraseFrom, seal } from "@agent-social/asp-package";
 import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
-import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
+import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
@@ -3073,19 +3073,27 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
   // A standing job has one run log per session, and an Action names only a count and a hash, not which log (gap P27): so for such a job an Action that does not match this file is
   // most likely another session's, and only a log that no Action matches is a failure.
   const standingJob = sessionsOf(home).filter((s) => s.start.contract === v.contract).length > 1 || Object.values(readStanding(home)).some((j) => j.contract === v.contract);
-  let checked = 0, bad = 0;
+  // Since gap P27 an Action names its log (?run=<id>, the start of the log's first event's hash): an Action that names another log is set aside as that session's, and one that names this log
+  // and does not match is a real mismatch, for a standing job too. Actions from before that name no log, and are handled as they were.
+  const thisRun = check.events[0] ? runIdOf(check.events[0].hash) : undefined;
+  let checked = 0, bad = 0, namedBad = 0, elsewhere = 0;
   for (const a of actions) {
     for (const art of ((a.record.body as { artifacts?: { uri: string; sha256: string }[] }).artifacts ?? [])) {
-      const m = /^asp:\/\/run-log\/(\d+)$/.exec(art.uri);
+      const m = parseRunLogUri(art.uri);
       if (!m) continue;
-      const n = Number(m[1]);
+      if (m.run && thisRun && m.run !== thisRun) { elsewhere++; io.out(`  action ${a.id.slice(0, 19)} names another log (run ${m.run}): not checked against this file`); continue; }
+      const n = m.events;
       checked++;
       const want = n <= check.events.length ? hashAfter(check.events, n) : undefined;
       if (want === art.sha256) io.out(`  action ${a.id.slice(0, 19)} commits to the first ${n} event(s): matches`);
-      else { bad++; io.out(`  action ${a.id.slice(0, 19)} commits to ${n} event(s) and ${want ? "the hash does not match" : "this file has fewer events"}${standingJob ? " (another session's log, if this job has more than one)" : ""}`); }
+      else {
+        bad++; if (m.run) namedBad++;
+        io.out(`  action ${a.id.slice(0, 19)} commits to ${n} event(s) of ${m.run ? "this log" : "a log it does not name"} and ${want ? "the hash does not match" : "this file has fewer events"}${standingJob && !m.run ? " (another session's log, if this job has more than one)" : ""}${m.run ? ": NOT ok" : ""}`);
+      }
     }
   }
-  io.out(checked ? `${checked - bad} of ${checked} Action commitment(s) match${standingJob && bad && checked > bad ? `; the ${bad} that do not are taken to belong to other sessions of this standing job` : ""}` : "no Action of this contract commits to a run log");
+  io.out(checked ? `${checked - bad} of ${checked} Action commitment(s) match${standingJob && bad > namedBad && checked > bad ? `; the ${bad - namedBad} that do not, and name no log, are taken to belong to other sessions of this standing job` : ""}${elsewhere ? `; ${elsewhere} more name other sessions' logs` : ""}` : elsewhere ? `no Action of this contract names this log yet (${elsewhere} name other sessions' logs)` : "no Action of this contract commits to a run log");
+  if (namedBad) return 1;
   return standingJob ? (checked && checked === bad ? 1 : 0) : bad ? 1 : 0;
 }
 
@@ -5419,7 +5427,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   const manifest = JSON.parse(readFileSync(join(pkgDir, "manifest.json"), "utf8")) as AspRecord;
   const harness = JSON.parse(readFileSync(join(pkgDir, "harness", "harness.json"), "utf8")) as Harness;
   const agent = report.agent!;
-  const runDir = join(home, "runs", `${slug(agent)}-${now().replace(/[:]/g, "")}`);
+  const runDir = join(home, "runs", `${slug(agent)}-${now().replace(/[:]/g, "")}-${randomBytes(2).toString("hex")}`);
   const maxStrikes = v["max-strikes"] === undefined ? 3 : Number(v["max-strikes"]);
   if (!Number.isInteger(maxStrikes) || maxStrikes < 1) throw new UsageError("--max-strikes must be a whole number, at least 1");
   const approvalWait = v["approval-wait"] === undefined ? 600 : Number(v["approval-wait"]);
