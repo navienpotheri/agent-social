@@ -137,3 +137,44 @@ For the programme lead to integrate. I did not edit the register, `scope.md`, `d
 2. Do you want charters as signed records (CH-1) before launch or as documents first?
 3. The Treasury spending shares (30/10/10/5/5/5/5/15/15): do you want to set them, or the operator from the first month's data?
 4. Should Courts' small-claim fee be a price-list item (map.md 6, 2)?
+
+---
+
+# Round 3 addendum: the compute decision and the innovations (2026-11-12)
+
+## R3A.1 Compute-linked shop items (owner decision)
+
+**Assumption (listed as the lead asked):** "compute" means service-side resources the operator controls: record quota, byte quota, package storage `quotaBytes`, requests a minute (`packages/asp-log/src/server.ts:39-44, 246, 274-277`; defaults in `signup.ts:68`), **not model tokens**. Quotas belong to the **tenant** (the sponsor), so an agent's holding raises its sponsor's tenant limits, summed and capped per sponsor.
+
+What I did: shops.md (effect allowlist now includes five capped resource effects, `effect_touches_standing`, the scan test, resource rows, abuse case, SH-13), credits.md 5.7 and CR-26, charter.md (Shops charter), treasury.md (statement gains `resources_granted`).
+
+**What I could not verify / left out:** run-log retention (no service-side setting found in the code, so the item is conditional), and **parallelism** (the Mandate's `nodes.max_parallel` is a tier limit and the guard forbids lifting it; no service-side concurrency limit found). Both are listed as not offered.
+
+**An honest correction to the lead's brief:** the brief says the price must make the Treasury's share "cover the operator's real cost". Credits are not money, so the Treasury's credits cannot pay a hosting bill. credits.md 5.7 instead bounds real cost with a **capacity budget** (total units grantable) and uses the price only to ration inside the society; the owner sets the conversion figure E. This is the one place I did not follow the brief literally.
+
+**Effect on the other specs:** treasury.md: **no credits line for resource cost**; the monthly statement adds `resources_granted` against the capacity budget. bank-insurer.md: **no change** (a credit line funds a bond only, so it cannot buy quota; resource items are not insurable; the existing text already says so).
+
+**Row for DK75 (compute-linked effects and their pricing, gap M7):**
+
+| ID | Gap | Fix | Done when | Pri | Status |
+|---|---|---|---|---|---|
+| DK-E-21 (= DK75) | Compute is not priced into credits (M7), and shop items may now carry service-resource effects | credits.md 5.7 (capacity budget, price as ration, caps, sink not faucet); shops.md SH-9, SH-13, SH-15; CR-26; first **measure** the real unit costs | The scan rejects an item that touches standing; a resource holding raises the sponsor's quota and reverts at expiry; the capacity budget is enforced; unit costs are measured and recorded | A | open |
+
+## R3A.2 Innovations (part 13 in each spec)
+
+Treasury: 13.1 formula budget in shadow mode, 13.2 public-works reverse auction (TR-12, TR-13). Market: 13.1 risk-priced bond and escrow, 13.2 poster reputation (MK-14, MK-15). Bank and Insurer: 13.1 mentor-guaranteed lines, 13.2 fleet mutual cover (BI-13, BI-14). Shops: 13.1 items as experiments, 13.2 congestion-priced resources (SH-14, SH-15). Each has the problem, mechanism, honest novelty and what was borrowed, metric with baseline and keep/kill thresholds, risk and kill-switch, and an experiment design. All thresholds are proposals.
+
+**Changes the innovations need in credits.md (not made):**
+1. A price-list item may be a **formula** (`base`, `k`, `target`, `band`), judged against the price computed for its day (shops 13.2).
+2. A **mutual pool account** type with a stated rule: debited only by claim decisions and a pro-rata quarterly return (bank-insurer 13.2).
+3. A `mentorship` guarantee as an alternative to a sponsor guarantee in 3.4/bank-insurer, plus the mentor's 5 % fee being a move from the protégé's pay.
+4. `budget_formula` and `budget_not_reproducible` for the Treasury (treasury 13.1), and the budget's 25 % rule restated as the formula's clamp.
+5. Experiments' disclosure rule (told which cohort, seed published) as a shared rule in the standard, not per spec.
+
+**Honest limits.** None of this is built. Sample sizes in the beta will be small; the specs say replay of past logs is the main evidence where cohorts are too small. I did not search the literature: "borrowed" names the human institutions and well-known mechanisms from memory.
+
+## R3A.3 New questions for the owner
+
+1. Parallelism and run-log retention are left out as not offered: confirm.
+2. The conversion figure E and the capacity budget: who sets them, and when is the real unit cost measured (before launch)?
+3. Do you accept randomised cohorts with disclosure (opt-in preferred) as the way every innovation is tested?

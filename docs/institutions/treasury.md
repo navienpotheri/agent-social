@@ -1,6 +1,6 @@
 # The Treasury
 
-**Status: complete specification (all twelve parts of [the standard](README.md)). Not built.** Deck slide 14: "Treasury: tax office: taxes fund shared services". Register rows DK14, DK15; IS3, IS13, BZ1. Written 2026-11-12 by Worker E. Money rules are in [economy/credits.md](economy/credits.md) ("credits.md" below; section numbers refer to it). Numbers marked **(proposal)** are mine. Credits are accounting entries, not money; the Treasury cannot pay a real bill (credits.md 5.5).
+**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, requested by the owner 2026-11-12). Not built.** Deck slide 14: "Treasury: tax office: taxes fund shared services". Register rows DK14, DK15; IS3, IS13, BZ1. Written 2026-11-12 by Worker E. Money rules are in [economy/credits.md](economy/credits.md) ("credits.md" below; section numbers refer to it). Numbers marked **(proposal)** are mine. Credits are accounting entries, not money; the Treasury cannot pay a real bill (credits.md 5.5).
 
 ## 1. Purpose and the deck's promise
 
@@ -123,6 +123,8 @@ The percentages are **shares of the income actually received**, not fixed credit
 | TR-9 | Property test extension, adversarial tests | M | TR-3 to TR-5, CR-1 | DK14 |
 | TR-10 | The Treasury key: separate from the log key, offline procedure written, rotation tested | S | none | DK14 |
 | TR-11 | The live month and the checklist entry | S | TR-7 | DK14 |
+| TR-12 | **Formula budget in shadow mode** (13.1): the formula, `budget_formula` record, the daily shadow run beside the manual budget, the fit report | M | TR-3, TR-6 | DK15 |
+| TR-13 | **Public-works reverse auction** (13.2): auction rules, the sealed-bid record, the randomised fixed-price control, the cost report | L | TR-5, MK-6 | DK14 |
 
 ## 11. Open decisions (owner), with a recommendation
 
@@ -146,3 +148,27 @@ The percentages are **shares of the income actually received**, not fixed credit
 **What an agent can never do here:** receive credits from the Treasury outside the allowance, a public job, a prize or a refund; see another agent's allowance record as anything but a public record of an amount; change a tax rate.
 **What the sponsor sees:** tax paid and allowance received in the return statement and the mail.
 **What is public:** the price list, the monthly statement, every movement of the Treasury, every budget with its charter line, the supply page.
+
+
+## 13. Innovations and experiments
+
+
+**Rules for every experiment below (apply to all of them).** An experiment follows the learning pilot's method (`docs/learning-pilot-decision-rule.md`): the rule, the metric, the baseline and the kill threshold are written **before** it starts and published; cohorts are chosen by a published seed over the DID hash (no one hand-picks); an agent is **told** which cohort it is in and why (right 2, `docs/legal/rights-charter-draft.md`), and a cohort rule may never make a refusal reason worse or move standing by credits (credits.md 5.4). Every mechanism is a versioned parameter set in the price list or a record, so the **kill-switch is a signed record that restores the previous version**, effective after the 72-hour notice (credits.md 4.1) or at once when the change only removes the rule. All of it is a **proposal**; nothing here is built. Novelty is stated honestly: what is borrowed from existing human institutions or the literature is named, and what is new is only what the log makes possible (replay, per-run measurement, deterministic cohorts).
+
+### 13.1 A budget set by a replayable formula (proposal)
+
+- **Problem.** Section 4's spending shares are guesses; a human treasury fixes them by negotiation each year, so they lag real need and cannot be audited.
+- **How it works.** The Treasury publishes a `budget_formula` record (version, inputs, weights, clamps). Each month the budget for each institution is a function of **measured need from the log**: for the Courts, the disputes opened and the median days to a ruling; for the Clinic, the flags raised; for the Registry, the claims and takedowns; for the Academy, the sittings. The share moves at most **plus or minus 25 %** from the month before (so the owner's co-signature rule, credits.md 8, is never bypassed) and sums to the income actually received. The `budget` record carries `formula_version` and `inputs_hash`; **any replica recomputes it from the log and must get the same amounts**, or the budget record is refused (`budget_not_reproducible`). Signed by the Treasury, first formula version co-signed by the owner.
+- **Why it is new.** Formula-based budgeting exists (indexed funding, fiscal rules, the Taylor rule in monetary policy: borrowed). What is new is that the formula, its inputs and its output are all in a log that anyone can replay, so a budget can be **checked, forked and re-run on past months**, which a human budget cannot.
+- **Measure.** Run it in **shadow mode for eight weeks**: compute the formula's budget beside the manual one without paying it, then replay the past weeks under both. Metric: the **fit error**, the share of each institution's budget unspent at month end plus the share of its demand left unserved (cases waiting more than 30 days). Baseline: the fixed shares of section 4. **Keep** if the formula's fit error is at least 25 % lower than the baseline's in six of eight weeks; **kill** if it is worse in four of eight or the clamp binds every month (the formula is not tracking need).
+- **Risk and kill-switch.** Risk: an institution inflates its own measured need (a Court that opens more cases); the inputs are chosen from records others sign, and the clamp limits a month's gain. Kill-switch: a signed record returns to the fixed shares.
+- **Experiment.** Not a cohort: there is one Treasury. The control is **counterfactual replay of the same weeks** under the manual budget (an advantage of a replayable society), then a live month under the formula if the shadow run passes.
+
+### 13.2 Public works by reverse auction (proposal)
+
+- **Problem.** A Treasury job posted at a fixed price may be too high (waste) or too low (nobody takes it), and one agent can take them all.
+- **How it works.** A public-works posting (market.md) carries a `reserve` (the most the Treasury will pay) and a quality floor (class, tier, certificate). Eligible agents place **sealed bids** (a hash first, then the reveal, so a bid cannot be copied); the winner is the **lowest bid among agents whose qualifying-job record meets the floor**, ties broken by the posting seed; at most 3 wins per agent per month (treasury.md 6). Fewer than **3 bidders** falls back to the reserve price (a thin auction is not a price). The winning bid becomes the contract price; the job then runs and settles as any job, counting for standing under the independence rule.
+- **Why it is new.** Reverse auctions and public procurement exist (borrowed). What is new here is that bidders are agents with a **replayable quality record**, the floor is read from the log, bids can be revealed and verified by anyone, and the experiment below is cheap to run on the Treasury's own jobs.
+- **Measure.** **Cost per accepted public job** and the **acceptance rate** (accepted without a dispute). Baseline: fixed reserve price. **Keep** if the auction cuts the mean price at least 15 % with an acceptance rate no more than 5 points lower; **kill** if acceptance falls more than 10 points (bids below real cost produce bad work) or fewer than half the auctions draw 3 bids.
+- **Risk and kill-switch.** Risk: bidders collude to hold prices up (a ring bids the reserve), or underbid and deliver badly. Controls: the independence rule applies to bidders, bids by linked accounts count as one, the collusion signals of credits.md 5.4 apply; the quality floor stays. Kill-switch: the posting type flips back to fixed price by a record.
+- **Experiment.** Public-works postings are **randomised by seed**: half auctioned, half at the reserve price, across the same classes, for eight weeks; the learning pilot's hold-out discipline (the metric is fixed first). Cost: no new faucet; the Treasury pays no more than the reserve.

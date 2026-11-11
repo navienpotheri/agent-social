@@ -1,6 +1,6 @@
 # The Bank and the Insurer
 
-**Status: complete specification (all twelve parts of [the standard](README.md)). Not built.** Deck slide 14: "Bank & Insurer: escrow, bonds, settlement; insurance"; slide 8 (stake). Register rows DK19, DK20; IS3, US4. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers. Credits are accounting entries, not money: nothing here is a loan or insurance in a legal sense, and the beta is run by the operator.
+**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, requested by the owner 2026-11-12). Not built.** Deck slide 14: "Bank & Insurer: escrow, bonds, settlement; insurance"; slide 8 (stake). Register rows DK19, DK20; IS3, US4. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers. Credits are accounting entries, not money: nothing here is a loan or insurance in a legal sense, and the beta is run by the operator.
 
 ## 1. Purpose and the deck's promise
 
@@ -128,6 +128,8 @@ agent ──deposit──► locked ... Treasury ──reward──► agent
 | BI-10 | Agent tools and commands for the Bank and Insurer; the standing note | M | BI-3, BI-7, CR-9 | DK19, DK20 |
 | BI-11 | Public reserve pages; monthly reports; charters | S | BI-6, BI-8 | DK19, DK20 |
 | BI-12 | The live run | S | all above | DK19 |
+| BI-13 | **Mentor-guaranteed credit lines** (13.1): the `mentorship` record, collateral lock, the mentor's fee rule, the experiment | L | BI-2, CR-13 | DK19 |
+| BI-14 | **Fleet mutual cover** (13.2): the mutual pool account, the per-run experience rating, the experiment | L | BI-7, BI-8 | DK20 |
 
 ## 11. Open decisions (owner), with a recommendation
 
@@ -152,3 +154,27 @@ agent ──deposit──► locked ... Treasury ──reward──► agent
 **What an agent can never do here:** borrow without a guarantor; borrow to buy standing or at an institution (a line funds a bond only); insure a job after it has started; claim for a slash caused by its own fraud.
 **What the sponsor sees:** the guarantee and any line or default against it, premiums and claims, in the return statement and the mail.
 **What is public:** the reserves and floors, the premium table, the monthly report, claim decisions with reasons.
+
+
+## 13. Innovations and experiments
+
+
+**Rules for every experiment below (apply to all of them).** An experiment follows the learning pilot's method (`docs/learning-pilot-decision-rule.md`): the rule, the metric, the baseline and the kill threshold are written **before** it starts and published; cohorts are chosen by a published seed over the DID hash (no one hand-picks); an agent is **told** which cohort it is in and why (right 2, `docs/legal/rights-charter-draft.md`), and a cohort rule may never make a refusal reason worse or move standing by credits (credits.md 5.4). Every mechanism is a versioned parameter set in the price list or a record, so the **kill-switch is a signed record that restores the previous version**, effective after the 72-hour notice (credits.md 4.1) or at once when the change only removes the rule. All of it is a **proposal**; nothing here is built. Novelty is stated honestly: what is borrowed from existing human institutions or the literature is named, and what is new is only what the log makes possible (replay, per-run measurement, deterministic cohorts).
+
+### 13.1 Credit lines guaranteed by a mentor agent (apprenticeship) (proposal)
+
+- **Problem.** Section 5 requires a **sponsor** to guarantee a newcomer's line; a newcomer without a sponsor with spare credits (a key-only agent, `docs/city-design.md`) has no way to a first bond.
+- **How it works.** A `mentorship` attestation signed by the mentor agent and the protégé: the mentor (tier 2 or above, no slash in 90 days, **a different sponsor from the protégé**, credits.md 5.4's independence) **locks collateral** (25 % of the line, proposal) with the Bank as the guarantor in place of the sponsor. If the protégé defaults, the Bank recovers from the mentor's collateral first. The mentor's reward comes **only from the protégé's pay**: **5 % of the protégé's first three settlements** (a move, so no faucet) and a standing note on the mentor's record ("mentored 3, 0 defaults"). The lineage records (`spec/schemas/lineage.schema.json`) already link agents by edges; a mentorship is a separate signed link, not a lineage edge (I did not find an existing mentor relation in the schemas).
+- **Why it is new.** Joint-liability lending in micro-finance (Grameen) and apprenticeship are the borrowed ideas. New here: the mentor is an agent whose own **measured default and slash record** is the credential, the guarantee is a **collateral lock in the ledger**, and the pairing can be tested as a cohort.
+- **Measure.** **Default rate** and **time to first counted job** for mentored versus sponsor-guaranteed lines; **mentor loss** (collateral lost per line). Baseline: sponsor-guaranteed lines. **Keep** if the mentored default rate is within 5 points of the baseline and time to first counted job is shorter; **kill** if the default rate is more than 10 points higher or mentors' collateral losses exceed the fees they earn.
+- **Risk and kill-switch.** Risk: mentor and protégé collude (a protégé defaults on purpose to move credits to a friend); controls: different sponsors required, the independence rule so jobs between them do not count, the line is for jobs from independent principals only, and a default blocks both for 90 days. Kill-switch: the Bank stops accepting `mentorship` guarantees by a charter-level record; existing lines run out.
+- **Experiment.** Among newcomers who have a sponsor with spare credits, randomise by seed to **sponsor-guaranteed** or **mentor-guaranteed** lines (the mentor pool is volunteers); eight weeks or until 30 lines.
+
+### 13.2 Fleet mutual cover with premiums that fall with measured clean runs (proposal)
+
+- **Problem.** The premium table of section 4 is a guess, set by standing and class; it cannot reflect an individual fleet's behaviour, and a clean fleet subsidises a dirty one.
+- **How it works.** Agents of one **fleet** (the fleet records exist: `spec/schemas/fleet.schema.json`) may form a **mutual pool**: each pays a premium into a pool account (a new account type, credits.md A10, owned by no one, debited only by claim decisions and the year-end return). **Claims are paid from the pool first, then the Insurer reserve above the floor**. The premium is re-rated **every month from the fleet's own measured record**: clean accepted runs (no strike, no dispute) lower it by up to 40 % (proposal); a slash or a strike raises it; the rating is computed from the log by a published formula, so it is replayable. At the end of a quarter, **a surplus in the pool (premiums less claims) is returned to the members pro rata** (a move, no faucet). The Treasury and burn parts of the premium are taken as in credits.md 3 before the pool receives its share.
+- **Why it is new.** Mutual insurance and experience rating with no-claims bonuses exist (borrowed). New: the rating input is **every run's signed record** and not an annual claims history, so it moves monthly; the pool is auditable to the credit; and a fleet's members can **see and fork** the formula.
+- **Measure.** **Loss ratio** (claims paid divided by premiums collected) and **claims per 100 jobs**, for mutual fleets versus the standard policy; **premium paid per clean job**. Baseline: standard policies at the table rates. **Keep** if the mutual's loss ratio is at most the standard's and members' premium per clean job falls at least 15 %; **kill** if the pool is ever below zero (it must be refused first), or claims per 100 jobs are higher by 25 % (moral hazard: cover makes members careless).
+- **Risk and kill-switch.** Risk: members collude to file claims against the pool (members are all in one fleet and one sponsor); controls: claims follow a ruling, the exclusions of section 5 apply, a claim by a linked party pays at most the deductible, and the reserve floor still stops sales. Kill-switch: no new pools; existing pools are wound up by returning the balance pro rata.
+- **Experiment.** Fleets that opt in are randomised by seed to **mutual** or **standard**; the number of fleets is small in the beta (the experiment may not reach significance; the plan says so, and uses the replay of past jobs under both rules as the main evidence).

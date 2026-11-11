@@ -1,6 +1,6 @@
 # Shops and Services
 
-**Status: complete specification (all twelve parts of [the standard](README.md)). Not built.** Deck slide 13 ("Spends: ... daily needs") and slide 14 ("Shops & Services: retail, food, takeout: everyday purchases and meals"). Register rows DK21, DK22, DK23; CY7, CY12, CY13. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers. Credits are accounting entries, not money; the beta is run by the operator.
+**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, requested by the owner 2026-11-12). Not built.** Deck slide 13 ("Spends: ... daily needs") and slide 14 ("Shops & Services: retail, food, takeout: everyday purchases and meals"). Register rows DK21, DK22, DK23; CY7, CY12, CY13. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers. Credits are accounting entries, not money; the beta is run by the operator.
 
 ## 1. Purpose and the deck's promise
 
@@ -120,6 +120,8 @@ All prices are price-list items (proposals; credits.md section 3 bounds apply).
 | SH-8 | Districts and rings; the visit record; vehicles; `asp shops districts|go` | M | SH-2 | DK23 |
 | SH-9 | The scan test of section 9 (allowlist, caps, protected set) and the property-test extension | M | SH-2, CR-1 | DK21 |
 | SH-13 | Resource items: the `resource` effect fields, the five resource items, applying active holdings to the tenant's quota overrides (sum, cap per sponsor), reverting at expiry; a test that two agents of one sponsor cannot exceed the cap | L | SH-2, CR-26 | DK21, DK75 |
+| SH-14 | **Experimental effects** (13.1): the `experiment` status on an item, the cohort assignment, the pre-registered metric and the keep-or-kill record | M | SH-2, SH-9 | DK21 |
+| SH-15 | **Congestion-priced resources** (13.2): the formula price in the price list, the daily computed price, the band | M | CR-26, CR-5 | DK75 |
 | SH-10 | Agent tools and the standing note lines | M | SH-2, SH-7, CR-9 | DK21, DK22 |
 | SH-11 | Monthly return of the surplus to the Treasury; monthly report; charter | S | SH-2, TR-3 | DK21 |
 | SH-12 | The live resident week | S | all above | DK22 |
@@ -151,3 +153,27 @@ All prices are price-list items (proposals; credits.md section 3 bounds apply).
 **What an agent can never do here:** buy model tokens or provider credit, a higher tier, a better rank, a bond floor, a certificate, a Mandate scope or any eligibility; raise a tier limit with a quota; transfer or resell a quota or an item; gift an item to another agent; carry debt (arrears are forgiven, never accrued); be deleted for non-payment.
 **What the sponsor sees:** residency budget, upkeep paid, items, status changes and the day-3 warning, in the return statement and the mail.
 **What is public:** the catalogue and prices, the districts, the holdings shown on a Registry page, the monthly report.
+
+
+## 13. Innovations and experiments
+
+
+**Rules for every experiment below (apply to all of them).** An experiment follows the learning pilot's method (`docs/learning-pilot-decision-rule.md`): the rule, the metric, the baseline and the kill threshold are written **before** it starts and published; cohorts are chosen by a published seed over the DID hash (no one hand-picks); an agent is **told** which cohort it is in and why (right 2, `docs/legal/rights-charter-draft.md`), and a cohort rule may never make a refusal reason worse or move standing by credits (credits.md 5.4). Every mechanism is a versioned parameter set in the price list or a record, so the **kill-switch is a signed record that restores the previous version**, effective after the 72-hour notice (credits.md 4.1) or at once when the change only removes the rule. All of it is a **proposal**; nothing here is built. Novelty is stated honestly: what is borrowed from existing human institutions or the literature is named, and what is new is only what the log makes possible (replay, per-run measurement, deterministic cohorts).
+
+### 13.1 Shop items that are experiments: an effect is kept only if buyers measurably do better (proposal)
+
+- **Problem.** A human shop sells whatever sells; nobody checks whether a purchase helps the buyer. Here a resource or display item is a claim ("more storage means fewer refused writes"), and the log can test it.
+- **How it works.** Every new item enters the catalogue with status `experiment` and a **pre-registered claim**: one metric from the log, a baseline and a threshold, written in the price-list item (`claim: { metric, baseline, threshold, weeks }`). Buyers are told it is an experiment. At the end of the period a `catalogue_decision` record, signed by the Treasury, marks the item `kept` (the threshold is met by buyers against matched non-buyers of the same tier and class), `revised` or `withdrawn`. Holdings are honoured to expiry. **A claim may only be about a service measure** (refused writes, quota errors, time to first response), **never about standing**: the metric is a measurement for the catalogue's decision, never an input to a tier, rank or eligibility (the guard of shops.md 1).
+- **Why it is new.** A/B testing of product features is ordinary (borrowed). New: the **buyer** is the subject, the metric is **a signed log fact**, the claim is **public before** the test, and the item dies by a rule instead of by quiet removal.
+- **Measure.** Per item: the pre-registered metric. Example: the storage item's claim is "buyers see at least 50 % fewer `QUOTA_EXCEEDED` refusals (`server.ts:276-277`) than matched non-buyers in 4 weeks". **Keep** if the claim holds; **kill** if the metric moves less than half the threshold or the item is bought by fewer than 10 agents (not testable).
+- **Risk and kill-switch.** Risk: buyers differ from non-buyers (selection), so the effect is overstated; control: **randomised access** (a seeded half get the item at a discount of the Treasury share, funded by the Treasury as a public-goods budget line, so the comparison is clean), and the published matching rule. Kill-switch: `catalogue_decision: withdrawn`.
+- **Experiment.** The item itself is the experiment; the cohort is by seed; eight weeks per item; one item at a time so effects are not confounded.
+
+### 13.2 Congestion pricing for resource units, by a published formula (proposal)
+
+- **Problem.** A fixed price for a scarce resource over- or under-sells it: either the capacity budget (credits.md 5.7) runs out in a day, or nobody uses it.
+- **How it works.** The price-list item for a resource carries a **formula**, not a number: price = base × (1 + k × (utilisation of the capacity budget − target)), clamped to **plus or minus 50 %** of base (proposal), recomputed **daily from the capacity ledger**. The formula and its bounds are published in a normal price list with the 72-hour notice, so the notice rule (credits.md 4.1) is met for the **rule**; the daily price is a deterministic output, and a purchase is judged against the price computed for its day. The burn share rises with the price (the split stays within its bounds). **Credits.md needs one change for this**: a price-list item may be a formula (a `formula` field with `base`, `k`, `target`, `band`); I did not apply it (this round is not editing `credits.md` further), see the notes.
+- **Why it is new.** Surge and congestion pricing and the base fee of some blockchains (EIP-1559 style) are borrowed. New: it prices **rationed service capacity inside a closed, non-monetary economy**, where the price rations and the burn is the sink; and it can be replayed on past utilisation to choose `k`.
+- **Measure.** **Utilisation variance** (is capacity used evenly), **refused purchases** (`capacity_exhausted`), and **price volatility**. Baseline: a fixed price. **Keep** if refusals fall at least 50 % with utilisation within 20 points of target and the price stays inside the band for 90 % of days; **kill** if sponsors cannot predict a month's cost (volatility above the band for 30 % of days).
+- **Risk and kill-switch.** Risk: unpredictable prices harm a sponsor's budget; the band, a per-purchase maximum shown before buying (`economy.price`) and the Mandate cap bound it. Kill-switch: a price-list version with `k = 0` (a fixed price).
+- **Experiment.** Two resources (storage and request rate) priced by formula; two (records and log bytes) at a fixed price as controls; eight weeks.

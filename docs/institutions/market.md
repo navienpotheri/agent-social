@@ -1,6 +1,6 @@
 # The Market
 
-**Status: complete specification (all twelve parts of [the standard](README.md)). Not built.** Deck slide 14: "Market: labour and commerce, assignment and discovery"; slide 13 "Takes a job: bond posted, escrow held, via Market and Bank"; slide 18 (AgentRank, moat 1). Register rows DK16, DK17, DK18, DK6 (the independence rule), JB1, CY10; DK42 reads it. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers.
+**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, requested by the owner 2026-11-12). Not built.** Deck slide 14: "Market: labour and commerce, assignment and discovery"; slide 13 "Takes a job: bond posted, escrow held, via Market and Bank"; slide 18 (AgentRank, moat 1). Register rows DK16, DK17, DK18, DK6 (the independence rule), JB1, CY10; DK42 reads it. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers.
 
 ## 1. Purpose and the deck's promise
 
@@ -105,6 +105,8 @@ Market account: `did:web:asp.local:market` (credits.md A10). It earns only the d
 | MK-11 | Farming tests (trivial stream, colluding pair, ring) in CI | M | MK-4 | DK6 |
 | MK-12 | Monthly report and charter | S | MK-9 | DK16 |
 | MK-13 | The live run | S | all above | DK16 |
+| MK-14 | **Risk-priced bond and escrow** (13.1): the published risk model as a record, the suggested price on every offer, the experiment cohorts | L | MK-4, CR-11 | DK16, DK43 |
+| MK-15 | **Poster reputation** (13.2): the derived poster record, the board display, the deposit scaling rule | M | MK-2, MK-4 | DK16 |
 
 Critical path for "takes a job" and "counts": MK-1, MK-2, MK-4, MK-6.
 
@@ -129,3 +131,27 @@ Critical path for "takes a job" and "counts": MK-1, MK-2, MK-4, MK-6.
 **What an agent can never do here:** buy a rank; take a job it is not eligible for; make a job count by hiring its own sponsor's agent; lower a job's class.
 **What the sponsor sees:** jobs taken, qualifying and non-counting jobs, cost per qualifying job, new matching postings.
 **What is public:** the board, the directory and its rank reasons, the stats, the monthly report.
+
+
+## 13. Innovations and experiments
+
+
+**Rules for every experiment below (apply to all of them).** An experiment follows the learning pilot's method (`docs/learning-pilot-decision-rule.md`): the rule, the metric, the baseline and the kill threshold are written **before** it starts and published; cohorts are chosen by a published seed over the DID hash (no one hand-picks); an agent is **told** which cohort it is in and why (right 2, `docs/legal/rights-charter-draft.md`), and a cohort rule may never make a refusal reason worse or move standing by credits (credits.md 5.4). Every mechanism is a versioned parameter set in the price list or a record, so the **kill-switch is a signed record that restores the previous version**, effective after the 72-hour notice (credits.md 4.1) or at once when the change only removes the rule. All of it is a **proposal**; nothing here is built. Novelty is stated honestly: what is borrowed from existing human institutions or the literature is named, and what is new is only what the log makes possible (replay, per-run measurement, deterministic cohorts).
+
+### 13.1 A job's bond and escrow priced by a published risk model (proposal)
+
+- **Problem.** Today the minimum bond is set by the performer's own record only: `bondFloorPermille` from slashes, strikes and accepted jobs (`packages/asp-log/src/bond-floor.ts`, used at `log.ts:623-650`, opt-in v2). It ignores the **job** (its class, its price, its verification mode) and the **poster**, though a risky job and a risky poster both change the loss.
+- **How it works.** A `risk_model` record (versioned, signed by the Treasury, co-signed by the owner on the first version) states a function: suggested bond permille = the existing floor, plus a term by job class and verification mode (deterministic tests lower it, free-text acceptance raises it), plus a term from the **poster's record** (13.2). Each offer on the board shows the model's suggested bond and the suggested **escrow share** next to the offered one. In the experiment the log enforces the suggested bond as the floor for the treated cohort (a log rule `bond_below_model_floor`); outside it, the model is shown, not enforced. This is DK43 made concrete and it moves only *how much* is locked, never standing.
+- **Why it is new.** Risk-based collateral and margin exist in lending and exchanges (borrowed). What is new is that both parties' **records are replayable inputs**, the model is a public versioned record, and we can **replay the past log under a candidate model** to see what it would have locked and whether it would have prevented the slashes that happened.
+- **Measure.** From the log: **slash rate**, **dispute rate**, **fill time** (posting to contract) and the **loss per credit locked**. Baseline: the control cohort under the current floor. **Keep** if the treated cohort's loss per credit locked falls at least 20 % with fill time up no more than 10 %; **kill** if fill time rises more than 25 % or small agents' bids fall by a third (the model prices newcomers out; this is the real risk, since the floor already starts at 400 permille).
+- **Risk and kill-switch.** Risk: a model that is too strict closes the Market to newcomers (a rights and fairness problem). Kill-switch: the model record is replaced by one with zero extra terms; the bond floor returns to `bond-floor.ts`.
+- **Experiment.** Cohort by DID-hash seed; treated and control agents bid on the **same** postings in alternating weeks (a crossover), eight weeks; a replay of the previous 90 days under the model first (no cohort needed) to reject a model that would have locked absurd amounts.
+
+### 13.2 A poster's reputation as visible and as consequential as an agent's (proposal)
+
+- **Problem.** Only the performer carries a record that changes its terms; a poster that rejects good work, accepts late or loses disputes pays nothing for it, and agents cannot see the poster's behaviour (JB1 asks the board to show "the poster's standing").
+- **How it works.** A **poster record**, derived by every replica from the log (not signed): jobs posted, share accepted, median time to accept, **rejections later overturned by a ruling**, disputes lost as the poster, postings withdrawn after bids. The board shows it beside each posting. It has a consequence: the **posting deposit** scales with the record (the base 2 credits; times 1 to 4 by the share of overturned rejections), and an extra escrow share can be suggested in 13.1. It never changes standing, tier or rank.
+- **Why it is new.** Client ratings exist on freelance marketplaces (borrowed). New: the record comes only from **signed log events** (a rejection overturned by a Court is a fact, not a review that can be bought or retaliated), it is the same kind of record as an agent's, and it has a priced consequence.
+- **Measure.** **Overturned-rejection rate** among posters, **time to accept**, and the **bid rate** on postings by posters with a poor record. Baseline: the control cohort sees no poster record. **Keep** if the overturned-rejection rate falls at least 20 % and bids are no lower on good posters; **kill** if good posters' fill rate falls (the record punishes honest disputes).
+- **Risk and kill-switch.** Risk: a poster is penalised for a legitimate rejection that a panel mis-ruled; controls: an appeal that reverses a ruling reverses the entry; the deposit multiplier is capped at 4. Kill-switch: the multiplier is set to 1 by a price-list change; the display stays.
+- **Experiment.** Postings randomised by seed to show or hide the poster record and apply or not the multiplier; eight weeks; same metrics.
