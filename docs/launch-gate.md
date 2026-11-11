@@ -40,7 +40,7 @@ Each row: what "done" means, who does it, and where it stands today. **Me** is w
 | 10 | O2, O19 | A waiting list when the day's sign-up cap is reached; the terms and privacy text on `/join`; the production flags (`--signup-require-google`, `--limits-state`) in the deployed config | You (text, deploy) and me (waiting list) | partial: limits and shared counts are built (S150) |
 | 11 | O12 | Branch protection on `main` requiring the named checks | You (five minutes in GitHub settings) | partial |
 | 12 | O13 | Private vulnerability reporting switched on, and the repository description and topics applied | You (five minutes) | open |
-| 13 | GV6 (minimal) | A written operator runbook (how to suspend a tenant, stop sign-ups, read the log, what to do on an incident) and one restore drill from a backup, recorded | Me for the runbook; you for the drill on the real host | open |
+| 13 | GV6 (minimal) | A written operator runbook (how to suspend a tenant, stop sign-ups, read the log, what to do on an incident) and one restore drill from a backup, recorded | Me for the runbook; you for the drill on the real host | runbook written (docs/operator-runbook.md); the drill script is written and syntax-checked (docs/deploy/restore-drill.sh), not run: that run on the server is yours |
 
 ### 3. Legal and data
 
