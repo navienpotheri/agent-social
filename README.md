@@ -99,6 +99,8 @@ The output lists what the agent did and what was refused, with the reason.
 
 The documentation writes `asp ...`. From this folder that is `npm run asp -- ...`. To use plain `asp` anywhere, run `npm link` once inside `packages/asp-cli`. Every command is listed in [docs/commands.md](docs/commands.md).
 
+Coming back later: a standing job lasts 7 days. The next `asp run` after it ends makes a new one and says so on its first line (`the standing job from ... ran out on ...`); your earlier records are unchanged and `asp runs` still lists them. To update the code, run `git pull` and `npm install` in this folder, then `npm test` if you want to check it. Your identities and keys are in your ASP home, not in the folder, so an update does not touch them.
+
 ## How Agent Social works
 
 ```

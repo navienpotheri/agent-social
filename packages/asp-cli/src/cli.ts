@@ -4420,10 +4420,14 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const key = standingKey(ids.agent, scopes, hosts, gate);
   const standing = headless ? {} : readStanding(home);
   let job: StandingJob | undefined = headless ? { contract: v.contract!, agent: ids.agent, key: "headless", createdAt: "", expiresAt: "9999-12-31T00:00:00Z", scopes, hosts, sessions: 0 } : standing[key];
+  // A person coming back after the job ended is told what happened (gap T13): a new job was made, and why. The earlier one's records stay as they were.
+  let renewed: string | undefined;
   if (job && !headless) {
     const st = (await local.log.chainInfo(job.contract))?.state;
     const live = st === "Running" || st === "Checkpoint";
     if (!live || Date.parse(job.expiresAt) - Date.now() < 15 * 60_000) {
+      const from = `the standing job from ${job.createdAt.slice(0, 10)}`;
+      renewed = !live ? `${from} had ended (${st ?? "unknown"})` : Date.parse(job.expiresAt) <= Date.now() ? `${from} ran out on ${job.expiresAt.slice(0, 10)}` : `${from} was about to run out (${job.expiresAt.slice(0, 16).replace("T", " ")})`;
       if (live) await settleStanding(step, job.contract, ids);
       delete standing[key]; writeStanding(home, standing); job = undefined;
     }
@@ -4467,7 +4471,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   };
   const creditsBefore = await creditsNow();
   sessionIndexAdd(home, { t: "start", pid: process.pid, sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
-  io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}${scopes.includes("shell.exec") ? ", run commands" : scopes.includes("tests.run") ? ", run tests" : ""}${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
+  io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}${scopes.includes("shell.exec") ? ", run commands" : scopes.includes("tests.run") ? ", run tests" : ""}${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)${renewed ? `; ${renewed}, so this one was made, and your earlier records are unchanged` : ""}` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
   if (inferred.narrowed) io.err(`  scope    ${inferred.why}`);
 

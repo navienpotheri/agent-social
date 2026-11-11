@@ -421,7 +421,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T10 | B | open | The protocol has been tested from the person's side, not the agent's: what an agent sees of its own Mandate an... |
 | T11 | B | open | The work itself is not traceable: nothing ties a result (a commit, a file) back to the Mandate, run and model... |
 | T12 | A | partial | A new tenant could make 120 requests a minute (since S127: 600, writes still 120; tenants signed up before kee... |
-| T13 | A | open | A returning user is untested: the standing job expires after 7 days, the login may be stale, and the code may... |
+| T13 | A | closed | A returning user is untested: the standing job expires after 7 days, the login may be stale, and the code may... |
 | T14 | A | open | There is no view of a day's run: asp runs lists sessions and asp dashboard shows agents, jobs and credits, but... |
 | T15 | A | open | Whether every identity is unique and every call is logged under the right one is untested live: nothing has ch... |
 | T17 | B | open | Platform layer (not protocol). The market flow (intent, offer, contract, escrow, Mandate, bond, delivery, veri... |
@@ -430,7 +430,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T20 | B | designed | A coding agent's selection is by flag only, and credits take no part in a run that is a person's own: a person... |
 | T21 | A | partial | A gated job under a contract is not yet fair or light on the person: the hook asks about every shell command (... |
 | T22 | A | partial | A sub-agent's short-lived, revocable key can be avoided or left unbound: a node grant that cites no Mandate is... |
-| T23 | B | open | The test "two sessions of one agent at once" (packages/asp-cli/test/run-concurrent.test.ts) is unreliable on L... |
+| T23 | A | open | The test "two sessions of one agent at once" (packages/asp-cli/test/run-concurrent.test.ts) is unreliable on L... |
 | T26 | B | designed | The bond floor v2 (S143) has no cutover rule: a log that ran under legacy and is then replayed under v2 would... |
 | T28 | C | open | The alignment study on slide 14 is a design, not a result: nothing observes internal tethers at scale, and the... |
 | T29 | B | open | "Zero-trust execution" (slide 14 card 2) is not shown for out-of-distribution deployments: the gateway and Man... |
