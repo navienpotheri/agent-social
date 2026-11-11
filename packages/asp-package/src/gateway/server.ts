@@ -9,7 +9,7 @@
  * P2: MCP at /mcp/<name>: the `asp` server (memory and commons tools) and a judging proxy for each of the agent's MCP servers.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { lastUserText, replyText, toolResultsIn, type RunRecorder } from "./runlog.ts";
@@ -200,6 +200,9 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const dir = g.approvalsDir!;
     mkdirSync(dir, { recursive: true });
     const id = String(call.id ?? randomUUID()).replace(/[^A-Za-z0-9_-]/g, "_");
+    // ASP_DEBUG_APPROVALS=1 keeps a timed trail of the hand-off in the approvals folder (gap T23: a decision that never arrives is found by seeing which side stopped).
+    const trail = (m: string) => { if (process.env.ASP_DEBUG_APPROVALS) { try { appendFileSync(join(dir, "debug.log"), `${new Date().toISOString().slice(11, 23)} gateway ${id}: ${m}\n`); } catch { /* a trail is optional */ } } };
+    trail(`asking (waits ${g.waitSeconds}s)`);
     const summary = commandOf(call.args) ?? JSON.stringify(call.args);
     const tmp = join(dir, `${id}.request.tmp`);
     writeFileSync(tmp, JSON.stringify({ id, tool: call.name, scope, summary: summary.length > 2000 ? summary.slice(0, 2000) + "..." : summary, requested_at: new Date().toISOString() }));
@@ -213,11 +216,13 @@ export function createGateway(opts: GatewayOptions): Gateway {
         if (d) {
           // The decision is used once: it is removed when read, so a later request with the same id (two runs started in the same second share a folder) cannot be answered by it.
           try { rmSync(decisionFile, { force: true }); } catch { /* the answer stands whether or not it could be removed */ }
+          trail(`got the answer: ${d.approved === true ? "approved" : "refused"}`);
           return d.approved === true ? { approved: true } : { approved: false, reason: d.reason };
         }
       }
       await new Promise((r) => setTimeout(r, 100));
     }
+    trail(stopped ? `gave up: the run was stopped (${stopped})` : "gave up: no answer in time");
     return { approved: false, reason: stopped ? "the run was stopped" : `no answer within ${g.waitSeconds} seconds` };
   }
 

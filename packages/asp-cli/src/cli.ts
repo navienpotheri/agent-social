@@ -5274,10 +5274,13 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
   let stopped = false;
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   // Written to a temporary name and renamed, so a hook polling for the file never reads half of it (found by the Postgres CI job: it failed closed on "Unexpected end of JSON input").
+  // ASP_DEBUG_APPROVALS=1 keeps a timed trail of this side of the hand-off (gap T23).
+  const trail = (m: string) => { if (process.env.ASP_DEBUG_APPROVALS) { try { appendFileSync(join(o.dir, "debug.log"), `${new Date().toISOString().slice(11, 23)} approvals: ${m}\n`); } catch { /* a trail is optional */ } } };
   const decide = (id: string, d: { approved: boolean; reason?: string }) => {
     const tmp = join(o.dir, `${id}.decision.tmp`);
     writeFileSync(tmp, JSON.stringify(d));
     renameSync(tmp, join(o.dir, `${id}.decision.json`));
+    trail(`${id}: wrote the decision (${d.approved ? "approved" : `refused: ${d.reason ?? ""}`})`);
   };
 
   // The hosted service limits how often one tenant may call it, and two terminals on one job poll twice as often (found live, UC-138): a rate limit, and a service that cannot be reached for a while (the wifi drops, the laptop sleeps, UC-35), are waited out, not taken for a refusal.
@@ -5303,9 +5306,10 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     const timedOut = () => decide(req.id, { approved: false, reason: `the principal did not answer within ${o.waitSeconds} seconds` });
     // A job has one open Checkpoint at a time: wait for any earlier one to be resolved first.
     let lastReap = 0;
+    trail(`${req.id}: request seen; waiting for the job to be Running`);
     let local = await retry(() => openLog(o.home, logEnv));
     while ((await retry(() => local.log.chainInfo(o.contract)))?.state !== "Running") {
-      if (stopped) return;
+      if (stopped) { trail(`${req.id}: the run ended before this turn came`); return; }
       if (Date.now() >= giveUpAt) return timedOut();
       // An earlier Checkpoint whose session is gone and whose time has run out would hold this one back for ever: close it.
       // (Reading the whole chain for this is costly, so it is done every 15 seconds, not every poll: two terminals on one job ran into the service's request limit, UC-138.)
@@ -5327,6 +5331,7 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
         expires: new Date(expiresMs).toISOString().replace(/\.\d{3}Z$/, "Z") },
     }, signer);
     await retry(() => local.append(checkpoint));
+    trail(`${req.id}: Checkpoint ${checkpoint.id.slice(7, 15)} raised`);
     o.io.err(`  APPROVAL NEEDED  ${req.scope}: ${shown}${masked.redacted ? "  (secret-looking text was masked)" : ""}`);
     o.io.err(`    answer with: asp market resolve --contract ${o.contract} --by ${principal} --verdict approved`);
     for (;;) {
@@ -5358,6 +5363,7 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
       }
       const b = resolution.record.body as { verdict: string; correction?: string };
       const approved = b.verdict === "approved";
+      trail(`${req.id}: Checkpoint ${checkpoint.id.slice(7, 15)} resolved: ${b.verdict}`);
       o.io.err(`  approval ${approved ? "granted" : "refused"} for ${req.scope}${b.correction ? `: ${b.correction}` : ""}`);
       return decide(req.id, approved ? { approved: true } : { approved: false, reason: b.correction ?? `the principal answered ${b.verdict}` });
     }
@@ -5372,7 +5378,7 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
         const path = join(o.dir, f);
         const req = JSON.parse(readFileSync(path, "utf8"));
         renameSync(path, join(o.dir, f.replace(".request.json", ".request.seen.json")));
-        try { await handle(req); } catch (e) { try { decide(req.id, { approved: false, reason: `asp run could not raise the Checkpoint: ${(e as Error).message}` }); } catch { /* the run is ending */ } }
+        try { await handle(req); trail(`${req.id}: handled`); } catch (e) { trail(`${req.id}: failed: ${(e as Error).message}`); try { decide(req.id, { approved: false, reason: `asp run could not raise the Checkpoint: ${(e as Error).message}` }); } catch { /* the run is ending */ } }
       }
       await sleep(o.pollMs);
     }

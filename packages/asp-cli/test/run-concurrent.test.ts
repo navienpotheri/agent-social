@@ -21,6 +21,7 @@ const until = async (what: string, fn: () => boolean | Promise<boolean>, ms = 20
 
 // Two terminals on one agent (UC-138). Found while writing it: the watcher read the job's state as unknown while the other session wrote the log, took that for the job ending, and stopped.
 test("two sessions of one agent at once share the standing job: approvals are asked one at a time, neither session fails, and ending one leaves the other undisturbed", { timeout: 120_000 }, async () => {
+  process.env.ASP_DEBUG_APPROVALS = "1"; // a timed trail of each approval hand-off, printed below if the test fails (gap T23)
   const upstream = createHttp(async (req, res) => {
     for await (const _ of req) { /* not inspected */ }
     res.writeHead(200, { "content-type": "application/json" });
@@ -86,7 +87,7 @@ test("two sessions of one agent at once share the standing job: approvals are as
     await until("D's approval", async () => /npm run build/.test((await call(["approvals"])).out));
     await approve();
     for (let i = 0; i < 6 && !dDone; i++) { await Promise.race([D, sleep(4000)]); if (!dDone && /npm run build/.test((await call(["approvals"])).out)) await approve(); }
-    const dd = await within("session D to finish", D).catch(async (e) => { const contract = Object.values(JSON.parse(readFileSync(join(f.aspHome, "standing.json"), "utf8")) as Record<string, { contract: string }>)[0].contract; const walk = (d: string): string[] => { try { return readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)])); } catch { return []; } }; const files = walk(join(f.aspHome, "runs")).filter((x) => x.includes("approvals")).map((x) => `${x.slice(f.aspHome.length)} ${readFileSync(x, "utf8").slice(0, 200)}`); console.error("DIAG approval files:\n" + files.join("\n"), "\nDIAG approvals:", (await call(["approvals"])).out,"\nDIAG runs:", (await call(["runs"])).out, "\nDIAG job:", (await call(["market", "show", contract])).out.slice(0, 1500), "\nDIAG sessions so far:\n" + live.join("\n")); throw e; });
+    const dd = await within("session D to finish", D).catch(async (e) => { const contract = Object.values(JSON.parse(readFileSync(join(f.aspHome, "standing.json"), "utf8")) as Record<string, { contract: string }>)[0].contract; const walk = (d: string): string[] => { try { return readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)])); } catch { return []; } }; const files = walk(join(f.aspHome, "runs")).filter((x) => x.includes("approvals")).map((x) => `${x.slice(f.aspHome.length)} ${readFileSync(x, "utf8").slice(0, x.endsWith("debug.log") ? 4000 : 200)}`); console.error("DIAG approval files:\n" + files.join("\n"), "\nDIAG approvals:", (await call(["approvals"])).out,"\nDIAG runs:", (await call(["runs"])).out, "\nDIAG job:", (await call(["market", "show", contract])).out.slice(0, 1500), "\nDIAG sessions so far:\n" + live.join("\n")); throw e; });
     assert.equal(dd.code, 0, dd.err + dd.out);
     assert.match(dd.out, /finished/);
     assert.match((await call(["approvals"])).out, /nothing is waiting/, "nothing is left waiting");
