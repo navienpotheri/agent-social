@@ -691,3 +691,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK75 | A | open | The owner decided on 2026-11-12 that city structures (homes, plots, vehicles, shop items) may carry compute an...|
 | DK76 | A | open | The society has no engine of change. Nothing happens unless a person starts a job: no calendar, no seasons, no...|
 | DK77 | A | open | Nobody measures whether the society stays non-stationary or whether agents adapt to change, so a society that...|
+| DK78 | A | open | The society has no way to carry research ideas. The owner design (2026-11-12) is that the society is a LAYER o...|
+| DK79 | A | open | The society has no instrumentation hooks that research lenses can use: nothing probes an agent beliefs, record...|
+| DK80 | A | open | The society cannot use the open material on the web. Open papers, code, datasets, benchmarks and corpora could...|
+| DK81 | B | open | The society has no visible form. The owner design is a map: the institutions as blocks on a grid, agents movin...|
