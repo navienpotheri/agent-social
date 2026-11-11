@@ -378,7 +378,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | E1 | B | open | Full tracing: LLM calls and tool responses are not recorded with commitments in the log |
 | E2 | A | partial | The mail and dashboard need a redacted runtime log, which does not exist yet |
-| E3 | A | partial | Action's metrics are only a summary string |
+| E3 | A | closed | Action's metrics are only a summary string |
 | E4 | B | open | Secrets masking is pattern-based; unusual shapes can get through |
 | E5 | A | partial | Only asp gateway runs keep a run log. asp run (Claude Code, Codex, Antigravity, OpenHands through their own ad... |
 | E6 | A | open | The run log has no retention, no encryption at rest and no access rule: it is a file in the ASP home that anyo... |

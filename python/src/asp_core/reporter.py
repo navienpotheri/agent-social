@@ -41,6 +41,11 @@ class AgentReporter:
         self._blocked: dict[str, int] = {}
         self._artifacts: list[dict[str, str]] = []
         self._last_activity = datetime.now(timezone.utc)
+        # What the run cost since the last flush (gap E3): sent as the Action's structured `metrics`.
+        self._usage: dict[str, int] = {"requests": 0, "tool_calls": 0, "tokens_in": 0, "tokens_out": 0}
+        self._models: list[dict[str, str]] = []
+        self._usage_noted = False
+        self._window_start: Optional[datetime] = None
 
     # --- the log service's JSON RPC ---
     def _rpc(self, target: str, method: str, *args: Any) -> Any:
@@ -86,21 +91,37 @@ class AgentReporter:
             self._blocked[scope] = self._blocked.get(scope, 0) + 1
             raise MandateRefusal(scope, f"the scope {scope} is not granted by this job's Mandate")
         out = fn()
-        self._last_activity = datetime.now(timezone.utc)
+        self._touch()
         self._used.add(scope)
         if artifact:
             self._artifacts.append(artifact)
         return out
 
-    def note(self, scope: str, artifact: Optional[dict[str, str]] = None) -> None:
+    def usage(self, *, model: Optional[dict[str, str]] = None, requests: int = 0, tool_calls: int = 0, tokens_in: int = 0, tokens_out: int = 0) -> None:
+        """Adds what a stretch of the run cost: model requests, tool calls, tokens, and the model that answered (a dict with `name`, and `provider` or `digest` if known). Sent with the next flush as `metrics`."""
+        for k, n in (("requests", requests), ("tool_calls", tool_calls), ("tokens_in", tokens_in), ("tokens_out", tokens_out)):
+            if n < 0:
+                raise ValueError(f"{k} cannot be negative")
+            self._usage[k] += int(n)
+        if model and model.get("name") and model not in self._models:
+            self._models.append({k: v for k, v in model.items() if k in ("name", "provider", "digest") and v})
+        self._usage_noted = True
+        self._touch()
+
+    def _touch(self) -> None:
         self._last_activity = datetime.now(timezone.utc)
+        if self._window_start is None:
+            self._window_start = self._last_activity
+
+    def note(self, scope: str, artifact: Optional[dict[str, str]] = None) -> None:
+        self._touch()
         self._used.add(scope)
         if artifact:
             self._artifacts.append(artifact)
 
     def flush(self, summary: Optional[str] = None) -> Optional[dict[str, Any]]:
         """Signs and appends one Action with what has been recorded since the last flush; None when there is nothing to say."""
-        if not self._used and not self._blocked:
+        if not self._used and not self._blocked and not self._usage_noted:
             return None
         body: dict[str, Any] = {"contract": self.contract, "scopes_used": sorted(self._used), "assurance": self.assurance}
         if summary:
@@ -109,6 +130,9 @@ class AgentReporter:
             body["blocked_attempts"] = [{"scope": s, "count": c} for s, c in self._blocked.items()]
         if self._artifacts:
             body["artifacts"] = self._artifacts
+        if self._usage_noted:
+            seconds = int((datetime.now(timezone.utc) - (self._window_start or self._last_activity)).total_seconds())
+            body["metrics"] = {**({"models": self._models} if self._models else {}), **self._usage, "seconds": max(0, seconds)}
         def sign(b: dict[str, Any]) -> Any:
             return create_record(
                 type="action", issuer=self.agent, subject=self.contract, prev=None, body=b, signer=self.signer,
@@ -124,4 +148,6 @@ class AgentReporter:
             late = {"activity_ended": self._last_activity.strftime("%Y-%m-%dT%H:%M:%SZ")}
             res = self._rpc("handle", "append", sign({**body, "late": late}))
         self._used, self._blocked, self._artifacts = set(), {}, []
+        self._usage = {"requests": 0, "tool_calls": 0, "tokens_in": 0, "tokens_out": 0}
+        self._models, self._usage_noted, self._window_start = [], False, None
         return res
