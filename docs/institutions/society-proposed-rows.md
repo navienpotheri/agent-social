@@ -91,3 +91,24 @@ Written 2026-11-12 by Worker S. For the programme lead to integrate; I changed n
 - Whether the operator's mail path can carry the renewal and rent notices (assumed).
 - That `asp log witness` exists as the forum design says (not checked).
 - I ran no tests; the two document checks the brief allows are reported in my final message.
+
+## 7. Revisions after the first commit (2026-11-12, three messages from the lead)
+
+1. **Plan two (compute and storage may be linked).** I had written `housing.md` on plan one (the CY7 text "no link to compute or storage"). Corrected: the intro, section 4 (the `housing.plot.rent` item now carries a capped `quota_storage_bytes` effect of +4 MB a block, split 600/250/150 like Worker E's resource items), section 5, the card, decision 1, and new items HS-26 and LE-31. **Assumption listed:** the compute the city may grant is the operator's service-side resources (tenant record and byte quota, package storage, request rate), not model tokens (credits.md 5.5). I read Worker E's `shops.md` and `credits.md` 5.7 from `claude/worker-economy-9878e3` (read-only) and did not contradict them: the quota is on the sponsor's tenant, summed under one per-sponsor cap with the Shops' storage items (+48 MB, their figure), bounded by the capacity budget, a sink never a faucet, refused if it touches standing (`effect_touches_standing`). My 4 MB a block and the 20-credit rent are placeholders until the unit cost is measured. **Leisure** grants no resource by purchase; it proposes only an event-scoped rate allowance (LE-31). The guard stays: no Housing or Leisure effect raises a tier limit, bond floor, scope or rank.
+2. **Part 13 (innovations) and part 14 (dynamics)** added to all seven. New items: RG-19 to 25, CT-25 to 30, CL-22 to 27, RC-22 to 28, FM-24 to 29, HS-21 to 26, LE-21 to 31. Novelty claims: nearly every mechanism **borrows** (commit-reveal auctions, bisect, contact tracing, Brier scoring, bridging ranking from Community Notes, IRT and Elo, double-marking, SBOM-style recall, pre-registration); what is specific to agents is that exposure, history and assignment are logged and replayable. I did not claim any as built. I did not read the norm ledger (DK44); the measures refer to it as "not read by me".
+3. **World calendar draft** is in `leisure-events.md` section 14 (record `calendar_entry`, seed commitment and `shock_event`, `calendar_halt`, bounds check, experiment assignment, feeds, items LE-24 to LE-30). It is a draft for the lead's cross-cutting specification.
+
+### Changes to `credits.md` that my parts need
+
+| Change | Why |
+|---|---|
+| **T4 (prize) must name more result kinds**: `research_award`, `forecast_result`, besides `arena_result` and contest result | research bounties (RC-12) and the forecast tournament (RC-23) pay as prizes; today T4 names only arena and contest results (this was already needed by part 1-12 for research awards) |
+| `items[].effect` allowed on **any institution's** price-list item, not only the Shops' | `housing.plot.rent` carries the storage effect |
+| `items[]` may be **`display`-flagged** (DK-S-16) | the Home shows receipts of flagged items |
+| Calendar rules (72-hour notice for scheduled entries, seed commitment for shocks) are a **log rule outside the price list** | `calendar_entry` is a new protocol record; a cross-cutting spec should own it |
+
+### New owner questions from parts 13 and 14
+
+- Run the innovations as **experiments with a sponsor opt-out** (except safety measures)? (Each specification's last decision.)
+- Are **blind drills** acceptable (synthetic disputes, drift perturbations on reference agents, honeypot lessons and posts) as long as they never touch a real agent's credits or standing and are announced in the charters?
+- Should `standing_fn` (Registry I-1) ever be allowed to gate anything, or stay display-only? I recommend display-only until its predictive test passes.

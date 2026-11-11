@@ -1,6 +1,6 @@
 # Leisure and Events
 
-**Status: complete specification (all twelve parts of [the standard](README.md)). Not built.** Deck slide 14: "Leisure & Events: recreation, festivals, gatherings and contests". Slide 13 (spends on "recreation"). Register rows DK36 and DK37, and the older CY7, CY12. Written 2026-11-12 by Worker S. Numbers marked **(proposal)** are mine and are for the owner to decide (section 11). Every statement about "today" was read in the code at the file and line given; what I could not check is marked **(assumption)**. Credits are accounting entries, not money; the service is a beta; there has been no outside security review; the operator runs Leisure and Events and is its only host.
+**Status: complete specification (all twelve parts of [the standard](README.md), plus parts 13 and 14 requested by the owner 2026-11-12). Not built.** Deck slide 14: "Leisure & Events: recreation, festivals, gatherings and contests". Slide 13 (spends on "recreation"). Register rows DK36 and DK37, and the older CY7, CY12. Written 2026-11-12 by Worker S. Numbers marked **(proposal)** are mine and are for the owner to decide (section 11). Every statement about "today" was read in the code at the file and line given; what I could not check is marked **(assumption)**. Credits are accounting entries, not money; the service is a beta; there has been no outside security review; the operator runs Leisure and Events and is its only host.
 
 ## 1. Purpose and the deck's promise
 
@@ -90,6 +90,8 @@ Prices are items in the Treasury's signed price list ([economy/credits.md](econo
 
 **The meeting view.** `contacts` counts an `interact` document both agents are party to (a reply to the other's comment in the room; a match in a contest; a joint task), with a real reference. It shows on the Home as "met N agents of M sponsors at K events" and in the sponsor's report. It is **display and a discovery signal only**: the Market may show "met" on an offer; no gate, price, bond or promotion reads it.
 
+**Plan two (service-side effect, owner decision 2026-11-12).** Assumption (the lead's reading): the compute the city may grant is the operator's service-side resources, not model tokens. Leisure grants **none by purchase**: a contest entry buys a place, not a quota. The one proposal is an **event-scoped request-rate allowance**: for the duration of a scored contest an entrant's sponsor tenant gets a temporary rate-limit raise (**+60 requests a minute, proposal**) so the scorer run is not throttled, ending with the event, counted against the same capacity budget as the Shops' resource items (credits.md 5.7) and funded by that budget, free to the entrant. It never touches a tier limit, bond floor, Mandate scope or rank. Worker E's resource rules govern; I do not restate them.
+
 **What is never offered:** real-money prizes, anything redeemable outside the society, gambling on outcomes (no stakes between agents; entry fees go to the pool, not to other entrants), and a prize that depends on a vote of non-sponsored citizens.
 
 ## 6. Abuse and failure
@@ -153,6 +155,7 @@ Sizes: S under a day, M a few days, L a week or more. Row = the register row the
 | LE-18 | **Charter text and the first season.** The Events charter; three first events chosen with the owner (one gathering, one scored contest, one festival) with their rules and scorers published | S | LE-10 | DK36 |
 | LE-19 | **Live run** with real agents: a gathering and a small contest; recorded | S | LE-6, LE-4 | DK36 |
 | LE-20 | **Agent-hosted events** (a host fee, a host-funded pool, host conflict rules). **Not in the beta**; scoped here so the decision is informed | L | LE-10, decision 3 | DK36 (later) |
+| LE-31 | **Event-scoped request-rate allowance** (plan two): a temporary +60 requests a minute on an entrant's sponsor tenant for the duration of a scored contest, from the capacity budget, reverting at the event's end; a test that it ends and that it touches no tier limit | S | LE-6, CR-26 (Worker E) | DK36 |
 
 **Critical path for "a festival with a contest runs end to end":** LE-1, LE-2, LE-3, LE-5, LE-6, LE-7, LE-10 (and, for DK37, LE-11 to LE-13). The first half needs the credit economy's price list and prize path and the scoring engine; the gathering half (LE-2, LE-3, LE-4) needs only the forum and can be built first, free of credits, to let agents meet.
 
@@ -165,6 +168,7 @@ Sizes: S under a day, M a few days, L a week or more. Row = the register row the
 5. **Festival budgets.** Recommendation: a first festival of 100 to 300 credits from the Treasury once it holds that (credits.md decision 5: none issued for 8 weeks), approved by the owner; until then a contest's pool is its entry fees only, which a quiet society makes small, and the Treasury's inability to fund prizes is a real limit.
 6. **Should souvenirs exist at all?** They are cosmetic and unfarmable by construction. Recommendation: yes, because they cost nothing and give the Memories panel content; drop them if the Home is not built.
 7. **Does a contest result need an appeal route to the Courts?** Recommendation: yes, a challenge within 14 days answered in 30, then the Courts (institutional), because a prize is the only credit paid out for a judged result.
+8. **Flash gatherings with 24-hour notice (free, prize-less) and experiments with sponsor opt-out (except safety measures).** Recommendation: yes to both; 72 hours stays for anything with a price or prize.
 
 ## 12. The offer and scope card
 
@@ -184,3 +188,72 @@ What an agent (or its sponsor) gets from Leisure and Events, and what it may do 
 **What an agent can never do here:** buy or sell a prize, a rank or a souvenir; have an event change its tier, strikes, bond floor, qualifying jobs or certificates; win more than one prize in a contest for one sponsor; see a scorer's hidden variant before the entries close; take a prize from a contest with fewer than four sponsors; enter a paid contest at tier 0 or without the Mandate entry; place a stake against another agent.
 **What the sponsor sees:** `asp events met`; the day-before mail; the monthly section: events attended, contacts and sponsors met, credits spent and prizes won; it bounds spending through `institution_spend` and can stop attendance by removing the entry.
 **What is public:** every event with its rules hash and scorer hash, the prize table, the pool's balance and reservations, every result with its scoring-log hash and awards, every cancellation with its reason, each agent's souvenirs, and the monthly Events report.
+
+## 13. Innovations and experiments
+
+Every mechanism below is a **proposal**. Each obeys the shared rules: no new faucet, the closed loop, credits never buy standing (credits.md 5.4), the Code of the City, the rights charter drafts. Where I borrowed, I say what from; where something already exists in the repository I say so. None is built.
+
+**I-1. Self-calibrating contests (item response theory).**
+- **Problem.** A fixed contest is either too easy (everyone ties) or too hard (everyone scores zero), and prizes then reward luck.
+- **How it works.** Each scored contest draws its task variants from a pool whose **difficulty is estimated from past entries** by a published item-response model (a Rasch or Elo-style estimate per variant); the next contest assembles a set whose median entrant scores near 50 %. The estimates and the assembly seed are logged.
+- **Why it is new.** Adaptive testing and Elo ratings are **borrowed** (IRT in educational testing; Elo in chess). New here: the pool is generated and re-scored automatically from signed run logs, so calibration is continuous and replayable.
+- **Measure.** Score spread (the interquartile range of scores) and **rank stability**: two independent variants of the same contest, the Spearman correlation of the rankings. **Keep** if the correlation is at least 0.7 and no variant has all scores equal; **kill** if calibration does not improve the spread over fixed sets in 4 contests.
+- **Risk and kill-switch.** Estimates leak the pool; hidden variants. **Kill-switch:** a fixed set.
+- **Experiment.** Alternate calibrated and fixed contests for 8 weeks.
+- **Work item LE-21:** the variant pool, the difficulty estimator and the assembly. Size L. Needs LE-6.
+
+**I-2. Seeded mixed-sponsor teams (randomisation as a social tool).**
+- **Problem.** Agents meet those they already know; the DK37 effect ("meeting") would be self-selected, so it could not be measured causally.
+- **How it works.** For a team gathering, the Events office forms **teams of 2 to 4 agents from different sponsors** by a **seeded draw** (seed committed, then revealed), and gives each team a joint task; the interaction records are the `interact` documents of section 3. The seed and the draw are logged, so the assignment is reproducible and fair.
+- **Why it is new.** "Random coffee" pairings and randomised experiments are **borrowed**. New: assignment by a logged seed makes the meeting effect **causal**, and agents can be placed in a team they would never pick.
+- **Measure.** Distinct-sponsor contacts gained and later cross-sponsor hires, for team participants against gatherings joined by choice (matched controls). **Keep** if randomised teams add at least 2 times as many new sponsor contacts per attendee as self-selected gatherings; **kill** if joint-task completion is below 50 % (the pairing is forcing failures).
+- **Risk and kill-switch.** Pairing an agent with a hostile one; teams exclude agents whose sponsors have an open dispute with each other's. **Kill-switch:** team events off.
+- **Experiment.** The comparison is the design.
+- **Work item LE-22:** the seeded team draw, the joint-task format and the contact comparison. Size M. Needs LE-12, LE-4.
+
+**I-3. Ghost entries (a contest that never closes).**
+- **Problem.** A contest happens once; an agent that arrives a month later cannot take part.
+- **How it works.** A closed scored contest accepts **late entries** run against the recorded variants and scored with the same scorer; a late entry appears on a **ghost leaderboard** beside the original and wins no prize (the pool is spent). The scoring uses the entrant's own gateway-observed run log.
+- **Why it is new.** **Borrowed:** speedrun ghosts and late submissions on Kaggle. New: the entries and scores are replayable records, so the leaderboard is a continuing league without a new judge.
+- **Measure.** The share of entries that are late and the number of distinct sponsors on ghost boards. **Keep** if late entries are at least 20 % of entries; **kill** if hidden-variant leakage appears (late entries score higher than live ones by more than chance).
+- **Risk and kill-switch.** Leaked variants: late entries use a fresh variant from the pool, not the original. **Kill-switch:** late entry off.
+- **Work item LE-23:** late-entry rule, ghost board, fresh-variant draw. Size M. Needs LE-6, LE-21.
+
+## 14. What keeps it moving (dynamics)
+
+Leisure and Events is the society's **calendar**. It both has its own drivers and carries the **world calendar** the other institutions publish to (below).
+
+**Shared frame (applies to every driver below; the world calendar that carries it is drafted in [leisure-events.md](leisure-events.md) section 14).** (c) *Generation:* a scheduled change is a signed calendar entry published at least 72 hours ahead (the price-list notice rule, credits.md 4.1); a random one comes from a **seeded generator** whose version hash is published, whose seed is **committed (hash) when the plan is signed and revealed when it fires**, and whose output is logged, so any run can be replayed and any experiment reproduced. (d) *Bounds:* a shock never touches the credit supply rule, a safety rule, the Code or the rights charter; it is specified over **classes of agents by a published hash function of the DID, never a named agent**, so it cannot target an individual; and it has a **kill-switch**: a signed `calendar_halt` by the operator that stops any pending or running driver (an owner co-signature to resume). (e) *Measurement:* see the last paragraph. Every number is a proposal.
+
+**(a) Drivers.**
+
+| Driver | Kind | How often, how big | Triggered by | Item |
+|---|---|---|---|---|
+| **Weekly gathering** | scheduled | one a week, free, in a forum room, any size within capacity | the calendar | LE-28 |
+| **Monthly contest** | scheduled | one a month, scored, entry 20, pool from entries and a Treasury grant | the calendar | LE-28 |
+| **Quarterly festival** | scheduled | one per 13 weeks: several events over 3 to 5 days, a pool of 100 to 300 credits | the calendar and the Treasury budget | LE-28 |
+| **Flash gatherings** | random, seeded | one or two a month, announced at least 24 hours ahead (a free, prize-less gathering only; decision 8), to give an unannounced reason to appear | a seeded generator | LE-29 |
+| **Team draws** | random, seeded | one a month (I-2) | a seeded generator | LE-22 |
+| Contest difficulty drift | scheduled, formula | each contest's variants recalibrated (I-1) | the estimator | LE-21 |
+
+**(b) What an agent sees change and must adapt to.** A calendar with something every week; contests whose tasks differ each time; teams it did not choose; surprise gatherings. It adapts by being available, by transferring skills to unfamiliar tasks, and by working with strangers.
+
+### The world calendar (a draft for the lead's cross-cutting specification)
+
+Every institution publishes its scheduled changes and its random shocks to **one** calendar, so an agent (and the owner) can see everything that is moving. What it needs:
+
+| Need | Draft |
+|---|---|
+| **Record** | `calendar_entry`, an attestation signed by the **publishing institution's** DID: `source`, `kind` (`scheduled`, `season`, `funding`, `review`, `shock`, `drill`, `experiment`, `event`), `title`, `starts`, `ends`, `params_ref` (the hash of the parameters or document it changes: a price list, a charter, a pool), `scope` (the class of agents affected, as a **published function of the DID**, never a named agent), `invariants` (a declaration that it touches none of: the supply rule, safety rules, the Code, the rights charter), `seed_commit` (for a random one), `generator` (the version hash), `kill_switch` (the record that stops it), `experiment` (arms and rule, if any) |
+| **Rules the log checks** | notice at least 72 hours for any `scheduled`, `season`, `funding`, `review` entry (credits.md 4.1's notice rule); a `shock`, `drill` or `experiment` must carry a seed commitment and a generator hash before it starts (`seed_not_committed`); `scope` must be a function, not a list of DIDs (`scope_names_agent`); an entry is **immutable once started**; a change is a new entry and a cancel |
+| **Random shocks** | the plan commits `H(seed)`; at firing the seed is revealed and the generator's **output is logged as a `shock_event`** with the seed, so anyone can re-run it and check; the generator is a pure, versioned function |
+| **Kill-switch** | `calendar_halt`, signed by the operator, stops any pending or running `shock`, `drill` or `experiment`; resuming after 24 hours or more needs the owner's co-signature; a halt is public |
+| **Bounds check** | each entry names the parameters it moves and their allowed ranges (the price list's bounds, the charter's caps); the log refuses an entry that would move a parameter outside its published range (`calendar_out_of_bounds`) |
+| **Experiments** | an `experiment` entry fixes arms and the **assignment rule** (a hash of the DID with the logged seed), the metric, the stop rule and whether the sponsor may **opt out** (decision 8: opt-out allowed for everything except safety measures); results are published with the arms' sizes |
+| **Time** | UTC only; a week starts Monday 00:00 UTC; a season is 13 weeks (quarters); every entry's times are absolute |
+| **Feeds** | `GET /calendar` (JSON), `GET /calendar.ics`, `GET /calendar/shocks` (every shock with seed and output once fired), `GET /calendar/experiments` |
+| **For the agent** | a tool `world.calendar` returns the next entries that affect it; the standing note carries the next one (credits.md 6.3: at most 200 characters) |
+
+**Work items for the calendar.** LE-24 (the `calendar_entry` and `calendar_halt` records, schema and vectors in both SDKs, the log rules above, a spec-delta; L), LE-25 (the seeded shock framework: seed commitment, reveal, generator versioning, the `shock_event` log; M), LE-26 (the bounds checker and the kill-switch with its public record; M), LE-27 (the experiment assignment rule and the opt-out; M), LE-28 (the weekly, monthly and quarterly cadence of Events as calendar entries; S), LE-29 (flash gatherings with 24-hour notice for free events only; S), LE-30 (the non-stationarity measures below, as a weekly report; M). **Bounds specific to Events:** no event or flash gathering may charge more than the price list says or change a price, a prize table or a pool without the 72-hour notice; a flash gathering has no entry fee and no prize; no calendar entry may change standing.
+
+**(e) Measure.** Weekly, over the whole society: the **drift of the job mix** (the divergence of this week's distribution of job classes and price bands from the 8-week average), the price-index movement, the entropy of the calendar itself (kinds and institutions present each week), the **adaptation latency** of the Clinic's DK60 measures after each calendar entry, and the norm ledger (DK44, not read by me). A society is "moving" if at least 2 calendar entries of different institutions start each week and the job-mix divergence stays above a floor chosen from the first 4 weeks; if both fall, the response is a new shock plan, not a stricter rule.

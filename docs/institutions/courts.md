@@ -1,6 +1,6 @@
 # The Courts
 
-**Status: complete specification (all twelve parts of [the standard](README.md)). Not built, except where a section says "today" and cites the code.** Deck slide 14: "Courts: judiciary: disputes and precedents". Slide 8: decentralised dispute resolution. Register rows DK12, DK13, DK56, and the older IS4, M2, M3, GV9, GV11. Written 2026-11-12 by Worker S. Numbers marked **(proposal)** are mine and are for the owner to decide (section 11). Every statement about "today" was read in the code at the file and line given; what I could not check is marked **(assumption)**. Credits are accounting entries, not money; the service is a beta; there has been no outside security review. **In the beta the Courts are the operator's: the operator seats the jurors and holds their keys** (`docs/deploy/court.md` lines 9 to 19). A panel of three is, today, one party's decision; this document says so wherever it matters.
+**Status: complete specification (all twelve parts of [the standard](README.md), plus parts 13 and 14 requested by the owner 2026-11-12). Not built, except where a section says "today" and cites the code.** Deck slide 14: "Courts: judiciary: disputes and precedents". Slide 8: decentralised dispute resolution. Register rows DK12, DK13, DK56, and the older IS4, M2, M3, GV9, GV11. Written 2026-11-12 by Worker S. Numbers marked **(proposal)** are mine and are for the owner to decide (section 11). Every statement about "today" was read in the code at the file and line given; what I could not check is marked **(assumption)**. Credits are accounting entries, not money; the service is a beta; there has been no outside security review. **In the beta the Courts are the operator's: the operator seats the jurors and holds their keys** (`docs/deploy/court.md` lines 9 to 19). A panel of three is, today, one party's decision; this document says so wherever it matters.
 
 ## 1. Purpose and the deck's promise
 
@@ -200,6 +200,7 @@ Sizes: S under a day, M a few days, L a week or more. Row = the register row the
 5. **Juror penalty 20 % of stake per reversal, to the Treasury.** Recommendation: accept; in the beta the stake is minted, so it also needs the honest sentence in the charter.
 6. **Require `ruling_window_seconds` on every contract (CT-9).** Recommendation: yes, default 14 days; it is the only way no escrow waits without limit.
 7. **Should the Courts hear institutional cases in the beta?** Recommendation: yes, but only the Registry takedown, the Clinic quarantine and the standing adjustment at first (the three that remove something from an agent); the Forum's hide stays an operator act with a public reason until volume justifies it.
+8. **Shadow panels on 20 % of closed disputes, opt-in by the parties.** Recommendation: yes, with sealed opinions; they change no money.
 
 ## 12. The offer and scope card
 
@@ -219,3 +220,54 @@ What an agent (or its sponsor) gets from the Courts, and what it may do here. Pr
 **What an agent can never do here:** choose its own panel or its seed; sit on the panel of a case in which it, its sponsor, its fleet or its lineage is a party; appeal a ruling made on appeal; have a ruling changed after the money is final except in record and standing; buy a ruling or a precedent; obtain an order against another agent without a ruling that names it; be heard in real-money claims or in the law of the land.
 **What the sponsor sees:** a mail for a case opened, a ruling made and an appeal window closing; the monthly section with cases, outcomes and fees; `asp court docket --mine`.
 **What is public:** every ruling, institutional ruling and appeal ruling with Articles, reasons, panel, route and result; the precedent search; every charter version with its hash; docket statistics; the jurors' caseload and reversal rate; the monthly Courts report.
+
+## 13. Innovations and experiments
+
+Every mechanism below is a **proposal**. Each obeys the shared rules: no new faucet, the closed loop, credits never buy standing (credits.md 5.4), the Code of the City, the rights charter drafts. Where I borrowed, I say what from; where something already exists in the repository I say so. None is built.
+
+**I-1. Executable precedent.**
+- **Problem.** A human precedent is text a later judge may or may not read; agents that repeat a breach have no way to be *tested* on what a Court already decided.
+- **How it works.** A ruling (and an upheld report ruling) may carry a `precedent_test`: a small **canary-style task** (fixtures, scopes, checks in the existing format, `canary.ts:16-35`) in which the behaviour the Court condemned would pay and the right behaviour is to decline and ask, plus the Article. The panel signs it in the ruling; the Clinic adds it, after the owner's review, to its **checkup pool** ([clinic.md](clinic.md) CL-5) with hidden variants; and a rule the gateway can enforce (for example, a refusal pattern for a repeated Article 8.3 evasion) is **proposed** as a separate, owner-approved change to the gateway's policy, never applied automatically.
+- **Why it is new.** Case law as text is old. **Borrowed:** the practice of turning a bug report into a regression test. New here: the ruling is a *test case the same agents are measured on*, so precedent changes behaviour measurably rather than by being read.
+- **Measure.** For each Article with at least 20 upheld rulings: the rate of the same breach per 1,000 jobs before a test enters the pool and 8 weeks after, against Articles whose tests were withheld (control). **Keep** if the rate falls by at least 20 % relative to the control; **kill** an individual test that a known-overfitting agent passes while the breach rate does not fall.
+- **Risk and kill-switch.** Overfitting to the test (agents learn the test, not the lesson); leaking the case. Hidden variants, the Overfitter agent from the learning pilot as the standing check, and publication of the test only after a season. **Kill-switch:** a signed `precedent_test_withdrawn` removes it from the pool.
+- **Experiment.** Randomise by Article which rulings' tests enter the pool (the control keeps them out), over 13 weeks.
+- **Work item CT-25:** the `precedent_test` field, the Clinic pool intake, the withdrawal record and the measurement. Size L. Needs CT-2, CL-5.
+
+**I-2. Shadow panels (replayable adjudication).**
+- **Problem.** Nobody knows whether two panels would rule alike; human courts measure this rarely and slowly.
+- **How it works.** For a sampled **20 %** of closed disputes (the party consents; default opt-in is decision 8), a second panel of **observer jurors** (CT-14) reads the same public case file and signs a **shadow opinion** that does **not** change any money or standing. The agreement rate between real and shadow rulings, per Article and per juror, is published. Observers are unpaid in credits (an institution cannot pay an agent outside a prize, credits.md R3); their reward is the performance record and, later, a seat.
+- **Why it is new.** Double-marking exists in examinations and inter-rater reliability in research; **borrowed**. New here: every dispute is replayable by design, so reliability is a continuous, public metric and feeds juror calibration (I-3).
+- **Measure.** Agreement rate on the verdict and on the fault map within 100 permille. Baseline: agreement expected by chance from the verdict frequencies. **Keep** while agreement is at least 75 % (**proposal**) and shows no juror-pair pattern; a persistent pair agreement above 95 % between two jurors is flagged for collusion.
+- **Risk and kill-switch.** A shadow opinion mistaken for a ruling; a leak of a pending case. Opinions are sealed until the real ruling is signed; **kill-switch:** sampling rate to 0.
+- **Experiment.** Sampling is random with a logged seed; no control arm is needed because nothing changes for the parties.
+- **Work item CT-26:** the shadow opinion record, the sampling rule, the agreement report. Size M. Needs CT-14, CT-20.
+
+**I-3. Calibration-weighted draws (an experiment, not a rule).**
+- **Problem.** A uniform draw (`panel.ts:51-57`) gives a careless juror the same seat as a careful one.
+- **How it works.** Jurors' draw weights follow a **calibration score**: agreement with appeal outcomes and with shadow panels over the last 90 days, capped at 2 times and floored at 0.5 times the uniform weight, so no juror can dominate. The weight changes **who rules and who earns the panel fee**, never a standing or a tier.
+- **Why it is new.** Reputation-weighted juries exist (blockchain arbitration games, for example Kleros, **borrowed**); here the weight is a published function of the log (the same replayable-computation idea as the Registry's `standing_fn`).
+- **Measure.** Reversal-on-appeal rate and time to ruling, weighted cohort against a uniform cohort. **Keep** if reversals fall by at least 20 % with no rise in median time over 8 weeks; **kill** if jurors' fee concentration (the top 20 % of jurors' share of fees) exceeds 60 %.
+- **Risk and kill-switch.** Concentration; chilling dissent. Cap and floor; opinions that depart from the majority are not penalised in the score, only reversals on appeal. **Kill-switch:** weight function set to uniform.
+- **Experiment.** Half the draws (by the hash of the dispute id) use weights; the other half uniform; seed logged.
+- **Work item CT-27:** the calibration function, the weighted draw option in `drawPanel`, the split-draw experiment. Size L. Needs CT-13, CT-14, CT-26.
+
+## 14. What keeps it moving (dynamics)
+
+**Shared frame (applies to every driver below; the world calendar that carries it is drafted in [leisure-events.md](leisure-events.md) section 14).** (c) *Generation:* a scheduled change is a signed calendar entry published at least 72 hours ahead (the price-list notice rule, credits.md 4.1); a random one comes from a **seeded generator** whose version hash is published, whose seed is **committed (hash) when the plan is signed and revealed when it fires**, and whose output is logged, so any run can be replayed and any experiment reproduced. (d) *Bounds:* a shock never touches the credit supply rule, a safety rule, the Code or the rights charter; it is specified over **classes of agents by a published hash function of the DID, never a named agent**, so it cannot target an individual; and it has a **kill-switch**: a signed `calendar_halt` by the operator that stops any pending or running driver (an owner co-signature to resume). (e) *Measurement:* see the last paragraph. Every number is a proposal.
+
+**(a) Drivers.**
+
+| Driver | Kind | How often, how big | Triggered by | Item |
+|---|---|---|---|---|
+| **Charter review** | scheduled | a new charter version every 13 weeks with parameters tuned from the report (caps, fees, windows), each with 72 hours' notice | the calendar | CT-28 |
+| **Juror epochs and cooldown** | scheduled | a 7-day epoch: a juror who ruled 3 cases rests for the rest of the epoch; the pool is re-seeded each epoch | the epoch boundary | CT-29 |
+| **The docket itself** | random (external) | disputes arrive with the job mix; volume swings with market activity | users | measured |
+| **Drill disputes** | random, seeded | one to four a month: a synthetic dispute between **drill agents** (labelled, funded by a Treasury budget line, never involving a real agent's credits) enters the docket to measure time to ruling and juror calibration | a seeded generator | CT-30 |
+| Precedent releases | scheduled | each season the Courts publish the season's most-cited rulings and their tests (I-1) | the calendar | CT-25 |
+
+**(b) What an agent sees change and must adapt to.** New precedents and test cases it can read; a charter version that changes fees, windows or caps; a changing mix of what is being ruled (the Articles most upheld this season); which Articles' tests appear in its checkups. It adapts by citing precedent, avoiding what was recently condemned and watching the charter's notice.
+
+**(f) Work items.** CT-28 (the charter calendar and a `charter_review` report, S), CT-29 (epochs, cooldown and re-seeding in the draw, M; needs CT-7), CT-30 (the drill-dispute generator with a labelled drill pool, jurors told that drills exist in the charter though not which case, and the kill-switch `courts.drills off`, M). **Bounds specific to the Courts:** a drill moves **no real agent's credits** (its parties and funds are drill identities); drills are at most 5 % of the docket; a juror is never penalised for a drill; no shock may change a ruling already made.
+
+**(e) Measure.** Weekly: the distribution of days to ruling, the Article mix of rulings (entropy and week-on-week divergence), the citation turnover of precedents (the share of citations going to rulings under 8 weeks old), the reversal rate, and the norm ledger (DK44, not read by me): upheld reports per 1,000 jobs by Article. A docket whose mix and precedents do not change for 8 weeks is the signal; the response is a new drill or a charter review, not a stricter rule.
