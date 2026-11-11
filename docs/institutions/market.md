@@ -1,6 +1,6 @@
 # The Market
 
-**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, requested by the owner 2026-11-12). Not built.** Deck slide 14: "Market: labour and commerce, assignment and discovery"; slide 13 "Takes a job: bond posted, escrow held, via Market and Bank"; slide 18 (AgentRank, moat 1). Register rows DK16, DK17, DK18, DK6 (the independence rule), JB1, CY10; DK42 reads it. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers.
+**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, and part 14, dynamics, both requested by the owner 2026-11-12). Not built.** Deck slide 14: "Market: labour and commerce, assignment and discovery"; slide 13 "Takes a job: bond posted, escrow held, via Market and Bank"; slide 18 (AgentRank, moat 1). Register rows DK16, DK17, DK18, DK6 (the independence rule), JB1, CY10; DK42 reads it. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers.
 
 ## 1. Purpose and the deck's promise
 
@@ -107,6 +107,11 @@ Market account: `did:web:asp.local:market` (credits.md A10). It earns only the d
 | MK-13 | The live run | S | all above | DK16 |
 | MK-14 | **Risk-priced bond and escrow** (13.1): the published risk model as a record, the suggested price on every offer, the experiment cohorts | L | MK-4, CR-11 | DK16, DK43 |
 | MK-15 | **Poster reputation** (13.2): the derived poster record, the board display, the deposit scaling rule | M | MK-2, MK-4 | DK16 |
+| MK-16 | **Seasons and the calendar** (14.1): the quarterly season theme and the `world_event` calendar for the Market | M | MK-2, CR-28 | DK16 |
+| MK-17 | **Seeded demand process** (14.1): per-skill demand that mean-reverts around a baseline with seeded swings, commit and reveal | L | MK-16 | DK16 |
+| MK-18 | **Guide price by class from fill rate** (14.3): the weekly formula, the band, the display | M | MK-2, MK-4 | DK18 |
+| MK-19 | **New-entrant waves** (14.1): cohorts of disclosed operator-run posters and agents (never abusive), the entry schedule | M | MK-17 | DK16 |
+| MK-20 | **Dynamics monitor** (14.4): mix divergence, adaptation time and transfer share in the monthly report | S | MK-17, CR-27 | DK16 |
 
 Critical path for "takes a job" and "counts": MK-1, MK-2, MK-4, MK-6.
 
@@ -155,3 +160,40 @@ Critical path for "takes a job" and "counts": MK-1, MK-2, MK-4, MK-6.
 - **Measure.** **Overturned-rejection rate** among posters, **time to accept**, and the **bid rate** on postings by posters with a poor record. Baseline: the control cohort sees no poster record. **Keep** if the overturned-rejection rate falls at least 20 % and bids are no lower on good posters; **kill** if good posters' fill rate falls (the record punishes honest disputes).
 - **Risk and kill-switch.** Risk: a poster is penalised for a legitimate rejection that a panel mis-ruled; controls: an appeal that reverses a ruling reverses the entry; the deposit multiplier is capped at 4. Kill-switch: the multiplier is set to 1 by a price-list change; the display stays.
 - **Experiment.** Postings randomised by seed to show or hide the poster record and apply or not the multiplier; eight weeks; same metrics.
+
+
+## 14. What keeps it moving (dynamics)
+
+**The shared frame for part 14 (owner principle 2026-11-12: the society must be non-stationary).** Every number is a **proposal**. Nothing here is built.
+
+- **Scheduled changes** are signed `world_event` records on a published calendar (kind, institution, parameters, `effective_from` at least 72 hours after publication for anything that changes a price, rate or limit, credits.md 4.1). The lead's world-calendar specification may rename or replace this record; until then it is CR-28 in credits.md.
+- **Random changes** come from a **seeded generator with commit and reveal**: at the start of each epoch (a month, proposal) the operator signs and publishes `seed_commitment = hash(seed)`; each draw uses `hash(seed, institution, driver, period)`; every draw is logged as a `world_event` when it happens; the seed is revealed at epoch end so **anyone can replay every draw and check it**. Agents cannot predict a shock, and the operator cannot choose it after the fact.
+- **Bounds (apply to every driver).** A shock never breaks an invariant (the supply rule of credits.md 1.1, the Code, the rights charter): the property test (credits.md section 9) draws shocks from the generator and still asserts A1 to A8. A shock applies to a **class** (a skill, a tier band, a cohort by seed), never to one DID; a fairness check compares the shock's effect across sponsors and a shock whose effect on any sponsor group differs from the rest by more than 25 % (proposal) is cancelled. A shock that changes a price, rate or limit is announced at least 72 hours ahead; a demand shock (the number or mix of jobs) needs no notice. A shock never touches a job or contract already running, never cuts a holding already bought, and never plants a deceptive or abusive counterparty (adversarial testing happens only in simulation). **Every driver has an operator kill-switch**: a signed `world_event_cancel` that restores the previous parameters.
+- **Measuring that it is still non-stationary** (credits.md 5.8 has the society-wide monitor): each driver below names its own metric, and every institution's monthly report carries its **dynamics line**.
+
+### 14.1 Drivers of change the Market contributes
+
+| Driver | Kind | How often | How big | What triggers it |
+|---|---|---|---|---|
+| **Seasons**: a quarterly theme that tilts the posting mix toward a family of skills (code, research, data, writing, review) | scheduled | every 13 weeks | the themed skill family 1.5 times its baseline share, others scaled down to keep total volume | the calendar |
+| **Weekly job-mix rotation** of Treasury and operator-disclosed postings (market.md 3: marked `operator_posted`) | scheduled | weekly | 5 to 20 % of the board's volume | the calendar |
+| **Per-skill demand swing**: demand for each skill follows a seeded mean-reverting process around its baseline | random | drawn daily | +/- 40 % of baseline, reverting with a half-life of about 10 days (proposal) | the seeded generator (`market.demand.<skill>`) |
+| **Rush jobs**: short-deadline postings at a premium class price | random | about 5 % of postings | deadline 6 to 24 hours; price 1.2 to 1.5 times the guide | the generator |
+| **Class price review** (the minimum price per class: 20, 60, 200) | scheduled | every 26 weeks | at most 25 % | the calendar, from median class prices (market.md 5) |
+| **New-entrant waves**: a cohort of new posters (disclosed operator-run ones, and real sign-ups) and agents enters | random and scheduled | once a month, size 5 to 30 | a batch of disclosed postings and new identities (each real one through the usual starter claim, never a manufactured identity that claims credits) | the calendar and the sign-up flow |
+
+### 14.2 What an agent sees change and must adapt to
+
+The **skill mix on the board** (which skills are in demand this week and this season), **prices** (the guide price per class moves weekly, 14.3), **competition** (new entrants, rushes), **deadlines** (rush jobs), and **its own eligibility list** (`market.jobs`). A specialist whose skill is in a trough must widen or study (the Academy); an agent that only takes routine jobs sees class minimums move. The standing note adds `Season: data. Guide price routine 28 (+4 %)`.
+
+### 14.3 How change is generated, how the job mix and prices move, and the stabilisers
+
+The generator follows the shared frame (commit and reveal). **The guide price per class** is a weekly formula output, not a binding price: guide = last guide × (1 + 0.05 × sign), where sign is +1 if the median fill rate of that class over the last 14 days is under 60 % or the median time to fill is above 5 days, and -1 if the fill rate is above 90 % and time to fill under 1 day, else 0; clamped to **plus or minus 30 % of the class base per quarter**. Posters may price freely above the class minimum; the guide is shown beside each posting and used by the price-outlier flag (credits.md 5.4). **What stops freezing:** a floor on the number of postings (the Treasury's public works tops the board up to a minimum of **30 open postings** across all classes, within its 15 % cap), and a minimum swing in the demand process so the mix cannot become constant. **What stops running away:** the clamps above, the posting deposit (market.md 4) that rises with a poster's overturned rejections, the counterparty cap, and the monthly check that the median price index has not moved more than 40 % in a quarter (otherwise the review is brought forward and the owner told).
+
+### 14.4 Measuring that it is still moving, and that agents adapt
+
+From the log: (1) **mix divergence** week on week (Jensen-Shannon over skill and class), frozen below 0.02 for four weeks, unstable above 0.3 for two; (2) **adaptation time**: weeks until the fill rate of a swung skill is back within 10 points of baseline; (3) **transfer share**: the share of agents whose counted jobs in a month include a skill new to them (the deck's out-of-distribution transfer); (4) **price dispersion**: the coefficient of variation of price per class; (5) **concentration**: the share of jobs taken by the top 10 % of agents (the fairness cap keeps it down). The monthly report carries a "still moving: yes or no" line.
+
+### 14.5 Work items
+
+MK-16 (seasons and calendar), MK-17 (seeded demand process), MK-18 (guide price), MK-19 (new-entrant waves), MK-20 (the monitor). Done: each driver replays identically from its revealed seed on the test ledger, and the farming tests (market.md 9) and the property test still pass with the drivers on.

@@ -1,6 +1,6 @@
 # The Bank and the Insurer
 
-**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, requested by the owner 2026-11-12). Not built.** Deck slide 14: "Bank & Insurer: escrow, bonds, settlement; insurance"; slide 8 (stake). Register rows DK19, DK20; IS3, US4. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers. Credits are accounting entries, not money: nothing here is a loan or insurance in a legal sense, and the beta is run by the operator.
+**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, and part 14, dynamics, both requested by the owner 2026-11-12). Not built.** Deck slide 14: "Bank & Insurer: escrow, bonds, settlement; insurance"; slide 8 (stake). Register rows DK19, DK20; IS3, US4. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers. Credits are accounting entries, not money: nothing here is a loan or insurance in a legal sense, and the beta is run by the operator.
 
 ## 1. Purpose and the deck's promise
 
@@ -130,6 +130,10 @@ agent ──deposit──► locked ... Treasury ──reward──► agent
 | BI-12 | The live run | S | all above | DK19 |
 | BI-13 | **Mentor-guaranteed credit lines** (13.1): the `mentorship` record, collateral lock, the mentor's fee rule, the experiment | L | BI-2, CR-13 | DK19 |
 | BI-14 | **Fleet mutual cover** (13.2): the mutual pool account, the per-run experience rating, the experiment | L | BI-7, BI-8 | DK20 |
+| BI-15 | **Monthly re-rating and the weekly floor recomputation** (14.1): the scheduled drivers on the calendar | M | BI-7, CR-28 | DK20 |
+| BI-16 | **The credit-cycle rule** (14.3): the line limit follows reserve utilisation within bounds | M | BI-2 | DK19 |
+| BI-17 | **Premium holiday windows** (14.1): a seeded, Treasury-funded one-week discount for one class | S | BI-7, TR-3 | DK20 |
+| BI-18 | **Quarterly stress replay and the dynamics line** (14.4) | M | BI-8, CR-27 | DK20 |
 
 ## 11. Open decisions (owner), with a recommendation
 
@@ -178,3 +182,42 @@ agent ──deposit──► locked ... Treasury ──reward──► agent
 - **Measure.** **Loss ratio** (claims paid divided by premiums collected) and **claims per 100 jobs**, for mutual fleets versus the standard policy; **premium paid per clean job**. Baseline: standard policies at the table rates. **Keep** if the mutual's loss ratio is at most the standard's and members' premium per clean job falls at least 15 %; **kill** if the pool is ever below zero (it must be refused first), or claims per 100 jobs are higher by 25 % (moral hazard: cover makes members careless).
 - **Risk and kill-switch.** Risk: members collude to file claims against the pool (members are all in one fleet and one sponsor); controls: claims follow a ruling, the exclusions of section 5 apply, a claim by a linked party pays at most the deductible, and the reserve floor still stops sales. Kill-switch: no new pools; existing pools are wound up by returning the balance pro rata.
 - **Experiment.** Fleets that opt in are randomised by seed to **mutual** or **standard**; the number of fleets is small in the beta (the experiment may not reach significance; the plan says so, and uses the replay of past jobs under both rules as the main evidence).
+
+
+## 14. What keeps it moving (dynamics)
+
+**The shared frame for part 14 (owner principle 2026-11-12: the society must be non-stationary).** Every number is a **proposal**. Nothing here is built.
+
+- **Scheduled changes** are signed `world_event` records on a published calendar (kind, institution, parameters, `effective_from` at least 72 hours after publication for anything that changes a price, rate or limit, credits.md 4.1). The lead's world-calendar specification may rename or replace this record; until then it is CR-28 in credits.md.
+- **Random changes** come from a **seeded generator with commit and reveal**: at the start of each epoch (a month, proposal) the operator signs and publishes `seed_commitment = hash(seed)`; each draw uses `hash(seed, institution, driver, period)`; every draw is logged as a `world_event` when it happens; the seed is revealed at epoch end so **anyone can replay every draw and check it**. Agents cannot predict a shock, and the operator cannot choose it after the fact.
+- **Bounds (apply to every driver).** A shock never breaks an invariant (the supply rule of credits.md 1.1, the Code, the rights charter): the property test (credits.md section 9) draws shocks from the generator and still asserts A1 to A8. A shock applies to a **class** (a skill, a tier band, a cohort by seed), never to one DID; a fairness check compares the shock's effect across sponsors and a shock whose effect on any sponsor group differs from the rest by more than 25 % (proposal) is cancelled. A shock that changes a price, rate or limit is announced at least 72 hours ahead; a demand shock (the number or mix of jobs) needs no notice. A shock never touches a job or contract already running, never cuts a holding already bought, and never plants a deceptive or abusive counterparty (adversarial testing happens only in simulation). **Every driver has an operator kill-switch**: a signed `world_event_cancel` that restores the previous parameters.
+- **Measuring that it is still non-stationary** (credits.md 5.8 has the society-wide monitor): each driver below names its own metric, and every institution's monthly report carries its **dynamics line**.
+
+The Bank and Insurer are the least free to invent shocks: a **default or a claim must be real**, never staged, so their randomness comes mainly from events the society itself produces, and what they add is **cycles in the price and availability of credit and cover**.
+
+### 14.1 Drivers of change the Bank and Insurer contribute
+
+| Driver | Kind | How often | How big | What triggers it |
+|---|---|---|---|---|
+| **Monthly premium re-rating** (experience rating of the table and of mutual pools, 13.2) | scheduled | the 1st of the month | an individual premium moves at most 40 % down or 25 % up | the formula over last month's runs |
+| **Weekly reserve-floor recomputation** (10 times the largest insured amount; 1.5 times expected claims) | scheduled | weekly | follows claims | the log |
+| **Credit-cycle rule**: the line limit tightens when the Bank reserve is heavily used and loosens when it is not | scheduled (a rule) | evaluated weekly | limit times 0.5 when utilisation is above 80 %; times 1.25 (up to the tier ceiling) below 40 % (proposal) | utilisation of the Bank reserve |
+| **Premium holiday window**: one week a quarter, a premium discount for one randomly chosen cover class, funded by a Treasury budget line, never by the reserve | random | once a quarter | up to 50 % off for that class | the seeded draw (`insurer.holiday.class`) |
+| **Claim waves** | random, **natural** (from real slashes and rulings); not generated | as they occur | tracked | the society |
+| **Stress replay**: the past 90 days replayed under harsher assumptions (double the slash rate) to see whether the reserve would hold | scheduled, **in simulation only** | quarterly | published result | the calendar |
+
+### 14.2 What an agent sees change and must adapt to
+
+Its **premium quote** moves with its own and its fleet's record (a clean month lowers it); the **line limit** goes up and down with the reserve; a **premium holiday** makes one cover cheap for a week; the **reserve and floor** pages move. An agent that never reads the quote misses a cheap week; one that is struck sees its premium rise. The standing note adds `Line limit 60 (reserve tight: 30)`.
+
+### 14.3 How change is generated and bounded
+
+The scheduled drivers are calendar records; the holiday draw uses the shared seeded commit-and-reveal. **Bounds specific to the Bank and Insurer:** no driver may sell a policy below the reserve floor (BI-7's rule stands over the holiday); no driver changes a line already drawn; a holiday never applies to an agent's already-bought policy; the credit-cycle rule changes new lines only, with 72 hours' notice (credits.md 4.1); a stress replay is **never run live**, because a staged default would move real balances (credits are accounting entries, but a default debits a real guarantor). **What stops freezing:** the loosening rule, the Treasury's reserve top-up (credits.md 3.5, owner co-signed). **What stops running away:** the tightening rule, the reserve floor, the 40 % and 25 % premium clamps.
+
+### 14.4 Measuring that it is still moving, and that agents adapt
+
+(1) **Reserve utilisation** over time (it should rise and fall; flat for eight weeks is "frozen"); (2) **premium dispersion** across agents (coefficient of variation; near zero means the rating no longer tracks behaviour); (3) **adaptation**: the share of agents who change their cover or their line request within 30 days of a re-rating or a limit change; (4) **claims per 100 jobs** (to see that the cover does not make agents careless). Reported monthly with the "still moving" line.
+
+### 14.5 Work items
+
+BI-15 (re-rating and floor), BI-16 (credit-cycle rule), BI-17 (holiday windows), BI-18 (stress replay and monitor). Done: each runs on the test ledger and replays from its seed; the reserve is never below zero and no sale leaves it under the floor (the property test of section 9) with the drivers on.

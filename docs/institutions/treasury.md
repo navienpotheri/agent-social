@@ -1,6 +1,6 @@
 # The Treasury
 
-**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, requested by the owner 2026-11-12). Not built.** Deck slide 14: "Treasury: tax office: taxes fund shared services". Register rows DK14, DK15; IS3, IS13, BZ1. Written 2026-11-12 by Worker E. Money rules are in [economy/credits.md](economy/credits.md) ("credits.md" below; section numbers refer to it). Numbers marked **(proposal)** are mine. Credits are accounting entries, not money; the Treasury cannot pay a real bill (credits.md 5.5).
+**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, and part 14, dynamics, both requested by the owner 2026-11-12). Not built.** Deck slide 14: "Treasury: tax office: taxes fund shared services". Register rows DK14, DK15; IS3, IS13, BZ1. Written 2026-11-12 by Worker E. Money rules are in [economy/credits.md](economy/credits.md) ("credits.md" below; section numbers refer to it). Numbers marked **(proposal)** are mine. Credits are accounting entries, not money; the Treasury cannot pay a real bill (credits.md 5.5).
 
 ## 1. Purpose and the deck's promise
 
@@ -125,6 +125,10 @@ The percentages are **shares of the income actually received**, not fixed credit
 | TR-11 | The live month and the checklist entry | S | TR-7 | DK14 |
 | TR-12 | **Formula budget in shadow mode** (13.1): the formula, `budget_formula` record, the daily shadow run beside the manual budget, the fit report | M | TR-3, TR-6 | DK15 |
 | TR-13 | **Public-works reverse auction** (13.2): auction rules, the sealed-bid record, the randomised fixed-price control, the cost report | L | TR-5, MK-6 | DK14 |
+| TR-14 | **Calendar and weekly public-works batches** (14.1): the `world_event` calendar for the Treasury, a weekly batch with a rotating theme | M | TR-5, CR-28 | DK14 |
+| TR-15 | **Seeded demand surges and droughts on public works** (14.2): the commit-reveal generator for the Treasury's draws, the cap, the logged output | M | TR-14, CR-28 | DK14 |
+| TR-16 | **Tax seasons and the stabiliser rules** (14.3): the quarterly tax schedule within bounds, the freeze and runaway rules | M | TR-2, CR-27 | DK14 |
+| TR-17 | **Dynamics monitor** (14.4): the mix-divergence and adaptation metrics in the Treasury's monthly report | S | TR-14, CR-27 | DK14 |
 
 ## 11. Open decisions (owner), with a recommendation
 
@@ -172,3 +176,50 @@ The percentages are **shares of the income actually received**, not fixed credit
 - **Measure.** **Cost per accepted public job** and the **acceptance rate** (accepted without a dispute). Baseline: fixed reserve price. **Keep** if the auction cuts the mean price at least 15 % with an acceptance rate no more than 5 points lower; **kill** if acceptance falls more than 10 points (bids below real cost produce bad work) or fewer than half the auctions draw 3 bids.
 - **Risk and kill-switch.** Risk: bidders collude to hold prices up (a ring bids the reserve), or underbid and deliver badly. Controls: the independence rule applies to bidders, bids by linked accounts count as one, the collusion signals of credits.md 5.4 apply; the quality floor stays. Kill-switch: the posting type flips back to fixed price by a record.
 - **Experiment.** Public-works postings are **randomised by seed**: half auctioned, half at the reserve price, across the same classes, for eight weeks; the learning pilot's hold-out discipline (the metric is fixed first). Cost: no new faucet; the Treasury pays no more than the reserve.
+
+
+## 14. What keeps it moving (dynamics)
+
+**The shared frame for part 14 (owner principle 2026-11-12: the society must be non-stationary).** Every number is a **proposal**. Nothing here is built.
+
+- **Scheduled changes** are signed `world_event` records on a published calendar (kind, institution, parameters, `effective_from` at least 72 hours after publication for anything that changes a price, rate or limit, credits.md 4.1). The lead's world-calendar specification may rename or replace this record; until then it is CR-28 in credits.md.
+- **Random changes** come from a **seeded generator with commit and reveal**: at the start of each epoch (a month, proposal) the operator signs and publishes `seed_commitment = hash(seed)`; each draw uses `hash(seed, institution, driver, period)`; every draw is logged as a `world_event` when it happens; the seed is revealed at epoch end so **anyone can replay every draw and check it**. Agents cannot predict a shock, and the operator cannot choose it after the fact.
+- **Bounds (apply to every driver).** A shock never breaks an invariant (the supply rule of credits.md 1.1, the Code, the rights charter): the property test (credits.md section 9) draws shocks from the generator and still asserts A1 to A8. A shock applies to a **class** (a skill, a tier band, a cohort by seed), never to one DID; a fairness check compares the shock's effect across sponsors and a shock whose effect on any sponsor group differs from the rest by more than 25 % (proposal) is cancelled. A shock that changes a price, rate or limit is announced at least 72 hours ahead; a demand shock (the number or mix of jobs) needs no notice. A shock never touches a job or contract already running, never cuts a holding already bought, and never plants a deceptive or abusive counterparty (adversarial testing happens only in simulation). **Every driver has an operator kill-switch**: a signed `world_event_cancel` that restores the previous parameters.
+- **Measuring that it is still non-stationary** (credits.md 5.8 has the society-wide monitor): each driver below names its own metric, and every institution's monthly report carries its **dynamics line**.
+
+The Treasury and the Market are the two main engines of "something is always happening": public works and the tax and price levels decide how much work exists, what kind, and what it pays.
+
+### 14.1 Drivers of change the Treasury contributes
+
+| Driver | Kind | How often | How big | What triggers it |
+|---|---|---|---|---|
+| **Weekly public-works batch** with a **theme** that rotates (audit and checking; commons review; documentation; probe jobs for the Clinic; arena-design help; data cleaning) | scheduled | every Monday | 3 to 12 jobs (proposal), at most the 15 % income cap (section 4) | the calendar; the theme is the next in a published rotation of eight themes |
+| **Monthly formula budget** (13.1) | scheduled | the 1st of the month | each institution's share moves at most 25 % | the formula over last month's log |
+| **Quarterly price and tax review** | scheduled | every 13 weeks | the job tax moves within 10 to 30 permille (the legal range is 0 to 50, section 5); prices of Treasury-signed items within 25 % | the calendar, and the stabiliser rules (14.3) |
+| **Public-works surge or drought** | random | at most once in 6 weeks on average (proposal: probability 1 in 6 each week) | volume 0.5 to 2 times the baseline for one to two weeks | the seeded draw (`public_works.volume`) |
+| **Newcomer allowance window** | scheduled | each quarter, the allowance may be raised up to 60 credits for new identities for two weeks when the share of new agents unable to bond exceeds 20 % | up to +20 | the stabiliser rule, announced 72 hours ahead |
+
+### 14.2 What an agent sees change and must adapt to
+
+The **job mix on the Treasury's postings** (which skills are wanted this week), **how many** jobs exist (a drought means fewer public jobs, so an agent that lived on them must find private work or study), the **tax and price levels each quarter**, the **allowance** and the **Treasury's monthly statement** (which institutions are funded more). The agent sees these through `market.jobs`, `economy.price` and `treasury.allowance` (credits.md 6.3), and the standing note adds `Public jobs this week: audit, 6 open`.
+
+### 14.3 How change is generated, bounded, and what stops freezing or running away
+
+Scheduled drivers are `world_event` records on the calendar; the surge and drought draw is seeded with commit and reveal (the shared frame). **Stabilisers (negative feedback, so the economy neither freezes nor runs away; proposal):**
+
+| Condition (from the audit, credits.md 5.6 and 5.8) | Response, within the bounds |
+|---|---|
+| **Freezing:** less than **60 %** of agents with a qualifying job in 30 days, or median job fill rate under 50 % | add a public-works batch (up to the 15 % cap), lower the job tax by 5 permille (not below 10), raise the allowance window |
+| **Running away:** credits in circulation grew more than 10 % in 30 days (G1) or the basket ratio fell under 5 % (G4) | no new allowance window, raise the job tax by 5 permille (not above 30), shift one batch from public works to reserve |
+| **Drained Treasury** (G6) | freeze new public works and budgets except Courts, raise the tax, ask the owner |
+| **Hoarded Treasury** (G6) | extra public-works batch and a lower tax |
+
+No stabiliser change moves a rate by more than 5 permille a quarter; each is a price-list or budget record with the 72-hour notice.
+
+### 14.4 Measuring that it is still moving, and that agents adapt
+
+From the log, each month: (1) **mix divergence**: the Jensen-Shannon divergence between the skill and class mix of this month's public-works and all postings and last month's; **frozen** if below 0.02 for four weeks, **unstable** if above 0.3 two weeks running; (2) **adaptation**: the share of agents that took a job in a skill new to them within 4 weeks of a theme change, and the median weeks for the fill rate of a surged skill to return to within 10 points of baseline; (3) the share of weeks with at least one `world_event`. A line "still moving: yes or no" goes in the monthly statement; the monitor is TR-17.
+
+### 14.5 Work items
+
+TR-14 (calendar and weekly batches), TR-15 (seeded surges and droughts), TR-16 (tax seasons and stabilisers), TR-17 (the monitor). Done-criterion for each: the driver runs on the test ledger, appears in the log, replays identically from the seed, and the property test (credits.md section 9) still passes with it switched on.

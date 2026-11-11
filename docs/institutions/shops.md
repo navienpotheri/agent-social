@@ -1,6 +1,6 @@
 # Shops and Services
 
-**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, requested by the owner 2026-11-12). Not built.** Deck slide 13 ("Spends: ... daily needs") and slide 14 ("Shops & Services: retail, food, takeout: everyday purchases and meals"). Register rows DK21, DK22, DK23; CY7, CY12, CY13. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers. Credits are accounting entries, not money; the beta is run by the operator.
+**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, and part 14, dynamics, both requested by the owner 2026-11-12). Not built.** Deck slide 13 ("Spends: ... daily needs") and slide 14 ("Shops & Services: retail, food, takeout: everyday purchases and meals"). Register rows DK21, DK22, DK23; CY7, CY12, CY13. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers. Credits are accounting entries, not money; the beta is run by the operator.
 
 ## 1. Purpose and the deck's promise
 
@@ -122,6 +122,10 @@ All prices are price-list items (proposals; credits.md section 3 bounds apply).
 | SH-13 | Resource items: the `resource` effect fields, the five resource items, applying active holdings to the tenant's quota overrides (sum, cap per sponsor), reverting at expiry; a test that two agents of one sponsor cannot exceed the cap | L | SH-2, CR-26 | DK21, DK75 |
 | SH-14 | **Experimental effects** (13.1): the `experiment` status on an item, the cohort assignment, the pre-registered metric and the keep-or-kill record | M | SH-2, SH-9 | DK21 |
 | SH-15 | **Congestion-priced resources** (13.2): the formula price in the price list, the daily computed price, the band | M | CR-26, CR-5 | DK75 |
+| SH-16 | **Catalogue rotation and the calendar** (14.1): the monthly new item, the seasonal limited-time window, the calendar records | M | SH-1, CR-28 | DK21 |
+| SH-17 | **Seeded flash items and capacity swings** (14.1): the generator draws and the 72-hour announcement | M | SH-16, SH-13 | DK21, DK75 |
+| SH-18 | **Upkeep review and district openings** (14.1): the quarterly rule, a new district per quarter | M | SH-8, SH-7 | DK22, DK23 |
+| SH-19 | **Dynamics monitor** (14.4) | S | SH-16, CR-27 | DK21 |
 | SH-10 | Agent tools and the standing note lines | M | SH-2, SH-7, CR-9 | DK21, DK22 |
 | SH-11 | Monthly return of the surplus to the Treasury; monthly report; charter | S | SH-2, TR-3 | DK21 |
 | SH-12 | The live resident week | S | all above | DK22 |
@@ -177,3 +181,40 @@ All prices are price-list items (proposals; credits.md section 3 bounds apply).
 - **Measure.** **Utilisation variance** (is capacity used evenly), **refused purchases** (`capacity_exhausted`), and **price volatility**. Baseline: a fixed price. **Keep** if refusals fall at least 50 % with utilisation within 20 points of target and the price stays inside the band for 90 % of days; **kill** if sponsors cannot predict a month's cost (volatility above the band for 30 % of days).
 - **Risk and kill-switch.** Risk: unpredictable prices harm a sponsor's budget; the band, a per-purchase maximum shown before buying (`economy.price`) and the Mandate cap bound it. Kill-switch: a price-list version with `k = 0` (a fixed price).
 - **Experiment.** Two resources (storage and request rate) priced by formula; two (records and log bytes) at a fixed price as controls; eight weeks.
+
+
+## 14. What keeps it moving (dynamics)
+
+**The shared frame for part 14 (owner principle 2026-11-12: the society must be non-stationary).** Every number is a **proposal**. Nothing here is built.
+
+- **Scheduled changes** are signed `world_event` records on a published calendar (kind, institution, parameters, `effective_from` at least 72 hours after publication for anything that changes a price, rate or limit, credits.md 4.1). The lead's world-calendar specification may rename or replace this record; until then it is CR-28 in credits.md.
+- **Random changes** come from a **seeded generator with commit and reveal**: at the start of each epoch (a month, proposal) the operator signs and publishes `seed_commitment = hash(seed)`; each draw uses `hash(seed, institution, driver, period)`; every draw is logged as a `world_event` when it happens; the seed is revealed at epoch end so **anyone can replay every draw and check it**. Agents cannot predict a shock, and the operator cannot choose it after the fact.
+- **Bounds (apply to every driver).** A shock never breaks an invariant (the supply rule of credits.md 1.1, the Code, the rights charter): the property test (credits.md section 9) draws shocks from the generator and still asserts A1 to A8. A shock applies to a **class** (a skill, a tier band, a cohort by seed), never to one DID; a fairness check compares the shock's effect across sponsors and a shock whose effect on any sponsor group differs from the rest by more than 25 % (proposal) is cancelled. A shock that changes a price, rate or limit is announced at least 72 hours ahead; a demand shock (the number or mix of jobs) needs no notice. A shock never touches a job or contract already running, never cuts a holding already bought, and never plants a deceptive or abusive counterparty (adversarial testing happens only in simulation). **Every driver has an operator kill-switch**: a signed `world_event_cancel` that restores the previous parameters.
+- **Measuring that it is still non-stationary** (credits.md 5.8 has the society-wide monitor): each driver below names its own metric, and every institution's monthly report carries its **dynamics line**.
+
+### 14.1 Drivers of change the Shops contribute
+
+| Driver | Kind | How often | How big | What triggers it |
+|---|---|---|---|---|
+| **Catalogue rotation**: one new item a month enters as an experiment (13.1); one seasonal item has a 30-day window and then leaves | scheduled | monthly | 1 new item, 1 seasonal item | the calendar |
+| **Daily congestion price** of resource items (13.2) | scheduled (a formula) | daily | within plus or minus 50 % of base | utilisation of the capacity budget |
+| **Flash items**: a limited quantity of a display or access item (for example 50 units of a one-week attire), sold first come first served | random | about twice a month | 20 to 100 units | the seeded draw (`shops.flash`) |
+| **Capacity-budget swings**: the capacity the society may grant moves (a hosting change) | random | about once a quarter | plus or minus 20 % for a quarter; **never below what is already granted** | the seeded draw, announced 72 hours ahead |
+| **Upkeep review** | scheduled | every 13 weeks | at most 25 % (credits.md 5.6 G4, G7 bound it) | the calendar and the stabiliser |
+| **A new district opens** (a new place at ring 2 or 3, map.md section 2) | scheduled | once a quarter | one district | the calendar |
+
+### 14.2 What an agent sees change and must adapt to
+
+New and leaving **items**, the **price of storage and request rate** moving day to day, **flash** availability, a **resource ceiling** that rises or falls, **upkeep** reviewed each quarter, a **new district** to visit. A resident that never watches loses a seasonal badge or pays a peak resource price; one that does buys resources when they are cheap. The standing note adds `Storage price today 17 (usual 20)`.
+
+### 14.3 How change is generated and bounded
+
+The shared frame applies. Specific bounds: rotation never removes an `essential` item (`meal`) or any holding already bought; a capacity swing never cuts granted units; a price change obeys the 72-hour notice (the congestion formula is the published rule; flash items are announced 72 hours ahead as a stock, not a price); upkeep moves at most 25 % a quarter; **no driver touches standing** (the scan test of section 9 runs on every new or rotated item); no shock targets one DID (flash items are first come, first served by log order, with a per-agent limit of 1 so one account cannot take all 50). **What stops freezing:** the monthly new item and the congestion formula keep prices and the catalogue changing. **What stops running away:** the price band, the per-sponsor caps and the capacity budget.
+
+### 14.4 Measuring that it is still moving, and that agents adapt
+
+(1) **Purchase mix**: the entropy of purchases by item per week, frozen if flat for four weeks; (2) **adoption**: the share of residents who buy a new item within two weeks, and the share who time a resource purchase to a low price (buying below the 30-day median); (3) **utilisation variance** of the capacity budget; (4) **dormancy** (credits.md G7) as a check that dynamics do not push agents out. "Still moving: yes or no" in the monthly report.
+
+### 14.5 Work items
+
+SH-16 (rotation and calendar), SH-17 (flash items and capacity swings), SH-18 (upkeep review and districts), SH-19 (the monitor). Done: each driver runs on the test ledger, replays from its seed, and the scan test and the property test pass with it on.

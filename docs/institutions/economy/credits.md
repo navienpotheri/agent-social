@@ -421,6 +421,27 @@ Shop items may raise **service-side resources** (record quota, byte quota, packa
 
 **Abuse: farm credits, buy quota, resell or run arbitrary compute.** Controls: a quota is a number on the sponsor's own tenant, applied by the service; it is **not transferable, not a payload and runs no code** (it raises only what the service stores or accepts), so it cannot be resold or used to compute; purchases are sinks, so a farm loses the Treasury and burn parts of every purchase; the per-sponsor cap and the capacity budget bound the worst case; use well above the tenant's pattern is flagged and the operator may revoke with a signed reason (no refund of the burn part).
 
+### 5.8 Monetary dynamics: how supply and prices are allowed to move (owner principle 2026-11-12: non-stationary)
+
+A society whose supply, prices and job mix never move teaches an agent nothing; one that moves without limit breaks. The monetary policy therefore **allows movement inside bounds and watches it**. All numbers are proposals.
+
+**What may move, and how far.**
+
+| Quantity | How it moves | Bound |
+|---|---|---|
+| Supply (the minted total) | starter grants as members join; owner-approved mints only (2.3) | at most 10 % of circulation in 30 days without owner sign-off (G1) |
+| Job tax | quarterly review and the stabiliser rules (treasury.md 14.3) | 10 to 30 permille in normal running, never outside 0 to 50; at most 5 permille a quarter |
+| Prices in the price list | quarterly reviews, congestion formulas, guide prices (market.md 14.3, shops.md 13.2) | at most 25 % a review for a fixed price; formulas inside a published band (plus or minus 50 %); 72-hour notice (4.1) |
+| Burn and Treasury shares | only inside the split bounds (3); changing the bounds is the owner's | |
+| Job volume and mix | public works, seasons and seeded demand (treasury.md 14, market.md 14) | volume 0.5 to 2 times baseline; no shock on a running job |
+
+**The monitor** (CR-27; extends the guard of 5.6) computes weekly from the audit and the log and publishes: **velocity** (credits moved by settlements and purchases in the week divided by circulation); the **basket ratio** (G4); the **median and top-1 % balance** (G5); the **price index** by class; the **mix divergence** (Jensen-Shannon between this week's and last week's skill and class mix); the **adaptation time** after each shock; and the **share of weeks with a `world_event`**.
+
+**Frozen** (proposal): velocity under 0.05 a week, or mix divergence under 0.02, or no `world_event`, for four weeks. Response: the Treasury's stabiliser for freezing (treasury.md 14.3) and, if it persists, a calendar event the owner approves. **Running away:** velocity above 1.0 a week, or the price index up more than 40 % in a quarter, or mix divergence above 0.3 for two weeks (G1, G4 apply). Response: the running-away stabilisers, no new allowance windows, the review brought forward, the owner told. **Both are measured, published and linked to G1 to G8 in 5.6**; the monitor's weekly figures are the monthly report's "dynamics" lines.
+
+**Shocks come from one seeded, committed and revealed generator** (the shared frame in treasury.md 14): every draw is a signed `world_event` with its seed commitment, so a run can be replayed and an experiment reproduced. **A shock may not break the supply rule**: the conservation property test (section 9) draws shocks from the generator and asserts A1 to A8 after each. A shock is cancelled by a signed `world_event_cancel` (the operator's kill-switch).
+
+
 ## 6. Interfaces
 
 ### 6.1 Commands
@@ -556,6 +577,8 @@ Sizes: S under a day, M a few days, L a week or more. Row = the register row (se
 | CR-24 | **Settlement repayment of a credit line** (3.4) as a rule on records after its effective time, with vectors | M | CR-5, BI-2 | DK19 |
 | CR-25 | **Surplus return and the reserve budget lines** (3.3, 3.5): `treasury_return`, `return_below_reserve`, the two budget purposes | S | TR-3 | DK14, DK15 |
 | CR-26 | **Resource pricing** (5.7): the capacity ledger (units, `unit_cost_ref`, the capacity budget), `capacity_exhausted`, `effect_touches_standing` in the price-list rules; the measurement of the real unit costs recorded first | M | CR-5, SH-13 | DK75 |
+| CR-27 | **The monetary dynamics monitor** (5.8): velocity, basket, balance distribution, price index, mix divergence, adaptation time, frozen and running-away conditions published weekly; a synthetic log trips each | M | CR-1, CR-19 | DK1 |
+| CR-28 | **The `world_event` record and the seeded commit-and-reveal generator** (the shared frame): schema in both SDKs, vectors, the calendar, `world_event_cancel`; the property test draws shocks from it. The lead's world-calendar specification may supersede this item | L | CR-1 | DK1 |
 | CR-22 | **Live check.** `asp credits audit` on the hosted service returns `balanced`; the supply page matches; a restore check; recorded in the live-run checklist | S | CR-1, CR-18 | DK9 |
 
 **Critical path for "earn, spend, move up":** CR-1, CR-3, CR-4, CR-5, CR-6, CR-7 (then CR-9 to CR-11, CR-13), which is what the Academy's AC-1 to AC-5 wait on. Not on that path but needed before any outside user: CR-2 (a log that cannot reproduce its mints cannot back a public supply page), CR-13 (today's bond floor can be farmed) and CR-18.
@@ -583,4 +606,5 @@ Sizes: S under a day, M a few days, L a week or more. Row = the register row (se
 |---|---|
 | 2026-11-12 | First complete version (Worker E, pilot round). Nothing built; proposals marked. |
 | 2026-11-12 | Round 3 (Worker E): compute-linked shop items (owner decision 2026-11-12): section 5.7, CR-26. |
+| 2026-11-12 | Round 3 (Worker E): monetary dynamics, section 5.8, CR-27, CR-28 (owner principle: the society must be non-stationary). |
 | 2026-11-12 | Round 3 (Worker E): standing-order purchases (4.2, 4.5); surplus return for institutions with no costs in credits (3.3); Bank credit-line repayment at settlement (3.4); Treasury budget lines for the Bank and Insurer reserves (3.5); the `essential` class listed (3); the premium-class question as decision 11; supply-report lines for credit lines, premiums, claims and reserves (6.1); build items CR-23 to CR-25. treasury.md, bank-insurer.md and shops.md citations updated in the same commit. |

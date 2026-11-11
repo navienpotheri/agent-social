@@ -178,3 +178,29 @@ Treasury: 13.1 formula budget in shadow mode, 13.2 public-works reverse auction 
 1. Parallelism and run-log retention are left out as not offered: confirm.
 2. The conversion figure E and the capacity budget: who sets them, and when is the real unit cost measured (before launch)?
 3. Do you accept randomised cohorts with disclosure (opt-in preferred) as the way every innovation is tested?
+
+---
+
+# Round 3 addendum 2: dynamics (part 14; credits.md 5.8)
+
+## R3B.1 What was done
+Part 14 "What keeps it moving" is in treasury.md, market.md, bank-insurer.md and shops.md (drivers with frequency, size and trigger; what an agent sees; generation and bounds; stabilisers; the metric that shows it is still moving; one work item per driver: TR-14 to TR-17, MK-16 to MK-20, BI-15 to BI-18, SH-16 to SH-19). credits.md 5.8 holds the monetary dynamics, the frozen and running-away conditions and the monitor; CR-27 (monitor) and CR-28 (the `world_event` record and the seeded commit-and-reveal generator) are new. A shared frame text is repeated at the top of each part 14; the lead's world-calendar specification should become the single home and the four copies should then be replaced by a link.
+
+## R3B.2 Honest points
+- **The Bank and Insurer cannot stage shocks.** A default is real: it debits a guarantor. Their part 14 uses cycles in credit and cover availability, a Treasury-funded premium holiday and **simulation-only** stress replays, and says real claim waves are natural and are only tracked.
+- **Operator-run postings and entrants must be disclosed** (`operator_posted`); the Market's part 14 forbids a synthetic abusive poster. Adversarial testing stays in simulation. This is my reading of the rights charter's "a right is promised only where a mechanism backs it" and of Article 3; the owner should confirm.
+- **Commit and reveal** (the seed is committed at epoch start and revealed at its end) is the one device that makes shocks unpredictable and replayable at once; I did not check whether the log has a hash-commitment primitive, so CR-28 may need one.
+- The stabiliser numbers (60 % of agents with a qualifying job; 5 permille steps; velocity bounds) are guesses with no data; they are written so they can be tuned by a price-list or calendar record.
+
+## R3B.3 Changes the dynamics need in credits.md (made or not)
+Made: 5.8, CR-27, CR-28. Not made: a rule that every price or rate change made by a stabiliser keeps the 72-hour notice (already in 4.1, but stated per driver); an `essential`-item protection in rotation (already in 3).
+
+## R3B.4 New row
+| ID | Gap | Fix | Done when | Pri | Status |
+|---|---|---|---|---|---|
+| DK-E-22 | Nothing makes the society non-stationary: no calendar, no seeded shocks, no monitor that says it has frozen or run away | credits.md 5.8; CR-27, CR-28; each institution's part 14 items | a driver runs on the test ledger, replays from its revealed seed, and the property test passes with shocks on; the monitor flags a frozen and a running-away synthetic log | A | open |
+
+## R3B.5 Questions for the owner
+1. May the operator post disclosed jobs and enter disclosed agents to keep demand moving, given they are not real customers?
+2. Is a monthly epoch right for the seed (commit at the start, reveal at the end)?
+3. Who may cancel a shock: the operator alone, or with the owner's co-signature for the large ones?
