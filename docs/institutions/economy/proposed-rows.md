@@ -94,3 +94,46 @@ For the programme lead to integrate. I did not edit the register, `scope.md`, `d
 - The mock status of the contract's `bank` DID I took from the log comment, not from running a hosted instance.
 - All premium, cover, reserve, price, ring and cap numbers in the four specs are proposals with no measured basis; the only anchors are code constants (tier limits, panel fee 50 permille, the 30-day strike window, starter 100/500).
 - I did not read the Python SDK, the gateway's enforcement path or the Postgres store.
+
+---
+
+# Round 3 (credits.md changes, map.md, charter.md; 2026-11-12)
+
+## R3.1 What was done
+
+- The six R2.1 changes are in credits.md (3 "Classes", 3.3, 3.4, 3.5, 4.2 and 4.5, decision 11) plus the audit lines for credit lines, premiums, claims, reserves and surplus returns (6.1), and build items CR-23 to CR-25. treasury.md, bank-insurer.md and shops.md were updated to cite them.
+- `map.md` (Status: draft: four rows pending) and `charter.md` written.
+
+## R3.2 Contradictions found between specs, and how each was handled
+
+1. **Treasury shares summed to 100 % with a "reserve = the rest" of 0**, leaving nothing for the Academy, Market or Commons. Fixed in treasury.md 4 (Courts 30, Registry 10, Clinic 10, Academy 5, Market 5, Commons and Research 5, allowance 5, public works 15, reserve 15). The Courts and Clinic specs may expect other shares: the lead to check.
+2. **Bank reserve: 5,000 in bank-insurer.md 4 versus 2,000 in decision 2.** Fixed to 2,000 (credits.md 3.5 also).
+3. **A claim paid on a ruling that is later reversed on appeal.** Fixed: claims are decided after the appeal window closes (bank-insurer.md 3).
+4. **Two "Registrars"** (Academy and Registry). Left for the lead (map.md 6, item 1); I did not touch the Academy spec.
+5. **Courts' small-claim fee is outside the price list** ("not a purchase", courts.md 4). Left for the lead (map.md 6, item 2); recommendation: a price-list item of kind `fee_to_juror`.
+6. **A6 said "each part within bounds"**, which a price of 5 breaks by rounding. credits.md 9 clarified (declared permille within bounds; part = floor rule).
+7. **Four restricting statuses with no combining rule** (tier 0, Clinic quarantine, Registry suspension, Shops dormancy). Rule proposed in map.md 4; the Registry, Clinic and Shops specs should cite it.
+8. **The Clinic spec says the first checkup per quarter is free "funded by a Treasury budget"**; treasury.md's Clinic line (10 %) must cover it plus the remedial subsidy. If the Clinic's cost is larger, the line needs raising; not checkable until volume is known.
+9. **The Registry spec cites `credits.md T10` for free services funded by budget**; T10 is correct (treasury budget payment); no change.
+
+## R3.3 New or changed rows
+
+| ID | Gap | Fix | Done when | Pri | Status |
+|---|---|---|---|---|---|
+| DK-E-16 | A purchase is signed by the buyer; recurring charges (upkeep) need an institution-signed purchase under a sponsor-countersigned order | CR-23 | the three refusals in credits.md 4.2 are tested | A | open (inside DK22) |
+| DK-E-17 | A city-run institution's provider share would only accumulate | CR-25: `treasury_return` | an institution account above its reserve returns the surplus on the first of the month; below the reserve is refused | A | open (inside DK15) |
+| DK-E-18 | A credit line must be repaid at settlement before the performer is paid | CR-24 (a settlement rule on records after its effective time) | the repayment order is tested; the job tax is unchanged | A | open (inside DK19) |
+| DK-E-19 | Charters are a document, not a record: a price list or budget cannot cite the version in force | CH-1: the `charter` attestation | the three log rules pass; the checklist test runs | A | open (inside DK40) |
+| DK-E-20 | Restricting statuses combine by no stated rule | map.md 4, cited by Registry, Clinic, Shops | one test: an agent with two statuses is refused with both named | B | open |
+
+## R3.4 Wrong or missing facts
+
+- None in the register this round. Round 2 findings stand.
+- I read Worker S's registry, courts and clinic only by grep for accounts, prices, records and rings (not line by line); rows for them in map.md may miss a record or account that their text defines elsewhere.
+
+## R3.5 Questions for the owner
+
+1. Do you accept the combining rule for restricting statuses (map.md 4: union; `essential` and appeal routes always allowed)?
+2. Do you want charters as signed records (CH-1) before launch or as documents first?
+3. The Treasury spending shares (30/10/10/5/5/5/5/15/15): do you want to set them, or the operator from the first month's data?
+4. Should Courts' small-claim fee be a price-list item (map.md 6, 2)?
