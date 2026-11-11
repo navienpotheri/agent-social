@@ -5,6 +5,7 @@
  *   records/history.ndjson     signed records the package depends on: passports (agent, sponsor), fleet, lineage
  *   harness/harness.json       runtime-neutral harness (spec/package/harness.schema.json) + its files
  *   memory/                    the agent's memory files
+ *   learned/                   for each memory change: what it added, changed and removed, before and after (gap D10, learned.ts); not signed, not in the manifest
  *   experience/sessions.ndjson metadata-only index of past sessions
  */
 import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -174,12 +175,30 @@ export function diffTrees(before: string, after: string): TreeDiff {
 
 export const isEmptyDiff = (d: TreeDiff) => !d.added.length && !d.changed.length && !d.removed.length;
 
+/** One memory file a change touched: its text before and after (absent when it was added or removed; not kept for a binary file or past 50,000 characters). */
+export interface LessonFile { path: string; before?: string; after?: string; kept: boolean }
+const LESSON_MAX = 50_000;
+function lessonFiles(beforeDir: string, afterDir: string): LessonFile[] {
+  const d = diffTrees(beforeDir, afterDir);
+  const text = (dir: string, p: string): { text?: string; kept: boolean } => {
+    const buf = readFileSync(join(dir, p));
+    return buf.includes(0) || buf.length > LESSON_MAX ? { kept: false } : { text: buf.toString("utf8"), kept: true };
+  };
+  return [
+    ...d.added.map((p) => { const a = text(afterDir, p); return { path: p, ...(a.text !== undefined ? { after: a.text } : {}), kept: a.kept }; }),
+    ...d.changed.map((p) => { const b = text(beforeDir, p), a = text(afterDir, p); return { path: p, ...(b.text !== undefined ? { before: b.text } : {}), ...(a.text !== undefined ? { after: a.text } : {}), kept: b.kept && a.kept }; }),
+    ...d.removed.map((p) => { const b = text(beforeDir, p); return { path: p, ...(b.text !== undefined ? { before: b.text } : {}), kept: b.kept }; }),
+  ].sort((x, y) => x.path.localeCompare(y.path));
+}
+
 export interface LineageChange {
   layer: "memory" | "harness" | "adapter" | "backend" | "self_modification";
   description: string;
   probationDays?: number;
   /** Ids of the records that show this change passed its canaries (a certificate attestation in the log). */
   gates?: string[];
+  /** The id of the update edge this change rolls back (the lineage schema's `reverts`). */
+  reverts?: string;
 }
 
 /**
@@ -201,6 +220,8 @@ export function updatePackage(dir: string, opts: {
   const lastAt = lineage.at(-1)?.issued_at;
   const issuedAt = lastAt && Date.parse(lastAt) > now.getTime() ? lastAt : stamp(now);
 
+  // What this change adds, changes and removes, with the text before and after, kept so a person can see it and take it back (gap D10).
+  const lessons = opts.memoryFrom ? lessonFiles(join(dir, "memory"), opts.memoryFrom) : [];
   if (opts.memoryFrom) {
     rmSync(join(dir, "memory"), { recursive: true, force: true });
     cpSync(opts.memoryFrom, join(dir, "memory"), { recursive: true });
@@ -211,10 +232,12 @@ export function updatePackage(dir: string, opts: {
     const change: Record<string, unknown> = { layer: c.layer, description: c.description };
     if (c.layer === "memory") change.artifact = { uri: "memory/", sha256: treeHash(join(dir, "memory")) };
     if (c.gates?.length) change.gates = c.gates;
+    if (c.reverts) change.reverts = c.reverts;
     const edgeBody: Record<string, unknown> = { edge: "update", child: agent, parents: [agent], change };
     if (c.probationDays) edgeBody.probation_until = stamp(new Date(Date.parse(issuedAt) + c.probationDays * 86_400_000));
     const edge = createRecord({ type: "lineage", issuer: agent, subject: agent, prev, body: edgeBody, issued_at: issuedAt }, opts.signer);
     edges.push(edge);
+    if (c.layer === "memory" && lessons.length) { mkdirSync(join(dir, "learned"), { recursive: true }); writeJson(join(dir, "learned", `${edge.id.replace(/[^A-Za-z0-9]/g, "-")}.json`), { edge: edge.id, at: issuedAt, description: c.description, files: lessons }); }
     prev = edge.id;
   }
   appendFileSync(join(dir, HISTORY), edges.map((r) => JSON.stringify(r) + "\n").join(""));

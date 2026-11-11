@@ -270,7 +270,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | D7 | C | open | No reasoning-trace monitoring |
 | D8 | A | closed | Quality, cost and time trends are not tracked |
 | D9 | A | designed | Lessons are not verified before they enter memory |
-| D10 | A | designed | The principal is not shown what was learned |
+| D10 | A | partial | The principal is not shown what was learned |
 | D11 | B | partial | Shared lessons are not offered to runs automatically, and reviews are one-agent-one-vote |
 | D12 | B | open | No per-principal memory with a privacy boundary |
 | D13 | C | open | Saved states: no snapshot, pause or rollback mid-run |

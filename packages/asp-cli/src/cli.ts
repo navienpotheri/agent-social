@@ -288,6 +288,7 @@
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { fileDiff, findLesson, listLessons, markReviewed, memoryAfterEdit, memoryAfterUndo, planUndo, summarize, type Lesson } from "@agent-social/asp-package";
 import { buildToday, buildTrend, periodOf, renderToday, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
 
@@ -373,6 +374,9 @@ const OPTIONS = {
   "draft-by": { type: "string" },
   all: { type: "boolean" },
   day: { type: "string" },
+  from: { type: "string" },
+  text: { type: "string" },
+  force: { type: "boolean" },
   spare: { type: "boolean" },
   blocked: { type: "string", multiple: true },
   report: { type: "string" },
@@ -739,6 +743,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "run-log") return await runLogCmd(home, sub, rest, v, io);
     if (cmd === "mail") return await mailCmd(home, sub, rest, v, io);
     if (cmd === "dashboard") return await dashboardCmd(home, v, io);
+    if (cmd === "learned") return await learnedCmd(home, sub, rest, v, io);
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
     if (cmd === "forum") return await forumCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
@@ -2743,6 +2748,79 @@ async function dashboardCmd(home: string, v: Values, io: Io): Promise<number> {
   io.out("  it reads the log in " + home + (io.env.ASP_LOG_URL ? ` (the service at ${io.env.ASP_LOG_URL})` : "") + "; Ctrl-C stops it");
   await new Promise<void>((resolveStop) => { process.once("SIGINT", resolveStop); process.once("SIGTERM", resolveStop); });
   server.close();
+  return 0;
+}
+
+/**
+ * asp learned [show <id> | keep <id> | undo <id> | edit <file> --from <path>] [--package <dir>]: what an agent learned, and what you can do about it (gap D10). Every memory change in the package
+ * is listed with what it added, changed and removed; Keep notes that you read it; Undo puts the files back as they were (a new signed update that names the one it rolls back; it refuses if the
+ * files were changed again since, unless --force); Edit replaces one memory file with your own text (also a new signed update). Nothing here rewrites history.
+ */
+async function learnedCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const pkg = resolve(io.cwd, v.package ?? ".");
+  if (!existsSync(join(pkg, "manifest.json"))) throw new UsageError("asp learned reads an agent's package: run it in the package folder, or give --package <folder>");
+  const agent = ((JSON.parse(readFileSync(join(pkg, "manifest.json"), "utf8")) as AspRecord).body as { agent: string }).agent;
+  const name = agent.split(":").slice(-1)[0];
+  const action = sub && ["show", "keep", "undo", "edit"].includes(sub) ? sub : "list";
+  const day = (iso: string) => iso.slice(0, 16).replace("T", " ");
+  const mark = (l: Lesson) => (l.undoneBy ? "taken back" : l.review?.state === "kept" ? "kept" : l.review?.state === "edited" ? "edited" : "not reviewed");
+
+  if (action === "list") {
+    const all = listLessons(pkg);
+    if (v.json) { io.out(JSON.stringify(all, null, 2)); return 0; }
+    if (!all.length) { io.out(`${name} has not changed its memory yet: nothing has been learned that is recorded here`); return 0; }
+    const open = all.filter((l) => !l.review && !l.undoneBy).length;
+    io.out(`What ${name} has learned: ${all.length} memory change${all.length === 1 ? "" : "s"}, ${open} not reviewed yet (newest first)`);
+    for (const l of all.slice(0, v.all ? all.length : 15)) {
+      io.out(`  ${l.short}  ${day(l.at)}  ${mark(l).padEnd(12)} ${l.description.slice(0, 70)}`);
+      io.out(`            ${summarize(l)}`);
+    }
+    if (!v.all && all.length > 15) io.out(`  ... ${all.length - 15} older (asp learned --all)`);
+    io.out(`see one: asp learned show ${all[0].short}   keep: asp learned keep ${all[0].short}   take back: asp learned undo ${all[0].short}   change a file: asp learned edit <file> --from <path>`);
+    return 0;
+  }
+
+  const signerFor = () => { const s = new Keystore(home).forDid(agent); if (!s) throw new Error(`no key for ${agent} on this machine: the change has to be signed by the agent's own key`); return s; };
+  if (action === "edit") {
+    const file = rest[0];
+    if (!file || (v.from === undefined) === (v.text === undefined)) throw new UsageError("usage: asp learned edit <memory file> --from <path> | --text \"<new text>\"");
+    const text = v.from !== undefined ? readFileSync(resolve(io.cwd, v.from), "utf8") : v.text!;
+    const dir = memoryAfterEdit(pkg, file, text);
+    try {
+      const { edges } = updatePackage(pkg, { signer: signerFor(), memoryFrom: dir, changes: [{ layer: "memory", description: `edited ${file} at the principal's request` }] });
+      markReviewed(pkg, edges[0].id, "edited");
+      await syncLocalLog(home, pkg, agent, io);
+      io.out(`edited ${file}: recorded as a signed update (${edges[0].id.replace(/^sha256:/, "").slice(0, 8)}); the earlier text is kept, and asp learned undo ${edges[0].id.replace(/^sha256:/, "").slice(0, 8)} takes this edit back`);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+    return 0;
+  }
+
+  const lesson = findLesson(pkg, rest[0] ?? "");
+  if (action === "show") {
+    io.out(`${lesson.short}  ${day(lesson.at)}  ${mark(lesson)}${lesson.review ? ` (${lesson.review.at.slice(0, 10)})` : ""}`);
+    io.out(`  ${lesson.description}`);
+    if (!lesson.files) { io.out("  no detail was kept for this change: it was made before asp learned existed (it can be kept, not taken back automatically)"); return 0; }
+    for (const f of lesson.files) {
+      io.out(`  ${f.path}  (${f.before === undefined ? "added" : f.after === undefined ? "removed" : "changed"})`);
+      for (const l of fileDiff(f)) io.out(l);
+    }
+    return 0;
+  }
+  if (action === "keep") {
+    markReviewed(pkg, lesson.edge, "kept");
+    io.out(`kept ${lesson.short}: noted that you read it and want it. This is a note on this machine, not a signed record`);
+    return 0;
+  }
+  // undo
+  const plan = planUndo(pkg, lesson);
+  if (plan.conflicts.length && !v.force) throw new Error(`${plan.conflicts.join(", ")} ha${plan.conflicts.length === 1 ? "s" : "ve"} been changed again since this change, so taking it back would lose that later work. Look first (asp learned show), or take it back anyway with --force`);
+  const dir = memoryAfterUndo(pkg, plan);
+  try {
+    const { edges } = updatePackage(pkg, { signer: signerFor(), memoryFrom: dir, changes: [{ layer: "memory", description: `took back "${lesson.description.slice(0, 80)}" (${lesson.short}) at the principal's request`, reverts: lesson.edge }] });
+    markReviewed(pkg, lesson.edge, "undone");
+    await syncLocalLog(home, pkg, agent, io);
+    io.out(`took back ${lesson.short}: ${plan.restore.length} file${plan.restore.length === 1 ? "" : "s"} put back as ${plan.restore.length === 1 ? "it was" : "they were"}; recorded as a signed update that names the one it rolls back (${edges[0].id.replace(/^sha256:/, "").slice(0, 8)}). History is not rewritten`);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
   return 0;
 }
 

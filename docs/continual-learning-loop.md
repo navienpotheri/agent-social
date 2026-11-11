@@ -71,7 +71,7 @@ RUN ends
 
 ## 7. Build order
 1. **Measure first**: per-agent, per-principal outcome series from the log (rejections, strikes, cost, time) on the dashboard; no new records needed.
-2. **Show what changed**: the "what your agent learned" section in the end-of-Mandate mail and dashboard, with Undo (restore a memory version).
+2. **Show what changed**: the "what your agent learned" section in the end-of-Mandate mail and dashboard, with Undo (restore a memory version). Built so far (S157): `asp learned` in the terminal, with show, keep, undo and edit; the mail section and the dashboard are not.
 3. **Reflection as proposals**: the reflection pass writing proposals only.
 4. **The gate**: evidence citation and conflict checks, then principal approval, then replay on canaries.
 5. **Reuse**: per-principal memory, then offering reviewed commons lessons to a run (through the gateway's memory MCP, so it works for any agent).

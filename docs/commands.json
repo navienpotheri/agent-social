@@ -38,6 +38,10 @@
           "description": "What your agents did today: each session, what was refused and why, what you answered, anything wrong (--day YYYY-MM-DD, --since 24h, --all adds scopes and cost)"
         },
         {
+          "command": "asp learned",
+          "description": "What an agent learned: every memory change with what it added, changed and removed; show, keep, undo (a new signed update) and edit one (--package <dir>)"
+        },
+        {
           "command": "asp trend",
           "description": "The last 7 days day by day, and each agent: sessions, calls, refusals, failures, tokens, time (--days n)"
         },
