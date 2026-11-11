@@ -45,7 +45,13 @@ test("a folder that is not a git repository, and a folder of 10,000 files, are o
       return { code, out: out.join("\n"), err: err.join("\n") };
     };
     for (const a of [["identity", "new", "--kind", "human", "--me", "--no-recovery"], ["identity", "new", "--kind", "agent", "--name", "my-agent", "--sponsor", me, "--purpose", "Test"], ["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]]) assert.equal((await call(a)).code, 0);
-    const session = (project: string) => call(["run", "claude-code", "--prompt", "Do it", "--allow", "all", "--project", project]);
+    // A busy machine can leave the service unreachable for a moment (it did on a Windows CI runner); a person tries again, so the test does too, once, and only for that.
+    const session = async (project: string) => {
+      const run = () => call(["run", "claude-code", "--prompt", "Do it", "--allow", "all", "--project", project]);
+      const first = await run();
+      if (first.code !== 0 && /cannot reach the log service/.test(first.err + first.out)) { await new Promise((r) => setTimeout(r, 3000)); return run(); }
+      return first;
+    };
 
     // Not a git repository: a plain folder with a file in it. Nothing in the session may need git.
     const plain = join(f.root, "not-a-repo"); mkdirSync(plain, { recursive: true });
