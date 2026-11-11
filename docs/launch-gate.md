@@ -46,7 +46,7 @@ Each row: what "done" means, who does it, and where it stands today. **Me** is w
 
 | # | Row | Done means | Who | Today |
 |---|---|---|---|---|
-| 14 | LW8 | A lawyer has read the terms, the privacy notice, the Code and the liability position, and their changes are in | Lawyer (you engage one; I prepare the questions the register already holds) | open |
+| 14 | LW8 | A lawyer has read the terms, the privacy notice, the Code and the liability position, and their changes are in | Lawyer (you engage one; I prepare the questions the register already holds) | open: the brief is written (docs/legal/lawyer-brief.md); you engage the lawyer |
 | 15 | GV11 | A short rights charter in the terms, each right backed by a mechanism that exists | Me to draft; you approve; the lawyer reads | drafted (docs/legal/rights-charter-draft.md): eight rights each with what backs it, and what is not promised; waits for you and the lawyer |
 | 16 | JO3 | A data-handling term in every contract, deletion at settlement, and the secrets-masking test | Me for the mechanism and the test; the lawyer for the wording | open: the masking is improved and tested (E4 closed, S159); the draft term and what can and cannot be enforced are in docs/legal/job-data-handling-draft.md; the contract field waits for the wording |
 | 17 | LW1 | The Code of the City approved, counsel has read Article 11, and you have signed version 1.0 with your own key | You, then the lawyer | partial: draft 0.3 is written, versioned, hashable and signable |
@@ -66,6 +66,8 @@ Each row: what "done" means, who does it, and where it stands today. **Me** is w
 | 21 | Every claim on the site and in the README checked against this page on the day before launch: the credits are not money, the service is a beta, there has been no outside security review (unless one has now happened), and nothing about the society is public until the operator deploys it. The "stated limits" below appear on the site in plain words | Me (a checklist and a pass over the pages); you approve. **Built:** docs/launch-claims.md lists each claim with its evidence, a test keeps the limits stated, and the site was corrected where it ran ahead of the evidence (the runtimes list). The pass itself is the day before launch |
 
 ## Decisions only you can make
+
+The exact steps for each setting and action, with my recommendation for each decision, are in [launch-owner-kit.md](launch-owner-kit.md).
 
 1. **Command-line first, or hosted dashboard first** (above).
 2. **The outside security review (SC1).** The site says there has been none, and that stays true if you launch without one. The service takes sign-ups and holds tokens, so my recommendation is to commission a review of the sign-up path, token handling and the log service before the ad budget is spent, and to start it now since it runs in parallel with everything else. If you launch without one, the disclosure stays on the site and #12 (private reporting) is the way in for anyone who finds something.

@@ -1,5 +1,7 @@
 # Legal drafts: notes for the operator
 
+Start with [lawyer-brief.md](lawyer-brief.md): the questions in order of what blocks launch, and the documents to read. The rights charter and job-data drafts are beside it.
+
 The terms of use and privacy notice here are served at /terms and /privacy by the log service (docs/deploy/setup-server.sh turns them into pages). They are drafts written by the engineering side, **not legal advice**. Have a lawyer qualified in India read both before the public launch.
 
 Things for that lawyer to settle:
