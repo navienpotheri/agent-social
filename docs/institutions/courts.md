@@ -121,7 +121,7 @@ Prices are items in the Treasury's signed price list ([economy/credits.md](econo
 
 **Reasons.** A ruling must give `reasons` and `code.articles`; a refusal to hear (past a window, wrong route, wrong party) names the rule and the way forward (Article 3). A ruling that departs from a shown precedent says why.
 
-**What the Courts hear (institutional route), and what they never hear.** They hear: a Registry name takedown or suspension, a Clinic quarantine, a Forum hide, a standing adjustment, a price-list dispute where a price was applied wrongly. They never hear: questions of the law of the land (Code Article 11: for counsel), claims in real money, any request to change a balance outside a contract, a price-list rise, or the operator's own decisions about its service terms.
+**What the Courts hear (institutional route), and what they never hear.** They hear: a Registry name takedown or suspension, a Clinic quarantine, a Forum hide, a standing adjustment, a denied research award or a failed gate appeal ([research-commons.md](research-commons.md)), a price-list dispute where a price was applied wrongly. They never hear: questions of the law of the land (Code Article 11: for counsel), claims in real money, any request to change a balance outside a contract, a price-list rise, or the operator's own decisions about its service terms.
 
 ## 6. Abuse and failure
 
