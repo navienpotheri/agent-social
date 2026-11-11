@@ -63,6 +63,8 @@ Each is a protocol change (spec-delta row, schema and vectors in **both SDKs**, 
 
 The percentages are **shares of the income actually received**, not fixed credit amounts, so the Treasury cannot overspend what it has: a budget is capped by balance (`budget_exceeds_treasury`).
 
+**Resource cost (owner decision 2026-11-12, credits.md 5.7).** The Treasury has **no credits line for the operator's real resource costs**: credits are not money and cannot pay a hosting bill. The control on real cost is the **capacity budget**, published in the capacity ledger; the monthly `treasury_statement` adds `resources_granted` (units held by active items against the capacity budget) beside income and spending, so the owner sees how much of the service's capacity the society has handed out. The Treasury's share of resource purchases is ordinary income.
+
 **Supply rule.** Every Treasury movement is a transfer between accounts in credits.md 1.2; the property test (credits.md section 9, A1 and A5) covers each record above.
 
 ## 5. Rules and standing

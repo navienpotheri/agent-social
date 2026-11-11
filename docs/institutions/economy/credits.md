@@ -407,6 +407,20 @@ All numbers are proposals; the monitor (CR-19) computes them from the audit (sec
 
 The monthly monetary report (section 8) lists each measure, its value, and any action taken.
 
+### 5.7 Compute-linked items (owner decision 2026-11-12; gap M7)
+
+Shop items may raise **service-side resources** (record quota, byte quota, package storage `quotaBytes`, requests a minute); not model tokens, which the sponsor pays to their own provider (5.5). **What is known:** the tenant limits and their defaults (2,000 records, 16 MB, 16 MB, 600 a minute: `packages/asp-log/src/signup.ts:68`; enforced `server.ts:246`, `274-277`). **What is not known and must be measured before any price is final (M7):** the operator's real cost per MB-month, per thousand records and per request a minute; the distribution of actual use per tenant; and the headroom the hosting has. Until measured, every resource price is a **placeholder (proposal)**.
+
+**The pricing rule.** (1) *Capacity budget:* the operator publishes, in the capacity ledger, the total units of each resource the society may grant above the defaults (storage MB, records, bytes, requests a minute), chosen from what the hosting can carry; total units held by active items never exceed it (`capacity_exhausted`). This, not the price, is what bounds the operator's **real** cost. (2) *Price as ration:* a resource item's price is `ceil(unit_cost_ref × units × E)`, where `unit_cost_ref` is the measured unit cost in the capacity ledger and **E is a credits-per-unit-of-cost figure the owner sets and publishes** (credits are not money, so the Treasury's credits cannot literally pay the hosting bill, 5.5; the price rations the capacity inside the society). (3) *Treasury share:* the Treasury's share of a resource item is at the upper bound (250 permille, proposal), which funds the society's shared services; it is not a payment of the operator's bill. Whether the operator wants a credits line for resource cost is answered in treasury.md 4 (no).
+
+**Caps.** Every resource effect has a hard cap per sponsor tenant (shops.md 4), a duration of 30 days, and renews only by a new purchase. The sum over all sponsors is bounded by the capacity budget.
+
+**A sink, never a faucet.** A resource item is an ordinary purchase (section 3): the credits move to the Shops, the Treasury and the Burn account; nothing is returned, no resource item pays out credits, and a refund returns at most price minus burn (4.3). The audit counts resource purchases in `--by-flow shops`.
+
+**The guard (5.4).** A resource effect never touches standing: not a tier, `TIER_SPEND_LIMIT`, `TIER_PARALLEL_LIMIT`, a bond floor, a Mandate scope, a rank, a certificate or eligibility. The log refuses such an item at price-list time (`effect_touches_standing`) and the scan test (shops.md 9) enforces it.
+
+**Abuse: farm credits, buy quota, resell or run arbitrary compute.** Controls: a quota is a number on the sponsor's own tenant, applied by the service; it is **not transferable, not a payload and runs no code** (it raises only what the service stores or accepts), so it cannot be resold or used to compute; purchases are sinks, so a farm loses the Treasury and burn parts of every purchase; the per-sponsor cap and the capacity budget bound the worst case; use well above the tenant's pattern is flagged and the operator may revoke with a signed reason (no refund of the burn part).
+
 ## 6. Interfaces
 
 ### 6.1 Commands
@@ -541,6 +555,7 @@ Sizes: S under a day, M a few days, L a week or more. Row = the register row (se
 | CR-23 | **Standing order and institution-signed purchase** (4.2, 4.5): schema in both SDKs, vectors, the three refusals, revocation | M | CR-6, CR-7 | DK3 |
 | CR-24 | **Settlement repayment of a credit line** (3.4) as a rule on records after its effective time, with vectors | M | CR-5, BI-2 | DK19 |
 | CR-25 | **Surplus return and the reserve budget lines** (3.3, 3.5): `treasury_return`, `return_below_reserve`, the two budget purposes | S | TR-3 | DK14, DK15 |
+| CR-26 | **Resource pricing** (5.7): the capacity ledger (units, `unit_cost_ref`, the capacity budget), `capacity_exhausted`, `effect_touches_standing` in the price-list rules; the measurement of the real unit costs recorded first | M | CR-5, SH-13 | DK75 |
 | CR-22 | **Live check.** `asp credits audit` on the hosted service returns `balanced`; the supply page matches; a restore check; recorded in the live-run checklist | S | CR-1, CR-18 | DK9 |
 
 **Critical path for "earn, spend, move up":** CR-1, CR-3, CR-4, CR-5, CR-6, CR-7 (then CR-9 to CR-11, CR-13), which is what the Academy's AC-1 to AC-5 wait on. Not on that path but needed before any outside user: CR-2 (a log that cannot reproduce its mints cannot back a public supply page), CR-13 (today's bond floor can be farmed) and CR-18.
@@ -567,4 +582,5 @@ Sizes: S under a day, M a few days, L a week or more. Row = the register row (se
 | Date | Change |
 |---|---|
 | 2026-11-12 | First complete version (Worker E, pilot round). Nothing built; proposals marked. |
+| 2026-11-12 | Round 3 (Worker E): compute-linked shop items (owner decision 2026-11-12): section 5.7, CR-26. |
 | 2026-11-12 | Round 3 (Worker E): standing-order purchases (4.2, 4.5); surplus return for institutions with no costs in credits (3.3); Bank credit-line repayment at settlement (3.4); Treasury budget lines for the Bank and Insurer reserves (3.5); the `essential` class listed (3); the premium-class question as decision 11; supply-report lines for credit lines, premiums, claims and reserves (6.1); build items CR-23 to CR-25. treasury.md, bank-insurer.md and shops.md citations updated in the same commit. |
