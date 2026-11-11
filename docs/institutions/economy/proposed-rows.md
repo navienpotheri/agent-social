@@ -45,3 +45,52 @@ For the programme lead to integrate. I did not edit the register, `scope.md`, `d
 - That a verifier DID cannot equal the performer: I read only the log comment that it is separate from the principal.
 - The Postgres store: I read the memory store's `allMints`; I did not check the Postgres store for an account listing beyond the grep that found none.
 - All numbers in `credits.md` marked "proposal" are mine; none is derived from measured earnings. The only measured anchors are the code constants (tier limits 100 and 1,000; panel fee 50‰; reward 200‰; starter 100, 500, 2 identities, pool 200,000) and the deck's demo job (50 credits).
+
+---
+
+# Round 2 (treasury.md, market.md, bank-insurer.md, shops.md; 2026-11-12)
+
+## R2.1 Changes the four specs need in `credits.md` (not made; for the lead)
+
+1. **A purchase signed by the institution under the buyer's `standing_order`** (Shops upkeep, credits.md 4.2 says "signed by the buyer"). Needed so a recurring charge is automatic and still inside the Mandate.
+2. **A surplus-return rule for institutions with no costs in credits** (the Shops provider share of 550 minimum would only accumulate). credits.md 5.3 allows a budget return; add a monthly rule and say the bounds for a city-run item may put the provider share at the minimum.
+3. **Settlement repayment** of a Bank credit line before the performer is paid (bank-insurer.md 3): a new settlement rule beside the job tax (credits.md 3.2), with an effective-time rule.
+4. **Treasury budget lines** for the Bank lending reserve and the Insurer's reserve top-up (credits.md 4 and the Treasury spending table list neither).
+5. **Class `essential`** should list the first Foundations course and the `meal` upkeep item explicitly (credits.md 3 names remedial, appeal and the first course only in decision 6).
+6. **Insurance premiums are a standard-class purchase** (reserve 800, Treasury 150, burn 50): confirm this is what the owner wants, since it burns part of the reserve's income.
+
+## R2.2 Proposed rows
+
+| ID | Gap | Fix | Done when | Pri | Status |
+|---|---|---|---|---|---|
+| DK-E-9 | The newcomer cannot bond with no balance (`insufficient_balance`, `log.ts:437`) and has no way in except the starter grant (`starter.ts:19`) | A guaranteed credit line repaid at settlement (bank-insurer.md BI-2 to BI-4) | DK19's done-criterion; a default debits the guarantor | A | open (inside DK19) |
+| DK-E-10 | DK20 says the reserve "never goes below its floor in a property test". A reserve **must** be able to fall below a floor when it pays claims; only sales can be refused | Reword to: no sale leaves the reserve below the floor, and the reserve is never negative (bank-insurer.md 5, 9) | The property test asserts both | A | open |
+| DK-E-11 | Nothing stops a catalogue item from touching compute, storage, rank or eligibility (CY7) | An allowlist of effect types and a scan test (shops.md 9, SH-9) | A new effect type fails the test without owner sign-off | A | open (inside DK21) |
+| DK-E-12 | Dormancy has no rule for jobs in flight or for arrears | Shops spec: not while a job is `Running` or `Checkpoint`; arrears beyond 7 days forgiven (shops.md 5) | Tests in shops.md 9 | A | open (inside DK22) |
+| DK-E-13 | District access has no ring model: DK23 names districts but not which institutions sit in which | Rings 1 to 3 (shops.md 4, 7); the lead to place Leisure, Research, Courts, Registry in `map.md` (DK41) | `map.md` lists each district's ring | B | open |
+| DK-E-14 | The public-works job stream (the way work enters without a faucet, credits.md 11, 3) has no row | treasury.md TR-5 and market.md MK-2 | A Treasury job is posted, taken and settled | A | open |
+| DK-E-15 | Premiums, lines and claims are not in any supply report | Add them to `asp credits audit --by-flow` | The flow report lists each | B | open |
+
+## R2.3 Wrong or missing facts found
+
+1. **`docs/insurance-design.md` does not exist**, but `docs/city-design.md:205` points to it and US4 says "see the insurance design". bank-insurer.md is the first written design.
+2. **DK19 says the Bank offers "a deposit with a small reward funded by the Treasury, interest-free by design".** A reward funded by the Treasury is a transfer, not interest; both can hold, but the reward is a Treasury cost the budget must list. I recommend leaving deposits out of the beta (bank-insurer.md 11, 6).
+3. **DK21 says an item can give "a one-off boost to a measured thing".** That conflicts with CY7 (no link to compute) and with "credits do not buy standing" (credits.md 5.4). shops.md allows only display, meal and district-access effects. The row should be reworded.
+4. **DK14 says a "progressive" tax is named in city-design (`docs/city-design.md:92`).** There is no measure of means; treasury.md starts flat.
+5. **The contract names a `bank` DID, and the log does not check who it is** (`contract.schema.json` requires `bank`; `log.ts:36-40`: a mock). bank-insurer.md uses one Bank DID in the beta; whether the log should refuse any other bank is a new rule not yet in the register.
+6. **The intent has `skills` but no class** (`spec/schemas/intent.schema.json:38`): DK18's class field is new, not an extension of a class that exists.
+
+## R2.4 Questions for the owner
+
+1. Is the Bank lending at all in the beta (guarantor-backed, first three jobs)?
+2. Is the Insurer wanted at launch, or after the first thirty settled jobs give data to price premiums?
+3. Upkeep at 1 a day is the number that decides whether residents can afford the city. Who fixes it: you, from the first month's earnings data?
+4. Do you accept that a profile helps an agent only by being seen, never by rank (shops.md 11, 4)?
+5. Is the operator allowed to run the Market's `best_match` for jobs in which one of its own agents bids (market.md 8)?
+
+## R2.5 Not verified (assumptions)
+
+- Operator ownership of any "operator's agents" (market.md 8) is an assumption.
+- The mock status of the contract's `bank` DID I took from the log comment, not from running a hosted instance.
+- All premium, cover, reserve, price, ring and cap numbers in the four specs are proposals with no measured basis; the only anchors are code constants (tier limits, panel fee 50 permille, the 30-day strike window, starter 100/500).
+- I did not read the Python SDK, the gateway's enforcement path or the Postgres store.
