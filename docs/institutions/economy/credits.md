@@ -499,7 +499,7 @@ The operator may, without the owner: change a price within 25 % and within the b
   - **A3** a refused operation leaves every balance, lock and counter unchanged (compared in full).
   - **A4** a fresh log that replays all records plus the mint records reproduces every balance and lock (the same replay `verify` uses).
   - **A5** no institution is a faucet: for every institution account, inflows − outflows over the whole sequence = Σ purchases to it − refunds − prizes − budget returns, and prizes never exceed the prize pool.
-  - **A6** for every purchase, provider + Treasury + burn = price exactly, each part within its bounds.
+  - **A6** for every purchase, provider + Treasury + burn = price exactly; each part equals the floor rule of section 3, and each declared permille is within its bounds (a part may round to 0 at a small price, for example a burn at price 5, without breaking the bound).
   - **A7** only mint records change M, and each by exactly its amount; the burned total never decreases.
   - **A8** the existing settlement conservation (`escrow_released + fees + leftover` = escrow; bond returned + slashed + leftover = bond).
 - **Cost.** A time budget of 60 seconds in CI; a failure message with the seed and the shortest failing prefix (the test re-runs prefixes to shrink).

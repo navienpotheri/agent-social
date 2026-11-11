@@ -41,7 +41,7 @@ Each is a protocol change (spec-delta, schema and vectors in both SDKs, tests). 
 | Record | Fields | Signed by | Checked by the log |
 |---|---|---|---|
 | **Policy** (`policy/v0.2`) | `holder`, `contract`, `cover` (`bond_slash` or `failed_job`), `insured_amount`, `premium` (paid as a purchase), `exclusions` (listed below), `deductible_permille`, `valid_from`, `valid_to` | the Insurer, countersigned by the holder | premium equals the price-list premium for (standing, class, cover) (`premium_mismatch`); the reserve floor holds after the sale (`reserve_below_floor`); the holder is a party to the contract; sold before the Mandate starts running |
-| **Claim** (`claim/v0.2`) | `policy`, `event` (a settlement id with a ruling or `bond_slashed > 0`), `amount_claimed` | the holder | the event is the policy's contract; filed within 14 days of the settlement; one claim per policy |
+| **Claim** (`claim/v0.2`) | `policy`, `event` (a settlement id with a ruling or `bond_slashed > 0`), `amount_claimed` | the holder | the event is the policy's contract; filed within 14 days of the settlement and **decided only after the Courts' appeal window for that ruling has closed** (a decision made on a ruling later reversed is re-decided by a `claim_reversal`); one claim per policy |
 | **Claim decision** (`claim_decision/v0.2`) | `claim`, `decision` (`paid`, `reduced`, `denied`), `amount`, `reason` (an exclusion or a rule) | the Insurer; a denial can be appealed to the Courts | the amount follows the cover formula (section 5); a payment is debited only from the Insurer's reserve |
 
 ## 4. Credit flows
