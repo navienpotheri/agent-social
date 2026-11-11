@@ -14,7 +14,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
 import { join } from "node:path";
-import { STARTER_MAX_DIDS, STARTER_PER_DID, type LogHandle, type OwnerStore, type StarterPool, type Tenant, type UsageStore } from "@agent-social/asp-log";
+import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT, type LogHandle, type OwnerStore, type StarterPool, type Tenant, type UsageStore } from "@agent-social/asp-log";
 import { commonsOfDids, purgeCommons } from "./commons.ts";
 import { sealedLogsOf } from "./runlog-vault.ts";
 import { namespaceOf } from "./namespace.ts";
@@ -91,36 +91,78 @@ export async function identityRecovery(o: AccountOptions, dids: string[]): Promi
   return out;
 }
 
-/** What a tenant can do about starter credits: already claimed, available, or why not. */
-export function starterStatus(o: AccountOptions, t: Tenant): { state: "claimed" | "available" | "unavailable"; amount?: number; reason?: string; perDid: number; maxDids: number; poolLeft?: number } {
-  const base = { perDid: STARTER_PER_DID, maxDids: STARTER_MAX_DIDS, ...(o.starter ? { poolLeft: o.starter.left } : {}) };
+export type StarterState = "claimed" | "partial" | "available" | "waiting" | "unavailable";
+export interface StarterView { state: StarterState; amount?: number; reason?: string; perDid: number; upfront: number; maxDids: number; poolLeft?: number; /** Still owed to each identity, for a partial grant. */ held?: number; /** Place on the waiting list, counted from 1 (0: not on it). */ position?: number }
+
+/** Is it this tenant's turn at the pool: room for a claim, and nobody ahead of it on the waiting list? */
+const itsTurn = (o: AccountOptions, t: Tenant) => !!o.starter && o.starter.left >= STARTER_UPFRONT && (o.starter.waitingList.length === 0 || o.starter.waitingList[0] === t.name);
+const POOL_FULL = (place: number) => `the starter pool is full right now. You are number ${place} on the waiting list; the operator tops the pool up on purpose, and then asp account starter works for you, in order`;
+
+/**
+ * What a tenant can do about starter credits (gap M9). The grant has two parts: STARTER_UPFRONT for each of up to STARTER_MAX_DIDS identities at once, enough for a first job (an escrow and
+ * a bond), and the rest of STARTER_PER_DID when one of those identities has had a job accepted. When the pool cannot cover a claim, or others are waiting ahead, the tenant is on a waiting list.
+ */
+export function starterStatus(o: AccountOptions, t: Tenant): StarterView {
+  const base = { perDid: STARTER_PER_DID, upfront: STARTER_UPFRONT, maxDids: STARTER_MAX_DIDS, ...(o.starter ? { poolLeft: o.starter.left } : {}) };
   if (!o.starter || !o.updateTenant) return { state: "unavailable", reason: "this service does not offer starter credits", ...base };
-  if (t.starter) return { state: "claimed", amount: t.starter.amount, ...base };
+  if (t.starter) return t.starter.held ? { state: "partial", amount: t.starter.amount, held: t.starter.held, reason: `${STARTER_UPFRONT} each so far; the other ${t.starter.held} each comes when one of those identities has a job accepted`, ...base } : { state: "claimed", amount: t.starter.amount, ...base };
   if (t.role === "admin") return { state: "unavailable", reason: "admins mint credits directly", ...base };
   if (!t.signup?.google) return { state: "unavailable", reason: "starter credits go to tenants that signed up with a verified Google account; ask the operator", ...base };
   const earlier = o.tenants().find((x) => x.name !== t.name && x.starter && x.signup?.google?.sub === t.signup!.google!.sub);
   if (earlier) return { state: "unavailable", reason: "this Google account has already claimed its starter credits", ...base };
-  if (o.starter.left < STARTER_PER_DID) return { state: "unavailable", reason: "the starter pool is used up for now; ask the operator", ...base };
-  return { state: "available", amount: STARTER_PER_DID * STARTER_MAX_DIDS, ...base };
+  if (!itsTurn(o, t)) {
+    const position = o.starter.position(t.name);
+    return { state: "waiting", position, reason: position ? `you are number ${position} on the waiting list for the starter pool; the operator tops it up on purpose, and then asp account starter works for you, in order` : "the starter pool is full right now; asp account starter puts you on the waiting list", ...base };
+  }
+  return { state: "available", amount: STARTER_UPFRONT * STARTER_MAX_DIDS, ...base };
 }
 
-/** Claims the starter grant: STARTER_PER_DID credits to each of up to STARTER_MAX_DIDS identities the tenant has written as. Once per tenant and per Google account. */
+/**
+ * Releases the rest of a grant when one of the identities it went to has had a job accepted. Checked when the tenant looks at its account or asks again. Returns what was minted, or why not.
+ * The pool is drawn on now, not reserved at the claim: if it is used up the rest waits for the operator to top it up.
+ */
+export async function releaseStarter(o: AccountOptions, t: Tenant): Promise<{ released: { did: string; credits: number; balance: number }[] } | { reason: string }> {
+  const s = t.starter;
+  if (!o.starter || !o.updateTenant || !s?.held || !s.dids?.length) return { reason: "nothing is held back" };
+  let accepted = false;
+  for (const did of s.dids) {
+    const rep = await o.handle.log.reputationOf(did).catch(() => undefined);
+    if ((rep?.acceptedJobs ?? 0) >= 1) { accepted = true; break; }
+  }
+  if (!accepted) return { reason: `the other ${s.held} each is released when one of ${s.dids.length === 1 ? "your identity" : "your identities"} has had a job accepted` };
+  const total = s.held * s.dids.length;
+  if (!o.starter.take(total)) return { reason: "the rest of the grant is ready but the starter pool is used up for now; the operator tops it up on purpose, and it is released then" };
+  const released: { did: string; credits: number; balance: number }[] = [];
+  try { for (const did of s.dids) released.push({ did, credits: s.held, balance: await o.handle.mint(did, s.held) }); } catch (e) { o.starter.give(total - released.length * s.held); if (!released.length) return { reason: (e as Error).message }; }
+  o.updateTenant(t.name, { starter: { at: s.at, amount: s.amount + released.length * s.held, dids: s.dids, releasedAt: new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z"), ...(released.length < s.dids.length ? { held: s.held } : {}) } });
+  return { released };
+}
+
+/** Claims the starter grant: STARTER_UPFRONT credits to each of up to STARTER_MAX_DIDS identities the tenant has written as, the rest later. Once per tenant and per Google account. */
 export async function claimStarter(o: AccountOptions, t: Tenant, asked: unknown[]): Promise<[number, unknown]> {
   const fail2 = (status: number, code: string, message: string): [number, unknown] => [status, { ok: false, error: { code, message } }];
   const st = starterStatus(o, t);
+  if (st.state === "partial") {
+    const r = await releaseStarter(o, t);
+    return "released" in r
+      ? [200, { ok: true, granted: r.released, total: r.released.reduce((n, g) => n + g.credits, 0), note: "The rest of your starter grant. Credits are accounting entries in the protocol, not money." }]
+      : fail2(409, "ALREADY_CLAIMED", `you have already claimed the first part of your starter credits; ${r.reason}`);
+  }
   if (st.state === "claimed") return fail2(409, "ALREADY_CLAIMED", "this tenant has already claimed its starter credits");
   if (st.state === "unavailable") return fail2(403, "STARTER_UNAVAILABLE", st.reason ?? "starter credits are not available");
+  if (st.state === "waiting") return fail2(503, "POOL_EMPTY", POOL_FULL(o.starter!.enqueue(t.name)));
   const dids = [...new Set(asked.filter((d): d is string => typeof d === "string"))];
   if (!dids.length || dids.length > STARTER_MAX_DIDS) return fail2(400, "BAD_DIDS", `name one or two of your identities (up to ${STARTER_MAX_DIDS}), for example your principal and your agent`);
   const mine = new Set(o.owners.of(t.name));
   const stranger = dids.find((d) => !mine.has(d));
   if (stranger) return fail2(400, "NOT_YOURS", `${stranger} is not an identity this tenant has written as; create it through the service first`);
-  const total = dids.length * STARTER_PER_DID;
-  if (!o.starter!.take(total)) return fail2(503, "POOL_EMPTY", "the starter pool is used up for now; ask the operator");
+  const total = dids.length * STARTER_UPFRONT;
+  if (!o.starter!.take(total)) return fail2(503, "POOL_EMPTY", POOL_FULL(o.starter!.enqueue(t.name)));
   const balances: Record<string, number> = {};
-  try { for (const d of dids) balances[d] = await o.handle.mint(d, STARTER_PER_DID); } catch (e) { o.starter!.give(total); return fail2(500, "MINT_FAILED", (e as Error).message); }
-  o.updateTenant!(t.name, { starter: { at: new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z"), amount: total, dids } });
-  return [200, { ok: true, granted: dids.map((d) => ({ did: d, credits: STARTER_PER_DID, balance: balances[d] })), total, note: "Credits are accounting entries in the protocol, not money. A first job within a newcomer's limits (tier 1: spend up to 100 credits) is covered by this grant." }];
+  try { for (const d of dids) balances[d] = await o.handle.mint(d, STARTER_UPFRONT); } catch (e) { o.starter!.give(total); return fail2(500, "MINT_FAILED", (e as Error).message); }
+  o.starter!.dequeue(t.name);
+  o.updateTenant!(t.name, { starter: { at: new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z"), amount: total, dids, held: STARTER_PER_DID - STARTER_UPFRONT } });
+  return [200, { ok: true, granted: dids.map((d) => ({ did: d, credits: STARTER_UPFRONT, balance: balances[d] })), total, held: STARTER_PER_DID - STARTER_UPFRONT, note: `Credits are accounting entries in the protocol, not money. ${STARTER_UPFRONT} each is enough for a first job (an escrow and a bond). The other ${STARTER_PER_DID - STARTER_UPFRONT} each comes when one of these identities has a job accepted: asp account show releases it.` }];
 }
 
 /** Everything the service holds for a tenant (and deletes on closing), counted. Shared by the routes and the operator's `asp serve close-tenant`. */
@@ -166,10 +208,13 @@ export function accountRoutes(o: AccountOptions) {
     const me = ctx.tenant;
     const method = req.method ?? "GET";
     if (method === "GET" && url.pathname === "/account") {
-      const d = await accountData(o, me);
+      // The rest of a starter grant is released as soon as a job of the tenant's has been accepted (gap M9): looking at the account is enough to ask.
+      if (me.starter?.held) await releaseStarter(o, me).catch(() => undefined);
+      const mine = o.tenants().find((x) => x.name === me.name) ?? me;
+      const d = await accountData(o, mine);
       send(res, 200, {
         ok: true, tenant: tenantView(me), usage: d.usage, dids: d.dids, packages: d.packages, sealedRunLogs: d.runLogs.length, commons: { entries: d.commons.entries.length, reviews: d.commons.reviews.length, citations: d.commons.citations.length },
-        starter: starterStatus(o, me), identities: await identityRecovery(o, d.dids),
+        starter: starterStatus(o, mine), identities: await identityRecovery(o, d.dids),
         ...(o.didDomain ? { namespace: { domain: o.didDomain, ...namespaceOf(o.didDomain, me.name) } } : {}),
       });
       return true;

@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 114 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 115 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (24)</summary><pre>Most people use only these.
 
 asp
@@ -378,7 +378,7 @@ asp mail preview|queue|pending|watch|address
     The end-of-job mail and alerts; set where they go
 asp dashboard [--port n]
     A page on your machine: agents, jobs, approvals, alerts, where every credit is</pre></details>
-<details><summary>Running a service (8)</summary><pre>For an operator.
+<details><summary>Running a service (9)</summary><pre>For an operator.
 
 asp serve --db &lt;postgres-url|local:dir&gt; --tokens &lt;file&gt;
     Run the log service (add --signup, --packages, --runlogs, --commons, --known-bad, TLS and Google options)
@@ -386,6 +386,8 @@ asp serve token --tenant &lt;name&gt;
     Make a tenant token (hash stored, token shown once)
 asp serve signups | signup-close | signup-open | signup-cap
     See sign-up status, close or open sign-up, set the daily cap
+asp serve starter --tokens &lt;file&gt; [--add n | --starter-pool n]
+    The starter-credit pool: its size, what is given out, who waits; top it up on purpose
 asp serve suspend|resume --tenant &lt;name&gt;
     Suspend or restore one tenant
 asp serve block|unblock --address &lt;ip&gt;

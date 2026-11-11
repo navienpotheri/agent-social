@@ -149,6 +149,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp serve --db <postgres-url|local:dir> --tokens <file>", "Run the log service (add --signup, --packages, --runlogs, --commons, --known-bad, TLS and Google options)"],
     ["asp serve token --tenant <name>", "Make a tenant token (hash stored, token shown once)"],
     ["asp serve signups | signup-close | signup-open | signup-cap", "See sign-up status, close or open sign-up, set the daily cap"],
+    ["asp serve starter --tokens <file> [--add n | --starter-pool n]", "The starter-credit pool: its size, what is given out, who waits; top it up on purpose"],
     ["asp serve suspend|resume --tenant <name>", "Suspend or restore one tenant"],
     ["asp serve block|unblock --address <ip>", "Block or unblock an address"],
     ["asp serve close-tenant | purge", "Close a tenant on request; purge what has passed retention"],

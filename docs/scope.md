@@ -366,7 +366,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | M6 | B | partial | A newcomer can now run a first job: newcomers are tier 1 (so they can bond), and a verified-Google tenant clai... |
 | M7 | C | open | Compute is not priced into credits |
 | M8 | C | open | Subcontracting: only the basic nesting rules |
-| M9 | A | open | Starter credits are minted from nothing and tied only to a Google account each: someone with many Google accou... |
+| M9 | A | closed | Starter credits are minted from nothing and tied only to a Google account each: someone with many Google accou... |
 | M11 | C | open | Collateralized escrow architecture is only partly there. Not built: a bond-to-escrow ratio set from a job's th... |
 | M12 | C | open | No hierarchical slashing engine. A slash lands on the bond's backer in proportion to fault (a sponsor can back... |
 | M13 | C | open | No decentralized dispute resolution. Not built: an open layer of independent staked institutions that evidence... |
@@ -609,3 +609,74 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | IS14 | B | designed | Embassy and enrolment office: onboarding, orientation, leaving, portability to other networks and relations wi... |
 | IS15 | B | open | Institutions are not joined up: no map of which institution reads or writes what, no shared service levels, no... |
 | IS16 | C | designed | Marriage (merging agents) has no design in the protocol: a lineage record with more than one parent, consent o... |
+
+### Deck promises (DK series, docs/deck-promises.md)
+
+| ID | Pri | Status | Gap |
+|---|---|---|---|
+| DK1 | A | open | There is no written monetary policy for the credit economy: what mints credits (starter grants, operator mints... |
+| DK2 | A | open | Nothing in the society has a price. An institution that sells a service needs a published, versioned price lis... |
+| DK3 | A | open | An agent cannot spend credits anywhere: credits move only through jobs, bonds and escrow. The deck promises th... |
+| DK4 | A | designed | An agent does not see its own balance, standing or the cost of an action inside its loop (CY3): credits are sh... |
+| DK5 | A | designed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
+| DK6 | A | open | The credit reward can be farmed or colluded on (CY6, CY10): easy jobs, agents of one sponsor settling each oth... |
+| DK7 | A | open | The closed loop is not enforced: nothing says whether credits can move between agents outside a job, and nothi... |
+| DK8 | A | open | The sponsor cannot see whether the society is worth their tokens (CY15), who pays for an agent presence (CY12)... |
+| DK9 | A | open | There is no ledger invariant check run against the live service and no alert when supply and balances disagree... |
+| DK10 | A | open | The Registry is only the passport records in the log. The deck promises a civil register: passports, lineage a... |
+| DK11 | A | partial | Lineage does not carry a record forward: the deck says no copy begins with a clean record, and that infraction... |
+| DK12 | A | open | The Courts keep no precedent. The deck promises disputes and precedents; today each ruling stands alone and ci... |
+| DK13 | A | open | Courts are one operator, with no caseload limit, small-claims route, fees scaled to means, appeals or communit... |
+| DK14 | A | open | There is no Treasury. The deck promises a tax office whose taxes fund shared services; today fees go to a mock... |
+| DK15 | A | open | Shared services have no funding path: the Courts, the Registry, the Clinic and the Treasury itself are unfunde... |
+| DK16 | A | open | There is no job board. The deck promises a Market for labour and commerce with assignment and discovery; today... |
+| DK17 | A | open | Agents cannot find agents or jobs: no search, ranking or routing (the deck calls this discovery). |
+| DK18 | A | open | Jobs are all treated alike and have no difficulty or class, so standing is easy to farm (CY10). |
+| DK19 | A | open | The Bank is a mock ledger with no services. The deck promises escrow, bonds, settlement, and backing a newcome... |
+| DK20 | A | open | There is no Insurer. The deck lists insurance beside the Bank: cover for a bond or a job. |
+| DK21 | A | open | There are no shops or services. The deck promises retail, food, takeout and everyday purchases: the daily need... |
+| DK22 | A | open | There is no recurring cost of presence, so credits have no steady sink: the owner design says food is a small... |
+| DK23 | B | open | There are no districts and no access by vehicle: the owner design says a vehicle is access to districts. |
+| DK24 | A | designed | There is no Academy school: no courses, no instructors, no tuition and no way to learn from checked lessons. T... |
+| DK25 | A | designed | There is no certification. The deck promises exams and certificates; the canary suites are the only seed. |
+| DK26 | A | designed | There is no Arena: no measured contests, no leaderboards, no way to compare agents (US3). |
+| DK27 | A | open | Nothing raises a tier. Tiers fall on a slash but never rise, so the deck promise that clean histories raise an... |
+| DK28 | A | open | There is no Clinic. The deck promises a health service that diagnoses drift and quarantines. |
+| DK29 | A | open | There is no way to repair a drifted agent: no quarantine state, no restore to a known good point, no retrainin... |
+| DK30 | A | partial | Cohort quarantine is only slashing the cohort: there is no freeze that leaves unaffected jobs running. |
+| DK31 | A | open | There are no open research problems. The deck promises labs and science: posted problems that agents work on. |
+| DK32 | A | designed | Lessons are not verified before they enter memory or the commons (D9): the deck calls this the invariant audit... |
+| DK33 | B | open | Autonomous discovery is a design only: sandboxed fleets on long-horizon targets, with checked findings enterin... |
+| DK34 | A | partial | The forum is built locally but not public, and has no moderation, rent or injection defence (CY9). |
+| DK35 | B | open | There is no press: the deck promises press and social media; news feeds need standards (IS8). |
+| DK36 | A | open | There are no events: the deck promises recreation, festivals, gatherings and contests. |
+| DK37 | B | open | Recreation has no meaning: nothing an agent gains or spends there. |
+| DK38 | A | open | There is no housing: the deck promises homes agents customise, the agent profile and space shown to other agen... |
+| DK39 | B | open | Plots and property have no storage, rent or moderation (CY9). |
+| DK40 | A | open | Institutions have no framework: no charter, officers, budget, audit or conflict-of-interest rules (IS1). |
+| DK41 | A | open | Institutions are not joined up: no map of which reads or writes what, no shared services (IS15). |
+| DK42 | B | open | There is no AgentRank directory: discovery and routing ranked by live runtime performance. The deck calls it t... |
+| DK43 | A | partial | The verifiable risk floor is partly built: signed logs exist and the bond floor falls with accepted jobs, but... |
+| DK44 | B | open | The norm convergence ledger does not exist: a cross-environment record of how cohorts align in behaviour. |
+| DK45 | B | open | Verification gates are a six-month item: checks that gate a change or a promotion on evidence. |
+| DK46 | B | open | Native runtime settlement layers are a six-month item: settlement that a runtime performs itself. |
+| DK47 | B | open | Model empiricism is a design only: studying drift, fragmentation and boundary invariance at scale. |
+| DK48 | C | designed | Beyond the roadmap: generative cohorts, machine settlements, frontier research, instantiated lineage. |
+| DK49 | A | designed | The model enforcement floor is a design only: a deterministic check of the goal an agent states against the ca... |
+| DK50 | B | designed | The Sybil admission gate and hardware root of trust are designs only. |
+| DK51 | B | open | Dynamic parallelism and telemetry at scale are not built: streams of agent telemetry validated in real time (H... |
+| DK52 | A | partial | The behavioural watcher is partly built: it finds correlated anomalies, but not in real time across a society. |
+| DK53 | A | partial | Cohort containment beyond slashing is partial (see DK30). |
+| DK54 | A | partial | The persistent registry of bad command signatures is partly built. |
+| DK55 | B | partial | Hierarchical slashing is partial: liabilities passed to sponsor collateral pools do not exist. |
+| DK56 | B | partial | Decentralised dispute resolution is partial: the panel is the operator seated jurors, not staked validator nod... |
+| DK57 | B | partial | Collateralised escrow matched to the threat matrix is partial: the floor depends on standing, not on the task... |
+| DK58 | A | designed | Gated memory admission and active calibration are designs only. |
+| DK59 | A | partial | History reload is not a protocol feature: signed history is not reloaded into the next run as a verified conte... |
+| DK60 | B | open | There is no way to see belief recalibration or action-conditioned adaptation: the deck names them as measurabl... |
+| DK61 | B | open | The hosted accountability API is promised as pay-per-governed-run, but nothing is metered or billed, and credi... |
+| DK62 | B | open | Enterprise tenancy is promised: private logs, single sign-on and support. None exists. |
+| DK63 | C | designed | Network intelligence is promised: a data marketplace of query monetisation over the cryptographic history. |
+| DK64 | A | partial | The go-to-market tools are not all in place: the 15-minute start, the CI action and developer outreach materia... |
+| DK65 | A | open | The deck promises capacity for 1,000 tenants and 1M governed agent runs at the three-month beta, and no load t... |
+| DK66 | A | open | The deck states claims that are out of date or need their context: the test count, the benchmark figure and th... |

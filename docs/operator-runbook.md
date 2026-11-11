@@ -33,6 +33,16 @@ asp serve usage --tokens /var/lib/asp/tokens.json
 
 `/join` and `asp join` then show the reason to anyone arriving. To reopen: `asp serve signup-open ...`. To change how many a day are let in: `asp serve signup-cap --tokens ... --signup-daily-cap <n>`. The demand count (people turned away because the day was full) is in `/var/lib/asp/tokens.json.demand.json`, one number a day.
 
+### Starter credits and the waiting list
+
+```
+asp serve starter --tokens /var/lib/asp/tokens.json                    # the pool's size, how much is given out, who is waiting
+asp serve starter --tokens /var/lib/asp/tokens.json --add 5000        # top it up on purpose
+asp serve starter --tokens /var/lib/asp/tokens.json --starter-pool 20000   # or set the size outright
+```
+
+Each new tenant takes 100 credits for each of up to two identities at once, and the other 400 each when one of them has a job accepted. When the pool cannot cover a claim the tenant is put on a waiting list in the order they asked and told their place; after you top it up they claim with `asp account starter`, first in line first. The pool's size is the cap on what abuse can cost. If the waiting list grows, that is demand: raise the pool when you are content to fund more tenants, or leave it. The change is picked up without a restart.
+
 ## 3. A tenant is abusing the service, or has been compromised
 
 | Situation | Do |

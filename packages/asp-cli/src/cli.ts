@@ -300,8 +300,9 @@ function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget, runtimeTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
+import { courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -374,6 +375,7 @@ const OPTIONS = {
   "draft-by": { type: "string" },
   all: { type: "boolean" },
   day: { type: "string" },
+  add: { type: "string" },
   from: { type: "string" },
   recover: { type: "boolean" },
   text: { type: "string" },
@@ -669,13 +671,26 @@ export function connectionProblem(e: unknown, service?: string): string | undefi
   return `cannot reach the service${service ? ` at ${service}` : ""} (${why}). Try again in a moment. \`asp status\` shows what works from this machine; \`asp run --local\` runs an agent under a Mandate with no service and no account.`;
 }
 
-/** The environment the current command runs with, so ASP_LOG_URL and ASP_LOG_TOKEN reach every openLog call (restored on exit: main re-enters). */
-let logEnv: NodeJS.ProcessEnv = process.env;
+/**
+ * The environment the current command runs with, so ASP_LOG_URL and ASP_LOG_TOKEN reach every openLog call. It belongs to the command, not to the process: it is kept in the command's own async
+ * context, so a timer or a background loop started by a command (the approvals loop, the gateway's watcher) keeps reading the environment of the command that started it, and commands that overlap
+ * in one process (a test running several sessions, an embedding program) cannot change each other's. It used to be one variable that each main() set on entry and restored on exit: when two
+ * overlapped, the first to finish put back an old value under the second, which then asked a local log instead of the service and found no job (gap T23, found from the CI trail).
+ */
+const logEnvStore = new AsyncLocalStorage<{ env: NodeJS.ProcessEnv }>();
+const currentLogEnv = (): NodeJS.ProcessEnv => logEnvStore.getStore()?.env ?? process.env;
+const logEnv: NodeJS.ProcessEnv = new Proxy({} as NodeJS.ProcessEnv, {
+  get: (_t, k) => currentLogEnv()[k as string],
+  has: (_t, k) => k in currentLogEnv(),
+  ownKeys: () => Reflect.ownKeys(currentLogEnv()),
+  getOwnPropertyDescriptor: (_t, k) => { const d = Reflect.getOwnPropertyDescriptor(currentLogEnv(), k); return d ? { ...d, configurable: true } : undefined; },
+  set: () => false,
+});
 
 export async function main(argv: string[], io: Io): Promise<number> {
-  const previous = logEnv;
-  logEnv = io.env;
-  try { return await mainInner(argv, io); } finally { logEnv = previous; }
+  // An environment that is the log environment itself (a command that runs another with the one it has) is copied, so it does not point at itself.
+  const env = io.env === logEnv ? { ...logEnv } : io.env;
+  return logEnvStore.run({ env }, () => mainInner(argv, env === io.env ? io : { ...io, env }));
 }
 
 async function mainInner(argv: string[], io: Io): Promise<number> {
@@ -710,7 +725,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   if (cmd !== "join" && cmd !== "keys" && !io.env.ASP_LOG_URL) {
     let cfg: JoinConfig | undefined;
     try { cfg = readJoinConfig(home); } catch (e) { return loginProblem(e); }
-    if (cfg) { io = { ...io, env: { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token } }; logEnv = io.env; }
+    if (cfg) { io = { ...io, env: { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token } }; const here = logEnvStore.getStore(); if (here) here.env = io.env; }
   }
   const need = (name: keyof typeof v) => {
     const val = v[name];
@@ -749,7 +764,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "forum") return await forumCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
-    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
+    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "signup") return await signupCmd(v, io);
     if (cmd === "help") return helpCmd(sub ? [sub, ...rest] : [], io);
     if (cmd === "status") return await statusCmd(home, io);
@@ -1368,7 +1383,7 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     io.out(`  records written: ${a.usage?.records ?? 0} (${a.usage?.bytes ?? 0} bytes); agent identities written as: ${a.dids.length ? a.dids.join(", ") : "none"}`);
     io.out(`  packages: ${a.packages.length}; commons: ${a.commons.entries} entries, ${a.commons.reviews} reviews, ${a.commons.citations} citations`);
     for (const i of a.identities ?? []) io.out(`  ${i.did}: ${i.recovery === "recovery key" ? "key loss recoverable with its recovery code" : i.recovery === "sponsor" ? "key loss recoverable by its sponsor" : i.recovery === "none" ? "NO RECOVERY: if its key is lost the identity is lost (make a backup: asp identity backup)" : "recovery unknown"}`);
-    io.out(`  starter credits: ${a.starter.state === "claimed" ? `claimed (${a.starter.amount})` : a.starter.state === "available" ? `available: ${a.starter.perDid} each for up to ${a.starter.maxDids} of your identities (asp account starter --did <principal>,<agent>)` : `not available: ${a.starter.reason}`}`);
+    io.out(`  starter credits: ${a.starter.state === "claimed" ? `claimed (${a.starter.amount})` : a.starter.state === "partial" ? `${a.starter.amount} so far; ${a.starter.reason}` : a.starter.state === "available" ? `available: ${a.starter.upfront} now for each of up to ${a.starter.maxDids} of your identities, and ${a.starter.perDid - a.starter.upfront} more each after a job of theirs is accepted (asp account starter --did <principal>,<agent>)` : a.starter.state === "waiting" ? a.starter.reason : `not available: ${a.starter.reason}`}`);
     return 0;
   }
   if (sub === "starter") {
@@ -1692,13 +1707,13 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ service, token: picked.token, tenant: picked.tenant, joinedAt: now(), identities: { me, agent, bank } }), null, 2) + "\n", { mode: 0o600 });
   let credits = "";
   let creditsNote = "";
-  try { credits = await run(["account", "starter", "--did", `${me},${agent}`]); } catch (e) { creditsNote = (e as Error).message.replace(/^account starter[^:]*failed:\s*/, "").slice(0, 160); }
+  try { credits = await run(["account", "starter", "--did", `${me},${agent}`]); } catch (e) { creditsNote = (e as Error).message.replace(/^account starter[^:]*failed:\s*/, "").slice(0, 300); }
 
   io.out("");
   io.out(`You are set up on ${service}:`);
   io.out(`  you      ${me}`);
   io.out(`  agent    ${agent}`);
-  io.out(`  credits  ${creditsNote ? (/already claimed/i.test(creditsNote) ? "none this time: starter credits are given once per Google account, and this one has had them (this does not affect anything else)" : `none (${creditsNote})`) : /\+(\d+) credits/.exec(credits) ? "500 each for you and your agent" : "claimed"}`);
+  io.out(`  credits  ${creditsNote ? (/already claimed/i.test(creditsNote) ? "none this time: starter credits are given once per Google account, and this one has had them (this does not affect anything else)" : `none (${creditsNote})`) : /\+(\d+) credits/.exec(credits) ? `${/\+(\d+) credits/.exec(credits)![1]} each for you and your agent now, enough for a first job; the rest of the grant comes after a job of yours is accepted (asp account show)` : "claimed"}`);
   if (code) {
     if (process.stdin.isTTY && !v.yes) {
       const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stdout });
@@ -1806,6 +1821,26 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
       save(fresh);
     });
     io.out(sub === "suspend" ? `${name} is suspended${v.reason ? `: ${v.reason}` : ""}; every request it makes is refused until you resume it` : `${name} is resumed`);
+    return 0;
+  }
+  // asp serve starter --tokens <file> [--add <credits> | --starter-pool <credits>]: the starter-credit pool (gap M9): how big it is, how much is used, who waits for it. The size is changed on purpose, here; the running
+  // service reads it on each use, so no restart. The waiting list is served in order once there is room.
+  if (sub === "starter") {
+    const poolFile = `${file}.starter.json`;
+    const pool = new StarterPool(poolFile);
+    const wasCap = pool.cap;
+    const change = v.add !== undefined ? pool.cap + Math.trunc(Number(v.add)) : v["starter-pool"] !== undefined ? Math.trunc(Number(v["starter-pool"])) : undefined;
+    if (v.add !== undefined && !(Number(v.add) > 0)) throw new UsageError("--add is a number of credits, more than 0");
+    if (v["starter-pool"] !== undefined && !(Number(v["starter-pool"]) >= 0)) throw new UsageError("--starter-pool is a number of credits, 0 or more");
+    if (change !== undefined) {
+      const tmp = `${starterCapFile(poolFile)}.${process.pid}.tmp`;
+      writeFileSync(tmp, JSON.stringify({ cap: change, at: now() }) + "\n");
+      renameSyncRetry(tmp, starterCapFile(poolFile));
+      io.out(`the starter pool is now ${change} credits (it was ${wasCap})`);
+    }
+    const after = new StarterPool(poolFile);
+    io.out(`starter pool: ${after.cap} credits, ${after.used} given out, ${after.left} left; ${after.waitingList.length} tenant(s) waiting${after.waitingList.length ? `: ${after.waitingList.join(", ")}` : ""}`);
+    if (after.waitingList.length && after.left >= STARTER_UPFRONT) io.out("there is room for the first on the list: they claim with asp account starter");
     return 0;
   }
   if (sub === "purge") {
@@ -4430,9 +4465,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     }
     io.err("  local mode: records stay on this machine, in " + lhome);
     // The outer command may already have put the saved service in the log environment; for this run there is none.
-    const outerLogEnv = logEnv;
-    logEnv = lenv;
-    try { return await runSession(lhome, runtime, { ...v, local: false, home: lhome }, { ...io, env: lenv }, lids); } finally { logEnv = outerLogEnv; }
+    return await logEnvStore.run({ env: lenv }, () => runSession(lhome, runtime, { ...v, local: false, home: lhome }, { ...io, env: lenv }, lids));
   }
   let cfg: JoinConfig | undefined = localIds ? { service: "", token: "", tenant: "local", joinedAt: "", identities: localIds } : readJoinConfig(home);
   if (!cfg && headless && io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN) {

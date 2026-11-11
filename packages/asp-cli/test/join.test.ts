@@ -72,7 +72,7 @@ test("asp join: one command signs you up in the browser, the token comes back to
     const text = out.join("\n");
     const me = `did:web:127.0.0.1%3A${port}:u:joiner`, agent = `did:web:127.0.0.1%3A${port}:a:joiner:helper`;
     assert.ok(text.includes(`you      ${me}`) && text.includes(`agent    ${agent}`), text);
-    assert.match(text, /500 each for you and your agent/);
+    assert.match(text, /100 each for you and your agent now, enough for a first job; the rest of the grant comes after a job of yours is accepted/);
     assert.match(text, /YOUR RECOVERY CODE[\s\S]*ASP-[0-9A-Z-]+/);
     const cfgPath = join(f.aspHome, "config.json");
     const cfg = JSON.parse(readFileSync(cfgPath, "utf8"));
@@ -86,9 +86,9 @@ test("asp join: one command signs you up in the browser, the token comes back to
     const show = await later(["account", "show"]);
     assert.equal(show.code, 0, show.err);
     assert.match(show.out, /tenant joiner \(tenant\), signed up with joiner@example\.org/);
-    assert.match(show.out, /starter credits: claimed \(1000\)/);
+    assert.match(show.out, /starter credits: 200 so far; 100 each so far; the other 400 each comes when one of those identities has a job accepted/);
     assert.ok(show.out.includes(`${agent}: key loss recoverable by its sponsor`) && show.out.includes(`${me}: key loss recoverable with its recovery code`));
-    assert.match((await later(["credits", "balance", agent])).out, /500 credits/);
+    assert.match((await later(["credits", "balance", agent])).out, /100 credits/);
     // Joining again says so; leaving forgets the login and nothing else.
     assert.match((await later(["join", "--service", base])).out, /already joined as joiner/);
     assert.match((await later(["leave"])).out, /forgot the saved login for joiner/);

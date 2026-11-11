@@ -47,7 +47,7 @@ A draft for you to send (contact sales) is in the box below. Record their answer
 ### B3. The starter-credit rule (gate #8, M9)
 Today: 500 credits for each of up to two identities (1,000 a tenant), a pool of 200,000, so about 200 tenants drain it; three tenants a Google account; 200 sign-ups a day at most. Ads can drain the pool in a day.
 **Recommendation:** keep 500 per identity but release it in two parts, 100 on claim and 400 after the tenant's first job settles; set the pool to the number of tenants you are willing to fund (not 200,000 by default); when the pool is under 10 percent, `/join` and `asp join` show a waiting list message, and you top up on purpose. Credits are not money, so this is about not letting the service look empty and about abuse, not cost.
-**Once you answer** I build the split grant, the waiting-list message and the operator top-up, with tests.
+**Decided and built (2026-11-11, S160):** the split grant (100 at once, 400 after a job of the tenant's is accepted), the waiting list, and `asp serve starter` for the pool. **What is left for you:** choose the pool's size for launch, which is the cap on what abuse can cost (each tenant takes 200 before any job and up to 1,000 in all): `asp serve starter --tokens /var/lib/asp/tokens.json --starter-pool <credits>`; the default is 200,000. Then watch the waiting count in the same command.
 
 ### B4. The starting request limit (gate #9, T12)
 Today: 600 reads a minute and 120 writes. **Recommendation: leave it**, watch `asp serve usage` and the sign-up demand count for the first week, and raise reads if sessions stall (the write limit stays). A number you pick now would be a guess.

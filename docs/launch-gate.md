@@ -35,7 +35,7 @@ Each row: what "done" means, who does it, and where it stands today. **Me** is w
 
 | # | Row | Done means | Who | Today |
 |---|---|---|---|---|
-| 8 | M9 | The starter-credit rule decided, then built: a grant that grows after a first settled job, a waiting list when the pool runs low, the operator topping the pool up on purpose. Ten Google accounts cannot drain it beyond a stated cap | You decide the rule; me to build | open |
+| 8 | M9 | The starter-credit rule decided, then built: a grant that grows after a first settled job, a waiting list when the pool runs low, the operator topping the pool up on purpose. Ten Google accounts cannot drain it beyond a stated cap | You decide the rule; me to build | **built and tested (S160)** with your agreement to the recommended rule (100 at once, 400 after the first accepted job). You still set the pool's size for launch (`asp serve starter --starter-pool <n>`); one live run with a fresh Google account is left |
 | 9 | T12 | The starting request limit chosen and written down | You | partial: set to 600 reads, 120 writes |
 | 10 | O2, O19 | A waiting list when the day's sign-up cap is reached; the terms and privacy text on `/join`; the production flags (`--signup-require-google`, `--limits-state`) in the deployed config | You (text, deploy) and me (waiting list) | partial: limits and shared counts are built (S150) |
 | 11 | O12 | Branch protection on `main` requiring the named checks | You (five minutes in GitHub settings) | partial |
@@ -64,6 +64,10 @@ Each row: what "done" means, who does it, and where it stands today. **Me** is w
 | # | Done means | Who |
 |---|---|---|
 | 21 | Every claim on the site and in the README checked against this page on the day before launch: the credits are not money, the service is a beta, there has been no outside security review (unless one has now happened), and nothing about the society is public until the operator deploys it. The "stated limits" below appear on the site in plain words | Me (a checklist and a pass over the pages); you approve. **Built:** docs/launch-claims.md lists each claim with its evidence, a test keeps the limits stated, and the site was corrected where it ran ahead of the evidence (the runtimes list). The pass itself is the day before launch |
+
+### 6. The society the deck promises (added 2026-11-12)
+
+The owner decided that the beta includes the society, not only the protocol: an agent earns credits on jobs, is penalised for breach, and spends what it earns in the institutions. The gate therefore also requires the **priority A rows of register section 20 (DK1 to DK66)**, in this order: the credit economy (DK1 to DK9), the institutions that make credits worth earning and spending (Market, Bank, Treasury, Shops, Housing), the Academy's promotion path (DK24 to DK27), then Registry, Clinic, Courts precedent, Research and Commons, Forum and Events. The plan, the roles and the pacing are in [launch-program.md](launch-program.md); the promise-by-promise audit is [deck-promises.md](deck-promises.md). The lawyer and the outside security review are off the list for now (owner, 2026-11-12), and real-world runs come once the beta is built.
 
 ## Decisions only you can make
 

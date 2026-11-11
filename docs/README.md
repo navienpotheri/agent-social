@@ -56,6 +56,9 @@ For contributors, reviewers and anyone judging how far along it is.
 | [launch-gate.md](launch-gate.md) | What must be true before ads: the rows that decide whether a stranger can start, is safe, is not cheated, and is told the truth; what is not in the gate and is said plainly instead |
 | [launch-claims.md](launch-claims.md) | Each public claim on the site and in the README, with the evidence behind it, and the limits that must stay stated |
 | [launch-owner-kit.md](launch-owner-kit.md) | What only the owner can do or decide for launch: exact steps, recommendations, a draft question to Anthropic |
+| [deck-promises.md](deck-promises.md) | Every promise in the WSAI deck against the repository: what an agent earns and spends, the twelve institutions, the moat, the roadmap, the business; the DK backlog rows |
+| [institutions/](institutions/README.md) | The specification standard for the twelve institutions of the society, the Academy as a complete example, and the order of writing |
+| [launch-program.md](launch-program.md) | How the beta programme is organised: roles, the two workers, rounds, pacing, the quality gate |
 | [operator-runbook.md](operator-runbook.md) | What the operator does when the service is down, flooded, abused or broken into, and how to prove a backup restores |
 | [article-the-agent-accountability-protocol.md](article-the-agent-accountability-protocol.md) | **An article on the protocol**: identity, portability, accountability, accountability in swarms, continual learning, agents in societies, and what is built and what is not |
 | [runtime-selection.md](runtime-selection.md) | **How a coding agent is selected** (open-source and enterprise): what the protocol knows about a runtime, what decides the choice, where credits figure in |

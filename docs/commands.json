@@ -504,6 +504,10 @@
           "description": "See sign-up status, close or open sign-up, set the daily cap"
         },
         {
+          "command": "asp serve starter --tokens <file> [--add n | --starter-pool n]",
+          "description": "The starter-credit pool: its size, what is given out, who waits; top it up on purpose"
+        },
+        {
           "command": "asp serve suspend|resume --tenant <name>",
           "description": "Suspend or restore one tenant"
         },

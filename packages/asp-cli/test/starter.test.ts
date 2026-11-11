@@ -23,14 +23,15 @@ const tenant = (name: string, token: string, google?: string) => ({
   ...(google ? { signup: { at: "2026-10-11T00:00:00Z", addressHash: "x".repeat(24), termsVersion: "v1", google: { sub: google, email: `${name}@example.org` } } } : {}),
 });
 
-test("a newcomer's first job: a Google-verified tenant claims starter credits once (per tenant and per Google account), within the pool, and runs a first job end to end", async () => {
+// Gap M9: the grant is 100 at once for each of two identities (enough for a first job), and 400 more each when one of them has had a job accepted; a full pool puts a tenant on a waiting list the operator serves by topping it up.
+test("a newcomer's first job: a Google-verified tenant claims the first part of its starter credits once (per tenant and per Google account), runs a first job end to end, and gets the rest when the job is accepted", async () => {
   const dir = mkdtempSync(join(tmpdir(), "asp-starter-e2e-"));
   const tokens = join(dir, "tokens.json");
   writeFileSync(tokens, JSON.stringify([
     tenant("team-a", "tok-a", "g-1"), tenant("team-b", "tok-b", "g-1"), tenant("team-c", "tok-c", "g-2"), tenant("team-d", "tok-d"),
     { name: "ops", role: "admin", tokenSha256: hashToken("tok-ops") },
   ]));
-  // A pool of exactly one grant (two identities, 500 each).
+  // A pool of exactly one whole grant (two identities, 500 each).
   const server = spawn(process.execPath, [cli, "serve", "--db", `local:${join(dir, "log")}`, "--tokens", tokens, "--port", "0", "--starter-pool", "1000"], { stdio: ["ignore", "pipe", "pipe"] });
   try {
     const url = await new Promise<string>((resolve, reject) => {
@@ -52,7 +53,7 @@ test("a newcomer's first job: a Google-verified tenant claims starter credits on
     assert.equal((await asp(d, ["account", "starter", "--did", ALICE], env("tok-d"))).code, 1);
 
     // Available to team-a; refused for an identity it did not write, for too many, and without any.
-    assert.match((await asp(a, ["account", "show"], A)).out, /starter credits: available: 500 each for up to 2 of your identities/);
+    assert.match((await asp(a, ["account", "show"], A)).out, /starter credits: available: 100 now for each of up to 2 of your identities, and 400 more each after a job of theirs is accepted/);
     const stranger = await asp(a, ["account", "starter", "--did", STRANGER], A);
     assert.equal(stranger.code, 1);
     assert.match(stranger.err, /is not an identity this tenant has written as/);
@@ -61,15 +62,17 @@ test("a newcomer's first job: a Google-verified tenant claims starter credits on
     // Claimed once.
     const claim = await asp(a, ["account", "starter", "--did", `${ALICE},${CODER}`], A);
     assert.equal(claim.code, 0, claim.err);
-    assert.match(claim.out, /alice: \+500 credits|users:alice: \+500 credits \(balance 500\)/);
-    assert.match((await asp(a, ["credits", "balance", ALICE], A)).out, /500 credits/);
-    assert.match((await asp(a, ["credits", "balance", CODER], A)).out, /500 credits/);
+    assert.match(claim.out, /users:alice: \+100 credits \(balance 100\)/);
+    assert.match(claim.out, /100 each is enough for a first job.*The other 400 each comes when one of these identities has a job accepted/);
+    assert.match((await asp(a, ["credits", "balance", ALICE], A)).out, /100 credits/);
+    assert.match((await asp(a, ["credits", "balance", CODER], A)).out, /100 credits/);
     assert.equal((await asp(a, ["account", "starter", "--did", ALICE], A)).code, 1, "a second claim is refused");
-    assert.match((await asp(a, ["account", "show"], A)).out, /starter credits: claimed \(1000\)/);
+    assert.match((await asp(a, ["account", "show"], A)).out, /starter credits: 200 so far; 100 each so far; the other 400 each comes when one of those identities has a job accepted/);
+    assert.match((await asp(a, ["credits", "balance", CODER], A)).out, /100 credits/, "looking at the account released nothing: no job has been accepted");
 
-    // The same Google account on another tenant: no second grant. Another Google account: the pool is used up.
+    // The same Google account on another tenant: no second grant. Another Google account: the pool has room for the first part (800 of 1000 is still free).
     assert.match((await asp(a, ["account", "show"], env("tok-b"))).out, /this Google account has already claimed its starter credits/);
-    assert.match((await asp(a, ["account", "show"], env("tok-c"))).out, /the starter pool is used up for now/);
+    assert.match((await asp(a, ["account", "show"], env("tok-c"))).out, /starter credits: available/);
 
     // A first job within a newcomer's limits: price 100, escrow 100, a bond of 100, accepted and paid.
     const job = async (args: string[]) => { const r = await asp(a, args, A); assert.equal(r.code, 0, `${args.join(" ")}: ${r.err}`); return r; };
@@ -81,8 +84,33 @@ test("a newcomer's first job: a Google-verified tenant claims starter credits on
     await job(["market", "deliver", "--contract", contract, "--by", CODER, "--summary", "Done"]);
     await job(["market", "accept", "--contract", contract, "--by", ALICE]);
     await job(["market", "settle", "--contract", contract, "--bank", BANK, "--basis", "accepted", "--escrow-released", "100", "--bond-returned", "100", "--bond-slashed", "0"]);
-    assert.match((await asp(a, ["credits", "balance", CODER], A)).out, /600 credits/, "500 - 100 bond + 100 paid + 100 bond back");
+    assert.match((await asp(a, ["credits", "balance", CODER], A)).out, /200 credits/, "100 - 100 bond + 100 paid + 100 bond back");
+    assert.match((await asp(a, ["credits", "balance", ALICE], A)).out, /\b0 credits/, "100 - 100 escrow");
+
+    // The job was accepted: looking at the account releases the other 400 each, once.
+    const released = await asp(a, ["account", "show"], A);
+    assert.match(released.out, /starter credits: claimed \(1000\)/);
+    assert.match((await asp(a, ["credits", "balance", CODER], A)).out, /600 credits/, "200 + 400 released");
     assert.match((await asp(a, ["credits", "balance", ALICE], A)).out, /400 credits/);
+    assert.match((await asp(a, ["account", "show"], A)).out, /starter credits: claimed \(1000\)/);
+    assert.match((await asp(a, ["credits", "balance", ALICE], A)).out, /400 credits/, "released once, not again");
+    assert.equal(JSON.parse(readFileSync(`${tokens}.starter.json`, "utf8")).minted, 1000);
+
+    // The pool is now whole-grant used up. A newcomer is put on the waiting list, in order; the operator tops the pool up on purpose, and then it is their turn.
+    assert.match((await asp(a, ["account", "show"], env("tok-c"))).out, /starter credits: the starter pool is full right now; asp account starter puts you on the waiting list/);
+    const waits = await asp(a, ["account", "starter", "--did", ALICE], env("tok-c"));
+    assert.equal(waits.code, 1);
+    assert.match(waits.err, /You are number 1 on the waiting list/);
+    assert.match((await asp(a, ["account", "show"], env("tok-c"))).out, /you are number 1 on the waiting list for the starter pool/);
+    const ops = env("tok-ops");
+    const status = await asp(a, ["serve", "starter", "--tokens", tokens], ops);
+    assert.match(status.out, /starter pool: 1000 credits, 1000 given out, 0 left; 1 tenant\(s\) waiting: team-c/);
+    const topUp = await asp(a, ["serve", "starter", "--tokens", tokens, "--add", "300"], ops);
+    assert.match(topUp.out, /the starter pool is now 1300 credits \(it was 1000\)/);
+    assert.match(topUp.out, /300 left; 1 tenant\(s\) waiting: team-c/);
+    assert.match(topUp.out, /room for the first on the list/);
+    assert.match((await asp(a, ["account", "show"], env("tok-c"))).out, /starter credits: available/, "the running service read the new size without a restart");
+    assert.equal((await asp(a, ["serve", "starter", "--tokens", tokens, "--add", "0"], ops)).code, 2);
 
     // Closing the account does not make a second grant possible for the same Google account (the tombstone keeps the claim).
     assert.equal((await asp(a, ["account", "close", "--confirm", "team-a", "--skip-export"], A)).code, 0);
@@ -90,6 +118,7 @@ test("a newcomer's first job: a Google-verified tenant claims starter credits on
     const stone = (JSON.parse(readFileSync(tokens, "utf8")) as any[]).find((t) => t.name === "team-a");
     assert.deepEqual([stone.starter.amount, stone.starter.dids], [1000, undefined], "the tombstone keeps the amount, not the identities");
     assert.equal(JSON.parse(readFileSync(`${tokens}.starter.json`, "utf8")).minted, 1000);
+    assert.deepEqual(JSON.parse(readFileSync(`${tokens}.starter.json`, "utf8")).waiting, ["team-c"]);
   } finally {
     server.kill();
   }
