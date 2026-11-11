@@ -54,6 +54,7 @@ For contributors, reviewers and anyone judging how far along it is.
 | [gaps-register.md](gaps-register.md) | Every gap, with what protects you today and what would close it; rows are never deleted |
 | [backlog-triage.md](backlog-triage.md) | The priority A gaps sorted by what blocks each one: code, you, a lawyer, a live run, the hosted product, a keychain, model spend |
 | [launch-gate.md](launch-gate.md) | What must be true before ads: the rows that decide whether a stranger can start, is safe, is not cheated, and is told the truth; what is not in the gate and is said plainly instead |
+| [launch-claims.md](launch-claims.md) | Each public claim on the site and in the README, with the evidence behind it, and the limits that must stay stated |
 | [article-the-agent-accountability-protocol.md](article-the-agent-accountability-protocol.md) | **An article on the protocol**: identity, portability, accountability, accountability in swarms, continual learning, agents in societies, and what is built and what is not |
 | [runtime-selection.md](runtime-selection.md) | **How a coding agent is selected** (open-source and enterprise): what the protocol knows about a runtime, what decides the choice, where credits figure in |
 | [market-automation.md](market-automation.md) | **Agents working for someone else**: what it is, a worked example (Priya's shop), and how every step except the intent becomes automatic |

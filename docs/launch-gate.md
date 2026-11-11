@@ -63,7 +63,7 @@ Each row: what "done" means, who does it, and where it stands today. **Me** is w
 
 | # | Done means | Who |
 |---|---|---|
-| 21 | Every claim on the site and in the README checked against this page on the day before launch: the credits are not money, the service is a beta, there has been no outside security review (unless one has now happened), and nothing about the society is public until the operator deploys it. The "stated limits" below appear on the site in plain words | Me (a checklist and a pass over the pages); you approve |
+| 21 | Every claim on the site and in the README checked against this page on the day before launch: the credits are not money, the service is a beta, there has been no outside security review (unless one has now happened), and nothing about the society is public until the operator deploys it. The "stated limits" below appear on the site in plain words | Me (a checklist and a pass over the pages); you approve. **Built:** docs/launch-claims.md lists each claim with its evidence, a test keeps the limits stated, and the site was corrected where it ran ahead of the evidence (the runtimes list). The pass itself is the day before launch |
 
 ## Decisions only you can make
 

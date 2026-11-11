@@ -176,6 +176,9 @@ The benchmark also records where the gateway fails. Steps that are each allowed 
 - **Enforcement depends on assurance.** Each Action records its assurance, from `self_reported` to `sandbox_enforced`. The gateway and the hooks cannot see what an agent's own code does outside the model loop unless it runs in the sandbox.
 - **There has been no outside review.** No external party has reviewed the security. Do not put production secrets or real stakes behind it.
 - **The legal documents are drafts.** They await a lawyer's review ([docs/legal/](docs/legal/README.md)).
+- **Key files on your machine are plain text unless you set `ASP_KEY_PASSPHRASE`.** The operating system keychain is not built.
+- **The dashboard runs on your machine only.** There is no hosted dashboard yet; everything it shows is also in the command line (`asp runs`, `asp today`, `asp approvals`).
+- **A memory change is listed and can be taken back from the command line** (`asp learned`); lessons are not checked before an agent keeps them.
 
 Everything not covered is tracked row by row in [docs/gaps-register.md](docs/gaps-register.md). Every mock is listed in [MOCKS.md](MOCKS.md). The first live run on the hosted service, and the bugs it found, are recorded in [docs/live-run-checklist.md](docs/live-run-checklist.md).
 

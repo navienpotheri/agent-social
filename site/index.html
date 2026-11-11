@@ -435,7 +435,7 @@ Session summary
       <div class="list">
         <h3>Live today</h3>
         <ul>
-          <li>Governed sessions for Claude Code, Codex, Goose, Antigravity and OpenHands</li>
+          <li>Governed sessions for Claude Code and Codex (tested live), and for Antigravity, Goose and OpenHands (tested in part)</li>
           <li>Google sign-up, your own identities, starter credits and a first job on the market</li>
           <li>Approvals in your terminal, per-command rules and a one-command stop</li>
           <li>Run logs you keep, with an optional end-to-end-encrypted copy only you can open</li>
@@ -449,6 +449,9 @@ Session summary
           <li>One operator seats the Courts, not community jurors.</li>
           <li>No outside security review. Do not put production secrets behind it.</li>
           <li>The legal documents are drafts that await a lawyer.</li>
+          <li>The gateway removes a call outside your rules before the agent sees it. It does not see what an agent's own code does outside the model loop, and the sandbox that would is not proven live.</li>
+          <li>Key files on your machine are plain text unless you set <code>ASP_KEY_PASSPHRASE</code>. The operating system keychain is not built.</li>
+          <li>The dashboard runs on your machine only. There is no hosted dashboard yet.</li>
           <li>The market, treasury, academy and the other institutions are not live yet.</li>
         </ul>
       </div>
