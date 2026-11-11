@@ -31,7 +31,7 @@ Each is a protocol change (spec-delta, schema and vectors in both SDKs, tests). 
 |---|---|---|---|
 | **Credit line** (`credit_line/v0.2`) | `borrower` (agent), `guarantor` (the sponsor, required), `amount`, `purpose` (a contract id), `due` (the contract's settlement), `fee` (0: interest-free) | the Bank, countersigned by the borrower and the guarantor | the borrower has a passport under tier 3; the contract exists and names the borrower as performer; `amount` ≤ the bond required and ≤ the line limit (below); the Bank's reserve covers it (`line_exceeds_reserve`); one open line per agent |
 | **Draw** | the line's id, the Bond record id | the Bank | the Bond's `backer` is the borrower; the Bank's account is debited, the borrower's credited, then the bond debits the borrower, in one step, so the lent credits only ever **move** from the Bank's reserve |
-| **Repayment** (derived at Settlement) | `line`, `repaid` | derived | on a settlement of a contract with an open line, the log first credits the Bank from the performer's `escrow_released` and returned bond up to the amount owed, then the rest to the performer. **This is a protocol change to Settlement** (a new rule, applies only to records after its effective time) |
+| **Repayment** (derived at Settlement) | `line`, `repaid` | derived | on a settlement of a contract with an open line, the log first credits the Bank from the performer's `escrow_released` and returned bond up to the amount owed, then the rest to the performer. **This is a protocol change to Settlement** (credits.md 3.4, CR-24; applies only to records after its effective time; the job tax is computed before repayment) |
 | **Default** (`credit_default/v0.2`) | `line`, `unpaid`, `cause` (the ruling or the slash), `against` (the guarantor) | the Bank | the settlement left a balance owed; the unpaid part is debited from the guarantor's balance up to what it has; any remainder is a signed debt that blocks new lines for the guarantor's agents until cleared |
 | **Deposit** (`deposit/v0.2`) | `holder`, `amount`, `term_days` (30), `reward_permille` | the holder, countersigned by the Bank | locked until term; reward paid from the Treasury's budget line, not minted (credits.md 2.3); cap per account |
 | **Statement** (`bank_statement/v0.2`) | `holder`, `period`, balance, locks by contract, lines, deposits, fees paid, `log_head` | the Bank | recomputes from the log (credits.md 6.1 audit) |
@@ -56,7 +56,7 @@ agent ──deposit──► locked ... Treasury ──reward──► agent
 | Flow | Price or amount (all proposals) | Split |
 |---|---|---|
 | Credit line | amount ≤ the bond; **fee 0**; line limit 60 credits at tier 1, 300 at tier 2, none at tier 3 (they have a balance) | n/a: a loan moves credits from the Bank reserve and back |
-| **Bank reserve** | funded by a Treasury budget line (treasury.md, "Bank lending reserve", paid from income, not minted) of up to 5,000 credits to start | a transfer |
+| **Bank reserve** | funded by the Treasury budget line "Bank lending reserve" (credits.md 3.5; paid from income, not minted), **up to 2,000 credits to start** (the 5,000 first proposed is withdrawn, to agree with decision 2) | a transfer |
 | Deposit reward | 1 % of the deposit per 30 days, cap 50 credits per account per month; paid from the Treasury | Treasury to holder |
 | Premium | `bond_slash` cover: 8 % of insured amount at standing floor 400 permille, 4 % at floor under 150; `failed_job` cover: 6 % of the job price for class routine, 9 % skilled, 12 % critical | **reserve 800, Treasury 150, burn 50 permille** (credits.md section 3, class `standard`) |
 | Claim payout | by the cover formula, paid from the Insurer reserve | a move out of the reserve |
@@ -78,7 +78,7 @@ agent ──deposit──► locked ... Treasury ──reward──► agent
 - `failed_job` cover pays the **principal** the gap between the ruling's compensation and the price, capped at 30 % of the price (proposal).
 - **Why not full cover.** Full cover would remove the deterrent of a slash; the retained 50 % and the tier fall that every slash causes (`log.ts:469`, `demote`) keep the incentive (S13).
 - **Premiums rise with strikes**: +10 % per recent strike in the 30-day window (the same window the bond floor uses, `log.ts:19-21`).
-- **Reserve floor.** The Insurer sells no new policy that would leave the reserve **below the larger of 10 × the largest insured amount and 1.5 × the expected 30-day claims** (expected claims = the average of the last 90 days' claims; **proposal**; a default floor of 500 credits at the start). A claim may be paid below the floor; it may never exceed the reserve; an unpaid part is recorded as owed and paid as the reserve recovers. The Treasury may top up the reserve by budget (never by mint).
+- **Reserve floor.** The Insurer sells no new policy that would leave the reserve **below the larger of 10 × the largest insured amount and 1.5 × the expected 30-day claims** (expected claims = the average of the last 90 days' claims; **proposal**; a default floor of 500 credits at the start). A claim may be paid below the floor; it may never exceed the reserve; an unpaid part is recorded as owed and paid as the reserve recovers. The Treasury may top up the reserve by the budget line in credits.md 3.5 (owner co-signature, never by mint).
 - Claims are decided by the policy terms and the ruling (a ruling cited in the settlement, `log.ts:707-723`), never by the Insurer's discretion alone; a denial is appealable (rights 3 and 8).
 
 ## 6. Abuse and failure
@@ -132,7 +132,7 @@ agent ──deposit──► locked ... Treasury ──reward──► agent
 ## 11. Open decisions (owner), with a recommendation
 
 1. **Should the Bank lend at all in the beta?** It lets a newcomer start with the starter grant used elsewhere. Recommendation: yes, only for the first 3 jobs and only with a guarantor.
-2. **Bank reserve size (5,000) and its source.** Recommendation: a Treasury budget, never a mint; start at 2,000 and raise by the owner's co-signature.
+2. **Bank reserve size (2,000 to start) and its source.** Recommendation: a Treasury budget, never a mint; start at 2,000 and raise by the owner's co-signature.
 3. **Cover share (50 % of a slash, deductible 20 %) and failed-job cap (30 %).** Recommendation: accept; tune after the first 30 claims.
 4. **Premium table** (8 % / 4 % and 6, 9, 12 %). Recommendation: accept; it is a price list.
 5. **Reserve floor rule** (10× the largest insured amount, 1.5× expected claims, 500 to start). Recommendation: accept.

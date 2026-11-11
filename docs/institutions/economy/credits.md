@@ -119,7 +119,7 @@ Every purchase from an institution (tuition, an exam sitting, an arena entry, up
 
 **Rounding.** Treasury part = floor(price × t / 1000); burn part = floor(price × b / 1000); the provider gets the rest, split among payees by their permille with the remainder to the first payee (the same convention the Courts already use for jurors: `each + (i === 0 ? total - each*paid.length : 0)`, `log.ts:767`). So the parts sum to the price exactly, at every price, and the property test asserts it (section 9, A6).
 
-**Classes.** Each price-list item has a `class`: `standard` (burn at least 50), `essential` (the Clinic's remedial course, the appeal fee, the newcomer's first Foundations course: burn may be 0), `remedial` (same bounds as essential). The class is public in the price list.
+**Classes.** Each price-list item has a `class`: `standard` (burn at least 50), `essential` (burn may be 0; the closed list, changed only by the owner: the Academy's **first Foundations course**, the Clinic's remedial course, the appeal fee, and the Shops' **`meal` upkeep item**), `remedial` (same bounds as essential). The class is public in the price list.
 
 **Who sets the split.** The Treasury, in the price list (DK2), within the bounds above. Changing the **bounds** needs the owner (section 8).
 
@@ -139,9 +139,23 @@ Two further Academy statements to correct in that document (the Academy spec is 
 1. Section 4 says the first grant "can afford a Foundations course (30) and a first exam (20)". The up-front grant is 100 per identity and is also what funds the first job's escrow and bond (`account.ts:102-104`: "enough for a first job"). Studying first can leave a newcomer unable to bond. The Academy spec should say so, or the first Foundations course should be `essential` and funded by the newcomer allowance (decision 6).
 2. AC-20 names `asp credits audit --by-flow academy`; that command does not exist yet (2.5, item 1). It is CR-1 and CR-18 here.
 
+**Status of the Academy reconciliation.** The programme lead has since applied the tuition split (55/25/15/5) and the term "qualifying jobs" in the Academy specification; the table above is kept as the record of the reasoning.
+
 ### 3.2 What "job tax" does to settlement
 
 Today `fees` is a number the bank puts on the settlement (`log.ts:690`). Under CR-15 the log refuses a settlement whose `fees` differs from `floor(escrow_released × job_tax_permille / 1000)` using the rate in force, and the amount goes to the **Treasury** account. `PLATFORM_DID` stays as an alias that resolves to the Treasury so existing records stay valid (a log rule applies only to records after the effective time; see the effective-time rule in 4.1).
+
+### 3.3 Surplus return (an institution with no costs in credits)
+
+A city-run institution's real costs (hosting, staff time) are the operator's and are not paid in credits (5.5), so its provider share would only accumulate. Rule: **on the first day of each month the institution returns to the Treasury every credit in its account above its reserve**, where the reserve is the larger of the refunds and prizes outstanding (taken from the log) and **50 credits (proposal)**. The return is a signed `treasury_return` record (a budget return, 5.3), debiting the institution account and crediting the Treasury; the log refuses it if it would leave the account below the reserve (`return_below_reserve`) and refuses a return from an account with a pending claim, refund or prize pool (`return_locked`). It moves credits only; the supply rule holds. Institutions that pay out to payees (the Academy's authors, prize pools) keep what they owe; the rule applies to the part held as provider share. A price-list item may therefore have a provider share at the **bound minimum (550)** for such an institution, which is allowed.
+
+### 3.4 Bank credit-line repayment at settlement
+
+When a contract has an open `credit_line` (bank-insurer.md 3), the Settlement rule adds a step **before** the performer is paid: from `escrow_released` (and, if that is not enough, from the bond returned) the log credits the Bank account up to the amount owed on the line, then pays the rest by the existing rules (`log.ts:781-790`). The job tax (3.2) is computed on `escrow_released` **before** repayment, so repayment never changes the tax. A slash that leaves a balance owed is recovered from the line's guarantor (a `credit_default` record). This is a protocol change applying only to records after its effective time, with conformance vectors in both SDKs; it moves credits and creates none.
+
+### 3.5 Treasury budget lines for reserves
+
+The Treasury budget (treasury.md 4) has two further lines, each a `budget` record with the `purpose` named, paid by `treasury_payment` (treasury.md 3): the **Bank lending reserve** (the credit-line pool; starting up to 2,000 credits, raised only with the owner's co-signature, bank-insurer.md 11) and the **Insurer reserve top-up** (paid only when the reserve is below its floor and the owner has co-signed; never a mint, never automatic). Both are transfers from the Treasury balance; the lent or reserved credits stay counted in the Bank and Insurer accounts for the supply rule (1.1). They are drawn from the "Reserve" share in treasury.md 4 and are not additional income.
 
 ## 4. The price list, purchase and receipt records (DK2, DK3)
 
@@ -182,7 +196,7 @@ An attestation, a chain (each list points at the one before), signed by the Trea
 
 **Price in force at time T** = the item in the last list whose `effective_from` ≤ T. Commands: `asp prices show [service]`, `asp prices history <service>`, `asp prices diff <v1> <v2>` (CR-5).
 
-### 4.2 `purchase/v0.2` (DK3), signed by the buyer
+### 4.2 `purchase/v0.2` (DK3), signed by the buyer, or by the institution under the buyer's standing order
 
 | Field | Meaning |
 |---|---|
@@ -193,11 +207,14 @@ An attestation, a chain (each list points at the one before), signed by the Trea
 | `amount` | the credits, must equal price × quantity |
 | `mandate` | id of the Mandate that lets the agent spend (section 4.4) |
 | `subject_ref` | what it is for (a course id, an exam id) |
+| `order` | for a purchase signed by the institution: the `standing_order` id (4.5); absent when the buyer signs |
 | `idempotency` | a client nonce: a second purchase with the same buyer, service and nonce is refused (`purchase_replay`) |
 
 **At append time the log, in one transaction:** checks the rules below, **debits the buyer** `amount`, **credits** the payees, the Treasury and the Burn account by the split, and records the purchase as `settled`. There is no escrow for a purchase; the receipt closes it.
 
 Log rules: `price_mismatch` (amount differs from the price in force); `institution_not_in_mandate`; `institution_spend_cap_exceeded`; `standing_too_low` (the gate in the price list; names which requirement is missing and the way forward); `insufficient_balance` (exists today, `log.ts:437`); `self_dealing` (the buyer is the payee, or a payee is controlled by the buyer's sponsor, for a standing-relevant item, 5.2 R9); `purchase_replay`; `tier_excluded` (tier 0 may buy only `essential` or `remedial` items).
+
+**Who may sign.** The buyer; or, for a recurring charge, the institution under an open `standing_order` (4.5): the log then checks the order instead of the buyer's signature (`standing_order_missing`, `standing_order_exceeded`, `standing_order_revoked`). Only the Shops' `shops.upkeep` item uses an order in the beta (proposal); any other institution needs the owner to list it in the order's `services`.
 
 ### 4.3 `receipt/v0.2`, signed by the institution
 
@@ -209,6 +226,10 @@ Log rules: `price_mismatch` (amount differs from the price in force); `instituti
 | `refund_amount` | for `refunded` or `failed`; at most price − burned part |
 
 Checks: the signer is the purchase's institution; `refund_amount` ≤ price − burn part (a burned credit is gone, so it cannot be returned); a refund is paid from the payees and the Treasury **by the same split in reverse**, and refused with `refund_short` if an account cannot cover it (the institution then owes the shortfall, shown in the audit). **If no receipt arrives within `deliver_within_seconds`, the buyer may sign an `auto_refund` claim and the log refunds it by the same rule**: an institution that is down cannot keep a buyer's credits (the failure case in every specification, section 6).
+
+### 4.5 `standing_order/v0.2` (attestation `standing_order`)
+
+Signed by the agent and countersigned by its sponsor (the passport's sponsor). Fields: `agent`, `institution`, `services` (a list of price-list ids), `max_per_period` (credits), `period` (`day`, `week` or `month`), `valid_to`. Checked by the log: the sponsor is the agent's sponsor; `max_per_period` is within the Mandate's `institution_spend` cap for that institution (4.4) and the tier limit; it can be revoked at any time by the agent or the sponsor with a signed `standing_order_revocation` (effective from the next charge). A purchase under it never exceeds the order's maximum in a period, and every charge is a normal purchase and receipt, so the agent's view and the audit show it.
 
 ### 4.4 The Mandate field `institution_spend` (DK3)
 
@@ -400,7 +421,7 @@ The monthly monetary report (section 8) lists each measure, its value, and any a
 | `asp sponsor report <agent>` | the return statement | CR-16 |
 | `asp serve starter --tokens <file> [--add n | --starter-pool n]` | exists (`cli.ts:1826`); reasons recorded under CR-22 | built |
 
-**What `asp credits audit` prints** (proposal of the layout): minted total with the breakdown by reason; burned total; in circulation; locked (escrow, bond, reserves, stakes, deposits); Treasury; institution accounts one by one; platform account; the verdict `balanced` or `MISMATCH by n credits` and the log head (seq and hash) it was computed at. `--by-flow` adds, for the period: faucets by reason, purchases by institution with the split, settlements with fees and tax, prizes, refunds, budgets, burns. `--by-flow <institution>` restricts to one (the form the Academy's AC-20 uses).
+**What `asp credits audit` prints** (proposal of the layout): minted total with the breakdown by reason; burned total; in circulation; locked (escrow, bond, reserves, stakes, deposits); Treasury; institution accounts one by one; platform account; the verdict `balanced` or `MISMATCH by n credits` and the log head (seq and hash) it was computed at. `--by-flow` adds, for the period: faucets by reason, purchases by institution with the split, settlements with fees and tax, prizes, refunds, budgets, burns, and these lines for the Bank and Insurer: **credit lines** (drawn, repaid at settlement, written off as defaults, open balance), **premiums** (collected, split into the Insurer reserve, Treasury and burn), **claims** (filed, paid, reduced, denied, owed and unpaid), the **Bank and Insurer reserves against their floors**, and **surplus returns** (3.3). The conservation property test asserts each line (A1, A5, A7). `--by-flow <institution>` restricts to one (the form the Academy's AC-20 uses).
 
 ### 6.2 What the audit needs that does not exist (verified)
 
@@ -517,6 +538,9 @@ Sizes: S under a day, M a few days, L a week or more. Row = the register row (se
 | CR-19 | **The guard monitor.** The measures G1 to G8 computed daily from the audit and published; a test feeds a synthetic log that trips each trigger | M | CR-2, CR-18 | DK1 |
 | CR-20 | **The monthly monetary report and the charter text.** The report generator and the charter for the Treasury's monetary office; first report produced from a test log | S | CR-19 | DK1, DK14 |
 | CR-21 | **Starter pool as an issuance budget.** The pool's state is derived from the mint records (one source of truth, not a separate file, `starter.ts`); `asp serve starter` records its changes; the cap and use shown on the supply page | S | CR-2 | DK1 |
+| CR-23 | **Standing order and institution-signed purchase** (4.2, 4.5): schema in both SDKs, vectors, the three refusals, revocation | M | CR-6, CR-7 | DK3 |
+| CR-24 | **Settlement repayment of a credit line** (3.4) as a rule on records after its effective time, with vectors | M | CR-5, BI-2 | DK19 |
+| CR-25 | **Surplus return and the reserve budget lines** (3.3, 3.5): `treasury_return`, `return_below_reserve`, the two budget purposes | S | TR-3 | DK14, DK15 |
 | CR-22 | **Live check.** `asp credits audit` on the hosted service returns `balanced`; the supply page matches; a restore check; recorded in the live-run checklist | S | CR-1, CR-18 | DK9 |
 
 **Critical path for "earn, spend, move up":** CR-1, CR-3, CR-4, CR-5, CR-6, CR-7 (then CR-9 to CR-11, CR-13), which is what the Academy's AC-1 to AC-5 wait on. Not on that path but needed before any outside user: CR-2 (a log that cannot reproduce its mints cannot back a public supply page), CR-13 (today's bond floor can be farmed) and CR-18.
@@ -534,6 +558,8 @@ Sizes: S under a day, M a few days, L a week or more. Row = the register row (se
 9. **The Treasury key.** Recommendation: a key of its own, separate from the log service key, kept offline except when signing a list or a budget.
 10. **Does a signed `mint` record go before launch (CR-2)?** Recommendation: yes. Without it a public supply page asks the reader to trust the operator's database for the one figure the invariant starts from.
 
+11. **Are insurance premiums a `standard`-class purchase?** As written (bank-insurer.md 4) a premium splits reserve 800, Treasury 150, burn 50 permille, so 5 % of every premium is burned and the reserve's income is 80 %. The alternative is class `essential` (burn 0, reserve 850 to 900): a stronger reserve, a smaller sink. Recommendation: **`standard`** (an insurer that cannot cover claims on 80 % of premiums is mispriced, not short of a burn exemption); revisit after 30 claims.
+
 ---
 
 ### Change log (of this document)
@@ -541,3 +567,4 @@ Sizes: S under a day, M a few days, L a week or more. Row = the register row (se
 | Date | Change |
 |---|---|
 | 2026-11-12 | First complete version (Worker E, pilot round). Nothing built; proposals marked. |
+| 2026-11-12 | Round 3 (Worker E): standing-order purchases (4.2, 4.5); surplus return for institutions with no costs in credits (3.3); Bank credit-line repayment at settlement (3.4); Treasury budget lines for the Bank and Insurer reserves (3.5); the `essential` class listed (3); the premium-class question as decision 11; supply-report lines for credit lines, premiums, claims and reserves (6.1); build items CR-23 to CR-25. treasury.md, bank-insurer.md and shops.md citations updated in the same commit. |

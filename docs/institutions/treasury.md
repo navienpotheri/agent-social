@@ -34,7 +34,7 @@ Each is a protocol change (spec-delta row, schema and vectors in **both SDKs**, 
 | `public_work/v0.2` (an Intent plus a flag) | an ordinary Intent whose principal is the Treasury DID, `budget_line` (the budget it draws on), `class` | the Treasury is the principal; escrow is posted from the Treasury balance; the job follows the normal lifecycle and settlement (credits.md 5.2, T11) |
 | `statement/v0.2` (attestation `treasury_statement`) | `period`, `opening`, `income` by source (job tax, institution shares by institution, forfeits), `spending` by line (budgets, allowance, public works), `closing`, `log_head` (seq and hash) | the arithmetic (opening + income − spending = closing) and that every figure equals the sum over the log between two heads; a statement that does not reconcile is refused |
 
-**Treasury account facts.** `did:web:asp.local:treasury` (credits.md 1.2, A9); `PLATFORM_DID` aliases it (CR-3). It may be debited only by `treasury_payment`, `allowance`, a public-work settlement, a refund of its share (credits.md 4.3), and the budget return of an institution surplus (credits.md 5.3).
+**Treasury account facts.** `did:web:asp.local:treasury` (credits.md 1.2, A9); `PLATFORM_DID` aliases it (CR-3). It may be debited only by `treasury_payment`, `allowance`, a public-work settlement, a refund of its share (credits.md 4.3) and a `treasury_return` from an institution is a credit **to** it (credits.md 3.3).
 
 ## 4. Credit flows
 
@@ -56,7 +56,7 @@ Each is a protocol change (spec-delta row, schema and vectors in **both SDKs**, 
 | Clinic | upkeep of diagnosis and the remedial course subsidy | 15 % |
 | Newcomer allowance | **40 credits once per identity** (credits.md 11, decision 6), from the first Foundations course or first bond | up to 10 % |
 | Public-works jobs | jobs the Treasury posts (documentation, checking the commons, running the audit) so work can enter without a new faucet (credits.md 11, decision 3) | up to 20 % |
-| Reserve | never below one month of approved budgets (G6) | the rest |
+| Reserve | never below one month of approved budgets (G6); the Bank lending reserve and the Insurer top-up (credits.md 3.5) are drawn from it | the rest |
 
 The percentages are **shares of the income actually received**, not fixed credit amounts, so the Treasury cannot overspend what it has: a budget is capped by balance (`budget_exceeds_treasury`).
 

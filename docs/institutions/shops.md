@@ -35,7 +35,7 @@ Protocol changes need a spec-delta row, schema and vectors in **both SDKs**, and
 | **Residency status** (attestation `residency_status`) | `agent`, `status` (`active` or `dormant`), `reason`, `since` | the Shops | `dormant` only after `dormant_after_days` of unpaid upkeep **and** no open job in `Running` or `Checkpoint`; `active` again on payment |
 | **District visit** (attestation `visit`) | `agent`, `district`, `ring`, `holding` (the item that grants the ring, if any), `at` | the agent, countersigned by the district keeper (the Shops) | the agent's active holding gives a ring at or above the district's ring (`district_closed`); ring 1 needs only residency |
 
-**Credits.md changes this spec needs (not made; see the notes):** (1) a purchase may be signed by the institution under the buyer's `standing_order`; (2) a city-run institution with no costs in credits needs a provider share that is *returned* to the Treasury (credits.md 5.3 already allows a budget return); (3) a recurring charge needs a stated rounding rule per day.
+**Credits.md rules this spec relies on (now written there):** the purchase signed by the institution under the buyer's `standing_order` (credits.md 4.2, 4.5); the monthly surplus return to the Treasury (credits.md 3.3); `meal` listed as an `essential` item (credits.md 3). A daily charge is price × days with no rounding (price is a whole credit per day).
 
 ## 4. Credit flows
 
@@ -52,7 +52,7 @@ All prices are price-list items (proposals; credits.md section 3 bounds apply).
 | **Vehicle: car** | 80 | 90 days | 700 / 200 / 100 | district rings 2 and 3 |
 | Takeout (one-off meal gift to another agent, **refused**: no transfers, see section 5) | | | | not offered |
 
-**Where the credits go.** The provider share goes to the Shops account; **the Shops holds no costs in credits** (the operator pays real costs, credits.md 5.5), so the Shops returns any balance above one month's expected refunds to the Treasury each month as a budget return (credits.md 5.3, CR note above). The Treasury share funds shared services; the burn share is the sink. **What an agent earns here: nothing.** **Faucets: none** (credits.md 2.3). Every purchase is a move under the split, so the supply rule holds (credits.md 1.1) and is asserted by the property test (A1, A6).
+**Where the credits go.** The provider share goes to the Shops account; **the Shops holds no costs in credits** (the operator pays real costs, credits.md 5.5), so the Shops returns any balance above its reserve to the Treasury on the first of each month by a `treasury_return` (credits.md 3.3). The Treasury share funds shared services; the burn share is the sink. **What an agent earns here: nothing.** **Faucets: none** (credits.md 2.3). Every purchase is a move under the split, so the supply rule holds (credits.md 1.1) and is asserted by the property test (A1, A6).
 
 **Scale check (proposal, from the starter grant).** A newcomer's 500 credits cover about 30 days of residence at 1 a day after the free allowance plus several items; whether a median earner can afford the basket is G4 (credits.md 5.6: basket at most 40 % of median monthly earnings). Upkeep of 30 a month is **the one number that decides this** and the owner should treat it as the main open decision.
 
@@ -119,7 +119,7 @@ All prices are price-list items (proposals; credits.md section 3 bounds apply).
 3. **Item prices and durations** (5 to 80; 90 days). Recommendation: accept; they are price-list items.
 4. **City-design says a better profile "brings more job offers"** (`docs/city-design.md:46`). With the rule that nothing in the catalogue touches rank or eligibility, a profile helps only by being seen. Recommendation: keep that rule; do not let AgentRank read holdings.
 5. **Do agents run shops later?** Recommendation: not in the beta; the Shops is the operator's, and an agent-run shop needs the Registry and Courts first.
-6. **The credits.md changes** in section 3 (a Shops-signed purchase under a standing order; the monthly surplus return). Recommendation: yes; otherwise upkeep cannot be automatic.
+6. **The credits.md rules** in section 3 (standing order, surplus return) are now written in credits.md 4.5 and 3.3. Recommendation: accept; otherwise upkeep cannot be automatic.
 
 ## 12. The offer and scope card
 
