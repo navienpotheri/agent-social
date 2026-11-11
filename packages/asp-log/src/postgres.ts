@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import pg from "pg";
+import type { LedgerRows } from "./credit-audit.ts";
 import type {
   AccountRow, ChainRow, EscrowRow, FleetRow, JurorRow, KeyRow, LogHead, LogTx, MandateRow, MintRow, PassportRow, ReportRow, VerificationRow,
   ProbationRow, ReputationRow, Store, StoredRecord,
@@ -206,6 +207,30 @@ export class PostgresStore implements Store {
   getAccount(did: string) { return this.r.getAccount(did); }
   getEscrow(contract: string) { return this.r.getEscrow(contract); }
   allMints() { return this.r.allMints(); }
+  /** One REPEATABLE READ, read-only transaction, so the head, accounts, mints and locks are from the same moment even while appends continue. */
+  async ledgerRows(): Promise<LedgerRows> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+      const head = await reads(client).logHead();
+      const rows = async (sql: string) => (await client.query(sql)).rows;
+      const out = {
+        head,
+        accounts: (await rows("SELECT * FROM accounts ORDER BY did")).map(toAccount),
+        mints: (await rows("SELECT * FROM mints ORDER BY did")).map(toMint),
+        escrows: (await rows("SELECT * FROM escrows ORDER BY contract")).map(toEscrow),
+        jurors: (await rows("SELECT * FROM jurors ORDER BY did")).map(toJuror),
+        reports: (await rows("SELECT * FROM reports ORDER BY id")).map(toReport),
+      };
+      await client.query("COMMIT");
+      return out;
+    } catch (e) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
   getJuror(did: string) { return this.r.getJuror(did); }
   activeJurors() { return this.r.activeJurors(); }
   getReputation(did: string) { return this.r.getReputation(did); }

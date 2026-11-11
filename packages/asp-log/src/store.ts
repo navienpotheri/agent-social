@@ -1,5 +1,7 @@
 import type { AspRecord, JobSnapshot } from "@agent-social/asp-core";
 
+import type { LedgerRows } from "./credit-audit.ts";
+
 export const GENESIS_LOG_HASH = `sha256:${"0".repeat(64)}`;
 
 export interface LogHead {
@@ -237,6 +239,8 @@ export interface Store {
   getEscrow(contract: string): Promise<EscrowRow | undefined>;
   /** Every DID's cumulative minted total, as {did, balance}. Used to seed verify()'s replay. */
   allMints(): Promise<AccountRow[]>;
+  /** One consistent, read-only view of the whole ledger (every account, every mint, every lock), for the credit audit (credits.md 6.2, CR-1). Changes nothing. */
+  ledgerRows(): Promise<LedgerRows>;
   getJuror(did: string): Promise<JurorRow | undefined>;
   activeJurors(): Promise<JurorRow[]>;
   getReputation(did: string): Promise<ReputationRow | undefined>;

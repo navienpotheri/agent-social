@@ -2,6 +2,7 @@ import {
   AspError, Job, isNetworkScope, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
 } from "@agent-social/asp-core";
+import { auditLedger, creditFlowsOf, type CreditAudit, type CreditFlows } from "./credit-audit.ts";
 import { bondFloorPermille } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { MemoryStore } from "./memory.ts";
@@ -1111,6 +1112,18 @@ export class EventLog {
       }
     }
   }
+
+  /**
+   * The credit audit (credits.md 1.1, CR-1): the supply rule over every account, lock and mint the store holds, read at one log head.
+   * Read-only; returns figures, never the list of accounts (`ledgerRows` on the store gives that, locally).
+   */
+  async creditAudit(): Promise<CreditAudit> { return auditLedger(await this.store.ledgerRows(), PLATFORM_DID); }
+
+  /**
+   * What the log can say about the credit flows today, from its signed records (credits.md 6.1 `--by-flow`): settlements with what they
+   * released, returned, slashed and charged in fees, optionally from a time. Flows the records do not carry are listed as unavailable.
+   */
+  async creditFlows(since?: string): Promise<CreditFlows> { return creditFlowsOf(this.store, since); }
 
   /** Credits ever minted per DID (not records; a replica needs them to replay Bonds). Local bootstrap, MOCKS.md #13. */
   async mints() { return (await this.store.allMints()).map((m) => ({ did: m.did, amount: m.balance })); }

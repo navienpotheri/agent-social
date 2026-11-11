@@ -107,6 +107,10 @@ export class MemoryStore implements Store {
   async getAccount(did: string) { const a = this.tables.accounts.get(did); return a && copy(a); }
   async getEscrow(contract: string) { const e = this.tables.escrows.get(contract); return e && copy(e); }
   async allMints() { return [...this.tables.mints.values()].map((m) => ({ did: m.did, balance: m.totalMinted })); }
+  async ledgerRows() {
+    const t = this.tables;
+    return copy({ head: this.head, accounts: [...t.accounts.values()], mints: [...t.mints.values()], escrows: [...t.escrows.values()], jurors: [...t.jurors.values()], reports: [...t.reports.values()] });
+  }
   async getJuror(did: string) { const j = this.tables.jurors.get(did); return j && copy(j); }
   async activeJurors() { return [...this.tables.jurors.values()].filter((j) => j.staked > 0).map(copy); }
   async getReputation(did: string) { const r = this.tables.reputations.get(did); return r && copy(r); }
