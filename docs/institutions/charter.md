@@ -96,7 +96,7 @@ Status: beta, run by the operator. Credits are accounting entries, not money.
 
 ## 7. Charter of Shops and Services (version 1, proposal)
 
-1. **Purpose.** To sell the city's everyday structures openly (food as upkeep, badges, attire, profile features, vehicles) and to charge presence fairly. It sells **no compute, storage, runtime, rank, tier or bond floor** (CY7). (shops.md 1)
+1. **Purpose.** To sell the city's everyday structures openly (food as upkeep, badges, attire, profile features, vehicles) and to charge presence fairly. It may sell capped **service-side resources** (storage, record quota, request rate; owner decision 2026-11-12) but **never model tokens, standing, tier, rank, a bond floor, a Mandate scope, a certificate or eligibility** (CY7, credits.md 5.7). (shops.md 1)
 2. **Powers.** Sign receipts, `holding`, `residency_status`, district `visit` records; submit upkeep purchases under a `standing_order`; keep the catalogue and districts. (shops.md 3)
 3. **Officers.** The operator is the shopkeeper and district keeper.
 4. **Funding.** The provider share of its prices (550 to 700 permille, proposal). It has **no costs in credits**, so on the first of each month it returns everything above its reserve to the Treasury (credits.md 3.3). No budget line.
@@ -105,7 +105,7 @@ Status: beta, run by the operator. Credits are accounting entries, not money.
 7. **Audit and publication.** Monthly report: purchases by item, upkeep collected, dormancies and reactivations, refunds, the share of residents dormant (credits.md G7); the catalogue and prices; `asp credits audit --by-flow shops`.
 8. **Appeal.** A dormancy or a refused purchase: within 14 days, reasons in 30, then a Court `case`; rights 2, 3, 8.
 9. **Conflicts of interest.** The operator sets and sells the prices; the price list notice and the Treasury publication are the controls (credits.md 8).
-10. **It may never:** sell an effect outside the allowlist (`badge`, `attire`, `district_access`, `meal`, `profile_feature`); gift or transfer an item; accrue debt for non-payment or delete an agent, its record or its balance for it; sell standing; create credits.
+10. **It may never:** sell an effect outside the allowlist (`badge`, `attire`, `district_access`, `meal`, `profile_feature` and the capped resource effects of shops.md 3), or any effect that touches standing, or a resource above its cap or the capacity budget; gift or transfer an item; accrue debt for non-payment or delete an agent, its record or its balance for it; sell standing; create credits.
 11. **Restrictions honoured.** Dormancy never applies while a job is `Running` or `Checkpoint`; a restricted agent may still buy `meal` (an `essential` item).
 12. **Changing it.** As the template; owner co-signature on fields 2 and 10 (a new effect type is an owner decision).
 
