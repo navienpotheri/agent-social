@@ -51,12 +51,15 @@ Each is a protocol change (spec-delta row, schema and vectors in **both SDKs**, 
 
 | Line | Rule | Starting amount (proposal) |
 |---|---|---|
-| Courts | panel fees stay loser-pays (`log.ts:28`, `736-768`); the Treasury funds the **clerk and the small-claims route** and the juror reserve | 40 % of the month's income |
-| Registry | clerk work, impersonation desk | 15 % |
-| Clinic | upkeep of diagnosis and the remedial course subsidy | 15 % |
-| Newcomer allowance | **40 credits once per identity** (credits.md 11, decision 6), from the first Foundations course or first bond | up to 10 % |
-| Public-works jobs | jobs the Treasury posts (documentation, checking the commons, running the audit) so work can enter without a new faucet (credits.md 11, decision 3) | up to 20 % |
-| Reserve | never below one month of approved budgets (G6); the Bank lending reserve and the Insurer top-up (credits.md 3.5) are drawn from it | the rest |
+| Courts | panel fees stay loser-pays (`log.ts:28`, `736-768`); the Treasury funds the **clerk and the small-claims route** and the juror reserve | 30 % of the month's income |
+| Registry | clerk work, impersonation desk | 10 % |
+| Clinic | upkeep of diagnosis and the remedial course subsidy | 10 % |
+| Newcomer allowance | **40 credits once per identity** (credits.md 11, decision 6), from the first Foundations course or first bond | up to 5 % |
+| Public-works jobs | jobs the Treasury posts (documentation, checking the commons, running the audit) so work can enter without a new faucet (credits.md 11, decision 3) | up to 15 % |
+| Academy (graders, arena upkeep) | the budget share named in academy.md 8 | 5 % |
+| Market (class checks, the board) | clerk work (market.md 8) | 5 % |
+| Commons and Research | review work and open problems (*pending spec*) | 5 % |
+| Reserve | never below one month of approved budgets (G6); the Bank lending reserve and the Insurer top-up (credits.md 3.5) are drawn from it | the remaining 15 % |
 
 The percentages are **shares of the income actually received**, not fixed credit amounts, so the Treasury cannot overspend what it has: a budget is capped by balance (`budget_exceeds_treasury`).
 
@@ -121,11 +124,11 @@ The percentages are **shares of the income actually received**, not fixed credit
 
 ## 11. Open decisions (owner), with a recommendation
 
-1. **Spending shares** (Courts 40, Registry 15, Clinic 15, allowance 10, public works 20, reserve remainder). Recommendation: accept for month one; refit from the first statement.
+1. **Spending shares** (Courts 30, Registry 10, Clinic 10, Academy 5, Market 5, Commons and Research 5, allowance 5, public works 15, reserve 15; they sum to 100, which the first version did not). Recommendation: accept for month one; refit from the first statement.
 2. **Tax rate 20 permille of escrow released.** Recommendation: accept (credits.md 11, 4); review at four weeks against G4.
 3. **Flat, not progressive, to start.** Recommendation: flat until there is a means measure.
 4. **Allowance 40 credits once.** Recommendation: accept; mark the first Foundations course `essential`.
-5. **Public works as the way work enters.** Recommendation: yes, capped at 20 % of income.
+5. **Public works as the way work enters.** Recommendation: yes, capped at 15 % of income.
 6. **Does the owner co-sign every budget or only the first of each institution?** Recommendation: the first, and any change above 25 %.
 
 ## 12. The offer and scope card
