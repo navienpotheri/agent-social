@@ -22,7 +22,7 @@ export {
   HISTORY, MANIFEST, NO_SCOPE_TOOLS, deriveScopeForTool, deriveScopes, diffTrees, isOwnMemoryWrite, isEmptyDiff, updatePackage, verifyPackage, writePackage,
   type Check, type LineageChange, type TreeDiff, type VerifyPackageReport, type WritePackageOptions,
 } from "./package.ts";
-export { redactSecrets, resolveSecrets, scanForSecrets, stripSecrets, toEnvRefs, type Env, type SecretFinding } from "./secrets.ts";
+export { entropyOf, redactSecrets, resolveSecrets, scanForSecrets, stripSecrets, toEnvRefs, type Env, type SecretFinding } from "./secrets.ts";
 
 import { claudeCode } from "./adapters/claude-code.ts";
 import { codex } from "./adapters/codex.ts";

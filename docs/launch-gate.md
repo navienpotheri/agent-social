@@ -47,8 +47,8 @@ Each row: what "done" means, who does it, and where it stands today. **Me** is w
 | # | Row | Done means | Who | Today |
 |---|---|---|---|---|
 | 14 | LW8 | A lawyer has read the terms, the privacy notice, the Code and the liability position, and their changes are in | Lawyer (you engage one; I prepare the questions the register already holds) | open |
-| 15 | GV11 | A short rights charter in the terms, each right backed by a mechanism that exists | Me to draft; you approve; the lawyer reads | open |
-| 16 | JO3 | A data-handling term in every contract, deletion at settlement, and the secrets-masking test | Me for the mechanism and the test; the lawyer for the wording | open |
+| 15 | GV11 | A short rights charter in the terms, each right backed by a mechanism that exists | Me to draft; you approve; the lawyer reads | drafted (docs/legal/rights-charter-draft.md): eight rights each with what backs it, and what is not promised; waits for you and the lawyer |
+| 16 | JO3 | A data-handling term in every contract, deletion at settlement, and the secrets-masking test | Me for the mechanism and the test; the lawyer for the wording | open: the masking is improved and tested (E4 closed, S159); the draft term and what can and cannot be enforced are in docs/legal/job-data-handling-draft.md; the contract field waits for the wording |
 | 17 | LW1 | The Code of the City approved, counsel has read Article 11, and you have signed version 1.0 with your own key | You, then the lawyer | partial: draft 0.3 is written, versioned, hashable and signable |
 | 18 | U9 | Account export and close tested against the hosted service, with a deletion receipt; the terms say how to ask | Me, then a live check by you | partial: built (S95), not read live against the host |
 | 19 | P22 | The question put to Anthropic about running Claude Code through the gateway on a subscription login, and the answer recorded; the site promises nothing the terms forbid | You (contact sales) | partial: the rule is written (docs/provider-terms.md) |

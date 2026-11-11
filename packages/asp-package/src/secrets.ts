@@ -48,6 +48,17 @@ export function resolveSecrets(env: Env | undefined, from: NodeJS.ProcessEnv): {
 const PATTERNS: [string, RegExp][] = [
   ["private key", /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
   ["Anthropic API key", /\bsk-ant-[A-Za-z0-9_-]{20,}/],
+  // The provider keys people actually paste (gap E4): OpenRouter's is hex after its prefix, which the long-token rule below leaves alone as a hash.
+  ["OpenRouter API key", /\bsk-or-v1-[A-Za-z0-9]{32,}/],
+  ["Stripe key", /\b[sr]k_(live|test)_[A-Za-z0-9]{16,}/],
+  ["Hugging Face token", /\bhf_[A-Za-z0-9]{30,}\b/],
+  ["npm token", /\bnpm_[A-Za-z0-9]{36}\b/],
+  ["GitLab token", /\bglpat-[A-Za-z0-9_-]{20,}/],
+  ["Google OAuth token", /\bya29\.[A-Za-z0-9_-]{20,}/],
+  ["SendGrid key", /\bSG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}/],
+  ["DigitalOcean token", /\bdop_v1_[a-f0-9]{64}\b/],
+  ["JSON web token", /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/],
+  ["Azure storage key", /\b(AccountKey|SharedAccessKey)=[A-Za-z0-9+\/=]{20,}/],
   ["OpenAI-style API key", /\bsk-(proj-)?[A-Za-z0-9]{20,}/],
   ["GitHub token", /\b(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}\b|\bgithub_pat_[A-Za-z0-9_]{40,}/],
   ["Slack token", /\bxox[abprs]-[A-Za-z0-9-]{10,}/],
@@ -67,8 +78,30 @@ const COMMAND_PATTERNS: [string, RegExp, string | ((m: string, ...g: string[]) =
   ["Authorization header", /(Authorization:\s*)(Basic|Bearer|Token)\s+\S+/gi, "$1$2 [redacted]"],
   ["secret variable", /\b([A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|PRIVATE_?KEY|ACCESS_?KEY|CREDENTIAL)[A-Za-z0-9_]*)=("[^"]*"|'[^']*'|\S+)/gi, "$1=[redacted]"],
   ["secret flag", /(--?(?:password|passwd|token|secret|api-?key|access-?key)(?:=|\s+))("[^"]*"|'[^']*'|\S+)/gi, "$1[redacted]"],
-  ["long token", /\b(?=[A-Za-z0-9_-]*[A-Za-z])(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{32,}\b/g, (m) => (/^[0-9a-f]+$/.test(m) ? m : "[redacted]")],
+  ["long token", /\b(?=[A-Za-z0-9_-]*[A-Za-z])(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{32,}\b/g, (m) => (/^[0-9a-f-]+$/i.test(m) ? m : "[redacted]")],
+  // A secret written as `name: value` (YAML, JSON without quotes, a config pasted into a prompt), with the name saying what it is.
+  ["secret key: value", /\b([A-Za-z0-9_]*(?:token|secret|password|passwd|api_?key|access_?key|private_?key|credential)[A-Za-z0-9_]*)(["']?\s*:\s*)("[^"\n]{8,}"|'[^'\n]{8,}'|[A-Za-z0-9_\/+=.-]{8,})/gi, "$1$2[redacted]"],
+  // Whatever else looks random (gap E4): a long run of base64 characters with capitals, small letters and digits and the spread of characters a random string has. Plain hex (hashes, UUIDs) and
+  // words in camelCase, which have less spread, are left alone.
+  ["high-entropy token", /[A-Za-z0-9_+\/=]{28,}/g, (m) => (looksRandom(m) ? "[redacted]" : m)],
 ];
+
+/** Shannon entropy in bits a character. */
+export function entropyOf(s: string): number {
+  const counts = new Map<string, number>();
+  for (const c of s) counts.set(c, (counts.get(c) ?? 0) + 1);
+  let h = 0;
+  for (const n of counts.values()) { const p = n / s.length; h -= p * Math.log2(p); }
+  return h;
+}
+
+/** Does this run of characters look like a random secret and not a name, a path or a hash? */
+function looksRandom(s: string): boolean {
+  if (/^[0-9a-fA-F-]+$/.test(s)) return false;                        // a hash, a UUID, a git object id
+  if (!/[A-Z]/.test(s) || !/[a-z]/.test(s) || !/\d/.test(s)) return false;
+  if ((s.match(/\//g) ?? []).length > 1) return false;                // a path (base64 has a slash about one time in sixty-four: two or more is a path)
+  return entropyOf(s) >= 4.3;
+}
 
 /**
  * Masks anything in `text` that looks like a secret, so it can be shown to a person or written to the
