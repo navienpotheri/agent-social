@@ -3,6 +3,7 @@ import {
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
 } from "@agent-social/asp-core";
 import { bondFloorPermille } from "./bond-floor.ts";
+import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { MemoryStore } from "./memory.ts";
 import { DEFAULT_PANEL_SIZE, drawPanel, findRejection } from "./panel.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
@@ -451,29 +452,56 @@ export class EventLog {
    * mechanism. Falls back to the agent's self-declared Passport tier until its first slash.
    * Takes anything with these three reads — a LogTx mid-append, or the Store for a plain query.
    */
-  private async reputation(tx: Pick<LogTx, "getPassport" | "getRecord" | "getReputation">, did: string): Promise<{ tier: number; slashCount: number; strikeLog: StrikeEntry[]; acceptedJobs: number } | null> {
+  private async reputation(tx: Pick<LogTx, "getPassport" | "getRecord" | "getReputation">, did: string): Promise<{ tier: number; slashCount: number; strikeLog: StrikeEntry[]; acceptedJobs: number; qualifyingJobs: number; recentJobs: RecentJob[] } | null> {
     const passport = await tx.getPassport(did);
     if (!passport) return null;
     const existing = await tx.getReputation(did);
-    if (existing) return { tier: existing.tier, slashCount: existing.slashCount, strikeLog: existing.strikeLog, acceptedJobs: existing.acceptedJobs ?? 0 };
+    if (existing) return { tier: existing.tier, slashCount: existing.slashCount, strikeLog: existing.strikeLog, acceptedJobs: existing.acceptedJobs ?? 0, qualifyingJobs: existing.qualifyingJobs ?? 0, recentJobs: existing.recentJobs ?? [] };
     const head = await tx.getRecord(passport.head);
     const body = head?.record.body as { kind: string; tier?: number } | undefined;
     if (body?.kind !== "agent") return null;
-    return { tier: body.tier ?? 1, slashCount: 0, strikeLog: [], acceptedJobs: 0 };
+    return { tier: body.tier ?? 1, slashCount: 0, strikeLog: [], acceptedJobs: 0, qualifyingJobs: 0, recentJobs: [] };
+  }
+
+  /** Writes a reputation row, leaving out the counters while they are 0 so the row reads the same on every store. */
+  private async saveReputation(tx: LogTx, did: string, rep: { tier: number; slashCount: number; strikeLog: StrikeEntry[]; acceptedJobs: number; qualifyingJobs: number; recentJobs: RecentJob[] }): Promise<void> {
+    await tx.putReputation({
+      did, tier: rep.tier, slashCount: rep.slashCount, strikeLog: rep.strikeLog,
+      ...(rep.acceptedJobs > 0 ? { acceptedJobs: rep.acceptedJobs } : {}),
+      ...(rep.qualifyingJobs > 0 ? { qualifyingJobs: rep.qualifyingJobs } : {}),
+      ...(rep.recentJobs.length > 0 ? { recentJobs: rep.recentJobs } : {}),
+    });
   }
 
   /** Demotes a slashed backer by one tier (floor 0) and counts the slash, for its next Bond's risk floor. */
   private async demote(tx: LogTx, did: string): Promise<void> {
     const rep = await this.reputation(tx, did);
     if (!rep) return; // not an agent (or has no passport at all): this mechanism doesn't apply
-    await tx.putReputation({ did, tier: Math.max(0, rep.tier - 1), slashCount: rep.slashCount + 1, strikeLog: rep.strikeLog, ...(rep.acceptedJobs > 0 ? { acceptedJobs: rep.acceptedJobs } : {}) });
+    await this.saveReputation(tx, did, { ...rep, tier: Math.max(0, rep.tier - 1), slashCount: rep.slashCount + 1 });
   }
 
-  /** A job settled `accepted` with nothing slashed counts toward the backer's clean record (the bond floor v2). Agents only, like the rest of reputation. */
-  private async countAcceptedJob(tx: LogTx, did: string): Promise<void> {
-    const rep = await this.reputation(tx, did);
+  /**
+   * A job settled `accepted` with nothing slashed. `acceptedJobs` is the raw count (every such job, as before, kept for display and
+   * for old data). `qualifyingJobs` is what standing reads (the bond floor, the starter grant's rest): the job must be independent
+   * (principal vs performer and backer: not the same, not one sponsor, not one fleet), priced at least QUALIFYING_MIN_PRICE, and within
+   * the counterparty cap (qualifying.ts, credits.md 5.4). Agents only, like the rest of reputation.
+   * Old rows have no `qualifyingJobs`; they read as 0, so jobs counted before this rule do not carry over (the conservative choice).
+   */
+  private async countAcceptedJob(tx: LogTx, backer: string, job: { principal: string; performer: string; price: number; at: string }): Promise<void> {
+    const rep = await this.reputation(tx, backer);
     if (!rep) return;
-    await tx.putReputation({ did, tier: rep.tier, slashCount: rep.slashCount, strikeLog: rep.strikeLog, acceptedJobs: rep.acceptedJobs + 1 });
+    let { qualifyingJobs, recentJobs } = rep;
+    if (job.price >= QUALIFYING_MIN_PRICE) {
+      const facts = async (did: string): Promise<PartyFacts> => { const p = await tx.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+      const principal = await facts(job.principal);
+      const others = [await facts(job.performer), await facts(backer)];
+      if (others.every((o) => independent(principal, o))) {
+        const admitted = admitEligibleJob(recentJobs, principal.sponsor, job.at);
+        recentJobs = admitted.window;
+        if (admitted.counts) qualifyingJobs += 1;
+      }
+    }
+    await this.saveReputation(tx, backer, { ...rep, acceptedJobs: rep.acceptedJobs + 1, qualifyingJobs, recentJobs });
   }
 
   /** Counts an Action's blocked attempts as strikes on the performer (agents only; no demotion, no slash). */
@@ -483,8 +511,7 @@ export class EventLog {
     if (total === 0) return;
     const rep = await this.reputation(tx, r.issuer);
     if (!rep) return;
-    await tx.putReputation({ did: r.issuer, tier: rep.tier, slashCount: rep.slashCount, strikeLog: [...rep.strikeLog.filter((s) => Date.parse(s.at) >= Date.parse(r.issued_at) - STRIKE_WINDOW_MS), { at: r.issued_at, count: total }], ...(rep.acceptedJobs > 0 ? { acceptedJobs: rep.acceptedJobs } : {}),
-    });
+    await this.saveReputation(tx, r.issuer, { ...rep, strikeLog: [...rep.strikeLog.filter((s) => Date.parse(s.at) >= Date.parse(r.issued_at) - STRIKE_WINDOW_MS), { at: r.issued_at, count: total }] });
   }
 
   /**
@@ -642,7 +669,7 @@ export class EventLog {
       }
       const strikePermille = Math.min(RISK_PERMILLE_STRIKE_CAP, strikes * RISK_PERMILLE_PER_STRIKE);
       const riskFloorPermille = this.bondFloor === "v2"
-        ? bondFloorPermille({ ownSlashes: backerRep.slashCount, fleetSlashes, recentStrikes: strikes, verifiedImprovements: 0, acceptedCleanJobs: backerRep.acceptedJobs, regressions: 0 })
+        ? bondFloorPermille({ ownSlashes: backerRep.slashCount, fleetSlashes, recentStrikes: strikes, verifiedImprovements: 0, acceptedCleanJobs: backerRep.qualifyingJobs, regressions: 0 })
         : Math.min(1000, backerRep.slashCount * RISK_PERMILLE_PER_OWN_SLASH + fleetSlashes * RISK_PERMILLE_PER_FLEET_SLASH + strikePermille);
       if (riskFloorPermille > 0) {
         const contract = await tx.getRecord(body.contract);
@@ -789,7 +816,7 @@ export class EventLog {
     await this.credit(tx, cbody.principal, escrowLeftover + slashedToPrincipal + principalReserve);
     await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover + backerReserve);
     if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer);
-    else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer);
+    else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at });
     await tx.putEscrow({ ...escrow, settled: true });
   }
 
@@ -1019,7 +1046,7 @@ export class EventLog {
   juror(did: string) { return this.store.getJuror(did); }
   async reputationOf(did: string) {
     const rep = await this.reputation(this.store, did);
-    return rep && { tier: rep.tier, slashCount: rep.slashCount, strikes: rep.strikeLog.reduce((n, s) => n + s.count, 0), ...(rep.acceptedJobs > 0 ? { acceptedJobs: rep.acceptedJobs } : {}) };
+    return rep && { tier: rep.tier, slashCount: rep.slashCount, strikes: rep.strikeLog.reduce((n, s) => n + s.count, 0), ...(rep.acceptedJobs > 0 ? { acceptedJobs: rep.acceptedJobs } : {}), ...(rep.qualifyingJobs > 0 ? { qualifyingJobs: rep.qualifyingJobs } : {}) };
   }
   mandateOf(contract: string) { return this.store.getMandate(contract); }
   verificationOf(delivery: string) { return this.store.getVerification(delivery); }

@@ -140,6 +140,10 @@ export interface ReputationRow {
   strikeLog: { at: string; count: number }[];
   /** Settlements on basis `accepted` with nothing slashed, for the bond floor v2 (S143); left out while 0, so the row reads the same on every store. */
   acceptedJobs?: number;
+  /** Of those, the jobs that qualify for standing (independent principal, not trivial, within the counterparty cap; qualifying.ts, S161). Standing reads this, not acceptedJobs. Absent on rows written before S161, which reads as 0. */
+  qualifyingJobs?: number;
+  /** The last eligible jobs (by principal sponsor and time), kept for the counterparty cap. */
+  recentJobs?: { p: string; at: string }[];
 }
 
 /**
