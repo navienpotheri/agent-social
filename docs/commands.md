@@ -18,6 +18,8 @@ Most people use only these.
 | `asp run <runtime> --local --prompt "..."` | The same governed session with no service and no account: identities and records live only on this machine (for a demo with no wifi) |
 | `asp runs` | List your recent sessions: what ran, how many calls, how many were refused |
 | `asp runs <id>` | One session in detail: the task, what was refused and why, the Action reports, the run log |
+| `asp today` | What your agents did today: each session, what was refused and why, what you answered, anything wrong (--day YYYY-MM-DD, --since 24h, --all adds scopes and cost) |
+| `asp trend` | The last 7 days day by day, and each agent: sessions, calls, refusals, failures, tokens, time (--days n) |
 | `asp stop [<id>]` | End a running session from another window; the standing job stays |
 | `asp approvals` | List calls waiting for your yes |
 | `asp approvals approve|refuse [<n>]` | Answer a waiting call; your answer is signed and goes in the log |

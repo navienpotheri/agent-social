@@ -288,6 +288,7 @@
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { buildToday, buildTrend, periodOf, renderToday, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
@@ -371,6 +372,7 @@ const OPTIONS = {
   window: { type: "string" },
   "draft-by": { type: "string" },
   all: { type: "boolean" },
+  day: { type: "string" },
   spare: { type: "boolean" },
   blocked: { type: "string", multiple: true },
   report: { type: "string" },
@@ -759,6 +761,8 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "account") return await accountCmd(sub, v, io, home);
     if (cmd === "join") return await joinCmd(home, v, io);
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
+    if (cmd === "today") return todayCmd(home, v, io);
+    if (cmd === "trend") return todayCmd(home, v, io, true);
     if (cmd === "stop") return await stopCmd(home, sub, v, io);
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
     if (cmd === "approvals") return await approvalsCmd(home, sub, rest, v, io);
@@ -3742,7 +3746,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       }
       const out: Record<string, unknown> = { claim, grade };
       if (evidence) {
-        const [uri, sha256] = evidence.split("=");
+        const cut = evidence.lastIndexOf("="); const [uri, sha256] = cut < 0 ? [evidence, ""] : [evidence.slice(0, cut), evidence.slice(cut + 1)];
         if (!uri || !sha256) throw new UsageError(`a claim's evidence must be <uri>=<sha256>, got "${evidence}"`);
         out.evidence = { uri, sha256: sha256.startsWith("sha256:") ? sha256 : `sha256:${sha256}` };
       }
@@ -3992,7 +3996,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     }
     if (v.artifact?.length) {
       body.artifacts = v.artifact.map((entry) => {
-        const [uri, sha256] = entry.split("=");
+        // Split at the last "=": the hash has none, and a URI may (asp://run-log/3?run=<id>).
+        const cut = entry.lastIndexOf("="); const [uri, sha256] = cut < 0 ? [entry, ""] : [entry.slice(0, cut), entry.slice(cut + 1)];
         if (!uri || !sha256) throw new UsageError(`--artifact must be <uri>=<sha256>, got "${entry}"`);
         return { uri, sha256: sha256.startsWith("sha256:") ? sha256 : `sha256:${sha256}` };
       });
@@ -4929,6 +4934,25 @@ const ago = (iso: string) => { const s = Math.max(0, Math.round((Date.now() - Da
 function pidAlive(pid: number): boolean {
   try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; }
 }
+/**
+ * asp trend [--days 7]: the same day-by-day and agent-by-agent (gap D8). asp today [--day YYYY-MM-DD | --since 24h] [--all]: what your agents did in a day, what was refused and why, what you answered, and whether anything is wrong (gap T14, docs/daily-view.md).
+ * Read from this machine's session index and run logs, and said to be so.
+ */
+function todayCmd(home: string, v: Values, io: Io, trend = false): number {
+  const sessions: DaySession[] = sessionsOf(home).map((s) => ({ start: s.start, ...(s.end ? { end: s.end } : { alive: !!s.start.pid && pidAlive(s.start.pid) }) }));
+  const eventsOf = (s: DaySession) => {
+    const p = s.end?.runLog;
+    if (!p || !existsSync(p)) return undefined;
+    const r = readRunLog(p);
+    return r.ok ? r.events : undefined;
+  };
+  if (trend) { for (const l of renderTrend(buildTrend(sessions, eventsOf, Number(v.days ?? 7)))) io.out(l); return 0; }
+  const period = periodOf({ day: v.day, since: v.since });
+  const lines = renderToday(buildToday(sessions, eventsOf, period), { ...period, all: !!v.all });
+  for (const l of lines) io.out(l);
+  return 0;
+}
+
 /** asp runs [--all] | asp runs <id>: what your governed sessions did, and what was refused. */
 async function runsCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
   const all = sessionsOf(home);

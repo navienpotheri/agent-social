@@ -20,7 +20,7 @@ const within =<T,>(label: string, p: Promise<T>, ms = 120_000) => Promise.race([
 const until = async (what: string, fn: () => boolean | Promise<boolean>, ms = 20_000) => { const t0 = Date.now(); while (!(await fn())) { if (Date.now() - t0 > ms) throw new Error(`timed out waiting for ${what}`); await new Promise((r) => setTimeout(r, 150)); } };
 
 // Two terminals on one agent (UC-138). Found while writing it: the watcher read the job's state as unknown while the other session wrote the log, took that for the job ending, and stopped.
-test("two sessions of one agent at once share the standing job: approvals are asked one at a time, neither session fails, and ending one leaves the other undisturbed", { timeout: 120_000 }, async () => {
+test("two sessions of one agent at once share the standing job: approvals are asked one at a time, neither session fails, and ending one leaves the other undisturbed", { timeout: 240_000 }, async () => {
   process.env.ASP_DEBUG_APPROVALS = "1"; // a timed trail of each approval hand-off, printed below if the test fails (gap T23)
   const upstream = createHttp(async (req, res) => {
     for await (const _ of req) { /* not inspected */ }

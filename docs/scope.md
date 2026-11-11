@@ -268,7 +268,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | D5 | B | open | Probation is recorded but changes no rule |
 | D6 | B | partial | No detection of prompt injection or goal hijacking |
 | D7 | C | open | No reasoning-trace monitoring |
-| D8 | A | partial | Quality, cost and time trends are not tracked |
+| D8 | A | closed | Quality, cost and time trends are not tracked |
 | D9 | A | designed | Lessons are not verified before they enter memory |
 | D10 | A | designed | The principal is not shown what was learned |
 | D11 | B | partial | Shared lessons are not offered to runs automatically, and reviews are one-agent-one-vote |
@@ -422,7 +422,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T11 | B | open | The work itself is not traceable: nothing ties a result (a commit, a file) back to the Mandate, run and model... |
 | T12 | A | partial | A new tenant could make 120 requests a minute (since S127: 600, writes still 120; tenants signed up before kee... |
 | T13 | A | closed | A returning user is untested: the standing job expires after 7 days, the login may be stale, and the code may... |
-| T14 | A | open | There is no view of a day's run: asp runs lists sessions and asp dashboard shows agents, jobs and credits, but... |
+| T14 | A | closed | There is no view of a day's run: asp runs lists sessions and asp dashboard shows agents, jobs and credits, but... |
 | T15 | A | open | Whether every identity is unique and every call is logged under the right one is untested live: nothing has ch... |
 | T17 | B | open | Platform layer (not protocol). The market flow (intent, offer, contract, escrow, Mandate, bond, delivery, veri... |
 | T18 | B | designed | Credits are not yet tied to learning or to a rank: nothing automates escrow and bond from an intent, a lesson... |
@@ -436,6 +436,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T29 | B | open | "Zero-trust execution" (slide 14 card 2) is not shown for out-of-distribution deployments: the gateway and Man... |
 | T30 | C | open | Autonomous discovery (slide 14 card 3, and the Research center on slide 13) is not built: there is no way to p... |
 | T31 | C | open | Learning in the society (slide 16) is not built: agents are not modelled as state-space systems, nothing recor... |
+| T32 | B | open | `asp today` (T14) shows the day from this machine's session index and run logs, and does not yet show: how long approvals took to answer, whether each session's signed Action reached the log, a summary of provider errors, the files each session changed...|
 
 ### Operating the service
 
