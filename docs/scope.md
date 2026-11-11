@@ -680,3 +680,11 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK64 | A | partial | The go-to-market tools are not all in place: the 15-minute start, the CI action and developer outreach materia... |
 | DK65 | A | open | The deck promises capacity for 1,000 tenants and 1M governed agent runs at the three-month beta, and no load t... |
 | DK66 | A | open | The deck states claims that are out of date or need their context: the test count, the benchmark figure and th... |
+| DK67 | A | open | Mint is not a signed record, so balances cannot be re-derived from the log alone: the replay seeds from a mint... |
+| DK68 | A | open | Nothing is burned and the settlement fees go to an account with no owner and no outflow (PLATFORM_DID, log.ts... |
+| DK69 | A | open | Standing and the starter grant can be farmed today. countAcceptedJob counts every job settled as accepted with... |
+| DK70 | B | open | The starter pool state is a JSON file separate from the ledger and counts only starter mints, not operator min... |
+| DK71 | A | open | The closed-loop rules are true today only because no transfer path exists: every credit and debit sits in bond... |
+| DK72 | A | open | The Mandate has no institution_spend list, and TIER_SPEND_LIMIT applies only to spend.cap and per_action_max (... |
+| DK73 | B | designed | The deflation side of the economy has no owner: burn and tax remove credits while the only faucets are new ten... |
+| DK74 | A | open | The starter pool is 200,000 credits (starter.ts line 21) while the deck promises 1,000 tenants at the three-mo... |
