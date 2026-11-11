@@ -3923,6 +3923,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const head = chain.at(-1);
     const open = [...chain].reverse().find((s) => s.kind === "checkpoint");
     if (!head || !open) throw new Error(`contract ${contract} has no Checkpoint to resolve`);
+    // An answer is about the Checkpoint the person was shown. If the job has moved on since (another was raised, or this one was answered), say so and write nothing: a stale answer must not close a newer request.
+    if (v.about && v.about !== open.id) throw new Error(`that Checkpoint is no longer the open one (the job has moved on); look again with asp approvals`);
     const body: Record<string, unknown> = { kind: "checkpoint_resolution", about: v.about ?? open.id, verdict };
     if (v.correction) body.correction = v.correction;
     const record = createRecord({ type: "attestation", issuer: by, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(by));
@@ -5308,7 +5310,7 @@ async function approvalsCmd(home: string, sub: string | undefined, rest: string[
   if (pick.length > 1) { for (const o of open) io.out(`  ${o.n}  ${o.question}`); throw new Error("more than one is waiting; asp approvals approve <n>"); }
   const o = pick[0];
   const out: string[] = [], err: string[] = [];
-  const code = await main(["market", "resolve", "--contract", o.contract, "--by", o.principal, "--verdict", sub === "approve" ? "approved" : "corrected", ...(sub === "approve" ? [] : ["--correction", "refused by you"])], { out: (l) => out.push(l), err: (l) => err.push(l), env: logEnv, cwd: io.cwd });
+  const code = await main(["market", "resolve", "--contract", o.contract, "--by", o.principal, "--about", o.checkpoint, "--verdict", sub === "approve" ? "approved" : "corrected", ...(sub === "approve" ? [] : ["--correction", "refused by you"])], { out: (l) => out.push(l), err: (l) => err.push(l), env: logEnv, cwd: io.cwd });
   if (code) throw new Error(`could not record your answer: ${(err.join("\n") || out.join("\n")).trim().slice(0, 300)}`);
   io.out(`${sub === "approve" ? "approved" : "refused"}: ${o.question}`);
   void cfg;
@@ -5471,6 +5473,7 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     trail(`${req.id}: Checkpoint ${checkpoint.id.slice(7, 15)} raised`);
     o.io.err(`  APPROVAL NEEDED  ${req.scope}: ${shown}${masked.redacted ? "  (secret-looking text was masked)" : ""}`);
     o.io.err(`    answer with: asp market resolve --contract ${o.contract} --by ${principal} --verdict approved`);
+    let lastTrace = 0;
     for (;;) {
       // The run is over: wait out a nearly-expired request, but leave a far-off one open (it can be answered, or expired later).
       if (stopped && expiresMs + 1000 - Date.now() > 10_000) {
@@ -5481,13 +5484,27 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
       const fresh = await retry(() => openLog(o.home, logEnv));
       // Only the job's state is polled (one cheap request): while it is still Checkpoint nobody has answered. The whole chain is read when the state changes. Reading it every second grew with
       // the job and, with two terminals, ran into the service's request limit (found live, UC-138).
-      if (Date.now() < expiresMs + 1000 && (await retry(() => fresh.log.chainInfo(o.contract)))?.state === "Checkpoint") continue;
+      const polledAt = Date.now();
+      const state = (await retry(() => fresh.log.chainInfo(o.contract)))?.state;
+      if (process.env.ASP_DEBUG_APPROVALS && (Date.now() - polledAt > 2000 || Date.now() - lastTrace > 5000)) { lastTrace = Date.now(); trail(`${req.id}: polling: state ${state}, the read took ${Date.now() - polledAt} ms`); }
+      if (Date.now() < expiresMs + 1000 && state === "Checkpoint") continue;
       const chain = await retry(() => marketChain(fresh.log, o.contract));
       const at = chain.findIndex((x) => x.id === checkpoint.id);
       const resolution = chain.slice(at + 1).find((x) => {
         const b = x.record.body as { kind?: string; about?: string };
         return x.record.type === "asp.attestation/v0.2" && b.kind === "checkpoint_resolution" && b.about === checkpoint.id;
       });
+      if (!resolution && process.env.ASP_DEBUG_APPROVALS && Date.now() - lastTrace > 5000) {
+        lastTrace = Date.now();
+        const about = chain.filter((x) => x.record.type === "asp.attestation/v0.2" && (x.record.body as { kind?: string }).kind === "checkpoint_resolution").map((x) => `${String((x.record.body as { about?: string }).about).slice(7, 15)}:${(x.record.body as { verdict?: string }).verdict}`);
+        trail(`${req.id}: state ${state} but no answer about ${checkpoint.id.slice(7, 15)} yet; position ${at} of ${chain.length}; resolutions in the chain are about: ${about.join(", ")}`);
+      }
+      if (!resolution && state !== "Checkpoint" && at >= 0 && chain.slice(at + 1).some((x) => x.record.type === "asp.attestation/v0.2" && (x.record.body as { kind?: string }).kind === "checkpoint_resolution")) {
+        // The job is running again and an answer was written after this Checkpoint, but it is not about this one: some other answer closed it. Not approved, and not left waiting for a yes that cannot come.
+        trail(`${req.id}: the Checkpoint was closed by an answer about another request: refused`);
+        o.io.err(`  approval closed for ${req.scope}: the Checkpoint was closed by an answer that was not about this request, so the call was refused; ask for it again if it is still wanted`);
+        return decide(req.id, { approved: false, reason: "the Checkpoint was closed by an answer that was not about this request; the call was not approved" });
+      }
       if (!resolution) {
         if (Date.now() < expiresMs + 1000) continue;
         const expired = createRecord({

@@ -224,3 +224,26 @@ test("an exact command the person said always to is not asked about again, even 
   const [res] = await Promise.all([run(f, job, [READ, other]), answerWhenAsked(f, job.id, "approved")]);
   assert.match(res.err, /APPROVAL NEEDED\s+shell\.exec: echo different/);
 });
+
+// Gap T23: an answer is about the Checkpoint the person was shown. Found while chasing the two-sessions hang: `market resolve` answered "the latest Checkpoint", so an answer meant for an earlier one could close a later one.
+test("an answer that names a Checkpoint the job has moved past is refused and writes nothing; the open one is closed by an answer that names it", async () => {
+  const f = makeFixture();
+  const job = await gatedJob(f, ["--gate", "shell.exec"]);
+  const raise = async (question: string) => /^checkpoint (\S+) on contract/.exec((await asp(f, ["market", "checkpoint", "--contract", job.id, "--by", CODER, "--question", question, "--summary", "npm run build"])).out)![1];
+  const first = await raise("May coder run Bash (shell.exec)? one");
+  assert.equal((await asp(f, ["market", "resolve", "--contract", job.id, "--by", ALICE, "--about", first, "--verdict", "approved"])).code, 0);
+  const second = await raise("May coder run Bash (shell.exec)? two");
+  assert.notEqual(first, second);
+  assert.equal(await stateOf(f, job.id), "Checkpoint");
+
+  // A stale answer, still naming the first, is refused: the second stays open.
+  const stale = await asp(f, ["market", "resolve", "--contract", job.id, "--by", ALICE, "--about", first, "--verdict", "approved"]);
+  assert.equal(stale.code, 1);
+  assert.match(stale.err, /no longer the open one/);
+  assert.equal(await stateOf(f, job.id), "Checkpoint", "nothing was written: the second Checkpoint is still waiting");
+
+  // The answer that names the open one closes it.
+  const resolved = await asp(f, ["market", "resolve", "--contract", job.id, "--by", ALICE, "--about", second, "--verdict", "approved"]);
+  assert.equal(resolved.code, 0, resolved.err);
+  assert.equal(await stateOf(f, job.id), "Running");
+});

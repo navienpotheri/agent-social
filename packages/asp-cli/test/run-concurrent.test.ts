@@ -51,6 +51,9 @@ test("two sessions of one agent at once share the standing job: approvals are as
     const call = async (args: string[]) => {
       const out: string[] = [], err: string[] = [];
       const code = await main(args, { out: (l) => out.push(l), err: (l) => { err.push(l); if (args[0] === "run") live.push(`${new Date().toISOString().slice(11, 23)} [${args[3]}] ${l}`); }, env, cwd: f.root, raw: (b) => out.push(b.toString("utf8").trimEnd()) } as Io);
+      // Every answer the test gives, and every look at what is waiting that finds something, with the time and what came back: which answer went where is the question (gap T23).
+      if (args[0] === "approvals" && (args[1] === "approve" || args[1] === "refuse" || /npm run build/.test(out.join("")))) live.push(`${new Date().toISOString().slice(11, 23)} [test] asp ${args.join(" ")} -> exit ${code}: ${(out.join(" ") + " " + err.join(" ")).trim().slice(0, 160)}`);
+      if (args[0] === "stop") live.push(`${new Date().toISOString().slice(11, 23)} [test] asp ${args.join(" ")} -> exit ${code}`);
       return { code, out: out.join("\n"), err: err.join("\n") };
     };
     // Answering can fail for a moment on a busy machine (the service is slow to answer); a person just tries again, so the test does too, and shows the real error if it keeps failing.
