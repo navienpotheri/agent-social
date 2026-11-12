@@ -139,7 +139,7 @@ export interface SimAgent { agent: string; digests: DigestView[]; consentedSigna
  * A simulated society of `n` agents around one shock (the worked example's price change): each consented agent reports all nine signals for a day before and a day after, from a seeded generator. The numbers are
  * simulated, not measured. An agent whose consent omits a signal produces no entry for it, and its collector never reads that source.
  */
-export function simulateSociety(seed: number, n: number, opts: { truth: Record<string, 0 | 1>; prior: Record<string, number>; eventRef: string; consentFor?: (i: number) => Signal[] }): SimAgent[] {
+export function simulateSociety(seed: number, n: number, opts: { truth: Record<string, 0 | 1>; prior: Record<string, number>; eventRef: string; consentFor?: (i: number) => Signal[]; /** A simulation parameter for a mechanism under test: added to every agent's skill (an assumption, not a finding). */ skillBoost?: (i: number) => number }): SimAgent[] {
   const rand = rng(seed);
   const props = Object.keys(opts.prior);
   return Array.from({ length: n }, (_, i) => {
@@ -148,7 +148,7 @@ export function simulateSociety(seed: number, n: number, opts: { truth: Record<s
     const consent: ConsentView = { signals: [...signals], purposes: ["L7-belief-recalibration"], from: "2026-11-01T00:00:00Z", until: "2026-12-31T00:00:00Z", revoked: false, agentCountersigned: true };
     const digests: DigestView[] = [];
     // The agent's skill: how far it moves toward the truth after the shock.
-    const skill = 0.3 + 0.6 * rand();
+    const skill = Math.max(0.05, Math.min(0.95, 0.3 + 0.6 * rand() + (opts.skillBoost?.(i) ?? 0)));
     let b0: Record<string, number> | undefined;
     let b1: Record<string, number> | undefined;
     for (const [day, phase] of [["2026-11-10", "before"], ["2026-11-14", "after"]] as const) {

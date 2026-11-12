@@ -39,3 +39,4 @@ export { INSURER_DID, PREMIUM_SPLIT, reserveFloor, premiumFor, payoutFor, FLOOR_
 export { RESEARCH_DID, SUBMIT_SERVICE, RESEARCH_CATALOGUE, MAX_SUBMISSIONS_PER_PROBLEM, DEFAULT_SPLIT, runChecker, sha256Text, board as researchBoard, researchReconciliation, runResearch, type ProblemView, type ResearchRun } from "./research.ts";
 export { SIGNALS, ENTRY_KEY, MAX_RETENTION_DAYS, MIN_CALIBRATION_N, RESOLVERS, Collector, mayCollect, brier, surprisal, meanSurprisal, klBits, normativePosterior, calibration as calibrationOf, beliefDiff, merkleRoot, textHash, buildDigest, lensRecalibration, simulateSociety, rng, round3, type Signal, type ConsentView, type DigestView, type SimAgent } from "./telemetry.ts";
 export { TELEMETRY_DID } from "./telemetry-rules.ts";
+export { intakeProblems, ruleHash, armOf, runMechanism, type MechanismEntry, type Decision } from "./pipeline.ts";

@@ -1,0 +1,30 @@
+{
+  "mechanism": "swat-latent-channel",
+  "paper": "P22",
+  "cite": "Swarm Telepathy (SwaT): cross-family KV-cache transfer between agents (Alabdulkareem, Tenison, Zhang, Zhu, Katz, Gutfreund; MIT CSAIL, MIT-IBM Computing Research Lab), arXiv number and date not legible, project page github.com/Ar-Kareem/SwaT as printed",
+  "source_credit": "docs/lenses/papers.md P22 (image IMG_6909)",
+  "licence": {
+    "status": "unknown",
+    "code_reused": false
+  },
+  "flag": "mechanism.swat_latent_channel",
+  "lens": "L4-cooperative-ai",
+  "cells": [
+    "forum:act",
+    "market:transact",
+    "courts:perceive"
+  ],
+  "rule": {
+    "metric": "median_efficiency",
+    "min_delta": 0.05,
+    "kill_delta": -0.02,
+    "min_agents_per_arm": 50
+  },
+  "rule_sha256": "sha256:1752ead854719ae304c91adeb8a2d1a53c7fbf8fa74a3da658a3c1d67ca94a3a",
+  "seed": 11,
+  "simulated": true,
+  "note": "not run: the mechanism needs open-weight models and white-box access, which the API cohort cannot provide (DK90)",
+  "measures": null,
+  "decision": "deferred",
+  "reason": "needs open-weight models with white-box access, which the API cohort cannot give: no experiment was run (DK90)"
+}
