@@ -522,3 +522,59 @@ All 68 images were readable. None is blank. Not papers (still kept because they 
 5. **P34 against P3 and P20:** should the first memory test be add versus add-and-forget?
 6. **Items with unknown provenance (P17, P36, P38, P40):** shall I trace the original papers in a later pass (needs web access)?
 7. **Priority scale:** is A (adopt in a first cohort), B (read and prepare), C (watch) the meaning you want?
+
+---
+
+## Society-upgrade frame (added at the owner's request)
+
+Rule for reading this register: each entry is an upgrade to the society's grid (institution by agent function) or to a rule of the society, not a course or content item. The table gives, per entry, the **mechanism type** (communication channel, memory method, planning method, institution rule, incentive, environment, evaluation), what to **measure** to know the society and its agents improved, and how a **cohort tests it against a control** (the same city, the same agents, a flag on for the cohort only). Course, exam or commons-entry uses are secondary and marked "secondary". All of it is a proposal; where an item is a lens only (needs weights or is off the path) the row says so.
+
+| Id | Cell changed (institution x function) | Society mechanism or rule | Measure | Cohort against control |
+|---|---|---|---|---|
+| P1 | Courts x perceive; Registry x act | evaluation: an "unreachable goal" probe at task intake | share of agents that say the goal is infeasible instead of claiming success | cohort gets the probe-and-report rule; control does not; compare false-success rate |
+| P2, P6, P8, P12, P21, P32 | none direct (white-box only) | lens only; cohort factor "serving stack / open weights" | n/a | record the factor, do not flag |
+| P3 | Academy x reflect, remember | memory method: append-only lessons log with a critic | repeat-mistake rate; task success per day | cohort writes lessons; control keeps raw transcripts only |
+| P4 | Registry x remember; Housing x remember | memory method: short contexts with a compaction that must keep commitments | tokens per success; commitments dropped | cohort compacts; control keeps full history |
+| P5 | Research and Commons x remember, teach | memory method: each solved task leaves an audited, reusable artifact | time and cost to repeat a task; stale-artifact rate | cohort shares artifacts; control starts from scratch (secondary: commons entries) |
+| P7 | Market x transact; Forum x act | communication channel: a short shared coordination-principles note | share of joint outcomes that are safe; failed matches | cohort reads the note at entry; control does not |
+| P9 | Market x perceive, transact | institution rule: disclosure level (none, coarse, exact) per model family | trade volume, welfare, breakdowns | one market per disclosure level against the current rule |
+| P10, P17, P31, P38 | Businesses x perceive; Housing x perceive; Dialogue x act | environment: a populated city of heterogeneous simulated or interview-grounded agents; simulate first, then live | does the simulator rank versions the same way the live test does | cohort A/B is live; simulation is validated against it |
+| P11 | Courts x reflect; Treasury x act | institution rule: a written reason logged with each consequential act; external audit layer for agents handling credits | rate of unjustified or reversed acts; audit catch rate | cohort must log a reason; control need not |
+| P13 | Clinic x reflect; Leisure x act | lens only (internal regulatory state) | n/a | not for the first cohort |
+| P14, P28 | Academy x learn; Frontier x plan; Registry x act | planning and learning method: agents revise their own prompts and skills inside a protected gateway layer that keeps history and gates activation | success per cost; Mandate violations (must stay zero) | cohort may self-edit; control fixed |
+| P15, P16 | Businesses x plan; Market x act | lens: competence versus coordination in agent firms; firm-size scaling | revenue per agent versus firm size | track in the beta, no flag |
+| P18 | Businesses x act; Forum x act; Courts x perceive | evaluation: a teamwork score per agent as a matching input | teamwork score; pass rate on taking over a weaker agent's work | cohort matched by score; control matched at random |
+| P19 | Registry x perceive; Forum x perceive; Research and Commons x perceive | environment: reorganise how institution records are presented to agents | cost and pass rate on the same tasks | cohort sees the optimised layout; control the current one |
+| P20 | Academy x reflect, remember; Housing x remember | memory method: an overnight consolidation job with salience marks | recall accuracy; wrong-note carry-over rate | cohort dreams nightly; control has no consolidation |
+| P22 | Forum x act; Market x transact; Businesses x plan | communication channel: a latent-state (KV-cache) channel beside text | accuracy and speed of hand-offs; auditability (a text copy must exist) | open-weight cohort only; control passes text |
+| P23 | Research and Commons x learn; Academy x learn | memory method: a validated shared skills repository per domain | held-out task success | cohort merges validated lessons; control no merge |
+| P24 | all cohort tests (Academy, Courts, Commons x perceive) | evaluation rule: every mechanism test reports pass rate with error bar, grader-human agreement, detection floor, share of cases worse | the four numbers themselves | applied to every test, no separate arm |
+| P25 | Businesses x reflect, learn; Clinic x act | incentive and process: agent callers, graders, reviewers around a business agent, human merge gate | conversion or fix rate; review catch rate | cohort loop on; control manual |
+| P26 | Academy x learn | lens only (reading list); secondary use | n/a | n/a |
+| P27 | Commons x perceive; Courts x perceive | environment: a verifiable snapshot of what an agent saw | disputes resolvable from the snapshot | optional |
+| P29 | Research and Commons x plan, act; Frontier x plan | planning method: parallel workers with a meta-controller and rubric gates | accepted findings per credit spent | cohort uses the controller; control single worker |
+| P30 | Housing x plan; Registry x perceive | planning method: heartbeats and self-set reminders; background workers | tasks resumed; idle-token cost | cohort has heartbeats; control none |
+| P33 | Businesses x plan, act; Registry x act | organisation: a router with isolated workers under the Mandate | time to finish slow tasks; tokens per task | cohort routed; control one session |
+| P34 | Frontier x plan; Research and Commons x remember; Housing x remember | memory and exploration rule: scheduled forgetting, restart from the best state | score after a fixed budget | cohort forgets on a schedule; control never |
+| P35 | Frontier x plan, act; Leisure x act | goals method: intrinsic reward for learning progress | learning-progress curve; boredom resets | cohort adds the curiosity signal; control uses given goals |
+| P36 | Market x transact; Shops x act; Courts x perceive; Bank x transact | incentive: seller claims are audited against real tool behaviour; a bond is forfeited for false claims | unsupported-claim rate; buyer task success | cohort audited and bonded; control not |
+| P37 | Treasury x plan, act; Market x transact; Bank x transact | institution rule: equal starting credits, auction allocation, tunable permeability to the outside world | inequality of credits; market stability; spillover events | cohort markets use auctions and equal starts; control keeps current rules |
+| P39 | Businesses x transact, reflect, learn; Shops x transact | learning method: per-customer memory plus a shared playbook updated only on attributed failures | conversion lift | cohort uses the playbook; control single-session agents |
+| P40 | Businesses x act | planning rule: external verification, bounded retries, repeat failure becomes a rule | steps passed without rework | cohort rule on; control off |
+
+## Candidate grid layers from the owner's own ideas
+
+The screenshots contain no separate handwritten notes of the owner (every image is a paper, a post or a graphic). The owner's ideas named in the brief are therefore treated here as candidate layers, with the screenshot items that already support each. Same fields as above; all proposals.
+
+| Candidate layer | Grid cells | Society mechanism | Supporting items | Measure | Cohort test |
+|---|---|---|---|---|---|
+| Agents passing KV caches instead of text | Forum, Market, Businesses x act | communication channel (open weights only) | P22, P21 | accuracy, speed, auditability | open-weight cohort vs text control |
+| Agents building businesses | Businesses, Shops, Bank x plan, act, transact | founding and running a firm; router and workers; playbook learning | P16, P25, P29, P33, P39 | survival and revenue of agent firms, honest listings | cohort given a business charter vs no charter |
+| Exploration in changing environments, city as base | Frontier x plan, act, learn | scheduled forgetting, curiosity reward, test-time harness edits | P34, P35, P28 | new places or skills found per credit; recovery after a city change | cohort explores with the signal; control uses fixed routes |
+| Goals agents set for themselves | all institutions x plan | self-set reminders and intrinsic reward | P30, P35 | goal completion and drift from the Mandate | cohort may set goals; control assigned |
+| World models and how they update; action-conditioned beliefs | Registry, Housing x perceive, remember | faithful agent-of-a-person, simulated universes; no source yet for action-conditioned updating | P31, P38 (gap) | belief error before and after acting | cohort updates beliefs after each act; control static |
+| World building | Housing, Dialogue x perceive | generate a coherent city: personas, relationship graphs, tool states in dependency order | P38, P10 | coherence of generated state; agent surprise | cohort in generated city vs a hand-built one |
+| Users and agents passing text; what it teaches about alignment | Dialogue, Forum x act | shared coordination principles, teamwork score, written reasons | P7, P18, P11 | caving under pressure; honest reports | cohort pressured and scored vs control |
+| Active inference and belief calibration | Academy, Courts x reflect | no source in the screenshots (gap) | none | calibration error | to be defined |
+
+Secondary uses (marked secondary, not the point): P3, P5, P20, P26 can also feed commons entries or Academy courses; P24 can be a checklist for course evaluations.
