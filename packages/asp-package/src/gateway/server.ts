@@ -151,7 +151,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const pendingUsed = new Set<string>();
   const pendingBlocked = new Map<string, number>();
   const pendingArtifacts = new Map<string, { uri: string; sha256: string }>();
-  const tokens: { input: number; output: number; text: string } = { input: 0, output: 0, text: "" };
+  const tokens: { input: number; output: number; text: string; model?: string; fingerprint?: string } = { input: 0, output: 0, text: "" };
   const rec = opts.runLog;
   let lastActivity = Date.now();
   const limiter: Limiter = opts.rateLedger ? new SharedRateLimiter(opts.rateLedger) : new RateLimiter();
@@ -179,12 +179,15 @@ export function createGateway(opts: GatewayOptions): Gateway {
   };
   // Totals at the last drain, and the models seen since, so each Action carries its own interval's figures.
   const last = { requests: 0, toolCalls: 0, input: 0, output: 0, at: Date.now() };
-  const modelsSeen = new Map<string, { name: string; provider?: string }>();
-  const noteModel = (name: unknown, upstream: string | undefined) => {
+  const modelsSeen = new Map<string, { name: string; provider?: string; digest?: string }>();
+  const noteModel = (name: unknown, upstream: string | undefined, ran?: { model?: unknown; fingerprint?: unknown }) => {
     if (typeof name !== "string" || !name) return;
     let provider: string | undefined;
     try { provider = upstream ? new URL(upstream).host : undefined; } catch { /* not a URL */ }
-    modelsSeen.set(`${provider ?? ""}|${name}`, { name, ...(provider ? { provider } : {}) });
+    // What was asked for is a name; what the provider says ran is the resolved model and, for providers that give one, the backend fingerprint (D4): the digest. The reply's own words win over the request's.
+    const resolved = typeof ran?.model === "string" && ran.model ? ran.model : name;
+    const fp = typeof ran?.fingerprint === "string" && ran.fingerprint ? ran.fingerprint : undefined;
+    modelsSeen.set(`${provider ?? ""}|${name}`, { name: resolved, ...(provider ? { provider } : {}), ...(fp ? { digest: `fingerprint:${fp}` } : {}) });
   };
   let requests = 0, unjudged = 0, strikes = 0, toolCalls = 0;
   let stopped: string | undefined;
@@ -381,6 +384,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/chat/completions`, { method: "POST", headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
       await relayOpenaiStream(up.body, res, decide, tokens);
+      noteModel(body.model, opts.openaiUpstream, { model: tokens.model, fingerprint: tokens.fingerprint }); tokens.model = undefined; tokens.fingerprint = undefined;
       endModelCall(snap, tokens.text);
       if (tokenCapHit()) stop("token cap reached");
       return;
@@ -391,6 +395,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const reply = JSON.parse(text);
     tokens.input += reply.usage?.prompt_tokens ?? 0;
     tokens.output += reply.usage?.completion_tokens ?? 0;
+    noteModel(body.model, opts.openaiUpstream, { model: reply.model, fingerprint: reply.system_fingerprint });
     endModelCall(snap, replyText(reply));
     const refused: { name: string; reason: string }[] = [];
     for (const choice of reply.choices ?? []) {
@@ -424,6 +429,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/responses`, { method: "POST", headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
       await relayResponsesStream(up.body, res, decide, tokens);
+      noteModel(body.model, opts.openaiUpstream, { model: tokens.model, fingerprint: tokens.fingerprint }); tokens.model = undefined; tokens.fingerprint = undefined;
       endModelCall(snap, tokens.text);
       if (tokenCapHit()) stop("token cap reached");
       return;
@@ -434,6 +440,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const reply = JSON.parse(text);
     tokens.input += reply.usage?.input_tokens ?? 0;
     tokens.output += reply.usage?.output_tokens ?? 0;
+    noteModel(body.model, opts.openaiUpstream, { model: reply.model });
     endModelCall(snap, replyText(reply));
     if (Array.isArray(reply.output)) {
       const kept: any[] = [];
@@ -465,6 +472,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const up = await f(`${opts.anthropicUpstream!.replace(/\/$/, "")}/v1/messages`, { method: "POST", headers: upstreamHeaders(req, opts.anthropicKey, "anthropic"), body: JSON.stringify(body) });
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
       await relayAnthropicStream(up.body, res, decide, tokens);
+      noteModel(body.model, opts.anthropicUpstream, { model: tokens.model, fingerprint: tokens.fingerprint }); tokens.model = undefined; tokens.fingerprint = undefined;
       endModelCall(snap, tokens.text);
       if (tokenCapHit()) stop("token cap reached");
       return;
@@ -475,6 +483,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const reply = JSON.parse(text);
     tokens.input += reply.usage?.input_tokens ?? 0;
     tokens.output += reply.usage?.output_tokens ?? 0;
+    noteModel(body.model, opts.anthropicUpstream, { model: reply.model });
     endModelCall(snap, replyText(reply));
     if (Array.isArray(reply.content)) {
       const refused: { name: string; reason: string }[] = [];

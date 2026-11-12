@@ -461,9 +461,49 @@ ${history}`;
   assert.equal(JSON.stringify(up.seen.at(-1)!.body).split("Your record in the log").length - 1, 1, "not added twice");
 });
 
+test("what the provider says ran is recorded, not only the name asked for: the resolved model and the backend fingerprint as the digest (D4)", async () => {
+  const up = await fakeUpstream([
+    { ...openaiToolReply([]), model: "gpt-4o-2024-08-06", system_fingerprint: "fp_44709d6fcb" },
+    { ...anthropicToolReply([]), model: "claude-sonnet-20260101" },
+    openaiToolReply([]), // a provider that says nothing more: the name asked for is all there is
+  ]);
+  const { g, url } = await gateway(up, { scopes: ["repo.read"] });
+  await post(`${url}/v1/chat/completions`, { model: "gpt-4o", messages: [] });
+  await post(`${url}/v1/messages`, { model: "claude-sonnet", max_tokens: 10, messages: [{ role: "user", content: "hi" }] });
+  await post(`${url}/v1/chat/completions`, { model: "plain-model", messages: [] });
+  const models = g.drain().metrics.models as { name: string; provider?: string; digest?: string }[];
+  const byName = (n: string) => models.find((m) => m.name === n);
+  assert.deepEqual([byName("gpt-4o-2024-08-06")?.digest], ["fingerprint:fp_44709d6fcb"], "the resolved snapshot and its fingerprint, not the alias");
+  assert.equal(models.some((m) => m.name === "gpt-4o"), false, "the alias is replaced by what ran");
+  assert.ok(byName("claude-sonnet-20260101"), "the Anthropic reply's resolved model");
+  assert.equal(byName("claude-sonnet-20260101")?.digest, undefined, "no fingerprint is invented where the provider gives none");
+  assert.deepEqual([byName("plain-model")?.digest], [undefined], "a reply that names no model keeps the name asked for");
+});
+
 test("without a Code (lawContext not set) the requests go through untouched", async () => {
   const up = await fakeUpstream([anthropicToolReply([])]);
   const { url } = await gateway(up, { scopes: ["repo.read"] });
   await post(`${url}/v1/messages`, { model: "m", max_tokens: 10, system: "Be brief.", messages: [{ role: "user", content: "hi" }] });
   assert.equal(up.seen.at(-1)!.body.system, "Be brief.");
+});
+
+test("a streamed reply carries the resolved model and the fingerprint too: the stream relays read them into the counters (D4)", async () => {
+  const { relayOpenaiStream, relayAnthropicStream } = await import("../src/gateway/stream.ts");
+  const sse = (events: string[]) => new ReadableStream<Uint8Array>({ start(c) { for (const e of events) c.enqueue(new TextEncoder().encode(e)); c.close(); } });
+  const res: any = { writeHead() {}, write() { return true; }, end() {} };
+  const decide = async () => undefined;
+  const openai = { input: 0, output: 0 } as { input: number; output: number; model?: string; fingerprint?: string };
+  await relayOpenaiStream(sse([
+    `data: ${JSON.stringify({ id: "x", object: "chat.completion.chunk", model: "gpt-4o-2024-08-06", system_fingerprint: "fp_stream", choices: [{ index: 0, delta: { content: "hi" } }] })}\n\n`,
+    `data: ${JSON.stringify({ id: "x", object: "chat.completion.chunk", model: "gpt-4o-2024-08-06", system_fingerprint: "fp_stream", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], usage: { prompt_tokens: 3, completion_tokens: 1 } })}\n\n`,
+    "data: [DONE]\n\n",
+  ]), res, decide, openai);
+  assert.deepEqual([openai.model, openai.fingerprint, openai.input, openai.output], ["gpt-4o-2024-08-06", "fp_stream", 3, 1]);
+  const anthropic = { input: 0, output: 0 } as { input: number; output: number; model?: string; fingerprint?: string };
+  await relayAnthropicStream(sse([
+    `event: message_start\ndata: ${JSON.stringify({ type: "message_start", message: { id: "m", type: "message", role: "assistant", model: "claude-sonnet-20260101", content: [], usage: { input_tokens: 5, output_tokens: 0 } } })}\n\n`,
+    `event: message_delta\ndata: ${JSON.stringify({ type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { output_tokens: 2 } })}\n\n`,
+    `event: message_stop\ndata: ${JSON.stringify({ type: "message_stop" })}\n\n`,
+  ]), res, decide, anthropic);
+  assert.deepEqual([anthropic.model, anthropic.fingerprint, anthropic.input], ["claude-sonnet-20260101", undefined, 5]);
 });

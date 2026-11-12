@@ -89,7 +89,8 @@ test("asp mail: the end-of-Mandate mail has the highlights from the log and the 
   assert.match(mail, /Spend cap: 50 credit/);
   assert.match(mail, /scopes used: repo\.read/);
   assert.match(mail, /1 model request\(s\), 2 tool call\(s\), 10 tokens/);
-  assert.match(mail, /models: tiny-model/);
+  // The mail names what the provider says ran (D4): the fake provider answers as model "m" to the request for "tiny-model", so "m" is what the report records.
+  assert.match(mail, /models: m \(127\.0\.0\.1:\d+\)/);
   assert.match(mail, /1 attempt\(s\) were blocked before they ran: repo\.push x1/);
   assert.match(mail, /First blocked call: bash \(repo\.push\)/);
   assert.match(mail, /May I run the migration\? \(npm run migrate\): approved\./);

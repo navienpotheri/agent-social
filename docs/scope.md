@@ -264,7 +264,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | D1 | A | partial | No canary or regression suite; asp verify has an empty canary check |
 | D2 | A | partial | No behavioural baseline or before/after comparison |
 | D3 | B | open | Memory loss is not detected |
-| D4 | A | partial | Which model weights actually ran is not recorded; a name can point to different weights |
+| D4 | A | closed | Which model weights actually ran is not recorded; a name can point to different weights |
 | D5 | B | open | Probation is recorded but changes no rule |
 | D6 | B | partial | No detection of prompt injection or goal hijacking |
 | D7 | C | open | No reasoning-trace monitoring |
@@ -711,3 +711,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK95 | B | open | A database that already holds unsigned mints keeps them: the audit shows them as mintedUnsigned and --require-signed fails on it...|
 | DK96 | A | open | A quarantine reaches a session that is already running only when it starts again: `asp run` and `asp gateway` read the freeze at their start, a running gateway does not poll the log. |
 | DK97 | A | open | The society watcher rebuilds its window from the whole log at start and finds patterns only in Actions, which does not scale to a society. |
+| DK96 | B | open | The digest of a local open-weight model is not recorded: a local runtime behind an OpenAI-compatible route gives a name and no weight hash...|

@@ -235,3 +235,45 @@ for (const h of [memory, postgres] as Harness[]) {
     });
   });
 }
+
+for (const h of [memory, postgres] as Harness[]) {
+  describe(`a model change opens a probation (D4) on ${h.name}`, { skip: h === postgres && !pgUrl && "set ASP_TEST_DATABASE_URL to run" }, () => {
+    after(() => h.cleanup());
+
+    test("the first models an agent names are recorded; a new model, or the same name with a different digest, opens a 7-day probation; the same ones again do not; nothing is refused and no tier moves", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      const contract = await running(log, ["repo.read"]);
+      const withModels = (models: { name: string; provider?: string; digest?: string }[], summary: string) =>
+        rec("action", coder, { contract: contract.id, scopes_used: ["repo.read"], summary, metrics: { models } }, null, contract.id);
+      const gpt = { name: "gpt-4o-2024-08-06", provider: "api.openai.com", digest: "fingerprint:fp_1" };
+
+      await log.append(withModels([gpt], "first run"));
+      assert.equal(await log.probation(coder.did), undefined, "the first sighting records, it does not open a probation");
+      await log.append(withModels([gpt], "same model again"));
+      assert.equal(await log.probation(coder.did), undefined, "the same model and digest again: no change");
+
+      const changed = withModels([{ ...gpt, digest: "fingerprint:fp_2" }], "backend changed");
+      await log.append(changed);
+      const p = await log.probation(coder.did);
+      assert.equal(p?.setBy, changed.id, "the same name on different weights opens a probation, set by that Action");
+      assert.equal(Date.parse(p!.until) - Date.parse(changed.issued_at), 7 * 86_400_000, "seven days from the change");
+
+      const swapped = withModels([{ name: "claude-sonnet-20260101", provider: "api.anthropic.com" }], "runtime swap");
+      await log.append(swapped); // a model swap is allowed, never refused
+      assert.equal((await log.probation(coder.did))?.setBy, swapped.id, "a new model extends the window");
+      assert.deepEqual(await log.reputationOf(coder.did), { tier: 1, slashCount: 0, strikes: 0 }, "a probation moves no tier and no strike");
+      assert.equal((await log.verify()).ok, true);
+    });
+
+    test("a name with no digest, then the same name with one, is not a change (a provider that starts giving a fingerprint)", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      const contract = await running(log, ["repo.read"]);
+      const act = (m: { name: string; provider?: string; digest?: string }, summary: string) => rec("action", coder, { contract: contract.id, scopes_used: ["repo.read"], summary, metrics: { models: [m] } }, null, contract.id);
+      await log.append(act({ name: "local-llama", provider: "localhost:11434" }, "no digest yet"));
+      await log.append(act({ name: "local-llama", provider: "localhost:11434", digest: "sha256:aaa" }, "now with a digest"));
+      assert.equal(await log.probation(coder.did), undefined);
+    });
+  });
+}

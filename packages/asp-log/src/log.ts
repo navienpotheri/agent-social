@@ -32,6 +32,9 @@ const QUARANTINE_MAX_MS = 7 * 24 * 60 * 60 * 1000;
 const QUARANTINE_COHORT_MIN_SPONSORS = 3;
 const PROMOTION_SLASH_FREE_MS = 30 * 24 * 60 * 60 * 1000;
 
+/** How long a probation lasts after a model change (D4): the same 7 days as a lineage update's. */
+const MODEL_CHANGE_PROBATION_MS = 7 * 24 * 60 * 60 * 1000;
+
 /** Graduated tier limits: the most credit a Mandate may let a tier spend (tier 3 and above: uncapped; tier 0 is excluded outright). */
 const TIER_SPEND_LIMIT: Record<number, number> = { 1: 100, 2: 1000 };
 /** ...and how many parallel nodes (Mandate nodes.max_parallel) it may run. */
@@ -260,7 +263,7 @@ export class EventLog {
       await this.checkVerifiedBeforeAcceptance(tx, verified);
     }
     if (type === "mandate") { await this.checkMandateTier(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
-    if (type === "action") { await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); }
+    if (type === "action") { await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); await this.noteModels(tx, verified); }
     if (type === "world") checkWorldRecord(verified);
     if (type === "proposal") await this.checkProposerTier(tx, verified);
     if (type === "contract") await this.checkSubcontract(tx, verified);
@@ -501,6 +504,34 @@ export class EventLog {
   private async projectLineage(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as { child: string; probation_until?: string };
     if (body.probation_until) await tx.putProbation({ did: body.child, until: body.probation_until, setBy: r.id });
+  }
+
+  /**
+   * A model change opens a probation (D4): an Action's metrics say which models ran, by the name the provider resolved and, where it gives one, a backend fingerprint (the digest). The first Action
+   * from an agent that names models records them; a later one that names a model the agent has not run before, or the same name with a different digest, opens a probation window for the agent
+   * (the same window a lineage update sets, 7 days, never shortened). Nothing is refused: a runtime swap is allowed, and the window is the log's record that "a name can point to different weights".
+   */
+  private async noteModels(tx: LogTx, r: AspRecord): Promise<void> {
+    const models = (r.body as { metrics?: { models?: { name: string; provider?: string; digest?: string }[] } }).metrics?.models;
+    if (!models?.length) return;
+    const key = `models:${r.issuer}`;
+    const raw = await tx.getMarker(key);
+    const known: Record<string, string | null> = raw ? JSON.parse(raw) : {};
+    const first = raw === undefined;
+    let changed = false;
+    for (const m of models) {
+      const id = `${m.provider ?? ""}|${m.name}`;
+      if (!(id in known)) { if (!first) changed = true; known[id] = m.digest ?? null; continue; }
+      const was = known[id];
+      if (was && m.digest && was !== m.digest) { changed = true; known[id] = m.digest; }
+      else if (!was && m.digest) known[id] = m.digest;
+    }
+    await tx.putMarker(key, JSON.stringify(known));
+    if (changed) {
+      const until = new Date(Date.parse(r.issued_at) + MODEL_CHANGE_PROBATION_MS).toISOString().replace(/\.\d{3}Z$/, "Z");
+      const current = await tx.getProbation(r.issuer);
+      if (!current || Date.parse(current.until) < Date.parse(until)) await tx.putProbation({ did: r.issuer, until, setBy: r.id });
+    }
   }
 
   /** Debits an account, throwing insufficient_balance rather than letting it go negative. */
