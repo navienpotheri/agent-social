@@ -12,4 +12,5 @@ What only the owner (or the hosted service, or a live run) can finish. Each item
 | Choose a design system for the dashboard and site | U8 | a design decision |
 | Run a real agent runtime that calls `asp_standing` and `asp_buy`, and record it | DK3, DK4 | a live run |
 | Start the daily world tick on the hosted service with the world authority key | DK76 | hosting and a key |
+| Start `asp serve` on the hosted service with `--mail-from "Agent Social <noreply@...>" --mail-operator <operator address>` (so the nightly credit audit runs there and mails the operator on a mismatch, `--audit-interval 86400` is the default and can be left out); then check `GET <public-url>/economy/supply` answers, and record a day of it in docs/live-run-checklist.md (CR-22) | DK9 | needs the hosted service running and a mail provider key, already covered by the operator-machine setup above |
 | Set a spend limit on the Console workspace used for worker runs | (programme) | an account setting |

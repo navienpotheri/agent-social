@@ -3,7 +3,10 @@
  *
  *   - the end-of-Mandate mail to the principal when a job settles (mail.ts: buildMandateMail),
  *   - an alert to the principal at once for a kill, an upheld report or an expired Mandate (buildAlertMail),
- *   - a note to the operator when a dispute opens, so a ruling does not wait unseen (the court is the operator's, S97).
+ *   - a note to the operator when a dispute opens, so a ruling does not wait unseen (the court is the operator's, S97),
+ *   - the nightly credit audit (register rows DK1 and DK9, credits.md 6.2, CR-18): at most once every `auditIntervalMs`, and a mail to the
+ *     operator, through the same channel as the other operator notes, the moment the supply rule stops balancing (the recommendation of
+ *     credits.md section 11, decision 8).
  *
  * The recipient is the verified Google email of the tenant that wrote as the principal's identity; a principal with no such tenant gets nothing (the reason is kept).
  * Every mail carries an unsubscribe link and the List-Unsubscribe headers; a bounce or a complaint from the provider, or an unsubscribe, suppresses the address for good.
@@ -22,8 +25,12 @@ export interface MailerOptions {
   transport: MailTransport;
   /** "Agent Social <noreply@example.org>" */
   from: string;
-  /** Where operator notes go (a dispute opened); omit to send none. */
+  /** Where operator notes go (a dispute opened, a credit-audit mismatch); omit to send none. */
   operatorTo?: string;
+  /** Runs the credit audit (credit-audit.ts `auditLedger`, over `creditAudit()`); omit to run no audit. */
+  audit?: () => Promise<{ verdict: "balanced" | "mismatch"; difference: number; problems: string[]; head: { seq: number; logHash: string } }>;
+  /** How often the audit runs (default 86,400,000 ms: once a day). */
+  auditIntervalMs?: number;
   /** The service's public address (read when a link is made), for the unsubscribe links. */
   publicUrl: () => string;
   secret: Buffer;
@@ -43,6 +50,10 @@ interface State {
   skipped: Record<string, string>;
   suppressed: Record<string, { reason: string; at: string }>;
   attempts: Record<string, number>;
+  /** When the credit audit last ran (epoch ms); absent or 0 means it has never run. */
+  auditedAt?: number;
+  /** The audit's last verdict, so `asp serve` can report it without re-running the audit. */
+  lastAuditVerdict?: "balanced" | "mismatch";
 }
 
 const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -73,6 +84,10 @@ export class ServiceMailer {
     this.save();
   }
   counts() { return { sent: Object.keys(this.state.sent).length, skipped: Object.keys(this.state.skipped).length, suppressed: Object.keys(this.state.suppressed).length }; }
+  /** When the credit audit last ran and what it found, for `asp serve`'s own startup and status lines. */
+  lastAudit(): { at: string | undefined; verdict: "balanced" | "mismatch" | undefined } {
+    return { at: this.state.auditedAt !== undefined ? new Date(this.state.auditedAt).toISOString() : undefined, verdict: this.state.lastAuditVerdict };
+  }
   unsubscribeUrl(email: string): string { return `${this.o.publicUrl().replace(/\/$/, "")}/mail/unsubscribe?e=${encodeURIComponent(email)}&t=${unsubscribeToken(email, this.o.secret)}`; }
   verifyUnsubscribe(email: string, token: string): boolean { return unsubscribeOk(email, token, this.o.secret); }
 
@@ -165,6 +180,30 @@ export class ServiceMailer {
         const f = await collectMandateFacts(log, a.contract);
         if (!f) continue;
         if (await this.deliver(a.key, this.recipientFor(f.contract.principal), `principal ${f.contract.principal}`, (to) => buildAlertMail(a, f, { to, from: this.o.from, ...(this.o.linkBase ? { linkBase: this.o.linkBase } : {}) }))) sent++;
+      }
+      // The credit audit (DK1, DK9): at most once every auditIntervalMs; a mismatch mails the operator at once, through the same channel as
+      // the other operator notes (credits.md decision 8). Running it costs a full ledger read, so it is not on every pass like the mail above.
+      if (this.o.audit) {
+        const interval = this.o.auditIntervalMs ?? 86_400_000;
+        if (this.state.auditedAt === undefined || this.now() - this.state.auditedAt >= interval) {
+          this.state.auditedAt = this.now();
+          try {
+            const audit = await this.o.audit();
+            this.state.lastAuditVerdict = audit.verdict;
+            this.save();
+            this.say(`credit audit: ${audit.verdict}${audit.verdict === "mismatch" ? ` (${audit.problems.join("; ")})` : ""} at log seq ${audit.head.seq}`);
+            if (audit.verdict !== "balanced" && this.o.operatorTo && sent < budget) {
+              const key = `audit-mismatch:${audit.head.seq}`;
+              const subject = `Credit audit mismatch: ${Math.abs(audit.difference)} credit(s) at log seq ${audit.head.seq}`;
+              const text = [subject, "", ...audit.problems, "", "Recompute: asp credits audit --json", ""].join("\n");
+              const html = `<!doctype html><html><body style="font-family:sans-serif"><p><strong>${esc(subject)}</strong></p><ul>${audit.problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul><p>Recompute: <code>asp credits audit --json</code></p></body></html>`;
+              if (await this.deliver(key, this.o.operatorTo, "operator", () => ({ subject, text, html }), true)) sent++;
+            }
+          } catch (e) {
+            this.save();
+            this.say(`credit audit failed: ${(e as Error).message}`);
+          }
+        }
       }
       // A dispute opened: the operator.
       if (this.o.operatorTo) {

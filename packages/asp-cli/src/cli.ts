@@ -335,7 +335,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -552,6 +552,7 @@ const OPTIONS = {
   "mail-from": { type: "string" },
   "mail-operator": { type: "string" },
   "mail-interval": { type: "string" },
+  "audit-interval": { type: "string" },
   "mail-dry-run": { type: "boolean" },
   "mail-resend-url": { type: "string" },
   jurors: { type: "string" },
@@ -2106,6 +2107,9 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       log: handle.log as any, tenants: tenantSource!, owners, from: v["mail-from"], ...(v["mail-operator"] ? { operatorTo: v["mail-operator"] } : {}),
       transport: dry ? new FileTransport(`${v.tokens}.outbox`) : new ResendTransport({ apiKey: key!, ...(v["mail-resend-url"] ? { baseUrl: v["mail-resend-url"] } : {}) }),
       publicUrl: () => v["public-url"] ?? `http://127.0.0.1:${mailPort}`, secret: Buffer.from(readFileSync(secretFile, "utf8").trim(), "base64"), statePath: `${v.tokens}.mail.json`,
+      // The nightly credit audit (DK1, DK9, CR-18): runs on the same timer as the mail pass, but only once every --audit-interval; a
+      // mismatch mails the operator, which needs --mail-operator (the alert has nobody to reach without it).
+      audit: () => handle.log.creditAudit(), auditIntervalMs: Math.max(1, num("audit-interval", 86_400)) * 1000,
       log2: (l) => io.out(`  ${l}`),
     });
   }
@@ -2115,7 +2119,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   // given, or --public-url names a host.
   const guards = !noAuth ? [courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain }), agentCapGuard({ domain: didDomain, max: num("max-agents", 20), owners })] : [])] : [];
   const guard = guards.length ? async (c: Parameters<typeof guards[0]>[0]) => { for (const g of guards) { const r = await g(c); if (r) return r; } return undefined; } : undefined;
-  const publicList = [helpRoutes(), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  const publicList = [helpRoutes(), economySupplyRoutes({ audit: () => handle.log.creditAudit() }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
@@ -2131,6 +2135,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   io.out(`  limits per minute: ${limits.tenantPerMinute || "no limit"} requests and ${limits.appendPerMinute || "no limit"} writes per tenant, ${limits.addressPerMinute || "no limit"} per address; ${limits.maxInFlight || "no"} in flight; lockout after ${limits.failedAuthMax || "never"} failed sign-ins`);
   io.out(`  quota per tenant (admins have none): ${defaultRecordQuota || "no limit"} records, ${defaultByteQuota ? `${Math.round(defaultByteQuota / 1048576)} MB` : "no limit"} of records; suspend, resume, block and unblock take effect without a restart (asp serve usage shows the counts)`);
   if (mailer) io.out(`  mail      ${io.env.RESEND_API_KEY && !v["mail-dry-run"] ? "sending through Resend" : "DRY RUN: no RESEND_API_KEY, so mail is written to " + v.tokens + ".outbox and not sent"}; from ${v["mail-from"]}${v["mail-operator"] ? `; operator notes to ${v["mail-operator"]}` : ""}; a pass every ${num("mail-interval", 60)} s`);
+  io.out(`  audit     public supply page at /economy/supply${mailer ? `; the nightly audit runs every ${num("audit-interval", 86_400)} s${v["mail-operator"] ? `, mailing ${v["mail-operator"]} on a mismatch` : " (no --mail-operator: a mismatch is logged here only, not mailed)"}` : " (start with --mail-from to run the nightly audit and mail the operator on a mismatch)"}`);
   if (google) io.out(`  sign-in   Google: the sign-up page is /join${v["signup-require-google"] ? " and it is the only way to sign up" : ", and the proof-of-work route stays open too"}`);
   if (signup) io.out(`  sign-up   open at /signup: proof of work (${num("signup-difficulty", 20)} bits), ${num("signup-per-address", 3)} per address and ${num("signup-daily-cap", 200)} a day, terms ${v["signup-terms-version"] ?? "2026-10"} at ${v["signup-terms-url"]}; close it with: asp serve signup-close --tokens ${v.tokens}`);
   if (!tls && !loopback) io.out("  warning  plain HTTP on a network address: TLS must be terminated in front of this service");
