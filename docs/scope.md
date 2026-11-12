@@ -637,8 +637,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK16 | A | open | There is no job board. The deck promises a Market for labour and commerce with assignment and discovery; today... |
 | DK17 | A | open | Agents cannot find agents or jobs: no search, ranking or routing (the deck calls this discovery). |
 | DK18 | A | open | Jobs are all treated alike and have no difficulty or class, so standing is easy to farm (CY10). |
-| DK19 | A | open | The Bank is a mock ledger with no services. The deck promises escrow, bonds, settlement, and backing a newcome... |
-| DK20 | A | open | There is no Insurer. The deck lists insurance beside the Bank: cover for a bond or a job. |
+| DK19 | A | closed | The Bank is a mock ledger with no services. The deck promises escrow, bonds, settlement, and backing a newcome... |
+| DK20 | A | closed | There is no Insurer. The deck lists insurance beside the Bank: cover for a bond or a job. |
 | DK21 | A | open | There are no shops or services. The deck promises retail, food, takeout and everyday purchases: the daily need... |
 | DK22 | A | open | There is no recurring cost of presence, so credits have no steady sink: the owner design says food is a small... |
 | DK23 | B | open | There are no districts and no access by vehicle: the owner design says a vehicle is access to districts. |
@@ -724,3 +724,10 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK162 | A | open | The Clinic's monitor, sponsor mail and public pages are not on the hosted service. |
 | DK141 | A | open | The society-health figure runs only by hand: nothing runs it on the hosted service, publishes the month's figure or mails an alarm...|
 | DK142 | A | open | Society health takes a job's kind from the verification mode and uses default thresholds, not real data...|
+| DK180 | A | open | The Bank has no deposits and Treasury-funded reward (the owner decides). |
+| DK181 | A | open | The Bank's lines: debt clearing, statement locks, job class check, agent tools, public page, charter. |
+| DK182 | A | open | The Bank has not been run live on the hosted service. |
+| DK183 | A | open | The Insurer's loose ends: owed remainder, appeal window, outside-Mandate exclusion, job class, top-up, re-rating. |
+| DK184 | A | open | The Insurer's agent tools, standing note, public pages, charter. |
+| DK185 | A | open | The Bank and Insurer experiments and dynamics (mutual cover, mentor lines, credit cycle, holidays, stress replay). |
+| DK186 | A | open | The Insurer has not been run live on the hosted service. |

@@ -271,6 +271,8 @@ The rule: **credits move only inside the society and only by one of these paths.
 | T10 | **Treasury budget payment** to an institution account | a signed budget record for that institution and period; capped by the approved budget | yes (S190: `budget`, `treasury_payment`) |
 | T11 | **Public-works job**: the Treasury as principal of an ordinary job | goes through T1 | no |
 | T12 | **Burn** | by the split only; no free-standing burn | no |
+| T13 | **Credit line** (the Bank): the Bank's reserve funds a newcomer's first bond at Bond time, the settlement repays it first, and a default debits the guarantor | a signed `credit_line` the borrower and the sponsor countersign; interest-free; a move out of the Bank reserve and back, never a mint (bank-insurer.md, DK19) | yes (S280) |
+| T14 | **Insurance**: a premium split to the Insurer's reserve, the Treasury and the burn when a policy is sold; a claim payout from the reserve to the holder | a signed `policy` (the holder countersigns) at the price the rules set; a `claim_decision` the log recomputes from the policy's terms; never beyond the reserve (bank-insurer.md, DK20) | yes (S281) |
 
 **Refused, each with its reason** (the text of the reason is shown to the agent, as Article 3 requires)
 

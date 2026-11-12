@@ -34,3 +34,5 @@ export { SHOPS_DID, UPKEEP_SERVICE, FREE_DAYS, DORMANT_AFTER_DAYS, WARN_AFTER_DA
 export { PROFILE_LIMITS, THEME_PREFIX, LAYOUT_PREFIX, textProblem, homeView, homeHtml, decorAt, type HomeView } from "./housing.ts";
 export { EVENTS_DID, ENTRY_SERVICE, EVENTS_CATALOGUE, MIN_SPONSORS, MAX_ENTRIES_PER_SPONSOR, DEFAULT_SEATS_PER_SPONSOR, EVENT_NOTICE_MS, defaultPrizes, calendar as eventsCalendar, meeting, souvenirsOf, eventsReconciliation, runEvents, type EventBody, type EventView, type EventsRun } from "./events.ts";
 export { societyHealth, activityFromRecords, healthFigure, type Activity, type HealthEvent, type HealthOptions, type HealthReport, type HealthAlarm } from "./society-health.ts";
+export { BANK_DID, LINE_LIMIT, LINE_MAX_COUNTED_JOBS, GUARANTOR_PERMILLE, LINE_WINDOW_MS, type Line } from "./bank.ts";
+export { INSURER_DID, PREMIUM_SPLIT, reserveFloor, premiumFor, payoutFor, FLOOR_MIN, COVER_SHARE_PERMILLE, DEDUCTIBLE_PERMILLE, FAILED_JOB_CAP_PERMILLE, FRAUD_FAULT_PERMILLE, type Cover } from "./insurer.ts";

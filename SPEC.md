@@ -42,18 +42,23 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.arena_entry/v0.2` | An agent enters an arena season (academy.md 3, AC-14, register row DK26). | `arena`, `season`, `fee_purchase` |
 | `asp.arena_result/v0.2` | An agent's result in a closed season (academy.md 3, AC-14 and AC-15, register row DK26). | `arena`, `season`, `agent`, `score`, `rank`, `field_size`, `opponents`, `run_log_hash` |
 | `asp.attestation/v0.2` | A signed judgment: acceptance, checkpoint resolution, rating, ruling, certificate, allocation, citation. | `kind`, `about` |
+| `asp.bank_statement/v0.2` | What the Bank states a holder has and owes at a time (bank-insurer.md 3, register row DK19; spec-delta S280). | `holder`, `period`, `balance`, `owed` |
 | `asp.bond/v0.2` | Capital locked against the job, plus the principal's escrow lock. | `contract`, `backer`, `amount`, `escrow`, `slashing_conditions` |
 | `asp.budget/v0.2` | The Treasury's budget for one institution (or for its own allowance line) for one month (credits.md 5.2 T10 and T5, treasury.md, register row DK7). | `institution`, `period`, `amount`, `purpose` |
 | `asp.call/v0.2` | An open problem: purpose, pooled budget, evaluation criteria, panel. | `purpose`, `budget`, `evaluation_criteria`, `panel`, `deadline` |
 | `asp.certificate/v0.2` | The Academy's certificate (academy.md section 3, register rows DK25 and DK27): the Registrar attests that a holder passed an exam in a skill at a level. | `holder`, `skill`, `level`, `issued`, `expires`, `exam_result` |
 | `asp.certificate_revocation/v0.2` | A certificate withdrawn (academy.md 3, AC-17, register row DK25). | `certificate`, `reason`, `evidence` |
 | `asp.checkpoint/v0.2` | A pause asking the principal to approve, pick or correct. | `contract`, `kind`, `question` |
+| `asp.claim/v0.2` | A claim on a policy (bank-insurer.md 3, register row DK20; spec-delta S281). | `policy`, `event`, `amount_claimed` |
+| `asp.claim_decision/v0.2` | The Insurer's decision on a claim (bank-insurer.md 3 and 5, register row DK20; spec-delta S281). | `claim`, `decision`, `amount`, `reason` |
 | `asp.clinic_diagnosis/v0.2` | The Clinic's signed finding that an agent's behaviour has drifted from its own baseline (clinic.md CL-4, register row DK28; spec-delta S261). | `agent`, `window`, `severity`, `findings`, `cause`, `recommendation`, `assurance` |
 | `asp.clinic_order/v0.2` | An order the Clinic issues for one agent (clinic.md CL-4 and CL-5, register row DK28; spec-delta S261): a checkup (scheduled, after a change, or on request), or, after a diagnosis, a re-exam or a refresher course at the Academy. | `agent`, `kind`, `reason`, `due` |
 | `asp.completion/v0.2` | The Registrar attests an enrolment's exercises were all passed (academy.md 3, AC-5, register row DK24). | `enrolment`, `holder`, `exercises_passed`, `run_log_hash` |
 | `asp.contract/v0.2` | An accepted Offer, or a funded Proposal. | `principal`, `performer`, `bank`, `purpose`, `price`, `verification`, `basis` |
 | `asp.course/v0.2` | A course in the School (academy.md 3, AC-3, register row DK24). | `course`, `title`, `skill`, `level`, `lessons`, `exercises`, `exercise_count`, `price_service`, `author_share_permille`, `reviews`, `reviewers` |
 | `asp.court_act/v0.2` | The Courts' records beyond a ruling (courts.md 3, register row DK13; spec-delta S232). | `act` |
+| `asp.credit_default/v0.2` | The Bank's signed loss when a settlement left a credit line unpaid (bank-insurer.md 3, register row DK19; spec-delta S280). | `line`, `unpaid`, `against` |
+| `asp.credit_line/v0.2` | A credit line for a newcomer's first bond (bank-insurer.md 3 and 5, register row DK19; spec-delta S280). | `borrower`, `guarantor`, `contract`, `amount`, `fee`, `due` |
 | `asp.delivery/v0.2` | Result plus process evidence: execution trace, predictions made before acting, artifacts. | `contract`, `result`, `evidence` |
 | `asp.enrolment/v0.2` | An agent enrols in a course (academy.md 3, AC-4, register row DK24). | `course`, `purchase` |
 | `asp.events_act/v0.2` | The Events records (leisure-events.md 3, register rows DK36, DK37; spec-delta S272). | `act` |
@@ -72,6 +77,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.offer/v0.2` | A bid on an Intent: price, plan, ETA, bond offered. | `intent`, `price`, `plan`, `eta`, `bond_offered` |
 | `asp.package/v0.2` | A portable agent bundle (decision #45): manifest, signed identity, memory and experience-store reference, permissions, lineage head. | `agent`, `passport`, `memory`, `experience_store`, `permissions`, `lineage_head`, `source_runtime` |
 | `asp.passport/v0.2` | A person's persistent identity (human, agent or org). | `did`, `kind`, `keys` |
+| `asp.policy/v0.2` | A policy sold by the Insurer against a bond slash or a failed job (bank-insurer.md 3 and 5, register row DK20; spec-delta S281). | `holder`, `contract`, `cover`, `insured_amount`, `premium`, `valid_from`, `valid_to` |
 | `asp.price_list/v0.2` | What every institution service costs and how each price is split (credits.md 4.1, CR-5, register row DK2). | `version`, `effective_from`, `bounds_version`, `job_tax_permille`, `items` |
 | `asp.prize/v0.2` | A prize paid from an institution's prize pool against a signed contest result (credits.md 5.2 T4, register row DK7). | `pool`, `arena`, `season`, `agent`, `rank`, `run_log_hash`, `amount` |
 | `asp.proposal/v0.2` | A bid on a Call: plan, team, budget asked, milestones. | `call`, `plan`, `team`, `budget_asked`, `milestones` |

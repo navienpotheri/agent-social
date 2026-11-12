@@ -6666,6 +6666,326 @@
       "valid": false
     },
     {
+      "name": "valid_credit_line",
+      "schema": "credit_line",
+      "instance": {
+        "borrower": "did:web:example.com:agents:alice-coder",
+        "guarantor": "did:web:example.com:users:alice",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "fee": 0,
+        "due": "2026-11-19T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "credit_line_with_a_fee",
+      "schema": "credit_line",
+      "instance": {
+        "borrower": "did:web:example.com:agents:alice-coder",
+        "guarantor": "did:web:example.com:users:alice",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "fee": 2,
+        "due": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_line_no_guarantor",
+      "schema": "credit_line",
+      "instance": {
+        "borrower": "did:web:example.com:agents:alice-coder",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "fee": 0,
+        "due": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_line_no_due",
+      "schema": "credit_line",
+      "instance": {
+        "borrower": "did:web:example.com:agents:alice-coder",
+        "guarantor": "did:web:example.com:users:alice",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "fee": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_line_extra_field",
+      "schema": "credit_line",
+      "instance": {
+        "borrower": "did:web:example.com:agents:alice-coder",
+        "guarantor": "did:web:example.com:users:alice",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "fee": 0,
+        "due": "2026-11-19T00:00:00Z",
+        "interest": 5
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_credit_default",
+      "schema": "credit_default",
+      "instance": {
+        "line": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "unpaid": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "against": "did:web:example.com:users:alice"
+      },
+      "valid": true
+    },
+    {
+      "name": "credit_default_no_against",
+      "schema": "credit_default",
+      "instance": {
+        "line": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "unpaid": {
+          "value": 20,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_default_no_unpaid",
+      "schema": "credit_default",
+      "instance": {
+        "line": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "against": "did:web:example.com:users:alice"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_bank_statement",
+      "schema": "bank_statement",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "period": "2026-11",
+        "balance": {
+          "value": 96,
+          "unit": "credit"
+        },
+        "owed": {
+          "value": 0,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "bank_statement_no_owed",
+      "schema": "bank_statement",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "period": "2026-11",
+        "balance": {
+          "value": 96,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_policy",
+      "schema": "policy",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "cover": "bond_slash",
+        "insured_amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "premium": {
+          "value": 2,
+          "unit": "credit"
+        },
+        "valid_from": "2026-11-12T00:00:00Z",
+        "valid_to": "2027-01-12T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_policy_failed_job",
+      "schema": "policy",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "cover": "failed_job",
+        "insured_amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "premium": {
+          "value": 2,
+          "unit": "credit"
+        },
+        "valid_from": "2026-11-12T00:00:00Z",
+        "valid_to": "2027-01-12T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "policy_bad_cover",
+      "schema": "policy",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "cover": "everything",
+        "insured_amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "premium": {
+          "value": 2,
+          "unit": "credit"
+        },
+        "valid_from": "2026-11-12T00:00:00Z",
+        "valid_to": "2027-01-12T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "policy_no_premium",
+      "schema": "policy",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "cover": "bond_slash",
+        "insured_amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "valid_from": "2026-11-12T00:00:00Z",
+        "valid_to": "2027-01-12T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "policy_extra_field",
+      "schema": "policy",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "cover": "bond_slash",
+        "insured_amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "premium": {
+          "value": 2,
+          "unit": "credit"
+        },
+        "valid_from": "2026-11-12T00:00:00Z",
+        "valid_to": "2027-01-12T00:00:00Z",
+        "exclusions": []
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_claim",
+      "schema": "claim",
+      "instance": {
+        "policy": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "event": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "amount_claimed": {
+          "value": 4,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "claim_no_event",
+      "schema": "claim",
+      "instance": {
+        "policy": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "amount_claimed": {
+          "value": 4,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_claim_decision",
+      "schema": "claim_decision",
+      "instance": {
+        "claim": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "decision": "paid",
+        "amount": {
+          "value": 4,
+          "unit": "credit"
+        },
+        "reason": "covered"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_claim_decision_denied",
+      "schema": "claim_decision",
+      "instance": {
+        "claim": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "decision": "denied",
+        "amount": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "reason": "fraud"
+      },
+      "valid": true
+    },
+    {
+      "name": "claim_decision_bad_decision",
+      "schema": "claim_decision",
+      "instance": {
+        "claim": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "decision": "maybe",
+        "amount": {
+          "value": 4,
+          "unit": "credit"
+        },
+        "reason": "covered"
+      },
+      "valid": false
+    },
+    {
+      "name": "claim_decision_no_reason",
+      "schema": "claim_decision",
+      "instance": {
+        "claim": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "decision": "paid",
+        "amount": {
+          "value": 4,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
       "name": "valid_starter_claim_upfront",
       "schema": "starter_claim",
       "instance": {
