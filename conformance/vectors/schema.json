@@ -7606,6 +7606,371 @@
       "valid": false
     },
     {
+      "name": "valid_sponsor_allowance",
+      "schema": "sponsor_allowance",
+      "instance": {
+        "sponsor": "did:web:example.com:users:alice",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "period": "2026-12",
+        "tokens_per_day": 400000,
+        "tokens_total": 8000000,
+        "credits_per_month": 0,
+        "source": "sponsor_gateway",
+        "completion_reserve_permille": 100
+      },
+      "valid": true
+    },
+    {
+      "name": "sponsor_allowance_prepaid",
+      "schema": "sponsor_allowance",
+      "instance": {
+        "sponsor": "did:web:example.com:users:alice",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "period": "2026-12",
+        "tokens_per_day": 400000,
+        "tokens_total": 8000000,
+        "credits_per_month": 0,
+        "source": "prepaid",
+        "completion_reserve_permille": 100
+      },
+      "valid": false
+    },
+    {
+      "name": "sponsor_allowance_reserve_too_big",
+      "schema": "sponsor_allowance",
+      "instance": {
+        "sponsor": "did:web:example.com:users:alice",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "period": "2026-12",
+        "tokens_per_day": 400000,
+        "tokens_total": 8000000,
+        "credits_per_month": 0,
+        "source": "sponsor_gateway",
+        "completion_reserve_permille": 900
+      },
+      "valid": false
+    },
+    {
+      "name": "sponsor_allowance_negative",
+      "schema": "sponsor_allowance",
+      "instance": {
+        "sponsor": "did:web:example.com:users:alice",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "period": "2026-12",
+        "tokens_per_day": -1,
+        "tokens_total": 8000000,
+        "credits_per_month": 0,
+        "source": "sponsor_gateway",
+        "completion_reserve_permille": 100
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_dispatch",
+      "schema": "dispatch",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "version": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "mandate": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "sponsor_allowance": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "subsidy_grant": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "delegation": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "mode": "city",
+        "host": "did:web:asp.local:host",
+        "from": "2026-12-01T00:00:00Z",
+        "until": "2026-12-31T00:00:00Z",
+        "recall_deadline_seconds": 60
+      },
+      "valid": true
+    },
+    {
+      "name": "dispatch_bad_mode",
+      "schema": "dispatch",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "version": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "mandate": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "sponsor_allowance": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "subsidy_grant": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "delegation": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "mode": "cloud",
+        "host": "did:web:asp.local:host",
+        "from": "2026-12-01T00:00:00Z",
+        "until": "2026-12-31T00:00:00Z",
+        "recall_deadline_seconds": 60
+      },
+      "valid": false
+    },
+    {
+      "name": "dispatch_no_allowance",
+      "schema": "dispatch",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "version": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "mandate": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "subsidy_grant": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "delegation": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "mode": "city",
+        "host": "did:web:asp.local:host",
+        "from": "2026-12-01T00:00:00Z",
+        "until": "2026-12-31T00:00:00Z",
+        "recall_deadline_seconds": 60
+      },
+      "valid": false
+    },
+    {
+      "name": "dispatch_bad_package_hash",
+      "schema": "dispatch",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "version": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256": "abc",
+        "mandate": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "sponsor_allowance": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "subsidy_grant": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "delegation": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "mode": "city",
+        "host": "did:web:asp.local:host",
+        "from": "2026-12-01T00:00:00Z",
+        "until": "2026-12-31T00:00:00Z",
+        "recall_deadline_seconds": 60
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_recall",
+      "schema": "recall",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "reason": "the sponsor wants it back to evolve it"
+      },
+      "valid": true
+    },
+    {
+      "name": "recall_no_reason",
+      "schema": "recall",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_residency_status_sleeping",
+      "schema": "residency_status",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "sleeping",
+        "reason": "allowance_spent"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_residency_status_active",
+      "schema": "residency_status",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "active"
+      },
+      "valid": true
+    },
+    {
+      "name": "residency_status_bad_reason",
+      "schema": "residency_status",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "sleeping",
+        "reason": "tired"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_handback",
+      "schema": "handback",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256_after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lineage_edges": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "lessons": [
+          {
+            "edge": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "description": "memory updated during a run: +1"
+          }
+        ],
+        "tier_before": 1,
+        "tier_after": 1,
+        "strikes": 0,
+        "slashes": 0,
+        "credits_earned": 120,
+        "credits_spent_by_institution": {
+          "academy": 30
+        },
+        "usage": {
+          "tokens_by_source": {
+            "sponsor": 210,
+            "subsidy": 300
+          },
+          "host_seconds": 3600,
+          "wakes": 12,
+          "ceilings_hit": [
+            "allowance_daily"
+          ],
+          "refusals": 1
+        },
+        "diff_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": true
+    },
+    {
+      "name": "handback_no_usage",
+      "schema": "handback",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256_after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lineage_edges": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "lessons": [
+          {
+            "edge": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "description": "memory updated during a run: +1"
+          }
+        ],
+        "tier_before": 1,
+        "tier_after": 1,
+        "strikes": 0,
+        "slashes": 0,
+        "credits_earned": 120,
+        "credits_spent_by_institution": {
+          "academy": 30
+        },
+        "diff_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": false
+    },
+    {
+      "name": "handback_bad_package_hash",
+      "schema": "handback",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256_after": "abc",
+        "lineage_edges": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "lessons": [
+          {
+            "edge": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "description": "memory updated during a run: +1"
+          }
+        ],
+        "tier_before": 1,
+        "tier_after": 1,
+        "strikes": 0,
+        "slashes": 0,
+        "credits_earned": 120,
+        "credits_spent_by_institution": {
+          "academy": 30
+        },
+        "usage": {
+          "tokens_by_source": {
+            "sponsor": 210,
+            "subsidy": 300
+          },
+          "host_seconds": 3600,
+          "wakes": 12,
+          "ceilings_hit": [
+            "allowance_daily"
+          ],
+          "refusals": 1
+        },
+        "diff_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": false
+    },
+    {
+      "name": "handback_negative_credits",
+      "schema": "handback",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256_after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lineage_edges": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "lessons": [
+          {
+            "edge": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "description": "memory updated during a run: +1"
+          }
+        ],
+        "tier_before": 1,
+        "tier_after": 1,
+        "strikes": 0,
+        "slashes": 0,
+        "credits_earned": -1,
+        "credits_spent_by_institution": {
+          "academy": 30
+        },
+        "usage": {
+          "tokens_by_source": {
+            "sponsor": 210,
+            "subsidy": 300
+          },
+          "host_seconds": 3600,
+          "wakes": 12,
+          "ceilings_hit": [
+            "allowance_daily"
+          ],
+          "refusals": 1
+        },
+        "diff_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": false
+    },
+    {
+      "name": "handback_extra_field",
+      "schema": "handback",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256_after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lineage_edges": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "lessons": [
+          {
+            "edge": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "description": "memory updated during a run: +1"
+          }
+        ],
+        "tier_before": 1,
+        "tier_after": 1,
+        "strikes": 0,
+        "slashes": 0,
+        "credits_earned": 120,
+        "credits_spent_by_institution": {
+          "academy": 30
+        },
+        "usage": {
+          "tokens_by_source": {
+            "sponsor": 210,
+            "subsidy": 300
+          },
+          "host_seconds": 3600,
+          "wakes": 12,
+          "ceilings_hit": [
+            "allowance_daily"
+          ],
+          "refusals": 1
+        },
+        "diff_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "verdict": "good agent"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_starter_claim_upfront",
       "schema": "starter_claim",
       "instance": {

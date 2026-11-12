@@ -1,3 +1,4 @@
+import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
 import { projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
 import { projectCreditLine, projectCreditDefault, projectBankStatement, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
@@ -291,6 +292,11 @@ export class EventLog {
     if (type === "bank_statement") await projectBankStatement(tx, verified);
     if (type === "policy") await projectPolicy(tx, verified, this.insurerEnv);
     if (type === "claim") await projectClaim(tx, verified);
+    if (type === "sponsor_allowance") await projectSponsorAllowance(tx, verified, { reputation: (t, did) => this.reputation(t, did), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
+    if (type === "dispatch") await projectDispatch(tx, verified);
+    if (type === "recall") await projectRecall(tx, verified);
+    if (type === "handback") await projectHandback(tx, verified, { reputation: (t, did) => this.reputation(t, did), tierSpendLimit: () => 0 });
+    if (type === "residency_status") await projectResidencyStatus(tx, verified);
     if (type === "subsidy_budget") await projectSubsidyBudget(tx, verified);
     if (type === "subsidy_grant") await projectSubsidyGrant(tx, verified, this.insurerEnv);
     if (type === "subsidy_use") await projectSubsidyUse(tx, verified);

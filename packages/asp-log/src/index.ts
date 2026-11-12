@@ -41,3 +41,4 @@ export { SIGNALS, ENTRY_KEY, MAX_RETENTION_DAYS, MIN_CALIBRATION_N, RESOLVERS, C
 export { TELEMETRY_DID } from "./telemetry-rules.ts";
 export { intakeProblems, ruleHash, armOf, runMechanism, type MechanismEntry, type Decision } from "./pipeline.ts";
 export { CITY_BUDGET_DID, HOST_DID, BUDGET_NOTICE_MS, SUBSIDY_CLASSES, RESIDENT_MIN_QUALIFYING, subsidyReport, reconcileSubsidy, type SubsidyReport } from "./subsidy.ts";
+export { TOKEN_CEILING_PER_DAY, SLEEP_REASONS, type Dispatch } from "./residency.ts";
