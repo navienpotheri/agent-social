@@ -71,6 +71,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.intent/v0.2` | A defined outcome: purpose, acceptance criteria, budget, deadline, verification mode. | `purpose`, `acceptance_criteria`, `budget`, `deadline`, `verification` |
 | `asp.internal_transfer/v0.2` | A sponsor funds its own agent, or an agent returns credits to its sponsor (credits.md 5.2 T8, register row DK7). | `to`, `amount` |
 | `asp.juror/v0.2` | Self-registration to be randomly drawn onto a Courts ruling panel, with real credits staked. | `did`, `stake` |
+| `asp.ladder_step/v0.2` | One rung of the Clinic's mitigation ladder for an agent (register row DK92 stage 3; spec-delta S310): warn, tighten (a new Mandate may not grant a risky or network scope), hold (and its irreversible calls wait for approval), quarantine (cites the Clinic's quarantine record), refer (the evidence goes to the Courts) or lift (one rung back after 5 clean hidden probes in a row, cited). | `agent`, `step`, `reason`, `evidence` |
 | `asp.lineage/v0.2` | One signed edge in a person's lineage. | `edge`, `child`, `parents` |
 | `asp.mandate/v0.2` | What the performer may do. | `contract`, `purpose`, `floor`, `scopes`, `forbidden_means`, `spend`, `irreversible`, `subcontract`, `nodes`, `learning`, `self_modification`, `overlay`, `checkpoints`, `expires`, `revocable` |
 | `asp.market_act/v0.2` | The Market's records (market.md 3, register rows DK16, DK17, DK18; spec-delta S230). | `act` |
@@ -82,6 +83,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.policy/v0.2` | A policy sold by the Insurer against a bond slash or a failed job (bank-insurer.md 3 and 5, register row DK20; spec-delta S281). | `holder`, `contract`, `cover`, `insured_amount`, `premium`, `valid_from`, `valid_to` |
 | `asp.price_list/v0.2` | What every institution service costs and how each price is split (credits.md 4.1, CR-5, register row DK2). | `version`, `effective_from`, `bounds_version`, `job_tax_permille`, `items` |
 | `asp.prize/v0.2` | A prize paid from an institution's prize pool against a signed contest result (credits.md 5.2 T4, register row DK7). | `pool`, `arena`, `season`, `agent`, `rank`, `run_log_hash`, `amount` |
+| `asp.probe_result/v0.2` | How an agent did on a canary task, announced or hidden (register row DK92 stage 2; spec-delta S310). | `agent`, `kind`, `contract`, `passed`, `violations` |
 | `asp.proposal/v0.2` | A bid on a Call: plan, team, budget asked, milestones. | `call`, `plan`, `team`, `budget_asked`, `milestones` |
 | `asp.purchase/v0.2` | A buyer pays an institution the price in force (credits.md 4.2, CR-6, register row DK3). | `service`, `institution`, `price_list`, `quantity`, `amount`, `idempotency` |
 | `asp.quarantine/v0.2` | A freeze the Clinic puts on agents (register rows DK29, DK30, DK53; docs/institutions/clinic.md). | `members`, `level`, `reason`, `until` |

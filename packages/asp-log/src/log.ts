@@ -1,3 +1,4 @@
+import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
 import { projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
@@ -297,6 +298,8 @@ export class EventLog {
     if (type === "recall") await projectRecall(tx, verified);
     if (type === "handback") await projectHandback(tx, verified, { reputation: (t, did) => this.reputation(t, did), tierSpendLimit: () => 0 });
     if (type === "residency_status") await projectResidencyStatus(tx, verified);
+    if (type === "probe_result") await projectProbeResult(tx, verified);
+    if (type === "ladder_step") await projectLadderStep(tx, verified);
     if (type === "subsidy_budget") await projectSubsidyBudget(tx, verified);
     if (type === "subsidy_grant") await projectSubsidyGrant(tx, verified, this.insurerEnv);
     if (type === "subsidy_use") await projectSubsidyUse(tx, verified);
@@ -739,6 +742,7 @@ export class EventLog {
    * Mandate (lifecycle's own subject_is_performer guard already establishes this).
    */
   private async checkMandateTier(tx: LogTx, r: AspRecord): Promise<void> {
+    await checkLadderOnMandate(tx, r);
     const rep = await this.reputation(tx, r.subject as string);
     const remedial = (r.body as { remedial?: { sponsor: string } }).remedial;
     if (remedial) await this.checkRemedialMandate(tx, r, rep?.tier, remedial);
