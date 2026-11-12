@@ -684,7 +684,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK63 | C | designed | Network intelligence is promised: a data marketplace of query monetisation over the cryptographic history. |
 | DK64 | A | partial | The go-to-market tools are not all in place: the 15-minute start, the CI action and developer outreach materia... |
 | DK65 | A | open | The deck promises capacity for 1,000 tenants and 1M governed agent runs at the three-month beta, and no load t... |
-| DK66 | A | open | The deck states claims that are out of date or need their context: the test count, the benchmark figure and th... |
+| DK66 | A | closed | The deck states claims that are out of date or need their context: the test count, the benchmark figure and th... |
 | DK67 | A | closed | Mint is not a signed record, so balances cannot be re-derived from the log alone: the replay seeds from a mint... |
 | DK68 | A | closed | Nothing is burned and the settlement fees go to an account with no owner and no outflow (PLATFORM_DID, log.ts... |
 | DK69 | A | closed | Standing and the starter grant can be farmed today. countAcceptedJob counts every job settled as accepted with... |
