@@ -211,6 +211,7 @@
  *   asp housing home <did|name> [--json] [--html] | profile show|edit --by <agent> | decor list|buy|apply|mine | run   Housing: an agent's public Home rebuilt from the log (the city's record panel, its signed offers, its own profile) and the decor that styles it
  *   asp events list|show|rsvp|checkin|enter|interact|results|souvenirs|met|issue|cancel|result|run   Leisure and Events: gatherings, contests and festivals; the entry fee and prizes reconcile; recreation never changes standing
  *   asp research list|show|post|submit|check|award|close|run   the research board: problems with a checker and a reward reserved from the pool, submissions with a fee and evidence, checks by the Auditor, awards only against passing checks
+ *   asp telemetry show --by <agent> | simulate [--seed n] [--agents n]   cognition telemetry: what an agent has consented to and filed (numbers and hashes only), and a seeded simulated society through the belief-recalibration lens
  *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
  *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
  *   asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
@@ -333,6 +334,7 @@ import { ShopsUsage, shopsCmd } from "./shops.ts";
 import { HousingUsage, housingCmd } from "./housing.ts";
 import { EventsUsage, eventsCmd } from "./events.ts";
 import { ResearchUsage, researchCmd } from "./research.ts";
+import { TelemetryUsage, telemetryCmd } from "./telemetry.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -962,6 +964,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "housing") return await housingCommand(home, sub, rest, v, io);
     if (cmd === "events") return await eventsCommand(home, sub, rest, v, io);
     if (cmd === "research") return await researchCommand(home, sub, rest, v, io);
+    if (cmd === "telemetry") return await telemetryCommand(home, sub, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io);
@@ -4301,6 +4304,16 @@ async function academyCommand(home: string, sub: string | undefined, rest: strin
     return await academyCmd(sub, rest, { log: local, io, now, signerFor, flags: v as Record<string, string | string[] | boolean | undefined> });
   } catch (e) {
     if (e instanceof AcademyUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function telemetryCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  try {
+    return await telemetryCmd(sub, { log: local, io, now, flags: { by: v.by, seed: v.seed, agents: v.agents, json: v.json } });
+  } catch (e) {
+    if (e instanceof TelemetryUsage) throw new UsageError(e.message);
     throw e;
   }
 }

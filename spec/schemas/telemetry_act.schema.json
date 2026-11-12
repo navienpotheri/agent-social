@@ -1,0 +1,356 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:telemetry_act",
+  "title": "Telemetry act body",
+  "description": "Cognition telemetry's records (instrumentation.md 5 and 7, register row DK79; spec-delta S291). One record type with an `act`: consent (the sponsor, countersigned by the agent, names the signals, purposes and retention; it can revoke an earlier consent), probe_set (the Telemetry office publishes versioned propositions with registered resolvers), memory_policy (the agent's versioned memory rules: a hash and a budget), run_meta (hashes and names for one run) and digest (a day's numeric entries for the nine signals, with counts and a Merkle root). The log carries numbers, hashes and identifiers only, never free text: a digest string that is prose is refused by the log. A signal without a consent that covers it is refused. No telemetry figure is read by any tier, rank, bond, certificate or eligibility rule. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": [
+    "act"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "consent",
+        "probe_set",
+        "memory_policy",
+        "run_meta",
+        "digest"
+      ]
+    },
+    "sponsor": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "signals": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 9,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "reasoning_trace",
+          "memory_rules",
+          "sub_agent_graph",
+          "belief_state",
+          "plan_trace",
+          "action_prediction",
+          "world_model_update",
+          "active_inference",
+          "calibration"
+        ]
+      }
+    },
+    "purposes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.:-]{1,64}$"
+      }
+    },
+    "retention_days": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 365
+    },
+    "from": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "until": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "revokes": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,39}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "propositions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "resolver",
+          "resolve_at"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,40}$"
+          },
+          "resolver": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "params": {
+                "type": "object"
+              }
+            }
+          },
+          "resolve_at": {
+            "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+          },
+          "anchor": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "retire_at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "policy_sha256": {
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+    },
+    "budget": {
+      "type": "object",
+      "required": [
+        "maxFiles",
+        "maxBytes",
+        "maxIndexLines"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "maxFiles": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxIndexLines": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "previous": {
+      "anyOf": [
+        {
+          "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "run": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "runtime": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,64}$"
+    },
+    "runtime_version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,64}$"
+    },
+    "model": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:/-]{1,80}$"
+    },
+    "gateway_version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,64}$"
+    },
+    "tools_sha256": {
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+    },
+    "system_prompt_sha256": {
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+    },
+    "instructions_sha256": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+      }
+    },
+    "mandate": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "started": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "ended": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "day": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "consent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "merkle_root": {
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "propertyNames": {
+        "enum": [
+          "reasoning_trace",
+          "memory_rules",
+          "sub_agent_graph",
+          "belief_state",
+          "plan_trace",
+          "action_prediction",
+          "world_model_update",
+          "active_inference",
+          "calibration"
+        ]
+      }
+    },
+    "entries": {
+      "type": "object",
+      "propertyNames": {
+        "enum": [
+          "reasoning",
+          "memory",
+          "graph",
+          "beliefs",
+          "plans",
+          "predictions",
+          "diffs",
+          "inference",
+          "calibration"
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "consent"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "sponsor",
+          "agent",
+          "signals",
+          "purposes",
+          "retention_days",
+          "from",
+          "until"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "probe_set"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "id",
+          "version",
+          "propositions"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "memory_policy"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "agent",
+          "version",
+          "policy_sha256",
+          "budget"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "run_meta"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "agent",
+          "run",
+          "runtime",
+          "model",
+          "tools_sha256",
+          "system_prompt_sha256",
+          "mandate",
+          "started",
+          "ended"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "digest"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "agent",
+          "day",
+          "consent",
+          "merkle_root",
+          "counts",
+          "entries"
+        ]
+      }
+    }
+  ]
+}

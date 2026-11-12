@@ -6083,6 +6083,211 @@
       "valid": false
     },
     {
+      "name": "valid_telemetry_consent",
+      "schema": "telemetry_act",
+      "instance": {
+        "act": "consent",
+        "sponsor": "did:web:example.com:users:s",
+        "agent": "did:web:example.com:agents:a",
+        "signals": [
+          "belief_state",
+          "calibration"
+        ],
+        "purposes": [
+          "L7-belief-recalibration"
+        ],
+        "retention_days": 30,
+        "from": "2026-11-01T00:00:00Z",
+        "until": "2026-12-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "telemetry_consent_unknown_signal",
+      "schema": "telemetry_act",
+      "instance": {
+        "act": "consent",
+        "sponsor": "did:web:example.com:users:s",
+        "agent": "did:web:example.com:agents:a",
+        "signals": [
+          "mind_reading"
+        ],
+        "purposes": [
+          "L7-belief-recalibration"
+        ],
+        "retention_days": 30,
+        "from": "2026-11-01T00:00:00Z",
+        "until": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "telemetry_consent_no_purpose",
+      "schema": "telemetry_act",
+      "instance": {
+        "act": "consent",
+        "sponsor": "did:web:example.com:users:s",
+        "agent": "did:web:example.com:agents:a",
+        "signals": [
+          "belief_state",
+          "calibration"
+        ],
+        "purposes": [],
+        "retention_days": 30,
+        "from": "2026-11-01T00:00:00Z",
+        "until": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_telemetry_probe_set",
+      "schema": "telemetry_act",
+      "instance": {
+        "act": "probe_set",
+        "id": "econ-1",
+        "version": 1,
+        "propositions": [
+          {
+            "id": "P1",
+            "resolver": {
+              "name": "price_above",
+              "params": {
+                "service": "shops.resource.storage",
+                "value": 25
+              }
+            },
+            "resolve_at": "2026-11-20T00:00:00Z"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "telemetry_probe_set_no_propositions",
+      "schema": "telemetry_act",
+      "instance": {
+        "act": "probe_set",
+        "id": "econ-1",
+        "version": 1,
+        "propositions": []
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_telemetry_memory_policy",
+      "schema": "telemetry_act",
+      "instance": {
+        "act": "memory_policy",
+        "agent": "did:web:example.com:agents:a",
+        "version": 1,
+        "policy_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "budget": {
+          "maxFiles": 200,
+          "maxBytes": 1048576,
+          "maxIndexLines": 200
+        },
+        "previous": null
+      },
+      "valid": true
+    },
+    {
+      "name": "telemetry_memory_policy_no_budget",
+      "schema": "telemetry_act",
+      "instance": {
+        "act": "memory_policy",
+        "agent": "did:web:example.com:agents:a",
+        "version": 1,
+        "policy_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_telemetry_digest",
+      "schema": "telemetry_act",
+      "instance": {
+        "act": "digest",
+        "agent": "did:web:example.com:agents:a",
+        "day": "2026-11-10",
+        "consent": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "merkle_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "counts": {
+          "belief_state": 1
+        },
+        "entries": {
+          "beliefs": [
+            {
+              "probe_set": "econ-1",
+              "version": 1,
+              "answers": {
+                "P1": 200
+              }
+            }
+          ]
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "telemetry_digest_unknown_entry_key",
+      "schema": "telemetry_act",
+      "instance": {
+        "act": "digest",
+        "agent": "did:web:example.com:agents:a",
+        "day": "2026-11-10",
+        "consent": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "merkle_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "counts": {},
+        "entries": {
+          "thoughts": []
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "telemetry_digest_bad_day",
+      "schema": "telemetry_act",
+      "instance": {
+        "act": "digest",
+        "agent": "did:web:example.com:agents:a",
+        "day": "yesterday",
+        "consent": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "merkle_root": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "counts": {},
+        "entries": {}
+      },
+      "valid": false
+    },
+    {
+      "name": "telemetry_act_unknown",
+      "schema": "telemetry_act",
+      "instance": {
+        "act": "spy",
+        "agent": "did:web:example.com:agents:a"
+      },
+      "valid": false
+    },
+    {
+      "name": "telemetry_act_extra_field",
+      "schema": "telemetry_act",
+      "instance": {
+        "act": "consent",
+        "sponsor": "did:web:example.com:users:s",
+        "agent": "did:web:example.com:agents:a",
+        "signals": [
+          "belief_state",
+          "calibration"
+        ],
+        "purposes": [
+          "L7-belief-recalibration"
+        ],
+        "retention_days": 30,
+        "from": "2026-11-01T00:00:00Z",
+        "until": "2026-12-01T00:00:00Z",
+        "free_text": "anything"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_price_list_standing_item",
       "schema": "price_list",
       "instance": {

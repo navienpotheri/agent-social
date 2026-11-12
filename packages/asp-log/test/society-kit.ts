@@ -22,7 +22,8 @@ export const housing = party(institutionDid("housing"));
 export const events = party(institutionDid("events"));
 export const research = party(institutionDid("research"));
 export const auditor = party("did:web:asp.local:auditor");
-export const resolver = staticResolver(Object.fromEntries([operator, owner, treasury, market, registrar, courts, shops, housing, events, research, auditor].map((p) => [p.kid, p.publicKey])));
+export const telemetry = party("did:web:asp.local:telemetry");
+export const resolver = staticResolver(Object.fromEntries([operator, owner, treasury, market, registrar, courts, shops, housing, events, research, auditor, telemetry].map((p) => [p.kid, p.publicKey])));
 
 let clockMs = Date.parse("2026-11-01T00:00:00Z");
 export const tick = (): string => new Date((clockMs += 60_000)).toISOString().replace(".000Z", "Z");

@@ -37,3 +37,5 @@ export { societyHealth, activityFromRecords, healthFigure, type Activity, type H
 export { BANK_DID, LINE_LIMIT, LINE_MAX_COUNTED_JOBS, GUARANTOR_PERMILLE, LINE_WINDOW_MS, type Line } from "./bank.ts";
 export { INSURER_DID, PREMIUM_SPLIT, reserveFloor, premiumFor, payoutFor, FLOOR_MIN, COVER_SHARE_PERMILLE, DEDUCTIBLE_PERMILLE, FAILED_JOB_CAP_PERMILLE, FRAUD_FAULT_PERMILLE, type Cover } from "./insurer.ts";
 export { RESEARCH_DID, SUBMIT_SERVICE, RESEARCH_CATALOGUE, MAX_SUBMISSIONS_PER_PROBLEM, DEFAULT_SPLIT, runChecker, sha256Text, board as researchBoard, researchReconciliation, runResearch, type ProblemView, type ResearchRun } from "./research.ts";
+export { SIGNALS, ENTRY_KEY, MAX_RETENTION_DAYS, MIN_CALIBRATION_N, RESOLVERS, Collector, mayCollect, brier, surprisal, meanSurprisal, klBits, normativePosterior, calibration as calibrationOf, beliefDiff, merkleRoot, textHash, buildDigest, lensRecalibration, simulateSociety, rng, round3, type Signal, type ConsentView, type DigestView, type SimAgent } from "./telemetry.ts";
+export { TELEMETRY_DID } from "./telemetry-rules.ts";

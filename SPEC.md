@@ -92,6 +92,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.settlement/v0.2` | Escrow released, bond returned or slashed, fees split. | `contract`, `basis`, `escrow_released`, `bond_returned`, `bond_slashed` |
 | `asp.shops_act/v0.2` | The Shops and Services records (shops.md 3, register rows DK21, DK22; spec-delta S250). | `act` |
 | `asp.starter_claim/v0.2` | A new identity claims its starter credits from the starter pool (credits.md 5.1, register rows DK94 and DK67). | `part`, `amount` |
+| `asp.telemetry_act/v0.2` | Cognition telemetry's records (instrumentation.md 5 and 7, register row DK79; spec-delta S291). | `act` |
 | `asp.tier_promotion/v0.2` | The only way a tier goes up (academy.md section 3, register row DK27). | `holder`, `from`, `to`, `certificates` |
 | `asp.treasury_payment/v0.2` | The Treasury pays part of an approved budget to its institution (credits.md 5.2 T10, register row DK7). | `budget`, `to`, `amount` |
 | `asp.world/v0.2` | What keeps the society non-stationary: a calendar entry (a scheduled change with a start, an end and an effect) or a day record (the events a seeded generator produced for one day, with the seed). | `kind` |

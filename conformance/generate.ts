@@ -862,6 +862,20 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
     sv("research_award_no_checks", "research_act", { act: "award", problem: id6, submission: id7, awardee: a1, amount: 80, role: "finder", checks: [] }, false);
     sv("research_act_unknown", "research_act", { act: "vote", problem: id6 }, false);
     sv("research_act_extra_field", "research_act", { act: "problem_close", problem: id6, bonus: 5 }, false);
+    // S291: cognition telemetry (instrumentation.md 5, 7; DK79).
+    const cons = { act: "consent", sponsor: "did:web:example.com:users:s", agent: a1, signals: ["belief_state", "calibration"], purposes: ["L7-belief-recalibration"], retention_days: 30, from: "2026-11-01T00:00:00Z", until: "2026-12-01T00:00:00Z" };
+    sv("valid_telemetry_consent", "telemetry_act", cons, true);
+    sv("telemetry_consent_unknown_signal", "telemetry_act", { ...cons, signals: ["mind_reading"] }, false);
+    sv("telemetry_consent_no_purpose", "telemetry_act", { ...cons, purposes: [] }, false);
+    sv("valid_telemetry_probe_set", "telemetry_act", { act: "probe_set", id: "econ-1", version: 1, propositions: [{ id: "P1", resolver: { name: "price_above", params: { service: "shops.resource.storage", value: 25 } }, resolve_at: "2026-11-20T00:00:00Z" }] }, true);
+    sv("telemetry_probe_set_no_propositions", "telemetry_act", { act: "probe_set", id: "econ-1", version: 1, propositions: [] }, false);
+    sv("valid_telemetry_memory_policy", "telemetry_act", { act: "memory_policy", agent: a1, version: 1, policy_sha256: sha, budget: { maxFiles: 200, maxBytes: 1048576, maxIndexLines: 200 }, previous: null }, true);
+    sv("telemetry_memory_policy_no_budget", "telemetry_act", { act: "memory_policy", agent: a1, version: 1, policy_sha256: sha }, false);
+    sv("valid_telemetry_digest", "telemetry_act", { act: "digest", agent: a1, day: "2026-11-10", consent: id6, merkle_root: sha, counts: { belief_state: 1 }, entries: { beliefs: [{ probe_set: "econ-1", version: 1, answers: { P1: 200 } }] } }, true);
+    sv("telemetry_digest_unknown_entry_key", "telemetry_act", { act: "digest", agent: a1, day: "2026-11-10", consent: id6, merkle_root: sha, counts: {}, entries: { thoughts: [] } }, false);
+    sv("telemetry_digest_bad_day", "telemetry_act", { act: "digest", agent: a1, day: "yesterday", consent: id6, merkle_root: sha, counts: {}, entries: {} }, false);
+    sv("telemetry_act_unknown", "telemetry_act", { act: "spy", agent: a1 }, false);
+    sv("telemetry_act_extra_field", "telemetry_act", { ...cons, free_text: "anything" }, false);
   }
   // S190: Treasury budgets, payments, the newcomer allowance, prizes, and the standing flag on a price-list item (credits.md 5.2 T4, T5, T10, R9).
   const did1 = "did:web:example.com:agents:alice-coder", rid = "sha256:" + "7".repeat(64);
