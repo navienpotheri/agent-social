@@ -1,0 +1,317 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:registry_act",
+  "title": "Registry act body",
+  "description": "The Registry's civil-register records (registry.md 3, register row DK10; spec-delta S231). One record type with an `act`: name_claim and name_release (a name held 365 days), impersonation_report, name_reply (the look-alike is heard), name_takedown (the Registrar removes a NAME, never the identity, with an Article and a reason) and takedown_dismissal, identity_renewal, identity_suspension (the Registrar's interim, 7 days at most) and suspension_lift, identity_retirement. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "act"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "name_claim",
+        "name_release",
+        "impersonation_report",
+        "name_reply",
+        "name_takedown",
+        "takedown_dismissal",
+        "identity_renewal",
+        "identity_suspension",
+        "suspension_lift",
+        "identity_retirement"
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "holder": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "class": {
+      "enum": [
+        "agent",
+        "person",
+        "fleet"
+      ]
+    },
+    "paid": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "valid_until": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "claim": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "genuine": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "target": {
+      "type": "string",
+      "description": "The look-alike: a name or a DID."
+    },
+    "grounds": {
+      "enum": [
+        "name_confusable",
+        "claims_to_be",
+        "copied_profile"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+      }
+    },
+    "report": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "statement": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "code": {
+      "type": "object",
+      "required": [
+        "version",
+        "articles"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        },
+        "articles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(1[0-2]|[1-9])(\\.[0-9]{1,2})?$"
+          }
+        }
+      }
+    },
+    "effect": {
+      "enum": [
+        "name_removed"
+      ]
+    },
+    "appealable_until": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "passport": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "keys_confirmed": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+      }
+    },
+    "until": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "suspension": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "name_claim"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "name",
+          "holder",
+          "class",
+          "valid_until"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "name_release"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "name",
+          "claim"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "impersonation_report"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "target",
+          "genuine",
+          "grounds",
+          "evidence"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "name_reply"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "report",
+          "statement"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "name_takedown"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "name",
+          "holder",
+          "report",
+          "reason",
+          "code",
+          "effect",
+          "appealable_until"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "takedown_dismissal"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "report",
+          "reason"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "identity_renewal"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "passport",
+          "keys_confirmed"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "identity_suspension"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "holder",
+          "reason",
+          "code",
+          "until"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "suspension_lift"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "suspension",
+          "reason"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "identity_retirement"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "holder",
+          "reason"
+        ]
+      }
+    }
+  ]
+}

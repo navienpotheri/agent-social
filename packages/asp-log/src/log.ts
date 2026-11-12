@@ -7,6 +7,8 @@ import { bondFloorPermille } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
+import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, type MarketEnv } from "./market-rules.ts";
+import { classWeight, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
 import { DEFAULT_PANEL_SIZE, drawPanel, findRejection } from "./panel.ts";
@@ -93,6 +95,13 @@ export interface AppendResult {
   state: string | null;
   /** True if the record was already in the log; nothing was written. */
   duplicate: boolean;
+}
+
+/** One open posting on the job board (market.md 7). */
+export interface BoardEntry {
+  posting: string; intent: string; poster: string; class: JobClass; budget: number; minTier: number; requiresCertificate?: string; skills: string[]; expires: string; purpose: string;
+  /** Present when the board was read for one agent. */
+  forAgent?: { eligible: boolean; missing: { rule: string; message: string }[]; counts: { counts: boolean; weight: number; reason: string } };
 }
 
 export interface VerifyReport {
@@ -257,6 +266,9 @@ export class EventLog {
     if (type === "tier_promotion") await this.projectTierPromotion(tx, verified);
     if (type === "quarantine") await this.projectQuarantine(tx, verified);
     if (type === "quarantine_release") await this.projectQuarantineRelease(tx, verified);
+    if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
+    if (type === "intent") checkIntentClass(verified);
+    if (type === "contract") await markPostingFilled(tx, verified);
     if (type === "mandate" || type === "contract" || type === "bond" || type === "proposal" || type === "offer") await this.checkQuarantined(tx, verified);
     if (type === "receipt") await this.projectReceipt(tx, verified);
     if (type === "attestation") {
@@ -598,18 +610,22 @@ export class EventLog {
    * the counterparty cap (qualifying.ts, credits.md 5.4). Agents only, like the rest of reputation.
    * Old rows have no `qualifyingJobs`; they read as 0, so jobs counted before this rule do not carry over (the conservative choice).
    */
-  private async countAcceptedJob(tx: LogTx, backer: string, job: { principal: string; performer: string; price: number; at: string }): Promise<void> {
+  private async countAcceptedJob(tx: LogTx, backer: string, job: { principal: string; performer: string; price: number; at: string; intent?: string }): Promise<void> {
     const rep = await this.reputation(tx, backer);
     if (!rep) return;
     let { qualifyingJobs, recentJobs } = rep;
-    if (job.price >= QUALIFYING_MIN_PRICE) {
+    // The job's class (DK18): the poster's class on the intent (raised by the Market, never lowered), capped by what the price supports; no class reads as routine. Its weight is what the job adds to standing: trivial 0, routine 1, skilled 2, critical 3.
+    const intentRec = job.intent ? await tx.getRecord(job.intent) : undefined;
+    const declared = intentRec?.record.type === "asp.intent/v0.2" ? jobNeeds(intentRec.record, ((await tx.getMarker(`class_raise:${job.intent}`)) as JobClass | undefined) ?? undefined).class : undefined;
+    const weight = classWeight(declared, job.price);
+    if (job.price >= QUALIFYING_MIN_PRICE && weight > 0) {
       const facts = async (did: string): Promise<PartyFacts> => { const p = await tx.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
       const principal = await facts(job.principal);
       const others = [await facts(job.performer), await facts(backer)];
       if (others.every((o) => independent(principal, o))) {
         const admitted = admitEligibleJob(recentJobs, principal.sponsor, job.at);
         recentJobs = admitted.window;
-        if (admitted.counts) qualifyingJobs += 1;
+        if (admitted.counts) qualifyingJobs += weight;
       }
     }
     await this.saveReputation(tx, backer, { ...rep, acceptedJobs: rep.acceptedJobs + 1, qualifyingJobs, recentJobs });
@@ -948,7 +964,7 @@ export class EventLog {
     await this.credit(tx, cbody.principal, escrowLeftover + slashedToPrincipal + principalReserve);
     await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover + backerReserve);
     if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer, r.issued_at);
-    else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at });
+    else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at, intent: (contract!.record.body as { basis?: { intent?: string } }).basis?.intent });
     await tx.putEscrow({ ...escrow, settled: true });
   }
 
@@ -1484,6 +1500,7 @@ export class EventLog {
     if (!(await tx.getPassport(b.holder))) throw rule("certificate_no_passport", `${b.holder} has no passport in this log`);
     if (Date.parse(b.expires) <= Date.parse(b.issued)) throw rule("certificate_expiry", "a certificate expires after it is issued");
     await tx.putMarker(`cert:${b.holder}|${b.skill}|${b.level}`, r.id);
+    await tx.putMarker(`certs_of:${b.holder}`, [...((await tx.getMarker(`certs_of:${b.holder}`)) ?? "").split(",").filter(Boolean), r.id].join(","));
   }
 
   /**
@@ -1615,6 +1632,8 @@ export class EventLog {
     const pb = purchase.record.body as unknown as PurchaseBody;
     if (r.issuer !== pb.institution) throw rule("receipt_wrong_issuer", `only ${pb.institution}, the institution that sold it, signs the receipt`);
     if (b.status === "delivered") return;
+    // A posting deposit (market.md 4) is returned when the posting ends in a contract, not before.
+    if ((await tx.getMarker(`deposit_used:${purchase.id}`)) && !(await tx.getMarker(`posting_filled:${purchase.id}`))) throw rule("refund_deposit_not_earned", "a posting deposit is returned when the posting ends in a contract; this posting has not");
     const parts = await this.purchaseParts(tx, purchase);
     if (!parts) throw rule("receipt_unknown_price", "the price list this purchase relied on is not in the log");
     const refund = b.refund_amount?.value ?? 0;
@@ -1642,6 +1661,74 @@ export class EventLog {
     const key = `spend:${purchase.record.issuer}|${pb.institution}|${entry.period}|${periodKey(entry.period, purchase.record.issued_at)}`;
     const spent = Number((await tx.getMarker(key)) ?? 0);
     await tx.putMarker(key, String(Math.max(0, spent - refund)));
+  }
+
+  /** What the Market's rules need from the log (market-rules.ts). */
+  private marketEnv(): MarketEnv { return { operator: this.operator, bondFloor: this.bondFloor, reputation: (rd, did) => this.reputation(rd, did) }; }
+
+  /** Every record of the given short types, in log order (read by the views). */
+  async recordsOfTypes(types: string[]): Promise<AspRecord[]> {
+    const want = new Set(types.map((x) => `asp.${x}/v0.2`));
+    return this.recordsWhere((r) => want.has(r.type));
+  }
+
+  /** The facts about every agent at `at`, for discovery and the board (market.md 7). */
+  private async allAgentFacts(at: string): Promise<AgentFacts[]> {
+    const recs = await this.recordsWhere((r) => r.type === "asp.passport/v0.2" || r.type === "asp.certificate/v0.2" || (r.type === "asp.market_act/v0.2" && (r.body as { act?: string }).act === "assignment"));
+    const certs = recs.filter((r) => r.type === "asp.certificate/v0.2");
+    const boards = new Map<string, string[]>();
+    for (const r of recs) if (r.type === "asp.market_act/v0.2") { const a = (r.body as { agent: string }).agent; boards.set(a, [...(boards.get(a) ?? []), r.issued_at]); }
+    const dids = new Set<string>();
+    for (const r of recs) if (r.type === "asp.passport/v0.2" && (r.body as { kind?: string }).kind === "agent") dids.add((r.body as { did: string }).did);
+    const out: AgentFacts[] = [];
+    for (const did of [...dids].sort()) { const f = await agentFacts(this.store, this.marketEnv(), did, at, certs, boards.get(did) ?? []); if (f) out.push(f); }
+    return out;
+  }
+
+  /** Search for agents (market.md 7 `discover agents`, DK17): filtered, ranked by the published rule, each with the reasons for its rank. The same input gives the same list. */
+  async discoverAgents(query: AgentQuery = {}, seed = "discover", at?: string): Promise<Ranked[]> {
+    const when = at ?? this.now().toISOString();
+    return discoverAgents(query, await this.allAgentFacts(when), seed, when);
+  }
+
+  /**
+   * The job board (market.md 7): the open postings, each with its class, budget, required tier and certificate, the poster, and, for `forAgent`,
+   * whether that agent is eligible (and what is missing) and whether the job would count for its standing. Derived from the log's records, so any replica shows the same board.
+   */
+  async marketBoard(forAgent?: string, at?: string): Promise<BoardEntry[]> {
+    const when = at ?? this.now().toISOString();
+    const recs = await this.recordsOfTypes(["market_act", "intent", "contract"]);
+    const byId = new Map(recs.map((r) => [r.id, r]));
+    const state = new Map<string, string>();
+    const raised = new Map<string, JobClass>();
+    const postings: AspRecord[] = [];
+    for (const r of recs) {
+      const b = r.body as Record<string, any>;
+      if (r.type === "asp.market_act/v0.2") {
+        if (b.act === "posting") { postings.push(r); state.set(r.id, "open"); }
+        else if (b.act === "withdraw") state.set(b.posting, "withdrawn");
+        else if (b.act === "assignment") state.set(b.posting, `assigned:${b.agent}`);
+        else if (b.act === "class_check" && b.verdict === "changed_to") raised.set(b.intent, b.class);
+      }
+    }
+    for (const r of recs) if (r.type === "asp.contract/v0.2") { const intent = (r.body as { basis?: { intent?: string } }).basis?.intent; for (const p of postings) if (intent && (p.body as { intent: string }).intent === intent) state.set(p.id, `filled:${r.id}`); }
+    const facts = forAgent ? (await this.allAgentFacts(when)).find((f) => f.did === forAgent) : undefined;
+    const partyFacts = async (did: string): Promise<PartyFacts> => { const p = await this.store.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+    const out: BoardEntry[] = [];
+    for (const p of postings) {
+      const pb = p.body as { intent: string; expires: string };
+      if (Date.parse(pb.expires) <= Date.parse(when) || state.get(p.id) !== "open") continue;
+      const intent = byId.get(pb.intent);
+      if (!intent) continue;
+      const needs = jobNeeds(intent, raised.get(pb.intent));
+      const entry: BoardEntry = { posting: p.id, intent: pb.intent, poster: p.issuer, class: needs.class, budget: needs.budget, minTier: needs.minTier, requiresCertificate: needs.requiresCertificate, skills: needs.skills, expires: pb.expires, purpose: (intent.body as { purpose: string }).purpose };
+      if (facts) {
+        const e = eligibility(facts, needs);
+        entry.forAgent = { eligible: e.eligible, missing: e.missing, counts: countsFor(await partyFacts(facts.did), await partyFacts(p.issuer), needs.class, needs.budget) };
+      }
+      out.push(entry);
+    }
+    return forAgent ? out.sort((a, b) => Number(b.forAgent?.eligible) - Number(a.forAgent?.eligible)) : out;
   }
 
   get(id: string) { return this.store.getRecord(id); }

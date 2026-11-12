@@ -37,6 +37,17 @@
         }
       }
     },
+    "route": { "description": "For rulings: which route decided it (spec-delta S232).", "enum": ["standard", "small_claim", "appeal"] },
+    "precedents": {
+      "description": "For rulings: earlier rulings relied on, at most 5. Each must be an existing ruling other than this one (precedent_unknown); a ruling that cites one must carry code.",
+      "type": "array", "maxItems": 5, "uniqueItems": true,
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+    },
+    "departs_from": {
+      "description": "For rulings: earlier rulings it declines to follow; reasons must say why.",
+      "type": "array", "maxItems": 5, "uniqueItems": true,
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+    },
     "score": { "type": "integer" },
     "skill": { "type": "string" },
     "code": {

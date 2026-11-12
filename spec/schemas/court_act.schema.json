@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:court_act",
+  "title": "Court act body",
+  "description": "The Courts' records beyond a ruling (courts.md 3, register row DK13; spec-delta S232). One record type with an `act`: charter (the operator publishes the court charter: routes, caps, windows, fees), appeal (a party to a ruling appeals once, inside the window, with the appeal fee paid) and appeal_ruling (a quorum of a five-juror panel that excludes the first panel). Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "act"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "charter",
+        "appeal",
+        "appeal_ruling"
+      ]
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "text_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "effective_from": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "routes": {
+      "type": "object",
+      "description": "The charter's numbers: small_claim_max_price, small_claim_panel, small_claim_fee, standard_panel, appeal_panel, appeal_window_days, appeal_fee_small, appeal_fee_standard, appeal_small_max_price, claimant_open_cap.",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "ruling": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "grounds": {
+      "enum": [
+        "new_evidence",
+        "procedure",
+        "error_of_law"
+      ]
+    },
+    "statement": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "fee_paid": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "appeal": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "outcome": {
+      "enum": [
+        "affirmed",
+        "reversed",
+        "varied"
+      ]
+    },
+    "fault": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "urn:asp:v0.2:common#/$defs/permille"
+      }
+    },
+    "reasons": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+      }
+    },
+    "code": {
+      "type": "object",
+      "required": [
+        "version",
+        "articles"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        },
+        "articles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(1[0-2]|[1-9])(\\.[0-9]{1,2})?$"
+          }
+        }
+      }
+    },
+    "precedents": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "charter"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "version",
+          "text_sha256",
+          "routes",
+          "effective_from"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "appeal"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "ruling",
+          "grounds",
+          "statement",
+          "fee_paid"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "appeal_ruling"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "appeal",
+          "outcome",
+          "reasons",
+          "code"
+        ]
+      }
+    }
+  ]
+}

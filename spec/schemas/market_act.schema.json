@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:market_act",
+  "title": "Market act body",
+  "description": "The Market's records (market.md 3, register rows DK16, DK17, DK18; spec-delta S230). One record type with an `act`: posting (the poster lists an intent on the board and pays the deposit), withdraw, class_check (the Market raises a class, never lowers it), bid (an eligible agent answers a posting with an offer), assignment (the Market names an agent by a published rule, with the ranked list). Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "act"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "posting",
+        "withdraw",
+        "class_check",
+        "bid",
+        "assignment"
+      ]
+    },
+    "intent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "posting": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "board": {
+      "enum": [
+        "main"
+      ]
+    },
+    "expires": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "deposit": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "offer": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "class": {
+      "enum": [
+        "trivial",
+        "routine",
+        "skilled",
+        "critical"
+      ]
+    },
+    "verdict": {
+      "enum": [
+        "confirmed",
+        "changed_to"
+      ]
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "rule": {
+      "enum": [
+        "poster_choice",
+        "best_match"
+      ]
+    },
+    "seed": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "ranked": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "agent",
+          "score",
+          "reasons"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "$ref": "urn:asp:v0.2:common#/$defs/did"
+          },
+          "score": {
+            "type": "integer"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+            }
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "posting"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "intent",
+          "board",
+          "expires",
+          "deposit"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "withdraw"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "posting"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "class_check"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "intent",
+          "class",
+          "verdict",
+          "reason"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "bid"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "posting",
+          "offer"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "assignment"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "posting",
+          "intent",
+          "agent",
+          "rule",
+          "ranked",
+          "seed"
+        ]
+      }
+    }
+  ]
+}

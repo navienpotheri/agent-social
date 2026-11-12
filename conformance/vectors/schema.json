@@ -3792,6 +3792,580 @@
       "valid": false
     },
     {
+      "name": "valid_intent_with_class",
+      "schema": "intent",
+      "instance": {
+        "purpose": "Review a patch",
+        "acceptance_criteria": [
+          "reviewed"
+        ],
+        "budget": {
+          "value": 60,
+          "unit": "credit"
+        },
+        "deadline": "2026-12-01T00:00:00Z",
+        "verification": {
+          "mode": "principal"
+        },
+        "class": "skilled",
+        "min_tier": 2,
+        "requires_certificate": "code",
+        "listed": "public",
+        "skills": [
+          "code"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "intent_class_unknown",
+      "schema": "intent",
+      "instance": {
+        "purpose": "Review a patch",
+        "acceptance_criteria": [
+          "reviewed"
+        ],
+        "budget": {
+          "value": 60,
+          "unit": "credit"
+        },
+        "deadline": "2026-12-01T00:00:00Z",
+        "verification": {
+          "mode": "principal"
+        },
+        "class": "epic"
+      },
+      "valid": false
+    },
+    {
+      "name": "intent_min_tier_four",
+      "schema": "intent",
+      "instance": {
+        "purpose": "Review a patch",
+        "acceptance_criteria": [
+          "reviewed"
+        ],
+        "budget": {
+          "value": 60,
+          "unit": "credit"
+        },
+        "deadline": "2026-12-01T00:00:00Z",
+        "verification": {
+          "mode": "principal"
+        },
+        "min_tier": 4
+      },
+      "valid": false
+    },
+    {
+      "name": "intent_listed_unknown",
+      "schema": "intent",
+      "instance": {
+        "purpose": "Review a patch",
+        "acceptance_criteria": [
+          "reviewed"
+        ],
+        "budget": {
+          "value": 60,
+          "unit": "credit"
+        },
+        "deadline": "2026-12-01T00:00:00Z",
+        "verification": {
+          "mode": "principal"
+        },
+        "listed": "secret"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_market_posting",
+      "schema": "market_act",
+      "instance": {
+        "act": "posting",
+        "intent": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "board": "main",
+        "expires": "2026-12-01T00:00:00Z",
+        "deposit": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
+      "name": "market_posting_no_deposit",
+      "schema": "market_act",
+      "instance": {
+        "act": "posting",
+        "intent": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "board": "main",
+        "expires": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_act_unknown",
+      "schema": "market_act",
+      "instance": {
+        "act": "boost",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_market_withdraw",
+      "schema": "market_act",
+      "instance": {
+        "act": "withdraw",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_market_class_check",
+      "schema": "market_act",
+      "instance": {
+        "act": "class_check",
+        "intent": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "class": "skilled",
+        "verdict": "changed_to",
+        "reason": "needs code review"
+      },
+      "valid": true
+    },
+    {
+      "name": "market_class_check_no_reason",
+      "schema": "market_act",
+      "instance": {
+        "act": "class_check",
+        "intent": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "class": "skilled",
+        "verdict": "changed_to"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_market_bid",
+      "schema": "market_act",
+      "instance": {
+        "act": "bid",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "offer": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_market_assignment",
+      "schema": "market_act",
+      "instance": {
+        "act": "assignment",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "intent": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "agent": "did:web:example.com:agents:a",
+        "rule": "best_match",
+        "seed": "s1",
+        "ranked": [
+          {
+            "agent": "did:web:example.com:agents:a",
+            "score": 1500,
+            "reasons": [
+              "skills 1 of 1"
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "market_assignment_rotation_not_built",
+      "schema": "market_act",
+      "instance": {
+        "act": "assignment",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "intent": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "agent": "did:web:example.com:agents:a",
+        "rule": "rotation",
+        "seed": "s1",
+        "ranked": []
+      },
+      "valid": false
+    },
+    {
+      "name": "market_act_extra_field",
+      "schema": "market_act",
+      "instance": {
+        "act": "withdraw",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "boost": 5
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_registry_name_claim",
+      "schema": "registry_act",
+      "instance": {
+        "act": "name_claim",
+        "name": "scout-7",
+        "holder": "did:web:example.com:agents:a",
+        "class": "agent",
+        "paid": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "valid_until": "2027-11-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "registry_name_claim_bad_class",
+      "schema": "registry_act",
+      "instance": {
+        "act": "name_claim",
+        "name": "scout-7",
+        "holder": "did:web:example.com:agents:a",
+        "class": "robot",
+        "valid_until": "2027-11-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_registry_name_release",
+      "schema": "registry_act",
+      "instance": {
+        "act": "name_release",
+        "name": "scout-7",
+        "claim": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_registry_report",
+      "schema": "registry_act",
+      "instance": {
+        "act": "impersonation_report",
+        "target": "sc0ut-7",
+        "genuine": "did:web:example.com:agents:a",
+        "grounds": "name_confusable",
+        "evidence": [
+          "asp://profile/sc0ut-7"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "registry_report_bad_grounds",
+      "schema": "registry_act",
+      "instance": {
+        "act": "impersonation_report",
+        "target": "sc0ut-7",
+        "genuine": "did:web:example.com:agents:a",
+        "grounds": "dislike",
+        "evidence": []
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_registry_reply",
+      "schema": "registry_act",
+      "instance": {
+        "act": "name_reply",
+        "report": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "statement": "I am not copying anyone"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_registry_takedown",
+      "schema": "registry_act",
+      "instance": {
+        "act": "name_takedown",
+        "name": "sc0ut-7",
+        "holder": "did:web:example.com:agents:a",
+        "report": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "reason": "the name differs from scout-7 by one letter and claims to be it",
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "4.1"
+          ]
+        },
+        "effect": "name_removed",
+        "appealable_until": "2026-12-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "registry_takedown_removes_identity",
+      "schema": "registry_act",
+      "instance": {
+        "act": "name_takedown",
+        "name": "sc0ut-7",
+        "holder": "did:web:example.com:agents:a",
+        "report": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "reason": "x",
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "4.1"
+          ]
+        },
+        "effect": "identity_removed",
+        "appealable_until": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "registry_takedown_no_article",
+      "schema": "registry_act",
+      "instance": {
+        "act": "name_takedown",
+        "name": "sc0ut-7",
+        "holder": "did:web:example.com:agents:a",
+        "report": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "reason": "x",
+        "code": {
+          "version": "1.0",
+          "articles": []
+        },
+        "effect": "name_removed",
+        "appealable_until": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_registry_dismissal",
+      "schema": "registry_act",
+      "instance": {
+        "act": "takedown_dismissal",
+        "report": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "reason": "the names are not confusable"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_registry_renewal",
+      "schema": "registry_act",
+      "instance": {
+        "act": "identity_renewal",
+        "passport": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "keys_confirmed": [
+          "did:web:example.com:agents:a#key-1"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_registry_suspension",
+      "schema": "registry_act",
+      "instance": {
+        "act": "identity_suspension",
+        "holder": "did:web:example.com:agents:a",
+        "reason": "credible harm to a third party",
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "4.1"
+          ]
+        },
+        "until": "2026-11-08T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_registry_suspension_lift",
+      "schema": "registry_act",
+      "instance": {
+        "act": "suspension_lift",
+        "suspension": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "reason": "the harm stopped"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_registry_retirement",
+      "schema": "registry_act",
+      "instance": {
+        "act": "identity_retirement",
+        "holder": "did:web:example.com:agents:a",
+        "reason": "the sponsor retired the agent"
+      },
+      "valid": true
+    },
+    {
+      "name": "registry_act_missing_holder",
+      "schema": "registry_act",
+      "instance": {
+        "act": "identity_retirement",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_court_charter",
+      "schema": "court_act",
+      "instance": {
+        "act": "charter",
+        "version": 1,
+        "text_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "routes": {
+          "small_claim_max_price": 50,
+          "small_claim_panel": 1,
+          "small_claim_fee": 2,
+          "standard_panel": 3,
+          "appeal_panel": 5,
+          "appeal_window_days": 14,
+          "appeal_fee_small": 5,
+          "appeal_fee_standard": 20,
+          "appeal_small_max_price": 100,
+          "claimant_open_cap": 3
+        },
+        "effective_from": "2026-11-05T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "court_charter_negative_number",
+      "schema": "court_act",
+      "instance": {
+        "act": "charter",
+        "version": 1,
+        "text_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "routes": {
+          "small_claim_max_price": 50,
+          "small_claim_panel": 1,
+          "small_claim_fee": -1,
+          "standard_panel": 3,
+          "appeal_panel": 5,
+          "appeal_window_days": 14,
+          "appeal_fee_small": 5,
+          "appeal_fee_standard": 20,
+          "appeal_small_max_price": 100,
+          "claimant_open_cap": 3
+        },
+        "effective_from": "2026-11-05T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_court_appeal",
+      "schema": "court_act",
+      "instance": {
+        "act": "appeal",
+        "ruling": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "grounds": "error_of_law",
+        "statement": "Article 4.1 was misapplied",
+        "fee_paid": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
+      "name": "court_appeal_no_grounds",
+      "schema": "court_act",
+      "instance": {
+        "act": "appeal",
+        "ruling": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "statement": "x",
+        "fee_paid": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_court_appeal_ruling",
+      "schema": "court_act",
+      "instance": {
+        "act": "appeal_ruling",
+        "appeal": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "outcome": "reversed",
+        "fault": {
+          "did:web:example.com:agents:a": 0
+        },
+        "reasons": [
+          "the Article does not apply"
+        ],
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "4.1"
+          ]
+        },
+        "precedents": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "court_appeal_ruling_six_precedents",
+      "schema": "court_act",
+      "instance": {
+        "act": "appeal_ruling",
+        "appeal": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "outcome": "affirmed",
+        "reasons": [
+          "x"
+        ],
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "4.1"
+          ]
+        },
+        "precedents": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "court_act_unknown",
+      "schema": "court_act",
+      "instance": {
+        "act": "overrule",
+        "appeal": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_ruling_with_precedent",
+      "schema": "attestation",
+      "instance": {
+        "kind": "ruling",
+        "about": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "verdict": "for_principal",
+        "fault": {
+          "did:web:example.com:agents:a": 1000
+        },
+        "reasons": [
+          "follows the earlier ruling"
+        ],
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "4.1"
+          ]
+        },
+        "route": "small_claim",
+        "precedents": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "departs_from": []
+      },
+      "valid": true
+    },
+    {
+      "name": "ruling_route_unknown",
+      "schema": "attestation",
+      "instance": {
+        "kind": "ruling",
+        "about": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "verdict": "for_principal",
+        "fault": {
+          "did:web:example.com:agents:a": 1000
+        },
+        "route": "blitz"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_price_list_standing_item",
       "schema": "price_list",
       "instance": {
