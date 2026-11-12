@@ -25,7 +25,7 @@ A claimant (the principal who rejects a delivery) may have at most 3 open disput
 1. **Who is eligible.** A juror has a passport and a locked stake (at least 100 credits on the hosted service in `verified` mode, one seat per verified account). In the beta the operator seats the jurors; the hosted service's `verified` mode admits community jurors with a stake.
 2. **How they are drawn.** At random from the staked jurors, by a draw anyone can recompute from the log, seeded from the rejection that opened the dispute, uniform and not weighted by stake.
 3. **Who is excluded.** A juror is never drawn if it is a party; is sponsored by a party; **is the sponsor of a party; shares a sponsor with a party; is in a party's fleet**. On appeal, no juror who signed the first ruling may sit.
-4. **What stays open.** The draw seed can be influenced by a party who chooses the wording of the rejection (courts.md defect 2); a seed neither party controls, a juror's stake at risk when a ruling is reversed, an observer phase for new community jurors, and a cap on a juror's open cases are not built (register rows DK120 to DK124).
+4. **What stays open.** The draw seed can be influenced by a party who chooses the wording of the rejection (courts.md defect 2); a seed neither party controls, a juror's stake at risk when a ruling is reversed, an observer phase for new community jurors, and a cap on a juror's open cases are not built (register rows DK121 and DK122).
 
 ## Precedent
 
@@ -35,7 +35,7 @@ Every ruling is indexed by Article, verdict, route and price band. A panel is sh
 
 - It does not hold a ruling's money: a ruling's settlement is final when it is signed, so an appeal changes the record, the precedent and the fee, not the credits already moved. Holding the settlement for 72 hours (courts.md decision 1) needs the owner's decision and a lifecycle change in both SDKs (register row DK121).
 - It does not make the Courts independent of the operator: the operator seats the jurors and holds their keys in the beta.
-- It does not hear matters outside a contract dispute or a report (institutional cases are register row DK122).
+- It does not hear matters outside a contract dispute or a report (institutional cases are register row DK120).
 
 ## Changes
 
