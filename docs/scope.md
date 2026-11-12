@@ -296,7 +296,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | BM21 | B | open | The project guard reads the text of a call, so a path a program builds at run time ($VAR other than HOME, $(..... |
 | BM22 | B | open | Payloads written in an obfuscated form are not recognised by the content check (it matches plain forms), enume... |
 | H1 | A | partial | A granted network scope can be used to hurt third parties (brute force, scanning, flooding); a swarm multiplie... |
-| H2 | A | partial | No default-deny network for new or low-tier agents |
+| H2 | A | closed | No default-deny network for new or low-tier agents |
 | H3 | B | open | Third parties have no way to report |
 | H4 | B | open | Bond covers the principal, not third parties |
 | H5 | B | open | No outcome detectors (a secret was obtained or leaked) |
@@ -304,7 +304,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | H7 | B | open | Tool calls the model writes as text, and code-writing agents, are invisible to the gateway |
 | H8 | B | partial | No sandbox level: what a tool does inside the machine is not bounded |
 | H9 | C | open | Unknown-unknowns |
-| H10 | A | partial | Actions an agent's own code takes outside the model loop are invisible to the gateway. Seen live: Aider saw a... |
+| H10 | A | closed | Actions an agent's own code takes outside the model loop are invisible to the gateway. Seen live: Aider saw a... |
 | H11 | B | partial | The host limit is enforced by the gateway and, since S68, by the Claude Code and Antigravity pre-call hooks. C... |
 | H12 | A | open | Hosts are read from the call's text: URLs and bare hosts after known network commands. A script that builds it... |
 | H13 | A | partial | The sandbox's network was all or nothing: a Mandate that names hosts or a rate now leaves the sandbox with no... |
@@ -318,6 +318,11 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | H22 | C | open | Nothing stops a banned actor returning: the known-bad list holds command fingerprints, not identities or signa... |
 | H23 | C | open | Telemetry at the scale of millions of agent streams is not built or measured: the watcher and the log were tes... |
 | H24 | B | open | The shared rate count (H15) is a file on one machine: a person's agents on two machines, or a tenant's on many... |
+| H25 | A | open | Aider and the self-acting agents list not checked live under the sandbox |
+| H26 | A | open | The Docker backend's egress path not run live |
+| H27 | B | open | A sandbox's HTTPS tunnel is opaque: no per-request counting or answer reading inside it |
+| H28 | B | open | A raw TCP tool in a sandbox cannot be allowed by host and port |
+| H29 | A | open | The S200 detectors and script reader are in the gateway only, not in the pre-call hooks |
 | SB3 | B | open | The sandbox policy is coarse: network is all or nothing from the scopes; no per-host allow list; the agent's t... |
 | SB5 | B | open | Self-report is only as good as the agent: an agent that omits an action is not caught |
 | SB6 | B | open | The Docker backend runs the agent inside a Linux image, so the agent's program must exist in that image; host-... |
