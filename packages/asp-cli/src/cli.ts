@@ -41,7 +41,7 @@
  *   asp run-log keep [<log>] | kept | fetch --id <id> | drop --id <id> | disclose --id <id> --to <did,..> --reason <why> [--upload] | open <sealed.json> [--as <did>]
  *     An optional encrypted copy of a run log on the service, and a signed disclosure of it to a court. `asp run <runtime> --keep-run-log` seals the session's log when it ends.
  *   asp serve ... --known-bad <dir>   also holds the known-bad list (docs/spec-deltas.md S54): command fingerprints an upheld report found harmful.
- *   asp gateway --contract <id> --by <agent did> (--openai-upstream <base url> | --anthropic-upstream <origin>) [--openai-key-env NAME] [--anthropic-key-env NAME] [--max-strikes n] [--token-cap n] [--approval-wait s] [--port n] [-- <command> ...]
+ *   asp gateway --contract <id> --by <agent did> (--openai-upstream <base url> | --anthropic-upstream <origin>) [--openai-key-env NAME] [--anthropic-key-env NAME] [--max-strikes n] [--token-cap n] [--approval-wait s] [--port n] [-- <command> ...] [--no-history-context]
  *     Gateway P1 (docs/gateway-design.md): runs any agent command under the contract's Mandate. The command's OPENAI_BASE_URL and
  *     ANTHROPIC_BASE_URL point at a local proxy that removes tool calls the Mandate does not allow from the model's reply before the
  *     agent sees them (streams are relayed live, each tool call held until it is judged), holds calls on gated scopes for the principal's signed
@@ -193,6 +193,7 @@
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
  *   asp credits fund --from <did> --to <did> --amount <n> [--memo <text>]   a sponsor funds its own agent, or an agent returns credits to its sponsor (the only free transfer; any other pair is refused)
  *   asp credits guard [--json]   the monetary guard measures (issuance rate, starter pool use, hoarding, Treasury share, audit mismatch) with the action each names; exit 1 when one is over its threshold; nothing is changed
+ *   asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>   the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs, certificates), the summary a governed run gives the agent; --sign signs it with the agent's key, --verify refuses a tampered or stale one
  *   asp credits balance <did>
  *   asp academy tier <agent did> [--json] | certify --holder <did> --skill <name> [--level n] --by <registrar did> | promote --holder <did> --by <registrar did>   how an agent moves up: where it is, what the next tier needs; the Registrar signs a certificate and a promotion, and the log checks them
  *   asp spend <agent did> [--mandate <id>] [--json] | buy <service> --by <agent did> [--mandate <id>] [--quantity <n>]   what an agent may buy from the institutions (its Mandate's institution_spend), what it has spent this period and what is left; buy signs a purchase
@@ -337,7 +338,7 @@ import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-soc
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
-  findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
+  buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
@@ -381,11 +382,14 @@ const OPTIONS = {
   agent: { type: "string" },
   project: { type: "string" },
   out: { type: "string" },
+  verify: { type: "string" },
+  sign: { type: "boolean" },
   prompt: { type: "string" },
   "include-user": { type: "boolean" },
   "trust-unverified": { type: "boolean" },
   isolate: { type: "boolean" },
   "min-agents": { type: "string" },
+  "no-history-context": { type: "boolean" },
   at: { type: "string" },
   level: { type: "string" },
   skill: { type: "string" },
@@ -835,6 +839,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "witnesses") return await logWitnessesAdd(home, rest[0] === "add" ? rest[1] : undefined, io);
     if (cmd === "log" && sub === "checkpoint") return await logCheckpoint(home, v, need, io);
     if (cmd === "credits" && (!sub || sub === "show")) return await creditsShow(home, io);
+    if (cmd === "history") return await historyCommand(home, sub, v, io);
     if (cmd === "credits" && sub === "grant") return await creditsGrant(home, v, need, io);
     if (cmd === "credits" && sub === "fund") return await creditsFund(home, v, need, io);
     if (cmd === "credits" && sub === "audit") return await creditsAudit(home, v, io);
@@ -2614,6 +2619,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       ...(agentSigner ? { buy: async (service: string, quantity: number) => lines((out) => spendCmd("buy", [service], spendOpts(out, { quantity: String(quantity) }))) } : {}),
     };
   })();
+  // The agent's verified history (DK59): its tier, slashes, strikes, qualifying jobs and certificates, read from the log now.
+  const historyNote = await (async () => { try { const h = await buildHistory(local.log as any, by); return h ? historyText(h) : undefined; } catch { return undefined; } })();
   // Per-command asking (U15): --ask-match <pattern|risky> (repeatable) narrows which shell commands are held; --always-file names the commands the person said "always" to.
   let cmdPatterns: RegExp[] | undefined;
   try { cmdPatterns = v["ask-match"]?.length ? compilePatterns(v["ask-match"]) : undefined; } catch (e) { throw new UsageError((e as Error).message); }
@@ -2642,7 +2649,13 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
     confineTo: resolve(io.cwd, v.project ?? "."),
     // The Code of the City goes into the system context of every model request, unless the person turns it off (gap LW1).
-    ...(v["no-law-context"] ? {} : (() => { try { return { lawContext: compactCode(readCode()) }; } catch { return {}; } })()),
+    // The Code, and the agent's own record from the log (DK59): both go into the system context of every request. The record is read once at the start of the run, at the log head named in it.
+    ...(() => {
+      const parts: string[] = [];
+      if (!v["no-law-context"]) { try { parts.push(compactCode(readCode())); } catch { /* the Code is not available */ } }
+      if (!v["no-history-context"] && historyNote) parts.push(historyNote);
+      return parts.length ? { lawContext: parts.join("\n\n") } : {};
+    })(),
     // Copies of an agent under this Mandate share one rate allowance, and --fleet-rate (or ASP_FLEET_RATE) caps everything this person runs on this machine (gap H15).
     ...((mandateRecord?.record.body as { network?: { rate?: unknown } } | undefined)?.network?.rate ? { rateLedger: join(home, "rate", `mandate-${createHash("sha256").update(contract).digest("hex").slice(0, 16)}.ndjson`) } : {}),
     ...(() => { const f = parseFleetRate(v["fleet-rate"] ?? io.env.ASP_FLEET_RATE); const who = (mandateRecord?.record as { issuer?: string } | undefined)?.issuer ?? by; return f ? { fleet: { rate: f, ledger: join(home, "rate", `fleet-${createHash("sha256").update(who).digest("hex").slice(0, 16)}.ndjson`) } } : {}; })(),
@@ -3785,6 +3798,41 @@ async function creditsGrant(home: string, v: Values, need: Need, io: Io): Promis
  * Works on a local log and, through the service's read-only `creditAudit` call, on a hosted one. Exit code 0 when balanced, 1 on a mismatch.
  */
 /** asp credits guard [--json]: the monetary guard measures (credits.md 5.6, CR-19, DK1): issuance rate, starter pool use, hoarding, Treasury share, audit mismatch; the ones the log cannot compute are named with the reason. Exit 1 when a measure is over its threshold. */
+/**
+ * asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file> (register row DK59): the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs,
+ * certificates), the summary an agent is given at the start of a governed run. --sign signs it with the agent's own key; --verify checks a summary handed back later: the signature, the log
+ * head and every figure, and refuses a tampered or stale one (exit 1).
+ */
+async function historyCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  if (v.verify) {
+    const signed = JSON.parse(readFileSync(resolve(io.cwd, v.verify), "utf8")) as SignedHistory;
+    const who = signed?.summary?.did;
+    const keys = who ? await local.log.keys(who) : [];
+    const key = keys.find((k: { kid: string; revokedAt?: string | null }) => k.kid === signed?.signer && !k.revokedAt) as { publicKey: string } | undefined;
+    if (!key) { io.out(`refused: no live key for ${signed?.signer ?? "the signer"} in the log`); return 1; }
+    const res = await verifyHistory(signed, b64urlDecode(key.publicKey), local.log as any);
+    io.out(res.ok ? `the summary for ${who} is genuine and current (log seq ${signed.summary.head.seq})` : `refused: ${res.reason}`);
+    return res.ok ? 0 : 1;
+  }
+  const did = sub;
+  if (!did) throw new UsageError("asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>");
+  const summary = await buildHistory(local.log as any, did);
+  if (!summary) { io.out(`${did} has no tier: it is not an agent with a passport in this log`); return 1; }
+  if (v.sign) {
+    const by = v.by ?? did;
+    const signer = new Keystore(home).forDid(by);
+    if (!signer) throw new Error(`no key for ${by} in ${join(home, "keys")}: only its holder can sign the summary`);
+    if (by !== did) throw new UsageError("an agent's history is signed with its own key: --by must be the agent");
+    const signed = signHistory(summary, signer);
+    if (v.out) { writeFileSync(resolve(io.cwd, v.out), JSON.stringify(signed, null, 2) + "\n"); io.out(`signed history for ${did} written to ${v.out} (log seq ${summary.head.seq})`); }
+    else io.out(JSON.stringify(signed, null, 2));
+    return 0;
+  }
+  if (v.json) io.out(JSON.stringify(summary, null, 2)); else io.out(historyText(summary));
+  return 0;
+}
+
 async function creditsGuard(home: string, v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   const report = await computeGuardReport({ handle: local });

@@ -371,6 +371,10 @@
           "description": "The monetary guard measures (credits.md 5.6): issuance rate, starter pool use, hoarding, the Treasury share and an audit mismatch, each with its threshold and the action the specification names; the measures the log cannot compute yet are listed with the reason. Exit 1 when a measure is over its threshold. It only reads: acting on a trigger is the operator's decision"
         },
         {
+          "command": "asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>",
+          "description": "The agent's own record as the log holds it: tier, slashes, recent strikes, qualifying jobs and certificates, the summary a governed run puts in the agent's context. --sign signs it with the agent's key; --verify checks a summary handed back later (signature, log head, every figure) and refuses a tampered or stale one (exit 1)"
+        },
+        {
           "command": "asp credits audit [--by-flow] [--since <time>] [--require-signed] [--json]",
           "description": "Check the supply rule over the whole log: balances (the Treasury, institution accounts and the Burn account included) + escrow + bonds + reserves + juror stakes + report deposits = minted. Prints balanced or MISMATCH with the figures (exit 1 on a mismatch); shows how much was minted by signed mint records and how much by the old unsigned mint (--require-signed also fails on any unsigned credit); --by-flow adds mints by reason, purchases with their split, refunds and settlements, and names the flows it cannot yet"
         },

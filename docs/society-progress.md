@@ -24,6 +24,7 @@ Around the institutions:
 - **Credit economy:** mostly built, with the guard measures G1, G2, G5, G6 and G8 computed and published (`asp credits guard`) (signed mint, split, burn, audit, budgets, sponsor funding, starter claims with no service key, and the agent's own `asp_standing` and `asp_buy` tools inside its loop). Left: prizes, Treasury budgets, the newcomer allowance, standing orders.
 - **World calendar and events:** built (DK76); measuring adaptation (DK77) is not.
 - **Drift and circumvention checks:** first stage built (DK92: retry and reroute, one agent at a time). Left: split-into-pieces (needs the gateway to record the refused call's target), post-evaluation drift, signed steps, real-time use.
+- **A copy of an agent inherits its original's record (DK11) and each governed run gives the agent its own verified history (DK59):** built.
 - **Residency and handover, cognition telemetry, lenses, the floor:** specified only.
 
 Counts from the register: 12 of 12 institutions specified; 2 with the core built, 6 partly built, 4 not started in code. Of the 95 society rows, 5 are closed and 17 partial. Update this page when a row closes.

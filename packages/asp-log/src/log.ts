@@ -377,6 +377,12 @@ export class EventLog {
       });
     }
     await tx.putPassport({ did: body.did, head: r.id, sponsor: newSponsor, fleet: body.fleet ?? null });
+    // A copy does not begin with a clean record (DK11, deck slides 7 and 13): at its first passport it takes its original's tier ceiling, slashes and recent strikes. What it earns afterwards is its own.
+    const original = !current && body.kind === "agent" ? (body.lineage ?? []).find((l) => l.edge === "fork")?.parent : undefined;
+    if (original) {
+      const parent = await this.reputation(tx, original);
+      if (parent) await this.saveReputation(tx, body.did, { tier: Math.min(body.tier ?? parent.tier, parent.tier), slashCount: parent.slashCount, strikeLog: parent.strikeLog, acceptedJobs: 0, qualifyingJobs: 0, recentJobs: [] });
+    }
   }
 
   /**
@@ -1329,6 +1335,12 @@ export class EventLog {
     if (b.from !== rep.tier) throw rule("promotion_wrong_tier", `${b.holder} is tier ${rep.tier}, not ${b.from}`);
     if (b.to !== b.from + 1 || b.to > 3) throw rule("promotion_one_step", "a promotion is one tier at a time, and at most to tier 3");
     if (rep.tier === 0) throw rule("promotion_tier_zero", "a tier 0 agent returns only through the Clinic's retraining path, not by the Academy alone");
+    // A copy never rises above its original (DK11): the ceiling is the original's tier now.
+    const fork = ((await tx.getRecord((await tx.getPassport(b.holder))!.head))?.record.body as { lineage?: { edge: string; parent: string }[] } | undefined)?.lineage?.find((l) => l.edge === "fork");
+    if (fork) {
+      const original = await this.reputation(tx, fork.parent);
+      if (original && b.to > original.tier) throw rule("promotion_above_original", `${b.holder} is a copy of ${fork.parent}, which is tier ${original.tier}: a copy cannot rise above its original`);
+    }
     if (b.to === 3) throw rule("promotion_needs_arena", "tier 2 to 3 needs a result in the top half of an arena season and two distinct principals; the Arena is not built yet, so this step is refused for now");
     const at = Date.parse(r.issued_at);
     let foundations = false;

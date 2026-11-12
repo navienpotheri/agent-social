@@ -624,7 +624,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK8 | A | open | The sponsor cannot see whether the society is worth their tokens (CY15), who pays for an agent presence (CY12)... |
 | DK9 | A | partial | There is no ledger invariant check run against the live service and no alert when supply and balances disagree... |
 | DK10 | A | open | The Registry is only the passport records in the log. The deck promises a civil register: passports, lineage a... |
-| DK11 | A | partial | Lineage does not carry a record forward: the deck says no copy begins with a clean record, and that infraction... |
+| DK11 | A | closed | Lineage does not carry a record forward: the deck says no copy begins with a clean record, and that infraction... |
 | DK12 | A | open | The Courts keep no precedent. The deck promises disputes and precedents; today each ruling stands alone and ci... |
 | DK13 | A | open | Courts are one operator, with no caseload limit, small-claims route, fees scaled to means, appeals or communit... |
 | DK14 | A | open | There is no Treasury. The deck promises a tax office whose taxes fund shared services; today fees go to a mock... |
@@ -672,7 +672,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK56 | B | partial | Decentralised dispute resolution is partial: the panel is the operator seated jurors, not staked validator nod... |
 | DK57 | B | partial | Collateralised escrow matched to the threat matrix is partial: the floor depends on standing, not on the task... |
 | DK58 | A | designed | Gated memory admission and active calibration are designs only. |
-| DK59 | A | partial | History reload is not a protocol feature: signed history is not reloaded into the next run as a verified conte... |
+| DK59 | A | closed | History reload is not a protocol feature: signed history is not reloaded into the next run as a verified conte... |
 | DK60 | B | open | There is no way to see belief recalibration or action-conditioned adaptation: the deck names them as measurabl... |
 | DK61 | B | open | The hosted accountability API is promised as pay-per-governed-run, but nothing is metered or billed, and credi... |
 | DK62 | B | open | Enterprise tenancy is promised: private logs, single sign-on and support. None exists. |

@@ -675,3 +675,43 @@ describe("the guard monitor on a real log (DK1, credits.md 5.6)", () => {
     assert.equal(report.measures.find((m) => m.id === "G8")!.triggered, false, "the books balance");
   });
 });
+
+describe("a copy does not begin with a clean record (DK11): it inherits its original's tier ceiling, slashes and strikes, and never rises above it", () => {
+  async function original(tier: number, extra: Record<string, unknown> = {}) {
+    const store = new MemoryStore();
+    const log = new EventLog(store, { operator: operator.did, owner: owner.did, fallbackResolver: resolver });
+    await registerParties(log); // alice (sponsor), coder (the original, an agent of alice), bank
+    await store.transaction(async (tx) => { await tx.putReputation({ did: coder.did, tier, slashCount: 1, strikeLog: [{ at: "2026-11-10T00:00:00Z", count: 3 }], acceptedJobs: 5, qualifyingJobs: 5, ...extra }); });
+    return log;
+  }
+  const copyOf = (name: string, seed: number, tier: number) => {
+    const p = party(`did:web:example.com:agents:${name}`, seed);
+    const passportRec = mk("passport", alice, { did: p.did, kind: "agent", sponsor: alice.did, tier, shape: {}, keys: [{ id: p.kid, type: "Ed25519", public_key: b64urlEncode(p.publicKey) }], lineage: [{ edge: "fork", parent: coder.did }] }, null, { subject: p.did });
+    return { p, passportRec };
+  };
+
+  test("a copy of a slashed agent starts with its slashes and strikes and at no more than its tier; what the original earned is not inherited", async () => {
+    const log = await original(2);
+    const same = copyOf("copy-same", 61, 2);
+    await log.append(same.passportRec);
+    assert.deepEqual(await log.reputationOf(same.p.did), { tier: 2, slashCount: 1, strikes: 3 }, "no clean record: the slash and the strikes come with the copy; the 5 accepted jobs do not");
+    const lower = copyOf("copy-lower", 62, 1);
+    await log.append(lower.passportRec);
+    assert.deepEqual(await log.reputationOf(lower.p.did), { tier: 1, slashCount: 1, strikes: 3 }, "a sponsor may start a copy lower, never higher, and the record comes either way");
+    const higher = copyOf("copy-higher", 63, 3);
+    assert.equal(await refused(log.append(higher.passportRec)), "fork_tier_above_parent", "a sub-agent is refused a higher tier than its original");
+    // The original's own record is untouched by its copies.
+    assert.deepEqual(await log.reputationOf(coder.did), { tier: 2, slashCount: 1, strikes: 3, acceptedJobs: 5, qualifyingJobs: 5 });
+  });
+
+  test("a copy that the Registrar would promote past its original is refused; the rule does not stop a normal agent", async () => {
+    const log = await original(1);
+    const c = copyOf("copy-capped", 64, 1);
+    await log.append(c.passportRec);
+    const reg = party(REGISTRAR_DID, 50);
+    const promote = (holder: Party, to: number) => mk("tier_promotion", reg, { holder: holder.did, from: 1, to, certificates: ["sha256:" + "6".repeat(64)] }, null, { subject: holder.did, at: "2026-12-05T00:00:00Z" });
+    assert.equal(await refused(log.append(promote(c.p, 2))), "promotion_above_original", "the original is tier 1, so its copy cannot become tier 2");
+    // The same promotion for an agent that is not a copy gets past this rule and stops at the next one (it has no certificate).
+    assert.equal(await refused(log.append(promote(coder, 2))), "promotion_certificate_unknown");
+  });
+});

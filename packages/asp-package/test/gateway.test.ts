@@ -1,4 +1,5 @@
 import { after, test } from "node:test";
+import { historyText } from "../src/history.ts";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -441,6 +442,23 @@ test("the Code of the City is in the system context of every model request, once
   // Already there: not added twice.
   await post(`${url}/v1/messages`, { model: "m", max_tokens: 10, system: [{ type: "text", text: note }], messages: [{ role: "user", content: "hi" }] });
   assert.equal(JSON.stringify(up.seen.at(-1)!.body).split("The Code of the City (").length - 1, 1);
+});
+
+test("the agent's verified history is in the system context of the request, with the Code and once (DK59)", async () => {
+  const history = historyText({ v: 1, did: "did:web:example.com:agents:learner", head: { seq: 40, logHash: "h" }, tier: 2, slashCount: 1, strikes: 3, acceptedJobs: 5, qualifyingJobs: 4, certificates: [{ id: "c1", skill: "foundations", level: 1, expires: "2027-05-01T00:00:00Z" }] });
+  const note = `The Code of the City (draft 0.2, sha256 abc): rule 1.
+
+${history}`;
+  const up = await fakeUpstream([openaiToolReply([]), openaiToolReply([])]);
+  const { url } = await gateway(up, { scopes: ["repo.read"], lawContext: note });
+  await post(`${url}/v1/chat/completions`, { model: "m", messages: [{ role: "user", content: "hi" }] });
+  const sent = up.seen.at(-1)!.body as { messages: { role: string; content: string }[] };
+  assert.equal(sent.messages[0].role, "system");
+  assert.match(sent.messages[0].content, /Your record in the log \(read at log seq 40/);
+  assert.match(sent.messages[0].content, /tier 2; slashed 1 time\(s\); 3 recent blocked attempt\(s\); 4 qualifying job\(s\) of 5 accepted/);
+  assert.match(sent.messages[0].content, /The Code of the City \(draft 0\.2/);
+  await post(`${url}/v1/chat/completions`, { model: "m", messages: [{ role: "system", content: note }, { role: "user", content: "hi again" }] });
+  assert.equal(JSON.stringify(up.seen.at(-1)!.body).split("Your record in the log").length - 1, 1, "not added twice");
 });
 
 test("without a Code (lawContext not set) the requests go through untouched", async () => {

@@ -1,7 +1,7 @@
 // asp credits audit (credits.md 6.1, CR-1; register rows DK1 and DK9): the supply rule over the whole log, with a verdict, the figures, --by-flow and --json.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { main, type Io } from "../src/cli.ts";
@@ -119,4 +119,32 @@ test("asp credits guard: names the measures the log can compute and the ones it 
   assert.equal(j.measures.find((m: { id: string }) => m.id === "G5").triggered, false, "six equal holders: the top 1 % hold a sixth");
   assert.equal(j.measures.find((m: { id: string }) => m.id === "G8").triggered, false, "the books balance");
   assert.equal((await asp(home, ["credits", "audit", "--json"])).code, 0, "the guard changed nothing");
+});
+
+test("asp history: the agent's record from the log, signed with its own key, verified later; a tampered file and a stale one are refused (DK59)", async () => {
+  const home = mkdtempSync(join(tmpdir(), "asp-history-"));
+  const P = "did:web:example.com:users:hist-principal", A = "did:web:example.com:agents:hist-agent";
+  assert.equal((await asp(home, ["identity", "new", "--kind", "human", "--did", P])).code, 0);
+  assert.equal((await asp(home, ["identity", "new", "--kind", "agent", "--did", A, "--sponsor", P, "--purpose", "Test"])).code, 0);
+  const text = await asp(home, ["history", A]);
+  assert.equal(text.code, 0, text.err);
+  assert.match(text.out, /tier 1; slashed 0 time\(s\); 0 recent blocked attempt\(s\); 0 qualifying job\(s\) of 0 accepted/);
+  assert.match((await asp(home, ["history", P])).out, /has no tier/);
+  const file = join(home, "history.json");
+  const signed = await asp(home, ["history", A, "--sign", "--out", file]);
+  assert.equal(signed.code, 0, signed.err);
+  assert.match((await asp(home, ["history", "--verify", file])).out, /is genuine and current/);
+  // Someone raises the tier in the file.
+  const doc = JSON.parse(readFileSync(file, "utf8"));
+  doc.summary.tier = 3;
+  writeFileSync(file, JSON.stringify(doc));
+  const bad = await asp(home, ["history", "--verify", file]);
+  assert.equal(bad.code, 1);
+  assert.match(bad.out, /refused: the signature does not match the summary/);
+  // A later change to the log makes an older genuine summary stale.
+  assert.equal((await asp(home, ["history", A, "--sign", "--out", file])).code, 0);
+  assert.equal((await asp(home, ["identity", "new", "--kind", "human", "--did", "did:web:example.com:users:another"])).code, 0);
+  const stale = await asp(home, ["history", "--verify", file]);
+  assert.equal(stale.code, 1);
+  assert.match(stale.out, /refused: stale/);
 });
