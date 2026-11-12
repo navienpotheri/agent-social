@@ -5,6 +5,7 @@ import {
 import { auditLedger, creditFlowsOf, type CreditAudit, type CreditFlows } from "./credit-audit.ts";
 import { bondFloorPermille } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
+import { BURN_DID, INSTITUTION_DIDS, PLATFORM_DID, TREASURY_DID, canonicalAccount, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { DEFAULT_PANEL_SIZE, drawPanel, findRejection } from "./panel.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
@@ -40,7 +41,7 @@ const recentStrikes = (log: StrikeEntry[], now: string) => log.filter((s) => Dat
  * No passport is required for a DID to hold a ledger balance (see `credit`), so this needs no
  * registration; it's just an account id.
  */
-export const PLATFORM_DID = "did:web:asp.local:platform";
+export { PLATFORM_DID };
 
 export interface EventLogOptions {
   schemas?: SchemaSet;
@@ -60,6 +61,13 @@ export interface EventLogOptions {
    * agent nobody knows (400 permille of the price), lowered by jobs it has had accepted with nothing slashed (docs/credits-and-learning-experiment.md; the proposed numbers in bond-floor.ts).
    */
   bondFloor?: "legacy" | "v2";
+  /**
+   * The operator's DID (credits.md 5.1, CR-2): the only issuer of a signed `mint` record. With none set, every `mint` record is refused (`mint_unauthorised`).
+   * The unsigned local `mint()` stays for tests and bootstrap and is counted apart by the audit.
+   */
+  operator?: string;
+  /** The owner's DID (credits.md 8): its co-signature is required on a `treasury_issuance` mint, a price rise above 25 % and a change of split bounds. With none set, those are refused. */
+  owner?: string;
 }
 
 export interface AppendResult {
@@ -92,6 +100,12 @@ const LATE_ACTIVITY_SLACK_MS = 30_000;
 /** How many late Actions one job may take. */
 export const MAX_LATE_ACTIONS = 5;
 
+interface PriceListBody {
+  version: number; effective_from: string; bounds_version: number; job_tax_permille: number;
+  items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial" }[];
+}
+interface PurchaseBody { service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string }
+
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
 /** How well established a claim is, for comparing a verifier's grade with the performer's declared one. */
 const GRADE_RANK: Record<string, number> = { measured: 3, simulated: 2, predicted: 1, unverified: 0 };
@@ -111,6 +125,8 @@ export class EventLog {
   private readonly panelSize: number;
 
   private readonly bondFloor: "legacy" | "v2";
+  private readonly operator?: string;
+  private readonly owner?: string;
 
   constructor(store: Store, opts: EventLogOptions = {}) {
     this.store = store;
@@ -120,6 +136,13 @@ export class EventLog {
     this.maxNodeTtlMs = opts.maxNodeTtlMs ?? DEFAULT_MAX_NODE_TTL_MS;
     this.panelSize = opts.panelSize ?? DEFAULT_PANEL_SIZE;
     this.bondFloor = opts.bondFloor ?? "legacy";
+    this.operator = opts.operator;
+    this.owner = opts.owner;
+  }
+
+  /** The options a replay needs to judge the same records the same way. */
+  private replayOptions(): EventLogOptions {
+    return { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor, operator: this.operator, owner: this.owner };
   }
 
   append(raw: unknown): Promise<AppendResult> {
@@ -169,7 +192,9 @@ export class EventLog {
         throw new AspError("ILLEGAL_TRANSITION", `${verified.type} belongs in a job chain, not a ${kind} chain`);
       }
       // Outside jobs, a chain is the history of one kind of record (a passport's versions, a lineage).
-      if (type !== kind) throw new AspError("ILLEGAL_TRANSITION", `a ${kind} chain cannot continue with ${verified.type}`);
+      // The one cross-type chain: a purchase is answered by a receipt chained on it, once (credits.md 4.3).
+      const receiptOnPurchase = type === "receipt" && kind === "purchase" && chain?.length === 1;
+      if (type !== kind && !receiptOnPurchase) throw new AspError("ILLEGAL_TRANSITION", `a ${kind} chain cannot continue with ${verified.type}`);
       if (chain && Date.parse(verified.issued_at) < Date.parse(chain.lastIssuedAt)) {
         throw new AspError("TIME_REVERSED", `${verified.issued_at} is before ${chain.lastIssuedAt}`);
       }
@@ -189,6 +214,10 @@ export class EventLog {
     if (type === "bond") await this.projectBond(tx, verified);
     if (type === "settlement") { await this.checkVerifiedBeforeSilence(tx, verified); await this.projectSettlement(tx, verified); }
     if (type === "juror") await this.projectJuror(tx, verified);
+    if (type === "mint") await this.projectMint(tx, verified);
+    if (type === "price_list") await this.projectPriceList(tx, verified);
+    if (type === "purchase") await this.projectPurchase(tx, verified);
+    if (type === "receipt") await this.projectReceipt(tx, verified);
     if (type === "attestation") {
       await this.checkRulingPanel(tx, verified);
       await this.checkAllocationPanel(tx, verified);
@@ -434,15 +463,18 @@ export class EventLog {
   }
 
   /** Debits an account, throwing insufficient_balance rather than letting it go negative. */
-  private async debit(tx: LogTx, did: string, amount: number): Promise<void> {
+  private async debit(tx: LogTx, rawDid: string, amount: number): Promise<void> {
     if (amount === 0) return;
+    const did = canonicalAccount(rawDid);
+    if (did === BURN_DID) throw rule("burn_account_locked", "burned credits do not return: the Burn account is never debited");
     const balance = (await tx.getAccount(did))?.balance ?? 0;
     if (balance < amount) throw rule("insufficient_balance", `${did} has ${balance} credits, needs ${amount}`);
     await tx.putAccount({ did, balance: balance - amount });
   }
 
-  private async credit(tx: LogTx, did: string, amount: number): Promise<void> {
+  private async credit(tx: LogTx, rawDid: string, amount: number): Promise<void> {
     if (amount === 0) return;
+    const did = canonicalAccount(rawDid);
     const balance = (await tx.getAccount(did))?.balance ?? 0;
     await tx.putAccount({ did, balance: balance + amount });
   }
@@ -1034,6 +1066,141 @@ export class EventLog {
     }
   }
 
+  // ---- the credit economy, first slice (credits.md CR-2, CR-3, CR-5, CR-6; spec-delta S163) ----
+
+  private cosignedBy(r: AspRecord, did: string | undefined): boolean {
+    return !!did && (r.cosigs ?? []).some((c) => c.kid.startsWith(`${did}#`));
+  }
+
+  /** A signed mint (credits.md 5.1): only the operator creates credits, each with a reason, and the minted total is recomputed from these records on replay. */
+  private async projectMint(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as { to: string; amount: { value: number }; reason: string };
+    if (r.prev !== null) throw rule("mint_not_chained", "a mint record starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("mint_unauthorised", `${r.issuer} is not the operator${this.operator ? "" : " (this log has none configured)"}: only the operator mints credits`);
+    if (body.amount.value <= 0) throw rule("amount_not_positive", "a mint must create at least 1 credit");
+    if (canonicalAccount(body.to) === BURN_DID) throw rule("mint_to_burn", "credits are not minted into the Burn account");
+    if (body.reason === "treasury_issuance" && !this.cosignedBy(r, this.owner)) throw rule("mint_needs_cosign", "a treasury_issuance mint needs the owner's co-signature");
+    const to = canonicalAccount(body.to);
+    await this.credit(tx, to, body.amount.value);
+    const row = await tx.getMint(to);
+    await tx.putMint({ did: to, totalMinted: (row?.totalMinted ?? 0) + body.amount.value, signedMinted: (row?.signedMinted ?? 0) + body.amount.value });
+  }
+
+  /** The price list in force at `at` (a time in ms): the newest list whose effective_from is not later, found by walking the chain back from its head. */
+  private async priceListInForce(tx: LogTx, at: number): Promise<StoredRecord | undefined> {
+    let id = await tx.getMarker("price_list_head");
+    while (id) {
+      const rec = await tx.getRecord(id);
+      if (!rec) return undefined;
+      if (Date.parse((rec.record.body as unknown as PriceListBody).effective_from) <= at) return rec;
+      id = rec.record.prev ?? undefined;
+    }
+    return undefined;
+  }
+
+  /** The price list chain (credits.md 4.1): the Treasury signs, versions follow each other, splits are inside the bounds, notice is given, a big rise needs the owner. */
+  private async projectPriceList(tx: LogTx, r: AspRecord): Promise<void> {
+    const body = r.body as unknown as PriceListBody;
+    if (r.issuer !== TREASURY_DID) throw rule("price_list_wrong_issuer", `${r.issuer} is not the Treasury (${TREASURY_DID})`);
+    const headId = await tx.getMarker("price_list_head");
+    const head = headId ? await tx.getRecord(headId) : undefined;
+    const before = head?.record.body as unknown as PriceListBody | undefined;
+    if ((head?.id ?? null) !== r.prev || body.version !== (before?.version ?? 0) + 1) {
+      throw rule("price_list_bad_chain", `a price list must follow ${head?.id ?? "nothing (version 1, prev null)"} as version ${(before?.version ?? 0) + 1}`);
+    }
+    const issued = Date.parse(r.issued_at);
+    const effective = Date.parse(body.effective_from);
+    if (effective < issued) throw rule("price_list_effective_too_soon", "a price list cannot take effect before it is issued: no retroactive change");
+    const seen = new Set<string>();
+    for (const item of body.items) {
+      if (seen.has(item.service)) throw rule("price_list_split_invalid", `${item.service} is listed twice`);
+      seen.add(item.service);
+      if (!INSTITUTION_DIDS.includes(item.institution)) throw rule("price_list_unknown_payee", `${item.institution} is not a registered institution account`);
+      const bad = splitProblem(item.split, item.class);
+      if (bad) throw rule(bad.rule, `${item.service}: ${bad.message}`);
+    }
+    // Notice (credits.md 4.1): 72 hours for a rise, a split change or a new service; 24 hours for a fall or a removal.
+    const HOUR = 3_600_000;
+    let notice = 0;
+    let needsOwner = before !== undefined && body.bounds_version !== before.bounds_version;
+    if (before) {
+      const old = new Map(before.items.map((i) => [i.service, i]));
+      for (const item of body.items) {
+        const o = old.get(item.service);
+        if (!o) { notice = Math.max(notice, 72 * HOUR); continue; }
+        if (item.price > o.price || JSON.stringify(item.split) !== JSON.stringify(o.split)) notice = Math.max(notice, 72 * HOUR);
+        else if (item.price < o.price) notice = Math.max(notice, 24 * HOUR);
+        if (item.price * 4 > o.price * 5) needsOwner = true;
+      }
+      if (before.items.some((o) => !seen.has(o.service))) notice = Math.max(notice, 24 * HOUR);
+    }
+    if (effective < issued + notice) throw rule("price_list_effective_too_soon", `this change needs ${notice / HOUR} hours' notice: effective_from must be at or after ${new Date(issued + notice).toISOString()}`);
+    if (needsOwner && !this.cosignedBy(r, this.owner)) throw rule("price_list_needs_cosign", "a price rise above 25 %, or a change of split bounds, needs the owner's co-signature");
+    await tx.putMarker("price_list_head", r.id);
+  }
+
+  /** The parts of a stored purchase, recomputed from the list it relied on (so a receipt needs no extra rows). */
+  private async purchaseParts(tx: LogTx, purchase: StoredRecord) {
+    const b = purchase.record.body as unknown as PurchaseBody;
+    const list = await tx.getRecord(b.price_list);
+    const item = (list?.record.body as unknown as PriceListBody | undefined)?.items.find((i) => i.service === b.service);
+    return item ? splitParts(b.amount.value, item.split) : undefined;
+  }
+
+  /** A purchase (credits.md 4.2): judged against the list in force at its issued_at; debits the buyer and credits the payees, the Treasury and the Burn account by the split, in this transaction. */
+  private async projectPurchase(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as unknown as PurchaseBody;
+    const buyer = r.issuer;
+    if (r.prev !== null) throw rule("purchase_not_chained", "a purchase starts its own chain (prev is null)");
+    if (buyer === BURN_DID) throw rule("burn_account_locked", "burned credits do not return: the Burn account never pays");
+    if (buyer === TREASURY_DID || buyer === PLATFORM_DID) throw rule("treasury_payment_not_allowed", "the Treasury pays only by a budget, the allowance, a public-works job or a refund, never by a purchase");
+    if (isReservedAccount(buyer)) throw rule("institution_payment_not_allowed", "an institution account does not buy: institutions do not gift or spend credits outside a prize, refund, payee share or budget");
+    if (b.amount.value <= 0) throw rule("amount_not_positive", "a purchase must be for at least 1 credit");
+    const list = await this.priceListInForce(tx, Date.parse(r.issued_at));
+    if (!list) throw rule("no_price_list", "no price list is in force yet, so nothing can be bought");
+    if (list.id !== b.price_list) throw rule("price_list_not_in_force", `the price list in force is ${list.id}, not ${b.price_list}`);
+    const item = (list.record.body as unknown as PriceListBody).items.find((i) => i.service === b.service);
+    if (!item) throw rule("unknown_service", `${b.service} is not in the price list in force`);
+    if (item.institution !== b.institution) throw rule("institution_mismatch", `${b.service} is sold by ${item.institution}, not ${b.institution}`);
+    if (b.amount.value !== item.price * b.quantity) throw rule("price_mismatch", `${b.service} costs ${item.price} each, so ${b.quantity} cost ${item.price * b.quantity}, not ${b.amount.value}: a price is a published record`);
+    const key = `purchase:${buyer}|${b.service}|${b.idempotency}`;
+    if (await tx.getMarker(key)) throw rule("purchase_replay", `${buyer} already made a purchase of ${b.service} with the nonce ${b.idempotency}`);
+    if (item.split.payees.some((p) => p.account === buyer)) throw rule("self_dealing", "a buyer cannot be a payee of its own purchase");
+    const rep = await this.reputation(tx, buyer);
+    if (rep && rep.tier === 0 && item.class === "standard") throw rule("tier_excluded", "a tier 0 agent may buy only essential or remedial items");
+    await this.debit(tx, buyer, b.amount.value);
+    const parts = splitParts(b.amount.value, item.split);
+    for (const p of parts.payees) await this.credit(tx, p.account, p.amount);
+    await this.credit(tx, TREASURY_DID, parts.treasury);
+    await this.credit(tx, BURN_DID, parts.burn);
+    await tx.putMarker(key, r.id);
+  }
+
+  /** A receipt (credits.md 4.3): the purchase's institution closes it; a refund comes back by the split in reverse and never includes the burned part. */
+  private async projectReceipt(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { purchase: string; status: string; refund_amount?: { value: number } };
+    const purchase = r.prev ? await tx.getRecord(r.prev) : undefined;
+    if (!purchase || purchase.record.type !== "asp.purchase/v0.2") throw rule("receipt_needs_purchase", "a receipt is chained on the purchase it answers (prev is that purchase)");
+    if (b.purchase !== purchase.id) throw rule("receipt_wrong_purchase", `the receipt says it is for ${b.purchase} but is chained on ${purchase.id}`);
+    const pb = purchase.record.body as unknown as PurchaseBody;
+    if (r.issuer !== pb.institution) throw rule("receipt_wrong_issuer", `only ${pb.institution}, the institution that sold it, signs the receipt`);
+    if (b.status === "delivered") return;
+    const parts = await this.purchaseParts(tx, purchase);
+    if (!parts) throw rule("receipt_unknown_price", "the price list this purchase relied on is not in the log");
+    const refund = b.refund_amount?.value ?? 0;
+    const back = refundParts(refund, parts);
+    if (!back) throw rule("refund_exceeds_price_less_burn", `a refund is at most the price less the burned part (${pb.amount.value - parts.burn}); a burned credit is gone`);
+    if (refund <= 0) throw rule("amount_not_positive", "a refund must be at least 1 credit");
+    try {
+      for (const p of back.payees) await this.debit(tx, p.account, p.amount);
+      await this.debit(tx, TREASURY_DID, back.treasury);
+    } catch (e) {
+      if (e instanceof AspError && e.detail === "insufficient_balance") throw rule("refund_short", `an account cannot cover its part of the refund: ${e.message}`);
+      throw e;
+    }
+    await this.credit(tx, purchase.record.issuer, refund);
+  }
+
   get(id: string) { return this.store.getRecord(id); }
   head() { return this.store.logHead(); }
   chain(root: string) { return this.store.chainRecords(root); }
@@ -1042,7 +1209,11 @@ export class EventLog {
   passport(did: string) { return this.store.getPassport(did); }
   keys(did: string) { return this.store.keysForDid(did); }
   probation(did: string) { return this.store.getProbation(did); }
-  async balance(did: string) { return (await this.store.getAccount(did))?.balance ?? 0; }
+  /** A DID's balance. The platform account is an alias of the Treasury (credits.md 3.2), so either name reads the Treasury, plus anything an old platform row still holds. */
+  async balance(did: string) {
+    const get = async (d: string) => (await this.store.getAccount(d))?.balance ?? 0;
+    return canonicalAccount(did) === TREASURY_DID ? (await get(TREASURY_DID)) + (await get(PLATFORM_DID)) : get(did);
+  }
   escrow(contract: string) { return this.store.getEscrow(contract); }
   juror(did: string) { return this.store.getJuror(did); }
   async reputationOf(did: string) {
@@ -1085,9 +1256,10 @@ export class EventLog {
     if (amount < 0) throw rule("mint_negative", "mint amount must be >= 0");
     return this.store.transaction(async (tx) => {
       const balance = ((await tx.getAccount(did))?.balance ?? 0) + amount;
-      const totalMinted = ((await tx.getMint(did))?.totalMinted ?? 0) + amount;
+      const row = await tx.getMint(did);
+      const totalMinted = (row?.totalMinted ?? 0) + amount;
       await tx.putAccount({ did, balance });
-      await tx.putMint({ did, totalMinted });
+      await tx.putMint({ did, totalMinted, ...(row?.signedMinted ? { signedMinted: row.signedMinted } : {}) });
       return balance;
     });
   }
@@ -1098,9 +1270,7 @@ export class EventLog {
    * rather than trusting the stored value at that row.
    */
   async verifyCheckpoint(at: { seq: number; logHash: string }): Promise<boolean> {
-    const replay = new EventLog(new MemoryStore(await this.store.allMints()), {
-      schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor,
-    });
+    const replay = new EventLog(new MemoryStore(await this.store.allMints()), this.replayOptions());
     for (let afterSeq = 0; ; ) {
       const page = await this.store.since(afterSeq, 500);
       if (!page.length) return false; // the log is shorter than the checkpoint claims
@@ -1117,7 +1287,7 @@ export class EventLog {
    * The credit audit (credits.md 1.1, CR-1): the supply rule over every account, lock and mint the store holds, read at one log head.
    * Read-only; returns figures, never the list of accounts (`ledgerRows` on the store gives that, locally).
    */
-  async creditAudit(): Promise<CreditAudit> { return auditLedger(await this.store.ledgerRows(), PLATFORM_DID); }
+  async creditAudit(): Promise<CreditAudit> { return auditLedger(await this.store.ledgerRows()); }
 
   /**
    * What the log can say about the credit flows today, from its signed records (credits.md 6.1 `--by-flow`): settlements with what they
@@ -1166,9 +1336,7 @@ export class EventLog {
    * log hash must come out the same.
    */
   async verify(pageSize = 500): Promise<VerifyReport> {
-    const replay = new EventLog(new MemoryStore(await this.store.allMints()), {
-      schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor,
-    });
+    const replay = new EventLog(new MemoryStore(await this.store.allMints()), this.replayOptions());
     let afterSeq = 0;
     let count = 0;
     for (;;) {

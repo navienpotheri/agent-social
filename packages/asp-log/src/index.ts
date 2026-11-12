@@ -1,4 +1,5 @@
-export { EventLog, PLATFORM_DID, nextLogHash, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
+export { PLATFORM_DID } from "./economy.ts";
+export { EventLog, nextLogHash, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
 export { auditLedger, type CreditAudit, type CreditFlows, type LedgerRows } from "./credit-audit.ts";
 export { PostgresStore, migrate } from "./postgres.ts";
@@ -18,3 +19,7 @@ export { OwnerStore } from "./owners.ts";
 export { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_POOL, STARTER_UPFRONT, StarterPool, starterCapFile } from "./starter.ts";
 export { courtGuard, type CourtGuardOptions } from "./court-guard.ts";
 export { CHALLENGE_RE, JoinPickup, challengeOf, type PickupPayload } from "./join-pickup.ts";
+export {
+  BURN_DID, INSTITUTION_DIDS, INSTITUTION_NAMES, SPLIT_BOUNDS_V1, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem,
+  type ItemClass, type Split, type SplitParts,
+} from "./economy.ts";

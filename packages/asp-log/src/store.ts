@@ -93,7 +93,10 @@ export interface AccountRow {
  */
 export interface MintRow {
   did: string;
+  /** Everything ever minted to the DID: the unsigned local mint plus the signed `mint` records. */
   totalMinted: number;
+  /** Of which minted by signed `mint` records (credits.md CR-2). Absent means 0. A replay recreates these from the records, so only `totalMinted - signedMinted` seeds it. */
+  signedMinted?: number;
 }
 
 /**
@@ -195,6 +198,8 @@ export interface LogTx {
   getAccount(did: string): Promise<AccountRow | undefined>;
   getEscrow(contract: string): Promise<EscrowRow | undefined>;
   getMint(did: string): Promise<MintRow | undefined>;
+  /** A small keyed value the economy rules keep (the price-list head, a purchase's idempotency key). Written inside the append, so a refused record leaves none. */
+  getMarker(key: string): Promise<string | undefined>;
   getJuror(did: string): Promise<JurorRow | undefined>;
   activeJurors(): Promise<JurorRow[]>;
   getReputation(did: string): Promise<ReputationRow | undefined>;
@@ -212,6 +217,7 @@ export interface LogTx {
   putAccount(row: AccountRow): Promise<void>;
   putEscrow(row: EscrowRow): Promise<void>;
   putMint(row: MintRow): Promise<void>;
+  putMarker(key: string, value: string): Promise<void>;
   putJuror(row: JurorRow): Promise<void>;
   putReputation(row: ReputationRow): Promise<void>;
   putMandate(row: MandateRow): Promise<void>;
@@ -237,7 +243,7 @@ export interface Store {
   keysForDid(did: string): Promise<KeyRow[]>;
   getAccount(did: string): Promise<AccountRow | undefined>;
   getEscrow(contract: string): Promise<EscrowRow | undefined>;
-  /** Every DID's cumulative minted total, as {did, balance}. Used to seed verify()'s replay. */
+  /** Every DID's cumulative UNSIGNED minted total, as {did, balance} (signed `mint` records are not here: a replay recreates them from the records). Used to seed verify()'s replay. */
   allMints(): Promise<AccountRow[]>;
   /** One consistent, read-only view of the whole ledger (every account, every mint, every lock), for the credit audit (credits.md 6.2, CR-1). Changes nothing. */
   ledgerRows(): Promise<LedgerRows>;

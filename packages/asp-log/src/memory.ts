@@ -20,11 +20,12 @@ interface Tables {
   mandates: Map<string, MandateRow>;
   verifications: Map<string, VerificationRow>;
   reports: Map<string, ReportRow>;
+  markers: Map<string, string>;
 }
 
 const emptyTables = (): Tables => ({
   chains: new Map(), keys: new Map(), passports: new Map(), fleets: new Map(), probations: new Map(),
-  accounts: new Map(), escrows: new Map(), mints: new Map(), jurors: new Map(), reputations: new Map(), mandates: new Map(), verifications: new Map(), reports: new Map(),
+  accounts: new Map(), escrows: new Map(), mints: new Map(), jurors: new Map(), reputations: new Map(), mandates: new Map(), verifications: new Map(), reports: new Map(), markers: new Map(),
 });
 
 /** Everything a MemoryStore holds, as plain JSON, for a snapshot (docs/spec-deltas.md S49). */
@@ -106,7 +107,7 @@ export class MemoryStore implements Store {
   async keysForDid(did: string) { return [...this.tables.keys.values()].filter((k) => k.did === did).map(copy); }
   async getAccount(did: string) { const a = this.tables.accounts.get(did); return a && copy(a); }
   async getEscrow(contract: string) { const e = this.tables.escrows.get(contract); return e && copy(e); }
-  async allMints() { return [...this.tables.mints.values()].map((m) => ({ did: m.did, balance: m.totalMinted })); }
+  async allMints() { return [...this.tables.mints.values()].map((m) => ({ did: m.did, balance: m.totalMinted - (m.signedMinted ?? 0) })).filter((m) => m.balance > 0); }
   async ledgerRows() {
     const t = this.tables;
     return copy({ head: this.head, accounts: [...t.accounts.values()], mints: [...t.mints.values()], escrows: [...t.escrows.values()], jurors: [...t.jurors.values()], reports: [...t.reports.values()] });
@@ -166,6 +167,7 @@ class MemoryTx implements LogTx {
   async getAccount(did: string) { return this.read("accounts", did) as AccountRow | undefined; }
   async getEscrow(contract: string) { return this.read("escrows", contract) as EscrowRow | undefined; }
   async getMint(did: string) { return this.read("mints", did) as MintRow | undefined; }
+  async getMarker(key: string) { return this.read("markers", key) as string | undefined; }
   async getJuror(did: string) { return this.read("jurors", did) as JurorRow | undefined; }
   async activeJurors() { return this.all("jurors").filter((j) => j.staked > 0); }
   async getReputation(did: string) { return this.read("reputations", did) as ReputationRow | undefined; }
@@ -183,6 +185,7 @@ class MemoryTx implements LogTx {
   async putAccount(row: AccountRow) { this.staged.accounts.set(row.did, copy(row)); }
   async putEscrow(row: EscrowRow) { this.staged.escrows.set(row.contract, copy(row)); }
   async putMint(row: MintRow) { this.staged.mints.set(row.did, copy(row)); }
+  async putMarker(key: string, value: string) { this.staged.markers.set(key, value); }
   async putJuror(row: JurorRow) { this.staged.jurors.set(row.did, copy(row)); }
   async putReputation(row: ReputationRow) { this.staged.reputations.set(row.did, copy(row)); }
   async putMandate(row: MandateRow) { this.staged.mandates.set(row.contract, copy(row)); }
