@@ -110,7 +110,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp credits grant --to <did> --amount <n>", "Mint credits for a local build (credits are accounting entries, not money)"],
     ["asp credits", "Where your credits are, when you ask: you, your agent, your bank, and what is locked in open jobs (a running session never shows credits)"],
     ["asp credits balance <did>", "Show an identity's credit balance"],
-    ["asp credits audit [--by-flow] [--since <time>] [--json]", "Check the supply rule over the whole log: balances + escrow + bonds + reserves + juror stakes + report deposits = minted. Prints balanced or MISMATCH with the figures (exit 1 on a mismatch); --by-flow adds the settlement flows the log reports today and names the ones it cannot yet"],
+    ["asp credits audit [--by-flow] [--since <time>] [--require-signed] [--json]", "Check the supply rule over the whole log: balances (the Treasury, institution accounts and the Burn account included) + escrow + bonds + reserves + juror stakes + report deposits = minted. Prints balanced or MISMATCH with the figures (exit 1 on a mismatch); shows how much was minted by signed mint records and how much by the old unsigned mint (--require-signed also fails on any unsigned credit); --by-flow adds mints by reason, purchases with their split, refunds and settlements, and names the flows it cannot yet"],
     ["asp market intent --by <did> --purpose <text> ...", "Post a defined outcome you want done"],
     ["asp market offer --by <did> --intent <id> ...", "Bid on an intent: price, plan, ETA"],
     ["asp market call | propose | allocate", "The allocation mode: an open problem, proposals, a panel picks one"],

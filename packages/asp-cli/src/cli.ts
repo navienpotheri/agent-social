@@ -188,7 +188,7 @@
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
  *   asp credits balance <did>
- *   asp credits audit [--by-flow] [--since <time>] [--json]
+ *   asp credits audit [--by-flow] [--since <time>] [--require-signed] [--json]
  *     The supply rule over the whole log: balances + escrow + bonds + court-fee reserves + juror stakes + open report deposits must equal what was minted.
  *     Prints balanced or MISMATCH with the figures; the exit code is 1 on a mismatch. --by-flow adds the settlement flows the log can report today.
  *
@@ -456,6 +456,7 @@ const OPTIONS = {
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
   "by-flow": { type: "boolean" },
+  "require-signed": { type: "boolean" },
   "no-run-log": { type: "boolean" },
   late: { type: "string" },
   "record-quota": { type: "string" },
@@ -3671,30 +3672,37 @@ async function creditsAudit(home: string, v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   const audit = await local.log.creditAudit();
   const flows = v["by-flow"] ? await local.log.creditFlows(v.since) : undefined;
+  // --require-signed: a credit that no signed `mint` record created is a failure too (credits.md CR-2), not only a mismatch.
+  const unsigned = v["require-signed"] && audit.mintedUnsigned > 0;
+  const code = audit.verdict === "balanced" && !unsigned ? 0 : 1;
   if (v.json) {
-    io.out(JSON.stringify({ ...audit, ...(flows ? { flows } : {}) }, null, 2));
-    return audit.verdict === "balanced" ? 0 : 1;
+    io.out(JSON.stringify({ ...audit, ...(unsigned ? { requireSigned: "failed" } : {}), ...(flows ? { flows } : {}) }, null, 2));
+    return code;
   }
   const n = (x: number) => String(x);
   const l = audit.locked;
   io.out(`Credit audit at log seq ${audit.head.seq} (${audit.head.logHash.slice(0, 19)}...)  (credits are accounting entries, not money)`);
-  io.out(`  minted (M)                  ${n(audit.minted)}`);
-  io.out(`  in ${n(audit.accounts)} account(s)           ${n(audit.balances)}   of which circulating ${n(audit.circulating)}, platform account ${n(audit.platform)}`);
+  io.out(`  minted (M)                  ${n(audit.minted)}   signed mint records ${n(audit.mintedSigned)}, old unsigned mint ${n(audit.mintedUnsigned)}`);
+  io.out(`  in ${n(audit.accounts)} account(s)           ${n(audit.balances)}   of which circulating ${n(audit.circulating)}, Treasury ${n(audit.treasury)}, burned ${n(audit.burned)}${audit.platform ? `, old platform account ${n(audit.platform)}` : ""}`);
+  for (const i of audit.institutions) io.out(`    institution account ${i.did}  ${n(i.balance)}`);
   io.out(`  locked, ${n(audit.openContracts)} open contract(s)   ${n(l.escrow + l.bond + l.feeReserves)}   escrow ${n(l.escrow)}, bonds ${n(l.bond)}, court-fee reserves ${n(l.feeReserves)}`);
   io.out(`  locked, jurors and reports  ${n(l.jurorStakes + l.reportDeposits)}   juror stakes ${n(l.jurorStakes)}, open report deposits ${n(l.reportDeposits)}`);
   io.out(`  accounted for               ${n(audit.accounted)}   (balances + locked)`);
   io.out(audit.verdict === "balanced" ? "  verdict: balanced" : `  verdict: MISMATCH by ${n(Math.abs(audit.difference))} credits${audit.problems.length ? `: ${audit.problems.join("; ")}` : ""}`);
+  if (unsigned) io.out(`  --require-signed: FAILED, ${n(audit.mintedUnsigned)} credit(s) were created by the old unsigned mint, not by a signed mint record`);
   if (flows) {
     const s = flows.settlements;
     io.out(`By flow${flows.since ? ` since ${flows.since}` : " (whole log)"}:`);
-    io.out(`  minted ${n(flows.minted)} (whole history: a mint carries no time or reason)`);
-    io.out(`  ${n(s.count)} settlement(s) ${Object.entries(s.byBasis).map(([k, c]) => `${k} ${c}`).join(", ") || "none"}: released to performers ${n(s.escrowReleased)}, fees to the platform account ${n(s.fees)}, bonds returned ${n(s.bondReturned)}, bonds slashed ${n(s.bondSlashed)}`);
+    io.out(`  minted ${n(flows.minted)} (whole history); by signed mint record in the period: ${Object.entries(flows.mintedByReason).map(([k, c]) => `${k} ${c}`).join(", ") || "none"}`);
+    const pu = flows.purchases;
+    io.out(`  ${n(pu.count)} purchase(s) for ${n(pu.amount)} credits: to institutions ${n(pu.provider)}, to the Treasury ${n(pu.treasury)}, burned ${n(pu.burned)}; ${n(flows.refunds.count)} refund(s) of ${n(flows.refunds.amount)}`);
+    io.out(`  ${n(s.count)} settlement(s) ${Object.entries(s.byBasis).map(([k, c]) => `${k} ${c}`).join(", ") || "none"}: released to performers ${n(s.escrowReleased)}, fees to the Treasury ${n(s.fees)}, bonds returned ${n(s.bondReturned)}, bonds slashed ${n(s.bondSlashed)}`);
     io.out("  not available from the log yet:");
     for (const u of flows.unavailable) io.out(`    - ${u}`);
   }
   io.out("Not in this audit yet:");
   for (const u of audit.notYet) io.out(`  - ${u}`);
-  return audit.verdict === "balanced" ? 0 : 1;
+  return code;
 }
 
 async function creditsBalance(home: string, did: string | undefined, io: Io): Promise<number> {

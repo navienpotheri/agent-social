@@ -42,3 +42,19 @@ test("asp credits audit: balanced over every account, with the figures; --json a
   assert.equal(since.flows.since, "2026-01-01T00:00:00Z");
   assert.equal(since.flows.settlements.count, 0);
 });
+
+test("asp credits audit: the Treasury, burned and institution figures, signed against unsigned mints, and --require-signed (credits.md CR-2, CR-3)", async () => {
+  const home = mkdtempSync(join(tmpdir(), "asp-audit-signed-"));
+  assert.equal((await asp(home, ["credits", "grant", "--to", A, "--amount", "50"])).code, 0);
+  const plain = await asp(home, ["credits", "audit"]);
+  assert.equal(plain.code, 0, plain.err);
+  assert.match(plain.out, /minted \(M\)\s+50\s+signed mint records 0, old unsigned mint 50/);
+  assert.match(plain.out, /Treasury 0, burned 0/);
+  const json = JSON.parse((await asp(home, ["credits", "audit", "--json"])).out);
+  assert.deepEqual([json.mintedSigned, json.mintedUnsigned, json.treasury, json.burned], [0, 50, 0, 0]);
+  // The credit was created without a signed mint record: --require-signed says so and exits 1; the books still balance.
+  const strict = await asp(home, ["credits", "audit", "--require-signed"]);
+  assert.equal(strict.code, 1);
+  assert.match(strict.out, /verdict: balanced/);
+  assert.match(strict.out, /--require-signed: FAILED, 50 credit\(s\)/);
+});

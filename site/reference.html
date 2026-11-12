@@ -322,8 +322,8 @@ asp credits
     Where your credits are, when you ask: you, your agent, your bank, and what is locked in open jobs (a running session never shows credits)
 asp credits balance &lt;did&gt;
     Show an identity's credit balance
-asp credits audit [--by-flow] [--since &lt;time&gt;] [--json]
-    Check the supply rule over the whole log: balances + escrow + bonds + reserves + juror stakes + report deposits = minted. Prints balanced or MISMATCH with the figures (exit 1 on a mismatch); --by-flow adds the settlement flows the log reports today and names the ones it cannot yet
+asp credits audit [--by-flow] [--since &lt;time&gt;] [--require-signed] [--json]
+    Check the supply rule over the whole log: balances (the Treasury, institution accounts and the Burn account included) + escrow + bonds + reserves + juror stakes + report deposits = minted. Prints balanced or MISMATCH with the figures (exit 1 on a mismatch); shows how much was minted by signed mint records and how much by the old unsigned mint (--require-signed also fails on any unsigned credit); --by-flow adds mints by reason, purchases with their split, refunds and settlements, and names the flows it cannot yet
 asp market intent --by &lt;did&gt; --purpose &lt;text&gt; ...
     Post a defined outcome you want done
 asp market offer --by &lt;did&gt; --intent &lt;id&gt; ...
@@ -400,7 +400,7 @@ asp eval run [&lt;scenario&gt;]
     Run a swarm scenario against the system to test it
 asp signup --service &lt;url&gt; --name &lt;name&gt; --accept-terms
     The command-line sign-up route (closed when Google sign-up is required)</pre></details>
-<details><summary>The records the protocol defines (18)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (22)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 action       The runtime→protocol compliance bridge
 attestation  A signed judgment
@@ -414,11 +414,15 @@ intent       A defined outcome
 juror        Self-registration to be randomly drawn onto a Courts ruling panel, with real credits staked
 lineage      One signed edge in a person's lineage
 mandate      What the performer may do
+mint         The creation of credits, signed by the operator (credits.md 5.1, CR-2, register row DK67)
 node         A person grants a short-lived worker (subagent, parallel copy) its own signing key
 offer        A bid on an Intent
 package      A portable agent bundle (decision #45)
 passport     A person's persistent identity (human, agent or org)
+price_list   What every institution service costs and how each price is split (credits.md 4.1, CR-5, register row DK2)
 proposal     A bid on a Call
+purchase     A buyer pays an institution the price in force (credits.md 4.2, CR-6, register row DK3)
+receipt      The institution's answer to a purchase (credits.md 4.3, CR-6)
 settlement   Escrow released, bond returned or slashed, fees split</pre></details>
 <details><summary>The job lifecycle</summary><pre>After a contract, every job follows one state machine, kept as data in spec/lifecycle.json. Each transition consumes exactly one signed record.
 
