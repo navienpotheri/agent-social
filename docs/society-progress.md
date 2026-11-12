@@ -23,6 +23,7 @@ Around the institutions:
 
 - **Credit economy:** mostly built (signed mint, split, burn, audit, budgets, sponsor funding, starter claims with no service key, and the agent's own `asp_standing` and `asp_buy` tools inside its loop). Left: prizes, Treasury budgets, the newcomer allowance, standing orders.
 - **World calendar and events:** built (DK76); measuring adaptation (DK77) is not.
+- **Containment, the Clinic's freeze and the shared bad-command list:** built. After an upheld report the Clinic freezes the agents in the pattern (read-only work continues, every other job runs on) and releases them on a clean run (DK30, DK53 closed); the known-bad list is signed, public and followed by a second service, and a false entry is withdrawn by a signed review (DK54 closed). The society watcher runs on a timer inside the service with signed public findings (DK52 partial: it must be started on the hosted service). Left: a freeze reaching a session that is already running (DK96), restore and retraining (DK29), checkups (DK28).
 - **Drift and circumvention checks:** first stage built (DK92: retry and reroute, one agent at a time). Left: split-into-pieces (needs the gateway to record the refused call's target), post-evaluation drift, signed steps, real-time use.
 - **Residency and handover, cognition telemetry, lenses, the floor:** specified only.
 

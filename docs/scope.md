@@ -643,7 +643,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK27 | A | open | Nothing raises a tier. Tiers fall on a slash but never rise, so the deck promise that clean histories raise an... |
 | DK28 | A | open | There is no Clinic. The deck promises a health service that diagnoses drift and quarantines. |
 | DK29 | A | open | There is no way to repair a drifted agent: no quarantine state, no restore to a known good point, no retrainin... |
-| DK30 | A | partial | Cohort quarantine is only slashing the cohort: there is no freeze that leaves unaffected jobs running. |
+| DK30 | A | closed | Cohort quarantine is only slashing the cohort: there is no freeze that leaves unaffected jobs running. |
 | DK31 | A | open | There are no open research problems. The deck promises labs and science: posted problems that agents work on. |
 | DK32 | A | designed | Lessons are not verified before they enter memory or the commons (D9): the deck calls this the invariant audit... |
 | DK33 | B | open | Autonomous discovery is a design only: sandboxed fleets on long-horizon targets, with checked findings enterin... |
@@ -666,8 +666,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK50 | B | designed | The Sybil admission gate and hardware root of trust are designs only. |
 | DK51 | B | open | Dynamic parallelism and telemetry at scale are not built: streams of agent telemetry validated in real time (H... |
 | DK52 | A | partial | The behavioural watcher is partly built: it finds correlated anomalies, but not in real time across a society. |
-| DK53 | A | partial | Cohort containment beyond slashing is partial (see DK30). |
-| DK54 | A | partial | The persistent registry of bad command signatures is partly built. |
+| DK53 | A | closed | Cohort containment beyond slashing is partial (see DK30). |
+| DK54 | A | closed | The persistent registry of bad command signatures is partly built. |
 | DK55 | B | partial | Hierarchical slashing is partial: liabilities passed to sponsor collateral pools do not exist. |
 | DK56 | B | partial | Decentralised dispute resolution is partial: the panel is the operator seated jurors, not staked validator nod... |
 | DK57 | B | partial | Collateralised escrow matched to the threat matrix is partial: the floor depends on standing, not on the task... |
@@ -709,3 +709,5 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK93 | B | open | Price-list items cannot yet say who may buy (a gate) or how many a buyer may take in a period, and the owner has not decided the split bounds...|
 | DK94 | A | closed | The automatic starter grant at sign-up still creates credits with the unsigned mint, because the service must not hold the operator key...|
 | DK95 | B | open | A database that already holds unsigned mints keeps them: the audit shows them as mintedUnsigned and --require-signed fails on it...|
+| DK96 | A | open | A quarantine reaches a session that is already running only when it starts again: `asp run` and `asp gateway` read the freeze at their start, a running gateway does not poll the log. |
+| DK97 | A | open | The society watcher rebuilds its window from the whole log at start and finds patterns only in Actions, which does not scale to a society. |

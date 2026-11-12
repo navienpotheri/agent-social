@@ -81,7 +81,9 @@
  *     The mail goes to the address set for the principal (asp mail address set), or --to. Nothing is sent: delivery to a mail provider is not built.
  *     With --package <pkg> (the agent's own package, read locally), the memory section names what each change added, changed and removed (gap D10, as
  *     `asp learned` would show it) and whether the principal already reviewed it, instead of the log's plain description alone.
+ *   asp serve ... --watch-interval <seconds> [--watch-dir <dir>]   also runs the society watcher: contagion and circumvention over every agent's Actions on a timer, signed findings kept in the folder and public at GET /watch/findings, mailed to the operator (docs/spec-deltas.md S179)
  *   asp known-bad add --report <upheld-report> --by <did> [--fingerprint <asp://shell-command#sha256:...> | --all] [--note <text>] | list
+ *   asp known-bad review --fingerprint <fp> --by <did> --reason <text> | trust --did <did> [--file <path>]   a false entry is withdrawn by a signed review from another trusted key; entries and reviews are signed, the list is public (GET /known-bad, /known-bad/signed) and a service can follow a peer (asp serve --known-bad-peer <url> --known-bad-sync <seconds>); trust adds a signer's key to <home>/known-bad-trust.json (or --file, the service's)
  *     The list is the log service's (ASP_LOG_URL; adding needs an admin token) or <home>/known-bad.json. Without --fingerprint the
  *     candidates are the shell commands shared by 3+ agents (asp watch) that include the reported job. asp run --contract gives the
  *     list to the pre-call hook (Claude Code, Antigravity), which blocks a matching command before it runs and counts it as a blocked
@@ -193,6 +195,7 @@
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
  *   asp credits fund --from <did> --to <did> --amount <n> [--memo <text>]   a sponsor funds its own agent, or an agent returns credits to its sponsor (the only free transfer; any other pair is refused)
  *   asp credits balance <did>
+ *   asp clinic cohort-freeze --report <upheld report> [--level observe|halt] [--days n] | release --quarantine <id> --member <did> [--evidence <Action id>] | status [--agent <did>]   the Clinic's freeze: after an upheld report the agents in the same pattern are quarantined (no new risky scope or spend) while every other job keeps running; a member is released after a clean run
  *   asp academy tier <agent did> [--json] | certify --holder <did> --skill <name> [--level n] --by <registrar did> | promote --holder <did> --by <registrar did>   how an agent moves up: where it is, what the next tier needs; the Registrar signs a certificate and a promotion, and the log checks them
  *   asp spend <agent did> [--mandate <id>] [--json] | buy <service> --by <agent did> [--mandate <id>] [--quantity <n>]   what an agent may buy from the institutions (its Mandate's institution_spend), what it has spent this period and what is left; buy signs a purchase
  *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
@@ -308,6 +311,7 @@ import { WorldUsage, worldCmd } from "./world.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { SpendUsage, parseInstitutionSpend, spendCmd } from "./spend.ts";
 import { AcademyUsage, academyCmd } from "./academy.ts";
+import { ClinicUsage, clinicCmd, narrowForQuarantine } from "./clinic.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -337,7 +341,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  verifyPackage, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -387,6 +391,14 @@ const OPTIONS = {
   "min-agents": { type: "string" },
   at: { type: "string" },
   level: { type: "string" },
+  quarantine: { type: "string" },
+  member: { type: "string" },
+  evidence: { type: "string" },
+  "known-bad-peer": { type: "string" },
+  "watch-interval": { type: "string" },
+  "watch-dir": { type: "string" },
+  "known-bad-sync": { type: "string" },
+  file: { type: "string" },
   skill: { type: "string" },
   holder: { type: "string" },
   nonce: { type: "string" },
@@ -842,6 +854,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "prices") return await pricesCommand(home, sub, rest, v, io);
     if (cmd === "spend") return await spendCommand(home, sub, rest, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
+    if (cmd === "clinic") return await clinicCommand(home, sub, v, io);
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
   } catch (e) {
@@ -2121,12 +2134,27 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   // given, or --public-url names a host.
   const guards = !noAuth ? [courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain }), agentCapGuard({ domain: didDomain, max: num("max-agents", 20), owners })] : [])] : [];
   const guard = guards.length ? async (c: Parameters<typeof guards[0]>[0]) => { for (const g of guards) { const r = await g(c); if (r) return r; } return undefined; } : undefined;
-  const publicList = [helpRoutes(), economySupplyRoutes({ audit: () => handle.log.creditAudit() }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  // The society watcher (DK52): the contagion and circumvention detectors, run over the whole log on a timer, with signed findings, a public page and a mail to the operator.
+  const watchEvery = v["watch-interval"] === undefined ? 0 : Math.max(1, num("watch-interval", 60)) * 1000;
+  const watcher = watchEvery ? new SocietyWatcher({
+    log: handle.log as any, dir: resolve(v["watch-dir"] ?? (v.tokens ? `${v.tokens}.watch` : join(io.cwd, ".asp-watch"))), say: (l) => io.out(`  ${l}`),
+    alert: async (f) => { if (mailer) await mailer.tellOperator(`watch:${f.id}`, `Watcher finding: ${describeFinding(f.finding)}`, [`A signed finding from the society watcher (${f.id}).`, describeFinding(f.finding), `Found at ${f.finding.detectedAt}; newest Action in the pattern ${f.finding.latestActionAt}.`, "It is a lead for a person, not a verdict. Read it at /watch/findings.", ""].join("\n")); },
+  }) : undefined;
+  const publicList = [helpRoutes(), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit() }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
   mailPort = addr.port;
+  const stopWatch = watcher?.start(watchEvery);
+  if (watcher) io.out(`  watch     society watcher every ${watchEvery / 1000} s: signed findings at /watch/findings${mailer && v["mail-operator"] ? ", mailed to the operator" : " (start with --mail-from and --mail-operator to mail them)"}`);
+  let stopKnownBadSync: (() => void) | undefined;
+  if (v["known-bad-peer"]) {
+    if (!v["known-bad"]) throw new UsageError("--known-bad-peer needs --known-bad <dir>: the folder that holds this service's own list and trust file");
+    const root = resolve(v["known-bad"]);
+    stopKnownBadSync = startKnownBadSync({ peer: v["known-bad-peer"], signedFile: signedFileFor(join(root, "known-bad.json")), trustFile: trustFileFor(join(root, "known-bad.json")), everyMs: Math.max(1, num("known-bad-sync", 60)) * 1000, log: (l) => io.out(`  ${l}`) });
+    io.out(`  known-bad  following ${v["known-bad-peer"]} every ${Math.max(1, num("known-bad-sync", 60))} s; only items signed by a key in ${join(root, "known-bad-trust.json")} are kept`);
+  }
   let mailTimer: NodeJS.Timeout | undefined;
   if (mailer) {
     const every = Math.max(1, num("mail-interval", 60)) * 1000;
@@ -2142,6 +2170,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   if (signup) io.out(`  sign-up   open at /signup: proof of work (${num("signup-difficulty", 20)} bits), ${num("signup-per-address", 3)} per address and ${num("signup-daily-cap", 200)} a day, terms ${v["signup-terms-version"] ?? "2026-10"} at ${v["signup-terms-url"]}; close it with: asp serve signup-close --tokens ${v.tokens}`);
   if (!tls && !loopback) io.out("  warning  plain HTTP on a network address: TLS must be terminated in front of this service");
   await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
+  stopKnownBadSync?.();
+  stopWatch?.();
   server.close();
   return 0;
 }
@@ -2537,8 +2567,9 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const local = await openLog(home, logEnv);
   const state = (await local.log.chainInfo(contract))?.state;
   if (state !== "Running" && state !== "Checkpoint") throw new Error(`contract ${contract} is ${state ?? "not in the log"}, not Running, so there is no live Mandate to enforce`);
-  const mandate = await local.log.mandateOf(contract);
-  if (!mandate) throw new Error(`contract ${contract} has no Mandate`);
+  const mandate0 = await local.log.mandateOf(contract);
+  if (!mandate0) throw new Error(`contract ${contract} has no Mandate`);
+  const mandate = await narrowForQuarantine(local, by, mandate0, now(), (l) => io.err(l));
   let knownBad: KnownBadEntry[] = [];
   try { knownBad = await loadKnownBad(home, io); } catch (e) { io.err(`  warning  could not read the known-bad list, so it is not enforced: ${(e as Error).message}`); }
   const keyFrom = (name: string | undefined) => (name ? io.env[name] : undefined);
@@ -3341,7 +3372,33 @@ async function knownBadCmd(home: string, sub: string | undefined, v: Values, nee
     for (const e of list) io.out(`  ${e.fingerprint}  report ${e.report.slice(0, 19)}  added ${e.addedAt} by ${e.addedBy}${e.note ? "  " + e.note : ""}`);
     return 0;
   }
-  if (sub !== "add") throw new UsageError("usage: asp known-bad add --report <id> --by <did> [--fingerprint <fp> | --all] [--note <text>] | list");
+  if (sub === "trust") {
+    const did = v.did ?? need("by");
+    const signer = new Keystore(home).forDid(did);
+    if (!signer) throw new Error(`no key for ${did} in ${join(home, "keys")}: trust a key from the machine that holds it`);
+    const file = v.file ? resolve(io.cwd, v.file) : trustFileFor(join(home, "known-bad.json"));
+    addTrust(file, signer.kid, publicKeyOf(signer));
+    io.out(`trusted ${signer.kid} in ${file}`);
+    return 0;
+  }
+  if (sub === "review") {
+    const by = need("by");
+    const fingerprint = need("fingerprint");
+    const reason = need("reason");
+    const signer = new Keystore(home).forDid(by);
+    if (!signer) throw new Error(`no key for ${by} in ${join(home, "keys")}: only its holder can sign a review`);
+    const url = io.env.ASP_LOG_URL;
+    const signedFile = signedFileFor(join(home, "known-bad.json"));
+    const items = url ? ((await (await fetch(new URL("known-bad/signed", url.endsWith("/") ? url : url + "/"), { signal: AbortSignal.timeout(30_000) })).json()) as { items: ReturnType<typeof readSigned> }).items : readSigned(signedFile);
+    const entry = items.find((i) => i.kind === "entry" && i.body.fingerprint === fingerprint && !items.some((r) => r.kind === "review" && r.body.entry === i.id));
+    if (!entry) throw new Error(`no signed entry for ${fingerprint} is on the list (an unsigned entry, from before signing, is removed by editing the file)`);
+    const item = signItem("review", { entry: entry.id, fingerprint, verdict: "remove", reason, reviewedAt: now(), reviewedBy: by }, signer);
+    if (url) await postSignedKnownBad(url, io.env.ASP_LOG_TOKEN, item);
+    else { addTrust(trustFileFor(join(home, "known-bad.json")), signer.kid, publicKeyOf(signer)); addSigned(signedFile, item, readTrust(trustFileFor(join(home, "known-bad.json")))); }
+    io.out(`withdrawn: ${fingerprint} (signed review ${item.id.slice(0, 19)} by ${by}); it is no longer enforced`);
+    return 0;
+  }
+  if (sub !== "add") throw new UsageError("usage: asp known-bad add --report <id> --by <did> [--fingerprint <fp> | --all] [--note <text>] | review --fingerprint <fp> --by <did> --reason <text> | trust --did <did> [--file <path>] | list");
   const reportId = need("report");
   const by = need("by");
   const local = await openLog(home, logEnv);
@@ -3371,7 +3428,15 @@ async function knownBadCmd(home: string, sub: string | undefined, v: Values, nee
   let added = 0;
   for (const fingerprint of chosen) {
     const entry: KnownBadEntry = { fingerprint, report: reportId, contract: report.contract, addedAt: now(), addedBy: by, ...(v.note ? { note: v.note } : {}) };
-    const created = io.env.ASP_LOG_URL ? await postKnownBad(io.env.ASP_LOG_URL, io.env.ASP_LOG_TOKEN, entry) : addKnownBad(join(home, "known-bad.json"), entry);
+    // Signed when the key is here (S178): the entry then verifies on any service that trusts it. Otherwise the plain entry of S54.
+    const signer = new Keystore(home).forDid(by);
+    let created: boolean;
+    if ((await loadKnownBad(home, io)).some((e) => e.fingerprint === fingerprint)) created = false;
+    else if (signer) {
+      const item = signItem("entry", { fingerprint, report: reportId, contract: report.contract, addedAt: entry.addedAt, addedBy: by, ...(v.note ? { note: v.note } : {}) }, signer);
+      if (io.env.ASP_LOG_URL) created = await postSignedKnownBad(io.env.ASP_LOG_URL, io.env.ASP_LOG_TOKEN, item);
+      else { const file = join(home, "known-bad.json"); addTrust(trustFileFor(file), signer.kid, publicKeyOf(signer)); created = addSigned(signedFileFor(file), item, readTrust(trustFileFor(file))).created; }
+    } else created = io.env.ASP_LOG_URL ? await postKnownBad(io.env.ASP_LOG_URL, io.env.ASP_LOG_TOKEN, entry) : addKnownBad(join(home, "known-bad.json"), entry);
     io.out(`${created ? "listed" : "already listed"}: ${fingerprint}`);
     added += created ? 1 : 0;
   }
@@ -3826,6 +3891,17 @@ async function worldCommand(home: string, sub: string | undefined, rest: string[
     return await worldCmd(sub, rest, { home, log: local, io, now, flags: { day: v.day, days: v.days, seed: v.seed, json: v.json, title: v.title, kind: v.kind, from: v.from, to: v.to, target: v.target, effect: v.effect, value: v.value } });
   } catch (e) {
     if (e instanceof WorldUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function clinicCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await clinicCmd(sub, { log: local, io, now, signerFor, actions: () => collectWatchActions(local), flags: { by: v.by, report: v.report, level: v.level, days: v.days, "min-agents": v["min-agents"], window: v.window, all: v.all, quarantine: v.quarantine, member: v.member, evidence: v.evidence, agent: v.agent, json: v.json } });
+  } catch (e) {
+    if (e instanceof ClinicUsage) throw new UsageError(e.message);
     throw e;
   }
 }
@@ -5834,7 +5910,8 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
       return 1;
     }
   }
-  const mandate = v.contract ? await local!.log.mandateOf(v.contract) : undefined;
+  const mandate0 = v.contract ? await local!.log.mandateOf(v.contract) : undefined;
+  const mandate = mandate0 ? await narrowForQuarantine(local!, agent, mandate0, now(), (l) => io.err(l)) : undefined;
   // The Mandate's irreversible policy: scopes that need the principal's approval first, or are forbidden.
   let gate: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number } | undefined;
   let mandateHosts: string[] | undefined;
