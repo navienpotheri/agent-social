@@ -12,6 +12,8 @@ import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarke
 import { charterIn, checkCaseload, checkRulingExtras, closeDispute, projectCourtAct } from "./courts-rules.ts";
 import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
+import { assertNotDormant, checkShopsPurchase, notePerformer, projectShopsAct } from "./shops-rules.ts";
+import { SHOPS_DID, catalogueProblem, type CatalogueItem } from "./shops.ts";
 import { buildPage, namesAt, isLive, skeleton, verifyPage, type RecordPage } from "./registry.ts";
 import { classWeight, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
@@ -134,7 +136,7 @@ export const MAX_LATE_ACTIONS = 5;
 
 interface PriceListBody {
   version: number; effective_from: string; bounds_version: number; job_tax_permille: number;
-  items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial"; gives_standing?: boolean }[];
+  items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial"; gives_standing?: boolean; effect?: CatalogueItem["effect"]; duration_days?: number; gate?: CatalogueItem["gate"] }[];
 }
 interface PurchaseBody { service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string; mandate?: string }
 interface InstitutionSpend { institution: string; cap: { value: number }; period: "day" | "week" | "month"; services?: string[] }
@@ -288,6 +290,8 @@ export class EventLog {
     if (type === "quarantine_release") await this.projectQuarantineRelease(tx, verified);
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
     if (type === "court_act") await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize });
+    if (type === "shops_act") await projectShopsAct(tx, verified, { reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
+    if (type === "contract") await notePerformer(tx, verified);
     if (type === "registry_act") await projectRegistryAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did) });
     if (type === "bond" || type === "mandate" || type === "proposal" || type === "purchase" || type === "contract") await checkSuspended(tx, verified);
     if (type === "intent") checkIntentClass(verified);
@@ -1265,6 +1269,9 @@ export class EventLog {
       for (const p of item.split.payees) if (await tx.getPassport(p.account)) agents.add(p.account);
       const bad = splitProblem(item.split, item.class, (a) => a === TREASURY_DID || INSTITUTION_DIDS.includes(a) || agents.has(a));
       if (bad) throw rule(bad.rule, `${item.service}: ${bad.message}`);
+      // A catalogue item of the Shops states an effect from the allowlist that touches no standing (shops.md 3, CY7).
+      const cat = catalogueProblem(item as unknown as CatalogueItem);
+      if (cat) throw rule(cat.rule, cat.message);
     }
     // Notice (credits.md 4.1): 72 hours for a rise, a split change or a new service; 24 hours for a fall or a removal.
     const HOUR = 3_600_000;
@@ -1323,6 +1330,8 @@ export class EventLog {
     }
     const rep = await this.reputation(tx, buyer);
     if (rep && rep.tier === 0 && item.class === "standard") throw rule("tier_excluded", "a tier 0 agent may buy only essential or remedial items");
+    if (item.class !== "essential" && item.class !== "remedial") await assertNotDormant(tx, buyer, `buy ${b.service}`);
+    if (item.institution === SHOPS_DID) await checkShopsPurchase(tx, buyer, item as unknown as CatalogueItem, r.issued_at, rep?.tier);
     const qlevel = await this.liveQuarantine(tx, buyer, r.issued_at);
     if (qlevel?.level === "halt" && item.class !== "essential" && item.class !== "remedial") throw rule("agent_quarantined", `${buyer} is quarantined by the Clinic (halt, ${qlevel.id}, until ${qlevel.until}): it may buy only essential or remedial items`);
     // An agent (a passport with a sponsor) may buy only what its Mandate's institution_spend lists, within the cap for the period (credits.md 4.4, DK3). A person spending their own credits is not limited by a Mandate.
@@ -1692,6 +1701,7 @@ export class EventLog {
     const holder = r.issuer;
     const rep = await this.reputation(tx, holder);
     if (!rep) throw rule("enrolment_not_an_agent", `${holder} is not an agent with a passport in this log`);
+    await assertNotDormant(tx, holder, "enrol in a course");
     const c = await tx.getRecord(b.course);
     if (!c || c.record.type !== "asp.course/v0.2") throw rule("enrolment_unknown_course", `${b.course} is not a course in this log`);
     const cb = c.record.body as { level: number; price_service: string };
@@ -2133,7 +2143,7 @@ export class EventLog {
   /** The record page of a DID or a name (registry.md 7), computed only from the log's records (a view; `registryVerify` recomputes it). */
   async registryPage(idOrName: string, at?: string): Promise<RecordPage | null> {
     const when = at ?? this.now().toISOString();
-    const records = await this.recordsOfTypes(["passport", "certificate", "registry_act"]);
+    const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "receipt"]);
     let did = idOrName;
     if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isLive(c, when)) return null; did = c.holder; }
     const head = await this.store.logHead();

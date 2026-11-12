@@ -79,6 +79,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.retraining_release/v0.2` | The Clinic returns an agent that repeat slashes excluded (tier 0) to tier 1 (clinic.md CL-10, register row DK29). | `agent`, `exam_result`, `revouch` |
 | `asp.revouch/v0.2` | The sponsor of an agent that repeat slashes excluded (tier 0) vouches for it again, in writing, as one step of its retraining (clinic.md CL-10, register row DK29). | `agent`, `reason` |
 | `asp.settlement/v0.2` | Escrow released, bond returned or slashed, fees split. | `contract`, `basis`, `escrow_released`, `bond_returned`, `bond_slashed` |
+| `asp.shops_act/v0.2` | The Shops and Services records (shops.md 3, register rows DK21, DK22; spec-delta S250). | `act` |
 | `asp.starter_claim/v0.2` | A new identity claims its starter credits from the starter pool (credits.md 5.1, register rows DK94 and DK67). | `part`, `amount` |
 | `asp.tier_promotion/v0.2` | The only way a tier goes up (academy.md section 3, register row DK27). | `holder`, `from`, `to`, `certificates` |
 | `asp.treasury_payment/v0.2` | The Treasury pays part of an approved budget to its institution (credits.md 5.2 T10, register row DK7). | `budget`, `to`, `amount` |

@@ -4896,6 +4896,280 @@
       "valid": false
     },
     {
+      "name": "valid_price_list_catalogue_item",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard",
+            "effect": {
+              "type": "badge",
+              "value": "plain"
+            },
+            "duration_days": 90,
+            "gate": {
+              "min_tier": 1,
+              "certificate": "*"
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "price_list_effect_no_type",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard",
+            "effect": {
+              "value": "plain"
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "price_list_gate_tier_four",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard",
+            "gate": {
+              "min_tier": 4
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_shops_holding",
+      "schema": "shops_act",
+      "instance": {
+        "act": "holding",
+        "holder": "did:web:example.com:agents:a",
+        "item": "shops.badge.plain",
+        "purchase": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "receipt": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "effect": {
+          "type": "badge",
+          "value": "plain"
+        },
+        "from": "2026-11-01T00:00:00Z",
+        "until": "2027-01-30T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "shops_holding_no_receipt",
+      "schema": "shops_act",
+      "instance": {
+        "act": "holding",
+        "holder": "did:web:example.com:agents:a",
+        "item": "shops.badge.plain",
+        "purchase": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "effect": {
+          "type": "badge",
+          "value": "plain"
+        },
+        "from": "2026-11-01T00:00:00Z",
+        "until": "2027-01-30T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_shops_residency",
+      "schema": "shops_act",
+      "instance": {
+        "act": "residency",
+        "agent": "did:web:example.com:agents:a",
+        "mode": "resident",
+        "budget": {
+          "credits_per_month": 40
+        },
+        "since": "2026-11-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "shops_residency_bad_mode",
+      "schema": "shops_act",
+      "instance": {
+        "act": "residency",
+        "agent": "did:web:example.com:agents:a",
+        "mode": "tourist",
+        "budget": {
+          "credits_per_month": 40
+        },
+        "since": "2026-11-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_shops_standing_order",
+      "schema": "shops_act",
+      "instance": {
+        "act": "standing_order",
+        "agent": "did:web:example.com:agents:a",
+        "service": "shops.upkeep",
+        "max_per_period": 30,
+        "period": "month",
+        "mandate": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+      },
+      "valid": true
+    },
+    {
+      "name": "shops_standing_order_other_service",
+      "schema": "shops_act",
+      "instance": {
+        "act": "standing_order",
+        "agent": "did:web:example.com:agents:a",
+        "service": "shops.badge.plain",
+        "max_per_period": 30,
+        "period": "month",
+        "mandate": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_shops_standing_order_revoke",
+      "schema": "shops_act",
+      "instance": {
+        "act": "standing_order_revoke",
+        "order": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_shops_upkeep_charge",
+      "schema": "shops_act",
+      "instance": {
+        "act": "upkeep_charge",
+        "agent": "did:web:example.com:agents:a",
+        "order": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "price_list": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "from_day": "2026-11-15",
+        "days": 3,
+        "amount": {
+          "value": 3,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "shops_upkeep_charge_zero_days",
+      "schema": "shops_act",
+      "instance": {
+        "act": "upkeep_charge",
+        "agent": "did:web:example.com:agents:a",
+        "order": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "price_list": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "from_day": "2026-11-15",
+        "days": 0,
+        "amount": {
+          "value": 3,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_shops_residency_status",
+      "schema": "shops_act",
+      "instance": {
+        "act": "residency_status",
+        "agent": "did:web:example.com:agents:a",
+        "status": "dormant",
+        "reason": "upkeep unpaid for 7 days"
+      },
+      "valid": true
+    },
+    {
+      "name": "shops_residency_status_no_reason",
+      "schema": "shops_act",
+      "instance": {
+        "act": "residency_status",
+        "agent": "did:web:example.com:agents:a",
+        "status": "dormant"
+      },
+      "valid": false
+    },
+    {
+      "name": "shops_act_unknown",
+      "schema": "shops_act",
+      "instance": {
+        "act": "gift",
+        "holder": "did:web:example.com:agents:a"
+      },
+      "valid": false
+    },
+    {
+      "name": "shops_act_extra_field",
+      "schema": "shops_act",
+      "instance": {
+        "act": "standing_order_revoke",
+        "order": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "boost": 1
+      },
+      "valid": false
+    },
+    {
       "name": "valid_price_list_standing_item",
       "schema": "price_list",
       "instance": {
