@@ -218,7 +218,7 @@ Fields: **Source** image(s) · **Cite** · **Claim** (own words) · **Mechanism*
 - **Priority: A.** Treats the institutions as the thing to tune, which is the owner's layer idea.
 
 ### P20. Anthropic: agent memory and "dreaming" (blog post)
-- **Theme:** memory and learning. **Source:** IMG_6889 (status bar 4:18) and IMG_6890 to IMG_6903 (status bars 4:53 or 4:54): one long scrolled web page, with overlap between 6889 and 6891. Content seen in the later images: Figure 2 (memory notes written in-session), a "memory is a prediction about what the future will need" section using Continual Learning Bench (CL-Bench) 1.0 and Managed Agents with a persistent memory directory (stronger models built a real learning loop: record failure, theorise, test, write a validated rule with how it was verified, warn about traps; weaker ones kept untested guesses), a Pokémon Red section ("Claude has learned to judge salience": an older model wrote 413 files indiscriminately, a newer one saved selectively), "Steering Claude to write memory" (telling the model what memory is for, not how to use it, worked best; a rule to "record only failures" lost much of the gain; for stronger models freedom to judge salience beat fixed rules), "Dreaming can correct memory" (test notes against original transcripts, Figure 6), "build new memory representations" (wikis, Figure 9), "promote notes up the hierarchy" (a small top layer preloaded into every session; wrong notes carry into every session; longer instruction files reduce adherence), and "focus memory on a specific goal" (a company-acquisition task in a LAB benchmark; several agents wrote to a shared table of contract terms).
+- **Theme:** memory and learning. **Source:** IMG_6889 (status bar 4:18) and IMG_6890 to IMG_6907 (status bars 4:53 or 4:54; 6905 shows an X repost overlay saying it is an Anthropic Engineering Blog post; the closing images 6904-6907 cover "fill in gaps a session leaves behind" (a second dreaming pass repointed nine broken wiki links and added three pages), "thinking backward, looking forward" (in-the-moment notes distract from the task, dreaming moves memory work to the background but its output is not immediately available), keeping memory up to date (focus dreaming on information likely to change; tune its cadence by how often a memory is used; wikis need compute so they do not accumulate errors), and a closing note pointing to cookbooks for dreaming and knowledge wikis): one long scrolled web page, with overlap between 6889 and 6891. Content seen in the later images: Figure 2 (memory notes written in-session), a "memory is a prediction about what the future will need" section using Continual Learning Bench (CL-Bench) 1.0 and Managed Agents with a persistent memory directory (stronger models built a real learning loop: record failure, theorise, test, write a validated rule with how it was verified, warn about traps; weaker ones kept untested guesses), a Pokémon Red section ("Claude has learned to judge salience": an older model wrote 413 files indiscriminately, a newer one saved selectively), "Steering Claude to write memory" (telling the model what memory is for, not how to use it, worked best; a rule to "record only failures" lost much of the gain; for stronger models freedom to judge salience beat fixed rules), "Dreaming can correct memory" (test notes against original transcripts, Figure 6), "build new memory representations" (wikis, Figure 9), "promote notes up the hierarchy" (a small top layer preloaded into every session; wrong notes carry into every session; longer instruction files reduce adherence), and "focus memory on a specific goal" (a company-acquisition task in a LAB benchmark; several agents wrote to a shared table of contract terms).
 - **Cite:** anthropic.com blog post; title and date not legible. Mentions Letta and UC Berkeley's "sleep-time compute" as the source idea.
 - **Claim:** agents keep logs; between sessions an offline "dreaming" step replays and reorganises them (fixing mistakes, writing notes, building representations such as wikis, shaping what loads into the next session), like human hippocampal replay and consolidation. Figure 1 layers: transcripts (event log), memory notes (salient observations), memory representations (computed from transcripts and notes), injected context (loaded each session). Memory here excludes weights, in-context learning and compaction. Marking a memory as important makes it replay more often.
 - **Mechanism:** memory mechanism: an off-hours consolidation job per agent in the Academy or Clinic, with salience marks. Complements P3 (what lessons) and P4 (compaction).
@@ -229,4 +229,57 @@ Fields: **Source** image(s) · **Cite** · **Claim** (own words) · **Mechanism*
 - **Priority: A.** Already close to the owner's reflect/remember functions; time-based, fits a city with days and nights.
 
 
+
+### P21. Hybrid Reasoning Agents (HybridAgent): think in latent space, act in text
+- **Theme:** communication between agents / planning. **Source:** IMG_6908.
+- **Cite:** Zou, Qi, Chen, Bianchi, Zhu, Lu, He, Zou (Stanford, Together AI, UIUC, Meta); arXiv 2610.18861v1, cs.CL, 13 Oct 2026. Code github.com/togethercomputer/HybridAgent (as printed).
+- **Claim:** an agent that switches between thinking in hidden states (fast, inspectable) and text (for tool calls and monitoring) in one generation, via a light "HybridLink" and a post-training recipe; across 11 benchmarks it improves performance by 10.4% with 35.5 to 54.7% fewer tokens and 2.7 to 3.7 times lower cost.
+- **Mechanism:** lens only; relevant to "inspectable inner state" and to what an agent must say aloud versus think. Needs weights.
+- **Cells:** Academy x plan/learn; Courts x perceive (inspectability of reasoning).
+- **Needs:** open weights, white-box access, post-training compute.
+- **Licence/code:** code link shown; licence unknown.
+- **Risks:** hidden reasoning is harder to audit unless the latents are really inspectable.
+- **Priority: C.**
+
+### P22. Swarm Telepathy (SwaT): cross-family KV-cache transfer between agents
+- **Theme:** communication between agents. **Source:** IMG_6909.
+- **Cite:** Alabdulkareem, Tenison, Zhang, Zhu, Katz, Gutfreund (MIT CSAIL, MIT-IBM Computing Research Lab); arXiv number and date not legible. Project page github.com/Ar-Kareem/SwaT (as printed).
+- **Claim:** instead of one agent summarising in text, a small translator maps a sender's KV cache (its computed latent state) into the receiver's space, even across model families, with both models frozen (under 50M tokens, under 1 GPU-day to train). Combined with cache compaction it is about 40% more accurate than text summaries and 4 times faster on 17 benchmarks, 12 models, 6 families; a vision model's skills can reach a text-only receiver.
+- **Mechanism:** the owner's example communication mechanism: a latent-state channel between agents beside text messages, behind a flag, cohort against text-only control.
+- **Cells:** Forum x act; Market x transact; Courts x perceive; Businesses x plan (team hand-offs); Dialogue x act.
+- **Needs:** open-weight models and white-box access (API-only models never expose a KV cache); a trained translator per model pair.
+- **Licence/code:** project page link shown; licence unknown.
+- **Risks:** a latent channel cannot be read by a human or the log, so it conflicts with an auditable, tamper-evident record unless the translator's outputs are also logged as text; leaks of private context between agents.
+- **Priority: A** as a lens and an isolated experiment (open-weight cohort only); not for the public beta.
+
+### P23. Recursa: recursively self-improving foundation-model systems
+- **Theme:** memory and learning. **Source:** IMG_6910.
+- **Cite:** Zhu, Lin, Shi, Lin, Zhou (Alibaba Research); arXiv 2611.04035v1, 2 Nov 2026 (the page also says preprint 4 Nov 2026; the dates differ).
+- **Claim:** a system adapts to a new domain from its own experience, with no human expert or stronger teacher, by keeping a repository of skills, instructions on when to use them, memories of past tasks and reflections; parallel learners try tasks, propose local improvements, and the system validates and merges them. It separates a knowledge gap from a behaviour gap. On a legal-firm knowledge benchmark all-pass rises from 30.0 to 55.0% (one model) and 35.0 to 46.0% (another).
+- **Mechanism:** memory mechanism: a shared, validated skills and lessons repository per domain (Academy or Research and Commons), merged only after validation. Close to P3, P5, P20.
+- **Cells:** Research and Commons x remember/learn/teach; Academy x learn; Courts x remember (legal knowledge).
+- **Needs:** API models suffice for the repository part; a validator.
+- **Licence/code:** unknown.
+- **Risks:** merges of bad lessons; needs a validation rule.
+- **Priority: B.**
+
+### P24. "Evals cheat sheet: how to know an AI system actually works" (text graphic)
+- **Theme:** evaluation. **Source:** IMG_6911 (a terminal-style text tree; author and source not legible).
+- **Claim:** a one-page guide: start from 20 to 50 real failures with gold answers; read 100+ outputs before designing graders; use free code graders first, small hallucination detectors, a typed judge, a panel of three LLM judges combined by median, humans as the yardstick; check the grader with Cohen's kappa (0.6 to gate a release, 0.8 to run unsupervised); report error bars, paired comparisons, and a detection floor (with 60 cases you cannot see changes smaller than about 12 points); keep a grader the system never sees; record judge model and version. Ends with four numbers to ask for: pass rate with error bar, grader-human agreement, detection floor, share of cases that got worse.
+- **Mechanism:** adoptable evaluation rules for every cohort-versus-control test in the society (the four numbers as a required report).
+- **Cells:** Academy x perceive; Courts x perceive; Research and Commons x reflect.
+- **Needs:** none.
+- **Licence/code:** unknown; not a paper.
+- **Risks:** secondhand cheat sheet; thresholds are rules of thumb.
+- **Priority: A.** Cheapest improvement to the mechanism registry's tests.
+
+### P25. Agents write, call, grade and review agents (healthcare voice-agent loop; post)
+- **Theme:** evaluation / economy (Businesses). **Source:** IMG_6912 (text only; no author or company visible; mentions a deployed receptionist and a sandbox electronic health record).
+- **Claim:** a four-step loop: agents turn failing call traces into versioned scenarios; simulated caller agents phone the deployed agent in realistic rooms with a sandbox record system; agent judges plus deterministic end-state checks grade and cluster failures and write one fix and one new scenario per root cause as a stacked change; reviewer agents critique each change and a change is proposed only if it passes on both runtimes. Humans still own merge and deploy "for now".
+- **Mechanism:** a Businesses mechanism: a business-agent improvement loop with agent callers, graders and reviewers, and a human merge gate. Related to P17 and P14.
+- **Cells:** Businesses x act/reflect/learn; Shops and Services x transact; Clinic x act.
+- **Needs:** sandbox, API models.
+- **Licence/code:** unknown.
+- **Risks:** agents grading agents can drift together; keep a human gate and a hidden grader (see P24).
+- **Priority: B.**
 
