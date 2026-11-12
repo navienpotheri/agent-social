@@ -101,3 +101,17 @@ test("asp run: a kill is in the run log: the call, the verdict, the kill, how it
   // The log refuses the killed run's Action (its scope is outside the Mandate: the paper trail); the run log is what keeps the story.
   assert.match(run.err, /COMPLIANCE VIOLATION|kill-switch settlement/);
 });
+
+test("asp run with no --prompt (no output stream to read) still keeps a run log of its start and end, and says it did not read the output (gap E5)", async () => {
+  const f = makeFixture();
+  const { contract, pkg } = await packedJob(f, ["repo.read"]);
+  const run = await asp(f, ["run", pkg, "--backend", "codex", "--project", f.project, "--contract", contract, "--no-write-back"],
+    { GITHUB_TOKEN: "t", API_BASE: "x", ASP_CODEX_BIN: process.execPath, ASP_CODEX_SCRIPT: fileURLToPath(new URL("./fake-codex.mjs", import.meta.url)), FAKE_CODEX_LEARN: "0" });
+  assert.equal(run.code, 0, run.err);
+  const logPath = /run log {2}(\S+run-log\.ndjson)/.exec(run.err)![1];
+  const shown = (await asp(f, ["run-log", "show", logPath])).out;
+  assert.match(shown, /run_start/);
+  assert.match(readFileSync(logPath, "utf8"), /"output_read":false/);
+  assert.match(shown, /run_end/);
+  assert.equal((await asp(f, ["run-log", "verify", logPath, "--contract", contract])).code, 0);
+});

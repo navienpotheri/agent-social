@@ -72,13 +72,13 @@
  *     --packages <folder> lets an agent's page list its packages found there (*.aspkg folders and *.aspkg.tgz archives); with ASP_LOG_URL set it also lists the ones on the service and its commons entries.
  *     The dashboard on this machine only (docs/spec-deltas.md S84): agents, jobs, approvals you can answer, alerts, and the money with its conservation check.
  *     Prints an address carrying a random access token. Reads the log in the ASP home (or the service named by ASP_LOG_URL).
- *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <s>] [--to <address>] [--package <pkg>] | address set <did> <address> | address list
+ *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <s>] [--to <address>] [--package <pkg>] | address set <did> <address> | address list   (queue and watch also take [--send --mail-from <address> [--mail-resend-url <url>]])
  *     The end-of-Mandate mail (docs/live-beta-flow-1.md step 8, gap E8): one mail per Mandate with the highlights from the log (what was asked, allowed, done,
  *     blocked, approved, what changed in memory, how it ended and what moved) and, when the gateway kept one, the checked run log. preview prints it (--html
  *     prints the HTML body); queue writes an .eml, .html and .txt to <home>/outbox and marks the Mandate as mailed (a second queue needs --again);
  *     pending lists ended Mandates and alerts not mailed yet. watch queues them as they happen (once with --once): the end mail when a job settles, and an
  *     alert mail at once for a kill (the kill switch's slashed settlement), an upheld report against the agent, or a Mandate that expired while the job still runs.
- *     The mail goes to the address set for the principal (asp mail address set), or --to. Nothing is sent: delivery to a mail provider is not built.
+ *     The mail goes to the address set for the principal (asp mail address set), or --to. Nothing is sent unless --send is given with --mail-from and RESEND_API_KEY in the environment (gap E9): then each mail also goes to Resend from this machine, and one the provider refuses or cannot reach is not marked as mailed.
  *     With --package <pkg> (the agent's own package, read locally), the memory section names what each change added, changed and removed (gap D10, as
  *     `asp learned` would show it) and whether the principal already reviewed it, instead of the log's plain description alone.
  *   asp known-bad add --report <upheld-report> --by <did> [--fingerprint <asp://shell-command#sha256:...> | --all] [--note <text>] | list
@@ -557,6 +557,7 @@ const OPTIONS = {
   "audit-interval": { type: "string" },
   "mail-dry-run": { type: "boolean" },
   "mail-resend-url": { type: "string" },
+  send: { type: "boolean" },
   jurors: { type: "string" },
   "juror-min-stake": { type: "string" },
   base: { type: "string" },
@@ -2990,12 +2991,12 @@ function findRunLog(home: string, contract: string): string | undefined {
 
 /** asp mail preview|queue|pending|watch|address: see the header. */
 async function mailCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
-  const USAGE = "usage: asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <seconds>] [--to <address>] [--package <pkg>] | address set <did> <address> | address list";
+  const USAGE = "usage: asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <seconds>] [--to <address>] [--package <pkg>] [--send --mail-from <address>] | address set <did> <address> | address list";
   if (!["preview", "queue", "pending", "watch", "address"].includes(sub ?? "")) throw new UsageError(USAGE);
   const statePath = join(home, "mail-state.json");
   const addressPath = join(home, "mail-addresses.json");
   const readJson = <T,>(p: string, fallback: T): T => (existsSync(p) ? JSON.parse(readFileSync(p, "utf8")) : fallback);
-  const state: Record<string, { queuedAt: string; to: string; file: string }> = readJson(statePath, {});
+  const state: Record<string, { queuedAt: string; to: string; file: string; sentId?: string }> = readJson(statePath, {});
   const addresses: Record<string, string> = readJson(addressPath, {});
 
   if (sub === "address") {
@@ -3024,15 +3025,25 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
   const learned = pkgDir && existsSync(join(pkgDir, "manifest.json")) ? { learned: listLessons(pkgDir) } : {};
   const outbox = join(home, "outbox");
   /** Writes the .eml, .html and .txt, and records that this key was mailed. */
-  const queueFiles = (key: string, label: string, mail: { eml: string; html: string; text: string }, to: string) => {
+  const queueFiles = async (key: string, label: string, mail: { eml: string; html: string; text: string; subject?: string }, to: string) => {
     mkdirSync(outbox, { recursive: true });
     const stem = join(outbox, `${label}-${key.replace(/[^A-Za-z0-9]/g, "").slice(-16)}${state[key] ? "-" + Date.now() : ""}`);
     writeFileSync(stem + ".eml", mail.eml);
     writeFileSync(stem + ".html", mail.html);
     writeFileSync(stem + ".txt", mail.text);
-    state[key] = { queuedAt: now(), to, file: stem + ".eml" };
+    // --send (gap E9, E10): hand the mail to Resend from this machine (RESEND_API_KEY in the environment, never a flag). A mail that was refused or not reached is not marked as mailed, so the next pass tries it again.
+    let sentId: string | undefined;
+    if (v.send) {
+      const apiKey = io.env.RESEND_API_KEY;
+      if (!apiKey) throw new UsageError("--send needs RESEND_API_KEY in the environment (the key is never taken from a flag)");
+      if (!v["mail-from"]) throw new UsageError("--send needs --mail-from \"Name <address@your-verified-domain>\"");
+      const transport = new ResendTransport({ apiKey, ...(v["mail-resend-url"] ? { baseUrl: v["mail-resend-url"] } : {}) });
+      try { sentId = (await transport.send({ from: v["mail-from"], to, subject: mail.subject ?? label, text: mail.text, html: mail.html })).id; }
+      catch (e) { io.err(`  not sent: ${(e as Error).message} (the .eml is in the outbox; the next pass tries again)`); return undefined; }
+    }
+    state[key] = { queuedAt: now(), to, file: stem + ".eml", ...(sentId ? { sentId } : {}) };
     writeFileSync(statePath, JSON.stringify(state, null, 2));
-    return stem + ".eml";
+    return stem + ".eml" + (sentId ? ` (sent, id ${sentId})` : "");
   };
   /** Everything that should be mailed and has not been: ended Mandates, and alerts. */
   const due = async () => {
@@ -3056,7 +3067,9 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
         if (sub === "pending") { io.out(`  ${label.padEnd(13)} ${f.contract.purpose}  (${contract.slice(0, 19)}, principal ${f.contract.principal}${to ? ` -> ${to}` : ", NO ADDRESS"})`); return; }
         if (!to) { io.err(`  skipped  ${label} for ${contract.slice(0, 19)}: no address for ${f.contract.principal} (asp mail address set <did> <address>)`); return; }
         const mail = build(f, to);
-        io.out(`queued ${queueFiles(key, label, mail, to)} to ${to}: ${mail.subject}`);
+        const done = await queueFiles(key, label, mail, to);
+        if (!done) return;
+        io.out(`queued ${done} to ${to}: ${mail.subject}`);
         queued++;
       };
       for (const a of alerts) await send(a.key, `alert-${a.kind}`, a.contract, (f, to) => buildAlertMail(a, f, { to, ...linkBase }));
@@ -3065,7 +3078,7 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
       return queued;
     };
     if (sub === "pending") { await pass(); return 0; }
-    io.err("  not sent: delivery to a mail provider is not built; mail is queued in the outbox");
+    if (!v.send) io.err("  not sent: mail is queued in the outbox; add --send --mail-from <address> (and RESEND_API_KEY) to deliver it");
     const n = await pass();
     if (v.once) { io.out(`${n} mail(s) queued`); return 0; }
     const every = Number(v.interval) > 0 ? Number(v.interval) * 1000 : 30_000;
@@ -3090,8 +3103,10 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
   if (!to) throw new UsageError("--to <address> is required for queue (or set the principal's address with asp mail address set)");
   if (facts.state !== "Settled") throw new Error(`contract ${contract} is ${facts.state}, not ended: the mail goes out when the Mandate ends`);
   if (state[contract] && !v.again) throw new Error(`contract ${contract} was already mailed (queued ${state[contract].queuedAt} to ${state[contract].to}); one mail per Mandate. Use --again to queue it a second time.`);
-  io.out(`queued ${queueFiles(contract, "end", mail, to)} to ${to}: ${mail.subject}`);
-  io.out("  not sent: delivery to a mail provider is not built; the .eml is in the outbox");
+  const done = await queueFiles(contract, "end", mail, to);
+  if (!done) return 1;
+  io.out(`queued ${done} to ${to}: ${mail.subject}`);
+  if (!v.send) io.out("  not sent: the .eml is in the outbox; add --send --mail-from <address> (and RESEND_API_KEY) to deliver it");
   return 0;
 }
 
@@ -5892,9 +5907,10 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   // Each out-of-scope call waits for its outcome (checkOutputForResult) before it is judged.
   const KILL_GRACE_MS = 3000;
   // The run log (E5): what the runtime's output shows, redacted, in the run folder; the Actions commit to its hash. Needs the output piped, which every
-  // adapter that reads it asks for; an interactive run with no prompt has no stream to read and keeps none.
-  const runLog = (v["no-run-log"] || !(plan.checkOutputForAction || plan.checkOutputForFailure)) ? undefined : new RunRecorder(join(runDir, "run-log.ndjson"));
-  runLog?.event("run_start", { contract: v.contract, agent, backend, scopes: mandate?.scopes, ...(mandateHosts ? { hosts: mandateHosts } : {}), command: [plan.command, ...plan.args].join(" "), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed" });
+  // adapter that reads it asks for; an interactive run with no prompt has no stream to read: it keeps a log of its start and end only (output_read: false).
+  const streamRead = !!(plan.checkOutputForAction || plan.checkOutputForFailure);
+  const runLog = v["no-run-log"] ? undefined : new RunRecorder(join(runDir, "run-log.ndjson"));
+  runLog?.event("run_start", { contract: v.contract, agent, backend, scopes: mandate?.scopes, ...(mandateHosts ? { hosts: mandateHosts } : {}), command: [plan.command, ...plan.args].join(" "), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", ...(streamRead ? {} : { output_read: false, note: "no output stream on this run (no --prompt): only the start, the end and what the hooks saw are kept" }) });
   if (runLog) io.err(`  run log  ${runLog.path}`);
   let hiddenFailure: string | undefined;
   const scopesSeen = new Set<string>();
