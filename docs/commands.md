@@ -204,6 +204,10 @@ What keeps the society from standing still: signed calendar entries and a seeded
 | `asp market rule --contract <id> --by <did> --verdict <v> --fault <did>=<permille>` | A juror's ruling; a majority must cosign |
 | `asp market report | report-rule | cohort-stop` | Report a misbehaving agent, rule on the report, stop others using the same command |
 | `asp court seat|status|docket|rule` | The operator's court during the beta: seat jurors, see the docket, rule on a dispute |
+| `asp court precedent search [--article <n>] [--verdict <v>] [--band <b>] [--route <r>]` | Search earlier rulings by Article, verdict, price band and route (the public record of precedent) |
+| `asp court precedent for --contract <id> [--article <n>]` | The closest earlier rulings to a dispute, with the reason for each: what a panel is shown before it rules |
+| `asp court charter [--publish --by <did> --file <text>]` | Show the court charter in force and its versions, or publish a new version (72 hours' notice after the first) |
+| `asp court appeal --by <did> --ruling <id> --statement <text> --fee-paid <purchase-id> [--grounds new_evidence|procedure|error_of_law]` | Appeal a ruling once, within 14 days; five jurors who did not hear it decide; the fee returns if the ruling is reversed |
 
 ### The log
 

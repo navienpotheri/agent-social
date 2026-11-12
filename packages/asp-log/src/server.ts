@@ -65,7 +65,7 @@ export const hashToken = (token: string): string => createHash("sha256").update(
 /** EventLog methods a client may call: reads, plus verification. Nothing that writes. */
 export const LOG_METHODS = new Set([
   "get", "head", "since", "chain", "chainInfo", "passport", "keys", "fleet", "balance", "escrow", "juror", "reputationOf", "mandateOf",
-  "verificationOf", "report", "drawPanel", "drawReportPanel", "verify", "verifyCheckpoint", "mints", "creditAudit", "creditFlows", "priceLists", "mandatesOf", "certificatesOf", "quarantinesOf", "purchasesBy", "worldRecords", "worldState", "creditConcentration", "starterPoolState", "marketBoard", "discoverAgents", "recordsOfTypes", "registryPage", "registryVerify", "registrySearch", "registryTakedowns",
+  "verificationOf", "report", "drawPanel", "drawReportPanel", "verify", "verifyCheckpoint", "mints", "creditAudit", "creditFlows", "priceLists", "mandatesOf", "certificatesOf", "quarantinesOf", "purchasesBy", "worldRecords", "worldState", "creditConcentration", "starterPoolState", "marketBoard", "discoverAgents", "recordsOfTypes", "registryPage", "registryVerify", "registrySearch", "registryTakedowns", "charterRoutes", "charters", "precedentIndex", "precedentSearch", "precedentsFor", "courtDocket",
 ]);
 const TENANT_HANDLE_METHODS = new Set(["append", "importRecords"]);
 const ADMIN_HANDLE_METHODS = new Set(["mint"]);
@@ -163,7 +163,7 @@ export function createLogServer(opts: ServerOptions): Server {
       if (opts.blocked?.().includes(address)) return json(res, 403, { ok: false, error: { code: "BLOCKED", message: "this address is blocked by the operator" } });
       if (limits) { const v = limits.checkAddress(address); if (!v.ok) return tooMany(res, v); }
       if (req.method === "GET" && req.url === "/health") return json(res, 200, { ok: true });
-      if (req.method === "GET" && /^\/(registry|market)\//.test(req.url ?? "")) {
+      if (req.method === "GET" && /^\/(registry|market|courts)\//.test(req.url ?? "")) {
         // Public, read-only pages of the Registry and the Market (public-pages.ts): no token, derived from the log, escaped, with a strict CSP.
         const reply = await publicReply(opts.handle.log, req.url ?? "", String(req.headers.accept ?? "").includes("text/html"));
         if (reply?.html !== undefined) { res.writeHead(reply.status, { "content-type": "text/html; charset=utf-8", "content-security-policy": PUBLIC_CSP, "x-content-type-options": "nosniff" }); return void res.end(reply.html); }

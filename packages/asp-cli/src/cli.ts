@@ -665,6 +665,7 @@ const OPTIONS = {
   artifact: { type: "string", multiple: true },
   // Market, Registry and Courts (DK10, DK12, DK13, DK16, DK17, DK18)
   paid: { type: "string" },
+  publish: { type: "boolean" },
   page: { type: "string" },
   class: { type: "string" },
   tier: { type: "string" },
@@ -875,7 +876,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "agent") return await agentCmd(home, sub, rest, v, io);
     if (cmd === "token") return await tokenCmd(sub, rest, v, io);
     if (cmd === "leave") return leaveCmd(home, io);
-    if (cmd === "court") return await courtCmd(home, sub, v, io);
+    if (cmd === "court") return await courtCmd(home, sub, v, io, rest);
     if (cmd === "serve") return await serve(v, need, io);
     if (cmd === "watch") return await watch(home, v, io);
     if (cmd === "eval" && sub === "run") return await evalRun(rest[0], v, io);
@@ -1375,8 +1376,16 @@ async function jurorsIn(log: LogHandle["log"]): Promise<{ did: string; staked: n
  * The operator's court for the beta (launch blocker 4). The service refuses juror registrations from tenants (--jurors operator-only), so the operator seats the panel with an
  * admin token and keeps the jurors' keys on their own machine; `rule` signs a drawn panel's ruling with the keys the operator holds. Run against the service (ASP_LOG_URL, ASP_LOG_TOKEN of an admin).
  */
-async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+/** What a panel is shown before it rules (courts.md 3): the closest earlier rulings to this dispute, with the reason for each. */
+async function showPrecedents(log: { precedentsFor(contract: string, articles?: string[]): Promise<{ query: { articles: string[]; band: string; route: string }; hits: { ruling: { id: string; verdict: string; articles: string[] }; score: number; why: string[] }[] }> }, contract: string, io: Io, articles: string[] = []): Promise<void> {
+  const { query, hits } = await log.precedentsFor(contract, articles);
+  io.out(`  closest precedents (Articles ${query.articles.join(", ") || "none cited"}; ${query.band}; ${query.route}): ${hits.length ? "" : "none above the score of 3 (cite the Article you rely on in the rejection's reasons)"}`);
+  for (const h of hits) io.out(`    ${h.ruling.id}  ${h.ruling.verdict}  Article ${h.ruling.articles.join(", ")}  score ${h.score}: ${h.why.join("; ")}`);
+}
+
+async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io, rest: string[] = []): Promise<number> {
   const log = (await openLog(home, logEnv)).log;
+  const need = (k: keyof Values): string => { const x = v[k]; if (typeof x !== "string" || !x) throw new UsageError(`--${String(k)} is required`); return x; };
   if (sub === "seat") {
     const count = Math.trunc(Number(v.count ?? "3")), stake = Math.trunc(Number(v.stake ?? "500"));
     if (!(count >= 1 && count <= 15) || !(stake >= 1)) throw new UsageError("asp court seat [--count 1..15] [--stake n] [--base did:web:<host>:court]");
@@ -1433,8 +1442,53 @@ async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io
   if (sub === "docket") {
     const cases = await open();
     const keys = new Keystore(home);
-    for (const c of cases) io.out(`${c.contract}: ${c.principal} v ${c.performer}; panel ${c.panel.length ? c.panel.map((d) => `${d}${keys.forDid(d) ? " (key held)" : ""}`).join(", ") : "none can be drawn"}`);
+    for (const c of cases) {
+      io.out(`${c.contract}: ${c.principal} v ${c.performer}; panel ${c.panel.length ? c.panel.map((d) => `${d}${keys.forDid(d) ? " (key held)" : ""}`).join(", ") : "none can be drawn"}`);
+      await showPrecedents(log, c.contract, io);
+    }
     io.out(`${cases.length} open dispute(s)`);
+    return 0;
+  }
+  // Precedent, the charter and appeals (courts.md 7; DK12, DK13).
+  if (sub === "precedent") {
+    const what = rest[0];
+    if (what === "for") {
+      const contract = need("contract");
+      await showPrecedents(log, contract, io, v.article ? [v.article] : []);
+      return 0;
+    }
+    const rows = await log.precedentSearch({ article: v.article, verdict: v.verdict, band: v.band, route: v.route });
+    if (!rows.length) io.out("no rulings match");
+    for (const r of rows) io.out(`${r.id}  ${r.verdict}  ${r.route}  ${r.band}  Article ${r.articles.join(", ") || "none"}${r.appeal ? `  appealed: ${r.appeal.outcome}` : ""}${r.precedents.length ? `  relies on ${r.precedents.length} earlier ruling(s)` : ""}`);
+    return 0;
+  }
+  if (sub === "charter") {
+    if (v.publish) {
+      const by = need("by");
+      const textFile = need("file");
+      const sha = createHash("sha256").update(readFileSync(textFile)).digest("hex");
+      const versions = await log.charters();
+      const routes = { small_claim_max_price: 50, small_claim_panel: 1, small_claim_fee: 2, standard_panel: 3, appeal_panel: 5, appeal_window_days: 14, appeal_fee_small: 5, appeal_fee_standard: 20, appeal_small_max_price: 100, claimant_open_cap: 3 };
+      const effective = versions.length ? new Date(Date.now() + 73 * 3600_000).toISOString().replace(/\.\d+Z$/, "Z") : now();
+      const signer = new Keystore(home).forDid(by);
+      if (!signer) throw new Error(`no key for ${by}`);
+      const rec = createRecord({ type: "court_act", issuer: by, subject: null, prev: null, body: { act: "charter", version: versions.length + 1, text_sha256: sha, routes, effective_from: effective }, issued_at: now() }, signer);
+      const res = await (await openLog(home, logEnv)).append(rec);
+      io.out(`charter version ${versions.length + 1} ${res.id}, effective ${effective} (log seq ${res.seq})`);
+      return 0;
+    }
+    const routes = await log.charterRoutes();
+    io.out(routes ? `charter in force: ${JSON.stringify(routes)}` : "no charter is in force yet: the Courts run a panel of 3 and a fee of 5 % of the price (asp court charter --publish --by <did> --file docs/court-charter.md)");
+    for (const c of await log.charters()) io.out(`  version ${c.version}  effective ${c.effective_from}  text sha256 ${c.text_sha256}`);
+    return 0;
+  }
+  if (sub === "appeal") {
+    const by = need("by");
+    const signer = new Keystore(home).forDid(by);
+    if (!signer) throw new Error(`no key for ${by}`);
+    const rec = createRecord({ type: "court_act", issuer: by, subject: null, prev: null, body: { act: "appeal", ruling: need("ruling"), grounds: v.grounds ?? "error_of_law", statement: need("statement"), fee_paid: need("fee-paid") }, issued_at: now() }, signer);
+    const res = await (await openLog(home, logEnv)).append(rec);
+    io.out(`appeal ${res.id} (log seq ${res.seq}); five jurors who did not hear the first ruling are drawn from this appeal's id`);
     return 0;
   }
   if (sub === "rule") {
@@ -1442,6 +1496,7 @@ async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io
     if (!contract || !v.verdict) throw new UsageError("asp court rule --contract <id> --verdict for_performer|for_principal|split --fault <did>=<permille> [--fault ...]");
     const panel = await log.drawPanel(contract);
     if (!panel.length) throw new Error("no panel can be drawn for this dispute; seat jurors first (asp court seat)");
+    await showPrecedents(log, contract, io);
     const keys = new Keystore(home);
     const mine = panel.filter((d) => keys.forDid(d));
     const quorum = Math.ceil(panel.length / 2);
@@ -1450,7 +1505,7 @@ async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io
     const args = ["market", "rule", "--contract", contract, "--by", signers[0], ...signers.slice(1).flatMap((d) => ["--cosign-by", d]), "--verdict", v.verdict, ...(v.fault ?? []).flatMap((f) => ["--fault", f])];
     return await main(args, io);
   }
-  throw new UsageError("usage: asp court seat [--count n] [--stake n] [--base did:web:<host>:court] | status | docket | rule --contract <id> --verdict ... --fault <did>=<permille>");
+  throw new UsageError("usage: asp court seat [--count n] [--stake n] [--base did:web:<host>:court] | status | docket | rule --contract <id> --verdict ... --fault <did>=<permille> | precedent search|for | charter [--publish] | appeal --by <did> --ruling <id> --statement <text> --fee-paid <purchase>");
 }
 
 /**

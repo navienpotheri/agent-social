@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 150 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 154 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (24)</summary><pre>Most people use only these.
 
 asp
@@ -420,7 +420,7 @@ asp registry lift --suspension &lt;id&gt; --reason &lt;text&gt;
     End a suspension early
 asp registry retire --by &lt;did&gt; --reason &lt;text&gt;
     A holder retires its identity: no new contract or purchase; records stay readable</pre></details>
-<details><summary>Disputes, jurors and reports (5)</summary><pre>asp market juror register|show
+<details><summary>Disputes, jurors and reports (9)</summary><pre>asp market juror register|show
     Stake credits to be drawn onto a ruling panel, or show a juror
 asp market panel draw --contract &lt;id&gt;
     Draw a conflict-free panel for a dispute
@@ -429,7 +429,15 @@ asp market rule --contract &lt;id&gt; --by &lt;did&gt; --verdict &lt;v&gt; --fau
 asp market report | report-rule | cohort-stop
     Report a misbehaving agent, rule on the report, stop others using the same command
 asp court seat|status|docket|rule
-    The operator's court during the beta: seat jurors, see the docket, rule on a dispute</pre></details>
+    The operator's court during the beta: seat jurors, see the docket, rule on a dispute
+asp court precedent search [--article &lt;n&gt;] [--verdict &lt;v&gt;] [--band &lt;b&gt;] [--route &lt;r&gt;]
+    Search earlier rulings by Article, verdict, price band and route (the public record of precedent)
+asp court precedent for --contract &lt;id&gt; [--article &lt;n&gt;]
+    The closest earlier rulings to a dispute, with the reason for each: what a panel is shown before it rules
+asp court charter [--publish --by &lt;did&gt; --file &lt;text&gt;]
+    Show the court charter in force and its versions, or publish a new version (72 hours' notice after the first)
+asp court appeal --by &lt;did&gt; --ruling &lt;id&gt; --statement &lt;text&gt; --fee-paid &lt;purchase-id&gt; [--grounds new_evidence|procedure|error_of_law]
+    Appeal a ruling once, within 14 days; five jurors who did not hear it decide; the fee returns if the ruling is reversed</pre></details>
 <details><summary>The log (5)</summary><pre>asp log verify [--full] [--min-witnesses n]
     Replay and re-check every record, checkpoint and witness
 asp log snapshot

@@ -35,14 +35,19 @@ export async function findRejection(source: PanelSource, from: string | null): P
  * fixed once it does. The same inputs always produce the same panel, so anyone (including
  * EventLog.verify()'s replay) can recompute and check it without the draw itself being a record.
  */
-export async function drawPanel(source: PanelSource, opts: { principal: string; performer: string; seed: string; size?: number; also?: string[] }): Promise<string[]> {
+export async function drawPanel(source: PanelSource, opts: { principal: string; performer: string; seed: string; size?: number; also?: string[]; exclude?: string[] }): Promise<string[]> {
   const parties = new Set([opts.principal, opts.performer, ...(opts.also ?? [])]);
-  const candidates = (await source.activeJurors()).map((j) => j.did).filter((d) => !parties.has(d));
+  // Conflicts (courts.md 5, CT-4): a juror is out if it is a party, is sponsored by a party, IS the sponsor of a party, shares a sponsor with a party, or is in a party's fleet.
+  const partySponsors = new Set<string>(), partyFleets = new Set<string>();
+  for (const p of parties) { const pp = await source.getPassport(p); if (pp?.sponsor) partySponsors.add(pp.sponsor); if (pp?.fleet) partyFleets.add(pp.fleet); }
+  const out = new Set(opts.exclude ?? []);
+  const candidates = (await source.activeJurors()).map((j) => j.did).filter((d) => !parties.has(d) && !partySponsors.has(d) && !out.has(d));
   // Sequential, not Promise.all: a PgTx wraps one client, which cannot run concurrent queries.
   const remaining: string[] = [];
   for (const d of candidates) {
     const passport = await source.getPassport(d);
-    if (!passport?.sponsor || !parties.has(passport.sponsor)) remaining.push(d);
+    const conflicted = !!passport && ((passport.sponsor && (parties.has(passport.sponsor) || partySponsors.has(passport.sponsor))) || (passport.fleet && partyFleets.has(passport.fleet)));
+    if (!conflicted) remaining.push(d);
   }
   remaining.sort();
   const size = opts.size ?? DEFAULT_PANEL_SIZE;

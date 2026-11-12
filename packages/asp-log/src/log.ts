@@ -8,6 +8,8 @@ import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, t
 import { ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, type MarketEnv } from "./market-rules.ts";
+import { charterIn, checkCaseload, checkRulingExtras, closeDispute, projectCourtAct } from "./courts-rules.ts";
+import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
 import { buildPage, namesAt, isLive, skeleton, verifyPage, type RecordPage } from "./registry.ts";
 import { classWeight, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
@@ -253,7 +255,7 @@ export class EventLog {
     if (type === "node") await this.projectNode(tx, verified);
     if (type === "lineage") await this.projectLineage(tx, verified);
     if (type === "bond") await this.projectBond(tx, verified);
-    if (type === "settlement") { await this.checkVerifiedBeforeSilence(tx, verified); await this.projectSettlement(tx, verified); }
+    if (type === "settlement") { await this.checkVerifiedBeforeSilence(tx, verified); await this.projectSettlement(tx, verified); { const sc = await tx.getRecord((verified.body as { contract: string }).contract); if (sc) await closeDispute(tx, sc.record); } }
     if (type === "juror") await this.projectJuror(tx, verified);
     if (type === "mint") await this.projectMint(tx, verified);
     if (type === "price_list") await this.projectPriceList(tx, verified);
@@ -269,6 +271,7 @@ export class EventLog {
     if (type === "quarantine") await this.projectQuarantine(tx, verified);
     if (type === "quarantine_release") await this.projectQuarantineRelease(tx, verified);
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
+    if (type === "court_act") await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize });
     if (type === "registry_act") await projectRegistryAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did) });
     if (type === "bond" || type === "mandate" || type === "proposal" || type === "purchase" || type === "contract") await checkSuspended(tx, verified);
     if (type === "intent") checkIntentClass(verified);
@@ -277,6 +280,8 @@ export class EventLog {
     if (type === "receipt") await this.projectReceipt(tx, verified);
     if (type === "attestation") {
       await this.checkRulingPanel(tx, verified);
+      await checkRulingExtras(tx, verified);
+      await checkCaseload(tx, verified);
       await this.checkAllocationPanel(tx, verified);
       await this.projectReport(tx, verified);
       await this.checkVerification(tx, verified);
@@ -919,9 +924,11 @@ export class EventLog {
     if (body.basis === "ruling" && body.cites) {
       const ruling = await tx.getRecord(body.cites);
       const price = (contract!.record.body as { price?: { value: number } }).price?.value ?? 0;
-      const fee = Math.floor((price * PANEL_FEE_PERMILLE) / 1000);
+      const croutes = await charterIn(tx, ruling?.record.issued_at ?? r.issued_at);
+      const route = croutes ? routeFor(price, croutes) : null;
+      const fee = route?.flatFee ?? Math.floor((price * PANEL_FEE_PERMILLE) / 1000);
       const seed = ruling ? await findRejection(tx, ruling.record.prev) : undefined;
-      const panel = fee > 0 && ruling && seed ? await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: this.panelSize }) : [];
+      const panel = fee > 0 && ruling && seed ? await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: route?.panel ?? this.panelSize }) : [];
       const signers = ruling ? [ruling.record.sig.kid, ...(ruling.record.cosigs ?? []).map((c) => c.kid)].map(didOf) : [];
       const paid = [...new Set(signers.filter((d) => panel.includes(d)))];
       if (fee > 0 && paid.length > 0) {
@@ -1086,7 +1093,9 @@ export class EventLog {
     const cbody = contract.record.body as { principal: string; performer: string };
     const seed = await findRejection(tx, r.prev);
     if (!seed) return; // defensive; the lifecycle's own guards already require a prior rejection
-    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: this.panelSize });
+    const croutes = await charterIn(tx, r.issued_at);
+    const cprice = (contract.record.body as { price?: { value: number } }).price?.value ?? 0;
+    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: croutes ? routeFor(cprice, croutes).panel : this.panelSize });
     // No staked, conflict-free juror is registered anywhere: Courts hasn't been bootstrapped in
     // this log, so fall back to the pre-Courts mocked behavior (any neutral DID may rule) rather
     // than blocking every dispute — this is what keeps the `dispute_ruled`/`ruling_by_party`
@@ -1638,6 +1647,7 @@ export class EventLog {
     if (b.status === "delivered") return;
     // A posting deposit (market.md 4) is returned when the posting ends in a contract, not before.
     if ((await tx.getMarker(`deposit_used:${purchase.id}`)) && !(await tx.getMarker(`posting_filled:${purchase.id}`))) throw rule("refund_deposit_not_earned", "a posting deposit is returned when the posting ends in a contract; this posting has not");
+    if ((await tx.getMarker(`appeal_fee:${purchase.id}`)) && !(await tx.getMarker(`appeal_refundable:${purchase.id}`))) throw rule("refund_appeal_not_reversed", "an appeal fee is returned when the appeal reverses or varies the ruling; this appeal has not");
     const parts = await this.purchaseParts(tx, purchase);
     if (!parts) throw rule("receipt_unknown_price", "the price list this purchase relied on is not in the log");
     const refund = b.refund_amount?.value ?? 0;
@@ -1735,6 +1745,57 @@ export class EventLog {
     return forAgent ? out.sort((a, b) => Number(b.forAgent?.eligible) - Number(a.forAgent?.eligible)) : out;
   }
 
+  /** The routes of the court charter in force now, or null when none is published (read from the charter records). */
+  async charterRoutes(at?: string) {
+    const when = at ?? this.now().toISOString();
+    const charters = (await this.recordsOfTypes(["court_act"])).filter((r) => (r.body as { act: string }).act === "charter").map((r) => r.body as { version: number; routes: typeof DEFAULT_ROUTES; effective_from: string; text_sha256: string });
+    return charters.filter((c) => Date.parse(c.effective_from) <= Date.parse(when)).sort((a, b) => b.version - a.version)[0]?.routes ?? null;
+  }
+
+  /** Every charter version published, with its hash (courts.md 7). */
+  async charters(): Promise<{ id: string; issued_at: string; version: number; effective_from: string; text_sha256: string; routes: typeof DEFAULT_ROUTES }[]> { return (await this.recordsOfTypes(["court_act"])).filter((r) => (r.body as { act: string }).act === "charter").map((r) => ({ id: r.id, issued_at: r.issued_at, ...(r.body as { version: number; effective_from: string; text_sha256: string; routes: typeof DEFAULT_ROUTES }) })); }
+
+  /** The precedent store (courts.md 3): every ruling indexed by Article, verdict, route and price band, left out when the parties were linked. */
+  async precedentIndex(): Promise<RulingEntry[]> {
+    const records = await this.recordsOfTypes(["passport", "contract", "attestation", "court_act"]);
+    const signers = new Map<string, string[]>();
+    for (const r of records) if (r.type === "asp.attestation/v0.2") signers.set(r.id, [r.sig.kid, ...(r.cosigs ?? []).map((c) => c.kid)].map(didOf));
+    return indexRulings(records, (r) => signers.get(r.id) ?? [], (await this.charterRoutes()) ?? DEFAULT_ROUTES);
+  }
+
+  /** Search the precedent store (asp court precedent search; GET /courts/precedents). */
+  async precedentSearch(f: { article?: string; verdict?: string; band?: string; route?: string } = {}): Promise<RulingEntry[]> { return searchRulings(f, await this.precedentIndex()); }
+
+  /**
+   * The closest precedents to a dispute (courts.md 3), the view a panel is shown before it rules: scored by shared Articles (the Articles `articles` names, and any Article the rejection's
+   * reasons cite), the price band and the route. Persuasive, never binding; a ruling that departs from one lists it in departs_from and says why.
+   */
+  async precedentsFor(contract: string, articles: string[] = []): Promise<{ query: { articles: string[]; band: string; route: string }; hits: PrecedentHit[] }> {
+    const c = await this.store.getRecord(contract);
+    if (!c) throw new AspError("BAD_PREV", `${contract} is not in the log`);
+    const price = (c.record.body as { price: { value: number } }).price.value;
+    const routes = (await this.charterRoutes()) ?? DEFAULT_ROUTES;
+    const reasons = (await this.store.chainRecords(contract)).flatMap((s) => { const b = s.record.body as { kind?: string; verdict?: string; reasons?: string[] }; return s.record.type === "asp.attestation/v0.2" && b.kind === "acceptance" && b.verdict === "rejected" ? b.reasons ?? [] : []; });
+    const query = { articles: [...new Set([...articles, ...articlesIn(reasons)])], band: priceBand(price), route: routeFor(price, routes).route };
+    return { query, hits: closestPrecedents(query, (await this.precedentIndex()).filter((r) => r.contract !== contract)) };
+  }
+
+  /** The docket (courts.md 7): contracts with a rejection and no settlement yet, with the route, panel size, panel drawn now and the claimant's open count against the cap. */
+  async courtDocket(): Promise<{ contract: string; principal: string; performer: string; price: number; route: string; panelSize: number; panel: string[]; ruled: boolean; rejectedAt: string }[]> {
+    const records = await this.recordsOfTypes(["contract", "attestation", "settlement"]);
+    const settled = new Set(records.filter((r) => r.type === "asp.settlement/v0.2").map((r) => (r.body as { contract: string }).contract));
+    const routes = (await this.charterRoutes()) ?? DEFAULT_ROUTES;
+    const out = [];
+    for (const c of records.filter((r) => r.type === "asp.contract/v0.2" && !settled.has(r.id))) {
+      const rej = records.filter((r) => r.subject === c.id && r.type === "asp.attestation/v0.2" && (r.body as { kind: string; verdict?: string }).kind === "acceptance" && (r.body as { verdict?: string }).verdict === "rejected").at(-1);
+      if (!rej) continue;
+      const cb = c.body as { principal: string; performer: string; price: { value: number } };
+      const rt = routeFor(cb.price.value, routes);
+      out.push({ contract: c.id, principal: cb.principal, performer: cb.performer, price: cb.price.value, route: rt.route, panelSize: rt.panel, panel: await this.drawPanel(c.id).catch(() => []), ruled: records.some((r) => r.subject === c.id && r.type === "asp.attestation/v0.2" && (r.body as { kind: string }).kind === "ruling"), rejectedAt: rej.issued_at });
+    }
+    return out;
+  }
+
   /** The record page of a DID or a name (registry.md 7), computed only from the log's records (a view; `registryVerify` recomputes it). */
   async registryPage(idOrName: string, at?: string): Promise<RecordPage | null> {
     const when = at ?? this.now().toISOString();
@@ -1796,7 +1857,9 @@ export class EventLog {
     const chainRecords = await this.store.chainRecords(contract);
     const seed = await findRejection(this.store, chainRecords.at(-1)?.id ?? null);
     if (!seed) throw rule("no_dispute", `contract ${contract} has no open dispute (no rejection found)`);
-    return drawPanel(this.store, { principal: cbody.principal, performer: cbody.performer, seed, size: size ?? this.panelSize });
+    const croutes = await this.charterRoutes();
+    const price = (contractRec.record.body as { price?: { value: number } }).price?.value ?? 0;
+    return drawPanel(this.store, { principal: cbody.principal, performer: cbody.performer, seed, size: size ?? (croutes ? routeFor(price, croutes).panel : this.panelSize) });
   }
 
   /** The panel a report's ruling would draw (excludes the principal, performer, reporter and anyone they sponsor). */
