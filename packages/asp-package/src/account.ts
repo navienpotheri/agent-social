@@ -127,7 +127,7 @@ export async function releaseStarter(o: AccountOptions, t: Tenant): Promise<{ re
   let accepted = false;
   for (const did of s.dids) {
     const rep = await o.handle.log.reputationOf(did).catch(() => undefined);
-    if ((rep?.acceptedJobs ?? 0) >= 1) { accepted = true; break; }
+    if ((rep?.qualifyingJobs ?? 0) >= 1) { accepted = true; break; }
   }
   if (!accepted) return { reason: `the other ${s.held} each is released when one of ${s.dids.length === 1 ? "your identity" : "your identities"} has had a job accepted` };
   const total = s.held * s.dids.length;

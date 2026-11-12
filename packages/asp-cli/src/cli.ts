@@ -188,6 +188,9 @@
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
  *   asp credits balance <did>
+ *   asp credits audit [--by-flow] [--since <time>] [--json]
+ *     The supply rule over the whole log: balances + escrow + bonds + court-fee reserves + juror stakes + open report deposits must equal what was minted.
+ *     Prints balanced or MISMATCH with the figures; the exit code is 1 on a mismatch. --by-flow adds the settlement flows the log can report today.
  *
  *   Assignment mode (one performer bidding directly):
  *   asp market intent --by <did> --purpose <text> [--criteria <text> ...] --budget <n> --deadline <iso> [--verification deterministic|principal|arbiter] [--review-deadline <iso>] [--verifier <did>]
@@ -452,6 +455,7 @@ const OPTIONS = {
   "dry-run": { type: "boolean" },
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
+  "by-flow": { type: "boolean" },
   "no-run-log": { type: "boolean" },
   late: { type: "string" },
   "record-quota": { type: "string" },
@@ -801,6 +805,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "checkpoint") return await logCheckpoint(home, v, need, io);
     if (cmd === "credits" && (!sub || sub === "show")) return await creditsShow(home, io);
     if (cmd === "credits" && sub === "grant") return await creditsGrant(home, v, need, io);
+    if (cmd === "credits" && sub === "audit") return await creditsAudit(home, v, io);
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
@@ -3656,6 +3661,40 @@ async function creditsGrant(home: string, v: Values, need: Need, io: Io): Promis
   io.out(`granted ${amount} credits to ${to} (not a signed record; local test/bootstrap only, see MOCKS.md #13)`);
   io.out(`  balance ${balance}`);
   return 0;
+}
+
+/**
+ * asp credits audit (credits.md 6.1, CR-1; register rows DK1 and DK9): the supply rule over every account the log holds, not over accounts a caller names.
+ * Works on a local log and, through the service's read-only `creditAudit` call, on a hosted one. Exit code 0 when balanced, 1 on a mismatch.
+ */
+async function creditsAudit(home: string, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const audit = await local.log.creditAudit();
+  const flows = v["by-flow"] ? await local.log.creditFlows(v.since) : undefined;
+  if (v.json) {
+    io.out(JSON.stringify({ ...audit, ...(flows ? { flows } : {}) }, null, 2));
+    return audit.verdict === "balanced" ? 0 : 1;
+  }
+  const n = (x: number) => String(x);
+  const l = audit.locked;
+  io.out(`Credit audit at log seq ${audit.head.seq} (${audit.head.logHash.slice(0, 19)}...)  (credits are accounting entries, not money)`);
+  io.out(`  minted (M)                  ${n(audit.minted)}`);
+  io.out(`  in ${n(audit.accounts)} account(s)           ${n(audit.balances)}   of which circulating ${n(audit.circulating)}, platform account ${n(audit.platform)}`);
+  io.out(`  locked, ${n(audit.openContracts)} open contract(s)   ${n(l.escrow + l.bond + l.feeReserves)}   escrow ${n(l.escrow)}, bonds ${n(l.bond)}, court-fee reserves ${n(l.feeReserves)}`);
+  io.out(`  locked, jurors and reports  ${n(l.jurorStakes + l.reportDeposits)}   juror stakes ${n(l.jurorStakes)}, open report deposits ${n(l.reportDeposits)}`);
+  io.out(`  accounted for               ${n(audit.accounted)}   (balances + locked)`);
+  io.out(audit.verdict === "balanced" ? "  verdict: balanced" : `  verdict: MISMATCH by ${n(Math.abs(audit.difference))} credits${audit.problems.length ? `: ${audit.problems.join("; ")}` : ""}`);
+  if (flows) {
+    const s = flows.settlements;
+    io.out(`By flow${flows.since ? ` since ${flows.since}` : " (whole log)"}:`);
+    io.out(`  minted ${n(flows.minted)} (whole history: a mint carries no time or reason)`);
+    io.out(`  ${n(s.count)} settlement(s) ${Object.entries(s.byBasis).map(([k, c]) => `${k} ${c}`).join(", ") || "none"}: released to performers ${n(s.escrowReleased)}, fees to the platform account ${n(s.fees)}, bonds returned ${n(s.bondReturned)}, bonds slashed ${n(s.bondSlashed)}`);
+    io.out("  not available from the log yet:");
+    for (const u of flows.unavailable) io.out(`    - ${u}`);
+  }
+  io.out("Not in this audit yet:");
+  for (const u of audit.notYet) io.out(`  - ${u}`);
+  return audit.verdict === "balanced" ? 0 : 1;
 }
 
 async function creditsBalance(home: string, did: string | undefined, io: Io): Promise<number> {

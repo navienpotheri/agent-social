@@ -1,5 +1,6 @@
 export { EventLog, PLATFORM_DID, nextLogHash, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
+export { auditLedger, type CreditAudit, type CreditFlows, type LedgerRows } from "./credit-audit.ts";
 export { PostgresStore, migrate } from "./postgres.ts";
 export { DEFAULT_PANEL_SIZE, drawPanel, findRejection, type PanelSource } from "./panel.ts";
 export {

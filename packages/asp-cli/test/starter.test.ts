@@ -16,7 +16,7 @@ async function asp(f: Fixture, args: string[], env: Record<string, string>) {
   const code = await main(args, io);
   return { code, out: out.join("\n"), err: err.join("\n") };
 }
-const ALICE = "did:web:example.com:users:alice", CODER = "did:web:example.com:agents:alice-coder", BANK = "did:web:example.com:users:bank", STRANGER = "did:web:example.com:users:nobody";
+const ALICE = "did:web:example.com:users:alice", CODER = "did:web:example.com:agents:alice-coder", BANK = "did:web:example.com:users:bank", STRANGER = "did:web:example.com:users:nobody", DANA = "did:web:example.com:users:dana";
 
 const tenant = (name: string, token: string, google?: string) => ({
   name, role: "tenant", tokenSha256: hashToken(token), createdAt: "2026-10-11T00:00:00Z",
@@ -43,7 +43,7 @@ test("a newcomer's first job: a Google-verified tenant claims the first part of 
     const env = (token: string) => ({ ASP_LOG_URL: url, ASP_LOG_TOKEN: token });
     const a = makeFixture(), d = makeFixture();
     const A = env("tok-a");
-    for (const [kind, did, sponsor] of [["human", ALICE, undefined], ["agent", CODER, ALICE], ["human", BANK, undefined]] as const) {
+    for (const [kind, did, sponsor] of [["human", ALICE, undefined], ["agent", CODER, ALICE], ["human", BANK, undefined], ["human", DANA, undefined]] as const) {
       assert.equal((await asp(a, ["identity", "new", "--kind", kind, "--did", did, ...(sponsor ? ["--sponsor", sponsor, "--purpose", "Fix the flaky test"] : [])], A)).code, 0);
     }
 
@@ -74,26 +74,27 @@ test("a newcomer's first job: a Google-verified tenant claims the first part of 
     assert.match((await asp(a, ["account", "show"], env("tok-b"))).out, /this Google account has already claimed its starter credits/);
     assert.match((await asp(a, ["account", "show"], env("tok-c"))).out, /starter credits: available/);
 
-    // A first job within a newcomer's limits: price 100, escrow 100, a bond of 100, accepted and paid.
+    // A first job within a newcomer's limits: price 100, escrow 100, a bond of 100, accepted and paid. The principal is DANA, who is not the newcomer's sponsor: since S161 a job posted by the agent's own sponsor settles but does not count, so it would not release the rest (that case is in packages/asp-log/test/qualifying.test.ts).
+    assert.equal((await asp(a, ["credits", "grant", "--to", DANA, "--amount", "100"], env("tok-ops"))).code, 0);
     const job = async (args: string[]) => { const r = await asp(a, args, A); assert.equal(r.code, 0, `${args.join(" ")}: ${r.err}`); return r; };
-    const intent = /^intent (\S+)/.exec((await job(["market", "intent", "--by", ALICE, "--purpose", "First job", "--budget", "100", "--deadline", "2026-12-01T00:00:00Z"])).out)![1];
+    const intent = /^intent (\S+)/.exec((await job(["market", "intent", "--by", DANA, "--purpose", "First job", "--budget", "100", "--deadline", "2026-12-01T00:00:00Z"])).out)![1];
     const offer = /^offer (\S+)/.exec((await job(["market", "offer", "--by", CODER, "--intent", intent, "--price", "100", "--plan", "do it", "--eta", "2026-11-01T00:00:00Z"])).out)![1];
-    const contract = /^contract (\S+):/.exec((await job(["market", "contract", "--principal", ALICE, "--bank", BANK, "--intent", intent, "--offer", offer])).out)![1];
-    await job(["market", "bond", "--contract", contract, "--backer", CODER, "--amount", "100", "--escrow-payer", ALICE, "--escrow-amount", "100"]);
-    await job(["market", "mandate", "--contract", contract, "--principal", ALICE, "--performer", CODER, "--spend-cap", "100"]);
+    const contract = /^contract (\S+):/.exec((await job(["market", "contract", "--principal", DANA, "--bank", BANK, "--intent", intent, "--offer", offer])).out)![1];
+    await job(["market", "bond", "--contract", contract, "--backer", CODER, "--amount", "100", "--escrow-payer", DANA, "--escrow-amount", "100"]);
+    await job(["market", "mandate", "--contract", contract, "--principal", DANA, "--performer", CODER, "--spend-cap", "100"]);
     await job(["market", "deliver", "--contract", contract, "--by", CODER, "--summary", "Done"]);
-    await job(["market", "accept", "--contract", contract, "--by", ALICE]);
+    await job(["market", "accept", "--contract", contract, "--by", DANA]);
     await job(["market", "settle", "--contract", contract, "--bank", BANK, "--basis", "accepted", "--escrow-released", "100", "--bond-returned", "100", "--bond-slashed", "0"]);
     assert.match((await asp(a, ["credits", "balance", CODER], A)).out, /200 credits/, "100 - 100 bond + 100 paid + 100 bond back");
-    assert.match((await asp(a, ["credits", "balance", ALICE], A)).out, /\b0 credits/, "100 - 100 escrow");
+    assert.match((await asp(a, ["credits", "balance", DANA], A)).out, /\b0 credits/, "100 granted - 100 escrow");
 
     // The job was accepted: looking at the account releases the other 400 each, once.
     const released = await asp(a, ["account", "show"], A);
     assert.match(released.out, /starter credits: claimed \(1000\)/);
     assert.match((await asp(a, ["credits", "balance", CODER], A)).out, /600 credits/, "200 + 400 released");
-    assert.match((await asp(a, ["credits", "balance", ALICE], A)).out, /400 credits/);
+    assert.match((await asp(a, ["credits", "balance", ALICE], A)).out, /500 credits/, "100 + 400 released");
     assert.match((await asp(a, ["account", "show"], A)).out, /starter credits: claimed \(1000\)/);
-    assert.match((await asp(a, ["credits", "balance", ALICE], A)).out, /400 credits/, "released once, not again");
+    assert.match((await asp(a, ["credits", "balance", ALICE], A)).out, /500 credits/, "released once, not again");
     assert.equal(JSON.parse(readFileSync(`${tokens}.starter.json`, "utf8")).minted, 1000);
 
     // The pool is now whole-grant used up. A newcomer is put on the waiting list, in order; the operator tops the pool up on purpose, and then it is their turn.

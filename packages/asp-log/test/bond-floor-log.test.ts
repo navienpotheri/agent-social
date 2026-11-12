@@ -13,33 +13,44 @@ function freshAgent(name: string): { did: string } & Signer & { publicKey: Uint8
   return { did, ...signerFromSeed(`${did}#key-1`, seed) };
 }
 
-async function registerAgent(log: EventLog, agent: { did: string } & Signer & { publicKey: Uint8Array }, opts: { fleet?: string } = {}) {
+type Person = { did: string } & Signer & { publicKey: Uint8Array };
+
+/** A fresh human (a principal or a sponsor of its own), registered in the log. Since S161 a job only counts for standing when its principal is independent of the agent's sponsor, so alice (sponsor of every agent here) cannot be the principal of a job that should count. */
+async function freshPerson(log: EventLog, name: string): Promise<Person> {
+  const did = `did:web:example.com:users:${name}`;
+  const p = { did, ...signerFromSeed(`${did}#key-1`, new Uint8Array(randomBytes(32))) };
+  await log.append(rec("passport", p, { did, kind: "human", keys: [{ id: p.kid, type: "Ed25519", public_key: b64urlEncode(p.publicKey) }] }, null, did));
+  return p;
+}
+
+async function registerAgent(log: EventLog, agent: { did: string } & Signer & { publicKey: Uint8Array }, opts: { fleet?: string; sponsor?: Person } = {}) {
+  const sponsor = opts.sponsor ?? alice;
   const body: Record<string, unknown> = {
-    did: agent.did, kind: "agent", sponsor: alice.did, tier: 1, shape: {},
+    did: agent.did, kind: "agent", sponsor: sponsor.did, tier: 1, shape: {},
     keys: [{ id: agent.kid, type: "Ed25519", public_key: b64urlEncode(agent.publicKey) }],
   };
   if (opts.fleet) body.fleet = opts.fleet;
-  await log.append(rec("passport", alice, body, null, agent.did));
+  await log.append(rec("passport", sponsor, body, null, agent.did));
 }
 
-const contractBody = (performer: string, price: number) => ({
-  principal: alice.did, performer, bank: bank.did,
+const contractBody = (performer: string, price: number, principal: string = alice.did) => ({
+  principal, performer, bank: bank.did,
   purpose: "Fix the flaky test", price: { value: price, unit: "credit" as const },
   verification: "deterministic" as const, deadline: "2026-10-03T18:00:00Z",
   basis: { intent: "sha256:" + "0".repeat(64), offer: "sha256:" + "1".repeat(64) },
 });
 
-const bondBody = (contract: string, backer: string, bondAmount: number, escrowAmount: number) => ({
+const bondBody = (contract: string, backer: string, bondAmount: number, escrowAmount: number, payer: string = alice.did) => ({
   contract, backer, amount: { value: bondAmount, unit: "credit" as const },
-  escrow: { payer: alice.did, amount: { value: escrowAmount, unit: "credit" as const } },
+  escrow: { payer, amount: { value: escrowAmount, unit: "credit" as const } },
   slashing_conditions: ["lost_dispute" as const, "floor_breach" as const, "forbidden_means" as const],
 });
 
 /** contract -> bond, for one performer/backer, stopping at Bonded (or the bond's own failure). */
-async function bondOnly(log: EventLog, performer: { did: string } & Signer, backer: { did: string } & Signer, price: number, bondAmount: number, escrowAmount: number) {
-  const contract = cosign(rec("contract", alice, contractBody(performer.did, price), null, performer.did), performer);
+async function bondOnly(log: EventLog, performer: { did: string } & Signer, backer: { did: string } & Signer, price: number, bondAmount: number, escrowAmount: number, principal: { did: string } & Signer = alice) {
+  const contract = cosign(rec("contract", principal, contractBody(performer.did, price, principal.did), null, performer.did), performer);
   await log.append(contract);
-  const bond = rec("bond", backer, bondBody(contract.id, backer.did, bondAmount, escrowAmount), contract.id, contract.id);
+  const bond = rec("bond", backer, bondBody(contract.id, backer.did, bondAmount, escrowAmount, principal.did), contract.id, contract.id);
   const bondResult = await codeOf(log.append(bond));
   return { bondResult, contract, bond };
 }
@@ -68,10 +79,10 @@ async function settleWithSlash(log: EventLog, performer: { did: string } & Signe
 }
 
 /** contract -> bond -> mandate -> settlement on basis `accepted` (all released, all returned). */
-async function settleAccepted(log: EventLog, performer: { did: string } & Signer, backer: { did: string } & Signer, price: number, bondAmount: number) {
-  const { bondResult, contract, bond } = await bondOnly(log, performer, backer, price, bondAmount, price);
+async function settleAccepted(log: EventLog, performer: { did: string } & Signer, backer: { did: string } & Signer, price: number, bondAmount: number, principal: { did: string } & Signer = alice) {
+  const { bondResult, contract, bond } = await bondOnly(log, performer, backer, price, bondAmount, price, principal);
   if (bondResult) return { bondResult };
-  const mandate = rec("mandate", alice, {
+  const mandate = rec("mandate", principal, {
     contract: contract.id, purpose: "Fix the flaky test", floor: "asp.floor/v1",
     scopes: ["repo.read"], forbidden_means: [],
     spend: { cap: 0, unit: "credit" as const }, irreversible: { policy: "checkpoint" as const },
@@ -85,14 +96,14 @@ async function settleAccepted(log: EventLog, performer: { did: string } & Signer
     evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] },
   }, mandate.id, contract.id);
   await log.append(delivery);
-  const accept = rec("attestation", alice, { kind: "acceptance", about: delivery.id, verdict: "accepted" }, delivery.id, contract.id);
+  const accept = rec("attestation", principal, { kind: "acceptance", about: delivery.id, verdict: "accepted" }, delivery.id, contract.id);
   await log.append(accept);
   let settlement = rec("settlement", bank, {
     contract: contract.id, basis: "accepted", cites: accept.id,
     escrow_released: { value: price, unit: "credit" }, bond_returned: { value: bondAmount, unit: "credit" },
     bond_slashed: { value: 0, unit: "credit" },
   }, accept.id, contract.id);
-  settlement = cosign(settlement, alice);
+  settlement = cosign(settlement, principal);
   return { settlementResult: await codeOf(log.append(settlement)) };
 }
 
@@ -116,13 +127,14 @@ for (const h of [memory, postgres] as Harness[]) {
       await registerParties(log);
       const performer = freshAgent("fl-perf-1"), backer = freshAgent("fl-backer-1");
       await registerAgent(log, performer); await registerAgent(log, backer);
-      await log.mint(alice.did, 6000); await log.mint(backer.did, 3000);
+      const buyer = await freshPerson(log, "fl-buyer-1");
+      await log.mint(alice.did, 6000); await log.mint(buyer.did, 3000); await log.mint(backer.did, 3000);
 
       const low = await bondOnly(log, performer, backer, 1000, 399, 1000);
       assert.equal(low.bondResult, "GUARD_FAILED", "399 is under 40% of 1000");
-      const first = await settleAccepted(log, performer, backer, 1000, 400);
+      const first = await settleAccepted(log, performer, backer, 1000, 400, buyer);
       assert.equal(first.settlementResult, undefined, String(first.settlementResult));
-      assert.deepEqual(await log.reputationOf(backer.did), { tier: 1, slashCount: 0, strikes: 0, acceptedJobs: 1 });
+      assert.deepEqual(await log.reputationOf(backer.did), { tier: 1, slashCount: 0, strikes: 0, acceptedJobs: 1, qualifyingJobs: 1 });
 
       const performer2 = freshAgent("fl-perf-1b");
       await registerAgent(log, performer2);
@@ -152,10 +164,13 @@ for (const h of [memory, postgres] as Harness[]) {
       await registerParties(log);
       const backer = freshAgent("fl-backer-3");
       await registerAgent(log, backer);
+      // Twelve clean jobs from four independent principals, three each: within the counterparty cap (credits.md 5.4).
+      const buyers = [await freshPerson(log, "fl-buyer-3a"), await freshPerson(log, "fl-buyer-3b"), await freshPerson(log, "fl-buyer-3c"), await freshPerson(log, "fl-buyer-3d")];
       await log.mint(alice.did, 40000); await log.mint(backer.did, 20000);
+      for (const b of buyers) await log.mint(b.did, 10000);
       for (let i = 0; i < 12; i++) {
         const p = freshAgent(`fl-perf-3-${i}`); await registerAgent(log, p);
-        assert.equal((await settleAccepted(log, p, backer, 1000, 1000)).settlementResult, undefined);
+        assert.equal((await settleAccepted(log, p, backer, 1000, 1000, buyers[i % 4])).settlementResult, undefined);
       }
       const p = freshAgent("fl-perf-3z"); await registerAgent(log, p);
       // 12 clean jobs: tenure credit 150 (capped), so 400 - 150 = 250.

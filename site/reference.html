@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 115 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 116 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (24)</summary><pre>Most people use only these.
 
 asp
@@ -314,7 +314,7 @@ asp orchestrate &lt;package&gt; --task &lt;text&gt; ...
     Run several nodes in parallel under delegated keys, merging their memory
 asp package push|pull|list|delete
     Keep an agent's packages on the service</pre></details>
-<details><summary>Jobs and credits (the market) (16)</summary><pre>The protocol's lifecycle, one record at a time.
+<details><summary>Jobs and credits (the market) (17)</summary><pre>The protocol's lifecycle, one record at a time.
 
 asp credits grant --to &lt;did&gt; --amount &lt;n&gt;
     Mint credits for a local build (credits are accounting entries, not money)
@@ -322,6 +322,8 @@ asp credits
     Where your credits are, when you ask: you, your agent, your bank, and what is locked in open jobs (a running session never shows credits)
 asp credits balance &lt;did&gt;
     Show an identity's credit balance
+asp credits audit [--by-flow] [--since &lt;time&gt;] [--json]
+    Check the supply rule over the whole log: balances + escrow + bonds + reserves + juror stakes + report deposits = minted. Prints balanced or MISMATCH with the figures (exit 1 on a mismatch); --by-flow adds the settlement flows the log reports today and names the ones it cannot yet
 asp market intent --by &lt;did&gt; --purpose &lt;text&gt; ...
     Post a defined outcome you want done
 asp market offer --by &lt;did&gt; --intent &lt;id&gt; ...

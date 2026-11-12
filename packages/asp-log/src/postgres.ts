@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import pg from "pg";
+import type { LedgerRows } from "./credit-audit.ts";
 import type {
   AccountRow, ChainRow, EscrowRow, FleetRow, JurorRow, KeyRow, LogHead, LogTx, MandateRow, MintRow, PassportRow, ReportRow, VerificationRow,
   ProbationRow, ReputationRow, Store, StoredRecord,
@@ -67,7 +68,7 @@ const toEscrow = (e: any): EscrowRow => ({
 });
 const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_minted) });
 const toJuror = (j: any): JurorRow => ({ did: j.did, head: j.head, staked: Number(j.staked) });
-const toReputation = (r: any): ReputationRow => ({ did: r.did, tier: Number(r.tier), slashCount: Number(r.slash_count), strikeLog: r.strike_log ?? [], ...(Number(r.accepted_jobs) > 0 ? { acceptedJobs: Number(r.accepted_jobs) } : {}) });
+const toReputation = (r: any): ReputationRow => ({ did: r.did, tier: Number(r.tier), slashCount: Number(r.slash_count), strikeLog: r.strike_log ?? [], ...(Number(r.accepted_jobs) > 0 ? { acceptedJobs: Number(r.accepted_jobs) } : {}), ...(Number(r.qualifying_jobs) > 0 ? { qualifyingJobs: Number(r.qualifying_jobs) } : {}), ...((r.recent_jobs ?? []).length > 0 ? { recentJobs: r.recent_jobs } : {}) });
 // lateActions is left out while it is 0, so the row reads the same on every store.
 const toMandate = (m: any): MandateRow => ({ contract: m.contract, scopes: m.scopes, ...(Number(m.late_actions) > 0 ? { lateActions: Number(m.late_actions) } : {}) });
 const toReport = (r: any): ReportRow => ({ id: r.id, contract: r.contract, reporter: r.reporter, accused: r.accused, deposit: Number(r.deposit), status: r.status });
@@ -206,6 +207,30 @@ export class PostgresStore implements Store {
   getAccount(did: string) { return this.r.getAccount(did); }
   getEscrow(contract: string) { return this.r.getEscrow(contract); }
   allMints() { return this.r.allMints(); }
+  /** One REPEATABLE READ, read-only transaction, so the head, accounts, mints and locks are from the same moment even while appends continue. */
+  async ledgerRows(): Promise<LedgerRows> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+      const head = await reads(client).logHead();
+      const rows = async (sql: string) => (await client.query(sql)).rows;
+      const out = {
+        head,
+        accounts: (await rows("SELECT * FROM accounts ORDER BY did")).map(toAccount),
+        mints: (await rows("SELECT * FROM mints ORDER BY did")).map(toMint),
+        escrows: (await rows("SELECT * FROM escrows ORDER BY contract")).map(toEscrow),
+        jurors: (await rows("SELECT * FROM jurors ORDER BY did")).map(toJuror),
+        reports: (await rows("SELECT * FROM reports ORDER BY id")).map(toReport),
+      };
+      await client.query("COMMIT");
+      return out;
+    } catch (e) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
   getJuror(did: string) { return this.r.getJuror(did); }
   activeJurors() { return this.r.activeJurors(); }
   getReputation(did: string) { return this.r.getReputation(did); }
@@ -332,9 +357,9 @@ class PgTx implements LogTx {
   }
   async putReputation(row: ReputationRow) {
     await this.c.query(
-      `INSERT INTO reputations (did, tier, slash_count, strike_log, accepted_jobs) VALUES ($1, $2, $3, $4::jsonb, $5)
-       ON CONFLICT (did) DO UPDATE SET tier = $2, slash_count = $3, strike_log = $4::jsonb, accepted_jobs = $5`,
-      [row.did, row.tier, row.slashCount, JSON.stringify(row.strikeLog), row.acceptedJobs ?? 0],
+      `INSERT INTO reputations (did, tier, slash_count, strike_log, accepted_jobs, qualifying_jobs, recent_jobs) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7::jsonb)
+       ON CONFLICT (did) DO UPDATE SET tier = $2, slash_count = $3, strike_log = $4::jsonb, accepted_jobs = $5, qualifying_jobs = $6, recent_jobs = $7::jsonb`,
+      [row.did, row.tier, row.slashCount, JSON.stringify(row.strikeLog), row.acceptedJobs ?? 0, row.qualifyingJobs ?? 0, JSON.stringify(row.recentJobs ?? [])],
     );
   }
   async putMandate(row: MandateRow) {
