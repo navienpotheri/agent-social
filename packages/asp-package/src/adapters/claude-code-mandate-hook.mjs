@@ -32,6 +32,14 @@ function withLaw(reason, scope, attemptsFile) {
 }
 try { guard = await import(pathToFileURL(existsSync(join(HOOK_DIR, "asp-guard.mjs")) ? join(HOOK_DIR, "asp-guard.mjs") : join(HOOK_DIR, "..", "gateway", "paths.ts")).href); } catch { guard = undefined; }
 
+// The abuse detectors (gap H1: brute force, port scanning) and the script reader (gap H17), from one source each: gateway/abuse.ts and gateway/script-scan.ts, copied beside
+// this script as asp-abuse.mjs and asp-script.mjs when a run is set up (gap H29), the way the guard and the law are. Missing either narrows this hook, it does not widen it:
+// a call is still judged on scope, host and rate; it only misses the brute-force/scan refusal or the script-aware rate count.
+let abuse;
+try { abuse = await import(pathToFileURL(existsSync(join(HOOK_DIR, "asp-abuse.mjs")) ? join(HOOK_DIR, "asp-abuse.mjs") : join(HOOK_DIR, "..", "gateway", "abuse.ts")).href); } catch { abuse = undefined; }
+let scriptScan;
+try { scriptScan = await import(pathToFileURL(existsSync(join(HOOK_DIR, "asp-script.mjs")) ? join(HOOK_DIR, "asp-script.mjs") : join(HOOK_DIR, "..", "gateway", "script-scan.ts")).href); } catch { scriptScan = undefined; }
+
 /**
  * A command is a test run only when every part of it is a test runner (or a cd): "echo test", "git log --oneline latest" and "npm test && rm -rf x" are not. A copy of this is in
  * the pre-call hook scripts (adapters/*-mandate-hook.mjs); test/mandate-hook.test.ts keeps them in step.
@@ -274,12 +282,12 @@ function withLedgerLock(ledgerPath, fn) {
   }
   try { return fn(); } finally { try { rmSync(lock, { recursive: true, force: true }); } catch { /* already gone */ } }
 }
-export function rateRefusal(scope, command, urls, rate, ledgerPath, now = Date.now()) {
+export function rateRefusal(scope, command, urls, rate, ledgerPath, now = Date.now(), scripted) {
   if (!rate || !isNetworkScope(scope)) return undefined;
-  return withLedgerLock(ledgerPath, () => rateRefusalLocked(scope, command, urls, rate, ledgerPath, now));
+  return withLedgerLock(ledgerPath, () => rateRefusalLocked(scope, command, urls, rate, ledgerPath, now, scripted));
 }
-function rateRefusalLocked(scope, command, urls, rate, ledgerPath, now) {
-  let counts = scope === "shell.network" && command ? requestsOfCommand(command) : undefined;
+function rateRefusalLocked(scope, command, urls, rate, ledgerPath, now, scripted) {
+  let counts = scripted ?? (scope === "shell.network" && command ? requestsOfCommand(command) : undefined);
   if (!counts || counts.total === 0) {
     const texts = scope === "shell.network" ? [command ?? ""] : urls.filter((u) => typeof u === "string").map((u) => (/^[a-z][a-z0-9+.-]*:\/\//i.test(u) ? u : `https://${u}`));
     const hosts = texts.flatMap(hostsOfText);
@@ -317,7 +325,11 @@ function rateRefusalLocked(scope, command, urls, rate, ledgerPath, now) {
 /** Counts a network call that is going to run against the Mandate's rate limit; the refusal reason, or undefined. */
 function rateCheck(event, d, mandate, root) {
   const isShell = event.tool_name === "Bash" || event.tool_name === "PowerShell";
-  return rateRefusal(d.scope, isShell ? event.tool_input?.command : undefined, [event.tool_input?.url], mandate.rate, join(root, "..", "rate-calls.ndjson"));
+  const command = isShell ? event.tool_input?.command : undefined;
+  // A script inside the project that makes requests is read too (gap H17): a shell.exec call that runs one is counted when the Mandate also grants shell.network.
+  const scripted = d.scope === "shell.exec" && command && mandate.scopes?.includes("shell.network") && mandate.confine?.root && scriptScan
+    ? scriptScan.scriptRequestsOfCommand(command, mandate.confine.root, requestsOfCommand) : undefined;
+  return rateRefusal(scripted ? "shell.network" : d.scope, command, [event.tool_input?.url], mandate.rate, join(root, "..", "rate-calls.ndjson"), undefined, scripted);
 }
 
 export function decide(event, scopes, gate, memoryDir, knownBad, hosts, ctx) {
@@ -340,6 +352,11 @@ export function decide(event, scopes, gate, memoryDir, knownBad, hosts, ctx) {
     if (g.refusal) return { allow: false, scope, reason: `ASP Mandate: ${g.refusal}, so this call was blocked before it ran` };
   }
   if (scopes.includes(scope)) {
+    // Brute force and scanning (gaps H1, H29): a command that reads as guessing credentials or probing ports is refused; a network scope does not allow it.
+    if (abuse && scope === "shell.network" && shellText) {
+      const bad = abuse.commandAbuse(shellText);
+      if (bad) return { allow: false, scope, reason: `ASP Mandate: ${bad}; a network scope does not allow harming other people's systems, so this call was blocked before it ran` };
+    }
     const refusal = hostRefusal(scope, isShell ? event.tool_input?.command : undefined, [event.tool_input?.url], hosts);
     if (refusal) return { allow: false, scope, reason: `ASP Mandate: ${refusal}, so this call was blocked before it ran` };
     if (ctx?.confine) {

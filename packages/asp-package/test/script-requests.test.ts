@@ -43,6 +43,24 @@ test("scriptRequestsOf and requestsOfCall: a script named in the command is read
   assert.equal(both.unknown, 0);
 });
 
+// Gap H17: a script that imports a sibling file in the project is followed one level in, so the requests its import makes are counted too; the import's own imports are not read.
+test("scriptRequestsOf: a script's own relative import is followed one level, so the requests it makes count too; that file's own imports are not followed", () => {
+  const dir = mkdtempSync(join(tmpdir(), "asp-script-imp-"));
+  writeFileSync(join(dir, "helper.py"), "import requests\nrequests.get('https://helper.example/x')\n");
+  writeFileSync(join(dir, "deeper.py"), "import requests\nrequests.get('https://deeper.example/x')\n");
+  writeFileSync(join(dir, "via_helper.py"), "import helper\nimport requests\nrequests.get('https://main.example/x')\n");
+  writeFileSync(join(dir, "chain.js"), "const { go } = require('./helper.js');\nfetch('https://main.example/x');\n");
+  writeFileSync(join(dir, "helper.js"), "require('./deeper.js');\nmodule.exports.go = () => fetch('https://helper.example/x');\n");
+  writeFileSync(join(dir, "deeper.js"), "fetch('https://deeper.example/x');\n");
+  const call = (command: string) => ({ name: "bash", args: { command } });
+  const py: Record<string, number> = scriptRequestsOf(call("python via_helper.py"), dir)!.perHost;
+  assert.equal(py["deeper.example"], undefined, "helper.py itself imports nothing, so there is no second level to follow");
+  assert.deepEqual(py, { "main.example": 1, "helper.example": 1 });
+  const js: Record<string, number> = scriptRequestsOf(call("node chain.js"), dir)!.perHost;
+  assert.equal(js["deeper.example"], undefined, "chain.js's own import (helper.js) is read; helper.js's import (deeper.js) is one level further and is not");
+  assert.deepEqual(js, { "main.example": 1, "helper.example": 1 });
+});
+
 test("gateway: running a project script that hammers a host is refused by the rate limit (no strike); a script that makes one request, and a script with no requests, go through", async () => {
   const dir = mkdtempSync(join(tmpdir(), "asp-script-gw-"));
   writeFileSync(join(dir, "scan.py"), "import requests\nfor w in words:\n    requests.get('https://docs.example.org/' + w)\n");

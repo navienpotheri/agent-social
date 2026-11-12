@@ -322,7 +322,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | H26 | A | open | The Docker backend's egress path not run live |
 | H27 | B | open | A sandbox's HTTPS tunnel is opaque: no per-request counting or answer reading inside it |
 | H28 | B | open | A raw TCP tool in a sandbox cannot be allowed by host and port |
-| H29 | A | open | The S200 detectors and script reader are in the gateway only, not in the pre-call hooks |
+| H29 | A | closed | The S200 detectors and script reader are now carried into the Claude Code and Antigravity pre-call hooks too (S240) |
 | SB3 | B | open | The sandbox policy is coarse: network is all or nothing from the scopes; no per-host allow list; the agent's t... |
 | SB5 | B | open | Self-report is only as good as the agent: an agent that omits an action is not caught |
 | SB6 | B | open | The Docker backend runs the agent inside a Linux image, so the agent's program must exist in that image; host-... |
