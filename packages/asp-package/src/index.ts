@@ -40,7 +40,7 @@ export { addSigned, addTrust, effectiveEntries, itemProblem, publicKeyOf, readSi
 export * from "./gateway/index.ts";
 export { RUNTIMES, runtimeByName, supportMatrix, type RuntimeDescriptor, type RuntimeReach, type RuntimeWire, type RuntimeAssurance, type RuntimeEvidence } from "./runtimes.ts";
 export { AgentReporter, MandateRefusal, type Assurance, type ReporterOptions } from "./sdk/reporter.ts";
-export { NETWORK_SCOPES, RELAY_JS, RELAY_PY, bwrapArgs, policyNeedsNetwork, sandboxAvailable, type SandboxPolicy } from "./sandbox.ts";
+export { NETWORK_SCOPES, RELAY_JS, RELAY_PY, bwrapArgs, policyNeedsNetwork, sandboxAvailable, sandboxNetwork, type SandboxPolicy } from "./sandbox.ts";
 export { RELAY_TCP_PY, dockerPlan, type DockerPlan, type DockerPolicy } from "./sandbox.ts";
 export { buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type AlertKind, type BuiltMail, type MailAlert, type MailLog, type MailOptions, type MandateFacts } from "./mail.ts";
 export { claudeCodeRunLogEvents, codexRunLogEvents, type LineEvent } from "./adapters/run-log-lines.ts";
@@ -63,3 +63,4 @@ export * from "./law-code.ts";
 export * from "./learned.ts";
 export * from "./at-rest.ts";
 export { Attempts, explainRefusal, lawFor, type Article } from "./gateway/law.ts";
+export { SELF_ACTING, selfActingFor, selfActingNotes, type SelfActing } from "./self-acting.ts";

@@ -343,7 +343,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -2671,9 +2671,10 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const gwHosts = (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
   runLog?.event("run_start", { contract, agent: by, scopes: mandate.scopes, ...(gwHosts ? { hosts: gwHosts } : {}), command: command.join(" "), assurance: v.sandbox ? "sandbox" : "gateway" });
   if (runLog) io.err(`  run log  ${runLog.path}`);
+  // H10: what a known agent does by itself, outside the tool calls the gateway judges, and how to contain it.
+  for (const n of selfActingNotes(command, !!v.sandbox)) io.err(`  note     ${n}`);
   // H13: a sandbox whose Mandate names hosts or a rate has no network of its own; the gateway is an egress proxy that enforces them on its connections.
-  const gwNet = (mandateRecord?.record.body as { network?: { hosts?: string[]; rate?: unknown } } | undefined)?.network;
-  const egressProxy = (v.sandbox ?? false) && policyNeedsNetwork(mandate.scopes) && !!(gwNet?.hosts?.length || gwNet?.rate);
+  const egressProxy = (v.sandbox ?? false) && sandboxNetwork(mandate.scopes) === "proxy";
   // When the gateway stops (the contract ended or was revoked, or the run read as probing) the agent is ended too, not left waiting on refusals.
   let killAgent: (() => void) | undefined;
   const gw = createGateway({
@@ -2843,7 +2844,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         program = "bwrap";
         programArgs = bwrapArgs({ projectDir, projectWritable: mandate.scopes.includes("repo.write"), network: sandboxNet, memoryDir: memDir, socketDir, relayPort: RELAY_PORT, extraBinds, env: agentEnv, home: homedir() }, command, childBase);
         spawnEnv = childBase;
-        io.err(`  sandbox  bubblewrap: ${sandboxNet ? "network kept (the Mandate grants a network scope)" : egressProxy ? "no network of its own; the gateway is an egress proxy that allows only the Mandate's hosts, at its rate" : "no network; the gateway is the only way out"}; project ${mandate.scopes.includes("repo.write") ? "writable" : "read-only"}; home hidden; environment cleared`);
+        io.err(`  sandbox  bubblewrap: ${sandboxNet ? "network kept (the Mandate grants a network scope)" : egressProxy ? "no network of its own; the gateway is an egress proxy that allows only the Mandate's hosts (any public host when it names none), at its rate" : "no network; the gateway is the only way out"}; project ${mandate.scopes.includes("repo.write") ? "writable" : "read-only"}; home hidden; environment cleared`);
       }
       if (backend === "docker" && dockerRun) {
         const dockerEnv = { ...agentEnv, ASP_MCP_CONFIG: "/asp/mcp.json" };
