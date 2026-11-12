@@ -238,7 +238,9 @@ export function createLogServer(opts: ServerOptions): Server {
       if (opts.publicRoutes && (await opts.publicRoutes(req, res))) return;
       const tenant = authenticate(req, opts);
       if (!tenant) {
-        limits?.authFailed(address);
+        // A failed sign-in is a token that was presented and is wrong. A request with no token at all (the forum probe each `asp run` makes, a browser, a health check) guesses nothing, and counting it
+        // locked the whole address out after ten sessions, so the sessions after that waited out the lockout (gap T23: a 300 s hang in the approval tests).
+        if (req.headers.authorization) limits?.authFailed(address);
         return json(res, 401, { ok: false, error: { code: "UNAUTHORIZED", message: "a valid bearer token is required" } });
       }
       if (tenant.suspended) return json(res, 403, { ok: false, error: { code: "SUSPENDED", message: `this tenant is suspended${tenant.suspended.reason ? `: ${tenant.suspended.reason}` : ""}` } });
