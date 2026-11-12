@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:price_list",
+  "title": "Price list body",
+  "description": "What every institution service costs and how each price is split (credits.md 4.1, CR-5, register row DK2). Signed by the Treasury; a chain (prev is the list before; null for version 1). The envelope's issued_at is the time of issue. Credits are accounting entries, not money.",
+  "type": "object",
+  "required": ["version", "effective_from", "bounds_version", "job_tax_permille", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "effective_from": { "description": "When the list applies; never earlier than issued_at, and with notice for a price rise or split change (72 hours) or a fall (24 hours).", "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "bounds_version": { "description": "The version of the split bounds the list is checked against (1 is credits.md section 3).", "type": "integer", "minimum": 1 },
+    "job_tax_permille": { "description": "The settlement tax (credits.md NS2). Carried and range-checked; not yet applied to settlements (CR-15).", "type": "integer", "minimum": 0, "maximum": 50 },
+    "items": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["service", "institution", "price", "split", "class"],
+        "additionalProperties": false,
+        "properties": {
+          "service": { "description": "<institution>.<service>, for example market.posting.deposit.", "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$" },
+          "institution": { "description": "The institution's account DID.", "$ref": "urn:asp:v0.2:common#/$defs/did" },
+          "price": { "type": "integer", "minimum": 1 },
+          "split": {
+            "type": "object",
+            "required": ["treasury_permille", "burn_permille", "payees"],
+            "additionalProperties": false,
+            "properties": {
+              "treasury_permille": { "$ref": "urn:asp:v0.2:common#/$defs/permille" },
+              "burn_permille": { "$ref": "urn:asp:v0.2:common#/$defs/permille" },
+              "payees": {
+                "type": "array", "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["account", "permille"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "account": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+                    "permille": { "$ref": "urn:asp:v0.2:common#/$defs/permille" }
+                  }
+                }
+              }
+            }
+          },
+          "class": { "enum": ["standard", "essential", "remedial"] },
+          "deliver_within_seconds": { "type": "integer", "minimum": 1 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:mint",
+  "title": "Mint body",
+  "description": "The creation of credits, signed by the operator (credits.md 5.1, CR-2, register row DK67). Every credit that enters the ledger without a debit elsewhere is one of these records, so a replica replaying the log reproduces the minted total. Credits are accounting entries, not money. Chain: none (prev is null).",
+  "type": "object",
+  "required": ["to", "amount", "reason", "authority"],
+  "additionalProperties": false,
+  "properties": {
+    "to": { "description": "The account credited.", "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "amount": { "description": "At least 1 credit. The log refuses 0 with amount_not_positive.", "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "reason": { "enum": ["starter_upfront", "starter_rest", "bootstrap", "test", "repair", "treasury_issuance"] },
+    "authority": { "description": "Who or what authorised it, in words (for example \"operator\", or the name of the starter claim).", "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+  }
+}

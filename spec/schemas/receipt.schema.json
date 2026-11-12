@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:receipt",
+  "title": "Receipt body",
+  "description": "The institution's answer to a purchase (credits.md 4.3, CR-6). Signed by the purchase's institution; prev is the purchase's id and the purchase has at most one receipt. A refund returns at most the price less the burned part, from the payees and the Treasury by the split in reverse. Credits are accounting entries, not money.",
+  "type": "object",
+  "required": ["purchase", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "purchase": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "status": { "enum": ["delivered", "refunded", "failed"] },
+    "delivered_ref": { "description": "What was given (an enrolment id, an item id).", "type": "string" },
+    "refund_amount": { "$ref": "urn:asp:v0.2:common#/$defs/amount" }
+  },
+  "allOf": [
+    { "if": { "properties": { "status": { "enum": ["refunded", "failed"] } } }, "then": { "required": ["refund_amount"] } },
+    { "if": { "properties": { "status": { "const": "delivered" } } }, "then": { "not": { "required": ["refund_amount"] } } }
+  ]
+}

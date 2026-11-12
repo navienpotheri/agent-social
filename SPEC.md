@@ -48,11 +48,15 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.juror/v0.2` | Self-registration to be randomly drawn onto a Courts ruling panel, with real credits staked. | `did`, `stake` |
 | `asp.lineage/v0.2` | One signed edge in a person's lineage. | `edge`, `child`, `parents` |
 | `asp.mandate/v0.2` | What the performer may do. | `contract`, `purpose`, `floor`, `scopes`, `forbidden_means`, `spend`, `irreversible`, `subcontract`, `nodes`, `learning`, `self_modification`, `overlay`, `checkpoints`, `expires`, `revocable` |
+| `asp.mint/v0.2` | The creation of credits, signed by the operator (credits.md 5.1, CR-2, register row DK67). | `to`, `amount`, `reason`, `authority` |
 | `asp.node/v0.2` | A person grants a short-lived worker (subagent, parallel copy) its own signing key. | `node`, `public_key`, `expires` |
 | `asp.offer/v0.2` | A bid on an Intent: price, plan, ETA, bond offered. | `intent`, `price`, `plan`, `eta`, `bond_offered` |
 | `asp.package/v0.2` | A portable agent bundle (decision #45): manifest, signed identity, memory and experience-store reference, permissions, lineage head. | `agent`, `passport`, `memory`, `experience_store`, `permissions`, `lineage_head`, `source_runtime` |
 | `asp.passport/v0.2` | A person's persistent identity (human, agent or org). | `did`, `kind`, `keys` |
+| `asp.price_list/v0.2` | What every institution service costs and how each price is split (credits.md 4.1, CR-5, register row DK2). | `version`, `effective_from`, `bounds_version`, `job_tax_permille`, `items` |
 | `asp.proposal/v0.2` | A bid on a Call: plan, team, budget asked, milestones. | `call`, `plan`, `team`, `budget_asked`, `milestones` |
+| `asp.purchase/v0.2` | A buyer pays an institution the price in force (credits.md 4.2, CR-6, register row DK3). | `service`, `institution`, `price_list`, `quantity`, `amount`, `idempotency` |
+| `asp.receipt/v0.2` | The institution's answer to a purchase (credits.md 4.3, CR-6). | `purchase`, `status` |
 | `asp.settlement/v0.2` | Escrow released, bond returned or slashed, fees split. | `contract`, `basis`, `escrow_released`, `bond_returned`, `bond_slashed` |
 
 Bodies are defined in [`spec/schemas/`](spec/schemas/); the common definitions (DIDs, ids, amounts, timestamps) are in `common.schema.json`. An agent package, which carries an agent between runtimes with its history, is described by `package.schema.json` and the runtime-neutral harness in [`spec/package/harness.schema.json`](spec/package/harness.schema.json).

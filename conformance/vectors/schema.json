@@ -2951,6 +2951,508 @@
         }
       },
       "valid": false
+    },
+    {
+      "name": "valid_mint",
+      "schema": "mint",
+      "instance": {
+        "to": "did:web:example.com:users:alice",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        },
+        "reason": "starter_upfront",
+        "authority": "operator"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_mint_every_reason",
+      "schema": "mint",
+      "instance": {
+        "to": "did:web:example.com:users:alice",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        },
+        "reason": "treasury_issuance",
+        "authority": "operator"
+      },
+      "valid": true
+    },
+    {
+      "name": "mint_unknown_reason",
+      "schema": "mint",
+      "instance": {
+        "to": "did:web:example.com:users:alice",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        },
+        "reason": "gift",
+        "authority": "operator"
+      },
+      "valid": false
+    },
+    {
+      "name": "mint_missing_authority",
+      "schema": "mint",
+      "instance": {
+        "to": "did:web:example.com:users:alice",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        },
+        "reason": "starter_upfront"
+      },
+      "valid": false
+    },
+    {
+      "name": "mint_amount_not_credit",
+      "schema": "mint",
+      "instance": {
+        "to": "did:web:example.com:users:alice",
+        "amount": {
+          "value": 5,
+          "unit": "usd"
+        },
+        "reason": "starter_upfront",
+        "authority": "operator"
+      },
+      "valid": false
+    },
+    {
+      "name": "mint_extra_field",
+      "schema": "mint",
+      "instance": {
+        "to": "did:web:example.com:users:alice",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        },
+        "reason": "starter_upfront",
+        "authority": "operator",
+        "cash_out": true
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_price_list",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_price_list_essential_item",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "academy.foundations.first",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 0,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 850
+                }
+              ]
+            },
+            "class": "essential",
+            "deliver_within_seconds": 86400
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "price_list_no_items",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": []
+      },
+      "valid": false
+    },
+    {
+      "name": "price_list_version_zero",
+      "schema": "price_list",
+      "instance": {
+        "version": 0,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "price_list_tax_above_range",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 51,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "price_list_bad_class",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "luxury"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "price_list_bad_service_id",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "Deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "price_list_price_zero",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 0,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "price_list_no_payees",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": []
+            },
+            "class": "standard"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "price_list_institution_not_a_did",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "asp.local:treasury",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_purchase",
+      "schema": "purchase",
+      "instance": {
+        "service": "market.posting.deposit",
+        "institution": "did:web:asp.local:market",
+        "price_list": "sha256:e5a625cee1046fa54b8b08e451b47447dd6512009de54c6cacf716653440d742",
+        "quantity": 1,
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "subject_ref": "posting-1",
+        "idempotency": "n-1"
+      },
+      "valid": true
+    },
+    {
+      "name": "purchase_no_idempotency",
+      "schema": "purchase",
+      "instance": {
+        "service": "market.posting.deposit",
+        "institution": "did:web:asp.local:market",
+        "price_list": "sha256:e5a625cee1046fa54b8b08e451b47447dd6512009de54c6cacf716653440d742",
+        "quantity": 1,
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "subject_ref": "posting-1"
+      },
+      "valid": false
+    },
+    {
+      "name": "purchase_quantity_zero",
+      "schema": "purchase",
+      "instance": {
+        "service": "market.posting.deposit",
+        "institution": "did:web:asp.local:market",
+        "price_list": "sha256:e5a625cee1046fa54b8b08e451b47447dd6512009de54c6cacf716653440d742",
+        "quantity": 0,
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "subject_ref": "posting-1",
+        "idempotency": "n-1"
+      },
+      "valid": false
+    },
+    {
+      "name": "purchase_price_list_not_an_id",
+      "schema": "purchase",
+      "instance": {
+        "service": "market.posting.deposit",
+        "institution": "did:web:asp.local:market",
+        "price_list": "latest",
+        "quantity": 1,
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "subject_ref": "posting-1",
+        "idempotency": "n-1"
+      },
+      "valid": false
+    },
+    {
+      "name": "purchase_amount_not_credit",
+      "schema": "purchase",
+      "instance": {
+        "service": "market.posting.deposit",
+        "institution": "did:web:asp.local:market",
+        "price_list": "sha256:e5a625cee1046fa54b8b08e451b47447dd6512009de54c6cacf716653440d742",
+        "quantity": 1,
+        "amount": {
+          "value": 40,
+          "unit": "usd"
+        },
+        "subject_ref": "posting-1",
+        "idempotency": "n-1"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_receipt_delivered",
+      "schema": "receipt",
+      "instance": {
+        "purchase": "sha256:7048dc8aa7663e713097535171b4ed72ab015705a885de9636e66d4b1fa18804",
+        "status": "delivered",
+        "delivered_ref": "posting-1"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_receipt_refunded",
+      "schema": "receipt",
+      "instance": {
+        "purchase": "sha256:7048dc8aa7663e713097535171b4ed72ab015705a885de9636e66d4b1fa18804",
+        "status": "refunded",
+        "refund_amount": {
+          "value": 36,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "receipt_refunded_needs_amount",
+      "schema": "receipt",
+      "instance": {
+        "purchase": "sha256:7048dc8aa7663e713097535171b4ed72ab015705a885de9636e66d4b1fa18804",
+        "status": "refunded"
+      },
+      "valid": false
+    },
+    {
+      "name": "receipt_failed_needs_amount",
+      "schema": "receipt",
+      "instance": {
+        "purchase": "sha256:7048dc8aa7663e713097535171b4ed72ab015705a885de9636e66d4b1fa18804",
+        "status": "failed"
+      },
+      "valid": false
+    },
+    {
+      "name": "receipt_delivered_with_refund",
+      "schema": "receipt",
+      "instance": {
+        "purchase": "sha256:7048dc8aa7663e713097535171b4ed72ab015705a885de9636e66d4b1fa18804",
+        "status": "delivered",
+        "delivered_ref": "posting-1",
+        "refund_amount": {
+          "value": 1,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "receipt_unknown_status",
+      "schema": "receipt",
+      "instance": {
+        "purchase": "sha256:7048dc8aa7663e713097535171b4ed72ab015705a885de9636e66d4b1fa18804",
+        "status": "pending",
+        "delivered_ref": "posting-1"
+      },
+      "valid": false
     }
   ]
 }

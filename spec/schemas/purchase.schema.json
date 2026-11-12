@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:purchase",
+  "title": "Purchase body",
+  "description": "A buyer pays an institution the price in force (credits.md 4.2, CR-6, register row DK3). Signed by the buyer (the envelope's issuer). At append time the log debits the buyer and credits the payees, the Treasury and the Burn account by the split. Chain: none (prev is null); the institution answers with a receipt chained on this record. Credits are accounting entries, not money.",
+  "type": "object",
+  "required": ["service", "institution", "price_list", "quantity", "amount", "idempotency"],
+  "additionalProperties": false,
+  "properties": {
+    "service": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "institution": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "price_list": { "description": "The price list the buyer relied on; the log checks it is the one in force.", "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "quantity": { "type": "integer", "minimum": 1 },
+    "amount": { "description": "Must equal price times quantity. The log refuses 0 with amount_not_positive.", "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "subject_ref": { "description": "What it is for (a posting, a course id).", "type": "string" },
+    "idempotency": { "description": "A client nonce: a second purchase with the same buyer, service and nonce is refused.", "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+  }
+}

@@ -658,6 +658,48 @@ sv("node_without_expiry", "node", (({ expires: _e, ...rest }) => rest)(nodeBody)
 sv("node_id_not_did_url", "node", { ...nodeBody, node: coder.did }, false);
 sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
 
+// ---------- credit economy vectors (spec-delta S163: mint, price_list, purchase, receipt) ----------
+{
+  const cr = (value: number) => ({ value, unit: "credit" });
+  const treasuryDid = "did:web:asp.local:treasury", marketDid = "did:web:asp.local:market";
+  const mint = { to: alice.did, amount: cr(100), reason: "starter_upfront", authority: "operator" };
+  sv("valid_mint", "mint", mint, true);
+  sv("valid_mint_every_reason", "mint", { ...mint, reason: "treasury_issuance" }, true);
+  sv("mint_unknown_reason", "mint", { ...mint, reason: "gift" }, false);
+  sv("mint_missing_authority", "mint", { to: mint.to, amount: mint.amount, reason: mint.reason }, false);
+  sv("mint_amount_not_credit", "mint", { ...mint, amount: { value: 5, unit: "usd" } }, false);
+  sv("mint_extra_field", "mint", { ...mint, cash_out: true }, false);
+
+  const split = { treasury_permille: 150, burn_permille: 100, payees: [{ account: marketDid, permille: 750 }] };
+  const item = { service: "market.posting.deposit", institution: marketDid, price: 40, split, class: "standard" };
+  const list = { version: 1, effective_from: "2026-11-01T00:00:00Z", bounds_version: 1, job_tax_permille: 20, items: [item] };
+  sv("valid_price_list", "price_list", list, true);
+  sv("valid_price_list_essential_item", "price_list", { ...list, items: [{ ...item, service: "academy.foundations.first", class: "essential", split: { ...split, burn_permille: 0, payees: [{ account: marketDid, permille: 850 }] }, deliver_within_seconds: 86400 }] }, true);
+  sv("price_list_no_items", "price_list", { ...list, items: [] }, false);
+  sv("price_list_version_zero", "price_list", { ...list, version: 0 }, false);
+  sv("price_list_tax_above_range", "price_list", { ...list, job_tax_permille: 51 }, false);
+  sv("price_list_bad_class", "price_list", { ...list, items: [{ ...item, class: "luxury" }] }, false);
+  sv("price_list_bad_service_id", "price_list", { ...list, items: [{ ...item, service: "Deposit" }] }, false);
+  sv("price_list_price_zero", "price_list", { ...list, items: [{ ...item, price: 0 }] }, false);
+  sv("price_list_no_payees", "price_list", { ...list, items: [{ ...item, split: { ...split, payees: [] } }] }, false);
+  sv("price_list_institution_not_a_did", "price_list", { ...list, items: [{ ...item, institution: treasuryDid.replace("did:web:", "") }] }, false);
+
+  const purchase = { service: "market.posting.deposit", institution: marketDid, price_list: fakeId("price-list"), quantity: 1, amount: cr(40), subject_ref: "posting-1", idempotency: "n-1" };
+  sv("valid_purchase", "purchase", purchase, true);
+  sv("purchase_no_idempotency", "purchase", { ...purchase, idempotency: undefined }, false);
+  sv("purchase_quantity_zero", "purchase", { ...purchase, quantity: 0 }, false);
+  sv("purchase_price_list_not_an_id", "purchase", { ...purchase, price_list: "latest" }, false);
+  sv("purchase_amount_not_credit", "purchase", { ...purchase, amount: { value: 40, unit: "usd" } }, false);
+
+  const receipt = { purchase: fakeId("purchase"), status: "delivered", delivered_ref: "posting-1" };
+  sv("valid_receipt_delivered", "receipt", receipt, true);
+  sv("valid_receipt_refunded", "receipt", { purchase: receipt.purchase, status: "refunded", refund_amount: cr(36) }, true);
+  sv("receipt_refunded_needs_amount", "receipt", { purchase: receipt.purchase, status: "refunded" }, false);
+  sv("receipt_failed_needs_amount", "receipt", { purchase: receipt.purchase, status: "failed" }, false);
+  sv("receipt_delivered_with_refund", "receipt", { ...receipt, refund_amount: cr(1) }, false);
+  sv("receipt_unknown_status", "receipt", { ...receipt, status: "pending" }, false);
+}
+
 // ---------- canonicalization vectors ----------
 
 const canonical: { name: string; input_json: string; output?: string; error?: string }[] = [
