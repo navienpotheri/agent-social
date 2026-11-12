@@ -5,7 +5,7 @@ import {
 import { auditLedger, creditFlowsOf, type CreditAudit, type CreditFlows } from "./credit-audit.ts";
 import { bondFloorPermille } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
-import { BURN_DID, INSTITUTION_DIDS, PLATFORM_DID, TREASURY_DID, canonicalAccount, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { BURN_DID, INSTITUTION_DIDS, PLATFORM_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
 import { DEFAULT_PANEL_SIZE, drawPanel, findRejection } from "./panel.ts";
@@ -105,7 +105,16 @@ interface PriceListBody {
   version: number; effective_from: string; bounds_version: number; job_tax_permille: number;
   items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial" }[];
 }
-interface PurchaseBody { service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string }
+interface PurchaseBody { service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string; mandate?: string }
+interface InstitutionSpend { institution: string; cap: { value: number }; period: "day" | "week" | "month"; services?: string[] }
+
+/** The start of the UTC period a time falls in (a day, a Monday-start week, or a month), as a key: the cap of institution_spend applies within it. */
+export function periodKey(period: "day" | "week" | "month", at: string): string {
+  const d = new Date(at);
+  if (period === "month") return d.toISOString().slice(0, 7);
+  if (period === "week") d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
 /** How well established a claim is, for comparing a verifier's grade with the performer's declared one. */
@@ -563,6 +572,16 @@ export class EventLog {
     if (spendLimit !== undefined) {
       for (const [field, value] of [["cap", spend.cap], ["per_action_max", spend.per_action_max ?? 0]] as const) {
         if (value > spendLimit) throw rule("tier_limit_exceeded", `${r.subject} is tier ${rep.tier}: spend.${field} may not exceed ${spendLimit} credits (got ${value})`);
+      }
+    }
+    // institution_spend (credits.md 4.4, DK3): below tier 3 each cap, and the sum of the caps for one period, stay within the tier's limit.
+    const inst = (r.body as { institution_spend?: InstitutionSpend[] }).institution_spend ?? [];
+    if (spendLimit !== undefined && inst.length) {
+      const sums: Record<string, number> = {};
+      for (const e of inst) {
+        if (e.cap.value > spendLimit) throw rule("tier_limit_exceeded", `${r.subject} is tier ${rep.tier}: institution_spend for ${e.institution} may not exceed ${spendLimit} credits (got ${e.cap.value})`);
+        sums[e.period] = (sums[e.period] ?? 0) + e.cap.value;
+        if (sums[e.period] > spendLimit) throw rule("tier_limit_exceeded", `${r.subject} is tier ${rep.tier}: the institution_spend caps for one ${e.period} add up to ${sums[e.period]}, over the ${spendLimit} credits a tier ${rep.tier} agent may spend`);
       }
     }
     // Default-deny egress: below tier 3 a network scope needs named hosts.
@@ -1180,12 +1199,35 @@ export class EventLog {
     if (item.split.payees.some((p) => p.account === buyer)) throw rule("self_dealing", "a buyer cannot be a payee of its own purchase");
     const rep = await this.reputation(tx, buyer);
     if (rep && rep.tier === 0 && item.class === "standard") throw rule("tier_excluded", "a tier 0 agent may buy only essential or remedial items");
+    // An agent (a passport with a sponsor) may buy only what its Mandate's institution_spend lists, within the cap for the period (credits.md 4.4, DK3). A person spending their own credits is not limited by a Mandate.
+    const spendKey = await this.checkInstitutionSpend(tx, r, b, buyer, item.class);
     await this.debit(tx, buyer, b.amount.value);
     const parts = splitParts(b.amount.value, item.split);
+    if (spendKey) await tx.putMarker(spendKey.key, String(spendKey.total));
     for (const p of parts.payees) await this.credit(tx, p.account, p.amount);
     await this.credit(tx, TREASURY_DID, parts.treasury);
     await this.credit(tx, BURN_DID, parts.burn);
     await tx.putMarker(key, r.id);
+  }
+
+  /** The institution_spend check of a purchase by an agent. Returns the running-total marker to write once the purchase succeeds, or undefined for a person. */
+  private async checkInstitutionSpend(tx: LogTx, r: AspRecord, b: PurchaseBody, buyer: string, cls: string | undefined): Promise<{ key: string; total: number } | undefined> {
+    if (!(await tx.getPassport(buyer))?.sponsor) return undefined;
+    // The way back is never default-denied: an essential or remedial item (mentoring, a repair) can be bought without a budget line, because a tier 0 agent cannot even receive a Mandate. Assumption, recorded in build-notes.
+    if (cls === "essential" || cls === "remedial") return undefined;
+    if (!b.mandate) throw rule("institution_not_in_mandate", "an agent's purchase must name the Mandate that lets it spend (mandate): an agent with no institution_spend can buy nothing");
+    const m = await tx.getRecord(b.mandate);
+    if (!m || m.record.type !== "asp.mandate/v0.2") throw rule("mandate_unknown", `${b.mandate} is not a Mandate in this log`);
+    if (m.record.subject !== buyer) throw rule("mandate_not_buyers", `the Mandate ${b.mandate} is for ${m.record.subject}, not ${buyer}`);
+    const mb = m.record.body as { expires?: string; institution_spend?: InstitutionSpend[] };
+    if (mb.expires && Date.parse(mb.expires) <= Date.parse(r.issued_at)) throw rule("mandate_expired", `the Mandate ${b.mandate} expired at ${mb.expires}`);
+    const entry = (mb.institution_spend ?? []).find((e) => e.institution === b.institution || institutionDid(e.institution) === b.institution);
+    if (!entry) throw rule("institution_not_in_mandate", `the Mandate ${b.mandate} does not let ${buyer} buy from ${b.institution}: add it to institution_spend (the sponsor widens a Mandate; asp spend shows what it allows)`);
+    if (entry.services && !entry.services.includes(b.service)) throw rule("institution_not_in_mandate", `the Mandate lists only ${entry.services.join(", ")} for ${b.institution}, not ${b.service}`);
+    const key = `spend:${buyer}|${b.institution}|${entry.period}|${periodKey(entry.period, r.issued_at)}`;
+    const spent = Number((await tx.getMarker(key)) ?? 0);
+    if (spent + b.amount.value > entry.cap.value) throw rule("institution_spend_cap_exceeded", `the Mandate caps ${b.institution} at ${entry.cap.value} credits a ${entry.period}; ${spent} already spent, so ${b.amount.value} more would be ${spent + b.amount.value}`);
+    return { key, total: spent + b.amount.value };
   }
 
   /** A receipt (credits.md 4.3): the purchase's institution closes it; a refund comes back by the split in reverse and never includes the burned part. */
@@ -1312,6 +1354,22 @@ export class EventLog {
 
   /** The world as of `at` (an ISO time; default now): price multipliers, outages, tax-free, open job types. Read-only; it changes no tier, rank, standing or eligibility. */
   async worldState(at?: string): Promise<WorldState> { return worldStateAt(await this.worldRecords(), at ?? this.now().toISOString()); }
+
+  /** Every Mandate record whose subject is `did`, in log order (read by `asp spend`). */
+  async mandatesOf(did: string): Promise<AspRecord[]> { return this.recordsWhere((r) => r.type === "asp.mandate/v0.2" && r.subject === did); }
+
+  /** Every purchase record `did` signed, in log order (read by `asp spend`). */
+  async purchasesBy(did: string): Promise<AspRecord[]> { return this.recordsWhere((r) => r.type === "asp.purchase/v0.2" && r.issuer === did); }
+
+  private async recordsWhere(pred: (r: AspRecord) => boolean): Promise<AspRecord[]> {
+    const out: AspRecord[] = [];
+    for (let after = 0; ; ) {
+      const page = await this.store.since(after, 500);
+      if (!page.length) break;
+      for (const s of page) { after = s.seq; if (pred(s.record)) out.push(s.record); }
+    }
+    return out;
+  }
 
   /** Every price_list record in log order (credits.md 4.1; read by `asp prices`). */
   async priceLists(): Promise<AspRecord[]> {

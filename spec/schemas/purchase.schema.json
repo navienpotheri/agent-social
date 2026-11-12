@@ -12,6 +12,7 @@
     "price_list": { "description": "The price list the buyer relied on; the log checks it is the one in force.", "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
     "quantity": { "type": "integer", "minimum": 1 },
     "amount": { "description": "Must equal price times quantity. The log refuses 0 with amount_not_positive.", "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "mandate": { "description": "The Mandate that lets an agent spend (its institution_spend list). An agent's purchase must name one; a person buying with their own credits need not.", "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
     "subject_ref": { "description": "What it is for (a posting, a course id).", "type": "string" },
     "idempotency": { "description": "A client nonce: a second purchase with the same buyer, service and nonce is refused.", "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
   }

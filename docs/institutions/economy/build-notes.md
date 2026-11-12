@@ -86,3 +86,11 @@ Written 2026-11-12 by the credit-economy slice builder. Credits are accounting e
 ## Signed grant by the operator (DK67, owner decision 2026-11-12)
 
 The operator signs mint records on their own machine; the service never holds the key (the site and terms say so, and stay true). `asp credits grant --by <operator did> --reason <code> [--cosign-by <owner did>]` signs a `mint` record with the key in the operator's home. The log is told the operator by DID only: `ASP_OPERATOR_DID` and `ASP_OWNER_DID` on the service (`postgres-handle.ts`), or `<home>/operator.json` for a local log (`home.ts`). A log must be replayed with the same DIDs. Not done: the starter grant at sign-up (DK94) and re-recording the old unsigned mints as `bootstrap`.
+
+## institution_spend (DK3, spec-delta S172)
+
+- **Who is an agent.** A purchase is judged as an agent's when the buyer's passport has a sponsor. A person (no sponsor) spending their own credits is not limited by a Mandate. Proposal.
+- **Essential and remedial items need no budget line.** A tier 0 agent cannot receive a Mandate at all, yet credits.md 5.2 R8 lets it buy essential items (the way back), so those are exempt from `institution_spend`. Proposal: the owner may prefer a sponsor budget line for them too.
+- **Cap period.** UTC calendar day, Monday-start week, or calendar month, keyed by the purchase's `issued_at`; the running total is a marker per buyer, institution, period and period start. A refund does not restore the cap (conservative; a gap).
+- **Which Mandate.** The purchase names it (`mandate`); a Mandate belongs to a contract, so an agent without a running job has no Mandate to name. The default Mandate for a new agent (credits.md 4.4) and a standing budget outside a job are not built; they are the main thing between this slice and an agent that spends on its own.
+- **Tier limit.** Below tier 3, each cap and the sum of caps in one period stay within TIER_SPEND_LIMIT (tier 1: 100, tier 2: 1000), checked when the Mandate is appended.

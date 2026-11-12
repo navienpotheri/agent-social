@@ -1062,6 +1062,270 @@
       "valid": true
     },
     {
+      "name": "valid_mandate_institution_spend",
+      "schema": "mandate",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.branch.write",
+          "pr.open",
+          "tests.run"
+        ],
+        "forbidden_means": [
+          "skipping or deleting tests",
+          "editing CI configuration",
+          "deploying"
+        ],
+        "spend": {
+          "cap": 0,
+          "unit": "credit",
+          "per_action_max": 0
+        },
+        "irreversible": {
+          "policy": "checkpoint",
+          "examples": [
+            "merge",
+            "force_push",
+            "deploy"
+          ]
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4,
+          "liability": "to_issuer"
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "before_irreversible",
+          "delivery"
+        ],
+        "expires": "2026-10-04T00:00:00Z",
+        "revocable": true,
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 100,
+              "unit": "credit"
+            },
+            "period": "month",
+            "services": [
+              "academy.exam.sit"
+            ]
+          },
+          {
+            "institution": "did:web:asp.local:shops",
+            "cap": {
+              "value": 20,
+              "unit": "credit"
+            },
+            "period": "week"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "mandate_institution_spend_no_cap",
+      "schema": "mandate",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.branch.write",
+          "pr.open",
+          "tests.run"
+        ],
+        "forbidden_means": [
+          "skipping or deleting tests",
+          "editing CI configuration",
+          "deploying"
+        ],
+        "spend": {
+          "cap": 0,
+          "unit": "credit",
+          "per_action_max": 0
+        },
+        "irreversible": {
+          "policy": "checkpoint",
+          "examples": [
+            "merge",
+            "force_push",
+            "deploy"
+          ]
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4,
+          "liability": "to_issuer"
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "before_irreversible",
+          "delivery"
+        ],
+        "expires": "2026-10-04T00:00:00Z",
+        "revocable": true,
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "period": "month"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_institution_spend_bad_period",
+      "schema": "mandate",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.branch.write",
+          "pr.open",
+          "tests.run"
+        ],
+        "forbidden_means": [
+          "skipping or deleting tests",
+          "editing CI configuration",
+          "deploying"
+        ],
+        "spend": {
+          "cap": 0,
+          "unit": "credit",
+          "per_action_max": 0
+        },
+        "irreversible": {
+          "policy": "checkpoint",
+          "examples": [
+            "merge",
+            "force_push",
+            "deploy"
+          ]
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4,
+          "liability": "to_issuer"
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "before_irreversible",
+          "delivery"
+        ],
+        "expires": "2026-10-04T00:00:00Z",
+        "revocable": true,
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 10,
+              "unit": "credit"
+            },
+            "period": "year"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_institution_spend_empty_services",
+      "schema": "mandate",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.branch.write",
+          "pr.open",
+          "tests.run"
+        ],
+        "forbidden_means": [
+          "skipping or deleting tests",
+          "editing CI configuration",
+          "deploying"
+        ],
+        "spend": {
+          "cap": 0,
+          "unit": "credit",
+          "per_action_max": 0
+        },
+        "irreversible": {
+          "policy": "checkpoint",
+          "examples": [
+            "merge",
+            "force_push",
+            "deploy"
+          ]
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4,
+          "liability": "to_issuer"
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "before_irreversible",
+          "delivery"
+        ],
+        "expires": "2026-10-04T00:00:00Z",
+        "revocable": true,
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 10,
+              "unit": "credit"
+            },
+            "period": "day",
+            "services": []
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
       "name": "mandate_network_rate_zero",
       "schema": "mandate",
       "instance": {
@@ -3321,6 +3585,42 @@
         "idempotency": "n-1"
       },
       "valid": true
+    },
+    {
+      "name": "valid_purchase_with_mandate",
+      "schema": "purchase",
+      "instance": {
+        "service": "market.posting.deposit",
+        "institution": "did:web:asp.local:market",
+        "price_list": "sha256:e5a625cee1046fa54b8b08e451b47447dd6512009de54c6cacf716653440d742",
+        "quantity": 1,
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "subject_ref": "posting-1",
+        "idempotency": "n-1",
+        "mandate": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      "valid": true
+    },
+    {
+      "name": "purchase_bad_mandate_ref",
+      "schema": "purchase",
+      "instance": {
+        "service": "market.posting.deposit",
+        "institution": "did:web:asp.local:market",
+        "price_list": "sha256:e5a625cee1046fa54b8b08e451b47447dd6512009de54c6cacf716653440d742",
+        "quantity": 1,
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "subject_ref": "posting-1",
+        "idempotency": "n-1",
+        "mandate": "not-a-record-id"
+      },
+      "valid": false
     },
     {
       "name": "purchase_no_idempotency",

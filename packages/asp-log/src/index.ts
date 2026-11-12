@@ -1,5 +1,5 @@
 export { PLATFORM_DID } from "./economy.ts";
-export { EventLog, nextLogHash, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
+export { EventLog, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
 export { auditLedger, type CreditAudit, type CreditFlows, type LedgerRows } from "./credit-audit.ts";
 export { PostgresStore, migrate } from "./postgres.ts";

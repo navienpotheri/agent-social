@@ -189,6 +189,7 @@
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
  *   asp credits balance <did>
+ *   asp spend <agent did> [--mandate <id>] [--json] | buy <service> --by <agent did> [--mandate <id>] [--quantity <n>]   what an agent may buy from the institutions (its Mandate's institution_spend), what it has spent this period and what is left; buy signs a purchase
  *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
  *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
  *   asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
@@ -300,6 +301,7 @@ import { buildToday, buildTrend, periodOf, renderToday, renderTrend, type DaySes
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
+import { SpendUsage, spendCmd } from "./spend.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -378,6 +380,9 @@ const OPTIONS = {
   isolate: { type: "boolean" },
   "min-agents": { type: "string" },
   at: { type: "string" },
+  nonce: { type: "string" },
+  quantity: { type: "string" },
+  mandate: { type: "string" },
   agents: { type: "string" },
   real: { type: "string", multiple: true },
   exploiters: { type: "string" },
@@ -820,6 +825,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
     if (cmd === "world") return await worldCommand(home, sub, rest, v, io);
     if (cmd === "prices") return await pricesCommand(home, sub, rest, v, io);
+    if (cmd === "spend") return await spendCommand(home, sub, rest, v, io);
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
   } catch (e) {
@@ -3737,6 +3743,17 @@ async function worldCommand(home: string, sub: string | undefined, rest: string[
     return await worldCmd(sub, rest, { home, log: local, io, now, flags: { day: v.day, days: v.days, seed: v.seed, json: v.json, title: v.title, kind: v.kind, from: v.from, to: v.to, target: v.target, effect: v.effect, value: v.value } });
   } catch (e) {
     if (e instanceof WorldUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function spendCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await spendCmd(sub, rest, { log: local, io, now, signerFor, flags: { mandate: v.mandate, json: v.json, by: v.by, quantity: v.quantity, nonce: v.nonce } });
+  } catch (e) {
+    if (e instanceof SpendUsage) throw new UsageError(e.message);
     throw e;
   }
 }

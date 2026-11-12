@@ -47,6 +47,21 @@
       "type": "array",
       "items": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
     },
+    "institution_spend": {
+      "description": "What the agent may buy from the society's institutions (credits.md 4.4, register row DK3): a purchase is allowed only if its institution (and service, if listed) is here and the buyer's purchases from it in the current UTC period plus this one are within cap. Absent or empty means the agent can buy nothing (default-deny). Credits never buy standing.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["institution", "cap", "period"],
+        "additionalProperties": false,
+        "properties": {
+          "institution": { "description": "An institution account DID, or its short name (market, academy, shops, courts, registry, clinic).", "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+          "cap": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+          "period": { "enum": ["day", "week", "month"] },
+          "services": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" } }
+        }
+      }
+    },
     "spend": {
       "type": "object",
       "required": ["cap", "unit"],

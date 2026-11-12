@@ -44,10 +44,26 @@ async function world() {
   await registerParties(log); // alice (sponsor), coder (an agent), bank
   const mintSigned = (to: string, value: number, reason = "bootstrap") => log.append(mk("mint", operator, mintBody(to, value, reason), null, { subject: to }));
   const issueList = async (body: Record<string, unknown>, prev: string | null, at = tick()) => (await log.append(mk("price_list", treasury, body, prev, { at }))).id;
+  // An agent's purchase must name a Mandate with institution_spend (DK3). `openMandate` makes one on its own small job, funded by a fresh person, so no balance in a test moves.
+  const state: { mandate?: string } = {};
+  let funders = 0;
+  const openMandate = async (agent: Party = coder, spend: unknown[] = [{ institution: "market", cap: credit(100), period: "month" }], extra: Record<string, unknown> = {}) => {
+    const funder = party(`did:web:example.com:users:funder-${++funders}`, 100 + funders);
+    await log.append(passport(funder));
+    await mintSigned(funder.did, 100, "test");
+    const contract = cosign(mk("contract", funder, { principal: funder.did, performer: agent.did, bank: bank.did, purpose: `A job that opens a mandate (${funders})`, price: credit(10), verification: "deterministic", deadline: "2026-12-03T18:00:00Z", basis: { intent: "sha256:" + "0".repeat(64), offer: "sha256:" + "1".repeat(64) } }, null, { subject: agent.did }), agent);
+    await log.append(contract);
+    const bond = mk("bond", funder, { contract: contract.id, backer: funder.did, amount: credit(5), escrow: { payer: funder.did, amount: credit(10) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, { subject: contract.id });
+    await log.append(bond);
+    const m = mk("mandate", funder, { contract: contract.id, purpose: "Spend within the budget", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2027-01-01T00:00:00Z", revocable: true, institution_spend: spend, ...extra }, bond.id, { subject: agent.did });
+    await log.append(m);
+    if (agent === coder) state.mandate = m.id;
+    return m.id;
+  };
   const buy = (by: Party, list: string, over: Record<string, unknown> = {}, at = tick()) =>
-    mk("purchase", by, { service: "market.posting.deposit", institution: market.did, price_list: list, quantity: 1, amount: credit(40), idempotency: `n-${at}`, ...over }, null, { at });
+    mk("purchase", by, { service: "market.posting.deposit", institution: market.did, price_list: list, quantity: 1, amount: credit(40), idempotency: `n-${at}`, ...(state.mandate && by === coder ? { mandate: state.mandate } : {}), ...over }, null, { at });
   const receipt = (by: Party, purchase: string, body: Record<string, unknown> = {}) => mk("receipt", by, { purchase, status: "delivered", ...body }, purchase);
-  return { log, mintSigned, issueList, buy, receipt };
+  return { log, mintSigned, issueList, buy, receipt, openMandate, state };
 }
 
 /** The log rule that refused (its name), or the error code for a refusal that is not a named rule; undefined if it was accepted. */
@@ -105,7 +121,7 @@ describe("the slice, end to end", () => {
     await log.append(contract);
     const bond = mk("bond", coder, { contract: contract.id, backer: coder.did, amount: credit(20), escrow: { payer: poster.did, amount: credit(price) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, { subject: contract.id });
     await log.append(bond);
-    const mandate = mk("mandate", poster, { contract: contract.id, purpose: "Fix the flaky test", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2027-01-01T00:00:00Z", revocable: true }, bond.id, { subject: coder.did });
+    const mandate = mk("mandate", poster, { contract: contract.id, purpose: "Fix the flaky test", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2027-01-01T00:00:00Z", revocable: true, institution_spend: [{ institution: "market", cap: credit(100), period: "month" }] }, bond.id, { subject: coder.did });
     await log.append(mandate);
     const delivery = mk("delivery", coder, { contract: contract.id, result: { summary: "Done", artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] } }, mandate.id, { subject: contract.id });
     await log.append(delivery);
@@ -121,6 +137,7 @@ describe("the slice, end to end", () => {
     // 3. The Treasury publishes the price list. The agent buys a Market listing (a posting deposit, 40) by the standard rule.
     const t0 = tick();
     const list1 = await w.issueList(listV1(t0), null, t0);
+    w.state.mandate = mandate.id; // the job's own Mandate lets the agent buy from the Market (institution_spend)
     const purchase = w.buy(coder, list1);
     await log.append(purchase);
     assert.equal(await log.balance(coder.did), 295 - 40);
@@ -162,6 +179,7 @@ describe("the slice, end to end", () => {
   test("a deliberately corrupted log fails the audit (one credit changed, one credit lost, one burned credit returned)", async () => {
     const w = await world();
     await w.mintSigned(coder.did, 100);
+    await w.openMandate();
     const t0 = tick();
     const list1 = await w.issueList(listV1(t0), null, t0);
     await w.log.append(w.buy(coder, list1));
@@ -260,6 +278,7 @@ describe("purchase and receipt (CR-6): refusals and the closed loop", () => {
   async function ready() {
     const w = await world();
     await w.mintSigned(coder.did, 100, "test");
+    await w.openMandate();
     const t0 = tick();
     const list1 = await w.issueList(listV1(t0), null, t0);
     return { ...w, list1 };
@@ -371,5 +390,67 @@ describe("the job tax (CR-15, DK68)", () => {
     await log.append(settle(1));
     assert.equal(await log.balance(TREASURY_DID), 1, "the job tax lands in the Treasury");
     assert.equal((await log.creditAudit()).verdict, "balanced");
+  });
+});
+
+describe("institution_spend (credits.md 4.4, DK3): an agent buys only what its Mandate lists", () => {
+  async function ready() {
+    const w = await world();
+    await w.mintSigned(coder.did, 300, "test");
+    const t0 = tick();
+    const list1 = await w.issueList(listV1(t0), null, t0);
+    return { ...w, list1 };
+  }
+  const DEC = "2026-12-02T10:00:00Z";
+
+  test("default-deny: an agent with no Mandate, or one that omits the institution or the service, buys nothing; a person spending their own credits is not limited", async () => {
+    const w = await ready();
+    assert.equal(await refused(w.log.append(w.buy(coder, w.list1))), "institution_not_in_mandate", "no Mandate named");
+    const noMarket = await w.openMandate(coder, [{ institution: "academy", cap: credit(50), period: "month" }]);
+    assert.equal(await refused(w.log.append(w.buy(coder, w.list1, { mandate: noMarket }))), "institution_not_in_mandate", "the Mandate lists another institution");
+    const other = await w.openMandate(coder, [{ institution: "market", cap: credit(100), period: "month", services: ["market.first_course"] }]);
+    assert.equal(await refused(w.log.append(w.buy(coder, w.list1, { mandate: other }))), "institution_not_in_mandate", "the Mandate lists only another service");
+    assert.equal(await w.log.balance(coder.did), 300, "every refusal left the balance alone");
+    // A person is not an agent: no sponsor, no Mandate needed.
+    await w.log.append(passport(poster));
+    await w.mintSigned(poster.did, 100, "test");
+    await w.log.append(w.buy(poster, w.list1));
+    assert.equal(await w.log.balance(poster.did), 60);
+  });
+
+  test("the cap holds within the period and starts again in the next; the institution may be named by its short name or its DID", async () => {
+    const w = await ready();
+    await w.openMandate(coder, [{ institution: "market", cap: credit(100), period: "month" }]);
+    await w.log.append(w.buy(coder, w.list1));
+    await w.log.append(w.buy(coder, w.list1));
+    assert.equal(await refused(w.log.append(w.buy(coder, w.list1))), "institution_spend_cap_exceeded", "40 + 40 + 40 is over 100 in one month");
+    await w.log.append(w.buy(coder, w.list1, {}, DEC)); // December is a new period
+    assert.equal(await w.log.balance(coder.did), 300 - 120);
+    const byDid = await w.openMandate(coder, [{ institution: market.did, cap: credit(100), period: "day" }]);
+    await w.log.append(w.buy(coder, w.list1, { mandate: byDid }, "2026-12-03T10:00:00Z"));
+    assert.equal((await w.log.creditAudit()).verdict, "balanced");
+  });
+
+  test("another agent's Mandate, an expired Mandate and a record that is not a Mandate are refused", async () => {
+    const w = await ready();
+    const mine = await w.openMandate();
+    const otherAgent = party("did:web:example.com:agents:coder-2", 22);
+    await w.log.append(mk("passport", alice, { did: otherAgent.did, kind: "agent", sponsor: alice.did, tier: 1, shape: {}, keys: [{ id: otherAgent.kid, type: "Ed25519", public_key: b64urlEncode(otherAgent.publicKey) }] }, null, { subject: otherAgent.did }));
+    const theirs = await w.openMandate(otherAgent);
+    assert.equal(await refused(w.log.append(w.buy(coder, w.list1, { mandate: theirs }))), "mandate_not_buyers");
+    assert.equal(await refused(w.log.append(w.buy(coder, w.list1, { mandate: w.list1 }))), "mandate_unknown", "a price list is not a Mandate");
+    const expiring = await w.openMandate(coder, [{ institution: "market", cap: credit(100), period: "month" }], { expires: "2026-11-20T00:00:00Z" });
+    assert.equal(await refused(w.log.append(w.buy(coder, w.list1, { mandate: expiring }, DEC))), "mandate_expired");
+    await w.log.append(w.buy(coder, w.list1, { mandate: mine }));
+  });
+
+  test("below tier 3 each cap, and the sum of the caps for one period, stay within the tier's limit; credits never change standing", async () => {
+    const w = await ready();
+    assert.equal(await refused(w.openMandate(coder, [{ institution: "market", cap: credit(101), period: "month" }])), "tier_limit_exceeded", "one cap over the tier 1 limit of 100");
+    assert.equal(await refused(w.openMandate(coder, [{ institution: "market", cap: credit(60), period: "month" }, { institution: "academy", cap: credit(60), period: "month" }])), "tier_limit_exceeded", "60 + 60 in one month is over 100");
+    await w.openMandate(coder, [{ institution: "market", cap: credit(60), period: "month" }, { institution: "academy", cap: credit(60), period: "week" }]);
+    const before = await w.log.reputationOf(coder.did);
+    await w.log.append(w.buy(coder, w.list1));
+    assert.deepEqual(await w.log.reputationOf(coder.did), before, "a purchase within the Mandate changes no tier, rank or eligibility");
   });
 });
