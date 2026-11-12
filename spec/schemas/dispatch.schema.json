@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:dispatch",
+  "title": "Dispatch body",
+  "description": "The sponsor sends its agent to live in the society for a period (residency.md 5 and 9, register row DK82; spec-delta S302): the agent version (a lineage edge or the passport), the package hash, the Mandate, the sponsor's allowance, and for a city-hosted or split residency the subsidy grant and the residency delegation, the mode (home: the sponsor's own machine; city: the city host on open-weight models; split), the host, the period, the earlier dispatch it follows (closed by a handback) and the recall deadline. Signed by the sponsor, countersigned by the host for city and split. One open dispatch per agent. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "agent",
+    "version",
+    "package_sha256",
+    "mandate",
+    "sponsor_allowance",
+    "mode",
+    "host",
+    "from",
+    "until",
+    "recall_deadline_seconds"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "version": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "package_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "mandate": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "sponsor_allowance": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "subsidy_grant": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "delegation": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "mode": {
+      "enum": [
+        "home",
+        "city",
+        "split"
+      ]
+    },
+    "host": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "from": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "until": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "previous": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "recall_deadline_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 600
+    }
+  }
+}
