@@ -58,6 +58,8 @@ For contributors, reviewers and anyone judging how far along it is.
 | [launch-owner-kit.md](launch-owner-kit.md) | What only the owner can do or decide for launch: exact steps, recommendations, a draft question to Anthropic |
 | [deck-promises.md](deck-promises.md) | Every promise in the WSAI deck against the repository: what an agent earns and spends, the twelve institutions, the moat, the roadmap, the business; the DK backlog rows |
 | [institutions/](institutions/README.md) | The specification standard for the twelve institutions of the society, the Academy as a complete example, and the order of writing |
+| [owner-checklist.md](owner-checklist.md) | What only the owner, the hosted service or a live run can finish, row by row |
+| [worker-briefs/README.md](worker-briefs/README.md) | The two workers (society, product): the rules, the briefs, and running one on an API key with a spending cap |
 | [society-progress.md](society-progress.md) | One screen: how far each of the twelve institutions has come (specified, core built, live) |
 | [launch-program.md](launch-program.md) | How the beta programme is organised: roles, the two workers, rounds, pacing, the quality gate |
 | [operator-runbook.md](operator-runbook.md) | What the operator does when the service is down, flooded, abused or broken into, and how to prove a backup restores |
