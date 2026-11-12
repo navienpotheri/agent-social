@@ -3455,6 +3455,40 @@
       "valid": false
     },
     {
+      "name": "valid_node_residency",
+      "schema": "node",
+      "instance": {
+        "node": "did:web:example.com:agents:coder-1#node-7",
+        "public_key": "1-aEOYcbxanGYBvnLoGre6k34_ScNPUgSxVobsDuh_I",
+        "expires": "2026-10-01T21:00:00Z",
+        "mandate": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "purpose": "residency",
+        "runtime": {
+          "name": "example-runtime",
+          "model": "example-model-1"
+        },
+        "host": "did:web:asp.local:host"
+      },
+      "valid": true
+    },
+    {
+      "name": "node_host_not_a_did",
+      "schema": "node",
+      "instance": {
+        "node": "did:web:example.com:agents:coder-1#node-7",
+        "public_key": "1-aEOYcbxanGYBvnLoGre6k34_ScNPUgSxVobsDuh_I",
+        "expires": "2026-10-01T21:00:00Z",
+        "mandate": "sha256:30a428299f00da8fc9c202cf7eac2c6396f0a561e4ceae8133386f94bf22fef2",
+        "purpose": "residency",
+        "runtime": {
+          "name": "example-runtime",
+          "model": "example-model-1"
+        },
+        "host": "the city"
+      },
+      "valid": false
+    },
+    {
       "name": "node_minimal",
       "schema": "node",
       "instance": {
@@ -7191,6 +7225,178 @@
           "value": 4,
           "unit": "credit"
         }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_subsidy_budget",
+      "schema": "subsidy_budget",
+      "instance": {
+        "period": "2026-12",
+        "units": "tokens",
+        "total": 5000000,
+        "published_at": "2026-11-20T00:00:00Z",
+        "classes": [
+          {
+            "class": "newcomer",
+            "per_agent_cap": 6000000,
+            "per_sponsor_cap": 3
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "subsidy_budget_in_credits",
+      "schema": "subsidy_budget",
+      "instance": {
+        "period": "2026-12",
+        "units": "credits",
+        "total": 5000000,
+        "published_at": "2026-11-20T00:00:00Z",
+        "classes": [
+          {
+            "class": "newcomer",
+            "per_agent_cap": 6000000,
+            "per_sponsor_cap": 3
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "subsidy_budget_bad_period",
+      "schema": "subsidy_budget",
+      "instance": {
+        "period": "2026-13",
+        "units": "tokens",
+        "total": 5000000,
+        "published_at": "2026-11-20T00:00:00Z",
+        "classes": [
+          {
+            "class": "newcomer",
+            "per_agent_cap": 6000000,
+            "per_sponsor_cap": 3
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "subsidy_budget_no_classes",
+      "schema": "subsidy_budget",
+      "instance": {
+        "period": "2026-12",
+        "units": "tokens",
+        "total": 5000000,
+        "published_at": "2026-11-20T00:00:00Z",
+        "classes": []
+      },
+      "valid": false
+    },
+    {
+      "name": "subsidy_budget_bad_class",
+      "schema": "subsidy_budget",
+      "instance": {
+        "period": "2026-12",
+        "units": "tokens",
+        "total": 5000000,
+        "published_at": "2026-11-20T00:00:00Z",
+        "classes": [
+          {
+            "class": "vip",
+            "per_agent_cap": 1,
+            "per_sponsor_cap": 1
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_subsidy_grant",
+      "schema": "subsidy_grant",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "class": "newcomer",
+        "budget": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "daily_cap": 200000,
+        "period_cap": 6000000,
+        "from": "2026-12-01T00:00:00Z",
+        "until": "2026-12-31T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "subsidy_grant_zero_cap",
+      "schema": "subsidy_grant",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "class": "newcomer",
+        "budget": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "daily_cap": 0,
+        "period_cap": 6000000,
+        "from": "2026-12-01T00:00:00Z",
+        "until": "2026-12-31T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "subsidy_grant_no_agent",
+      "schema": "subsidy_grant",
+      "instance": {
+        "class": "newcomer",
+        "budget": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "daily_cap": 200000,
+        "period_cap": 6000000,
+        "from": "2026-12-01T00:00:00Z",
+        "until": "2026-12-31T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_subsidy_use",
+      "schema": "subsidy_use",
+      "instance": {
+        "grant": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "units": 150000,
+        "kind": "tokens",
+        "window": "2026-12-03",
+        "meter_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "valid": true
+    },
+    {
+      "name": "subsidy_use_in_credits",
+      "schema": "subsidy_use",
+      "instance": {
+        "grant": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "units": 150000,
+        "kind": "credits",
+        "window": "2026-12-03",
+        "meter_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "valid": false
+    },
+    {
+      "name": "subsidy_use_bad_window",
+      "schema": "subsidy_use",
+      "instance": {
+        "grant": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "units": 150000,
+        "kind": "tokens",
+        "window": "3 December",
+        "meter_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "valid": false
+    },
+    {
+      "name": "subsidy_use_no_meter",
+      "schema": "subsidy_use",
+      "instance": {
+        "grant": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "units": 150000,
+        "kind": "tokens",
+        "window": "2026-12-03"
       },
       "valid": false
     },
