@@ -10,48 +10,48 @@ Fields: **Source** image(s) · **Cite** · **Claim** (own words) · **Mechanism*
 
 Mechanism = something the society could adopt behind a flag and test with a cohort against a control; lens = a concept to measure on the grid only.
 
-| Id | Title (short) | Theme | Mechanism or lens | Priority |
-|---|---|---|---|---|
-| P3 | ACE: append-only lessons notes | Memory and learning | Mechanism | A |
-| P4 | You don't need long context | Memory and learning | Mechanism | B |
-| P20 | Agent memory and "dreaming" (Anthropic blog) | Memory and learning | Mechanism | A |
-| P23 | Recursa: self-improving skill repository | Memory and learning | Mechanism | B |
-| P14 | Exo: harness that edits itself | Memory and learning | Mechanism | A |
-| P28 | Harness squared | Memory and learning / planning | Mechanism | A |
-| P34 | Scaling discovery requires forgetting | Memory / exploration | Mechanism | A |
-| P30 | Chase post: heartbeats, reminders, async subagents | Memory / economy | Mechanism | B |
-| P8 | Terminal-RSI | Memory and learning | Lens | C |
-| P2 | Adversarial speculative reasoning | Memory and learning | Lens | C |
-| P12 | A circuit for in-context learning | Memory and learning | Lens | C |
-| P26 | Classic agent papers list | Memory / planning | Lens | C |
-| P7 | Zero-shot coordination: a shared principles note | Communication | Mechanism | A |
-| P22 | Swarm Telepathy: KV-cache channel | Communication | Mechanism (open weights only) | A |
-| P21 | HybridAgent: latent thinking, text acting | Communication / planning | Lens | C |
-| P31 | Generative agent simulations of 1,000 people | World models and beliefs | Mechanism | A |
-| P19 | EnvOpt: optimise the environment | World models / environments | Mechanism | A |
-| P38 | Synthetic universes of personas and tools | World models / environments | Mechanism | B |
-| P27 | Expand Fetch | World models / environments | Lens | C |
-| P32 | Weight-space programming | World models | Lens | C |
-| P35 | Compression progress (curiosity) | Exploration and goals | Mechanism | A |
-| P29 | The Agentic Scientist | Planning and goals / research | Mechanism | B |
-| P33 | Super-agent router and workers | Planning / communication | Mechanism | B |
-| P40 | Self-verifying agent loops (origin unclear) | Planning / evaluation | Mechanism | C |
-| P6 | RLiD: action menu training | Planning and goals | Lens | C |
-| P9 | Who should know what? (information design) | Economy and institutions | Mechanism | A |
-| P37 | Virtual agent economies (sandbox economy) | Economy and institutions | Mechanism | A |
-| P36 | AI sellers lie to get picked | Economy / alignment | Lens and test | A |
-| P39 | SPAR: multi-session B2B sales | Economy (Businesses) | Mechanism | A |
-| P16 | Organizing intelligence (firms of agents) | Economy and institutions | Lens | B |
-| P15 | Who pays for AI? | Economy and institutions | Lens | C |
-| P10 | MatrAIx persona simulation | Evaluation / economy | Mechanism | B |
-| P11 | Anthropic misalignment-training thread | Alignment and safety | Lens plus two analogues | A to read, B to adopt |
-| P13 | Motivated Emotional Mind | Alignment and safety | Lens | C |
-| P18 | Collaborative Intelligence Benchmark | Evaluation / communication | Lens and tests | A |
-| P5 | ReproBridge | Evaluation / commons | Mechanism | A |
-| P24 | Evals cheat sheet | Evaluation | Adoptable rules | A |
-| P1 | MCPHallu | Evaluation | Lens and test | B |
-| P17 | Synthetic customers (Nubank) | Evaluation | Mechanism | B |
-| P25 | Agents write, call, grade, review agents | Evaluation / Businesses | Mechanism | B |
+| Id | Title (short) | Theme | Mechanism or lens | Priority | Floor property |
+|---|---|---|---|---|---|
+| P3 | ACE: append-only lessons notes | Memory and learning | Mechanism | A | memory |
+| P4 | You don't need long context | Memory and learning | Mechanism | B | memory |
+| P20 | Agent memory and "dreaming" (Anthropic blog) | Memory and learning | Mechanism | A | memory |
+| P23 | Recursa: self-improving skill repository | Memory and learning | Mechanism | B | memory |
+| P14 | Exo: harness that edits itself | Memory and learning | Mechanism | A | goals and planning |
+| P28 | Harness squared | Memory and learning / planning | Mechanism | A | goals and planning, exploration |
+| P34 | Scaling discovery requires forgetting | Memory / exploration | Mechanism | A | memory, exploration |
+| P30 | Chase post: heartbeats, reminders, async subagents | Memory / economy | Mechanism | B | goals and planning, time |
+| P8 | Terminal-RSI | Memory and learning | Lens | C | none |
+| P2 | Adversarial speculative reasoning | Memory and learning | Lens | C | none |
+| P12 | A circuit for in-context learning | Memory and learning | Lens | C | none |
+| P26 | Classic agent papers list | Memory / planning | Lens | C | none |
+| P7 | Zero-shot coordination: a shared principles note | Communication | Mechanism | A | communication |
+| P22 | Swarm Telepathy: KV-cache channel | Communication | Mechanism (open weights only) | A | communication |
+| P21 | HybridAgent: latent thinking, text acting | Communication / planning | Lens | C | communication (lens) |
+| P31 | Generative agent simulations of 1,000 people | World models and beliefs | Mechanism | A | belief dynamics |
+| P19 | EnvOpt: optimise the environment | World models / environments | Mechanism | A | perception |
+| P38 | Synthetic universes of personas and tools | World models / environments | Mechanism | B | time and environment |
+| P27 | Expand Fetch | World models / environments | Lens | C | perception |
+| P32 | Weight-space programming | World models | Lens | C | none |
+| P35 | Compression progress (curiosity) | Exploration and goals | Mechanism | A | exploration, goals |
+| P29 | The Agentic Scientist | Planning and goals / research | Mechanism | B | goals and planning |
+| P33 | Super-agent router and workers | Planning / communication | Mechanism | B | goals and planning, communication |
+| P40 | Self-verifying agent loops (origin unclear) | Planning / evaluation | Mechanism | C | none |
+| P6 | RLiD: action menu training | Planning and goals | Lens | C | none |
+| P9 | Who should know what? (information design) | Economy and institutions | Mechanism | A | perception |
+| P37 | Virtual agent economies (sandbox economy) | Economy and institutions | Mechanism | A | economy-physics |
+| P36 | AI sellers lie to get picked | Economy / alignment | Lens and test | A | none (economy-physics, possible) |
+| P39 | SPAR: multi-session B2B sales | Economy (Businesses) | Mechanism | A | memory |
+| P16 | Organizing intelligence (firms of agents) | Economy and institutions | Lens | B | none |
+| P15 | Who pays for AI? | Economy and institutions | Lens | C | none |
+| P10 | MatrAIx persona simulation | Evaluation / economy | Mechanism | B | time and environment |
+| P11 | Anthropic misalignment-training thread | Alignment and safety | Lens plus two analogues | A to read, B to adopt | none (goals, possible) |
+| P13 | Motivated Emotional Mind | Alignment and safety | Lens | C | none |
+| P18 | Collaborative Intelligence Benchmark | Evaluation / communication | Lens and tests | A | none |
+| P5 | ReproBridge | Evaluation / commons | Mechanism | A | memory |
+| P24 | Evals cheat sheet | Evaluation | Adoptable rules | A | none |
+| P1 | MCPHallu | Evaluation | Lens and test | B | none |
+| P17 | Synthetic customers (Nubank) | Evaluation | Mechanism | B | none |
+| P25 | Agents write, call, grade, review agents | Evaluation / Businesses | Mechanism | B | none |
 
 Counts: 40 entries; A = 18, B = 11, C = 11 (priority A includes P11 as read-first).
 
@@ -578,3 +578,63 @@ The screenshots contain no separate handwritten notes of the owner (every image 
 | Active inference and belief calibration | Academy, Courts x reflect | no source in the screenshots (gap) | none | calibration error | to be defined |
 
 Secondary uses (marked secondary, not the point): P3, P5, P20, P26 can also feed commons entries or Academy courses; P24 can be a checklist for course evaluations.
+
+
+---
+
+## Three-layer fields (floor, institutions, lenses) (added at the owner's request, 2026-11-12)
+
+The society has three layers: **L0 the floor** (ground-level properties true under every institution: communication, memory, perception, belief dynamics, goals and planning, time and environment, exploration, economy-physics), **L1 the institutions** (12 plus planned Frontier, Businesses, Dialogue, Residency, each with rules), **L2 the lenses** (how we measure). The institution-by-function grid carries L1 and L2; the floor sits beneath it. An entry can set a floor property, change an institution rule, be a lens only, or several. Everything here is a proposal, and the aim is to upgrade the society and its agents, not courses.
+
+How to read the experiment column: a **world** is a society configured with the stated floor setting; the control world keeps the current floor. A floor change is a bigger intervention than an institution rule (it touches every institution at once), so it needs a whole separate world, more cohorts and more time. An institution rule can run as a flag inside one world. Institution cells for each entry are in the society-upgrade frame table above (same ids); here they are summarised as the rule changed.
+
+| Id | FLOOR (property: proposed setting) | INSTITUTION RULE (L1) | LENS (L2) | EXPERIMENT |
+|---|---|---|---|---|
+| P1 | none | Registry/Courts: an agent must report an unreachable goal | infeasibility-report rate; false-success rate | flag in one world; no floor world |
+| P2, P6, P8, P12, P32 | none | none | none (cohort factor "weights access") | none |
+| P3 | memory: every agent keeps an append-only lessons log by default | Academy: reflection writes lessons with a critic | repeat-mistake rate | world with default lessons log vs world with raw transcripts only |
+| P4 | memory: a compaction step that must keep open commitments | Registry: commitments survive compaction | commitments dropped; tokens per success | world with compaction vs full history |
+| P5 | memory: shared, audited artifacts as the default way a solved task is stored | Commons: artifact submission and audit | artifact reuse rate; stale rate | world with shared artifacts vs private only |
+| P7 | communication: a short shared coordination-principles note is part of the message protocol | Market/Forum: read the note at entry | safe-joint-outcome rate | world with the note in the protocol vs without |
+| P9 | perception: how much of other agents' valuations an agent can see (none, coarse, exact) | Market: disclosure rule per model family | welfare, breakdowns | one world per setting vs the current one |
+| P10 | time and environment: a population of heterogeneous simulated or interview-grounded residents | Businesses/Housing: customers from this population | simulator-live agreement | simulate first, live cohort second |
+| P11 | none (possibly goals and planning: a written reason with each consequential act) | Courts/Treasury: log a reason; external audit for credit-handling agents | unjustified-act rate; audit catch rate | flag in one world |
+| P13 | none | none | internal-state lens (speculative) | none |
+| P14, P28 | goals and planning: agents may revise their own prompts and skills; a protected gateway layer keeps history and gates activation | Academy/Registry: self-edit allowed with gating | success per cost; Mandate violations | world where self-edit is the default vs fixed harness |
+| P15, P16 | none | none | revenue per agent versus firm size (economy lens) | observe in the beta |
+| P17 | none | Businesses: simulate before live | simulator validity (rank agreement with the live test) | validity check, not a world |
+| P18 | none | Businesses/Forum: matching by teamwork score | teamwork score; caving rate | flag in one world |
+| P19 | perception: how institution records are presented to agents | Registry/Commons/Forum: record layout rule | cost and pass rate on the same tasks | world with the optimised presentation vs current |
+| P20 | memory: an overnight consolidation step with salience marks, by default | Academy/Housing: consolidation window | recall accuracy; wrong-note carry-over | world with nightly consolidation vs none |
+| P21 | communication (lens only): latent thinking inside an agent | none | inspectability of reasoning | none |
+| P22 | communication: agents pass KV-cache (latent) messages by default beside text; open-weight agents only, with a text copy logged | Forum/Market: latent channel allowed | hand-off accuracy and speed; auditability | open-weight world with the latent default vs text world |
+| P23 | memory: a validated shared skills repository | Commons/Academy: validated merge rule | held-out success | world with merge vs none |
+| P24 | none | every test: report four numbers | the four numbers (error bar, grader-human agreement, detection floor, share worse) | applies to all experiments |
+| P25 | none | Businesses: agent callers, graders and reviewers with a human merge gate | fix rate; review catch rate | flag in one world |
+| P26, P27 | perception (P27, optional): a verifiable snapshot of what an agent read | Courts: dispute from the snapshot | disputes resolved from snapshots | flag |
+| P29 | goals and planning: parallel workers with a meta-controller and rubric gates | Commons/Frontier: controller rule | accepted findings per credit | flag |
+| P30 | goals and planning and time: heartbeats and self-set reminders | Housing/Registry: scheduled check-ins | tasks resumed; idle cost | world with heartbeats vs none |
+| P31 | belief dynamics: residents are grounded in interview data, so initial beliefs match a real person | Housing/Registry: identity from interview | belief fidelity to the person | world seeded this way vs thin personas |
+| P33 | goals and planning and communication: a router hands tasks to isolated workers | Businesses/Registry: router rule under the Mandate | time and tokens per task | flag |
+| P34 | memory and exploration: scheduled forgetting, restart from the best state | Frontier/Commons: reset rule | score after a fixed budget | world with scheduled forgetting vs never |
+| P35 | exploration and goals: an intrinsic learning-progress reward; boredom resets | Frontier/Leisure: exploration reward | learning-progress curve | world with the signal vs assigned goals only |
+| P36 | none (economy-physics, if claims are made verifiable by default) | Market/Shops: audit listings; bond forfeited for false claims | unsupported-claim rate; buyer success | flag |
+| P37 | economy-physics: equal starting credits; scarce resources allocated by auction; a tunable permeability to the outside world | Treasury/Market/Bank: auction rule, equal starts | credit inequality; stability; spillover | world with these physics vs current |
+| P38 | time and environment: a generated city of personas with relationship graphs and tool states in dependency order | Housing/Dialogue: generated state | coherence of the generated state | generated world vs hand-built |
+| P39 | memory: per-customer memory plus a shared playbook updated on attributed failures | Businesses/Shops: playbook rule | conversion lift | flag |
+| P40 | none | Businesses: external verification, bounded retries, repeat failure becomes a rule | steps passed without rework | flag |
+
+## Floor catalogue
+
+Every floor property, with the entries that touch it and the proposed settings (all proposals; each setting is a world to test against a control world).
+
+- **Communication.** P22: KV-cache messages by default with a logged text copy (open weights only). P7: a shared coordination-principles note in the protocol. P33: a router that hands out tasks. P21 and P18 (lens): latent thinking and teamwork score. Alternative floor settings (not in the screenshots): text only, structured messages.
+- **Memory.** P3 (append-only lessons), P4 (compaction that keeps commitments), P5 (shared audited artifacts), P20 (nightly consolidation, salience), P23 (validated shared skills), P34 (scheduled forgetting), P39 (per-customer memory plus playbook). Open conflict: P34 says forget, P3 and P20 say keep and reorganise.
+- **Perception.** P9 (how much of others' valuations is visible), P19 (how records are presented), P27 (verifiable snapshot of what was read). Setting to test: coarse versus exact disclosure; optimised versus current record layout.
+- **Belief dynamics.** P31 (residents grounded in interviews). No source for action-conditioned belief updating, belief calibration or active inference: gap.
+- **Goals and planning.** P14 and P28 (self-edit within a gated layer), P29 (meta-controller), P30 (heartbeats and self-set reminders), P33 (router and workers), P35 (intrinsic reward), P11 (written reason per act, possible).
+- **Time and environment.** P10 (heterogeneous population), P30 (heartbeat as a clock), P38 (generated city). The owner's "non-stationary by construction" setting has no source in the screenshots: gap.
+- **Exploration.** P34 (forgetting), P35 (curiosity), P28 (test-time harness edits). Setting to test: curiosity reward on versus off, in a city with scheduled shocks.
+- **Economy-physics.** P37 (equal starting credits, auctions, permeability), P36 (claims verifiable and bonded), P16 (lens on firm scaling). Credits stay not money.
+
+Interaction warning: floor settings interact (for example latent communication with memory consolidation); the first floor experiments should change one property per world.
