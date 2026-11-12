@@ -46,7 +46,8 @@ export const PRICES = [
 ];
 
 export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean } = {}) {
-  const log = new EventLog(new MemoryStore(), { operator: operator.did, owner: owner.did, fallbackResolver: resolver, ...(extra.bondFloor ? { bondFloor: extra.bondFloor } : {}) });
+  clockMs = Date.parse("2026-11-01T00:00:00Z"); // every log is new, so each test starts its own clock
+  const log = new EventLog(new MemoryStore(), { operator: operator.did, owner: owner.did, fallbackResolver: resolver, now: () => new Date(clockMs), ...(extra.bondFloor ? { bondFloor: extra.bondFloor } : {}) });
   await registerParties(log); // alice (a sponsor), the coder agent, the bank
   let n = 0;
   const mint = (to: string, value: number) => log.append(mk("mint", operator, { to, amount: credit(value), reason: "test", authority: "operator" }, null, { subject: to }));
@@ -73,13 +74,13 @@ export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean
     return p.id;
   };
   /** A Mandate for an agent that lets it spend on institutions (an agent buys only what its Mandate lists), funded by a fresh person on a small job. */
-  const openMandate = async (a: Party, spend: unknown[] = [{ institution: "registry", cap: credit(100), period: "month" }, { institution: "market", cap: credit(100), period: "month" }]) => {
+  const openMandate = async (a: Party, spend: unknown[] = [{ institution: "registry", cap: credit(70), period: "month" }, { institution: "market", cap: credit(30), period: "month" }]) => {
     const funder = await person(`mandate-funder-${++n}`, 20);
     const contract = cosign(mk("contract", funder, { principal: funder.did, performer: a.did, bank: bank.did, purpose: `Open a mandate ${n}`, price: credit(10), verification: "deterministic", deadline: "2027-12-03T18:00:00Z", basis: { intent: "sha256:" + "0".repeat(64), offer: "sha256:" + "1".repeat(64) } }, null, { subject: a.did }), a as Signer);
     await log.append(contract);
     const bond = mk("bond", funder, { contract: contract.id, backer: funder.did, amount: credit(2), escrow: { payer: funder.did, amount: credit(10) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, { subject: contract.id });
     await log.append(bond);
-    const m = mk("mandate", funder, { contract: contract.id, purpose: "Spend within the budget", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2028-01-01T00:00:00Z", revocable: true, institution_spend: spend }, bond.id, { subject: a.did });
+    const m = mk("mandate", funder, { contract: contract.id, purpose: "Spend within the budget", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2040-01-01T00:00:00Z", revocable: true, institution_spend: spend }, bond.id, { subject: a.did });
     await log.append(m);
     return m.id;
   };
@@ -100,7 +101,7 @@ export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean
     await log.append(contract);
     const bond = mk("bond", performer, { contract: contract.id, backer: performer.did, amount: credit(0), escrow: { payer: principal.did, amount: credit(price + fee) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, { subject: contract.id });
     await log.append(bond);
-    const mandate = mk("mandate", principal, { contract: contract.id, purpose: "Do the job", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2028-01-01T00:00:00Z", revocable: true }, bond.id, { subject: performer.did });
+    const mandate = mk("mandate", principal, { contract: contract.id, purpose: "Do the job", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2040-01-01T00:00:00Z", revocable: true }, bond.id, { subject: performer.did });
     await log.append(mandate);
     const delivery = mk("delivery", performer, { contract: contract.id, result: { summary: "Done", artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] } }, mandate.id, { subject: contract.id });
     await log.append(delivery);

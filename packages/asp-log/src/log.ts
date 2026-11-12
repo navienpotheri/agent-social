@@ -8,6 +8,8 @@ import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, t
 import { ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, type MarketEnv } from "./market-rules.ts";
+import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
+import { buildPage, namesAt, isLive, skeleton, verifyPage, type RecordPage } from "./registry.ts";
 import { classWeight, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
@@ -267,6 +269,8 @@ export class EventLog {
     if (type === "quarantine") await this.projectQuarantine(tx, verified);
     if (type === "quarantine_release") await this.projectQuarantineRelease(tx, verified);
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
+    if (type === "registry_act") await projectRegistryAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did) });
+    if (type === "bond" || type === "mandate" || type === "proposal" || type === "purchase" || type === "contract") await checkSuspended(tx, verified);
     if (type === "intent") checkIntentClass(verified);
     if (type === "contract") await markPostingFilled(tx, verified);
     if (type === "mandate" || type === "contract" || type === "bond" || type === "proposal" || type === "offer") await this.checkQuarantined(tx, verified);
@@ -1729,6 +1733,37 @@ export class EventLog {
       out.push(entry);
     }
     return forAgent ? out.sort((a, b) => Number(b.forAgent?.eligible) - Number(a.forAgent?.eligible)) : out;
+  }
+
+  /** The record page of a DID or a name (registry.md 7), computed only from the log's records (a view; `registryVerify` recomputes it). */
+  async registryPage(idOrName: string, at?: string): Promise<RecordPage | null> {
+    const when = at ?? this.now().toISOString();
+    const records = await this.recordsOfTypes(["passport", "certificate", "registry_act"]);
+    let did = idOrName;
+    if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isLive(c, when)) return null; did = c.holder; }
+    const head = await this.store.logHead();
+    return buildPage(did, { records, seq: head.seq, at: when, reputation: await this.reputationOf(did) ? { ...(await this.reputationOf(did))! } : undefined });
+  }
+
+  /** Recomputes a page someone holds and lists every field that differs (registry.md 7 `verify`); empty means it matches. */
+  async registryVerify(held: RecordPage, at?: string): Promise<string[]> { return verifyPage(held, await this.registryPage(held.did, at)); }
+
+  /** Search the register (registry.md 7): live names containing the query, and DIDs containing it, with their names. */
+  async registrySearch(q: string, at?: string): Promise<{ did: string; names: string[] }[]> {
+    const when = at ?? this.now().toISOString();
+    const records = await this.recordsOfTypes(["passport", "registry_act"]);
+    const names = [...namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).values()].filter((c) => isLive(c, when));
+    const want = q.toLowerCase(), skel = skeleton(q);
+    const byDid = new Map<string, string[]>();
+    for (const c of names) byDid.set(c.holder, [...(byDid.get(c.holder) ?? []), c.name]);
+    const dids = new Set<string>();
+    for (const r of records) if (r.type === "asp.passport/v0.2") dids.add((r.body as { did: string }).did);
+    return [...dids].sort().filter((d) => d.toLowerCase().includes(want) || (byDid.get(d) ?? []).some((n) => n.includes(want) || skeleton(n).includes(skel))).slice(0, 50).map((did) => ({ did, names: (byDid.get(did) ?? []).sort() }));
+  }
+
+  /** Every takedown with its reason, Article and appeal date, public (registry.md 7). */
+  async registryTakedowns(): Promise<{ record: string; name: string; holder: string; reason: string; articles: string[]; at: string; appealable_until: string }[]> {
+    return (await this.recordsOfTypes(["registry_act"])).filter((r) => (r.body as { act: string }).act === "name_takedown").map((r) => { const b = r.body as { name: string; holder: string; reason: string; code: { articles: string[] }; appealable_until: string }; return { record: r.id, name: b.name, holder: b.holder, reason: b.reason, articles: b.code.articles, at: r.issued_at, appealable_until: b.appealable_until }; });
   }
 
   get(id: string) { return this.store.getRecord(id); }

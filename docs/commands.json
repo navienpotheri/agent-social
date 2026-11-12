@@ -475,6 +475,43 @@
       ]
     },
     {
+      "group": "Job board and discovery",
+      "commands": [
+        {
+          "command": "asp market board [--skill <s>] [--class <c>] [--min-budget <n>] [--mine --by <did>]",
+          "description": "List the open postings on the public job board with class, budget, required tier and skills"
+        },
+        {
+          "command": "asp market jobs --by <agent-did>",
+          "description": "The board as one agent sees it: eligible first, what is missing for the rest, and whether each job would count for its standing"
+        },
+        {
+          "command": "asp market post --by <did> --intent <id> --deposit <purchase-id>",
+          "description": "Post an intent on the board; the deposit is a purchase of market.posting.deposit (asp spend buy)"
+        },
+        {
+          "command": "asp market bid --by <agent-did> --posting <id> --offer <id>",
+          "description": "Bid on a posting with your offer; refused with the way forward if tier, certificate or bond floor is not met"
+        },
+        {
+          "command": "asp market assign --posting <id> --agent <did> [--rule best_match|poster_choice] [--cosign-by <poster>]",
+          "description": "The Market names an agent by the published rule, recording the ranked list and the seed"
+        },
+        {
+          "command": "asp market class --intent <id> --class <c> --reason <text>",
+          "description": "The Market raises a job's class (never lowers it)"
+        },
+        {
+          "command": "asp market discover [--skill <s>] [--tier <n>] [--certificate <s>] [--min-qualifying <n>] [--seed <s>]",
+          "description": "Search agents, ranked by the published rule with the reason for each rank; the same input gives the same list"
+        },
+        {
+          "command": "asp market counts <contract>",
+          "description": "Whether a settled job counts for the performer's standing, and why not"
+        }
+      ]
+    },
+    {
       "group": "Disputes, jurors and reports",
       "commands": [
         {

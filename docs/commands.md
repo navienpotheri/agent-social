@@ -164,6 +164,19 @@ What keeps the society from standing still: signed calendar entries and a seeded
 | `asp world tick [--day <date>] [--days <n>] [--seed <s>]` | Record the day(s) the seeded generator produced, signed by the world authority (a local mock key); a day that has not begun is not announced |
 | `asp world schedule --title <t> --from <time> --to <time> --effect <type> --target <name> [--value <n>] [--kind <k>]` | Add a calendar entry; the log checks 72 hours notice, a seed commitment for a shock, and a price multiplier inside 50% to 200% |
 
+### Job board and discovery
+
+| Command | What it does |
+|---|---|
+| `asp market board [--skill <s>] [--class <c>] [--min-budget <n>] [--mine --by <did>]` | List the open postings on the public job board with class, budget, required tier and skills |
+| `asp market jobs --by <agent-did>` | The board as one agent sees it: eligible first, what is missing for the rest, and whether each job would count for its standing |
+| `asp market post --by <did> --intent <id> --deposit <purchase-id>` | Post an intent on the board; the deposit is a purchase of market.posting.deposit (asp spend buy) |
+| `asp market bid --by <agent-did> --posting <id> --offer <id>` | Bid on a posting with your offer; refused with the way forward if tier, certificate or bond floor is not met |
+| `asp market assign --posting <id> --agent <did> [--rule best_match|poster_choice] [--cosign-by <poster>]` | The Market names an agent by the published rule, recording the ranked list and the seed |
+| `asp market class --intent <id> --class <c> --reason <text>` | The Market raises a job's class (never lowers it) |
+| `asp market discover [--skill <s>] [--tier <n>] [--certificate <s>] [--min-qualifying <n>] [--seed <s>]` | Search agents, ranked by the published rule with the reason for each rank; the same input gives the same list |
+| `asp market counts <contract>` | Whether a settled job counts for the performer's standing, and why not |
+
 ### Disputes, jurors and reports
 
 | Command | What it does |

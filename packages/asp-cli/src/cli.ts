@@ -325,7 +325,7 @@ import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCan
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
+import { MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -662,6 +662,36 @@ const OPTIONS = {
   claim: { type: "string", multiple: true },
   grade: { type: "string", multiple: true },
   artifact: { type: "string", multiple: true },
+  // Market, Registry and Courts (DK10, DK12, DK13, DK16, DK17, DK18)
+  class: { type: "string" },
+  tier: { type: "string" },
+  rule: { type: "string" },
+  posting: { type: "string" },
+  deposit: { type: "string" },
+  mine: { type: "boolean" },
+  "min-tier": { type: "string" },
+  "min-budget": { type: "string" },
+  certificate: { type: "string" },
+  skills: { type: "string", multiple: true },
+  "requires-certificate": { type: "string" },
+  listed: { type: "string" },
+  genuine: { type: "string" },
+  grounds: { type: "string" },
+  statement: { type: "string" },
+  ruling: { type: "string" },
+  appeal: { type: "string" },
+  "fee-paid": { type: "string" },
+  "min-qualifying": { type: "string" },
+  "claim-id": { type: "string" },
+  suspension: { type: "string" },
+  until: { type: "string" },
+  outcome: { type: "string" },
+  band: { type: "string" },
+  route: { type: "string" },
+  article: { type: "string" },
+  query: { type: "string" },
+  precedent: { type: "string", multiple: true },
+  dry: { type: "boolean" },
 } as const;
 
 /**
@@ -872,7 +902,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "institution-spend" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "institution-spend" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -4057,6 +4087,11 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       budget: { value: Math.trunc(Number(need("budget"))), unit: "credit" as const },
       deadline: need("deadline"),
       verification,
+      ...(v.class ? { class: v.class } : {}),
+      ...(v["min-tier"] ? { min_tier: Number(v["min-tier"]) } : {}),
+      ...(v["requires-certificate"] ? { requires_certificate: v["requires-certificate"] } : {}),
+      ...(v.listed ? { listed: v.listed } : {}),
+      ...(v.skills?.length ? { skills: v.skills } : {}),
     };
     const record = createRecord({ type: "intent", issuer: by, subject: by, prev: null, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
@@ -4620,7 +4655,77 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
-  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|report|report-rule|settle|show|action|juror register|juror show|panel draw");
+  // The job board and discovery (market.md 7; DK16, DK17, DK18).
+  if (sub === "board" || sub === "jobs") {
+    const agent = sub === "jobs" ? need("by") : v.by;
+    const rows = await local.log.marketBoard(agent);
+    const shown = rows.filter((r) => (!v.skill || r.skills.includes(v.skill)) && (!v.class || r.class === v.class) && (!v["min-budget"] || r.budget >= Number(v["min-budget"])) && (!v.mine || !v.by || r.poster === v.by));
+    if (!shown.length) io.out("no open postings");
+    for (const r of shown) {
+      io.out(`posting ${r.posting}  ${r.class}  budget ${r.budget}  tier>=${r.minTier}${r.requiresCertificate ? `  needs ${r.requiresCertificate} certificate` : ""}  skills ${r.skills.join(",") || "-"}  by ${r.poster}\n  ${r.purpose}`);
+      if (r.forAgent) io.out(`  for ${agent}: ${r.forAgent.eligible ? "eligible" : `not eligible: ${r.forAgent.missing.map((m) => m.message).join("; ")}`}; ${r.forAgent.counts.reason}`);
+    }
+    return 0;
+  }
+  if (sub === "post") {
+    const by = need("by");
+    const record = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "posting", intent: need("intent"), board: "main", expires: v.expires ?? new Date(Date.now() + 30 * 86_400_000).toISOString().replace(/\.\d+Z$/, "Z"), deposit: need("deposit") }, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`posting ${res.id} by ${by} (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "bid") {
+    const by = need("by");
+    const record = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "bid", posting: need("posting"), offer: need("offer") }, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`bid ${res.id} by ${by} on ${need("posting")} (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "class") {
+    const by = v.by ?? MARKET_DID;
+    const verdict = v.verdict ?? "changed_to";
+    const record = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "class_check", intent: need("intent"), class: need("class"), verdict, reason: need("reason") }, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`class check ${res.id}: ${need("class")} (${verdict}) (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "assign") {
+    const posting = need("posting");
+    const board = await local.log.get(posting);
+    if (!board) throw new UsageError(`${posting} is not in the log`);
+    const intent = (board.record.body as { intent: string }).intent;
+    const agent = need("agent");
+    const seed = v.seed ?? posting.slice(7, 19);
+    const ruleName = v.rule ?? "best_match";
+    const bidders = (await local.log.recordsOfTypes(["market_act"])).filter((r) => { const b = r.body as { act: string; posting?: string }; return b.act === "bid" && b.posting === posting; }).map((r) => r.issuer);
+    const ranked = (await local.log.discoverAgents({}, seed)).filter((r) => bidders.includes(r.agent));
+    const record = createRecord({ type: "market_act", issuer: MARKET_DID, subject: null, prev: null, body: { act: "assignment", posting, intent, agent, rule: ruleName, ranked, seed }, issued_at: now() }, signerFor(MARKET_DID));
+    const cosigned = ruleName === "poster_choice" && v["cosign-by"]?.length ? v["cosign-by"].reduce((r, d) => cosign(r, signerFor(d)), record) : record;
+    const res = await local.append(cosigned);
+    io.out(`assignment ${res.id}: ${agent} by ${ruleName} (log seq ${res.seq})`);
+    for (const r of ranked) io.out(`  ${r.agent}  score ${r.score}  ${r.reasons.join("; ")}`);
+    return 0;
+  }
+  if (sub === "discover") {
+    const found = await local.log.discoverAgents({ skill: v.skill, minTier: v.tier ? Number(v.tier) : undefined, certificate: v.certificate, minQualifying: v["min-qualifying"] ? Number(v["min-qualifying"]) : undefined }, v.seed ?? "discover");
+    if (!found.length) io.out("no agents match");
+    for (const [i, r] of found.entries()) io.out(`${i + 1}. ${r.agent}  score ${r.score}\n   ${r.reasons.join("; ")}`);
+    return 0;
+  }
+  if (sub === "counts") {
+    const contract = rest[0] ?? need("contract");
+    const c = await local.log.get(contract);
+    if (!c) throw new UsageError(`${contract} is not in the log`);
+    const cb = c.record.body as { principal: string; performer: string; price: { value: number }; basis?: { intent?: string } };
+    const intent = cb.basis?.intent ? await local.log.get(cb.basis.intent) : undefined;
+    const declared = intent?.record.type === "asp.intent/v0.2" ? (intent.record.body as { class?: JobClass }).class : undefined;
+    const party = async (did: string) => { const p = await local.log.passport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+    const res = marketCounts(await party(cb.performer), await party(cb.principal), declared, cb.price.value);
+    io.out(`${res.counts ? "counts" : "does not count"} for ${cb.performer}: ${res.reason}`);
+    return 0;
+  }
+
+  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|report|report-rule|settle|show|action|juror register|juror show|panel draw|board|jobs|post|bid|class|assign|discover|counts");
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */
