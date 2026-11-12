@@ -7,7 +7,9 @@ export async function postgresHandle(config: string): Promise<LogHandle & { clos
   const store = new PostgresStore(config);
   await store.migrate();
   // ASP_BOND_FLOOR=v2 turns on the bond floor of S143 (default: the legacy rule); a log must be replayed with the rule it ran with.
-  const log = new EventLog(store, { bondFloor: process.env.ASP_BOND_FLOOR === "v2" ? "v2" : "legacy" });
+  // ASP_OPERATOR_DID names the one DID whose signed `mint` records the log accepts (credits.md CR-2); ASP_OWNER_DID the owner who must co-sign a treasury_issuance. They are public DIDs,
+  // not keys: the service never holds the operator's key, the operator signs on their own machine (`asp credits grant --by <operator did>`). A log must be replayed with the same DIDs.
+  const log = new EventLog(store, { bondFloor: process.env.ASP_BOND_FLOOR === "v2" ? "v2" : "legacy", ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), ...(process.env.ASP_OWNER_DID ? { owner: process.env.ASP_OWNER_DID } : {}) });
   return {
     log,
     append: (record) => log.append(record),

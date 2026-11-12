@@ -107,7 +107,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp package push|pull|list|delete", "Keep an agent's packages on the service"],
   ] },
   { group: "Jobs and credits (the market)", note: "The protocol's lifecycle, one record at a time.", rows: [
-    ["asp credits grant --to <did> --amount <n>", "Mint credits for a local build (credits are accounting entries, not money)"],
+    ["asp credits grant --to <did> --amount <n> [--by <operator did> [--reason <code>] [--cosign-by <owner did>]]", "Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money)"],
     ["asp credits", "Where your credits are, when you ask: you, your agent, your bank, and what is locked in open jobs (a running session never shows credits)"],
     ["asp credits balance <did>", "Show an identity's credit balance"],
     ["asp credits audit [--by-flow] [--since <time>] [--require-signed] [--json]", "Check the supply rule over the whole log: balances (the Treasury, institution accounts and the Burn account included) + escrow + bonds + reserves + juror stakes + report deposits = minted. Prints balanced or MISMATCH with the figures (exit 1 on a mismatch); shows how much was minted by signed mint records and how much by the old unsigned mint (--require-signed also fails on any unsigned credit); --by-flow adds mints by reason, purchases with their split, refunds and settlements, and names the flows it cannot yet"],

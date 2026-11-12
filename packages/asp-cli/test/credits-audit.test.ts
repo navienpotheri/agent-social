@@ -1,7 +1,7 @@
 // asp credits audit (credits.md 6.1, CR-1; register rows DK1 and DK9): the supply rule over the whole log, with a verdict, the figures, --by-flow and --json.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { main, type Io } from "../src/cli.ts";
@@ -57,4 +57,29 @@ test("asp credits audit: the Treasury, burned and institution figures, signed ag
   assert.equal(strict.code, 1);
   assert.match(strict.out, /verdict: balanced/);
   assert.match(strict.out, /--require-signed: FAILED, 50 credit\(s\)/);
+});
+
+test("asp credits grant --by: the operator signs a mint on their own machine; the log checks the DID, a different signer is refused, and the audit then passes --require-signed (DK67)", async () => {
+  const home = mkdtempSync(join(tmpdir(), "asp-audit-op-"));
+  const OP = "did:web:example.com:users:operator", OTHER = "did:web:example.com:users:not-the-operator";
+  assert.equal((await asp(home, ["identity", "new", "--kind", "human", "--did", OP])).code, 0);
+  assert.equal((await asp(home, ["identity", "new", "--kind", "human", "--did", OTHER])).code, 0);
+  // With no operator named, a signed mint is refused: only the DID the log is configured with may mint.
+  const none = await asp(home, ["credits", "grant", "--to", A, "--amount", "40", "--by", OP, "--reason", "test"]);
+  assert.equal(none.code, 1);
+  assert.match(none.err, /none configured/);
+  // The operator DID is public configuration (never a key) kept in the home.
+  writeFileSync(join(home, "operator.json"), JSON.stringify({ operator: OP }));
+  const ok = await asp(home, ["credits", "grant", "--to", A, "--amount", "40", "--by", OP, "--reason", "test"]);
+  assert.equal(ok.code, 0, ok.err);
+  assert.match(ok.out, /signed mint .* by .*operator, reason test/);
+  const refused = await asp(home, ["credits", "grant", "--to", A, "--amount", "40", "--by", OTHER, "--reason", "test"]);
+  assert.equal(refused.code, 1);
+  assert.match(refused.err, /is not the operator/);
+  assert.equal((await asp(home, ["credits", "grant", "--to", A, "--amount", "5", "--by", OP, "--reason", "nonsense"])).code, 2, "an unknown reason is a usage error");
+  const strict = await asp(home, ["credits", "audit", "--require-signed", "--json"]);
+  assert.equal(strict.code, 0, strict.out);
+  const json = JSON.parse(strict.out);
+  assert.deepEqual([json.minted, json.mintedSigned, json.mintedUnsigned, json.verdict], [40, 40, 0, "balanced"]);
+  assert.equal((await asp(home, ["credits", "balance", A])).out.includes("40 credits"), true);
 });

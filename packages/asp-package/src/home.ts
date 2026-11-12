@@ -199,7 +199,11 @@ export class LocalLog implements LogHandle {
     const mintLines = existsSync(mintsFile) ? readFileSync(mintsFile, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l) as { did: string; amount: number }) : [];
 
     const store = new MemoryStore();
-    const log = new EventLog(store);
+    // The operator (and owner) DIDs for signed `mint` records: `<home>/operator.json` {operator, owner?}, or ASP_OPERATOR_DID / ASP_OWNER_DID. Public DIDs, never keys.
+    let who: { operator?: string; owner?: string } = {};
+    try { who = JSON.parse(readFileSync(join(home, "operator.json"), "utf8")); } catch { /* none set */ }
+    const operator = process.env.ASP_OPERATOR_DID ?? who.operator, owner = process.env.ASP_OWNER_DID ?? who.owner;
+    const log = new EventLog(store, { ...(operator ? { operator } : {}), ...(owner ? { owner } : {}) });
     let from = 0; // lines already in the state
     let mintsDone = 0;
     let openedFrom: "snapshot" | "replay" = "replay";

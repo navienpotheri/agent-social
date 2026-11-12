@@ -189,8 +189,8 @@ PACKAGES AND PORTABILITY
 
 JOBS AND CREDITS (THE MARKET)
 -----------------------------
-  asp credits grant --to &lt;did&gt; --amount &lt;n&gt;
-      Mint credits for a local build (credits are accounting entries, not money)
+  asp credits grant --to &lt;did&gt; --amount &lt;n&gt; [--by &lt;operator did&gt; [--reason &lt;code&gt;] [--cosign-by &lt;owner did&gt;]]
+      Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money)
   asp credits
       Where your credits are, when you ask: you, your agent, your bank, and what is locked in open jobs (a running session never shows credits)
   asp credits balance &lt;did&gt;

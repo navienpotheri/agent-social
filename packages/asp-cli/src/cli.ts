@@ -183,7 +183,8 @@
  *     D5): a portable, externally-checkable proof of the log's state at that point, published nowhere
  *     by asp itself. `log verify` re-checks every stored checkpoint against an independent replay.
  *
- *   asp credits grant --to <did> --amount <n>
+ *   asp credits grant --to <did> --amount <n> [--by <operator did> [--reason <code>] [--cosign-by <owner did>]]
+ *     With --by the operator signs a mint record on their own machine (the log service names the operator DID in ASP_OPERATOR_DID and never holds the key); without it, the old unsigned grant.
  *     Bootstraps a DID's credit balance. Local, unsigned, not part of the tamper-evident log — a
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
@@ -3669,8 +3670,21 @@ async function creditsGrant(home: string, v: Values, need: Need, io: Io): Promis
   const amount = Math.trunc(Number(need("amount")));
   if (!Number.isFinite(amount) || amount < 0) throw new UsageError("--amount must be a non-negative integer");
   const local = await openLog(home, logEnv);
+  if (v.by) {
+    // A signed mint (credits.md 5.1, DK67): the operator signs on their own machine; the log only checks the signature against the DID it is configured with.
+    const reason = v.reason ?? "bootstrap";
+    if (!["starter_upfront", "starter_rest", "bootstrap", "test", "repair", "treasury_issuance"].includes(reason)) throw new UsageError("--reason is starter_upfront, starter_rest, bootstrap, test, repair or treasury_issuance");
+    if (amount < 1) throw new UsageError("a signed mint creates at least 1 credit");
+    const signerOf = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+    let record = createRecord({ type: "mint", issuer: v.by, subject: to, prev: null, body: { to, amount: { value: amount, unit: "credit" as const }, reason, authority: "operator" }, issued_at: now() }, signerOf(v.by));
+    for (const cosigner of v["cosign-by"] ?? []) record = cosign(record, signerOf(cosigner));
+    const res = await local.append(record);
+    io.out(`minted ${amount} credits to ${to}: signed mint ${res.id} by ${v.by}, reason ${reason} (log seq ${res.seq})`);
+    io.out(`  balance ${await local.log.balance(to)}`);
+    return 0;
+  }
   const balance = await local.mint(to, amount);
-  io.out(`granted ${amount} credits to ${to} (not a signed record; local test/bootstrap only, see MOCKS.md #13)`);
+  io.out(`granted ${amount} credits to ${to} (not a signed record; local test/bootstrap only, see MOCKS.md #13; for a signed mint use --by <operator did>)`);
   io.out(`  balance ${balance}`);
   return 0;
 }

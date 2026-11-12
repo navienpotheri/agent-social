@@ -126,7 +126,7 @@ The protocol's lifecycle, one record at a time.
 
 | Command | What it does |
 |---|---|
-| `asp credits grant --to <did> --amount <n>` | Mint credits for a local build (credits are accounting entries, not money) |
+| `asp credits grant --to <did> --amount <n> [--by <operator did> [--reason <code>] [--cosign-by <owner did>]]` | Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money) |
 | `asp credits` | Where your credits are, when you ask: you, your agent, your bank, and what is locked in open jobs (a running session never shows credits) |
 | `asp credits balance <did>` | Show an identity's credit balance |
 | `asp credits audit [--by-flow] [--since <time>] [--require-signed] [--json]` | Check the supply rule over the whole log: balances (the Treasury, institution accounts and the Burn account included) + escrow + bonds + reserves + juror stakes + report deposits = minted. Prints balanced or MISMATCH with the figures (exit 1 on a mismatch); shows how much was minted by signed mint records and how much by the old unsigned mint (--require-signed also fails on any unsigned credit); --by-flow adds mints by reason, purchases with their split, refunds and settlements, and names the flows it cannot yet |
@@ -391,7 +391,8 @@ asp: the Agent Social portability tool. This is the complete reference (asp --he
     D5): a portable, externally-checkable proof of the log's state at that point, published nowhere
     by asp itself. `log verify` re-checks every stored checkpoint against an independent replay.
 
-  asp credits grant --to <did> --amount <n>
+  asp credits grant --to <did> --amount <n> [--by <operator did> [--reason <code>] [--cosign-by <owner did>]]
+    With --by the operator signs a mint record on their own machine (the log service names the operator DID in ASP_OPERATOR_DID and never holds the key); without it, the old unsigned grant.
     Bootstraps a DID's credit balance. Local, unsigned, not part of the tamper-evident log — a
     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs

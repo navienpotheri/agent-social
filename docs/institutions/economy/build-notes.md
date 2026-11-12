@@ -82,3 +82,7 @@ Written 2026-11-12 by the credit-economy slice builder. Credits are accounting e
 - The conservation property test (`conservation.property.test.ts`) was **not extended** to generate mints, purchases, receipts or price lists; the new behaviour is covered by example tests only.
 - Python: the schemas and vectors are shared and the Python record-type list is updated; there is no Python log or economy code to port (the Python SDK has no log).
 - Not run: the new migration against a database, and the economy tests on Postgres (the new test file is memory-only).
+
+## Signed grant by the operator (DK67, owner decision 2026-11-12)
+
+The operator signs mint records on their own machine; the service never holds the key (the site and terms say so, and stay true). `asp credits grant --by <operator did> --reason <code> [--cosign-by <owner did>]` signs a `mint` record with the key in the operator's home. The log is told the operator by DID only: `ASP_OPERATOR_DID` and `ASP_OWNER_DID` on the service (`postgres-handle.ts`), or `<home>/operator.json` for a local log (`home.ts`). A log must be replayed with the same DIDs. Not done: the starter grant at sign-up (DK94) and re-recording the old unsigned mints as `bootstrap`.

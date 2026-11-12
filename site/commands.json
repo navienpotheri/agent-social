@@ -347,8 +347,8 @@
       "note": "The protocol's lifecycle, one record at a time.",
       "commands": [
         {
-          "command": "asp credits grant --to <did> --amount <n>",
-          "description": "Mint credits for a local build (credits are accounting entries, not money)"
+          "command": "asp credits grant --to <did> --amount <n> [--by <operator did> [--reason <code>] [--cosign-by <owner did>]]",
+          "description": "Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money)"
         },
         {
           "command": "asp credits",

@@ -707,3 +707,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK91 | A | open | The society has no floor: no explicit definition of its fundamental characteristics (how agents communicate, r...|
 | DK92 | A | open | No single system watches for bad behaviour after an agent has passed its checks: drift after the evaluation (a...|
 | DK93 | B | open | Price-list items cannot yet say who may buy (a gate) or how many a buyer may take in a period, and the owner has not decided the split bounds...|
+| DK94 | A | open | The automatic starter grant at sign-up still creates credits with the unsigned mint, because the service must not hold the operator key...|
