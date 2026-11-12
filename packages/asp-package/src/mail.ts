@@ -4,6 +4,7 @@
  * both. It sends nothing; the CLI queues the `.eml` in an outbox folder and a delivery step (not built yet) would hand it to a mail provider.
  */
 import { parseRunLogUri, type RunLogCheck } from "./gateway/runlog.ts";
+import { summarize, type Lesson } from "./learned.ts";
 
 interface Stored { id: string; seq: number; record: { type: string; issuer: string; subject?: string | null; issued_at: string; body: any } }
 /** The part of a log handle the mail needs. */
@@ -135,6 +136,8 @@ export interface MailOptions {
   runLog?: RunLogCheck & { path: string };
   /** Where the full run report and the run page live, when there is a dashboard. Without it the mail names the file on the machine that ran the job. */
   linkBase?: string;
+  /** The agent's own record of its memory changes (gap D10, `asp learned`): what each change added, changed and removed, and whether the principal has already reviewed it. Matched to the log's memory entries by their timestamp and description. */
+  learned?: Lesson[];
 }
 
 export interface BuiltMail { subject: string; text: string; html: string; eml: string; highlights: string[] }
@@ -189,7 +192,15 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
     sections.push({ title: "What needed your approval", lines: f.approvals.map((p) => `${p.question}${p.proposed ? ` (${p.proposed})` : ""}: ${p.answer}${p.correction ? ` - ${p.correction}` : ""}.`) });
   }
 
-  sections.push({ title: "What changed in its memory", lines: f.memory.length ? f.memory.map((m) => m.description) : ["Nothing."] });
+  const memoryLine = (m: { description: string; at: string }) => {
+    const lesson = o.learned?.find((l) => l.at === m.at && l.description === m.description);
+    if (!lesson) return m.description;
+    const state = lesson.undoneBy ? "already taken back" : lesson.review ? `you ${lesson.review.state} it` : "not reviewed yet";
+    return `${summarize(lesson)} (${state}).`;
+  };
+  sections.push({ title: "What changed in its memory", lines: f.memory.length
+    ? [...f.memory.map(memoryLine), ...(o.learned ? ["See the detail, and Keep, Edit or Undo any of these, with `asp learned --package <the agent's package>`."] : [])]
+    : ["Nothing."] });
 
   if (f.ending) {
     const e = f.ending;

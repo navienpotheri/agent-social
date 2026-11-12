@@ -165,3 +165,18 @@ test("asp mail watch: the end mail is queued when a job settles, once, to the ad
   assert.match((await ok(f, ["mail", "watch", "--once"])).out, /0 mail\(s\) queued/);
   assert.match((await ok(f, ["mail", "pending"])).out, /0 ended Mandate\(s\) and 0 alert\(s\)/);
 });
+
+test("asp mail: --package reads the agent's own package locally (gap D10) without failing a preview that has no memory changes", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f);
+  await ok(f, ["market", "deliver", "--contract", contract, "--by", CODER, "--summary", "Fixed it"]);
+  await ok(f, ["market", "accept", "--contract", contract, "--by", ALICE]);
+  await ok(f, ["market", "settle", "--contract", contract, "--bank", BANK, "--basis", "accepted", "--escrow-released", "1000", "--bond-returned", "200", "--bond-slashed", "0"]);
+
+  const pkg = join(f.root, "coder.aspkg");
+  await ok(f, ["pack", "--runtime", "claude-code", "--agent", CODER, "--project", f.project, "--user-home", f.home, "--out", pkg]);
+
+  const mail = (await ok(f, ["mail", "preview", "--contract", contract, "--package", pkg])).out;
+  assert.match(mail, /Your agent finished: Fix the flaky test/);
+  assert.match(mail, /WHAT CHANGED IN ITS MEMORY\n {2}Nothing\./, "no memory change was reported against this Mandate, so there is nothing asp learned could add");
+});
