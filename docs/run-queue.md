@@ -46,3 +46,4 @@ Round 3 (if the window allows): Research and Commons (DK31, DK78 to DK80), resid
 
 - `claude/open-forum` was pushed at 335ae96 (2026-11-12): 54 of 173 priority-A rows closed. CI on d0824fe was in progress.
 - 2026-11-12 ~17:00: DK92 split pattern pushed (d7f7e36, S186, UC-295; DK92 partial). Workers run-shops (local_5aa5ab9f) and run-clinic (local_18354207) are running; 5-hour window 44%, weekly 67%.
+- 2026-11-12 ~18:00: Round 1 merged and pushed (Shops DK21/22, Clinic DK28/DK140 closed). Lead closed DK74, DK77 partial (DK141, DK142 split), pushed 3278ccc. Round 2 sent to the same two sessions: run-shops gets Housing + Leisure (S270+/UC-370+/DK170+), run-clinic gets Bank + Insurer (S280+/UC-380+/DK180+). Lead next: DK65 capacity plan pieces that need no hosted service, then product rows U5/U1/O19/T12 that are not owner-only.
