@@ -60,12 +60,35 @@ export interface Tenant {
   starter?: { at: string; amount: number; dids?: string[]; /** Credits each identity is still owed: the rest of the grant, released when one of them has had a job accepted. */ held?: number; releasedAt?: string };
 }
 
+const DEFAULT_PACKAGE_QUOTA = 256 * 1024 * 1024;
+const extrasCache = new Map<string, { at: number; extras: Record<string, number> }>();
+/** The tenant with its limit fields raised by the active resource holdings of the DIDs it has written as (a sponsor's own DID among them). */
+export async function withResourceExtras(t: Tenant, opts: ServerOptions, cache: typeof extrasCache): Promise<Tenant> {
+  const dids = opts.owners!.of(t.name);
+  if (!dids.length) return t;
+  const hit = cache.get(t.name);
+  let extras = hit && Date.now() - hit.at < 60_000 ? hit.extras : undefined;
+  if (!extras) {
+    extras = {};
+    try { for (const d of dids) for (const [k, v] of Object.entries(((await (opts.handle.log as any).sponsorResources?.(d)) ?? {}) as Record<string, number>)) extras[k] = Math.max(extras[k] ?? 0, v); } catch { extras = {}; }
+    cache.set(t.name, { at: Date.now(), extras });
+  }
+  if (!Object.keys(extras).length) return t;
+  return {
+    ...t,
+    ...(extras.quota_records && (t.recordQuota ?? opts.defaultRecordQuota ?? 0) > 0 ? { recordQuota: (t.recordQuota ?? opts.defaultRecordQuota ?? 0) + extras.quota_records } : {}),
+    ...(extras.quota_bytes && (t.byteQuota ?? opts.defaultByteQuota ?? 0) > 0 ? { byteQuota: (t.byteQuota ?? opts.defaultByteQuota ?? 0) + extras.quota_bytes } : {}),
+    ...(extras.quota_storage_bytes ? { quotaBytes: (t.quotaBytes ?? DEFAULT_PACKAGE_QUOTA) + extras.quota_storage_bytes } : {}),
+    ...(extras.rate_per_minute ? { rateLimitPerMinute: (t.rateLimitPerMinute ?? 600) + extras.rate_per_minute } : {}),
+  };
+}
+
 export const hashToken = (token: string): string => createHash("sha256").update(token).digest("hex");
 
 /** EventLog methods a client may call: reads, plus verification. Nothing that writes. */
 export const LOG_METHODS = new Set([
   "get", "head", "since", "chain", "chainInfo", "passport", "keys", "fleet", "balance", "escrow", "juror", "reputationOf", "mandateOf",
-  "verificationOf", "report", "drawPanel", "drawReportPanel", "verify", "verifyCheckpoint", "mints", "creditAudit", "creditFlows", "priceLists", "mandatesOf", "certificatesOf", "academyRecords", "certificateStatus", "arenaBoard", "quarantinesOf", "purchasesBy", "worldRecords", "worldState", "creditConcentration", "starterPoolState", "marketBoard", "discoverAgents", "recordsOfTypes", "registryPage", "registryVerify", "registrySearch", "registryTakedowns", "charterRoutes", "charters", "precedentIndex", "precedentSearch", "precedentsFor", "courtDocket",
+  "verificationOf", "report", "drawPanel", "drawReportPanel", "verify", "verifyCheckpoint", "mints", "creditAudit", "creditFlows", "priceLists", "mandatesOf", "certificatesOf", "academyRecords", "certificateStatus", "arenaBoard", "quarantinesOf", "purchasesBy", "worldRecords", "worldState", "creditConcentration", "starterPoolState", "marketBoard", "discoverAgents", "recordsOfTypes", "registryPage", "registryVerify", "homePage", "sponsorResources", "registrySearch", "registryTakedowns", "charterRoutes", "charters", "precedentIndex", "precedentSearch", "precedentsFor", "courtDocket",
 ]);
 const TENANT_HANDLE_METHODS = new Set(["append", "importRecords"]);
 const ADMIN_HANDLE_METHODS = new Set(["mint"]);
@@ -163,7 +186,7 @@ export function createLogServer(opts: ServerOptions): Server {
       if (opts.blocked?.().includes(address)) return json(res, 403, { ok: false, error: { code: "BLOCKED", message: "this address is blocked by the operator" } });
       if (limits) { const v = limits.checkAddress(address); if (!v.ok) return tooMany(res, v); }
       if (req.method === "GET" && req.url === "/health") return json(res, 200, { ok: true });
-      if (req.method === "GET" && /^\/(registry|market|courts)\//.test(req.url ?? "")) {
+      if (req.method === "GET" && /^\/(registry|market|courts|home|housing|events)\//.test(req.url ?? "")) {
         // Public, read-only pages of the Registry and the Market (public-pages.ts): no token, derived from the log, escaped, with a strict CSP.
         const reply = await publicReply(opts.handle.log, req.url ?? "", String(req.headers.accept ?? "").includes("text/html"));
         if (reply?.html !== undefined) { res.writeHead(reply.status, { "content-type": "text/html; charset=utf-8", "content-security-policy": PUBLIC_CSP, "x-content-type-options": "nosniff" }); return void res.end(reply.html); }
@@ -243,7 +266,9 @@ export function createLogServer(opts: ServerOptions): Server {
         return json(res, 405, { ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "GET or POST" } });
       }
       if (opts.publicRoutes && (await opts.publicRoutes(req, res))) return;
-      const tenant = authenticate(req, opts);
+      const base = authenticate(req, opts);
+      // The extra limits a tenant's sponsors hold through the Shops' resource items (DK75): added to the defaults while the holdings last, gone when they lapse. Read from the log, at most once a minute a tenant.
+      const tenant = base && base.role !== "admin" && opts.owners ? await withResourceExtras(base, opts, extrasCache) : base;
       if (!tenant) {
         // A failed sign-in is a token that was presented and is wrong. A request with no token at all (the forum probe each `asp run` makes, a browser, a health check) guesses nothing, and counting it
         // locked the whole address out after ten sessions, so the sessions after that waited out the lockout (gap T23: a 300 s hang in the approval tests).

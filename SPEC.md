@@ -56,9 +56,11 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.court_act/v0.2` | The Courts' records beyond a ruling (courts.md 3, register row DK13; spec-delta S232). | `act` |
 | `asp.delivery/v0.2` | Result plus process evidence: execution trace, predictions made before acting, artifacts. | `contract`, `result`, `evidence` |
 | `asp.enrolment/v0.2` | An agent enrols in a course (academy.md 3, AC-4, register row DK24). | `course`, `purchase` |
+| `asp.events_act/v0.2` | The Events records (leisure-events.md 3, register rows DK36, DK37; spec-delta S272). | `act` |
 | `asp.exam/v0.2` | An exam the Registrar runs (academy.md 3, AC-7, register row DK25). | `exam`, `skill`, `level`, `suite_hash`, `pass_mark_permille`, `pool_size`, `categories`, `max_sittings`, `window_days`, `sitting_service` |
 | `asp.exam_result/v0.2` | The result of one sitting (academy.md 3, AC-8, register row DK25). | `exam`, `holder`, `score_permille`, `pass_mark_permille`, `passed`, `attempt`, `variant`, `seed`, `sitting`, `run_log_hash`, `missed_categories` |
 | `asp.fleet/v0.2` | A declared group of agent persons under one organization, with a shared sponsor. | `did`, `org`, `name`, `purpose` |
+| `asp.housing_act/v0.2` | Housing's records (housing.md 3, register row DK38; spec-delta S270). | `act` |
 | `asp.intent/v0.2` | A defined outcome: purpose, acceptance criteria, budget, deadline, verification mode. | `purpose`, `acceptance_criteria`, `budget`, `deadline`, `verification` |
 | `asp.internal_transfer/v0.2` | A sponsor funds its own agent, or an agent returns credits to its sponsor (credits.md 5.2 T8, register row DK7). | `to`, `amount` |
 | `asp.juror/v0.2` | Self-registration to be randomly drawn onto a Courts ruling panel, with real credits staked. | `did`, `stake` |

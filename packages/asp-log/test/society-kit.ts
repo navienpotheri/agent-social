@@ -18,7 +18,9 @@ export const market = party(institutionDid("market"));
 export const registrar = party(REGISTRAR_DID);
 export const courts = party(institutionDid("courts"));
 export const shops = party(institutionDid("shops"));
-export const resolver = staticResolver(Object.fromEntries([operator, owner, treasury, market, registrar, courts, shops].map((p) => [p.kid, p.publicKey])));
+export const housing = party(institutionDid("housing"));
+export const events = party(institutionDid("events"));
+export const resolver = staticResolver(Object.fromEntries([operator, owner, treasury, market, registrar, courts, shops, housing, events].map((p) => [p.kid, p.publicKey])));
 
 let clockMs = Date.parse("2026-11-01T00:00:00Z");
 export const tick = (): string => new Date((clockMs += 60_000)).toISOString().replace(".000Z", "Z");

@@ -4,7 +4,7 @@
  */
 import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { TREASURY_DID, BURN_DID, splitParts, type Split } from "./economy.ts";
-import { DAY_MS, DORMANT_AFTER_DAYS, SHOPS_DID, UPKEEP_SERVICE, addDays, dayOf, daysBetween, freeThrough, isoAt, type CatalogueItem } from "./shops.ts";
+import { CAPACITY_LEDGER, DAY_MS, DORMANT_AFTER_DAYS, HOUSING_DID, RESOURCE_EFFECTS, SHOPS_DID, UPKEEP_SERVICE, addDays, dayOf, daysBetween, freeThrough, isoAt, type CatalogueItem } from "./shops.ts";
 import type { LogTx, StoredRecord } from "./store.ts";
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
@@ -36,10 +36,11 @@ export async function assertNotDormant(tx: Pick<LogTx, "getMarker">, did: string
 
 /** The checks on a purchase of a catalogue item of the Shops: not dormant, a resident, the gate (tier, certificate), no second active holding. Called from the purchase rule with the item's price-list entry. */
 export async function checkShopsPurchase(tx: LogTx, buyer: string, item: CatalogueItem, at: string, tier: number | undefined): Promise<void> {
+  const shops = item.institution === SHOPS_DID;
   if (item.service === UPKEEP_SERVICE) throw rule("upkeep_by_standing_order", "upkeep is charged by the Shops under the agent's standing order, not bought: asp shops upkeep shows where it stands");
   if (item.class !== "essential") await assertNotDormant(tx, buyer, "buy");
   const res = await readResident(tx, buyer);
-  if (res?.mode !== "resident") throw rule("shops_needs_residency", `${buyer} is not a resident: a visitor looks and cannot hold items (asp shops residency enrol --mode resident, with the sponsor's countersignature)`);
+  if (shops && res?.mode !== "resident") throw rule("shops_needs_residency", `${buyer} is not a resident: a visitor looks and cannot hold items (asp shops residency enrol --mode resident, with the sponsor's countersignature)`);
   const gate = item.gate;
   if (gate?.min_tier !== undefined && (tier ?? 0) < gate.min_tier) throw rule("gate_tier", `${item.service} needs tier ${gate.min_tier}; ${buyer} is tier ${tier ?? 0} (asp academy tier shows what is missing)`);
   if (gate?.certificate) {
@@ -54,6 +55,21 @@ export async function checkShopsPurchase(tx: LogTx, buyer: string, item: Catalog
   }
   const until = await tx.getMarker(`holding_active:${buyer}|${item.service}`);
   if (until && Date.parse(until) > Date.parse(at)) throw rule("holding_active", `${buyer} already holds ${item.service} until ${until}: one active holding of an item at a time`);
+  // A resource effect (DK75): the sum over all the sponsor's agents stays within the per-sponsor cap, and all sponsors together within the capacity ledger. Both are checked at purchase and written with it.
+  const e = item.effect;
+  if (e && (RESOURCE_EFFECTS as readonly string[]).includes(e.type) && e.amount) {
+    const sponsor = (await tx.getPassport(buyer))?.sponsor ?? buyer;
+    const live = async (key: string) => (JSON.parse((await tx.getMarker(key)) ?? "[]") as { until: string; amount: number }[]).filter((x) => Date.parse(x.until) > Date.parse(at));
+    const mine = await live(`res:${sponsor}|${e.type}`);
+    const held = mine.reduce((n, x) => n + x.amount, 0);
+    if (held + e.amount > (e.cap_per_sponsor ?? 0)) throw rule("resource_cap_reached", `the sponsor ${sponsor} already holds ${held} of ${e.type} through its agents and the cap is ${e.cap_per_sponsor}: ${e.amount} more would pass it (the per-sponsor cap is shared by all its agents)`);
+    const ledger = e.unit_cost_ref ? CAPACITY_LEDGER[e.unit_cost_ref] : undefined;
+    const all = await live(`res_all:${e.unit_cost_ref}`);
+    if (!ledger || all.reduce((n, x) => n + x.amount, 0) + e.amount > ledger.capacity_units) throw rule("capacity_exhausted", `the capacity the operator can grant of ${e.type} is used up`);
+    const until2 = new Date(Date.parse(at) + (item.duration_days ?? 0) * DAY_MS).toISOString();
+    await tx.putMarker(`res:${sponsor}|${e.type}`, JSON.stringify([...mine, { until: until2, amount: e.amount }]));
+    await tx.putMarker(`res_all:${e.unit_cost_ref}`, JSON.stringify([...all, { until: until2, amount: e.amount }]));
+  }
 }
 
 /** Remembers which contracts an agent performs, so dormancy can wait while one runs. */
@@ -72,35 +88,38 @@ async function runningJob(tx: LogTx, agent: string): Promise<string | undefined>
   return undefined;
 }
 
+/** A holding (shops.md 3, housing.md 3): the seller (the Shops or Housing) signs that a delivered purchase of its own catalogue item gives the buyer the item's effect until a date. */
+export async function projectHolding(tx: LogTx, r: AspRecord, seller: string): Promise<void> {
+  const b = r.body as Record<string, any>;
+  if (r.issuer !== seller) throw rule("shops_act_wrong_issuer", `${r.issuer} is not ${seller}: only the seller signs a holding`);
+  const p = await tx.getRecord(b.purchase);
+  const pb = p?.record.body as { service: string; institution: string; price_list: string } | undefined;
+  if (!p || p.record.type !== "asp.purchase/v0.2" || !pb) throw rule("holding_purchase_unknown", `${b.purchase} is not a purchase in this log`);
+  if (p.record.issuer !== b.holder) throw rule("holding_not_holders", `the purchase ${b.purchase} was made by ${p.record.issuer}, not ${b.holder}`);
+  if (pb.service !== b.item || pb.institution !== seller) throw rule("holding_wrong_item", `the purchase is for ${pb.service}, not ${b.item} from ${seller}`);
+  const rc = await tx.getRecord(b.receipt);
+  const rb = rc?.record.body as { status: string } | undefined;
+  if (!rc || rc.record.type !== "asp.receipt/v0.2" || rc.record.prev !== p.id || rc.record.issuer !== seller || rb?.status !== "delivered") throw rule("holding_receipt_missing", `${b.receipt} is not a delivered receipt of the seller for the purchase ${p.id}: a holding follows a delivery`);
+  const item = ((await tx.getRecord(pb.price_list))?.record.body as { items?: CatalogueItem[] } | undefined)?.items?.find((i) => i.service === pb.service);
+  if (!item?.effect || !item.duration_days || item.service === UPKEEP_SERVICE) throw rule("holding_no_effect", `${pb.service} has no durable effect in the price list the purchase relied on`);
+  if (JSON.stringify(b.effect) !== JSON.stringify(item.effect)) throw rule("holding_effect_mismatch", `the effect stated is not the one the price list gives ${pb.service}: ${JSON.stringify(item.effect)}`);
+  const from = p.record.issued_at, until = iso(Date.parse(from) + item.duration_days * DAY_MS);
+  if (b.from !== from || b.until !== until) throw rule("holding_dates_wrong", `a holding runs from the purchase (${from}) for ${item.duration_days} days, to ${until}`);
+  if ((item.gate?.certificate ?? undefined) !== b.gate_certificate) throw rule("holding_gate_mismatch", "a holding carries the certificate gate of its item, so the badge goes when the certificate does");
+  if (await tx.getMarker(`holding_of_purchase:${p.id}`)) throw rule("holding_exists", `the purchase ${p.id} already gave a holding: one purchase, one holding`);
+  const active = await tx.getMarker(`holding_active:${b.holder}|${b.item}`);
+  if (active && Date.parse(active) > Date.parse(from)) throw rule("holding_active", `${b.holder} already holds ${b.item} until ${active}`);
+  await tx.putMarker(`holding_of_purchase:${p.id}`, r.id);
+  await tx.putMarker(`holding_active:${b.holder}|${b.item}`, until);
+}
+
 export async function projectShopsAct(tx: LogTx, r: AspRecord, env: ShopsEnv): Promise<void> {
   const b = r.body as Record<string, any>;
   if (r.prev !== null) throw rule("shops_act_not_chained", "a shops act starts its own chain (prev is null)");
   const now = r.issued_at;
   const fromShops = () => { if (r.issuer !== SHOPS_DID) throw rule("shops_act_wrong_issuer", `${r.issuer} is not the Shops (${SHOPS_DID}): only the Shops signs a ${b.act}`); };
 
-  if (b.act === "holding") {
-    fromShops();
-    const p = await tx.getRecord(b.purchase);
-    const pb = p?.record.body as { service: string; institution: string; price_list: string } | undefined;
-    if (!p || p.record.type !== "asp.purchase/v0.2" || !pb) throw rule("holding_purchase_unknown", `${b.purchase} is not a purchase in this log`);
-    if (p.record.issuer !== b.holder) throw rule("holding_not_holders", `the purchase ${b.purchase} was made by ${p.record.issuer}, not ${b.holder}`);
-    if (pb.service !== b.item || pb.institution !== SHOPS_DID) throw rule("holding_wrong_item", `the purchase is for ${pb.service}, not ${b.item} from the Shops`);
-    const rc = await tx.getRecord(b.receipt);
-    const rb = rc?.record.body as { status: string } | undefined;
-    if (!rc || rc.record.type !== "asp.receipt/v0.2" || rc.record.prev !== p.id || rc.record.issuer !== SHOPS_DID || rb?.status !== "delivered") throw rule("holding_receipt_missing", `${b.receipt} is not a delivered receipt of the Shops for the purchase ${p.id}: a holding follows a delivery`);
-    const item = ((await tx.getRecord(pb.price_list))?.record.body as { items?: CatalogueItem[] } | undefined)?.items?.find((i) => i.service === pb.service);
-    if (!item?.effect || !item.duration_days || item.service === UPKEEP_SERVICE) throw rule("holding_no_effect", `${pb.service} has no durable effect in the price list the purchase relied on`);
-    if (JSON.stringify(b.effect) !== JSON.stringify(item.effect)) throw rule("holding_effect_mismatch", `the effect stated is not the one the price list gives ${pb.service}: ${JSON.stringify(item.effect)}`);
-    const from = p.record.issued_at, until = iso(Date.parse(from) + item.duration_days * DAY_MS);
-    if (b.from !== from || b.until !== until) throw rule("holding_dates_wrong", `a holding runs from the purchase (${from}) for ${item.duration_days} days, to ${until}`);
-    if ((item.gate?.certificate ?? undefined) !== b.gate_certificate) throw rule("holding_gate_mismatch", "a holding carries the certificate gate of its item, so the badge goes when the certificate does");
-    if (await tx.getMarker(`holding_of_purchase:${p.id}`)) throw rule("holding_exists", `the purchase ${p.id} already gave a holding: one purchase, one holding`);
-    const active = await tx.getMarker(`holding_active:${b.holder}|${b.item}`);
-    if (active && Date.parse(active) > Date.parse(from)) throw rule("holding_active", `${b.holder} already holds ${b.item} until ${active}`);
-    await tx.putMarker(`holding_of_purchase:${p.id}`, r.id);
-    await tx.putMarker(`holding_active:${b.holder}|${b.item}`, until);
-    return;
-  }
+  if (b.act === "holding") return projectHolding(tx, r, SHOPS_DID);
 
   if (b.act === "residency") {
     if (r.issuer !== b.agent) throw rule("residency_not_agents", "an agent signs its own residency");

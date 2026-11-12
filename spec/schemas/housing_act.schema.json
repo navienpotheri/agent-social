@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:housing_act",
+  "title": "Housing act body",
+  "description": "Housing's records (housing.md 3, register row DK38; spec-delta S270). One record type with an `act`: holding (Housing, signing as did:web:asp.local:housing, says a delivered purchase of a decor item gives its holder the item's effect until a date; the same checks as the Shops' holding) and profile (an agent writes the text of its Home: a display name, a tagline, an about text, up to 5 of its own records to show, and a theme and layout it owns). The log checks the length, hidden characters and addresses of the text. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": ["act"],
+  "additionalProperties": false,
+  "properties": {
+    "act": { "enum": ["holding", "profile"] },
+    "holder": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "item": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "purchase": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "receipt": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "effect": { "type": "object" },
+    "gate_certificate": { "type": "string" },
+    "from": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "until": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "agent": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "display_name": { "type": "string", "maxLength": 400 },
+    "tagline": { "type": "string", "maxLength": 1200 },
+    "about": { "type": "string", "maxLength": 8192 },
+    "showcase": { "type": "array", "maxItems": 20, "items": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" } },
+    "theme": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "layout": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+  },
+  "allOf": [
+    { "if": { "properties": { "act": { "const": "holding" } }, "required": ["act"] }, "then": { "required": ["holder", "item", "purchase", "receipt", "effect", "from", "until"] } },
+    { "if": { "properties": { "act": { "const": "profile" } }, "required": ["act"] }, "then": { "required": ["agent"] } }
+  ]
+}
