@@ -5,7 +5,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createRecord, cosign, b64urlEncode, signerFromSeed, staticResolver, type AspRecord, type RecordType, type Signer } from "@agent-social/asp-core";
-import { BURN_DID, EventLog, MemoryStore, PLATFORM_DID, SPLIT_BOUNDS_V1, TREASURY_DID, institutionDid, refundParts, splitParts, splitProblem, type Split } from "../src/index.ts";
+import { BURN_DID, EventLog, MemoryStore, PLATFORM_DID, SPLIT_BOUNDS_V1, TREASURY_DID, STARTER_POOL_DID, institutionDid, refundParts, splitParts, splitProblem, type Split } from "../src/index.ts";
 import { alice, bank, coder, failure, registerParties } from "./harness.ts";
 
 type Party = { did: string } & Signer & { publicKey: Uint8Array };
@@ -39,8 +39,8 @@ const DEPOSIT = split(150, 100, [[market.did, 750]]);
 const priceList = (version: number, at: string, items: unknown[], extra: Record<string, unknown> = {}) => ({ version, effective_from: at, bounds_version: 1, job_tax_permille: 20, items, ...extra });
 const listV1 = (at: string) => priceList(1, at, [item("market.posting.deposit", 40, DEPOSIT), item("market.first_course", 30, split(250, 0, [[market.did, 750]]), "essential")]);
 
-async function world() {
-  const log = new EventLog(new MemoryStore(), { operator: operator.did, owner: owner.did, fallbackResolver: resolver });
+async function world(extra: { allowUnsignedMint?: boolean } = {}) {
+  const log = new EventLog(new MemoryStore(), { operator: operator.did, owner: owner.did, fallbackResolver: resolver, ...extra });
   await registerParties(log); // alice (sponsor), coder (an agent), bank
   const mintSigned = (to: string, value: number, reason = "bootstrap") => log.append(mk("mint", operator, mintBody(to, value, reason), null, { subject: to }));
   const issueList = async (body: Record<string, unknown>, prev: string | null, at = tick()) => (await log.append(mk("price_list", treasury, body, prev, { at }))).id;
@@ -232,7 +232,7 @@ describe("signed mint (CR-2): who may create credits", () => {
   });
 
   test("the unsigned and signed mints add up together and the replay seeds only the unsigned part", async () => {
-    const w = await world();
+    const w = await world({ allowUnsignedMint: true }); // a database that still holds unsigned mints
     await w.log.mint(coder.did, 7);
     await w.mintSigned(coder.did, 3);
     await w.log.mint(coder.did, 2);
@@ -275,8 +275,8 @@ describe("price list (CR-5): the rules of credits.md 4.1", () => {
 });
 
 describe("purchase and receipt (CR-6): refusals and the closed loop", () => {
-  async function ready() {
-    const w = await world();
+  async function ready(extra: { allowUnsignedMint?: boolean } = {}) {
+    const w = await world(extra);
     await w.mintSigned(coder.did, 100, "test");
     await w.openMandate();
     const t0 = tick();
@@ -318,7 +318,7 @@ describe("purchase and receipt (CR-6): refusals and the closed loop", () => {
   });
 
   test("R3, R5, R12: an institution, the Treasury and the Burn account never buy, so none pays out; R1: there is no free-transfer record at all", async () => {
-    const w = await ready();
+    const w = await ready({ allowUnsignedMint: true });
     await w.log.mint(market.did, 100); await w.log.mint(TREASURY_DID, 100); await w.log.mint(BURN_DID, 100);
     assert.equal(await refused(w.log.append(w.buy(market, w.list1))), "institution_payment_not_allowed");
     assert.equal(await refused(w.log.append(w.buy(treasury, w.list1))), "treasury_payment_not_allowed");
@@ -431,6 +431,19 @@ describe("institution_spend (credits.md 4.4, DK3): an agent buys only what its M
     assert.equal((await w.log.creditAudit()).verdict, "balanced");
   });
 
+  test("a refund gives back the part of the period's cap that the purchase used (the burned part stays spent), so the buyer can spend it again", async () => {
+    const w = await ready();
+    await w.openMandate(coder, [{ institution: "market", cap: credit(100), period: "month" }]);
+    const first = w.buy(coder, w.list1);
+    await w.log.append(first);
+    await w.log.append(w.buy(coder, w.list1));
+    assert.equal(await refused(w.log.append(w.buy(coder, w.list1))), "institution_spend_cap_exceeded", "80 spent of 100, 40 more is over");
+    await w.log.append(w.receipt(market, first.id, { status: "refunded", refund_amount: credit(36) }));
+    await w.log.append(w.buy(coder, w.list1)); // 80 - 36 = 44 spent, 40 more is 84
+    assert.equal(await refused(w.log.append(w.buy(coder, w.list1))), "institution_spend_cap_exceeded", "84 spent, 40 more is over again");
+    assert.equal((await w.log.creditAudit()).verdict, "balanced");
+  });
+
   test("another agent's Mandate, an expired Mandate and a record that is not a Mandate are refused", async () => {
     const w = await ready();
     const mine = await w.openMandate();
@@ -452,5 +465,127 @@ describe("institution_spend (credits.md 4.4, DK3): an agent buys only what its M
     const before = await w.log.reputationOf(coder.did);
     await w.log.append(w.buy(coder, w.list1));
     assert.deepEqual(await w.log.reputationOf(coder.did), before, "a purchase within the Mandate changes no tier, rank or eligibility");
+  });
+});
+
+describe("the starter claim (DK94, DK67): starter credits move out of a pool the operator funded with signed mints, by rules, with no service key", () => {
+  const claim = (by: Party, part: "upfront" | "rest", value: number) => mk("starter_claim", by, { part, amount: credit(value) }, null, { subject: by.did });
+  const agentOf = async (w: Awaited<ReturnType<typeof world>>, name: string, seed: number) => {
+    const p = party(`did:web:example.com:agents:${name}`, seed);
+    await w.log.append(mk("passport", alice, { did: p.did, kind: "agent", sponsor: alice.did, tier: 1, shape: {}, keys: [{ id: p.kid, type: "Ed25519", public_key: b64urlEncode(p.publicKey) }] }, null, { subject: p.did }));
+    return p;
+  };
+
+  test("upfront: 100 credits once per identity; a wrong amount, a second claim, an empty pool, and a third identity of one sponsor are refused; the audit has no unsigned credit", async () => {
+    const w = await world();
+    assert.equal(await refused(w.log.append(claim(coder, "upfront", 100))), "starter_pool_empty", "the pool holds nothing until the operator funds it");
+    await w.mintSigned(STARTER_POOL_DID, 250, "starter_upfront");
+    assert.equal(await refused(w.log.append(claim(coder, "upfront", 500))), "starter_claim_amount");
+    await w.log.append(claim(coder, "upfront", 100));
+    assert.equal(await w.log.balance(coder.did), 100);
+    assert.equal(await w.log.balance(STARTER_POOL_DID), 150);
+    assert.equal(await refused(w.log.append(claim(coder, "upfront", 100))), "starter_already_claimed");
+    const second = await agentOf(w, "second", 31);
+    await w.log.append(claim(second, "upfront", 100));
+    const third = await agentOf(w, "third", 32);
+    assert.equal(await refused(w.log.append(claim(third, "upfront", 100))), "starter_group_full", "two identities per sponsor");
+    assert.equal(await w.log.balance(STARTER_POOL_DID), 50, "the pool is never overdrawn");
+    const a = await w.log.creditAudit();
+    assert.deepEqual([a.minted, a.mintedSigned, a.mintedUnsigned, a.verdict], [250, 250, 0, "balanced"]);
+    assert.equal((await w.log.verify()).ok, true);
+  });
+
+  test("a claim from a stranger with no passport, from an account of the society, or chained to another record is refused", async () => {
+    const w = await world();
+    await w.mintSigned(STARTER_POOL_DID, 100, "starter_upfront");
+    assert.equal(await refused(w.log.append(claim(mallory, "upfront", 100))), "starter_claim_no_passport");
+    assert.equal(await refused(w.log.append(claim(market, "upfront", 100))), "starter_claim_reserved");
+    assert.equal(await w.log.balance(STARTER_POOL_DID), 100);
+  });
+
+  test("rest: refused until an identity of the sponsor has had a qualifying job accepted, then 400 once; the rest needs the upfront part first", async () => {
+    const w = await world();
+    await w.mintSigned(STARTER_POOL_DID, 1000, "starter_upfront");
+    await w.mintSigned(poster.did, 500, "test");
+    await w.log.append(passport(poster));
+    assert.equal(await refused(w.log.append(claim(coder, "rest", 400))), "starter_rest_needs_upfront");
+    await w.log.append(claim(coder, "upfront", 100));
+    assert.equal(await refused(w.log.append(claim(coder, "rest", 400))), "starter_rest_not_earned");
+    // The agent has a job accepted by an independent principal (price 100 is above the minimum for a qualifying job).
+    const contract = cosign(mk("contract", poster, { principal: poster.did, performer: coder.did, bank: bank.did, purpose: "A job that qualifies", price: credit(100), verification: "deterministic", deadline: "2026-12-03T18:00:00Z", basis: { intent: "sha256:" + "0".repeat(64), offer: "sha256:" + "1".repeat(64) } }, null, { subject: coder.did }), coder);
+    await w.log.append(contract);
+    const bond = mk("bond", coder, { contract: contract.id, backer: coder.did, amount: credit(20), escrow: { payer: poster.did, amount: credit(100) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, { subject: contract.id });
+    await w.log.append(bond);
+    const mandate = mk("mandate", poster, { contract: contract.id, purpose: "A job that qualifies", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2027-01-01T00:00:00Z", revocable: true }, bond.id, { subject: coder.did });
+    await w.log.append(mandate);
+    const delivery = mk("delivery", coder, { contract: contract.id, result: { summary: "Done", artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] } }, mandate.id, { subject: contract.id });
+    await w.log.append(delivery);
+    const accept = mk("attestation", poster, { kind: "acceptance", about: delivery.id, verdict: "accepted" }, delivery.id, { subject: contract.id });
+    await w.log.append(accept);
+    await w.log.append(mk("settlement", bank, { contract: contract.id, basis: "accepted", cites: accept.id, escrow_released: credit(95), fees: credit(5), bond_returned: credit(20), bond_slashed: credit(0) }, accept.id, { subject: contract.id }));
+    const before = await w.log.balance(coder.did);
+    await w.log.append(claim(coder, "rest", 400));
+    assert.equal(await w.log.balance(coder.did), before + 400);
+    assert.equal(await refused(w.log.append(claim(coder, "rest", 400))), "starter_already_claimed");
+    const a = await w.log.creditAudit();
+    assert.deepEqual([a.mintedUnsigned, a.verdict], [0, "balanced"]);
+  });
+});
+
+describe("signed mints only (DK67): a log that names an operator refuses the unsigned mint, and a fresh log replaying the records alone reproduces every balance", () => {
+  test("mint() is refused with an operator; an unsigned or wrongly signed mint record is refused; a replica built from the records alone has the same balances and minted total", async () => {
+    const w = await world();
+    const e = await failure(w.log.mint(coder.did, 10));
+    assert.equal(e?.detail, "unsigned_mint_disabled");
+    assert.equal(await w.log.balance(coder.did), 0, "nothing was created");
+    assert.equal(await refused(w.log.append(mk("mint", coder, mintBody(coder.did, 10, "test"), null, { subject: coder.did }))), "mint_unauthorised", "signed by someone who is not the operator");
+    await w.mintSigned(coder.did, 120, "test");
+    await w.mintSigned(STARTER_POOL_DID, 100, "starter_upfront");
+    await w.log.append(mk("starter_claim", coder, { part: "upfront", amount: credit(100) }, null, { subject: coder.did }));
+    const a = await w.log.creditAudit();
+    assert.deepEqual([a.minted, a.mintedSigned, a.mintedUnsigned, a.verdict], [220, 220, 0, "balanced"]);
+    // A fresh log, given only the records, reproduces every balance and the minted total.
+    const replica = new EventLog(new MemoryStore(), { operator: operator.did, owner: owner.did, fallbackResolver: resolver });
+    const items = await w.log.since(0, 1000);
+    await replica.importRecords(items as never);
+    for (const did of [coder.did, STARTER_POOL_DID]) assert.equal(await replica.balance(did), await w.log.balance(did), did);
+    const b = await replica.creditAudit();
+    assert.deepEqual([b.minted, b.mintedSigned, b.mintedUnsigned, b.verdict], [220, 220, 0, "balanced"]);
+  });
+});
+
+describe("sponsor funding (credits.md 5.2 T8, R1; DK7): the only free transfer is between an agent and its own sponsor", () => {
+  const send = (by: Party, to: string, value: number) => mk("internal_transfer", by, { to, amount: credit(value) }, null, { subject: to });
+
+  test("a sponsor funds its agent and the agent returns credits, in both directions; every other pair is refused with its reason, and no standing moves", async () => {
+    const w = await world();
+    await w.mintSigned(alice.did, 200, "test");
+    const before = await w.log.reputationOf(coder.did);
+    await w.log.append(send(alice, coder.did, 80));
+    assert.deepEqual([await w.log.balance(alice.did), await w.log.balance(coder.did)], [120, 80]);
+    await w.log.append(send(coder, alice.did, 30));
+    assert.deepEqual([await w.log.balance(alice.did), await w.log.balance(coder.did)], [150, 50]);
+    assert.deepEqual(await w.log.reputationOf(coder.did), before, "funding changes no tier, rank or eligibility");
+
+    // R1: unrelated parties, and two agents of one sponsor, may not move credits to each other outside a job.
+    await w.log.append(passport(poster));
+    await w.mintSigned(poster.did, 100, "test");
+    assert.equal(await refused(w.log.append(send(poster, coder.did, 10))), "transfer_not_allowed", "a person to an agent that is not theirs");
+    assert.equal(await refused(w.log.append(send(poster, alice.did, 10))), "transfer_not_allowed", "a person to another person");
+    const sibling = party("did:web:example.com:agents:sibling", 41);
+    await w.log.append(mk("passport", alice, { did: sibling.did, kind: "agent", sponsor: alice.did, tier: 1, shape: {}, keys: [{ id: sibling.kid, type: "Ed25519", public_key: b64urlEncode(sibling.publicKey) }] }, null, { subject: sibling.did }));
+    assert.equal(await refused(w.log.append(send(coder, sibling.did, 10))), "transfer_not_allowed", "two agents of one sponsor");
+    assert.equal(await refused(w.log.append(send(alice, alice.did, 10))), "transfer_not_allowed", "to oneself");
+    // R3, R4, R12: the society's own accounts neither send nor receive one (one institution paying another has no path either).
+    assert.equal(await refused(w.log.append(send(alice, TREASURY_DID, 10))), "institution_payment_not_allowed");
+    assert.equal(await refused(w.log.append(send(alice, BURN_DID, 10))), "institution_payment_not_allowed");
+    assert.equal(await refused(w.log.append(send(market, coder.did, 10))), "institution_payment_not_allowed", "R4: an institution does not pay an agent, and so not another institution either");
+    assert.equal(await refused(w.log.append(send(alice, STARTER_POOL_DID, 10))), "institution_payment_not_allowed");
+    // R10: no overdraft, no zero.
+    assert.equal(await refused(w.log.append(send(coder, alice.did, 51))), "insufficient_balance");
+    assert.equal(await refused(w.log.append(send(alice, coder.did, 0))), "amount_not_positive");
+    assert.deepEqual([await w.log.balance(alice.did), await w.log.balance(coder.did)], [150, 50], "every refusal left the balances alone");
+    const a = await w.log.creditAudit();
+    assert.deepEqual([a.minted, a.verdict], [300, "balanced"]);
   });
 });

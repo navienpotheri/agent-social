@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { signerFromSeed, randomSeed } from "@agent-social/asp-core";
-import { spendCmd, SpendUsage } from "../src/spend.ts";
+import { DEFAULT_INSTITUTION_SPEND, parseInstitutionSpend, spendCmd, SpendUsage } from "../src/spend.ts";
 
 // `asp spend` only reads records the log already checked (the log's own tests cover the rule); here the reads are fake and the output is what is checked.
 const AGENT = "did:web:example.com:agents:spender";
@@ -48,4 +48,18 @@ test("buy signs a purchase at the price in force, names the Mandate, and refuses
   assert.equal((await run("buy", ["nothing.here"], [], [], { by: AGENT })).code, 1);
   await assert.rejects(() => run("buy", ["academy.exam.sit"], [], [], { by: AGENT, quantity: "0" }), SpendUsage);
   await assert.rejects(() => run("buy", [], [], [], {}), SpendUsage);
+});
+
+test("the default budget of a new Mandate is the Academy and the Shops by the month and fits a tier 1 agent; lines can be named, and none means no budget", () => {
+  const d = parseInstitutionSpend(undefined);
+  assert.deepEqual(d.map((l) => [l.institution, l.cap.value, l.period]), [["academy", 60, "month"], ["shops", 40, "month"]]);
+  assert.ok(d.reduce((n, l) => n + l.cap.value, 0) <= 100, "the caps of one period add up to at most the tier 1 limit of 100");
+  d[0].cap.value = 1;
+  assert.equal(DEFAULT_INSTITUTION_SPEND[0].cap.value, 60, "a caller changing its copy does not change the default");
+  assert.deepEqual(parseInstitutionSpend(["academy=30/week", "shops=10/day:shops.upkeep,shops.repair"]), [
+    { institution: "academy", cap: { value: 30, unit: "credit" }, period: "week" },
+    { institution: "shops", cap: { value: 10, unit: "credit" }, period: "day", services: ["shops.upkeep", "shops.repair"] },
+  ]);
+  assert.deepEqual(parseInstitutionSpend(["none"]), []);
+  for (const bad of ["academy", "academy=0/month", "academy=5/year", "=5/day"]) assert.throws(() => parseInstitutionSpend([bad]), SpendUsage, bad);
 });

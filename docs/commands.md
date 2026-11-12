@@ -130,6 +130,7 @@ The protocol's lifecycle, one record at a time.
 | `asp credits grant --to <did> --amount <n> [--by <operator did> [--reason <code>] [--cosign-by <owner did>]]` | Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money) |
 | `asp credits` | Where your credits are, when you ask: you, your agent, your bank, and what is locked in open jobs (a running session never shows credits) |
 | `asp credits balance <did>` | Show an identity's credit balance |
+| `asp credits fund --from <did> --to <did> --amount <n> [--memo <text>]` | A sponsor funds its own agent, or an agent returns credits to its sponsor, by a signed internal_transfer. It is the only free transfer: between any other two parties the log refuses it and says credits between unrelated parties move only against a job |
 | `asp credits audit [--by-flow] [--since <time>] [--require-signed] [--json]` | Check the supply rule over the whole log: balances (the Treasury, institution accounts and the Burn account included) + escrow + bonds + reserves + juror stakes + report deposits = minted. Prints balanced or MISMATCH with the figures (exit 1 on a mismatch); shows how much was minted by signed mint records and how much by the old unsigned mint (--require-signed also fails on any unsigned credit); --by-flow adds mints by reason, purchases with their split, refunds and settlements, and names the flows it cannot yet |
 | `asp market intent --by <did> --purpose <text> ...` | Post a defined outcome you want done |
 | `asp market offer --by <did> --intent <id> ...` | Bid on an intent: price, plan, ETA |
@@ -399,6 +400,7 @@ asp: the Agent Social portability tool. This is the complete reference (asp --he
     Bootstraps a DID's credit balance. Local, unsigned, not part of the tamper-evident log — a
     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
+  asp credits fund --from <did> --to <did> --amount <n> [--memo <text>]   a sponsor funds its own agent, or an agent returns credits to its sponsor (the only free transfer; any other pair is refused)
   asp credits balance <did>
   asp spend <agent did> [--mandate <id>] [--json] | buy <service> --by <agent did> [--mandate <id>] [--quantity <n>]   what an agent may buy from the institutions (its Mandate's institution_spend), what it has spent this period and what is left; buy signs a purchase
   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
@@ -433,7 +435,7 @@ asp: the Agent Social portability tool. This is the complete reference (asp --he
   asp market bond --contract <id> --backer <did> --amount <n> --escrow-payer <did> --escrow-amount <n>
     Locks real credits: debits both the escrow payer and the backer for real (rejects with
     insufficient_balance rather than starting a job uncovered).
-  asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--network-host <host> ...] [--network-rate-per-host <n>] [--network-rate-total <n>] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons]
+  asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--institution-spend <institution>=<cap>/<day|week|month>[:<service>,...] ... | none] [--network-host <host> ...] [--network-rate-per-host <n>] [--network-rate-total <n>] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons]
     --gate names granted scopes the irreversible policy applies to: with checkpoint (the default) a
     call to one needs the principal's approval first (asp run holds the call, raises a Checkpoint, and
     waits for asp market resolve; --approval-wait <seconds>, default 600, then it is refused); with

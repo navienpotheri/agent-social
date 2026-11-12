@@ -40,6 +40,11 @@ export interface AccountOptions {
   didDomain?: string;
   /** The starter-credit pool; without one no starter grants are offered. */
   starter?: StarterPool;
+  /**
+   * Signed starter (DK94): the service holds no key. The operator funds the starter pool with signed mints (`asp credits grant --to did:web:asp.local:starter-pool --by <operator>`); a claimant
+   * signs its own `starter_claim`, which the log applies by fixed rules. Set when the service's log names an operator (ASP_OPERATOR_DID). Without it the old unsigned mint is used.
+   */
+  signedStarter?: boolean;
   /** Saves a change to a tenant's entry (the starter grant it claimed). */
   updateTenant?: (name: string, patch: Partial<Tenant>) => void;
   /** Turns the tenant into a tombstone in the tenants file; called once the data is deleted. */
@@ -139,9 +144,10 @@ export async function releaseStarter(o: AccountOptions, t: Tenant): Promise<{ re
 }
 
 /** Claims the starter grant: STARTER_UPFRONT credits to each of up to STARTER_MAX_DIDS identities the tenant has written as, the rest later. Once per tenant and per Google account. */
-export async function claimStarter(o: AccountOptions, t: Tenant, asked: unknown[]): Promise<[number, unknown]> {
-  const fail2 = (status: number, code: string, message: string): [number, unknown] => [status, { ok: false, error: { code, message } }];
+export async function claimStarter(o: AccountOptions, t: Tenant, asked: unknown[], claims: unknown[] = []): Promise<[number, unknown]> {
+  const fail2 = (status: number, code: string, message: string, extra: Record<string, unknown> = {}): [number, unknown] => [status, { ok: false, error: { code, message, ...extra } }];
   const st = starterStatus(o, t);
+  if (o.signedStarter) return claimStarterSigned(o, t, st, asked, claims, fail2);
   if (st.state === "partial") {
     const r = await releaseStarter(o, t);
     return "released" in r
@@ -163,6 +169,46 @@ export async function claimStarter(o: AccountOptions, t: Tenant, asked: unknown[
   o.starter!.dequeue(t.name);
   o.updateTenant!(t.name, { starter: { at: new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z"), amount: total, dids, held: STARTER_PER_DID - STARTER_UPFRONT } });
   return [200, { ok: true, granted: dids.map((d) => ({ did: d, credits: STARTER_UPFRONT, balance: balances[d] })), total, held: STARTER_PER_DID - STARTER_UPFRONT, note: `Credits are accounting entries in the protocol, not money. ${STARTER_UPFRONT} each is enough for a first job (an escrow and a bond). The other ${STARTER_PER_DID - STARTER_UPFRONT} each comes when one of these identities has a job accepted: asp account show releases it.` }];
+}
+
+/**
+ * The signed route (DK94): the same eligibility as the unsigned one (a verified Google account, once, up to two identities the tenant wrote as), but the credits come from the starter pool
+ * by claims the identities sign themselves. With no claims the answer is CLAIM_NEEDED, naming what to sign; the client signs and asks again. The log refuses a claim the pool cannot cover
+ * (starter_pool_empty), and the tenant goes on the waiting list as before.
+ */
+async function claimStarterSigned(o: AccountOptions, t: Tenant, st: StarterView, asked: unknown[], claims: unknown[], fail2: (s: number, c: string, m: string, e?: Record<string, unknown>) => [number, unknown]): Promise<[number, unknown]> {
+  const partial = st.state === "partial";
+  if (st.state === "claimed") return fail2(409, "ALREADY_CLAIMED", "this tenant has already claimed its starter credits");
+  if (st.state === "unavailable") return fail2(403, "STARTER_UNAVAILABLE", st.reason ?? "starter credits are not available");
+  if (st.state === "waiting") return fail2(503, "POOL_EMPTY", POOL_FULL(o.starter!.enqueue(t.name)));
+  const part = partial ? "rest" : "upfront";
+  const amount = partial ? STARTER_PER_DID - STARTER_UPFRONT : STARTER_UPFRONT;
+  const dids = partial ? (t.starter!.dids ?? []) : [...new Set(asked.filter((d): d is string => typeof d === "string"))];
+  if (!partial) {
+    if (!dids.length || dids.length > STARTER_MAX_DIDS) return fail2(400, "BAD_DIDS", `name one or two of your identities (up to ${STARTER_MAX_DIDS}), for example your principal and your agent`);
+    const mine = new Set(o.owners.of(t.name));
+    const stranger = dids.find((d) => !mine.has(d));
+    if (stranger) return fail2(400, "NOT_YOURS", `${stranger} is not an identity this tenant has written as; create it through the service first`);
+  }
+  const mineClaims = (claims as { type?: string; issuer?: string; body?: { part?: string } }[]).filter((c) => c?.type === "asp.starter_claim/v0.2" && c.body?.part === part && dids.includes(String(c.issuer)));
+  if (!mineClaims.length) return fail2(428, "CLAIM_NEEDED", `sign a ${part} starter claim of ${amount} credits for each identity (the service holds no key); \`asp account starter\` does this`, { part, amount, dids });
+  const granted: { did: string; credits: number; balance: number }[] = [];
+  for (const c of mineClaims) {
+    try { await o.handle.append(c as never); } catch (e) {
+      const detail = (e as { detail?: string }).detail;
+      if (detail === "starter_pool_empty") return granted.length ? fail2(503, "POOL_EMPTY", (e as Error).message) : fail2(503, "POOL_EMPTY", POOL_FULL(o.starter!.enqueue(t.name)));
+      if (detail === "starter_rest_not_earned") return fail2(409, "ALREADY_CLAIMED", `you have already claimed the first part of your starter credits; the other ${amount} each is released when one of your identities has had a job accepted`);
+      if (detail === "starter_already_claimed" && granted.length) continue;
+      return fail2(409, detail ?? "CLAIM_REFUSED", (e as Error).message);
+    }
+    granted.push({ did: String(c.issuer), credits: amount, balance: await o.handle.log.balance(String(c.issuer)) });
+  }
+  const at = new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z");
+  o.starter!.dequeue(t.name);
+  if (partial) o.updateTenant!(t.name, { starter: { at: t.starter!.at, amount: t.starter!.amount + granted.length * amount, dids, releasedAt: at, ...(granted.length < dids.length ? { held: amount } : {}) } });
+  else o.updateTenant!(t.name, { starter: { at, amount: granted.length * amount, dids, held: STARTER_PER_DID - STARTER_UPFRONT } });
+  const total = granted.length * amount;
+  return [200, { ok: true, granted, total, ...(partial ? {} : { held: STARTER_PER_DID - STARTER_UPFRONT }), note: partial ? "The rest of your starter grant. Credits are accounting entries in the protocol, not money." : `Credits are accounting entries in the protocol, not money. ${STARTER_UPFRONT} each is enough for a first job (an escrow and a bond). The other ${STARTER_PER_DID - STARTER_UPFRONT} each is released when one of your identities has had a job accepted: ask again with asp account starter then.` }];
 }
 
 /** Everything the service holds for a tenant (and deletes on closing), counted. Shared by the routes and the operator's `asp serve close-tenant`. */
@@ -258,8 +304,8 @@ export function accountRoutes(o: AccountOptions) {
     }
 
     if (method === "POST" && url.pathname === "/account/starter") {
-      const body = (await readJson(req)) as { dids?: unknown } | undefined;
-      send(res, ...(await claimStarter(o, me, Array.isArray(body?.dids) ? (body!.dids as unknown[]) : [])));
+      const body = (await readJson(req)) as { dids?: unknown; claims?: unknown } | undefined;
+      send(res, ...(await claimStarter(o, me, Array.isArray(body?.dids) ? (body!.dids as unknown[]) : [], Array.isArray(body?.claims) ? (body!.claims as unknown[]) : [])));
       return true;
     }
 

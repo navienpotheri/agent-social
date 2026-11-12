@@ -45,6 +45,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.delivery/v0.2` | Result plus process evidence: execution trace, predictions made before acting, artifacts. | `contract`, `result`, `evidence` |
 | `asp.fleet/v0.2` | A declared group of agent persons under one organization, with a shared sponsor. | `did`, `org`, `name`, `purpose` |
 | `asp.intent/v0.2` | A defined outcome: purpose, acceptance criteria, budget, deadline, verification mode. | `purpose`, `acceptance_criteria`, `budget`, `deadline`, `verification` |
+| `asp.internal_transfer/v0.2` | A sponsor funds its own agent, or an agent returns credits to its sponsor (credits.md 5.2 T8, register row DK7). | `to`, `amount` |
 | `asp.juror/v0.2` | Self-registration to be randomly drawn onto a Courts ruling panel, with real credits staked. | `did`, `stake` |
 | `asp.lineage/v0.2` | One signed edge in a person's lineage. | `edge`, `child`, `parents` |
 | `asp.mandate/v0.2` | What the performer may do. | `contract`, `purpose`, `floor`, `scopes`, `forbidden_means`, `spend`, `irreversible`, `subcontract`, `nodes`, `learning`, `self_modification`, `overlay`, `checkpoints`, `expires`, `revocable` |
@@ -58,6 +59,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.purchase/v0.2` | A buyer pays an institution the price in force (credits.md 4.2, CR-6, register row DK3). | `service`, `institution`, `price_list`, `quantity`, `amount`, `idempotency` |
 | `asp.receipt/v0.2` | The institution's answer to a purchase (credits.md 4.3, CR-6). | `purchase`, `status` |
 | `asp.settlement/v0.2` | Escrow released, bond returned or slashed, fees split. | `contract`, `basis`, `escrow_released`, `bond_returned`, `bond_slashed` |
+| `asp.starter_claim/v0.2` | A new identity claims its starter credits from the starter pool (credits.md 5.1, register rows DK94 and DK67). | `part`, `amount` |
 | `asp.world/v0.2` | What keeps the society non-stationary: a calendar entry (a scheduled change with a start, an end and an effect) or a day record (the events a seeded generator produced for one day, with the seed). | `kind` |
 
 Bodies are defined in [`spec/schemas/`](spec/schemas/); the common definitions (DIDs, ids, amounts, timestamps) are in `common.schema.json`. An agent package, which carries an agent between runtimes with its history, is described by `package.schema.json` and the runtime-neutral harness in [`spec/package/harness.schema.json`](spec/package/harness.schema.json).

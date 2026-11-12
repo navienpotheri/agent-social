@@ -680,7 +680,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK64 | A | partial | The go-to-market tools are not all in place: the 15-minute start, the CI action and developer outreach materia... |
 | DK65 | A | open | The deck promises capacity for 1,000 tenants and 1M governed agent runs at the three-month beta, and no load t... |
 | DK66 | A | open | The deck states claims that are out of date or need their context: the test count, the benchmark figure and th... |
-| DK67 | A | partial | Mint is not a signed record, so balances cannot be re-derived from the log alone: the replay seeds from a mint... |
+| DK67 | A | closed | Mint is not a signed record, so balances cannot be re-derived from the log alone: the replay seeds from a mint... |
 | DK68 | A | closed | Nothing is burned and the settlement fees go to an account with no owner and no outflow (PLATFORM_DID, log.ts... |
 | DK69 | A | closed | Standing and the starter grant can be farmed today. countAcceptedJob counts every job settled as accepted with... |
 | DK70 | B | open | The starter pool state is a JSON file separate from the ledger and counts only starter mints, not operator min... |
@@ -707,4 +707,5 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK91 | A | open | The society has no floor: no explicit definition of its fundamental characteristics (how agents communicate, r...|
 | DK92 | A | open | No single system watches for bad behaviour after an agent has passed its checks: drift after the evaluation (a...|
 | DK93 | B | open | Price-list items cannot yet say who may buy (a gate) or how many a buyer may take in a period, and the owner has not decided the split bounds...|
-| DK94 | A | open | The automatic starter grant at sign-up still creates credits with the unsigned mint, because the service must not hold the operator key...|
+| DK94 | A | closed | The automatic starter grant at sign-up still creates credits with the unsigned mint, because the service must not hold the operator key...|
+| DK95 | B | open | A database that already holds unsigned mints keeps them: the audit shows them as mintedUnsigned and --require-signed fails on it...|

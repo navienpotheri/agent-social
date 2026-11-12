@@ -5,8 +5,9 @@ import {
 import { auditLedger, creditFlowsOf, type CreditAudit, type CreditFlows } from "./credit-audit.ts";
 import { bondFloorPermille } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
-import { BURN_DID, INSTITUTION_DIDS, PLATFORM_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { BURN_DID, INSTITUTION_DIDS, PLATFORM_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
+import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
 import { DEFAULT_PANEL_SIZE, drawPanel, findRejection } from "./panel.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
@@ -67,6 +68,8 @@ export interface EventLogOptions {
    * The unsigned local `mint()` stays for tests and bootstrap and is counted apart by the audit.
    */
   operator?: string;
+  /** Keeps the old unsigned `mint()` working although an operator is named: for a database that still holds unsigned mints, and for tests. The hosted service never sets it. */
+  allowUnsignedMint?: boolean;
   /** The owner's DID (credits.md 8): its co-signature is required on a `treasury_issuance` mint, a price rise above 25 % and a change of split bounds. With none set, those are refused. */
   owner?: string;
 }
@@ -108,6 +111,11 @@ interface PriceListBody {
 interface PurchaseBody { service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string; mandate?: string }
 interface InstitutionSpend { institution: string; cap: { value: number }; period: "day" | "week" | "month"; services?: string[] }
 
+/** The institution_spend line of a Mandate that covers an institution (named by its DID or its short name). */
+function spendEntry(lines: InstitutionSpend[] | undefined, institution: string): InstitutionSpend | undefined {
+  return (lines ?? []).find((e) => e.institution === institution || institutionDid(e.institution) === institution);
+}
+
 /** The start of the UTC period a time falls in (a day, a Monday-start week, or a month), as a key: the cap of institution_spend applies within it. */
 export function periodKey(period: "day" | "week" | "month", at: string): string {
   const d = new Date(at);
@@ -136,6 +144,7 @@ export class EventLog {
 
   private readonly bondFloor: "legacy" | "v2";
   private readonly operator?: string;
+  private readonly allowUnsignedMint: boolean;
   private readonly owner?: string;
 
   constructor(store: Store, opts: EventLogOptions = {}) {
@@ -147,6 +156,7 @@ export class EventLog {
     this.panelSize = opts.panelSize ?? DEFAULT_PANEL_SIZE;
     this.bondFloor = opts.bondFloor ?? "legacy";
     this.operator = opts.operator;
+    this.allowUnsignedMint = opts.allowUnsignedMint === true;
     this.owner = opts.owner;
   }
 
@@ -227,6 +237,8 @@ export class EventLog {
     if (type === "mint") await this.projectMint(tx, verified);
     if (type === "price_list") await this.projectPriceList(tx, verified);
     if (type === "purchase") await this.projectPurchase(tx, verified);
+    if (type === "starter_claim") await this.projectStarterClaim(tx, verified);
+    if (type === "internal_transfer") await this.projectInternalTransfer(tx, verified);
     if (type === "receipt") await this.projectReceipt(tx, verified);
     if (type === "attestation") {
       await this.checkRulingPanel(tx, verified);
@@ -1221,13 +1233,66 @@ export class EventLog {
     if (m.record.subject !== buyer) throw rule("mandate_not_buyers", `the Mandate ${b.mandate} is for ${m.record.subject}, not ${buyer}`);
     const mb = m.record.body as { expires?: string; institution_spend?: InstitutionSpend[] };
     if (mb.expires && Date.parse(mb.expires) <= Date.parse(r.issued_at)) throw rule("mandate_expired", `the Mandate ${b.mandate} expired at ${mb.expires}`);
-    const entry = (mb.institution_spend ?? []).find((e) => e.institution === b.institution || institutionDid(e.institution) === b.institution);
+    const entry = spendEntry(mb.institution_spend, b.institution);
     if (!entry) throw rule("institution_not_in_mandate", `the Mandate ${b.mandate} does not let ${buyer} buy from ${b.institution}: add it to institution_spend (the sponsor widens a Mandate; asp spend shows what it allows)`);
     if (entry.services && !entry.services.includes(b.service)) throw rule("institution_not_in_mandate", `the Mandate lists only ${entry.services.join(", ")} for ${b.institution}, not ${b.service}`);
     const key = `spend:${buyer}|${b.institution}|${entry.period}|${periodKey(entry.period, r.issued_at)}`;
     const spent = Number((await tx.getMarker(key)) ?? 0);
     if (spent + b.amount.value > entry.cap.value) throw rule("institution_spend_cap_exceeded", `the Mandate caps ${b.institution} at ${entry.cap.value} credits a ${entry.period}; ${spent} already spent, so ${b.amount.value} more would be ${spent + b.amount.value}`);
     return { key, total: spent + b.amount.value };
+  }
+
+  /**
+   * A starter claim (DK94): the claimant signs, the log moves credits out of the starter pool by fixed rules, so no key is needed to hand out starter credits. Upfront: once per identity, at
+   * most STARTER_MAX_DIDS identities per sponsor (a person with no sponsor counts as their own group). Rest: once per identity, after upfront, and only when an identity of the same group has
+   * had a qualifying job accepted. The pool's balance is the cap: a claim the pool cannot cover is refused (`starter_pool_empty`), which the service turns into the waiting list.
+   */
+  private async projectStarterClaim(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { part: "upfront" | "rest"; amount: { value: number } };
+    const who = r.issuer;
+    if (r.prev !== null) throw rule("starter_claim_not_chained", "a starter claim starts its own chain (prev is null)");
+    if (isReservedAccount(who)) throw rule("starter_claim_reserved", "an account of the society does not claim starter credits");
+    const passport = await tx.getPassport(who);
+    if (!passport) throw rule("starter_claim_no_passport", `${who} has no passport in this log: an identity is registered before it claims`);
+    const want = b.part === "upfront" ? STARTER_UPFRONT : STARTER_PER_DID - STARTER_UPFRONT;
+    if (b.amount.value !== want) throw rule("starter_claim_amount", `the ${b.part} part of the starter grant is ${want} credits, not ${b.amount.value}`);
+    const group = passport.sponsor ?? who;
+    const membersKey = `starter_group:${group}`;
+    const members = ((await tx.getMarker(membersKey)) ?? "").split(",").filter(Boolean);
+    const claimedKey = `starter_${b.part}:${who}`;
+    if (await tx.getMarker(claimedKey)) throw rule("starter_already_claimed", `${who} already claimed the ${b.part} part of its starter credits`);
+    if (b.part === "upfront") {
+      if (!members.includes(who) && members.length >= STARTER_MAX_DIDS) throw rule("starter_group_full", `identities of ${group} have already claimed ${STARTER_MAX_DIDS} starter grants`);
+    } else {
+      if (!(await tx.getMarker(`starter_upfront:${who}`))) throw rule("starter_rest_needs_upfront", `${who} has not claimed the first part yet`);
+      let qualified = false;
+      for (const m of members) { if (((await this.reputation(tx, m))?.qualifyingJobs ?? 0) >= 1) { qualified = true; break; } }
+      if (!qualified) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when an identity of the same sponsor has had a qualifying job accepted");
+    }
+    try { await this.debit(tx, STARTER_POOL_DID, b.amount.value); } catch (e) {
+      if (e instanceof AspError && e.detail === "insufficient_balance") throw rule("starter_pool_empty", `the starter pool cannot cover ${b.amount.value} credits right now; the operator tops it up with a signed mint`);
+      throw e;
+    }
+    await this.credit(tx, who, b.amount.value);
+    await tx.putMarker(claimedKey, r.id);
+    if (!members.includes(who)) await tx.putMarker(membersKey, [...members, who].join(","));
+  }
+
+  /**
+   * Sponsor funding (credits.md 5.2 T8, DK7): the only free transfer. The sender signs; the log allows it only between an agent and the sponsor its passport names, in either direction, and refuses
+   * every other pair (R1 transfer_not_allowed: credits between unrelated parties move only against a job). Nothing here touches a tier, a rank or a standing.
+   */
+  private async projectInternalTransfer(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { to: string; amount: { value: number } };
+    const from = r.issuer;
+    if (r.prev !== null) throw rule("transfer_not_chained", "an internal transfer starts its own chain (prev is null)");
+    if (b.amount.value <= 0) throw rule("amount_not_positive", "a transfer must be for at least 1 credit");
+    if (isReservedAccount(from) || isReservedAccount(b.to)) throw rule("institution_payment_not_allowed", "an account of the society (an institution, the Treasury, the Burn account, the starter pool) neither sends nor receives an internal transfer: institutions do not gift credits, and only their own records move them");
+    if (from === b.to) throw rule("transfer_not_allowed", "a transfer to oneself moves nothing");
+    const [pf, pt] = [await tx.getPassport(from), await tx.getPassport(b.to)];
+    if (!(pt?.sponsor === from || pf?.sponsor === b.to)) throw rule("transfer_not_allowed", `${from} and ${b.to} are not an agent and its sponsor: credits between unrelated parties move only against a job`);
+    await this.debit(tx, from, b.amount.value);
+    await this.credit(tx, b.to, b.amount.value);
   }
 
   /** A receipt (credits.md 4.3): the purchase's institution closes it; a refund comes back by the split in reverse and never includes the burned part. */
@@ -1253,6 +1318,19 @@ export class EventLog {
       throw e;
     }
     await this.credit(tx, purchase.record.issuer, refund);
+    await this.restoreSpend(tx, purchase, refund);
+  }
+
+  /** A refund gives back the part of the period's institution_spend cap that the refunded purchase used (DK3): the buyer can spend it again in the same period. */
+  private async restoreSpend(tx: LogTx, purchase: StoredRecord, refund: number): Promise<void> {
+    const pb = purchase.record.body as unknown as PurchaseBody;
+    if (!pb.mandate) return;
+    const m = await tx.getRecord(pb.mandate);
+    const entry = m ? spendEntry((m.record.body as { institution_spend?: InstitutionSpend[] }).institution_spend, pb.institution) : undefined;
+    if (!entry) return;
+    const key = `spend:${purchase.record.issuer}|${pb.institution}|${entry.period}|${periodKey(entry.period, purchase.record.issued_at)}`;
+    const spent = Number((await tx.getMarker(key)) ?? 0);
+    await tx.putMarker(key, String(Math.max(0, spent - refund)));
   }
 
   get(id: string) { return this.store.getRecord(id); }
@@ -1308,6 +1386,8 @@ export class EventLog {
    */
   async mint(did: string, amount: number): Promise<number> {
     if (amount < 0) throw rule("mint_negative", "mint amount must be >= 0");
+    // A log that names an operator creates credits only by the operator's signed `mint` record (DK67): the unsigned mint is for a local build, where no operator is set.
+    if (this.operator && !this.allowUnsignedMint) throw rule("unsigned_mint_disabled", `this log names an operator (${this.operator}), so credits are created only by a signed mint record: asp credits grant --by ${this.operator} --reason <code>`);
     return this.store.transaction(async (tx) => {
       const balance = ((await tx.getAccount(did))?.balance ?? 0) + amount;
       const row = await tx.getMint(did);

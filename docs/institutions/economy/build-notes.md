@@ -94,3 +94,11 @@ The operator signs mint records on their own machine; the service never holds th
 - **Cap period.** UTC calendar day, Monday-start week, or calendar month, keyed by the purchase's `issued_at`; the running total is a marker per buyer, institution, period and period start. A refund does not restore the cap (conservative; a gap).
 - **Which Mandate.** The purchase names it (`mandate`); a Mandate belongs to a contract, so an agent without a running job has no Mandate to name. The default Mandate for a new agent (credits.md 4.4) and a standing budget outside a job are not built; they are the main thing between this slice and an agent that spends on its own.
 - **Tier limit.** Below tier 3, each cap and the sum of caps in one period stay within TIER_SPEND_LIMIT (tier 1: 100, tier 2: 1000), checked when the Mandate is appended.
+
+## The starter claim, signed-only mints, sponsor funding (DK94, DK67, DK7; spec-deltas S173 and S174)
+
+- **No key on the service.** The operator funds the reserved starter pool (`did:web:asp.local:starter-pool`) with signed mints made on their own machine; a new identity signs its own `starter_claim`; the service only checks tenant eligibility (a verified Google account, once, up to two identities) and passes the claim to the log. The tenant cannot append a claim itself (court guard), so the per-account rule cannot be bypassed.
+- **The pool replaces the cap file as the cap.** In signed mode the pool's balance is the limit; the waiting list still works (a claim the pool cannot cover puts the tenant on it). The old cap file and counter are untouched when no operator is named.
+- **Signed-only is a property of a log that names an operator.** `EventLog.mint()` is refused there; `allowUnsignedMint` keeps it for a database that already has unsigned mints and for tests. A database with old unsigned mints keeps them (DK95).
+- **Default budget deviation.** credits.md 4.4 proposed Academy 60, Shops 20 and upkeep 30 a month; together they are 110 and break the tier 1 sum limit of 100. The default is Academy 60 and Shops 40, upkeep inside the Shops line. The owner may prefer other numbers.
+- **Sponsor funding is only between an agent and the sponsor its passport names.** Two agents of one sponsor cannot move credits to each other (credits.md allows that only through a job, and says such a job does not count for standing).

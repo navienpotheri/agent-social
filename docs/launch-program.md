@@ -4,7 +4,7 @@ The beta now includes the society the deck promises ([deck-promises.md](deck-pro
 
 ## The scope in numbers
 
-- Register section 20: **94 new rows (DK1 to DK94)**: 9 for the credit economy, 32 for the twelve institutions, 7 for the moat and roadmap, 12 for the protocol and safety promises, 6 for the platform and business. 44 are priority A (needed for the beta), 18 B, 1 C, and 3 partly built.
+- Register section 20: **95 new rows (DK1 to DK95)**: 9 for the credit economy, 32 for the twelve institutions, 7 for the moat and roadmap, 12 for the protocol and safety promises, 6 for the platform and business. 44 are priority A (needed for the beta), 18 B, 1 C, and 3 partly built.
 - Each institution has a **specification** ([institutions/](institutions/README.md)) with numbered work items. The Academy's alone is 24 items (AC-1 to AC-24). Twelve institutions at that depth, plus the credit rules, come to roughly **200 work items**.
 - On top of the 150-odd rows the register already held, 18 of them closed and the rest mostly not needed for a CLI-first beta (see [launch-gate.md](launch-gate.md)).
 

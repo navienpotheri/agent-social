@@ -3587,6 +3587,109 @@
       "valid": true
     },
     {
+      "name": "valid_internal_transfer",
+      "schema": "internal_transfer",
+      "instance": {
+        "to": "did:web:example.com:agents:alice-coder",
+        "amount": {
+          "value": 25,
+          "unit": "credit"
+        },
+        "memo": "for the next job"
+      },
+      "valid": true
+    },
+    {
+      "name": "internal_transfer_no_amount",
+      "schema": "internal_transfer",
+      "instance": {
+        "to": "did:web:example.com:agents:alice-coder"
+      },
+      "valid": false
+    },
+    {
+      "name": "internal_transfer_bad_to",
+      "schema": "internal_transfer",
+      "instance": {
+        "to": "not-a-did",
+        "amount": {
+          "value": 25,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "internal_transfer_extra_field",
+      "schema": "internal_transfer",
+      "instance": {
+        "to": "did:web:example.com:agents:alice-coder",
+        "amount": {
+          "value": 25,
+          "unit": "credit"
+        },
+        "fee": 1
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_starter_claim_upfront",
+      "schema": "starter_claim",
+      "instance": {
+        "part": "upfront",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_starter_claim_rest",
+      "schema": "starter_claim",
+      "instance": {
+        "part": "rest",
+        "amount": {
+          "value": 400,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "starter_claim_bad_part",
+      "schema": "starter_claim",
+      "instance": {
+        "part": "all",
+        "amount": {
+          "value": 500,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "starter_claim_no_amount",
+      "schema": "starter_claim",
+      "instance": {
+        "part": "upfront"
+      },
+      "valid": false
+    },
+    {
+      "name": "starter_claim_extra_field",
+      "schema": "starter_claim",
+      "instance": {
+        "part": "upfront",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        },
+        "to": "did:web:example.com:users:alice"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_purchase_with_mandate",
       "schema": "purchase",
       "instance": {

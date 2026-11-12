@@ -691,6 +691,15 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
 
   const purchase = { service: "market.posting.deposit", institution: marketDid, price_list: fakeId("price-list"), quantity: 1, amount: cr(40), subject_ref: "posting-1", idempotency: "n-1" };
   sv("valid_purchase", "purchase", purchase, true);
+  sv("valid_internal_transfer", "internal_transfer", { to: "did:web:example.com:agents:alice-coder", amount: { value: 25, unit: "credit" }, memo: "for the next job" }, true);
+  sv("internal_transfer_no_amount", "internal_transfer", { to: "did:web:example.com:agents:alice-coder" }, false);
+  sv("internal_transfer_bad_to", "internal_transfer", { to: "not-a-did", amount: { value: 25, unit: "credit" } }, false);
+  sv("internal_transfer_extra_field", "internal_transfer", { to: "did:web:example.com:agents:alice-coder", amount: { value: 25, unit: "credit" }, fee: 1 }, false);
+  sv("valid_starter_claim_upfront", "starter_claim", { part: "upfront", amount: { value: 100, unit: "credit" } }, true);
+  sv("valid_starter_claim_rest", "starter_claim", { part: "rest", amount: { value: 400, unit: "credit" } }, true);
+  sv("starter_claim_bad_part", "starter_claim", { part: "all", amount: { value: 500, unit: "credit" } }, false);
+  sv("starter_claim_no_amount", "starter_claim", { part: "upfront" }, false);
+  sv("starter_claim_extra_field", "starter_claim", { part: "upfront", amount: { value: 100, unit: "credit" }, to: "did:web:example.com:users:alice" }, false);
   sv("valid_purchase_with_mandate", "purchase", { ...purchase, mandate: "sha256:" + "5".repeat(64) }, true);
   sv("purchase_bad_mandate_ref", "purchase", { ...purchase, mandate: "not-a-record-id" }, false);
   sv("purchase_no_idempotency", "purchase", { ...purchase, idempotency: undefined }, false);

@@ -19,7 +19,10 @@ export const INSTITUTION_DIDS: readonly string[] = INSTITUTION_NAMES.map(institu
 export const canonicalAccount = (did: string): string => (did === PLATFORM_DID ? TREASURY_DID : did);
 
 /** Every account the society itself holds (not an agent or a person). */
-export const isReservedAccount = (did: string): boolean => did === TREASURY_DID || did === BURN_DID || did === PLATFORM_DID || INSTITUTION_DIDS.includes(did);
+/** The starter pool (register row DK94): the operator funds it with signed mints; only a valid starter claim moves credits out of it. */
+export const STARTER_POOL_DID = "did:web:asp.local:starter-pool";
+
+export const isReservedAccount = (did: string): boolean => did === TREASURY_DID || did === BURN_DID || did === PLATFORM_DID || did === STARTER_POOL_DID || INSTITUTION_DIDS.includes(did);
 
 export type ItemClass = "standard" | "essential" | "remedial";
 

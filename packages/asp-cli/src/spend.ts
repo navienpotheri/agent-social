@@ -9,6 +9,28 @@ import type { LogHandle } from "@agent-social/asp-package";
 
 export class SpendUsage extends Error {}
 
+/**
+ * The default budget a new Mandate carries when its sponsor names none (credits.md 4.4, DK3): the Academy and the Shops, a month at a time. credits.md proposed Academy 60, Shops 20 and
+ * upkeep 30, which add up to 110 and so break its own tier rule (the caps of one period add up to at most 100 for a tier 1 agent); here upkeep sits inside the Shops line and the two add up to 100.
+ */
+export const DEFAULT_INSTITUTION_SPEND = [
+  { institution: "academy", cap: { value: 60, unit: "credit" as const }, period: "month" as const },
+  { institution: "shops", cap: { value: 40, unit: "credit" as const }, period: "month" as const },
+];
+
+/** Reads `--institution-spend academy=60/month` or `shops=40/week:shops.upkeep,shops.repair` (one flag for each line); `none` gives no budget at all, and no flag gives the default. */
+export function parseInstitutionSpend(flags: string[] | undefined): { institution: string; cap: { value: number; unit: "credit" }; period: "day" | "week" | "month"; services?: string[] }[] {
+  if (!flags?.length) return DEFAULT_INSTITUTION_SPEND.map((l) => ({ ...l, cap: { ...l.cap } }));
+  if (flags.length === 1 && flags[0] === "none") return [];
+  return flags.map((f) => {
+    const m = /^([a-z0-9:._-]+)=(\d+)\/(day|week|month)(?::([a-z0-9._,-]+))?$/.exec(f);
+    if (!m) throw new SpendUsage(`--institution-spend must look like academy=60/month or shops=40/week:shops.upkeep (got "${f}"), or be "none"`);
+    const cap = Math.trunc(Number(m[2]));
+    if (cap < 1) throw new SpendUsage("an institution_spend cap is at least 1 credit");
+    return { institution: m[1], cap: { value: cap, unit: "credit" as const }, period: m[3] as "day" | "week" | "month", ...(m[4] ? { services: m[4].split(",") } : {}) };
+  });
+}
+
 interface Line { institution: string; cap: { value: number }; period: "day" | "week" | "month"; services?: string[] }
 export interface SpendOpts {
   log: LogHandle;

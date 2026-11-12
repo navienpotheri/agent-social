@@ -83,3 +83,21 @@ test("asp credits grant --by: the operator signs a mint on their own machine; th
   assert.deepEqual([json.minted, json.mintedSigned, json.mintedUnsigned, json.verdict], [40, 40, 0, "balanced"]);
   assert.equal((await asp(home, ["credits", "balance", A])).out.includes("40 credits"), true);
 });
+
+test("asp credits fund: a sponsor funds its own agent and the agent returns credits; an unrelated pair is refused (DK7, T8 and R1)", async () => {
+  const home = mkdtempSync(join(tmpdir(), "asp-fund-"));
+  const SPONSOR = "did:web:example.com:users:sponsor", AGENT = "did:web:example.com:agents:funded", STRANGER = "did:web:example.com:users:stranger";
+  assert.equal((await asp(home, ["identity", "new", "--kind", "human", "--did", SPONSOR])).code, 0);
+  assert.equal((await asp(home, ["identity", "new", "--kind", "agent", "--did", AGENT, "--sponsor", SPONSOR, "--purpose", "Test"])).code, 0);
+  assert.equal((await asp(home, ["identity", "new", "--kind", "human", "--did", STRANGER])).code, 0);
+  assert.equal((await asp(home, ["credits", "grant", "--to", SPONSOR, "--amount", "100"])).code, 0);
+  assert.equal((await asp(home, ["credits", "grant", "--to", STRANGER, "--amount", "100"])).code, 0);
+  const ok = await asp(home, ["credits", "fund", "--from", SPONSOR, "--to", AGENT, "--amount", "40"]);
+  assert.equal(ok.code, 0, ok.err);
+  assert.match(ok.out, /balances: .*sponsor 60, .*funded 40/);
+  assert.equal((await asp(home, ["credits", "fund", "--from", AGENT, "--to", SPONSOR, "--amount", "10"])).code, 0);
+  const bad = await asp(home, ["credits", "fund", "--from", STRANGER, "--to", AGENT, "--amount", "10"]);
+  assert.equal(bad.code, 1);
+  assert.match(bad.err, /credits between unrelated parties move only against a job/);
+  assert.equal((await asp(home, ["credits", "audit", "--json"])).code, 0, "the books still balance");
+});

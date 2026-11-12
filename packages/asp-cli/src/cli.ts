@@ -189,6 +189,7 @@
  *     Bootstraps a DID's credit balance. Local, unsigned, not part of the tamper-evident log — a
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
+ *   asp credits fund --from <did> --to <did> --amount <n> [--memo <text>]   a sponsor funds its own agent, or an agent returns credits to its sponsor (the only free transfer; any other pair is refused)
  *   asp credits balance <did>
  *   asp spend <agent did> [--mandate <id>] [--json] | buy <service> --by <agent did> [--mandate <id>] [--quantity <n>]   what an agent may buy from the institutions (its Mandate's institution_spend), what it has spent this period and what is left; buy signs a purchase
  *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
@@ -223,7 +224,7 @@
  *   asp market bond --contract <id> --backer <did> --amount <n> --escrow-payer <did> --escrow-amount <n>
  *     Locks real credits: debits both the escrow payer and the backer for real (rejects with
  *     insufficient_balance rather than starting a job uncovered).
- *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--network-host <host> ...] [--network-rate-per-host <n>] [--network-rate-total <n>] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons]
+ *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--institution-spend <institution>=<cap>/<day|week|month>[:<service>,...] ... | none] [--network-host <host> ...] [--network-rate-per-host <n>] [--network-rate-total <n>] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons]
  *     --gate names granted scopes the irreversible policy applies to: with checkpoint (the default) a
  *     call to one needs the principal's approval first (asp run holds the call, raises a Checkpoint, and
  *     waits for asp market resolve; --approval-wait <seconds>, default 600, then it is refused); with
@@ -302,7 +303,7 @@ import { buildToday, buildTrend, periodOf, renderToday, renderTrend, type DaySes
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
-import { SpendUsage, spendCmd } from "./spend.ts";
+import { SpendUsage, parseInstitutionSpend, spendCmd } from "./spend.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -565,6 +566,7 @@ const OPTIONS = {
 
   // asp credits / asp market (Stage 2 slice 1)
   amount: { type: "string" },
+  memo: { type: "string" },
   by: { type: "string" },
   price: { type: "string" },
   budget: { type: "string" },
@@ -613,6 +615,7 @@ const OPTIONS = {
   verdict: { type: "string" },
   fault: { type: "string", multiple: true },
   "cosign-by": { type: "string", multiple: true },
+  "institution-spend": { type: "string", multiple: true },
 
   // asp market juror|panel (Courts, a real staked random panel)
   stake: { type: "string" },
@@ -824,6 +827,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "checkpoint") return await logCheckpoint(home, v, need, io);
     if (cmd === "credits" && (!sub || sub === "show")) return await creditsShow(home, io);
     if (cmd === "credits" && sub === "grant") return await creditsGrant(home, v, need, io);
+    if (cmd === "credits" && sub === "fund") return await creditsFund(home, v, need, io);
     if (cmd === "credits" && sub === "audit") return await creditsAudit(home, v, io);
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
     if (cmd === "world") return await worldCommand(home, sub, rest, v, io);
@@ -838,7 +842,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "institution-spend" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -1400,7 +1404,7 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
   const json = async (path: string, init?: RequestInit) => {
     const res = await call(path, init);
     const body = (await res.json().catch(() => undefined)) as any;
-    if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? `the service answered ${res.status} to ${path}`);
+    if (!res.ok || !body?.ok) throw Object.assign(new Error(body?.error?.message ?? `the service answered ${res.status} to ${path}`), { code: body?.error?.code as string | undefined, details: body?.error as Record<string, unknown> | undefined });
     return body;
   };
   if (sub === "show") {
@@ -1416,7 +1420,20 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
   if (sub === "starter") {
     const dids = (v.did ?? "").split(",").map((d) => d.trim()).filter(Boolean);
     if (!dids.length) throw new UsageError("asp account starter --did <did>[,<did>]: the identities (up to two, for example your principal and your agent) that get the starter credits; they must be identities you created through the service");
-    const r = await json("account/starter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dids }) });
+    const post = (extra: Record<string, unknown> = {}) => json("account/starter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dids, ...extra }) });
+    let r;
+    try { r = await post(); } catch (e) {
+      // The service holds no key (DK94): it names what to sign, each identity signs its own starter claim here, and the service passes it to the log.
+      const d = (e as { code?: string; details?: { part?: string; amount?: number; dids?: string[] } });
+      if (d.code !== "CLAIM_NEEDED" || !d.details?.dids?.length) throw e;
+      const keys = new Keystore(home);
+      const claims = d.details.dids.map((did) => {
+        const signer = keys.forDid(did);
+        if (!signer) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign its starter claim`);
+        return createRecord({ type: "starter_claim", issuer: did, subject: did, prev: null, body: { part: d.details!.part, amount: { value: d.details!.amount, unit: "credit" as const } }, issued_at: now() }, signer);
+      });
+      r = await post({ claims });
+    }
     for (const g of r.granted) io.out(`${g.did}: +${g.credits} credits (balance ${g.balance})`);
     io.out(r.note);
     return 0;
@@ -2051,7 +2068,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       const tmp = `${file}.${process.pid}.tmp`;
       writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n");
       renameSync(tmp, file);
-    }, ...(v.packages ? { packagesRoot: resolve(v.packages) } : {}), ...(v.commons ? { commonsRoot: resolve(v.commons) } : {}), ...(v.runlogs ? { runLogsRoot: resolve(v.runlogs) } : {}), tenants: tenantSource!,
+    }, ...(io.env.ASP_OPERATOR_DID || process.env.ASP_OPERATOR_DID ? { signedStarter: true } : {}), ...(v.packages ? { packagesRoot: resolve(v.packages) } : {}), ...(v.commons ? { commonsRoot: resolve(v.commons) } : {}), ...(v.runlogs ? { runLogsRoot: resolve(v.runlogs) } : {}), tenants: tenantSource!,
     closeTenant: (name, tombstone) => {
       const file = v.tokens!;
       const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];
@@ -3691,6 +3708,21 @@ async function logVerify(home: string, v: Values, io: Io): Promise<number> {
  * Bootstraps a DID's credit balance (MOCKS.md #13): local, unsigned, not part of the tamper-evident
  * log — a closed-loop ledger with no cash-out still needs some way to get the first credits in.
  */
+/** asp credits fund --from <did> --to <did> --amount <n>: a sponsor funds its own agent, or an agent returns credits to its sponsor; the sender signs an internal_transfer (credits.md 5.2 T8, DK7). */
+async function creditsFund(home: string, v: Values, need: Need, io: Io): Promise<number> {
+  const from = need("from"), to = need("to");
+  const amount = Math.trunc(Number(need("amount")));
+  if (!Number.isFinite(amount) || amount < 1) throw new UsageError("--amount must be a whole number of credits, 1 or more");
+  const signer = new Keystore(home).forDid(from);
+  if (!signer) throw new Error(`no key for ${from} in ${join(home, "keys")}: only the sender can sign a transfer`);
+  const local = await openLog(home, logEnv);
+  const record = createRecord({ type: "internal_transfer", issuer: from, subject: to, prev: null, body: { to, amount: { value: amount, unit: "credit" as const }, ...(v.memo ? { memo: v.memo } : {}) }, issued_at: now() }, signer);
+  const res = await local.append(record);
+  io.out(`${from} sent ${amount} credits to ${to} (record ${res.id}, log seq ${res.seq}); only an agent and its sponsor may do this, any other transfer is refused`);
+  io.out(`  balances: ${from} ${await local.log.balance(from)}, ${to} ${await local.log.balance(to)}`);
+  return 0;
+}
+
 async function creditsGrant(home: string, v: Values, need: Need, io: Io): Promise<number> {
   const to = need("to");
   const amount = Math.trunc(Number(need("amount")));
@@ -3993,6 +4025,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       learning: { scope: "harness" as const, share_to_commons: v["share-to-commons"] ?? false },
       self_modification: "principal_approves" as const,
       overlay: null, checkpoints: [] as string[], expires: cbody.deadline, revocable: true as const,
+      // What the agent may buy from the institutions: the default (the Academy and the Shops, a month at a time) unless the sponsor names lines or says none (DK3).
+      ...(() => { try { const lines = parseInstitutionSpend(v["institution-spend"]); return lines.length ? { institution_spend: lines } : {}; } catch (e) { if (e instanceof SpendUsage) throw new UsageError(e.message); throw e; } })(),
     };
     const record = createRecord({ type: "mandate", issuer: principal, subject: performer, prev: bond.id, body, issued_at: now() }, signerFor(principal));
     const res = await local.append(record);
