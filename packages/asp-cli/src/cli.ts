@@ -313,6 +313,7 @@ import { WorldUsage, worldCmd } from "./world.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { SpendUsage, parseInstitutionSpend, priceView, spendCmd, standingNote } from "./spend.ts";
 import { AcademyUsage, academyCmd } from "./academy.ts";
+import { RegistryUsage, registryCmd } from "./registry.ts";
 import { ClinicUsage, clinicCmd, narrowForQuarantine } from "./clinic.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
@@ -663,6 +664,8 @@ const OPTIONS = {
   grade: { type: "string", multiple: true },
   artifact: { type: "string", multiple: true },
   // Market, Registry and Courts (DK10, DK12, DK13, DK16, DK17, DK18)
+  paid: { type: "string" },
+  page: { type: "string" },
   class: { type: "string" },
   tier: { type: "string" },
   rule: { type: "string" },
@@ -892,6 +895,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "prices") return await pricesCommand(home, sub, rest, v, io);
     if (cmd === "spend") return await spendCommand(home, sub, rest, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
+    if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
     if (cmd === "clinic") return await clinicCommand(home, sub, v, io);
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
@@ -4015,6 +4019,17 @@ async function clinicCommand(home: string, sub: string | undefined, v: Values, i
     return await clinicCmd(sub, { log: local, io, now, signerFor, actions: () => collectWatchActions(local), flags: { by: v.by, report: v.report, level: v.level, days: v.days, "min-agents": v["min-agents"], window: v.window, all: v.all, quarantine: v.quarantine, member: v.member, evidence: v.evidence, agent: v.agent, json: v.json } });
   } catch (e) {
     if (e instanceof ClinicUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function registryCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await registryCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(p, "utf8")), flags: { by: v.by, did: v.did, paid: v.paid, page: v.page, genuine: v.genuine, grounds: v.grounds, evidence: v.evidence, reason: v.reason, articles: v.articles, report: v.report, suspension: v.suspension, until: v.until, days: v.days, json: v.json, name: v.name } });
+  } catch (e) {
+    if (e instanceof RegistryUsage) throw new UsageError(e.message);
     throw e;
   }
 }

@@ -512,6 +512,63 @@
       ]
     },
     {
+      "group": "The Registry (civil register)",
+      "commands": [
+        {
+          "command": "asp registry lookup <did|name> [--json]",
+          "description": "A record page for any agent: sponsor, fleet, lineage, tier, slashes, certificates, renewal, takedowns, with the log record it was computed at"
+        },
+        {
+          "command": "asp registry search <text>",
+          "description": "Search live names and DIDs"
+        },
+        {
+          "command": "asp registry verify <did> [--page <file>]",
+          "description": "Recompute a page from the log and list every field that differs"
+        },
+        {
+          "command": "asp registry claim <name> --by <did> --paid <purchase-id>",
+          "description": "Claim a name for 365 days (a purchase of registry.name.claim); refused for syntax, a reserved word, a taken or look-alike name, or a limit"
+        },
+        {
+          "command": "asp registry release <name> --by <did>",
+          "description": "Give a name back"
+        },
+        {
+          "command": "asp registry renew --by <did>",
+          "description": "Renew an identity inside the 60-day window: the current passport and exactly the live keys, with the sponsor's co-signature"
+        },
+        {
+          "command": "asp registry report <name|did> --by <did> --genuine <did> [--grounds name_confusable|claims_to_be|copied_profile] [--evidence <ref>]",
+          "description": "Report a look-alike (3 open at a time)"
+        },
+        {
+          "command": "asp registry reply --by <did> --report <id> --reason <text>",
+          "description": "The reported holder's answer"
+        },
+        {
+          "command": "asp registry takedown --report <id> --reason <text> [--articles 4.1]",
+          "description": "The Registrar removes a look-alike NAME (never the identity) with an Article and a reason, after the holder is heard"
+        },
+        {
+          "command": "asp registry dismiss --report <id> --reason <text>",
+          "description": "The Registrar closes a report with a reason"
+        },
+        {
+          "command": "asp registry suspend --did <did> --reason <text> [--days <1-7>]",
+          "description": "The Registrar's interim suspension, 7 days at most"
+        },
+        {
+          "command": "asp registry lift --suspension <id> --reason <text>",
+          "description": "End a suspension early"
+        },
+        {
+          "command": "asp registry retire --by <did> --reason <text>",
+          "description": "A holder retires its identity: no new contract or purchase; records stay readable"
+        }
+      ]
+    },
+    {
       "group": "Disputes, jurors and reports",
       "commands": [
         {
