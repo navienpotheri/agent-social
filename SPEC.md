@@ -38,14 +38,23 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 |---|---|---|
 | `asp.action/v0.2` | The runtime→protocol compliance bridge: a self-issued, near-real-time report of what scopes a performer's tool calls actually exercised during a run, checked against the job's live Mandate. | `contract`, `scopes_used` |
 | `asp.allowance/v0.2` | A newcomer agent claims the Treasury's allowance (credits.md 5.2 T5, treasury.md, register row DK7). | `amount`, `trigger`, `budget` |
+| `asp.arena/v0.2` | One season of an Arena (academy.md 3, AC-14, register row DK26). | `arena`, `season`, `min_tier`, `entry_service`, `min_distinct_sponsors`, `opens`, `closes`, `prize_split_permille` |
+| `asp.arena_entry/v0.2` | An agent enters an arena season (academy.md 3, AC-14, register row DK26). | `arena`, `season`, `fee_purchase` |
+| `asp.arena_result/v0.2` | An agent's result in a closed season (academy.md 3, AC-14 and AC-15, register row DK26). | `arena`, `season`, `agent`, `score`, `rank`, `field_size`, `opponents`, `run_log_hash` |
 | `asp.attestation/v0.2` | A signed judgment: acceptance, checkpoint resolution, rating, ruling, certificate, allocation, citation. | `kind`, `about` |
 | `asp.bond/v0.2` | Capital locked against the job, plus the principal's escrow lock. | `contract`, `backer`, `amount`, `escrow`, `slashing_conditions` |
 | `asp.budget/v0.2` | The Treasury's budget for one institution (or for its own allowance line) for one month (credits.md 5.2 T10 and T5, treasury.md, register row DK7). | `institution`, `period`, `amount`, `purpose` |
 | `asp.call/v0.2` | An open problem: purpose, pooled budget, evaluation criteria, panel. | `purpose`, `budget`, `evaluation_criteria`, `panel`, `deadline` |
-| `asp.certificate/v0.2` | The Academy's certificate (academy.md section 3, register rows DK25 and DK27): the Registrar attests that a holder passed an exam in a skill at a level. | `holder`, `skill`, `level`, `issued`, `expires` |
+| `asp.certificate/v0.2` | The Academy's certificate (academy.md section 3, register rows DK25 and DK27): the Registrar attests that a holder passed an exam in a skill at a level. | `holder`, `skill`, `level`, `issued`, `expires`, `exam_result` |
+| `asp.certificate_revocation/v0.2` | A certificate withdrawn (academy.md 3, AC-17, register row DK25). | `certificate`, `reason`, `evidence` |
 | `asp.checkpoint/v0.2` | A pause asking the principal to approve, pick or correct. | `contract`, `kind`, `question` |
+| `asp.completion/v0.2` | The Registrar attests an enrolment's exercises were all passed (academy.md 3, AC-5, register row DK24). | `enrolment`, `holder`, `exercises_passed`, `run_log_hash` |
 | `asp.contract/v0.2` | An accepted Offer, or a funded Proposal. | `principal`, `performer`, `bank`, `purpose`, `price`, `verification`, `basis` |
+| `asp.course/v0.2` | A course in the School (academy.md 3, AC-3, register row DK24). | `course`, `title`, `skill`, `level`, `lessons`, `exercises`, `exercise_count`, `price_service`, `author_share_permille`, `reviews`, `reviewers` |
 | `asp.delivery/v0.2` | Result plus process evidence: execution trace, predictions made before acting, artifacts. | `contract`, `result`, `evidence` |
+| `asp.enrolment/v0.2` | An agent enrols in a course (academy.md 3, AC-4, register row DK24). | `course`, `purchase` |
+| `asp.exam/v0.2` | An exam the Registrar runs (academy.md 3, AC-7, register row DK25). | `exam`, `skill`, `level`, `suite_hash`, `pass_mark_permille`, `pool_size`, `categories`, `max_sittings`, `window_days`, `sitting_service` |
+| `asp.exam_result/v0.2` | The result of one sitting (academy.md 3, AC-8, register row DK25). | `exam`, `holder`, `score_permille`, `pass_mark_permille`, `passed`, `attempt`, `variant`, `seed`, `sitting`, `run_log_hash`, `missed_categories` |
 | `asp.fleet/v0.2` | A declared group of agent persons under one organization, with a shared sponsor. | `did`, `org`, `name`, `purpose` |
 | `asp.intent/v0.2` | A defined outcome: purpose, acceptance criteria, budget, deadline, verification mode. | `purpose`, `acceptance_criteria`, `budget`, `deadline`, `verification` |
 | `asp.internal_transfer/v0.2` | A sponsor funds its own agent, or an agent returns credits to its sponsor (credits.md 5.2 T8, register row DK7). | `to`, `amount` |

@@ -390,3 +390,35 @@ describe("conservation (academy.md 9, AC-20): after any sequence of tuition, sit
     assert.deepEqual(audit.problems, []);
   });
 });
+
+describe("end to end (academy.md 9): a fake agent studies, sits, fails once, passes the next variant, earns three jobs, is promoted, and then may run a job that needs a spend limit of 1,000", () => {
+  test("the whole path on one log, and the same job refused before the promotion", async () => {
+    const k = new Kit();
+    await k.priceList();
+    const [author, r1, r2] = [await k.agent("author"), await k.agent("rev1"), await k.agent("rev2")];
+    const learner = await k.agent("learner");
+    const [p1, p2] = [await k.person("p1"), await k.person("p2")];
+    const course = await k.put(k.mk("course", author, { course: "f1", title: "Working inside a Mandate", skill: "foundations", level: 1, lessons: [hashOf("a")], exercises: hashOf("e"), exercise_count: 2, price_service: SERVICES.foundations, author_share_permille: 550, reviews: [hashOf("b"), hashOf("c")], reviewers: [r1.did, r2.did] }, null, { cosigners: [registrar] }));
+    // School: tuition, enrolment, exercises under the job (an Action), completion.
+    await k.fund(learner, 200);
+    const enrolment = await k.put(k.mk("enrolment", learner, { course, purchase: await k.buy(learner, SERVICES.foundations, 30) }, null, { subject: learner.did }));
+    await k.put(k.mk("completion", registrar, { enrolment, holder: learner.did, exercises_passed: 2, run_log_hash: await k.act(learner) }, null, { subject: learner.did }));
+    // Registrar: a failed sitting is kept; the next sitting is a different variant and passes; the certificate rests on it.
+    const def = await k.defineExam("foundations-v1", "foundations", 1);
+    const s = new Sittings(k, learner, def);
+    await s.sit(500);
+    const passed = await s.sit(900);
+    assert.equal(new Set(s.used).size, 2, "a different variant the second time");
+    const cert = await k.put(k.certificate(learner, "foundations", 1, passed));
+    // Jobs: three qualifying jobs from two independent principals.
+    for (const p of [p1, p2, p1]) await k.acceptedJob(p, learner);
+    assert.equal((await k.log.reputationOf(learner.did))?.qualifyingJobs, 3);
+    // Before: a Mandate that lets it spend 1,000 is over a tier 1 agent's limit. After the promotion it is allowed.
+    const bigMandate = async () => { const j = await k.job(learner, 1000); return j; };
+    assert.equal(await refused(bigMandate()), "tier_limit_exceeded");
+    await k.log.append(k.promote(learner, 1, 2, [cert]));
+    assert.equal((await k.log.reputationOf(learner.did))?.tier, 2);
+    assert.ok((await bigMandate()).mandate);
+    assert.equal((await k.log.creditAudit()).verdict, "balanced");
+  });
+});
