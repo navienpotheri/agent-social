@@ -62,6 +62,16 @@
         }
       }
     },
+    "remedial": {
+      "description": "A remedial Mandate (clinic.md CL-10, register row DK140): the only Mandate an agent at tier 0 (excluded by repeat slashes) may receive, so that it can sit a Clinic exam or take a remedial course. The log accepts it only for an agent at tier 0, only with read-only scopes (each ends in .read, .list, .search or .get), no network scope, spend 0 (cap and per_action_max), no subcontracting, one node, institution_spend only for the Academy or the Clinic, an expiry within 14 days of the record, and a Bond whose backer is the agent's sponsor (the agent itself cannot be a backer at tier 0). The only things bought under it are remedial or essential items. Credits never buy it.",
+      "type": "object",
+      "required": ["purpose", "sponsor"],
+      "additionalProperties": false,
+      "properties": {
+        "purpose": { "enum": ["clinic_exam", "remedial_course"] },
+        "sponsor": { "description": "The agent's sponsor, who backs the Bond.", "$ref": "urn:asp:v0.2:common#/$defs/did" }
+      }
+    },
     "spend": {
       "type": "object",
       "required": ["cap", "unit"],

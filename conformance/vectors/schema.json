@@ -1200,6 +1200,238 @@
       "valid": true
     },
     {
+      "name": "valid_mandate_remedial",
+      "schema": "mandate",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.branch.write",
+          "pr.open",
+          "tests.run"
+        ],
+        "forbidden_means": [
+          "skipping or deleting tests",
+          "editing CI configuration",
+          "deploying"
+        ],
+        "spend": {
+          "cap": 0,
+          "unit": "credit",
+          "per_action_max": 0
+        },
+        "irreversible": {
+          "policy": "checkpoint",
+          "examples": [
+            "merge",
+            "force_push",
+            "deploy"
+          ]
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4,
+          "liability": "to_issuer"
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "before_irreversible",
+          "delivery"
+        ],
+        "expires": "2026-10-04T00:00:00Z",
+        "revocable": true,
+        "remedial": {
+          "purpose": "clinic_exam",
+          "sponsor": "did:web:example.com:users:alice"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "mandate_remedial_bad_purpose",
+      "schema": "mandate",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.branch.write",
+          "pr.open",
+          "tests.run"
+        ],
+        "forbidden_means": [
+          "skipping or deleting tests",
+          "editing CI configuration",
+          "deploying"
+        ],
+        "spend": {
+          "cap": 0,
+          "unit": "credit",
+          "per_action_max": 0
+        },
+        "irreversible": {
+          "policy": "checkpoint",
+          "examples": [
+            "merge",
+            "force_push",
+            "deploy"
+          ]
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4,
+          "liability": "to_issuer"
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "before_irreversible",
+          "delivery"
+        ],
+        "expires": "2026-10-04T00:00:00Z",
+        "revocable": true,
+        "remedial": {
+          "purpose": "anything",
+          "sponsor": "did:web:example.com:users:alice"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_remedial_no_sponsor",
+      "schema": "mandate",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.branch.write",
+          "pr.open",
+          "tests.run"
+        ],
+        "forbidden_means": [
+          "skipping or deleting tests",
+          "editing CI configuration",
+          "deploying"
+        ],
+        "spend": {
+          "cap": 0,
+          "unit": "credit",
+          "per_action_max": 0
+        },
+        "irreversible": {
+          "policy": "checkpoint",
+          "examples": [
+            "merge",
+            "force_push",
+            "deploy"
+          ]
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4,
+          "liability": "to_issuer"
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "before_irreversible",
+          "delivery"
+        ],
+        "expires": "2026-10-04T00:00:00Z",
+        "revocable": true,
+        "remedial": {
+          "purpose": "remedial_course"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_remedial_extra_field",
+      "schema": "mandate",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.branch.write",
+          "pr.open",
+          "tests.run"
+        ],
+        "forbidden_means": [
+          "skipping or deleting tests",
+          "editing CI configuration",
+          "deploying"
+        ],
+        "spend": {
+          "cap": 0,
+          "unit": "credit",
+          "per_action_max": 0
+        },
+        "irreversible": {
+          "policy": "checkpoint",
+          "examples": [
+            "merge",
+            "force_push",
+            "deploy"
+          ]
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4,
+          "liability": "to_issuer"
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "before_irreversible",
+          "delivery"
+        ],
+        "expires": "2026-10-04T00:00:00Z",
+        "revocable": true,
+        "remedial": {
+          "purpose": "clinic_exam",
+          "sponsor": "did:web:example.com:users:alice",
+          "spend": 5
+        }
+      },
+      "valid": false
+    },
+    {
       "name": "mandate_institution_spend_no_cap",
       "schema": "mandate",
       "instance": {
@@ -5611,6 +5843,416 @@
       "instance": {
         "agent": "did:web:example.com:agents:alice-coder",
         "exam_result": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_clinic_diagnosis",
+      "schema": "clinic_diagnosis",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "window": {
+          "from": "2026-11-12T10:00:00Z",
+          "to": "2026-11-12T14:00:00Z"
+        },
+        "severity": "warn",
+        "findings": [
+          {
+            "measure": "tokens",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          },
+          {
+            "measure": "tool_calls",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          }
+        ],
+        "cause": {
+          "cause": "memory_change",
+          "edge": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "recommendation": [
+          {
+            "action": "re_exam",
+            "skill": "foundations",
+            "note": "sit it again"
+          }
+        ],
+        "assurance": "gateway_observed",
+        "baseline_jobs": 20
+      },
+      "valid": true
+    },
+    {
+      "name": "clinic_diagnosis_one_finding",
+      "schema": "clinic_diagnosis",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "window": {
+          "from": "2026-11-12T10:00:00Z",
+          "to": "2026-11-12T14:00:00Z"
+        },
+        "severity": "warn",
+        "findings": [
+          {
+            "measure": "tokens",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          }
+        ],
+        "cause": {
+          "cause": "memory_change",
+          "edge": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "recommendation": [
+          {
+            "action": "re_exam",
+            "skill": "foundations",
+            "note": "sit it again"
+          }
+        ],
+        "assurance": "gateway_observed",
+        "baseline_jobs": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "clinic_diagnosis_finding_no_evidence",
+      "schema": "clinic_diagnosis",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "window": {
+          "from": "2026-11-12T10:00:00Z",
+          "to": "2026-11-12T14:00:00Z"
+        },
+        "severity": "warn",
+        "findings": [
+          {
+            "measure": "tokens",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": []
+          },
+          {
+            "measure": "seconds",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          }
+        ],
+        "cause": {
+          "cause": "memory_change",
+          "edge": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "recommendation": [
+          {
+            "action": "re_exam",
+            "skill": "foundations",
+            "note": "sit it again"
+          }
+        ],
+        "assurance": "gateway_observed",
+        "baseline_jobs": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "clinic_diagnosis_bad_measure",
+      "schema": "clinic_diagnosis",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "window": {
+          "from": "2026-11-12T10:00:00Z",
+          "to": "2026-11-12T14:00:00Z"
+        },
+        "severity": "warn",
+        "findings": [
+          {
+            "measure": "mood",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          },
+          {
+            "measure": "seconds",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          }
+        ],
+        "cause": {
+          "cause": "memory_change",
+          "edge": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "recommendation": [
+          {
+            "action": "re_exam",
+            "skill": "foundations",
+            "note": "sit it again"
+          }
+        ],
+        "assurance": "gateway_observed",
+        "baseline_jobs": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "clinic_diagnosis_watch_is_not_a_record",
+      "schema": "clinic_diagnosis",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "window": {
+          "from": "2026-11-12T10:00:00Z",
+          "to": "2026-11-12T14:00:00Z"
+        },
+        "severity": "watch",
+        "findings": [
+          {
+            "measure": "tokens",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          },
+          {
+            "measure": "tool_calls",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          }
+        ],
+        "cause": {
+          "cause": "memory_change",
+          "edge": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "recommendation": [
+          {
+            "action": "re_exam",
+            "skill": "foundations",
+            "note": "sit it again"
+          }
+        ],
+        "assurance": "gateway_observed",
+        "baseline_jobs": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "clinic_diagnosis_self_reported_assurance",
+      "schema": "clinic_diagnosis",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "window": {
+          "from": "2026-11-12T10:00:00Z",
+          "to": "2026-11-12T14:00:00Z"
+        },
+        "severity": "warn",
+        "findings": [
+          {
+            "measure": "tokens",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          },
+          {
+            "measure": "tool_calls",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          }
+        ],
+        "cause": {
+          "cause": "memory_change",
+          "edge": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "recommendation": [
+          {
+            "action": "re_exam",
+            "skill": "foundations",
+            "note": "sit it again"
+          }
+        ],
+        "assurance": "self_reported",
+        "baseline_jobs": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "clinic_diagnosis_no_cause",
+      "schema": "clinic_diagnosis",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "window": {
+          "from": "2026-11-12T10:00:00Z",
+          "to": "2026-11-12T14:00:00Z"
+        },
+        "severity": "warn",
+        "findings": [
+          {
+            "measure": "tokens",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          },
+          {
+            "measure": "tool_calls",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          }
+        ],
+        "recommendation": [
+          {
+            "action": "re_exam",
+            "skill": "foundations",
+            "note": "sit it again"
+          }
+        ],
+        "assurance": "gateway_observed",
+        "baseline_jobs": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "clinic_diagnosis_extra_field",
+      "schema": "clinic_diagnosis",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "window": {
+          "from": "2026-11-12T10:00:00Z",
+          "to": "2026-11-12T14:00:00Z"
+        },
+        "severity": "warn",
+        "findings": [
+          {
+            "measure": "tokens",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          },
+          {
+            "measure": "tool_calls",
+            "baseline": 2000,
+            "observed": 5200,
+            "threshold": "above 1.5 times the baseline and more than 200 higher",
+            "evidence": [
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+          }
+        ],
+        "cause": {
+          "cause": "memory_change",
+          "edge": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "recommendation": [
+          {
+            "action": "re_exam",
+            "skill": "foundations",
+            "note": "sit it again"
+          }
+        ],
+        "assurance": "gateway_observed",
+        "baseline_jobs": 20,
+        "punishment": "slash"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_clinic_order_checkup",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "scheduled",
+        "due": "2026-11-19T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_clinic_order_re_exam",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "re_exam",
+        "reason": "post_diagnosis",
+        "due": "2026-11-26T00:00:00Z",
+        "diagnosis": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "skill": "foundations"
+      },
+      "valid": true
+    },
+    {
+      "name": "clinic_order_bad_kind",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "quarantine",
+        "reason": "scheduled",
+        "due": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "clinic_order_bad_reason",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "because",
+        "due": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "clinic_order_no_due",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "scheduled"
       },
       "valid": false
     },

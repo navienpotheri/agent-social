@@ -6,7 +6,7 @@
 import { createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
 import { CLINIC_DID, isQuarantineRisky } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
-import { findContagion, type WatchAction } from "@agent-social/asp-package";
+import { HEALTH, checkupDue, diagnosisOf, driftSeries, findContagion, jobOf, scoreSeries, type HealthJob, type HealthScore, type LineageMark, type WatchAction } from "@agent-social/asp-package";
 
 export class ClinicUsage extends Error {}
 
@@ -16,7 +16,7 @@ export interface ClinicOpts {
   now: () => string;
   signerFor: (did: string) => Signer;
   actions: () => Promise<WatchAction[]>;
-  flags: { by?: string; report?: string; level?: string; days?: string; "min-agents"?: string; window?: string; all?: boolean; quarantine?: string; member?: string; evidence?: string; agent?: string; json?: boolean; reason?: string; exam?: string; revouch?: string };
+  flags: { by?: string; report?: string; level?: string; days?: string; "min-agents"?: string; window?: string; all?: boolean; quarantine?: string; member?: string; evidence?: string; agent?: string; json?: boolean; reason?: string; exam?: string; revouch?: string; skill?: string; issue?: boolean; order?: string };
 }
 
 const DAY = 86_400_000;
@@ -49,6 +49,37 @@ export async function narrowForQuarantine<M extends { scopes: string[] }>(log: L
   return { ...mandate, scopes };
 }
 
+/** The Clinic's reading of one agent from the log: its Actions (with the assurance and metrics a drift series needs), its lineage edges, and the orders and diagnoses it already has. */
+async function healthRecords(log: LogHandle, only?: string) {
+  const agents = new Map<string, { jobs: HealthJob[]; marks: LineageMark[]; lastCheckup?: string; diagnoses: string[] }>();
+  const of = (did: string) => { let a = agents.get(did); if (!a) agents.set(did, (a = { jobs: [], marks: [], diagnoses: [] })); return a; };
+  for (let after = 0; ;) {
+    const page = await log.log.since(after, 500);
+    if (!page.length) break;
+    for (const s of page) {
+      after = s.seq;
+      const r = s.record;
+      if (r.type === "asp.action/v0.2" && (!only || r.issuer === only)) of(r.issuer).jobs.push(jobOf(s.id, r.issued_at, r.body as Parameters<typeof jobOf>[2]));
+      else if (r.type === "asp.lineage/v0.2") { const b = r.body as { child: string; change?: { layer: string } }; if ((!only || b.child === only) && b.change) of(b.child).marks.push({ id: s.id, at: r.issued_at, layer: b.change.layer }); }
+      else if (r.type === "asp.clinic_order/v0.2") { const b = r.body as { agent: string; kind: string }; if ((!only || b.agent === only) && b.kind === "checkup") of(b.agent).lastCheckup = r.issued_at; }
+      else if (r.type === "asp.clinic_diagnosis/v0.2") { const b = r.body as { agent: string }; if (!only || b.agent === only) of(b.agent).diagnoses.push(s.id); }
+    }
+  }
+  return agents;
+}
+
+/** The score at the end of an agent's series, and the same after its newest lineage edge when five or more jobs follow it (a post-change checkup); the worse of the two. */
+function scoreAgent(jobs: HealthJob[], marks: LineageMark[]): { score: HealthScore; series: HealthJob[] } {
+  const { series, skippedUnobserved } = driftSeries(jobs);
+  const rank = { unmeasured: 0, ok: 1, watch: 2, warn: 3, quarantine_recommended: 4 } as const;
+  let best = scoreSeries(series, series.length - 1, marks, skippedUnobserved);
+  for (const m of [...marks].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 1)) {
+    const post = scoreSeries(series, series.length - 1, marks, skippedUnobserved, m.at);
+    if (rank[post.severity] > rank[best.severity]) best = post;
+  }
+  return { score: best, series };
+}
+
 export async function clinicCmd(sub: string | undefined, o: ClinicOpts): Promise<number> {
   const f = o.flags;
   const records = async (did?: string) => (await o.log.log.quarantinesOf(did)) as AspRecord[];
@@ -68,6 +99,53 @@ export async function clinicCmd(sub: string | undefined, o: ClinicOpts): Promise
       o.io.out(`  ${q.id}  ${b.level}  ${live.length}/${b.members.length} member(s) frozen until ${b.until}  ${b.reason}`);
     }
     return 0;
+  }
+  if (sub === "series" || sub === "checkup" || sub === "diagnoses") {
+    // The health service (DK28, clinic.md CL-1 to CL-4): the drift series of an agent from the gateway-observed Actions in the log, a checkup that scores it against its own baseline, and, with --issue, the Clinic's
+    // signed diagnosis (evidence listed) and an order for a re-exam. Nothing here slashes, quarantines or edits anything: a quarantine is a separate Clinic act the diagnosis recommends.
+    const by = f.by ?? CLINIC_DID;
+    const all = await healthRecords(o.log, f.agent);
+    const targets = f.agent ? [f.agent] : [...all.keys()].sort();
+    if (!targets.length) { o.io.out("no Actions in the log: nothing to read"); return 0; }
+    if (sub === "diagnoses") {
+      for (const t of targets) {
+        for (const id of all.get(t)?.diagnoses ?? []) {
+          const d = (await o.log.log.get(id))!.record.body as { severity: string; window: { from: string; to: string }; findings: { measure: string; evidence: string[] }[]; cause: { cause: string } };
+          o.io.out(`${id}  ${t}  ${d.severity}  ${d.window.from} to ${d.window.to}  cause ${d.cause.cause}  ${d.findings.map((x) => `${x.measure}(${x.evidence.length})`).join(", ")}`);
+        }
+      }
+      return 0;
+    }
+    let flagged = 0;
+    for (const t of targets) {
+      const a = all.get(t) ?? { jobs: [], marks: [], diagnoses: [] };
+      const { score, series } = scoreAgent(a.jobs, a.marks);
+      if (sub === "series") {
+        o.io.out(`${t}: ${series.length} gateway-observed job(s)${score.skippedUnobserved ? `, ${score.skippedUnobserved} left out (not observed by a gateway)` : ""}`);
+        for (const j of series.slice(-(f.all ? series.length : 20))) o.io.out(`  ${j.issuedAt}  ${j.id}  tokens ${j.tokens}  tool calls ${j.toolCalls}  seconds ${j.seconds}  refused ${j.blocked}  ${j.scopes.join(",")}`);
+        continue;
+      }
+      const due = checkupDue(a.lastCheckup, a.marks, o.now());
+      o.io.out(`${t}: ${score.severity.toUpperCase()}${score.severity === "unmeasured" ? ` (${score.observedJobs} observed job(s), ${score.baselineJobs} in the baseline; a window needs ${HEALTH.window} after ${HEALTH.minBaseline} or more: nothing is flagged, and this is not a clean bill)` : ` (window of ${HEALTH.window} jobs against ${score.baselineJobs} before)`}${due ? `; a ${due.replace("_", " ")} checkup is due` : ""}`);
+      for (const x of score.findings) o.io.out(`    ${x.measure}: baseline ${x.baseline}, observed ${x.observed}; ${x.threshold}; evidence ${x.evidence.join(", ")}`);
+      if (score.severity === "warn" || score.severity === "quarantine_recommended") flagged++;
+      if (!f.issue) continue;
+      const at = o.now();
+      if (due) {
+        try {
+          await o.log.append(createRecord({ type: "clinic_order", issuer: by, subject: t, prev: null, body: { agent: t, kind: "checkup", reason: due, due: iso(Date.parse(at) + 7 * DAY) }, issued_at: at }, o.signerFor(by)));
+          o.io.out(`    checkup order issued (${due}), due within 7 days`);
+        } catch (e) { o.io.out(`    no new checkup order: ${(e as Error).message}`); }
+      }
+      const d = diagnosisOf(t, score, f.skill ?? "foundations");
+      if (!d) continue;
+      const res = await o.log.append(createRecord({ type: "clinic_diagnosis", issuer: by, subject: t, prev: null, body: { ...d }, issued_at: o.now() }, o.signerFor(by)));
+      o.io.out(`    diagnosis ${res.id} (${d.severity}, cause ${d.cause.cause}${d.cause.edge ? ` after ${d.cause.edge}` : ""}), ${d.findings.length} finding(s), ${new Set(d.findings.flatMap((x) => x.evidence)).size} piece(s) of evidence`);
+      const kind = f.order === "refresher_course" ? "refresher_course" : "re_exam";
+      const ores = await o.log.append(createRecord({ type: "clinic_order", issuer: by, subject: t, prev: null, body: { agent: t, kind, reason: "post_diagnosis", due: iso(Date.parse(o.now()) + 14 * DAY), diagnosis: res.id, skill: f.skill ?? "foundations" }, issued_at: o.now() }, o.signerFor(by)));
+      o.io.out(`    order ${ores.id}: ${kind.replace("_", " ")} of ${f.skill ?? "foundations"}, due within 14 days${d.severity === "quarantine_recommended" ? "; a quarantine at level observe is recommended while the cause is found" : ""}`);
+    }
+    return sub === "checkup" && flagged ? 1 : 0;
   }
   if (sub === "cohort-freeze") {
     const by = f.by ?? CLINIC_DID;
@@ -139,5 +217,5 @@ export async function clinicCmd(sub: string | undefined, o: ClinicOpts): Promise
     o.io.out(`released ${f.member} from ${f.quarantine} (record ${res.id}, log seq ${res.seq}, evidence ${evidence})`);
     return 0;
   }
-  throw new ClinicUsage("asp clinic cohort-freeze --report <id> [--level observe|halt] [--days n] | release --quarantine <id> --member <did> [--evidence <id>] | status [--agent <did>]");
+  throw new ClinicUsage("asp clinic series --agent <did> | checkup [--agent <did>] [--issue] [--skill <skill>] [--order re_exam|refresher_course] | diagnoses [--agent <did>] | cohort-freeze --report <id> [--level observe|halt] [--days n] | release --quarantine <id> --member <did> [--evidence <id>] | status [--agent <did>]");
 }

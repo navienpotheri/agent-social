@@ -46,6 +46,8 @@ const MODEL_CHANGE_PROBATION_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** The retraining path (clinic.md CL-10; proposals the owner decides): days from the last slash before an excluded agent may be returned, and how many returns an agent gets. */
 const RETRAINING_MIN_MS = 30 * 24 * 60 * 60 * 1000;
+const REMEDIAL_MAX_MS = 14 * 24 * 60 * 60 * 1000;
+const REMEDIAL_READ_SCOPE = /\.(read|list|search|get)$/;
 const RETRAINING_LIMIT = 2;
 
 /** Graduated tier limits: the most credit a Mandate may let a tier spend (tier 3 and above: uncapped; tier 0 is excluded outright). */
@@ -271,6 +273,8 @@ export class EventLog {
     if (type === "internal_transfer") await this.projectInternalTransfer(tx, verified);
     if (type === "revouch") await this.projectRevouch(tx, verified);
     if (type === "retraining_release") await this.projectRetrainingRelease(tx, verified);
+    if (type === "clinic_diagnosis") await this.projectClinicDiagnosis(tx, verified);
+    if (type === "clinic_order") await this.projectClinicOrder(tx, verified);
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
     if (type === "allowance") await this.projectAllowance(tx, verified);
@@ -671,13 +675,39 @@ export class EventLog {
   }
 
   /**
+   * A remedial Mandate (clinic.md CL-10, DK140, S260): the one Mandate an agent at tier 0 may receive, so that it can sit the retraining exam or take a remedial course under the gateway and the result rests on a
+   * run log. Read-only scopes, spend 0, no network, no subcontracting, one node, institution_spend only for the Academy or the Clinic, at most 14 days, and a Bond whose backer is the agent's sponsor.
+   */
+  private async checkRemedialMandate(tx: LogTx, r: AspRecord, tier: number | undefined, remedial: { sponsor: string }): Promise<void> {
+    const agent = r.subject as string;
+    if (tier !== 0) throw rule("remedial_not_excluded", `${agent} is not at tier 0: a remedial Mandate is for an agent that repeat slashes excluded; an ordinary Mandate is the way for any other`);
+    const passport = await tx.getPassport(agent);
+    if (!passport?.sponsor || remedial.sponsor !== passport.sponsor) throw rule("remedial_wrong_sponsor", `a remedial Mandate names the agent's sponsor (${passport?.sponsor ?? "none"}), not ${remedial.sponsor}`);
+    const b = r.body as { scopes: string[]; spend: { cap: number; per_action_max?: number }; subcontract: { allowed: boolean }; nodes: { max_parallel: number }; institution_spend?: InstitutionSpend[]; expires: string };
+    const bad = b.scopes.filter((s) => !REMEDIAL_READ_SCOPE.test(s) || isNetworkScope(s));
+    if (bad.length) throw rule("remedial_scope_not_read_only", `a remedial Mandate grants read-only scopes only (.read, .list, .search, .get; no network); not ${bad.join(", ")}`);
+    if (b.spend.cap !== 0 || (b.spend.per_action_max ?? 0) !== 0) throw rule("remedial_spend_not_zero", "a remedial Mandate spends nothing: spend.cap and spend.per_action_max are 0");
+    if (b.subcontract.allowed || b.nodes.max_parallel !== 1) throw rule("remedial_not_minimal", "a remedial Mandate allows no subcontracting and one node");
+    for (const e of b.institution_spend ?? []) {
+      const inst = e.institution.replace(/^did:web:asp\.local:/, "");
+      if (inst !== "academy" && inst !== "clinic") throw rule("remedial_institution", `a remedial Mandate may let the agent buy from the Academy or the Clinic only, not ${e.institution}`);
+    }
+    if (Date.parse(b.expires) - Date.parse(r.issued_at) > REMEDIAL_MAX_MS) throw rule("remedial_too_long", "a remedial Mandate lasts at most 14 days: it is for one exam or course, not a standing grant");
+    const bond = r.prev ? await tx.getRecord(r.prev) : undefined;
+    if (!bond || bond.record.type !== "asp.bond/v0.2") throw rule("remedial_needs_bond", "a remedial Mandate follows a Bond (prev is the Bond)");
+    if ((bond.record.body as { backer?: string }).backer !== passport.sponsor) throw rule("remedial_bond_backer", `the Bond under a remedial Mandate is backed by the agent's sponsor (${passport.sponsor}): a tier 0 agent cannot back its own`);
+  }
+
+  /**
    * Deterrence, extended past Bond: a tier-0 agent (demoted to nothing by repeat slashes) can't
    * receive a Mandate either, not just bond a job, and a tier 1 or 2 agent's spend and parallel nodes are capped (TIER_SPEND_LIMIT, TIER_PARALLEL_LIMIT). The envelope subject is the performer for a
    * Mandate (lifecycle's own subject_is_performer guard already establishes this).
    */
   private async checkMandateTier(tx: LogTx, r: AspRecord): Promise<void> {
     const rep = await this.reputation(tx, r.subject as string);
-    if (rep?.tier === 0) throw rule("tier_excluded", `${r.subject} is excluded from receiving a Mandate: repeat slashes demoted it to tier 0`);
+    const remedial = (r.body as { remedial?: { sponsor: string } }).remedial;
+    if (remedial) await this.checkRemedialMandate(tx, r, rep?.tier, remedial);
+    else if (rep?.tier === 0) throw rule("tier_excluded", `${r.subject} is excluded from receiving a Mandate: repeat slashes demoted it to tier 0 (a remedial Mandate for a Clinic exam or course is the one it may receive: \`remedial\`)`);
     if (!rep) return;
     const { spend, nodes } = r.body as { spend: { cap: number; per_action_max?: number }; nodes: { max_parallel: number } };
     const spendLimit = TIER_SPEND_LIMIT[rep.tier];
@@ -1355,7 +1385,8 @@ export class EventLog {
     const m = await tx.getRecord(b.mandate);
     if (!m || m.record.type !== "asp.mandate/v0.2") throw rule("mandate_unknown", `${b.mandate} is not a Mandate in this log`);
     if (m.record.subject !== buyer) throw rule("mandate_not_buyers", `the Mandate ${b.mandate} is for ${m.record.subject}, not ${buyer}`);
-    const mb = m.record.body as { expires?: string; institution_spend?: InstitutionSpend[] };
+    const mb = m.record.body as { expires?: string; institution_spend?: InstitutionSpend[]; remedial?: unknown };
+    if (mb.remedial) throw rule("remedial_mandate_buys_remedial_only", `the Mandate ${b.mandate} is a remedial one (a Clinic exam or course): it buys remedial or essential items only`);
     if (mb.expires && Date.parse(mb.expires) <= Date.parse(r.issued_at)) throw rule("mandate_expired", `the Mandate ${b.mandate} expired at ${mb.expires}`);
     const entry = spendEntry(mb.institution_spend, b.institution);
     if (!entry) throw rule("institution_not_in_mandate", `the Mandate ${b.mandate} does not let ${buyer} buy from ${b.institution}: add it to institution_spend (the sponsor widens a Mandate; asp spend shows what it allows)`);
@@ -1978,6 +2009,58 @@ export class EventLog {
     if (Date.parse(v.record.issued_at) <= Date.parse(slashed)) throw rule("retraining_revouch_before_slash", "the sponsor's re-vouching must come after the slash");
     await this.saveReputation(tx, b.agent, { ...rep, tier: 1 });
     await tx.putMarker(`retrained:${b.agent}`, String(retrained + 1));
+  }
+
+  /**
+   * A diagnosis (clinic.md CL-4, DK28, S261): only the Clinic; about an agent with a passport; at least two different measures; every finding has evidence, and each evidence id is an Action of that agent, observed
+   * by a gateway or stronger (an agent's own report cannot ground a diagnosis), issued inside the window; a cause edge is a lineage record whose child is the agent. A watch or a failed checkup is not a record.
+   */
+  private async projectClinicDiagnosis(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { agent: string; window: { from: string; to: string }; severity: string; findings: { measure: string; evidence: string[] }[]; cause: { edge?: string } };
+    if (r.prev !== null) throw rule("diagnosis_not_chained", "a diagnosis starts its own chain (prev is null)");
+    if (r.issuer !== CLINIC_DID) throw rule("diagnosis_wrong_issuer", `${r.issuer} is not the Clinic (${CLINIC_DID}): only the Clinic diagnoses an agent`);
+    if (!(await tx.getPassport(b.agent))) throw rule("diagnosis_not_an_agent", `${b.agent} has no passport in this log`);
+    if (Date.parse(b.window.to) < Date.parse(b.window.from)) throw rule("diagnosis_window_backwards", "the window ends before it starts");
+    if (new Set(b.findings.map((f) => f.measure)).size < 2) throw rule("diagnosis_one_measure", "a diagnosis needs at least two different measures to have moved: one noisy number is a note on the Clinic's list, not a diagnosis");
+    const from = Date.parse(b.window.from), to = Date.parse(b.window.to);
+    for (const f of b.findings) {
+      for (const id of f.evidence) {
+        const a = await tx.getRecord(id);
+        if (!a || a.record.type !== "asp.action/v0.2") throw rule("diagnosis_evidence_unknown", `${id} is not an Action in this log: evidence is the agent's own Action records`);
+        if (a.record.issuer !== b.agent) throw rule("diagnosis_evidence_not_the_agents", `the Action ${id} is ${a.record.issuer}'s, not ${b.agent}'s`);
+        if (!["gateway_observed", "gateway_enforced", "hook_enforced", "sandbox_enforced"].includes((a.record.body as { assurance?: string }).assurance ?? "")) throw rule("diagnosis_evidence_weak", `the Action ${id} was not observed by a gateway: an agent's own report cannot ground a diagnosis`);
+        const at = Date.parse(a.record.issued_at);
+        if (at < from || at > to) throw rule("diagnosis_evidence_outside_window", `the Action ${id} is dated ${a.record.issued_at}, outside the window ${b.window.from} to ${b.window.to}`);
+      }
+    }
+    if (b.cause.edge) {
+      const e = await tx.getRecord(b.cause.edge);
+      if (!e || e.record.type !== "asp.lineage/v0.2" || (e.record.body as { child?: string }).child !== b.agent) throw rule("diagnosis_cause_edge_unknown", `${b.cause.edge} is not a lineage edge of ${b.agent}`);
+    }
+    await tx.putMarker(`clinic_diagnosis_last:${b.agent}`, r.id);
+  }
+
+  /**
+   * A Clinic order (clinic.md CL-4 and CL-5, DK28, S261): only the Clinic; one unexpired order of each kind per agent; a checkup is due within 7 days, a re-exam or a refresher course within 30 and cites a
+   * diagnosis of the same agent and names the skill.
+   */
+  private async projectClinicOrder(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { agent: string; kind: string; reason: string; due: string; diagnosis?: string; skill?: string };
+    if (r.prev !== null) throw rule("order_not_chained", "an order starts its own chain (prev is null)");
+    if (r.issuer !== CLINIC_DID) throw rule("order_wrong_issuer", `${r.issuer} is not the Clinic (${CLINIC_DID}): only the Clinic orders a checkup, a re-exam or a course`);
+    if (!(await tx.getPassport(b.agent))) throw rule("order_not_an_agent", `${b.agent} has no passport in this log`);
+    const at = Date.parse(r.issued_at), due = Date.parse(b.due);
+    const max = (b.kind === "checkup" ? 7 : 30) * 86_400_000;
+    if (due <= at || due - at > max) throw rule("order_due_out_of_range", `${b.kind === "checkup" ? "a checkup is due within 7 days" : "a re-exam or a course is due within 30 days"} of the order, and after it`);
+    if (b.kind !== "checkup") {
+      if (b.reason !== "post_diagnosis" || !b.diagnosis || !b.skill) throw rule("order_needs_diagnosis", "a re-exam or a refresher course follows a diagnosis (reason post_diagnosis, the diagnosis cited) and names the skill");
+      const d = await tx.getRecord(b.diagnosis);
+      if (!d || d.record.type !== "asp.clinic_diagnosis/v0.2" || (d.record.body as { agent?: string }).agent !== b.agent) throw rule("order_diagnosis_unknown", `${b.diagnosis} is not a diagnosis of ${b.agent} in this log`);
+    } else if (b.reason === "post_diagnosis") throw rule("order_needs_diagnosis", "a checkup is scheduled, requested or after a change; after a diagnosis the order is a re-exam or a course");
+    const key = `clinic_order:${b.agent}|${b.kind}`;
+    const open = await tx.getMarker(key);
+    if (open && Date.parse(open) > at) throw rule("order_already_open", `${b.agent} already has a ${b.kind} order that is due ${open}: one open order of each kind`);
+    await tx.putMarker(key, b.due);
   }
 
   /** A receipt (credits.md 4.3): the purchase's institution closes it; a refund comes back by the split in reverse and never includes the burned part. */
