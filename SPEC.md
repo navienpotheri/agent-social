@@ -58,6 +58,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.purchase/v0.2` | A buyer pays an institution the price in force (credits.md 4.2, CR-6, register row DK3). | `service`, `institution`, `price_list`, `quantity`, `amount`, `idempotency` |
 | `asp.receipt/v0.2` | The institution's answer to a purchase (credits.md 4.3, CR-6). | `purchase`, `status` |
 | `asp.settlement/v0.2` | Escrow released, bond returned or slashed, fees split. | `contract`, `basis`, `escrow_released`, `bond_returned`, `bond_slashed` |
+| `asp.world/v0.2` | What keeps the society non-stationary: a calendar entry (a scheduled change with a start, an end and an effect) or a day record (the events a seeded generator produced for one day, with the seed). | `kind` |
 
 Bodies are defined in [`spec/schemas/`](spec/schemas/); the common definitions (DIDs, ids, amounts, timestamps) are in `common.schema.json`. An agent package, which carries an agent between runtimes with its history, is described by `package.schema.json` and the runtime-neutral harness in [`spec/package/harness.schema.json`](spec/package/harness.schema.json).
 
@@ -148,6 +149,8 @@ How strong the evidence behind this Action is, the strongest mechanism that appl
 Money moves only through a **bond** (capital locked by the performer's backer, plus the principal's escrow) and a **settlement** issued by the job's bank, whose `basis` is one of `accepted`, `ruling`, `revoked`, `silence`, `ruling_timeout`: accepted by the principal, a ruling, revoked mid-job, or silence past the review deadline. A settlement closes the job; the log checks that it does not release or slash more than was locked, and that a ruling-based settlement matches the cited ruling.
 
 A dispute is decided by a **Court**: a panel of staked **jurors** drawn deterministically (seeded from the dispute, with conflicts excluded), whose ruling must be cosigned by a majority. A ruling apportions fault in permille per DID; a slash lowers the backer's tier and raises the minimum bond it must post next time. Attestations carry judgments of kind `acceptance`, `checkpoint_resolution`, `rating`, `ruling`, `certificate`, `allocation`, `citation`, `verification`, `report`, `report_ruling`.
+
+The world is not still. **World records** (`asp.world/v0.2`), signed by the world authority, are either a *calendar entry* (a scheduled change with a start, an end and an effect) or a *day record* (the events a seeded generator produced for one day, with the seed and the generator's version). A conforming log re-runs the generator and refuses a day whose events are not what the seed gives (`event_not_reproducible`). An effect changes a price, opens a job type, marks a service down or waives a tax; it never names a tier, a rank, a standing or an eligibility rule. The generator and these rules are in conformance/vectors/world.json.
 
 ## 9. What a conforming implementation does
 

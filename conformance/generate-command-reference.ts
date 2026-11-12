@@ -125,6 +125,13 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp market settle --contract <id> --bank <did> --basis <b>", "Close the job: release escrow, return or slash the bond"],
     ["asp market show <contract>", "Show a job's records and its state"],
   ] },
+  { group: "The world (calendar and events)", note: "What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.", rows: [
+    ["asp world today [--day <date>] [--json]", "What is in force now and why: price shocks, new job types, outages, tax-free windows, free gatherings, each with the draw that fired it"],
+    ["asp world calendar [--from <time>] [--days <n>] [--json]", "The events and calendar entries in a stretch of days, with their windows and effects"],
+    ["asp world replay <date> [--json]", "Run a day again from its logged seed and compare with the record: matches the log, or DOES NOT MATCH (exit 1); shows every draw, fired or not"],
+    ["asp world tick [--day <date>] [--days <n>] [--seed <s>]", "Record the day(s) the seeded generator produced, signed by the world authority (a local mock key); a day that has not begun is not announced"],
+    ["asp world schedule --title <t> --from <time> --to <time> --effect <type> --target <name> [--value <n>] [--kind <k>]", "Add a calendar entry; the log checks 72 hours notice, a seed commitment for a shock, and a price multiplier inside 50% to 200%"],
+  ] },
   { group: "Disputes, jurors and reports", rows: [
     ["asp market juror register|show", "Stake credits to be drawn onto a ruling panel, or show a juror"],
     ["asp market panel draw --contract <id>", "Draw a conflict-free panel for a dispute"],

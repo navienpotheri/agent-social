@@ -7,6 +7,7 @@ import { bondFloorPermille } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { BURN_DID, INSTITUTION_DIDS, PLATFORM_DID, TREASURY_DID, canonicalAccount, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
+import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
 import { DEFAULT_PANEL_SIZE, drawPanel, findRejection } from "./panel.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
 
@@ -227,6 +228,7 @@ export class EventLog {
     }
     if (type === "mandate") { await this.checkMandateTier(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
     if (type === "action") { await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); }
+    if (type === "world") checkWorldRecord(verified);
     if (type === "proposal") await this.checkProposerTier(tx, verified);
     if (type === "contract") await this.checkSubcontract(tx, verified);
     await tx.putChain({
@@ -1287,6 +1289,20 @@ export class EventLog {
    * The credit audit (credits.md 1.1, CR-1): the supply rule over every account, lock and mint the store holds, read at one log head.
    * Read-only; returns figures, never the list of accounts (`ledgerRows` on the store gives that, locally).
    */
+  /** Every world record (calendar entries and day records) in log order (src/world.ts). */
+  async worldRecords(): Promise<AspRecord[]> {
+    const out: AspRecord[] = [];
+    for (let after = 0; ; ) {
+      const page = await this.store.since(after, 500);
+      if (!page.length) break;
+      for (const s of page) { after = s.seq; if (s.record.type === "asp.world/v0.2") out.push(s.record); }
+    }
+    return out;
+  }
+
+  /** The world as of `at` (an ISO time; default now): price multipliers, outages, tax-free, open job types. Read-only; it changes no tier, rank, standing or eligibility. */
+  async worldState(at?: string): Promise<WorldState> { return worldStateAt(await this.worldRecords(), at ?? this.now().toISOString()); }
+
   async creditAudit(): Promise<CreditAudit> { return auditLedger(await this.store.ledgerRows()); }
 
   /**

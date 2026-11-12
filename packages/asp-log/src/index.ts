@@ -23,3 +23,4 @@ export {
   BURN_DID, INSTITUTION_DIDS, INSTITUTION_NAMES, SPLIT_BOUNDS_V1, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem,
   type ItemClass, type Split, type SplitParts,
 } from "./economy.ts";
+export * from "./world.ts";

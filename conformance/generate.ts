@@ -12,6 +12,7 @@ import {
   type AspRecord, type RecordType, type Signer,
 } from "../packages/asp-core/src/index.ts";
 import { signBytes } from "../packages/asp-core/src/crypto.ts";
+import { GENERATOR, WORLD_DID, dayBody, generateDay, seedCommitment } from "../packages/asp-log/src/world.ts";
 
 const OUT = fileURLToPath(new URL("./vectors/", import.meta.url));
 const HERE = fileURLToPath(new URL("./", import.meta.url));
@@ -720,6 +721,58 @@ const canonical: { name: string; input_json: string; output?: string; error?: st
   { name: "unsafe_integer_rejected", input_json: '{"n":9007199254740993}', error: "NON_INTEGER_NUMBER" },
 ];
 
+// ---------- world engine (spec-deltas S170): schema cases, the seeded generator's outputs, and the log's rules on world records ----------
+
+const wEntry = (over: Record<string, unknown> = {}) => ({
+  kind: "calendar_entry", entry_id: "price-review", source: "market", event_kind: "scheduled", title: "Price list review",
+  starts: "2026-12-01T00:00:00Z", ends: "2026-12-02T00:00:00Z", effect: { type: "price_multiplier", target: "code", value: 1100 }, ...over,
+});
+sv("valid_world_calendar_entry", "world", wEntry(), true);
+sv("valid_world_day", "world", dayBody("vector-seed", "2026-11-12"), true);
+sv("valid_world_day_no_events", "world", { kind: "day", day: "2026-11-13", generator: GENERATOR, seed: "vector-seed", seed_commitment: seedCommitment("vector-seed"), events: [] }, true);
+sv("world_effect_names_a_tier", "world", wEntry({ effect: { type: "price_multiplier", target: "code", value: 1000, tier: 3 } }), false);
+sv("world_effect_unknown_type", "world", wEntry({ effect: { type: "tier_up", target: "code", value: 1 } }), false);
+sv("world_effect_names_standing", "world", wEntry({ effect: { type: "tax_free", target: "all", value: 1000, standing: 50 } }), false);
+sv("world_effect_target_is_a_did", "world", wEntry({ effect: { type: "price_multiplier", target: "did:web:example.com:agents:coder", value: 1000 } }), false);
+sv("world_entry_missing_effect", "world", wEntry({ effect: undefined }), false);
+sv("world_day_missing_seed", "world", { kind: "day", day: "2026-11-12", generator: GENERATOR, seed_commitment: seedCommitment("x"), events: [] }, false);
+sv("world_day_bad_date", "world", { kind: "day", day: "12/11/2026", generator: GENERATOR, seed: "x", seed_commitment: seedCommitment("x"), events: [] }, false);
+sv("world_unknown_kind", "world", { kind: "halt", day: "2026-11-12" }, false);
+sv("world_extra_field", "world", wEntry({ rank: 1 }), false);
+
+const worldSeeds = ["vector-seed", "another-seed"];
+const worldDays = Array.from({ length: 30 }, (_, i) => new Date(Date.parse("2026-11-12T00:00:00Z") + i * 86_400_000).toISOString().slice(0, 10));
+const worldGen = worldSeeds.flatMap((s) => worldDays.map((d) => ({ seed: s, day: d, events: generateDay(s, d) })));
+const busyDay = worldDays.find((d) => generateDay("vector-seed", d).length)!;
+const dayRec = (over: Record<string, unknown>) => ({ ...dayBody("vector-seed", busyDay), ...over });
+const rule = (name: string, issuer: string, issued_at: string, body: unknown, expect: string) => ({ name, issuer, issued_at, body, expect });
+// A day whose events are not what the seed gives: a day with events gets one edited, a quiet day gets an event it never fired.
+const quietDay = worldDays.find((d) => generateDay("vector-seed", d).length === 0)!;
+const forgedBody = (() => {
+  const b = dayBody("vector-seed", busyDay);
+  if (b.events.length) b.events = [{ ...b.events[0], effect: { ...b.events[0].effect, value: b.events[0].effect.value + 1 } }, ...b.events.slice(1)];
+  return b;
+})();
+const worldRules = [
+  rule("day_ok", WORLD_DID, `${busyDay}T01:00:00Z`, dayBody("vector-seed", busyDay), "ok"),
+  rule("quiet_day_ok", WORLD_DID, `${quietDay}T01:00:00Z`, dayBody("vector-seed", quietDay), "ok"),
+  rule("calendar_entry_ok", WORLD_DID, "2026-11-20T00:00:00Z", wEntry(), "ok"),
+  rule("not_the_authority", "did:web:example.com:agents:rogue", `${busyDay}T01:00:00Z`, dayBody("vector-seed", busyDay), "world_not_authority"),
+  rule("day_not_started", WORLD_DID, `${new Date(Date.parse(`${busyDay}T00:00:00Z`) - 3_600_000).toISOString()}`, dayBody("vector-seed", busyDay), "world_day_not_started"),
+  rule("seed_commitment_mismatch", WORLD_DID, `${busyDay}T01:00:00Z`, dayRec({ seed_commitment: seedCommitment("other") }), "seed_commitment_mismatch"),
+  rule("event_edited", WORLD_DID, `${busyDay}T01:00:00Z`, forgedBody, "event_not_reproducible"),
+  rule("event_invented_on_a_quiet_day", WORLD_DID, `${quietDay}T01:00:00Z`, { ...dayBody("vector-seed", quietDay), events: [generateDay("vector-seed", worldDays.find((d) => generateDay("vector-seed", d).length)!)[0]] }, "event_not_reproducible"),
+  rule("unknown_generator", WORLD_DID, `${busyDay}T01:00:00Z`, dayRec({ generator: "asp-world-gen/9" }), "world_generator_unknown"),
+  rule("notice_too_short", WORLD_DID, "2026-11-30T00:00:00Z", wEntry(), "world_notice_too_short"),
+  rule("notice_exactly_72_hours", WORLD_DID, "2026-11-28T00:00:00Z", wEntry(), "ok"),
+  rule("shock_without_seed_commitment", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ event_kind: "shock" }), "seed_not_committed"),
+  rule("shock_with_seed_commitment", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ event_kind: "shock", seed_commitment: seedCommitment("s"), generator: GENERATOR }), "ok"),
+  rule("price_multiplier_too_high", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ effect: { type: "price_multiplier", target: "code", value: 2001 } }), "calendar_out_of_bounds"),
+  rule("price_multiplier_too_low", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ effect: { type: "price_multiplier", target: "code", value: 499 } }), "calendar_out_of_bounds"),
+  rule("window_ends_before_start", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ ends: "2026-12-01T00:00:00Z" }), "world_bad_window"),
+  rule("window_over_90_days", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ ends: "2027-03-02T00:00:00Z" }), "world_bad_window"),
+];
+
 // ---------- write ----------
 
 mkdirSync(OUT, { recursive: true });
@@ -729,4 +782,5 @@ write("canonical.json", { version: "asp.conformance/v0.2", cases: canonical });
 write("schema.json", { version: "asp.conformance/v0.2", cases: schema });
 write("records.json", { version: "asp.conformance/v0.2", cases: records });
 write("lifecycle.json", { version: "asp.conformance/v0.2", cases: lifecycle });
+write("world.json", { version: "asp.conformance/v0.2", generator: GENERATOR, commitments: ["", "vector-seed", "another-seed"].map((x) => ({ seed: x, commitment: seedCommitment(x) })), generate: worldGen, rules: worldRules });
 console.log(`canonical ${canonical.length}, schema ${schema.length}, records ${records.length}, lifecycle ${lifecycle.length}`);

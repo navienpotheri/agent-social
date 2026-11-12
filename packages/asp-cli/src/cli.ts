@@ -188,6 +188,8 @@
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
  *   asp credits balance <did>
+ *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
+ *   asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
  *   asp credits audit [--by-flow] [--since <time>] [--require-signed] [--json]
  *     The supply rule over the whole log: balances + escrow + bonds + court-fee reserves + juror stakes + open report deposits must equal what was minted.
  *     Prints balanced or MISMATCH with the figures; the exit code is 1 on a mismatch. --by-flow adds the settlement flows the log can report today.
@@ -294,6 +296,7 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { fileDiff, findLesson, listLessons, markReviewed, memoryAfterEdit, memoryAfterUndo, planUndo, summarize, type Lesson } from "@agent-social/asp-package";
 import { buildToday, buildTrend, periodOf, renderToday, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
+import { WorldUsage, worldCmd } from "./world.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -496,6 +499,9 @@ const OPTIONS = {
   "agent-did": { type: "string" },
   "fail-on-refusal": { type: "boolean" },
   days: { type: "string" },
+  seed: { type: "string" },
+  effect: { type: "string" },
+  value: { type: "string" },
   provider: { type: "string" },
   "max-agents": { type: "string" },
   ask: { type: "string" },
@@ -808,6 +814,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "credits" && sub === "grant") return await creditsGrant(home, v, need, io);
     if (cmd === "credits" && sub === "audit") return await creditsAudit(home, v, io);
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
+    if (cmd === "world") return await worldCommand(home, sub, rest, v, io);
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
   } catch (e) {
@@ -3703,6 +3710,17 @@ async function creditsAudit(home: string, v: Values, io: Io): Promise<number> {
   io.out("Not in this audit yet:");
   for (const u of audit.notYet) io.out(`  - ${u}`);
   return code;
+}
+
+/** asp world (register rows DK76, DK77): see src/world.ts. */
+async function worldCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  try {
+    return await worldCmd(sub, rest, { home, log: local, io, now, flags: { day: v.day, days: v.days, seed: v.seed, json: v.json, title: v.title, kind: v.kind, from: v.from, to: v.to, target: v.target, effect: v.effect, value: v.value } });
+  } catch (e) {
+    if (e instanceof WorldUsage) throw new UsageError(e.message);
+    throw e;
+  }
 }
 
 async function creditsBalance(home: string, did: string | undefined, io: Io): Promise<number> {

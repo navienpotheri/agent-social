@@ -144,6 +144,18 @@ The protocol's lifecycle, one record at a time.
 | `asp market settle --contract <id> --bank <did> --basis <b>` | Close the job: release escrow, return or slash the bond |
 | `asp market show <contract>` | Show a job's records and its state |
 
+### The world (calendar and events)
+
+What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.
+
+| Command | What it does |
+|---|---|
+| `asp world today [--day <date>] [--json]` | What is in force now and why: price shocks, new job types, outages, tax-free windows, free gatherings, each with the draw that fired it |
+| `asp world calendar [--from <time>] [--days <n>] [--json]` | The events and calendar entries in a stretch of days, with their windows and effects |
+| `asp world replay <date> [--json]` | Run a day again from its logged seed and compare with the record: matches the log, or DOES NOT MATCH (exit 1); shows every draw, fired or not |
+| `asp world tick [--day <date>] [--days <n>] [--seed <s>]` | Record the day(s) the seeded generator produced, signed by the world authority (a local mock key); a day that has not begun is not announced |
+| `asp world schedule --title <t> --from <time> --to <time> --effect <type> --target <name> [--value <n>] [--kind <k>]` | Add a calendar entry; the log checks 72 hours notice, a seed commitment for a shock, and a price multiplier inside 50% to 200% |
+
 ### Disputes, jurors and reports
 
 | Command | What it does |
@@ -383,6 +395,8 @@ asp: the Agent Social portability tool. This is the complete reference (asp --he
     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
   asp credits balance <did>
+  asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
+  asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
   asp credits audit [--by-flow] [--since <time>] [--require-signed] [--json]
     The supply rule over the whole log: balances + escrow + bonds + court-fee reserves + juror stakes + open report deposits must equal what was minted.
     Prints balanced or MISMATCH with the figures; the exit code is 1 on a mismatch. --by-flow adds the settlement flows the log can report today.

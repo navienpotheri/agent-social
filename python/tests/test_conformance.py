@@ -85,3 +85,32 @@ def test_resign_reproduces_typescript_bytes(case):
     )
     assert again["id"] == r["id"]
     assert again["sig"]["value"] == r["sig"]["value"]
+
+
+# ---- the world engine (docs/spec-deltas.md S170) ----
+from asp_core.world import GENERATOR, check_world_record, generate_day, seed_commitment  # noqa: E402
+
+WORLD = load("vectors/world.json")
+
+
+def test_world_generator_name():
+    assert WORLD["generator"] == GENERATOR
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=f"{c['seed']}-{c['day']}") for c in WORLD["generate"]])
+def test_world_generate(case):
+    assert generate_day(case["seed"], case["day"]) == case["events"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["seed"] or "empty") for c in WORLD["commitments"]])
+def test_world_commitment(case):
+    assert seed_commitment(case["seed"]) == case["commitment"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in WORLD["rules"]])
+def test_world_rule(case):
+    code, detail = code_of(lambda: check_world_record(case["issuer"], case["issued_at"], case["body"]))
+    if case["expect"] == "ok":
+        assert code is None
+    else:
+        assert (code, detail) == ("GUARD_FAILED", case["expect"])
