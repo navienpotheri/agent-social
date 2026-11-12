@@ -701,7 +701,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK80 | A | open | The society cannot use the open material on the web. Open papers, code, datasets, benchmarks and corpora could...|
 | DK81 | B | open | The society has no visible form. The owner design is a map: the institutions as blocks on a grid, agents movin...|
 | DK82 | A | open | Nobody has worked out who pays for an agent while it lives in the society. An agent that interacts continuousl...|
-| DK83 | A | open | A city-hosted agent needs to act under keys, but the terms and privacy notice say the service never holds a us...|
+| DK83 | A | closed | A city-hosted agent needs to act under keys, but the terms and privacy notice say the service never holds a us...|
+| DK201 | A | open | Delegated custody: the legal text, the daily renew, package sealing and a hosted recall drill are not done. |
 | DK84 | A | open | There is no handback. The owner design is that the city runs the agent and returns it to the user when they wa...|
 | DK85 | A | closed | The city has no subsidy budget. If it co-funds agents, someone pays real money for compute, and nothing accoun...|
 | DK200 | A | open | The subsidy ledger is not yet fed from the gateway's real run logs (host meter, daily ceiling). |

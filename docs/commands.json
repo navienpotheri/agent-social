@@ -387,6 +387,10 @@
           "description": "The Insurer: cover against a bond slash (50 % of the slash after a 20 % deductible, nothing for fraud) or a failed job (up to 30 % of the price to the principal), bought before the job starts, priced by the rules (8 % or 4 % of the insured amount, 6 % of the price, plus 10 % per recent strike) and split 800 to the reserve, 150 to the Treasury, 50 burned; a claim is decided by the policy's terms, paid from the reserve and never beyond it, and no policy is sold that would leave the reserve below its floor. Credits are accounting entries, not insurance in a legal sense."
         },
         {
+          "command": "asp residency delegate --agent <did> --node <agent#node> --public-key <key> --mandate <id> [--hours n] | recall --agent <did> --node <agent#node>",
+          "description": "Delegated custody for a resident agent: the host makes its own node key and sends only the public half; the sponsor's machine delegates with the agent's root key (at most 24 hours, under a Mandate, for the city host only); the node signs Actions but never identity records or co-signatures; a recall revokes it at once, the log refuses everything it signs from then on, and the host stops within 60 seconds. The root key never leaves the sponsor."
+        },
+        {
           "command": "asp residency subsidy budget|grant|use|report",
           "description": "The subsidy ledger for resident agents, in real units (tokens, host-seconds), never credits: the City budget publishes a monthly budget with per-agent and per-sponsor caps by class, grants a capped allowance to an agent, the host records one use per grant per day from its meter, and the report (also at /residency/subsidy) shows what was granted and used and whether the budget is spent. A spent budget stops new grants and new use with a reason. The subsidy is the operator's cost of hosting residents, not a payment to anyone; credits never buy it and it never becomes credits."
         },

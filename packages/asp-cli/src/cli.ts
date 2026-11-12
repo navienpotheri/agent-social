@@ -431,6 +431,7 @@ const OPTIONS = {
   issue: { type: "boolean" },
   line: { type: "string" },
   guarantor: { type: "string" },
+  hours: { type: "string" },
   period: { type: "string" },
   units: { type: "string" },
   total: { type: "string" },

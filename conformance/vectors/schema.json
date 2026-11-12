@@ -3455,6 +3455,40 @@
       "valid": false
     },
     {
+      "name": "valid_node_residency",
+      "schema": "node",
+      "instance": {
+        "node": "did:web:example.com:agents:coder-1#node-7",
+        "public_key": "1-aEOYcbxanGYBvnLoGre6k34_ScNPUgSxVobsDuh_I",
+        "expires": "2026-10-01T21:00:00Z",
+        "mandate": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "purpose": "residency",
+        "runtime": {
+          "name": "example-runtime",
+          "model": "example-model-1"
+        },
+        "host": "did:web:asp.local:host"
+      },
+      "valid": true
+    },
+    {
+      "name": "node_host_not_a_did",
+      "schema": "node",
+      "instance": {
+        "node": "did:web:example.com:agents:coder-1#node-7",
+        "public_key": "1-aEOYcbxanGYBvnLoGre6k34_ScNPUgSxVobsDuh_I",
+        "expires": "2026-10-01T21:00:00Z",
+        "mandate": "sha256:30a428299f00da8fc9c202cf7eac2c6396f0a561e4ceae8133386f94bf22fef2",
+        "purpose": "residency",
+        "runtime": {
+          "name": "example-runtime",
+          "model": "example-model-1"
+        },
+        "host": "the city"
+      },
+      "valid": false
+    },
+    {
       "name": "node_minimal",
       "schema": "node",
       "instance": {

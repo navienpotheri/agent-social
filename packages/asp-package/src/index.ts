@@ -68,3 +68,4 @@ export { Attempts, explainRefusal, lawFor, type Article } from "./gateway/law.ts
 export { SELF_ACTING, selfActingFor, selfActingNotes, type SelfActing } from "./self-acting.ts";
 export { INVARIANT_PATTERNS, admitToMemory, auditLesson, auditLessons, heldLessons, readRejected, type Evidence, type GateOptions, type HeldOutTask, type LessonCandidate, type RejectedRow, type Rejection, type RejectionRule, type Verdict } from "./lesson-gate.ts";
 export { academyRoutes } from "./academy-pages.ts";
+export { RECALL_DEADLINE_SECONDS, POLL_SECONDS, newNodeKey, issueDelegation, recallDelegation, ResidentHost, type HostLog, type NodeKey } from "./residency-host.ts";

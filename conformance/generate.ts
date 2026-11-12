@@ -665,6 +665,8 @@ sv("envelope_extra_field", "envelope", { ...h[0], note: "hi" }, false);
 sv("envelope_bad_did", "envelope", { ...h[0], issuer: "alice" }, false);
 sv("fleet_without_org", "fleet", (({ org: _o, ...rest }) => rest)(fleetBody), false);
 sv("fleet_zero_members", "fleet", { ...fleetBody, max_members: 0 }, false);
+sv("valid_node_residency", "node", { ...nodeBody, purpose: "residency", host: "did:web:asp.local:host", mandate: "sha256:" + "a".repeat(64) }, true);
+sv("node_host_not_a_did", "node", { ...nodeBody, purpose: "residency", host: "the city" }, false);
 sv("node_minimal", "node", { node: nodeBody.node, public_key: nodeBody.public_key, expires: nodeBody.expires }, true);
 sv("node_without_expiry", "node", (({ expires: _e, ...rest }) => rest)(nodeBody), false);
 sv("node_id_not_did_url", "node", { ...nodeBody, node: coder.did }, false);
