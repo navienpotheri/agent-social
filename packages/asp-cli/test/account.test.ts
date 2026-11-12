@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -92,6 +93,15 @@ test("account: a tenant sees what the service holds, exports all of it, and clos
     assert.match(closed.out, /account team-a closed: deleted 1 package\(s\), 1 commons entr\(ies\), 1 review\(s\) and 2 citation\(s\)/);
     assert.match(closed.out, /append-only/);
     assert.ok(existsSync(join(closeOut, "packages", "coder.aspkg.tgz")), "exported before deleting");
+    // A deletion receipt (gap U9): what the service said it deleted and kept, saved locally with a hash over it, since the account cannot be asked again afterwards.
+    assert.match(closed.out, /deletion receipt saved to/);
+    const receiptPath = /deletion receipt saved to (.*?) \(/.exec(closed.out)![1];
+    const receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+    assert.equal(receipt.tenant, "team-a");
+    assert.equal(receipt.deleted.packages, 1);
+    assert.ok(receipt.closedAt && receipt.sha256);
+    const { sha256, ...withoutHash } = receipt;
+    assert.equal(sha256, createHash("sha256").update(Buffer.from(JSON.stringify(withoutHash), "utf8")).digest("hex"));
     // Gone: the token, the package, A's entry with B's review and citation of it, A's citation of B's entry. B's entry stays.
     assert.equal((await asp(a, ["account", "show"], envA)).code, 1, "the token no longer works");
     assert.equal(existsSync(join(dir, "pkgs", "team-a")), false);

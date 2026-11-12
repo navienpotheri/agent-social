@@ -249,9 +249,12 @@ asp: the Agent Social portability tool. This is the complete reference (asp --he
     --limits-state keeps the lockout after failed sign-ins in a file shared by the service's processes on the machine and kept over a restart (docs/spec-deltas.md S150).
   asp serve ... --signup --signup-terms-url <url> [--signup-terms-version v] [--signup-difficulty bits] [--signup-per-address n] [--signup-daily-cap n]: tenants sign themselves up (docs/spec-deltas.md S93); asp serve signups|signup-open|signup-close|signup-cap --tokens <file> controls it; clients: asp signup --service <url> --name <name> --accept-terms [--contact <line>]
   asp serve suspend|resume --tokens <file> --tenant <name> [--reason <text>] | block|unblock --tokens <file> --address <ip> [--minutes n] [--reason <text>] | usage --tokens <file>
+                  | reset-token --tokens <file> --tenant <name>
     What an operator does to a running service (it reads the tokens file and the block list <file>.blocked.json on each request, so no restart): a suspended tenant
     is refused with SUSPENDED; a blocked address with BLOCKED. The service counts each tenant's records and bytes in <file>.usage.json and refuses a write past the
     quota (--record-quota, default 100000, and --byte-quota-mb, default 256 on serve; per tenant on serve token; admins have none) with QUOTA_EXCEEDED.
+    reset-token (gap P20): a tenant with no way back in (no Google account to recover with, or the browser handoff was lost before the token was saved) gets
+    a fresh token from the operator, shown once; the old token and every machine token made under it stop working at once, the same step /join/recover takes.
   asp serve ... --packages <dir>   also stores each tenant's agent packages under <dir> (docs/spec-deltas.md S51).
   asp serve ... --runlogs <dir>    also keeps each tenant's sealed (encrypted) run logs under <dir>; the service holds ciphertext only (S109, docs/run-log-custody.md).
   asp run-log keep [<log>] | kept | fetch --id <id> | drop --id <id> | disclose --id <id> --to <did,..> --reason <why> [--upload] | open <sealed.json> [--as <did>]
@@ -360,9 +363,13 @@ asp: the Agent Social portability tool. This is the complete reference (asp --he
     blocked attempts (default 3) or when an out-of-scope call actually ran. The action record for
     a violation is refused, so it can never get laundered into a clean-looking log.
   asp orchestrate <package> --backend <runtime> --task <text> [--task <text> ...] [--project <dir>]
-                  [--max-parallel N] [--model <m>] [--dry-run] [--isolate]
+                  [--max-parallel N] [--model <m>] [--dry-run] [--isolate] [--mandate <id>]
     --isolate: each node runs as its own independently liable copy (asp identity copy), and its node grant is
     issued by that copy, so a slash on one node cannot reach another's account.
+    --mandate <id>: cite this Mandate (issued to the package's agent; not with --isolate) on every node's
+    delegated key, so the Mandate's nodes.max_parallel and expiry bind the nodes, not only the log's flat
+    24-hour cap (gap T22); a node a cited Mandate refuses fails that node instead of running it unbound.
+    With no --mandate the node grant is bookkeeping only, as before (MOCKS.md).
     Runs one task per node, in parallel, each under its own signed, short-lived delegated key
     (an asp.node/v0.2 record; see spec/schemas/node.schema.json). Nodes only write memory; a single
     consolidation step then merges what every node learned into one signed lineage update for the
@@ -448,7 +455,8 @@ asp: the Agent Social portability tool. This is the complete reference (asp --he
   asp market bond --contract <id> --backer <did> --amount <n> --escrow-payer <did> --escrow-amount <n>
     Locks real credits: debits both the escrow payer and the backer for real (rejects with
     insufficient_balance rather than starting a job uncovered).
-  asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--institution-spend <institution>=<cap>/<day|week|month>[:<service>,...] ... | none] [--network-host <host> ...] [--network-rate-per-host <n>] [--network-rate-total <n>] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons]
+  asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--institution-spend <institution>=<cap>/<day|week|month>[:<service>,...] ... | none] [--network-host <host> ...] [--network-rate-per-host <n>] [--network-rate-total <n>] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons] [--node-max-parallel <n>]
+    --node-max-parallel (default 1): how many of the performer's node grants (asp orchestrate --mandate) may cite this Mandate live at once; capped by tier (TIER_PARALLEL_LIMIT).
     --gate names granted scopes the irreversible policy applies to: with checkpoint (the default) a
     call to one needs the principal's approval first (asp run holds the call, raises a Checkpoint, and
     waits for asp market resolve; --approval-wait <seconds>, default 600, then it is refused); with
