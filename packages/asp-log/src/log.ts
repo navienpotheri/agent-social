@@ -1,3 +1,4 @@
+import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
 import { projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
 import { projectCreditLine, projectCreditDefault, projectBankStatement, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
@@ -290,6 +291,9 @@ export class EventLog {
     if (type === "bank_statement") await projectBankStatement(tx, verified);
     if (type === "policy") await projectPolicy(tx, verified, this.insurerEnv);
     if (type === "claim") await projectClaim(tx, verified);
+    if (type === "subsidy_budget") await projectSubsidyBudget(tx, verified);
+    if (type === "subsidy_grant") await projectSubsidyGrant(tx, verified, this.insurerEnv);
+    if (type === "subsidy_use") await projectSubsidyUse(tx, verified);
     if (type === "claim_decision") await projectClaimDecision(tx, verified, this.insurerEnv);
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
@@ -526,7 +530,7 @@ export class EventLog {
    * issued_at, an immediate revocation before the original grant would otherwise expire.
    */
   private async projectNode(tx: LogTx, r: AspRecord): Promise<void> {
-    const body = r.body as { node: string; public_key: string; expires: string; mandate?: string };
+    const body = r.body as { node: string; public_key: string; expires: string; mandate?: string; purpose?: string; host?: string };
     if (!body.node.startsWith(`${r.issuer}#`)) throw new AspError("KID_NOT_ISSUER", `node ${body.node} is not under ${r.issuer}`);
 
     const existing = await tx.getKey(body.node);
@@ -547,6 +551,11 @@ export class EventLog {
       throw rule("node_ttl", `a node may live at most ${this.maxNodeTtlMs / 3_600_000} hours`);
     }
 
+    // A residency delegation (residency.md 8, DK83, S301): the city host acts for the agent only under a cited Mandate, as the city host, with the sponsor holding the root key.
+    if (body.purpose === "residency") {
+      if (!body.mandate) throw rule("delegation_needs_mandate", "a residency delegation cites the Mandate it works under: a host key is never limited by the 24-hour cap alone");
+      if (body.host !== HOST_DID) throw rule("delegation_wrong_host", `a residency delegation names the city host (${HOST_DID}) in host, not ${body.host ?? "nothing"}`);
+    } else if (body.host) throw rule("delegation_host_without_purpose", "host belongs to a residency delegation (purpose residency)");
     if (body.mandate) {
       const m = await tx.getRecord(body.mandate);
       if (!m || m.record.type !== "asp.mandate/v0.2") throw rule("node_mandate_unknown", `${body.mandate} is not a Mandate in this log`);

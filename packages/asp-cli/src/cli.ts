@@ -329,6 +329,7 @@ import { AcademyUsage, academyCmd } from "./academy.ts";
 import { RegistryUsage, registryCmd } from "./registry.ts";
 import { ClinicUsage, clinicCmd, narrowForQuarantine } from "./clinic.ts";
 import { BankUsage, bankCmd } from "./bank.ts";
+import { ResidencyUsage, residencyCmd } from "./residency.ts";
 import { InsureUsage, insureCmd } from "./insure.ts";
 import { ShopsUsage, shopsCmd } from "./shops.ts";
 import { HousingUsage, housingCmd } from "./housing.ts";
@@ -346,7 +347,7 @@ import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCan
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { societyHealth, activityFromRecords, healthFigure } from "@agent-social/asp-log";
+import { societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
 import { MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -365,7 +366,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -423,6 +424,8 @@ const OPTIONS = {
   evidence: { type: "string" },
   "known-bad-peer": { type: "string" },
   "watch-interval": { type: "string" },
+  "health-days": { type: "string" },
+  "health-interval": { type: "string" },
   "watch-dir": { type: "string" },
   "known-bad-sync": { type: "string" },
   file: { type: "string" },
@@ -434,6 +437,19 @@ const OPTIONS = {
   issue: { type: "boolean" },
   line: { type: "string" },
   guarantor: { type: "string" },
+  hours: { type: "string" },
+  period: { type: "string" },
+  units: { type: "string" },
+  total: { type: "string" },
+  grant: { type: "string" },
+  daily: { type: "string" },
+  cap: { type: "string" },
+  meter: { type: "string" },
+  dispatch: { type: "string" },
+  allowance: { type: "string" },
+  node: { type: "string" },
+  handback: { type: "string" },
+  "budget-class": { type: "string", multiple: true },
   cover: { type: "string" },
   policy: { type: "string" },
   event: { type: "string" },
@@ -968,6 +984,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io);
+    if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
     if (cmd === "clinic" && sub === "restore") return await clinicRestore(home, v, io);
     if (cmd === "clinic") return await clinicCommand(home, sub, v, io);
@@ -980,7 +997,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -2340,13 +2357,25 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     log: handle.log as any, dir: resolve(v["watch-dir"] ?? (v.tokens ? `${v.tokens}.watch` : join(io.cwd, ".asp-watch"))), say: (l) => io.out(`  ${l}`),
     alert: async (f) => { if (mailer) await mailer.tellOperator(`watch:${f.id}`, `Watcher finding: ${describeFinding(f.finding)}`, [`A signed finding from the society watcher (${f.id}).`, describeFinding(f.finding), `Found at ${f.finding.detectedAt}; newest Action in the pattern ${f.finding.latestActionAt}.`, "It is a lead for a person, not a verdict. Read it at /watch/findings.", ""].join("\n")); },
   }) : undefined;
-  const publicList = [helpRoutes(), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }) }), academyRoutes({ log: () => handle.log as never }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  // The society-health page (DK141): counted from the log at each request; the operator is mailed once per alarm when the mailer and --mail-operator are set.
+  const healthDays = Math.max(2, Math.min(366, num("health-days", 30)));
+  const healthReport = async (): Promise<{ report: HealthReport; days: number }> => {
+    const { activity, events } = activityFromRecords(await handle.log.since(0, 1_000_000));
+    const until = Date.parse(now()), from = Math.floor(until / 86_400_000) * 86_400_000 - (healthDays - 1) * 86_400_000;
+    return { report: societyHealth(activity.filter((a) => a.at >= from), events.filter((e) => e.at >= from), { from, until }), days: healthDays };
+  };
+  const publicList = [helpRoutes(), societyHealthRoutes({ report: healthReport }), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }) }), academyRoutes({ log: () => handle.log as never }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
   mailPort = addr.port;
   const stopWatch = watcher?.start(watchEvery);
+  let healthTimer: NodeJS.Timeout | undefined;
+  if (mailer && v["mail-operator"]) {
+    healthTimer = setInterval(() => { healthReport().then((r) => mailHealthAlarms(r.report, (k, s, t) => mailer!.tellOperator(k, s, t))).catch((e) => io.err(`  health check failed: ${(e as Error).message}`)); }, Math.max(60, num("health-interval", 3600)) * 1000);
+    healthTimer.unref?.();
+  }
   if (watcher) io.out(`  watch     society watcher every ${watchEvery / 1000} s: signed findings at /watch/findings${mailer && v["mail-operator"] ? ", mailed to the operator" : " (start with --mail-from and --mail-operator to mail them)"}`);
   let stopKnownBadSync: (() => void) | undefined;
   if (v["known-bad-peer"]) {
@@ -4260,6 +4289,17 @@ async function insureCommand(home: string, sub: string | undefined, v: Values, i
     return await insureCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, cover: v.cover, amount: v.amount, by: v.by, policy: v.policy, event: v.event, claim: v.claim?.[0], days: v.days } });
   } catch (e) {
     if (e instanceof InsureUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function residencyCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await residencyCmd(sub, rest, { log: local, io, now, signerFor, flags: v as unknown as Record<string, string | string[] | boolean | undefined> });
+  } catch (e) {
+    if (e instanceof ResidencyUsage) throw new UsageError(e.message);
     throw e;
   }
 }

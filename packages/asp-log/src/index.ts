@@ -40,3 +40,4 @@ export { RESEARCH_DID, SUBMIT_SERVICE, RESEARCH_CATALOGUE, MAX_SUBMISSIONS_PER_P
 export { SIGNALS, ENTRY_KEY, MAX_RETENTION_DAYS, MIN_CALIBRATION_N, RESOLVERS, Collector, mayCollect, brier, surprisal, meanSurprisal, klBits, normativePosterior, calibration as calibrationOf, beliefDiff, merkleRoot, textHash, buildDigest, lensRecalibration, simulateSociety, rng, round3, type Signal, type ConsentView, type DigestView, type SimAgent } from "./telemetry.ts";
 export { TELEMETRY_DID } from "./telemetry-rules.ts";
 export { intakeProblems, ruleHash, armOf, runMechanism, type MechanismEntry, type Decision } from "./pipeline.ts";
+export { CITY_BUDGET_DID, HOST_DID, BUDGET_NOTICE_MS, SUBSIDY_CLASSES, RESIDENT_MIN_QUALIFYING, subsidyReport, reconcileSubsidy, type SubsidyReport } from "./subsidy.ts";

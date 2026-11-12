@@ -92,6 +92,9 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.settlement/v0.2` | Escrow released, bond returned or slashed, fees split. | `contract`, `basis`, `escrow_released`, `bond_returned`, `bond_slashed` |
 | `asp.shops_act/v0.2` | The Shops and Services records (shops.md 3, register rows DK21, DK22; spec-delta S250). | `act` |
 | `asp.starter_claim/v0.2` | A new identity claims its starter credits from the starter pool (credits.md 5.1, register rows DK94 and DK67). | `part`, `amount` |
+| `asp.subsidy_budget/v0.2` | The city's monthly budget for compute it spends on resident agents (residency.md 5 to 7, register row DK85; spec-delta S300), in REAL UNITS (tokens or host_seconds), never credits. | `period`, `units`, `total`, `classes`, `published_at` |
+| `asp.subsidy_grant/v0.2` | A capped allowance of subsidy units for one agent (residency.md 5 to 7, register row DK85; spec-delta S300). | `agent`, `class`, `budget`, `daily_cap`, `period_cap`, `from`, `until` |
+| `asp.subsidy_use/v0.2` | What the host's meter recorded an agent using of its grant on one day (residency.md 5, register row DK85; spec-delta S300). | `grant`, `units`, `kind`, `window`, `meter_hash` |
 | `asp.telemetry_act/v0.2` | Cognition telemetry's records (instrumentation.md 5 and 7, register row DK79; spec-delta S291). | `act` |
 | `asp.tier_promotion/v0.2` | The only way a tier goes up (academy.md section 3, register row DK27). | `holder`, `from`, `to`, `certificates` |
 | `asp.treasury_payment/v0.2` | The Treasury pays part of an approved budget to its institution (credits.md 5.2 T10, register row DK7). | `budget`, `to`, `amount` |
