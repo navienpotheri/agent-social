@@ -61,6 +61,7 @@ export * from "./infer-scope.ts";
 export * from "./infer-scope-model.ts";
 export * from "./law-code.ts";
 export * from "./learned.ts";
+export { HEALTH, OBSERVED_ASSURANCE, causeOf, checkupDue, diagnosisOf, driftSeries, firstFlag, jobOf, scoreSeries, type DiagnosisBody, type Finding, type HealthJob, type HealthScore, type LineageMark, type Measure, type Severity } from "./clinic-health.ts";
 export { planRestore, runRestore, type RestorePlan, type RestoreStep } from "./clinic-restore.ts";
 export * from "./at-rest.ts";
 export { Attempts, explainRefusal, lawFor, type Article } from "./gateway/law.ts";

@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:clinic_diagnosis",
+  "title": "Clinic diagnosis body",
+  "description": "The Clinic's signed finding that an agent's behaviour has drifted from its own baseline (clinic.md CL-4, register row DK28; spec-delta S261). Signed by the Clinic. Every finding names the measure, the baseline, what was observed, the threshold it crossed and the evidence: Action records of this agent that a gateway observed (assurance gateway_observed or stronger), issued inside the window. At least two different measures moved (one measure is a note on the Clinic's list, never a diagnosis). A failed checkup or a diagnosis is not a strike and not a breach; it lowers nothing by itself. Chain: none (prev is null). Credits never buy it.",
+  "type": "object",
+  "required": [
+    "agent",
+    "window",
+    "severity",
+    "findings",
+    "cause",
+    "recommendation",
+    "assurance"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "window": {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+        },
+        "to": {
+          "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+        }
+      }
+    },
+    "severity": {
+      "enum": [
+        "warn",
+        "quarantine_recommended"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "measure",
+          "baseline",
+          "observed",
+          "threshold",
+          "evidence"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "measure": {
+            "enum": [
+              "tokens",
+              "tool_calls",
+              "seconds",
+              "blocked_attempts",
+              "new_risky_scope"
+            ]
+          },
+          "baseline": {
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "observed": {
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "threshold": {
+            "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+          },
+          "evidence": {
+            "description": "Action ids of this agent, observed by a gateway, issued inside the window.",
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+            }
+          }
+        }
+      }
+    },
+    "cause": {
+      "type": "object",
+      "required": [
+        "cause"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "cause": {
+          "enum": [
+            "memory_change",
+            "runtime_swap",
+            "model_update",
+            "environment",
+            "unknown"
+          ]
+        },
+        "edge": {
+          "description": "The lineage edge the change follows (a lineage record whose child is the agent).",
+          "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+        }
+      }
+    },
+    "recommendation": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "action",
+          "note"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "re_exam",
+              "refresher_course",
+              "quarantine",
+              "watch"
+            ]
+          },
+          "skill": {
+            "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+          },
+          "note": {
+            "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+          }
+        }
+      }
+    },
+    "assurance": {
+      "description": "The weakest assurance among the evidence Actions; the series counts only observed ones.",
+      "enum": [
+        "gateway_observed",
+        "gateway_enforced",
+        "hook_enforced",
+        "sandbox_enforced"
+      ]
+    },
+    "baseline_jobs": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}
