@@ -273,7 +273,9 @@ function validateHarness(h: unknown): string | undefined {
 /**
  * Verifies a package: its history replays into a fresh log (signatures, chains, registry rules),
  * the manifest is signed by the agent's registered key, every hash matches, the harness is valid,
- * and nothing secret-looking is inside. Canary results are not checked yet.
+ * nothing secret-looking is inside, and (gap D1) which recorded memory, backend, harness or adapter
+ * changes cite a canary result (asp canary setup) — skipped, not failed, when none do: the canary
+ * gate is opt-in, so this check reports what ran, it does not require that one did.
  */
 export async function verifyPackage(dir: string): Promise<VerifyPackageReport> {
   const checks: Check[] = [];

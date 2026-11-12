@@ -72,13 +72,15 @@
  *     --packages <folder> lets an agent's page list its packages found there (*.aspkg folders and *.aspkg.tgz archives); with ASP_LOG_URL set it also lists the ones on the service and its commons entries.
  *     The dashboard on this machine only (docs/spec-deltas.md S84): agents, jobs, approvals you can answer, alerts, and the money with its conservation check.
  *     Prints an address carrying a random access token. Reads the log in the ASP home (or the service named by ASP_LOG_URL).
- *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--html] [--again] | pending | watch [--once] [--interval <s>] [--to <address>] | address set <did> <address> | address list
+ *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <s>] [--to <address>] [--package <pkg>] | address set <did> <address> | address list
  *     The end-of-Mandate mail (docs/live-beta-flow-1.md step 8, gap E8): one mail per Mandate with the highlights from the log (what was asked, allowed, done,
  *     blocked, approved, what changed in memory, how it ended and what moved) and, when the gateway kept one, the checked run log. preview prints it (--html
  *     prints the HTML body); queue writes an .eml, .html and .txt to <home>/outbox and marks the Mandate as mailed (a second queue needs --again);
  *     pending lists ended Mandates and alerts not mailed yet. watch queues them as they happen (once with --once): the end mail when a job settles, and an
  *     alert mail at once for a kill (the kill switch's slashed settlement), an upheld report against the agent, or a Mandate that expired while the job still runs.
  *     The mail goes to the address set for the principal (asp mail address set), or --to. Nothing is sent: delivery to a mail provider is not built.
+ *     With --package <pkg> (the agent's own package, read locally), the memory section names what each change added, changed and removed (gap D10, as
+ *     `asp learned` would show it) and whether the principal already reviewed it, instead of the log's plain description alone.
  *   asp known-bad add --report <upheld-report> --by <did> [--fingerprint <asp://shell-command#sha256:...> | --all] [--note <text>] | list
  *     The list is the log service's (ASP_LOG_URL; adding needs an admin token) or <home>/known-bad.json. Without --fingerprint the
  *     candidates are the shell commands shared by 3+ agents (asp watch) that include the reported job. asp run --contract gives the
@@ -2988,7 +2990,7 @@ function findRunLog(home: string, contract: string): string | undefined {
 
 /** asp mail preview|queue|pending|watch|address: see the header. */
 async function mailCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
-  const USAGE = "usage: asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--html] [--again] | pending | watch [--once] [--interval <seconds>] [--to <address>] | address set <did> <address> | address list";
+  const USAGE = "usage: asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <seconds>] [--to <address>] [--package <pkg>] | address set <did> <address> | address list";
   if (!["preview", "queue", "pending", "watch", "address"].includes(sub ?? "")) throw new UsageError(USAGE);
   const statePath = join(home, "mail-state.json");
   const addressPath = join(home, "mail-addresses.json");
@@ -3017,6 +3019,9 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
     return file && existsSync(file) ? { ...readRunLog(file), path: file } : undefined;
   };
   const linkBase = v["link-base"] ? { linkBase: v["link-base"] } : {};
+  // The agent's own package, read locally (gap D10): richer detail on what it learned than the log's lineage description alone, and whether the principal already reviewed it.
+  const pkgDir = v.package ? resolve(io.cwd, v.package) : undefined;
+  const learned = pkgDir && existsSync(join(pkgDir, "manifest.json")) ? { learned: listLessons(pkgDir) } : {};
   const outbox = join(home, "outbox");
   /** Writes the .eml, .html and .txt, and records that this key was mailed. */
   const queueFiles = (key: string, label: string, mail: { eml: string; html: string; text: string }, to: string) => {
@@ -3055,7 +3060,7 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
         queued++;
       };
       for (const a of alerts) await send(a.key, `alert-${a.kind}`, a.contract, (f, to) => buildAlertMail(a, f, { to, ...linkBase }));
-      for (const c of finals) await send(c, "end", c, (f, to) => buildMandateMail(f, { to, ...(runLogFor(c) ? { runLog: runLogFor(c)! } : {}), ...linkBase }));
+      for (const c of finals) await send(c, "end", c, (f, to) => buildMandateMail(f, { to, ...(runLogFor(c) ? { runLog: runLogFor(c)! } : {}), ...linkBase, ...learned }));
       if (sub === "pending") io.out(`${finals.length} ended Mandate(s) and ${alerts.length} alert(s) not mailed yet`);
       return queued;
     };
@@ -3076,7 +3081,7 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
   const facts = await collectMandateFacts(local.log, contract);
   if (!facts) throw new Error(`contract ${contract} is not in the log`);
   const runLog = runLogFor(contract);
-  const mail = buildMandateMail(facts, { to: v.to ?? addresses[facts.contract.principal] ?? "principal@localhost", ...(runLog ? { runLog } : {}), ...linkBase });
+  const mail = buildMandateMail(facts, { to: v.to ?? addresses[facts.contract.principal] ?? "principal@localhost", ...(runLog ? { runLog } : {}), ...linkBase, ...learned });
   if (sub === "preview") {
     io.out(v.html ? mail.html : mail.text);
     return 0;
