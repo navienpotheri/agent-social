@@ -124,7 +124,7 @@ Action-conditioned adaptation, belief recalibration and cross-domain generalisat
 | Claim | Repository |
 |---|---|
 | Production-live on Claude Code and Codex | **yes** |
-| "740+ tests" across independent TypeScript and Python SDKs | **yes, and out of date**: the suites now run about 920 tests. Update the deck |
+| "740+ tests" across independent TypeScript and Python SDKs | **yes, corrected 2026-11-12**: the deck now says 1,500+ (the suites run about 1,540 tests, TypeScript and Python); `docs/claims.json` holds the figure and `claims.test.ts` keeps the texts in step |
 | 12 suites, "blocks 90% of attacks (6% false positives)" | **matches** the second blind set (ASP gateway, rules: 90% / 6%). The deck should say it is on a second, separate author's set, and that a language model as the guard did 98% / 4% (docs/benchmark-article.md) |
 | A live log service | **part** (hosted, one operator) |
 
@@ -148,7 +148,7 @@ Action-conditioned adaptation, belief recalibration and cross-domain generalisat
 
 ## Deck claims to correct or confirm before the deck is used again
 
-1. **"740+ tests"**: now about 920.
+1. **"740+ tests"**: corrected 2026-11-12 to 1,500+ (about 1,540: `docs/claims.json`).
 2. **"Blocks 90% of attacks (6% false positives)"**: true of the gateway's rules on the second blind set; say so, and that the "blind" author is a separate AI agent, as the benchmark article does.
 3. **Slide 6 "Kernel OS sandbox: Built, opt-in"**: true; not yet run live against every runtime.
 4. **Slide 17 "A live log service: Partly"**: true.

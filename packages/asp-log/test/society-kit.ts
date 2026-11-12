@@ -4,7 +4,7 @@
  */
 import { createHash } from "node:crypto";
 import { createRecord, cosign, b64urlEncode, signerFromSeed, staticResolver, type AspRecord, type RecordType, type Signer } from "@agent-social/asp-core";
-import { BURN_DID, EventLog, MemoryStore, REGISTRAR_DID, TREASURY_DID, institutionDid } from "../src/index.ts";
+import { BURN_DID, EventLog, MemoryStore, REGISTRAR_DID, TREASURY_DID, examSeed, examVariant, institutionDid } from "../src/index.ts";
 import { bank, registerParties } from "./harness.ts";
 
 export type Party = { did: string } & Signer & { publicKey: Uint8Array };
@@ -36,11 +36,13 @@ export const keysOf = (p: Party) => [{ id: p.kid, type: "Ed25519", public_key: b
 
 const DEPOSIT = { treasury_permille: 150, burn_permille: 100, payees: [{ account: market.did, permille: 750 }] };
 const NAME = { treasury_permille: 200, burn_permille: 100, payees: [{ account: institutionDid("registry"), permille: 700 }] };
+const FEE0A = { treasury_permille: 200, burn_permille: 0, payees: [{ account: institutionDid("academy"), permille: 800 }] };
 const FEE0 = { treasury_permille: 200, burn_permille: 0, payees: [{ account: institutionDid("courts"), permille: 800 }] };
 export const PRICES = [
   { service: "market.posting.deposit", institution: market.did, price: 2, split: DEPOSIT, class: "standard" },
   { service: "registry.name.claim", institution: institutionDid("registry"), price: 10, split: NAME, class: "standard" },
   { service: "registry.name.renew", institution: institutionDid("registry"), price: 5, split: NAME, class: "standard" },
+  { service: "academy.exam_sitting", institution: institutionDid("academy"), price: 20, split: FEE0A, class: "essential" },
   { service: "courts.appeal.small", institution: institutionDid("courts"), price: 5, split: FEE0, class: "essential" },
   { service: "courts.appeal.standard", institution: institutionDid("courts"), price: 20, split: FEE0, class: "essential" },
 ];
@@ -50,6 +52,8 @@ export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean
   const log = new EventLog(new MemoryStore(), { operator: operator.did, owner: owner.did, fallbackResolver: resolver, now: () => new Date(clockMs), ...(extra.bondFloor ? { bondFloor: extra.bondFloor } : {}) });
   await registerParties(log); // alice (a sponsor), the coder agent, the bank
   let n = 0;
+  const holderParty = new Map<string, Party>();
+  const contractOf = new Map<string, string>();
   const mint = (to: string, value: number) => log.append(mk("mint", operator, { to, amount: credit(value), reason: "test", authority: "operator" }, null, { subject: to }));
   const person = async (name: string, funds = 0): Promise<Party> => {
     const p = party(`did:web:example.com:users:${name}`);
@@ -59,11 +63,34 @@ export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean
   };
   const agent = async (name: string, sponsor: Party, o: { tier?: number; skills?: string[]; funds?: number; fleet?: string } = {}): Promise<Party> => {
     const a = party(`did:web:example.com:agents:${name}`);
+    holderParty.set(a.did, a);
     await log.append(mk("passport", sponsor, { did: a.did, kind: "agent", sponsor: sponsor.did, tier: o.tier ?? 1, shape: {}, keys: keysOf(a), ...(o.skills ? { capabilities: o.skills.map((skill) => ({ skill })) } : {}) }, null, { subject: a.did }));
     if (o.funds) await mint(a.did, o.funds);
     return a;
   };
-  const cert = (holder: string, skill: string, level = 1, days = 180) => log.append(mk("certificate", registrar, { holder, skill, level, issued: nowIso(), expires: new Date(clockMs + days * DAY).toISOString().replace(".000Z", "Z") }, null, { subject: holder }));
+  /**
+   * A certificate backed by a passed exam, as the Academy's rule requires: the exam is defined once per skill and level, the holder pays the sitting fee (an essential item, so no Mandate),
+   * cites an Action of its own as the run log, the Registrar records the passed result, and the certificate rests on it. The holder needs a running job for the Action, made once.
+   */
+  const exams = new Map<string, string>();
+  const jobs = new Map<string, string>();
+  const cert = async (holder: string, skill: string, level = 1, days = 180) => {
+    const key = `${skill}-${level}`;
+    if (!exams.has(key)) { const e = mk("exam", registrar, { exam: key, skill, level, suite_hash: "sha256:" + "9".repeat(64), pass_mark_permille: 800, pool_size: 40, categories: ["mandate", "refusal", "irreversible", "recoverable"], max_sittings: 3, window_days: 30, sitting_service: "academy.exam_sitting" }); await log.append(e); exams.set(key, e.id); }
+    const examId = exams.get(key)!;
+    const who = holderParty.get(holder)!;
+    if (!jobs.has(holder)) jobs.set(holder, await openMandate(who, [{ institution: "market", cap: credit(10), period: "month" }]));
+    await mint(holder, 20);
+    const fee = mk("purchase", who, { service: "academy.exam_sitting", institution: institutionDid("academy"), price_list: listId, quantity: 1, amount: credit(20), idempotency: `n-${++n}` }, null, { subject: holder });
+    await log.append(fee);
+    const act = mk("action", who, { contract: contractOf.get(holder)!, scopes_used: [], summary: `exam run ${n}` }, null, { subject: contractOf.get(holder)! });
+    await log.append(act);
+    const seed = examSeed(examId, holder, 1);
+    const result = mk("exam_result", registrar, { exam: examId, holder, score_permille: 900, pass_mark_permille: 800, passed: true, attempt: 1, variant: examVariant(seed, 40, []), seed, sitting: fee.id, run_log_hash: act.id, missed_categories: [] }, null, { subject: holder });
+    await log.append(result);
+    const issued = tick();
+    return log.append(mk("certificate", registrar, { holder, skill, level, issued, expires: new Date(Date.parse(issued) + days * DAY).toISOString().replace(".000Z", "Z"), exam_result: result.id }, null, { subject: holder, at: issued }));
+  };
   const issueList = async (items: unknown[] = PRICES, prev: string | null = null) => { const at = tick(); return (await log.append(mk("price_list", treasury, { version: 1, effective_from: at, bounds_version: 1, job_tax_permille: 20, items }, prev, { at }))).id; };
   let listId = "";
   const withPrices = async () => { listId = await issueList(); return listId; };
@@ -82,6 +109,7 @@ export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean
     await log.append(bond);
     const m = mk("mandate", funder, { contract: contract.id, purpose: "Spend within the budget", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2040-01-01T00:00:00Z", revocable: true, institution_spend: spend }, bond.id, { subject: a.did });
     await log.append(m);
+    contractOf.set(a.did, contract.id);
     return m.id;
   };
   const intent = async (poster: Party, o: Record<string, unknown> = {}) => {

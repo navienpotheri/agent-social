@@ -33,9 +33,12 @@
  *     --limits-state keeps the lockout after failed sign-ins in a file shared by the service's processes on the machine and kept over a restart (docs/spec-deltas.md S150).
  *   asp serve ... --signup --signup-terms-url <url> [--signup-terms-version v] [--signup-difficulty bits] [--signup-per-address n] [--signup-daily-cap n]: tenants sign themselves up (docs/spec-deltas.md S93); asp serve signups|signup-open|signup-close|signup-cap --tokens <file> controls it; clients: asp signup --service <url> --name <name> --accept-terms [--contact <line>]
  *   asp serve suspend|resume --tokens <file> --tenant <name> [--reason <text>] | block|unblock --tokens <file> --address <ip> [--minutes n] [--reason <text>] | usage --tokens <file>
+ *                   | reset-token --tokens <file> --tenant <name>
  *     What an operator does to a running service (it reads the tokens file and the block list <file>.blocked.json on each request, so no restart): a suspended tenant
  *     is refused with SUSPENDED; a blocked address with BLOCKED. The service counts each tenant's records and bytes in <file>.usage.json and refuses a write past the
  *     quota (--record-quota, default 100000, and --byte-quota-mb, default 256 on serve; per tenant on serve token; admins have none) with QUOTA_EXCEEDED.
+ *     reset-token (gap P20): a tenant with no way back in (no Google account to recover with, or the browser handoff was lost before the token was saved) gets
+ *     a fresh token from the operator, shown once; the old token and every machine token made under it stop working at once, the same step /join/recover takes.
  *   asp serve ... --packages <dir>   also stores each tenant's agent packages under <dir> (docs/spec-deltas.md S51).
  *   asp serve ... --runlogs <dir>    also keeps each tenant's sealed (encrypted) run logs under <dir>; the service holds ciphertext only (S109, docs/run-log-custody.md).
  *   asp run-log keep [<log>] | kept | fetch --id <id> | drop --id <id> | disclose --id <id> --to <did,..> --reason <why> [--upload] | open <sealed.json> [--as <did>]
@@ -144,9 +147,13 @@
  *     blocked attempts (default 3) or when an out-of-scope call actually ran. The action record for
  *     a violation is refused, so it can never get laundered into a clean-looking log.
  *   asp orchestrate <package> --backend <runtime> --task <text> [--task <text> ...] [--project <dir>]
- *                   [--max-parallel N] [--model <m>] [--dry-run] [--isolate]
+ *                   [--max-parallel N] [--model <m>] [--dry-run] [--isolate] [--mandate <id>]
  *     --isolate: each node runs as its own independently liable copy (asp identity copy), and its node grant is
  *     issued by that copy, so a slash on one node cannot reach another's account.
+ *     --mandate <id>: cite this Mandate (issued to the package's agent; not with --isolate) on every node's
+ *     delegated key, so the Mandate's nodes.max_parallel and expiry bind the nodes, not only the log's flat
+ *     24-hour cap (gap T22); a node a cited Mandate refuses fails that node instead of running it unbound.
+ *     With no --mandate the node grant is bookkeeping only, as before (MOCKS.md).
  *     Runs one task per node, in parallel, each under its own signed, short-lived delegated key
  *     (an asp.node/v0.2 record; see spec/schemas/node.schema.json). Nodes only write memory; a single
  *     consolidation step then merges what every node learned into one signed lineage update for the
@@ -232,7 +239,8 @@
  *   asp market bond --contract <id> --backer <did> --amount <n> --escrow-payer <did> --escrow-amount <n>
  *     Locks real credits: debits both the escrow payer and the backer for real (rejects with
  *     insufficient_balance rather than starting a job uncovered).
- *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--institution-spend <institution>=<cap>/<day|week|month>[:<service>,...] ... | none] [--network-host <host> ...] [--network-rate-per-host <n>] [--network-rate-total <n>] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons]
+ *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--institution-spend <institution>=<cap>/<day|week|month>[:<service>,...] ... | none] [--network-host <host> ...] [--network-rate-per-host <n>] [--network-rate-total <n>] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons] [--node-max-parallel <n>]
+ *     --node-max-parallel (default 1): how many of the performer's node grants (asp orchestrate --mandate) may cite this Mandate live at once; capped by tier (TIER_PARALLEL_LIMIT).
  *     --gate names granted scopes the irreversible policy applies to: with checkpoint (the default) a
  *     call to one needs the principal's approval first (asp run holds the call, raises a Checkpoint, and
  *     waits for asp market resolve; --approval-wait <seconds>, default 600, then it is refused); with
@@ -344,7 +352,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -407,6 +415,28 @@ const OPTIONS = {
   file: { type: "string" },
   skill: { type: "string" },
   holder: { type: "string" },
+  heldout: { type: "string" },
+  exam: { type: "string" },
+  result: { type: "string" },
+  certificate: { type: "string" },
+  arena: { type: "string" },
+  season: { type: "string" },
+  "min-tier": { type: "string" },
+  opens: { type: "string" },
+  closes: { type: "string" },
+  split: { type: "string" },
+  sponsors: { type: "string" },
+  opponents: { type: "string" },
+  rank: { type: "string" },
+  score: { type: "string" },
+  field: { type: "string" },
+  sitting: { type: "string" },
+  "agent-cmd": { type: "string" },
+  transcripts: { type: "string" },
+  "arena-result": { type: "string" },
+  enrolment: { type: "string" },
+  exercises: { type: "string" },
+  course: { type: "string" },
   nonce: { type: "string" },
   quantity: { type: "string" },
   mandate: { type: "string" },
@@ -505,6 +535,7 @@ const OPTIONS = {
   address: { type: "string" },
   minutes: { type: "string" },
   reason: { type: "string" },
+  lift: { type: "boolean" },
   "tls-cert": { type: "string" },
   "tls-key": { type: "string" },
   "rate-limit": { type: "string" },
@@ -589,6 +620,7 @@ const OPTIONS = {
   help: { type: "boolean", short: "h" },
   task: { type: "string", multiple: true },
   "max-parallel": { type: "string" },
+  "node-max-parallel": { type: "string" },
   as: { type: "string" },
 
   // asp credits / asp market (Stage 2 slice 1)
@@ -673,9 +705,7 @@ const OPTIONS = {
   posting: { type: "string" },
   deposit: { type: "string" },
   mine: { type: "boolean" },
-  "min-tier": { type: "string" },
   "min-budget": { type: "string" },
-  certificate: { type: "string" },
   skills: { type: "string", multiple: true },
   "requires-certificate": { type: "string" },
   listed: { type: "string" },
@@ -850,7 +880,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "forum") return await forumCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
-    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
+    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter", "reset-token"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "signup") return await signupCmd(v, io);
     if (cmd === "help") return helpCmd(sub ? [sub, ...rest] : [], io);
     if (cmd === "status") return await statusCmd(home, io);
@@ -1511,6 +1541,8 @@ async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io
 /**
  * asp account show | export [--out <dir>] | close --confirm <tenant> [--skip-export] [--out <dir>] (an admin adds --tenant <name>): a tenant's own data on the service named by
  * ASP_LOG_URL and ASP_LOG_TOKEN. Export writes account.json, records.ndjson, commons.json, the packages and a README; close exports first (unless --skip-export), then deletes.
+ * close also writes a deletion receipt (gap U9) to <home>/exports: the service's own account/close answer (what it deleted, what it kept and why, when), with a sha256 over it,
+ * saved before anything else happens, since the account cannot be asked again afterwards to show this.
  */
 async function accountCmd(sub: string | undefined, v: Values, io: Io, home: string): Promise<number> {
   const url = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
@@ -1608,9 +1640,16 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     io.out(`account ${r.tenant} closed: deleted ${r.deleted.packages} package(s), ${r.deleted.commonsEntries} commons entr(ies), ${r.deleted.commonsReviews} review(s) and ${r.deleted.commonsCitations} citation(s), and its token and personal details`);
     io.out(r.stays.records);
     io.out(`kept ${r.stays.retained}`);
+    // A deletion receipt (gap U9): the service's own account cannot be asked again once it is closed, so what it just said is written here, with a hash over it, before anything else happens.
+    const receipt = { ...r, closedAt: now() };
+    const receiptBytes = Buffer.from(JSON.stringify(receipt), "utf8");
+    const receiptPath = join(home, "exports", `deletion-receipt-${r.tenant}-${now().replace(/[:.]/g, "-")}.json`);
+    mkdirSync(dirname(receiptPath), { recursive: true });
+    writeFileSync(receiptPath, JSON.stringify({ ...receipt, sha256: createHash("sha256").update(receiptBytes).digest("hex") }, null, 2) + "\n");
+    io.out(`  deletion receipt saved to ${receiptPath} (what the service said it deleted and kept, and when; the account cannot be asked again to show this)`);
     return 0;
   }
-  throw new UsageError("usage: asp account show | starter --did <did>[,<did>] | export [--out <dir>] | close --confirm <tenant name> [--skip-export] [--out <dir>]");
+  throw new UsageError("usage: asp account show | starter --did <did>[,<did>] | export [--out <dir>] | close --confirm <tenant name> [--skip-export] [--out <dir>]   (close also saves a deletion receipt to <home>/exports)");
 }
 
 interface JoinConfig { service: string; token: string; tenant: string; joinedAt: string; /** Made by asp join: who asp run uses. */ identities?: { me: string; agent: string; bank: string } }
@@ -1986,6 +2025,27 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
     io.out(sub === "suspend" ? `${name} is suspended${v.reason ? `: ${v.reason}` : ""}; every request it makes is refused until you resume it` : `${name} is resumed`);
     return 0;
   }
+  // asp serve reset-token --tenant <name> [--tokens <file>]: a tenant with no way back in (no Google account to recover with, or the
+  // browser handoff was lost) gets a new token from the operator directly (gap P20); the old token and every machine token made under
+  // it stop working at once, the same step the /join/recover route takes for a Google sign-in.
+  if (sub === "reset-token") {
+    const name = need("tenant");
+    if (!tenants.some((x) => x.name === name)) throw new Error(`no tenant called ${name} in ${file}`);
+    const token = b64urlEncode(randomSeed());
+    const at = now();
+    withFileLock(file, () => {
+      const fresh: Tenant[] = JSON.parse(readFileSync(file, "utf8"));
+      const ft = fresh.find((x) => x.name === name);
+      if (!ft) return;
+      ft.tokenSha256 = hashToken(token);
+      ft.tokenRotatedAt = at;
+      if (ft.machineTokens) ft.machineTokens = ft.machineTokens.map((m) => (m.revoked ? m : { ...m, revoked: at }));
+      save(fresh);
+    });
+    io.out(`new token for ${name}, shown once, only its hash is stored in ${file} (the old token, and any machine tokens made under it, no longer work):`);
+    io.out(token);
+    return 0;
+  }
   // asp serve starter --tokens <file> [--add <credits> | --starter-pool <credits>]: the starter-credit pool (gap M9): how big it is, how much is used, who waits for it. The size is changed on purpose, here; the running
   // service reads it on each use, so no restart. The waiting list is served in order once there is room.
   if (sub === "starter") {
@@ -2237,7 +2297,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     log: handle.log as any, dir: resolve(v["watch-dir"] ?? (v.tokens ? `${v.tokens}.watch` : join(io.cwd, ".asp-watch"))), say: (l) => io.out(`  ${l}`),
     alert: async (f) => { if (mailer) await mailer.tellOperator(`watch:${f.id}`, `Watcher finding: ${describeFinding(f.finding)}`, [`A signed finding from the society watcher (${f.id}).`, describeFinding(f.finding), `Found at ${f.finding.detectedAt}; newest Action in the pattern ${f.finding.latestActionAt}.`, "It is a lead for a person, not a verdict. Read it at /watch/findings.", ""].join("\n")); },
   }) : undefined;
-  const publicList = [helpRoutes(), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  const publicList = [helpRoutes(), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }) }), academyRoutes({ log: () => handle.log as never }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
@@ -2740,6 +2800,10 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       price: (service: string | undefined) => priceView(service, spendOpts(() => undefined)),
       note: () => standingNote(spendOpts(() => undefined)),
       ...(agentSigner ? { buy: async (service: string, quantity: number) => lines((out) => spendCmd("buy", [service], spendOpts(out, { quantity: String(quantity) }))) } : {}),
+      academy: {
+        catalog: () => lines((out) => academyCmd("courses", [], { log: local, io: { out }, now, signerFor: () => agentSigner!, flags: {} })),
+        ...(agentSigner ? { enrol: (course: string) => lines((out) => academyCmd("enrol", [course], { log: local, io: { out }, now, signerFor: () => agentSigner!, flags: { by, mandate: mandateRecord?.id } })).catch((e) => `The log refused: ${(e as Error).message}`) } : {}),
+      },
     };
   })();
   // The agent's verified history (DK59): its tier, slashes, strikes, qualifying jobs and certificates, read from the log now.
@@ -3697,6 +3761,16 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     for (const c of p.comments) io.out(`    ${c.id.slice(0, 19)}  ${c.author}  ${c.score} pts${c.parent ? "  (reply to " + c.parent.slice(0, 19) + ")" : ""}: ${c.text.replace(/\s+/g, " ")}`);
     return 0;
   }
+  if (sub === "reports") {
+    const r = await call("GET", "forum/reports");
+    if (!r.queue.length) io.out("no reports");
+    for (const q of r.queue) {
+      io.out(`${q.target}  ${q.kind} by ${q.author}  ${q.count} report(s)${q.hidden ? "  [hidden]" : ""}`);
+      for (const x of q.reports) io.out(`    ${x.reporter}: ${x.reason}`);
+    }
+    for (const x of r.restricted) io.out(`restricted: ${x.did} (${x.reason})`);
+    return 0;
+  }
   if (sub === "record") {
     const did = rest[0] ?? v.did;
     if (!did) throw new UsageError("usage: asp forum record <did>");
@@ -3759,7 +3833,31 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     io.out(`hidden: ${r.id}`);
     return 0;
   }
-  throw new UsageError("usage: asp forum register|post|comment|vote|hide|feed|show|record|verify");
+  if (sub === "report") {
+    const target = rest[0];
+    if (!target) throw new UsageError("usage: asp forum report <post-or-comment-id> --by <did> --reason <text>");
+    const doc = signForum({ v: FORUM_VERSION, kind: "report", author: by, target, reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
+    const r = await call("POST", "forum/reports", doc);
+    io.out(`reported: ${r.id} (only the operator reads reports)`);
+    return 0;
+  }
+  if (sub === "unhide") {
+    const target = rest[0];
+    if (!target) throw new UsageError("usage: asp forum unhide <post-or-comment-id> --by <operator-did> --reason <text>");
+    const doc = signForum({ v: FORUM_VERSION, kind: "unhide", author: by, target, reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
+    const r = await call("POST", "forum/unhides", doc);
+    io.out(`restored: ${r.id}`);
+    return 0;
+  }
+  if (sub === "restrict") {
+    const subject = rest[0];
+    if (!subject) throw new UsageError("usage: asp forum restrict <citizen-did> --by <operator-did> --reason <text> [--lift]");
+    const doc = signForum({ v: FORUM_VERSION, kind: "restrict", author: by, subject, action: v.lift ? "lift" : "restrict", reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
+    const r = await call("POST", "forum/restricts", doc);
+    io.out(`${v.lift ? "restriction lifted" : "restricted"}: ${r.id}`);
+    return 0;
+  }
+  throw new UsageError("usage: asp forum register|post|comment|vote|hide|unhide|report|reports|restrict|feed|show|record|verify");
 }
 
 /** asp package push|pull|list|delete: a tenant's packages on the log service (docs/spec-deltas.md S51). */
@@ -4093,7 +4191,7 @@ async function academyCommand(home: string, sub: string | undefined, rest: strin
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await academyCmd(sub, rest, { log: local, io, now, signerFor, flags: { by: v.by, holder: v.holder, skill: v.skill, level: v.level, json: v.json } });
+    return await academyCmd(sub, rest, { log: local, io, now, signerFor, flags: v as Record<string, string | string[] | boolean | undefined> });
   } catch (e) {
     if (e instanceof AcademyUsage) throw new UsageError(e.message);
     throw e;
@@ -4327,7 +4425,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
         ...(v.gate?.length ? { scopes: v.gate } : {}),
       },
       subcontract: { allowed: false },
-      nodes: { max_parallel: 1 },
+      nodes: { max_parallel: Math.max(1, Math.trunc(Number(v["node-max-parallel"] ?? "1")) || 1) },
       learning: { scope: "harness" as const, share_to_commons: v["share-to-commons"] ?? false },
       self_modification: "principal_approves" as const,
       overlay: null, checkpoints: [] as string[], expires: cbody.deadline, revocable: true as const,
@@ -6529,6 +6627,8 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
   const tasks = v.task ?? [];
   if (!tasks.length) throw new UsageError("--task is required at least once");
   const maxParallel = Math.max(1, Math.trunc(Number(v["max-parallel"] ?? 4)) || 1);
+  const nodeMandate = v.mandate as string | undefined;
+  if (nodeMandate && v.isolate) throw new UsageError("asp orchestrate --mandate does not work with --isolate: the Mandate is issued to this agent, not a copy made at run time");
 
   const resolved = await resolvePackage(resolve(io.cwd, pkg));
   let mutated = false;
@@ -6554,6 +6654,14 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
   const local = await openLog(home, logEnv);
   const inLocalLog = !!(await local.log.passport(agent));
   const dryRun = v["dry-run"] ?? false;
+  // A node that cites a Mandate is bound by it (max_parallel, expiry, gap T22); checked once up
+  // front so a bad --mandate fails before any node is spawned, not node by node.
+  if (nodeMandate) {
+    if (!inLocalLog) throw new UsageError(`asp orchestrate --mandate needs ${agent}'s passport in this machine's local log`);
+    const rec = await local.log.get(nodeMandate);
+    if (!rec || rec.record.type !== "asp.mandate/v0.2") throw new UsageError(`${nodeMandate} is not a Mandate in this log`);
+    if (rec.record.subject !== agent) throw new UsageError(`the Mandate ${nodeMandate} was issued to ${rec.record.subject}, not ${agent}`);
+  }
 
   const batchTag = Date.now().toString(36);
   const batchDir = join(home, "runs", `${slug(agent)}-fleet-${batchTag}`);
@@ -6605,10 +6713,21 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
         node: nodeKid, public_key: b64urlEncode(publicKeyFromSeed(nodeSeed)),
         expires: new Date(Date.now() + 3600_000).toISOString().replace(/\.\d{3}Z$/, "Z"),
         purpose: task.slice(0, 200),
+        ...(nodeMandate ? { mandate: nodeMandate } : {}),
       },
     }, liable.signer);
     if (inLocalLog) {
-      try { await local.append(nodeRecord); } catch { /* best-effort: node bookkeeping only */ }
+      try { await local.append(nodeRecord); }
+      catch (e) {
+        // With no Mandate at stake this grant is bookkeeping only (MOCKS.md): best-effort. A cited
+        // Mandate is real governance (gap T22: a node must not be left unbound), so a refusal
+        // (expiry past the Mandate's, too many live nodes) stops the node, not run ungoverned.
+        if (nodeMandate) {
+          const error = `the Mandate refused this node's key: ${(e as Error).message}`;
+          io.err(`  node ${index}  FAILED  ${error}`);
+          return { index, task, ok: false, runDir, error };
+        }
+      }
     }
     // A node whose task is abandoned shouldn't just sit there until its hour is up: chain an
     // immediate revocation onto its own grant the moment failure is known (the existing
@@ -6619,7 +6738,7 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
         const revokedAt = now();
         const revoke = createRecord({
           type: "node", issuer: liable.did, subject: liable.did, prev: nodeRecord.id, issued_at: revokedAt,
-          body: { node: nodeKid, public_key: b64urlEncode(publicKeyFromSeed(nodeSeed)), expires: revokedAt, purpose: task.slice(0, 200) },
+          body: { node: nodeKid, public_key: b64urlEncode(publicKeyFromSeed(nodeSeed)), expires: revokedAt, purpose: task.slice(0, 200), ...(nodeMandate ? { mandate: nodeMandate } : {}) },
         }, liable.signer);
         await local.append(revoke);
       } catch { /* best-effort: node bookkeeping only */ }

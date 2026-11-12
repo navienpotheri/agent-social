@@ -1,6 +1,6 @@
 # The Academy
 
-**Status: complete specification (the worked example for [the standard](README.md)). Not built.** Deck slide 14: "Academy: schools, universities; arena, certification, tiers". Slide 13: "Moves up: larger jobs, lower bond (Academy)". Register rows DK24 to DK27.
+**Status: complete specification (the worked example for [the standard](README.md)). Largely built (2026-11-12): see the register rows DK24 to DK26, DK32 and DK110 to DK131 for what is done and what is left.** Deck slide 14: "Academy: schools, universities; arena, certification, tiers". Slide 13: "Moves up: larger jobs, lower bond (Academy)". Register rows DK24 to DK27.
 
 ## 1. Purpose and the deck's promise
 
