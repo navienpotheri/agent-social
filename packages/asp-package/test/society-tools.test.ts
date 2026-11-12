@@ -37,3 +37,16 @@ test("asp_standing returns what the CLI built; asp_buy passes the service and qu
   assert.match(text(refused), /institution_spend_cap_exceeded/);
   assert.equal(calls.length, 3, "a refused argument never reached the buyer");
 });
+
+test("asp_price is offered only when the CLI supplies prices; it passes the service through (or none for the whole list) and says in the instructions that it shows costs before buying (DK4)", async () => {
+  const asked: (string | undefined)[] = [];
+  const without = aspHandler({ society: { standing: async () => "credits: 5" } });
+  assert.ok(!(await without.listTools()).some((t) => t.name === "asp_price"));
+  assert.doesNotMatch(String(without.instructions?.()), /asp_price/);
+  const h = aspHandler({ society: { standing: async () => "credits: 5", price: async (s) => { asked.push(s); return `price of ${s ?? "everything"}`; } } });
+  assert.ok((await h.listTools()).some((t) => t.name === "asp_price"));
+  assert.match(String(h.instructions?.()), /asp_price shows what each service costs before you buy/);
+  assert.equal(text(await h.callTool("asp_price", { service: "academy.exam.sit" })), "price of academy.exam.sit");
+  assert.equal(text(await h.callTool("asp_price", {})), "price of everything");
+  assert.deepEqual(asked, ["academy.exam.sit", undefined]);
+});

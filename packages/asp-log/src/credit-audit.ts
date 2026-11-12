@@ -97,7 +97,7 @@ export function auditLedger(rows: LedgerRows, platformDid: string = PLATFORM_DID
     verdict: problems.length ? "mismatch" : "balanced", problems,
     notYet: [
       "minted credits by reason for the old unsigned mints (only signed mint records carry a reason; see mintedUnsigned)",
-      "job tax, prizes, budgets, standing orders and credit lines (CR-15, T4, T10: not built)",
+      "job tax, standing orders and credit lines (CR-15: not built); budget payments, allowances and prizes (S190) move balances, so the books balance, but the audit does not yet list them by flow",
     ],
   };
 }
@@ -164,7 +164,7 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
     since: since ?? null, head, settlements: s, minted: (await store.ledgerRows()).mints.reduce((n, m) => n + m.totalMinted, 0), mintedByReason, purchases, refunds,
     unavailable: [
       "faucets by reason for the old unsigned mints (they carry no reason; signed mints do, see mintedByReason)",
-      "job tax, standing orders, prizes, budgets and auto-refunds (not built: CR-15, CR-23, T4, T10)",
+      "job tax, standing orders and auto-refunds (not built: CR-15, CR-23); budget payments, allowances and prizes (S190) are not yet listed by flow",
       "credit lines, premiums, claims and reserves of the Bank and the Insurer (not built)",
       "panel fees paid to jurors (derived inside a ruling settlement, not stored)",
     ],

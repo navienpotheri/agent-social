@@ -5,7 +5,7 @@ import {
 import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type StarterPoolState } from "./credit-audit.ts";
 import { bondFloorPermille } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
-import { BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
@@ -116,7 +116,7 @@ export const MAX_LATE_ACTIONS = 5;
 
 interface PriceListBody {
   version: number; effective_from: string; bounds_version: number; job_tax_permille: number;
-  items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial" }[];
+  items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial"; gives_standing?: boolean }[];
 }
 interface PurchaseBody { service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string; mandate?: string }
 interface InstitutionSpend { institution: string; cap: { value: number }; period: "day" | "week" | "month"; services?: string[] }
@@ -249,6 +249,10 @@ export class EventLog {
     if (type === "purchase") await this.projectPurchase(tx, verified);
     if (type === "starter_claim") await this.projectStarterClaim(tx, verified);
     if (type === "internal_transfer") await this.projectInternalTransfer(tx, verified);
+    if (type === "budget") await this.projectBudget(tx, verified);
+    if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
+    if (type === "allowance") await this.projectAllowance(tx, verified);
+    if (type === "prize") await this.projectPrize(tx, verified);
     if (type === "certificate") await this.projectCertificate(tx, verified);
     if (type === "tier_promotion") await this.projectTierPromotion(tx, verified);
     if (type === "quarantine") await this.projectQuarantine(tx, verified);
@@ -328,6 +332,7 @@ export class EventLog {
   private async projectPassport(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as { did: string; kind: string; sponsor?: string; fleet?: string; tier?: number; lineage?: { edge: string; parent: string }[]; keys: { id: string; public_key: string }[] };
     const current = await tx.getPassport(body.did);
+    if (!current) await tx.putMarker(`passport_born:${body.did}`, r.issued_at);
     if ((current?.head ?? null) !== r.prev) {
       throw new AspError("BAD_PREV", current
         ? `a passport update for ${body.did} must follow ${current.head}`
@@ -764,6 +769,7 @@ export class EventLog {
       contract: string; backer: string; amount: { value: number };
       escrow: { payer: string; amount: { value: number } };
     };
+    await tx.putMarker(`bonded:${body.backer}`, r.id);
     const backerRep = await this.reputation(tx, body.backer);
     if (backerRep && backerRep.tier === 0) {
       throw rule("tier_excluded", `${body.backer} is excluded from bonding: repeat slashes demoted it to tier 0`);
@@ -1209,7 +1215,10 @@ export class EventLog {
       if (seen.has(item.service)) throw rule("price_list_split_invalid", `${item.service} is listed twice`);
       seen.add(item.service);
       if (!INSTITUTION_DIDS.includes(item.institution)) throw rule("price_list_unknown_payee", `${item.institution} is not a registered institution account`);
-      const bad = splitProblem(item.split, item.class);
+      // A payee is an institution account, the Treasury, or an agent with a passport in this log (a course author earns its share, academy.md).
+      const agents = new Set<string>();
+      for (const p of item.split.payees) if (await tx.getPassport(p.account)) agents.add(p.account);
+      const bad = splitProblem(item.split, item.class, (a) => a === TREASURY_DID || INSTITUTION_DIDS.includes(a) || agents.has(a));
       if (bad) throw rule(bad.rule, `${item.service}: ${bad.message}`);
     }
     // Notice (credits.md 4.1): 72 hours for a rise, a split change or a new service; 24 hours for a fall or a removal.
@@ -1259,6 +1268,14 @@ export class EventLog {
     const key = `purchase:${buyer}|${b.service}|${b.idempotency}`;
     if (await tx.getMarker(key)) throw rule("purchase_replay", `${buyer} already made a purchase of ${b.service} with the nonce ${b.idempotency}`);
     if (item.split.payees.some((p) => p.account === buyer)) throw rule("self_dealing", "a buyer cannot be a payee of its own purchase");
+    if (item.gives_standing) {
+      // R9: an item that gives standing may not pay the buyer, the buyer's sponsor, or any account the buyer's sponsor controls (its other agents): a buyer cannot farm the author's share while buying standing from itself.
+      const controller = async (did: string) => (await tx.getPassport(did))?.sponsor ?? did;
+      const mine = await controller(buyer);
+      for (const p of item.split.payees) {
+        if (p.account === mine || (await controller(p.account)) === mine) throw rule("self_dealing", `${b.service} gives standing, and its payee ${p.account} is the buyer's sponsor or controlled by it: a buyer cannot pay itself for standing`);
+      }
+    }
     const rep = await this.reputation(tx, buyer);
     if (rep && rep.tier === 0 && item.class === "standard") throw rule("tier_excluded", "a tier 0 agent may buy only essential or remedial items");
     const qlevel = await this.liveQuarantine(tx, buyer, r.issued_at);
@@ -1272,6 +1289,7 @@ export class EventLog {
     await this.credit(tx, TREASURY_DID, parts.treasury);
     await this.credit(tx, BURN_DID, parts.burn);
     await tx.putMarker(key, r.id);
+    if (item.institution === institutionDid("academy")) await tx.putMarker(`first_course:${buyer}`, r.id);
   }
 
   /** The institution_spend check of a purchase by an agent. Returns the running-total marker to write once the purchase succeeds, or undefined for a person. */
@@ -1345,6 +1363,114 @@ export class EventLog {
     if (!(pt?.sponsor === from || pf?.sponsor === b.to)) throw rule("transfer_not_allowed", `${from} and ${b.to} are not an agent and its sponsor: credits between unrelated parties move only against a job`);
     await this.debit(tx, from, b.amount.value);
     await this.credit(tx, b.to, b.amount.value);
+  }
+
+  /** The Treasury balance, and the part of it already promised to open budgets. */
+  private async treasuryFree(tx: LogTx): Promise<{ balance: number; open: number }> {
+    return { balance: (await tx.getAccount(TREASURY_DID))?.balance ?? 0, open: Number((await tx.getMarker("budget_open")) ?? 0) };
+  }
+
+  /**
+   * A Treasury budget (credits.md 5.2 T10, treasury.md, DK7): the Treasury signs it for one institution and one month. One per institution and month; the first budget of an institution, and a rise of more than
+   * a quarter over its last, need the owner's co-signature; all open budgets together never exceed the Treasury's balance. A budget moves nothing by itself: payments and allowances draw on it.
+   */
+  private async projectBudget(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { institution: string; period: string; amount: { value: number }; purpose: string };
+    if (r.prev !== null) throw rule("budget_not_chained", "a budget starts its own chain (prev is null)");
+    if (r.issuer !== TREASURY_DID) throw rule("budget_wrong_issuer", `${r.issuer} is not the Treasury (${TREASURY_DID}): only the Treasury sets a budget`);
+    if (b.amount.value <= 0) throw rule("amount_not_positive", "a budget must be for at least 1 credit");
+    const allowanceLine = b.institution === TREASURY_DID;
+    if (!allowanceLine && !INSTITUTION_DIDS.includes(b.institution)) throw rule("budget_unknown_institution", `${b.institution} is neither a registered institution account nor the Treasury's own allowance line`);
+    if (allowanceLine !== (b.purpose === "allowance")) throw rule("budget_bad_line", "the Treasury's own line is the newcomer allowance (purpose allowance), and the allowance line is the only budget the Treasury holds for itself");
+    if (b.period < r.issued_at.slice(0, 7)) throw rule("budget_period_past", `a budget for ${b.period} cannot be set in ${r.issued_at.slice(0, 7)}`);
+    const key = `budget:${b.institution}|${b.period}`;
+    if (await tx.getMarker(key)) throw rule("budget_already_set", `${b.institution} already has a budget for ${b.period}: one budget per institution per month`);
+    const lastKey = `budget_last:${b.institution}`;
+    const last = await tx.getMarker(lastKey);
+    if (!this.cosignedBy(r, this.owner)) {
+      if (last === undefined) throw rule("budget_needs_cosign", `the first budget of ${b.institution} needs the owner's co-signature`);
+      if (b.amount.value * 4 > Number(last) * 5) throw rule("budget_needs_cosign", `a budget more than 25 % above the last one (${last}) needs the owner's co-signature`);
+    }
+    const { balance, open } = await this.treasuryFree(tx);
+    if (open + b.amount.value > balance) throw rule("budget_exceeds_treasury", `the Treasury holds ${balance} credits and ${open} are already promised to open budgets: ${b.amount.value} more is more than it has`);
+    await tx.putMarker(key, r.id);
+    await tx.putMarker(lastKey, String(b.amount.value));
+    await tx.putMarker("budget_open", String(open + b.amount.value));
+    await tx.putMarker(`budget_drawn:${r.id}`, "0");
+  }
+
+  /** Draws `amount` on a budget record at `at`, or throws the rule that refuses it. */
+  private async drawBudget(tx: LogTx, id: string, amount: number, at: string): Promise<void> {
+    const rec = await tx.getRecord(id);
+    if (!rec || rec.record.type !== "asp.budget/v0.2") throw rule("budget_unknown", `${id} is not a budget in this log`);
+    const bb = rec.record.body as { period: string; amount: { value: number } };
+    if (at.slice(0, 7) !== bb.period) throw rule("budget_period_closed", `the budget is for ${bb.period}; it cannot be drawn on in ${at.slice(0, 7)}`);
+    const drawn = Number((await tx.getMarker(`budget_drawn:${id}`)) ?? 0);
+    if (drawn + amount > bb.amount.value) throw rule("over_budget", `the budget is ${bb.amount.value} credits and ${drawn} are drawn: ${amount} more would be ${drawn + amount}`);
+    await tx.putMarker(`budget_drawn:${id}`, String(drawn + amount));
+    await tx.putMarker("budget_open", String(Number((await tx.getMarker("budget_open")) ?? 0) - amount));
+  }
+
+  /** A Treasury payment (T10): part of an approved budget goes to that budget's institution, and to no one else. Debits only the Treasury. */
+  private async projectTreasuryPayment(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { budget: string; to: string; amount: { value: number } };
+    if (r.prev !== null) throw rule("treasury_payment_not_chained", "a Treasury payment starts its own chain (prev is null)");
+    if (r.issuer !== TREASURY_DID) throw rule("treasury_payment_wrong_issuer", `${r.issuer} is not the Treasury: only the Treasury pays a budget`);
+    if (b.amount.value <= 0) throw rule("amount_not_positive", "a payment must be for at least 1 credit");
+    const rec = await tx.getRecord(b.budget);
+    const bb = rec?.record.type === "asp.budget/v0.2" ? (rec.record.body as { institution: string }) : undefined;
+    if (bb?.institution === TREASURY_DID) throw rule("treasury_payment_not_allowed", "the allowance budget is paid only as allowances to newcomers, never to an account: the Treasury does not pay arbitrary accounts");
+    if (bb && b.to !== bb.institution) throw rule("treasury_payment_not_allowed", `the budget is for ${bb.institution}, not ${b.to}: the Treasury pays only the institution a budget names`);
+    await this.drawBudget(tx, b.budget, b.amount.value, r.issued_at);
+    await this.debit(tx, TREASURY_DID, b.amount.value);
+    await this.credit(tx, b.to, b.amount.value);
+  }
+
+  /**
+   * The newcomer allowance (T5): the agent claims it and the log applies the rules, as with a starter claim. Once per identity and once per sponsor; a passport under 90 days old; a first course or a first
+   * bond behind it; no slash (stricter than treasury.md's 30 days, because a slash carries no date in the log's reputation row); exactly the allowance; paid out of the month's allowance budget.
+   */
+  private async projectAllowance(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { amount: { value: number }; trigger: "first_course" | "first_bond"; budget: string };
+    const who = r.issuer;
+    if (r.prev !== null) throw rule("allowance_not_chained", "an allowance claim starts its own chain (prev is null)");
+    if (isReservedAccount(who)) throw rule("allowance_reserved", "an account of the society does not claim the allowance");
+    const passport = await tx.getPassport(who);
+    if (!passport) throw rule("allowance_no_passport", `${who} has no passport in this log: an identity is registered before it claims`);
+    if (b.amount.value !== ALLOWANCE_AMOUNT) throw rule("allowance_amount", `the newcomer allowance is ${ALLOWANCE_AMOUNT} credits, not ${b.amount.value}`);
+    if (await tx.getMarker(`allowance:${who}`)) throw rule("allowance_already_paid", `${who} already received the newcomer allowance: once per identity`);
+    const group = passport.sponsor ?? who;
+    if (await tx.getMarker(`allowance_group:${group}`)) throw rule("allowance_already_paid", `an identity of ${group} already received the newcomer allowance: the first identity of a sponsor only`);
+    const born = await tx.getMarker(`passport_born:${who}`);
+    if (!born || Date.parse(r.issued_at) - Date.parse(born) > ALLOWANCE_MAX_AGE_DAYS * 86_400_000) throw rule("allowance_not_newcomer", `the allowance is for an identity under ${ALLOWANCE_MAX_AGE_DAYS} days old (this one was registered ${born ?? "at an unknown time"})`);
+    if (!(await tx.getMarker(b.trigger === "first_course" ? `first_course:${who}` : `bonded:${who}`))) throw rule("allowance_not_earned", `the allowance is paid after a ${b.trigger === "first_course" ? "first course (a purchase from the Academy)" : "first bond"}, and ${who} has none yet`);
+    if (((await this.reputation(tx, who))?.slashCount ?? 0) > 0) throw rule("allowance_slashed", `${who} has been slashed: the allowance is for an agent with a clean record`);
+    const rec = await tx.getRecord(b.budget);
+    const bb = rec?.record.type === "asp.budget/v0.2" ? (rec.record.body as { institution: string; purpose: string }) : undefined;
+    if (!bb || bb.institution !== TREASURY_DID || bb.purpose !== "allowance") throw rule("allowance_budget_wrong", `${b.budget} is not the Treasury's allowance budget: the allowance is paid only from one`);
+    await this.drawBudget(tx, b.budget, b.amount.value, r.issued_at);
+    await this.debit(tx, TREASURY_DID, b.amount.value);
+    await this.credit(tx, who, b.amount.value);
+    await tx.putMarker(`allowance:${who}`, r.id);
+    await tx.putMarker(`allowance_group:${group}`, who);
+  }
+
+  /** A prize (T4): the Registrar signs a contest result naming the agent, and the pool pays it. The pool's balance is the cap; one prize per agent per arena and season; nothing else lets an institution pay an agent. */
+  private async projectPrize(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { pool: string; arena: string; season: string; agent: string; amount: { value: number } };
+    if (r.prev !== null) throw rule("prize_not_chained", "a prize starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID) throw rule("prize_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only a result the Registrar signs pays a prize`);
+    if (b.amount.value <= 0) throw rule("amount_not_positive", "a prize must be for at least 1 credit");
+    if (!INSTITUTION_DIDS.includes(b.pool)) throw rule("prize_bad_pool", `${b.pool} is not an institution's prize pool`);
+    if (isReservedAccount(b.agent) || !(await tx.getPassport(b.agent))) throw rule("prize_bad_winner", `${b.agent} is not an agent with a passport in this log`);
+    const key = `prize:${b.arena}|${b.season}|${b.agent}`;
+    if (await tx.getMarker(key)) throw rule("prize_already_paid", `${b.agent} already received the prize for ${b.arena} ${b.season}`);
+    try { await this.debit(tx, b.pool, b.amount.value); } catch (e) {
+      if (e instanceof AspError && e.detail === "insufficient_balance") throw rule("prize_exceeds_pool", `the pool ${b.pool} cannot cover a prize of ${b.amount.value} credits: total prizes never exceed the pool`);
+      throw e;
+    }
+    await this.credit(tx, b.agent, b.amount.value);
+    await tx.putMarker(key, r.id);
   }
 
   /**

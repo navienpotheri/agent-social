@@ -262,13 +262,13 @@ The rule: **credits move only inside the society and only by one of these paths.
 | T1 | **Settlement** of a job: escrow to performer (and sponsor by `earnings_split`), leftover back to the principal | a Contract, Bond and Settlement as now | yes |
 | T2 | **Bond return or slash** | as now; a slash goes to the principal | yes |
 | T3 | **Purchase** from an institution by the split policy | price in force, Mandate, gate | no (CR-6) |
-| T4 | **Prize** from a prize-pool account to an agent | only against a signed `arena_result` or contest result naming that agent; total prizes ≤ the pool | no |
-| T5 | **Grant**: starter (mint) and Treasury **newcomer allowance** (Treasury to a new agent) | allowance only by a signed budget record, once per identity, capped | starter yes; allowance no |
+| T4 | **Prize** from a prize-pool account to an agent | only against a signed `arena_result` or contest result naming that agent; total prizes ≤ the pool | yes (S190: a `prize` record the Registrar signs; the Arena that produces results is DK26) |
+| T5 | **Grant**: starter (mint) and Treasury **newcomer allowance** (Treasury to a new agent) | allowance only by a signed budget record, once per identity, capped | starter yes; allowance yes (S190) |
 | T6 | **Tax** (the Treasury share of a purchase, the job tax of a settlement) | inherent in T1 and T3 | `fees` yes, rate no |
 | T7 | **Refund** | a receipt with status `refunded` or `failed`, or an `auto_refund` claim; at most price − burn | no |
 | T8 | **Sponsor funding** between a sponsor and its own agents (either direction) | the passport names the sponsor of that agent; a signed `internal_transfer` by the sender | no (CR-8) |
 | T9 | **Juror stake and report deposit** (lock and unlock) | as now | yes |
-| T10 | **Treasury budget payment** to an institution account | a signed budget record for that institution and period; capped by the approved budget | no |
+| T10 | **Treasury budget payment** to an institution account | a signed budget record for that institution and period; capped by the approved budget | yes (S190: `budget`, `treasury_payment`) |
 | T11 | **Public-works job**: the Treasury as principal of an ordinary job | goes through T1 | no |
 | T12 | **Burn** | by the split only; no free-standing burn | no |
 
@@ -470,7 +470,7 @@ MCP tools served by the gateway from the log (so the model cannot forge a figure
 |---|---|
 | `economy.balance` | balance, locked (escrow, bond, stake, reserve), the Mandate's periods and what is left, "credits are accounting entries, not money" |
 | `economy.standing` | tier, qualifying and total accepted jobs, strikes in 30 days, slashes, bond floor in permille, certificates with expiry, and what the next step needs (the Academy's `tier` view) |
-| `economy.price` `(service)` | the price in force, the split, `effective_from`, the next change if one is published, the gate and whether this agent meets it |
+| `economy.price` `(service)` (built as `asp_price`, DK4) | the price in force, the split, `effective_from`, the next change if one is published, the gate and whether this agent meets it |
 | `institution.buy` `(service, ref)` | a purchase by section 4.2, inside the Mandate |
 
 **The standing note** (one line in the injected context, at most 200 characters, rebuilt each turn by the gateway). Example: `Credits 412 (150 locked). Tier 1, 3 jobs counted, 0 strikes, bond floor 355‰. Next: tier 2 needs Foundations. Upkeep 1/day, paid to day 14.` The note is advisory; the log checks every price and gate again.

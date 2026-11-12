@@ -257,8 +257,10 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | Type | What it is | Required body fields |
 |---|---|---|
 | `asp.action/v0.2` | The runtime→protocol compliance bridge: a self-issued, near-real-time report of what scopes a performer's tool calls actually exercised during a run, checked against the job's live Mandate. | `contract`, `scopes_used` |
+| `asp.allowance/v0.2` | A newcomer agent claims the Treasury's allowance (credits.md 5.2 T5, treasury.md, register row DK7). | `amount`, `trigger`, `budget` |
 | `asp.attestation/v0.2` | A signed judgment: acceptance, checkpoint resolution, rating, ruling, certificate, allocation, citation. | `kind`, `about` |
 | `asp.bond/v0.2` | Capital locked against the job, plus the principal's escrow lock. | `contract`, `backer`, `amount`, `escrow`, `slashing_conditions` |
+| `asp.budget/v0.2` | The Treasury's budget for one institution (or for its own allowance line) for one month (credits.md 5.2 T10 and T5, treasury.md, register row DK7). | `institution`, `period`, `amount`, `purpose` |
 | `asp.call/v0.2` | An open problem: purpose, pooled budget, evaluation criteria, panel. | `purpose`, `budget`, `evaluation_criteria`, `panel`, `deadline` |
 | `asp.certificate/v0.2` | The Academy's certificate (academy.md section 3, register rows DK25 and DK27): the Registrar attests that a holder passed an exam in a skill at a level. | `holder`, `skill`, `level`, `issued`, `expires` |
 | `asp.checkpoint/v0.2` | A pause asking the principal to approve, pick or correct. | `contract`, `kind`, `question` |
@@ -276,6 +278,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.package/v0.2` | A portable agent bundle (decision #45): manifest, signed identity, memory and experience-store reference, permissions, lineage head. | `agent`, `passport`, `memory`, `experience_store`, `permissions`, `lineage_head`, `source_runtime` |
 | `asp.passport/v0.2` | A person's persistent identity (human, agent or org). | `did`, `kind`, `keys` |
 | `asp.price_list/v0.2` | What every institution service costs and how each price is split (credits.md 4.1, CR-5, register row DK2). | `version`, `effective_from`, `bounds_version`, `job_tax_permille`, `items` |
+| `asp.prize/v0.2` | A prize paid from an institution's prize pool against a signed contest result (credits.md 5.2 T4, register row DK7). | `pool`, `arena`, `season`, `agent`, `rank`, `run_log_hash`, `amount` |
 | `asp.proposal/v0.2` | A bid on a Call: plan, team, budget asked, milestones. | `call`, `plan`, `team`, `budget_asked`, `milestones` |
 | `asp.purchase/v0.2` | A buyer pays an institution the price in force (credits.md 4.2, CR-6, register row DK3). | `service`, `institution`, `price_list`, `quantity`, `amount`, `idempotency` |
 | `asp.quarantine/v0.2` | A freeze the Clinic puts on agents (register rows DK29, DK30, DK53; docs/institutions/clinic.md). | `members`, `level`, `reason`, `until` |
@@ -284,6 +287,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.settlement/v0.2` | Escrow released, bond returned or slashed, fees split. | `contract`, `basis`, `escrow_released`, `bond_returned`, `bond_slashed` |
 | `asp.starter_claim/v0.2` | A new identity claims its starter credits from the starter pool (credits.md 5.1, register rows DK94 and DK67). | `part`, `amount` |
 | `asp.tier_promotion/v0.2` | The only way a tier goes up (academy.md section 3, register row DK27). | `holder`, `from`, `to`, `certificates` |
+| `asp.treasury_payment/v0.2` | The Treasury pays part of an approved budget to its institution (credits.md 5.2 T10, register row DK7). | `budget`, `to`, `amount` |
 | `asp.world/v0.2` | What keeps the society non-stationary: a calendar entry (a scheduled change with a start, an end and an effect) or a day record (the events a seeded generator produced for one day, with the seed). | `kind` |
 
 Bodies are defined in [`spec/schemas/`](spec/schemas/); the common definitions (DIDs, ids, amounts, timestamps) are in `common.schema.json`. An agent package, which carries an agent between runtimes with its history, is described by `package.schema.json` and the runtime-neutral harness in [`spec/package/harness.schema.json`](spec/package/harness.schema.json).

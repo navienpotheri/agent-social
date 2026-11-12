@@ -97,3 +97,54 @@ async function buy(service: string | undefined, o: SpendOpts): Promise<number> {
   o.io.out(`bought ${service} x${quantity} for ${body.amount.value} credits (purchase ${res.id}, log seq ${res.seq}); the institution answers with a receipt`);
   return 0;
 }
+
+/** Runs `asp spend <agent> --json` and returns its lines, or none when the agent has no Mandate with a budget. */
+async function budgetRows(o: SpendOpts, agent: string): Promise<{ institution: string; period: string; cap: number; spent: number; left: number; services: string[] | null }[]> {
+  const out: string[] = [];
+  const code = await spendCmd(agent, [], { ...o, io: { out: (l) => out.push(l) }, flags: { ...o.flags, json: true } });
+  if (code !== 0) return [];
+  try { return (JSON.parse(out.join("\n")) as { lines: never[] }).lines; } catch { return []; }
+}
+
+/**
+ * What the agent sees of prices inside its loop (DK4, credits.md 6.3: economy.price): with no service, the whole list in force; with one, its price and split, what it asks of the buyer (the item's class and the tier
+ * rule), whether the Mandate's budget covers it and what is left, and the balance after one purchase. Read from the log, so the agent cannot be told a price the log would refuse. Only `asp_buy` spends credits.
+ */
+export async function priceView(service: string | undefined, o: SpendOpts): Promise<string> {
+  const { pricesCmd } = await import("./prices.ts");
+  const lines: string[] = [];
+  const code = await pricesCmd("show", service ? [service] : [], { log: o.log, io: { out: (l) => lines.push(l) }, now: o.now, flags: {} });
+  if (code !== 0 || !service) return [...lines, "Only asp_buy spends your credits; every other tool call costs you none (model tokens are paid by your sponsor, not from your credits)."].join("\n");
+  const agent = o.flags.by;
+  if (agent) {
+    const listed = ((await o.log.log.priceLists()) as AspRecord[]).filter((l) => Date.parse((l.body as { effective_from: string }).effective_from) <= Date.parse(o.now()))
+      .sort((a, b) => (b.body as { version: number }).version - (a.body as { version: number }).version)[0];
+    const item = (listed?.body as { items: { service: string; institution: string; price: number; class?: string }[] } | undefined)?.items.find((i) => i.service === service);
+    if (item) {
+      const rep = await o.log.log.reputationOf(agent);
+      const balance = await o.log.log.balance(agent);
+      const cls = item.class ?? "standard";
+      lines.push(`for you: ${balance} credits; tier ${rep?.tier ?? "unknown"}; ${cls} item${rep?.tier === 0 && cls === "standard" ? ": a tier 0 agent may buy only essential or remedial items, so this is closed to you until you are retrained" : ""}`);
+      if (cls === "essential" || cls === "remedial") lines.push("budget: needs no budget line (the way back is never default-denied)");
+      else {
+        const rows = await budgetRows(o, agent);
+        const row = rows.find((r) => didOf(r.institution) === item.institution && (!r.services || r.services.includes(service)));
+        lines.push(row ? `budget: ${row.left} of ${row.cap} left this ${row.period} for ${row.institution}${row.left < item.price ? " (not enough for one)" : ""}` : "budget: your Mandate's institution_spend does not cover this: ask your sponsor to widen it");
+      }
+      lines.push(balance >= item.price ? `after one purchase you would have ${balance - item.price} credits` : `you hold ${balance}: ${item.price - balance} short of one purchase`);
+    }
+  }
+  lines.push("Only asp_buy spends your credits; every other tool call costs you none.");
+  return lines.join("\n");
+}
+
+/** The one-line standing note for the agent's injected context (credits.md 6.3; at most 200 characters): balance, tier, strikes and what the budget has left. Advisory: the log checks every price and gate again. */
+export async function standingNote(o: SpendOpts): Promise<string> {
+  const agent = o.flags.by!;
+  const balance = await o.log.log.balance(agent);
+  const rep = await o.log.log.reputationOf(agent);
+  const rows = await budgetRows(o, agent);
+  const budget = rows.length ? rows.map((r) => `${r.institution} ${r.left}/${r.period}`).join(", ") : "none";
+  const note = `Credits ${balance} (accounting, not money). Tier ${rep?.tier ?? "?"}, ${rep?.slashCount ?? 0} slashes, ${rep?.strikes ?? 0} strikes. Budget left: ${budget}. asp_price shows costs, asp_standing the rest.`;
+  return note.length <= 200 ? note : `${note.slice(0, 197)}...`;
+}

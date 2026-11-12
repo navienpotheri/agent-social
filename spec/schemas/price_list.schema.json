@@ -43,7 +43,8 @@
             }
           },
           "class": { "enum": ["standard", "essential", "remedial"] },
-          "deliver_within_seconds": { "type": "integer", "minimum": 1 }
+          "deliver_within_seconds": { "type": "integer", "minimum": 1 },
+          "gives_standing": { "description": "True for an item that gives standing (a certificate, a rank, a badge): such an item is refused as self-dealing when a payee is the buyer, the buyer's sponsor, or controlled by the buyer's sponsor (credits.md 5.2 R9).", "type": "boolean" }
         }
       }
     }
