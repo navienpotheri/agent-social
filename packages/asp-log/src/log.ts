@@ -5,7 +5,7 @@ import {
 import { auditLedger, creditFlowsOf, type CreditAudit, type CreditFlows } from "./credit-audit.ts";
 import { bondFloorPermille } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
-import { BURN_DID, INSTITUTION_DIDS, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
@@ -27,6 +27,9 @@ const RISK_PERMILLE_PER_STRIKE = 10;
 const RISK_PERMILLE_STRIKE_CAP = 200;
 /** The promotion rule (academy.md 3, proposals the owner decides): qualifying jobs for tier 1 to 2, and how long after a slash or a blocked attempt no promotion is made. */
 const PROMOTION_QUALIFYING_JOBS_1_TO_2 = 3;
+/** The Clinic's quarantine (DK29, DK30, DK53): an interim freeze lasts at most 7 days; a cohort needs this many distinct sponsors. */
+const QUARANTINE_MAX_MS = 7 * 24 * 60 * 60 * 1000;
+const QUARANTINE_COHORT_MIN_SPONSORS = 3;
 const PROMOTION_SLASH_FREE_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** Graduated tier limits: the most credit a Mandate may let a tier spend (tier 3 and above: uncapped; tier 0 is excluded outright). */
@@ -245,6 +248,9 @@ export class EventLog {
     if (type === "internal_transfer") await this.projectInternalTransfer(tx, verified);
     if (type === "certificate") await this.projectCertificate(tx, verified);
     if (type === "tier_promotion") await this.projectTierPromotion(tx, verified);
+    if (type === "quarantine") await this.projectQuarantine(tx, verified);
+    if (type === "quarantine_release") await this.projectQuarantineRelease(tx, verified);
+    if (type === "mandate" || type === "contract" || type === "bond" || type === "proposal" || type === "offer") await this.checkQuarantined(tx, verified);
     if (type === "receipt") await this.projectReceipt(tx, verified);
     if (type === "attestation") {
       await this.checkRulingPanel(tx, verified);
@@ -1218,6 +1224,8 @@ export class EventLog {
     if (item.split.payees.some((p) => p.account === buyer)) throw rule("self_dealing", "a buyer cannot be a payee of its own purchase");
     const rep = await this.reputation(tx, buyer);
     if (rep && rep.tier === 0 && item.class === "standard") throw rule("tier_excluded", "a tier 0 agent may buy only essential or remedial items");
+    const qlevel = await this.liveQuarantine(tx, buyer, r.issued_at);
+    if (qlevel?.level === "halt" && item.class !== "essential" && item.class !== "remedial") throw rule("agent_quarantined", `${buyer} is quarantined by the Clinic (halt, ${qlevel.id}, until ${qlevel.until}): it may buy only essential or remedial items`);
     // An agent (a passport with a sponsor) may buy only what its Mandate's institution_spend lists, within the cap for the period (credits.md 4.4, DK3). A person spending their own credits is not limited by a Mandate.
     const spendKey = await this.checkInstitutionSpend(tx, r, b, buyer, item.class);
     await this.debit(tx, buyer, b.amount.value);
@@ -1348,6 +1356,85 @@ export class EventLog {
     const recentStrikes = rep.strikeLog.filter((s) => at - Date.parse(s.at) < PROMOTION_SLASH_FREE_MS).reduce((n, s) => n + s.count, 0);
     if (recentStrikes > 0) throw rule("promotion_recent_strikes", `${b.holder} has ${recentStrikes} blocked attempt(s) in the last 30 days; no promotion while the strike window is not clear`);
     await this.saveReputation(tx, b.holder, { ...rep, tier: b.to });
+  }
+
+  /**
+   * The live quarantine on `did` at `at`, if any: the latest quarantine record naming it, not lapsed (until) and not released for this member. Read inside a transaction by the rule below.
+   */
+  private async liveQuarantine(tx: Pick<LogTx, "getMarker" | "getRecord">, did: string, at: string): Promise<{ id: string; level: "observe" | "halt"; until: string } | undefined> {
+    const id = await tx.getMarker(`quarantine_member:${did}`);
+    if (!id) return undefined;
+    const q = await tx.getRecord(id);
+    if (!q) return undefined;
+    const b = q.record.body as { level: "observe" | "halt"; until: string };
+    if (Date.parse(b.until) <= Date.parse(at)) return undefined;
+    if (await tx.getMarker(`quarantine_released:${id}|${did}`)) return undefined;
+    return { id, level: b.level, until: b.until };
+  }
+
+  /**
+   * Rule `agent_quarantined` (clinic.md, DK29, DK30, DK53). Level observe: a Mandate for a quarantined agent may not grant a risky or network scope or any spend. Level halt: a quarantined agent may not
+   * be named in a new Mandate, Contract, Bond, Proposal or Offer. Nothing here touches a job that is already running or anyone who is not named: the freeze is on the named members only.
+   */
+  private async checkQuarantined(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as Record<string, unknown>;
+    const who: string[] = r.type === "asp.mandate/v0.2" ? [r.subject as string] : r.type === "asp.contract/v0.2" ? [b.performer as string] : r.type === "asp.bond/v0.2" ? [b.backer as string] : [r.issuer];
+    for (const did of who) {
+      const q = await this.liveQuarantine(tx, did, r.issued_at);
+      if (!q) continue;
+      const why = `${did} is quarantined by the Clinic (${q.level}, ${q.id}, until ${q.until})`;
+      if (q.level === "halt") throw rule("agent_quarantined", `${why}: it takes no new ${shortType(r.type)} until the Clinic releases it`);
+      if (r.type === "asp.mandate/v0.2") {
+        const m = b as { scopes: string[]; spend: { cap: number } };
+        const risky = m.scopes.filter(isQuarantineRisky);
+        if (risky.length) throw rule("agent_quarantined", `${why}: a Mandate for it may not grant ${risky.join(", ")} (read-only work may continue)`);
+        if (m.spend.cap > 0) throw rule("agent_quarantined", `${why}: a Mandate for it may not carry spend above 0`);
+      }
+    }
+  }
+
+  /** A quarantine (clinic.md; DK29, DK30, DK53): only the Clinic; at most 7 days; a cohort needs an upheld report and 3 distinct sponsors; every member is an agent with a passport. */
+  private async projectQuarantine(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { members: string[]; level: string; until: string; report?: string };
+    if (r.prev !== null) throw rule("quarantine_not_chained", "a quarantine starts its own chain (prev is null)");
+    if (r.issuer !== CLINIC_DID) throw rule("quarantine_wrong_issuer", `${r.issuer} is not the Clinic (${CLINIC_DID}): only the Clinic quarantines an agent`);
+    const at = Date.parse(r.issued_at);
+    const until = Date.parse(b.until);
+    if (until <= at) throw rule("quarantine_until_past", "a quarantine ends after it starts");
+    if (until - at > QUARANTINE_MAX_MS) throw rule("quarantine_too_long", "an interim quarantine lasts at most 7 days; a longer one needs a Court ruling, which the log does not take yet");
+    const sponsors = new Set<string>();
+    for (const m of b.members) {
+      const p = await tx.getPassport(m);
+      if (!p) throw rule("quarantine_not_an_agent", `${m} has no passport in this log`);
+      sponsors.add(p.sponsor ?? m);
+    }
+    if (b.members.length >= 2) {
+      if (!b.report) throw rule("quarantine_cohort_needs_report", "a cohort quarantine needs an upheld report");
+      const rep = await tx.getReport(b.report);
+      if (!rep || rep.status !== "upheld") throw rule("quarantine_cohort_needs_report", `${b.report} is ${rep ? rep.status : "not a report in this log"}; a cohort quarantine needs an upheld report`);
+      if (sponsors.size < QUARANTINE_COHORT_MIN_SPONSORS) throw rule("quarantine_cohort_too_few_sponsors", `a cohort needs at least ${QUARANTINE_COHORT_MIN_SPONSORS} distinct sponsors among its members (${sponsors.size} here): a pattern across fewer is one operator's, not a swarm`);
+    }
+    for (const m of b.members) await tx.putMarker(`quarantine_member:${m}`, r.id);
+  }
+
+  /** A release (clinic.md; DK29, DK30, DK53): the Clinic clears one member on evidence of a clean run after the freeze. */
+  private async projectQuarantineRelease(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { quarantine: string; member: string; evidence: string };
+    if (r.prev !== null) throw rule("release_not_chained", "a quarantine release starts its own chain (prev is null)");
+    if (r.issuer !== CLINIC_DID) throw rule("release_wrong_issuer", `${r.issuer} is not the Clinic (${CLINIC_DID}): only the Clinic releases an agent`);
+    const q = await tx.getRecord(b.quarantine);
+    if (!q || q.record.type !== "asp.quarantine/v0.2") throw rule("release_unknown_quarantine", `${b.quarantine} is not a quarantine in this log`);
+    if (!(q.record.body as { members: string[] }).members.includes(b.member)) throw rule("release_not_a_member", `${b.member} is not named in quarantine ${b.quarantine}`);
+    if (await tx.getMarker(`quarantine_released:${b.quarantine}|${b.member}`)) throw rule("release_already", `${b.member} is already released from ${b.quarantine}`);
+    const ev = await tx.getRecord(b.evidence);
+    if (!ev || ev.record.type !== "asp.action/v0.2") throw rule("release_evidence_not_an_action", `${b.evidence} is not an Action in this log`);
+    const a = ev.record;
+    if (a.issuer !== b.member) throw rule("release_evidence_not_members", `the Action ${b.evidence} was issued by ${a.issuer}, not ${b.member}`);
+    if (Date.parse(a.issued_at) <= Date.parse(q.record.issued_at)) throw rule("release_evidence_before_freeze", "the evidence must be an Action issued after the quarantine began");
+    const ab = a.body as { assurance?: string; blocked_attempts?: unknown[] };
+    if (!["gateway_observed", "gateway_enforced", "hook_enforced", "sandbox_enforced"].includes(ab.assurance ?? "")) throw rule("release_evidence_weak", "the evidence must be an Action the gateway observed or stronger, not one the agent reported about itself");
+    if ((ab.blocked_attempts ?? []).length) throw rule("release_evidence_not_clean", "the evidence Action has blocked attempts: a release needs a clean run");
+    await tx.putMarker(`quarantine_released:${b.quarantine}|${b.member}`, r.id);
   }
 
   /** A receipt (credits.md 4.3): the purchase's institution closes it; a refund comes back by the split in reverse and never includes the burned part. */
@@ -1489,6 +1576,11 @@ export class EventLog {
 
   /** The world as of `at` (an ISO time; default now): price multipliers, outages, tax-free, open job types. Read-only; it changes no tier, rank, standing or eligibility. */
   async worldState(at?: string): Promise<WorldState> { return worldStateAt(await this.worldRecords(), at ?? this.now().toISOString()); }
+
+  /** Every quarantine record that names `did` (all, when none is given), and the releases for it, in log order (read by `asp clinic`). */
+  async quarantinesOf(did?: string): Promise<AspRecord[]> {
+    return this.recordsWhere((r) => (r.type === "asp.quarantine/v0.2" && (!did || (r.body as { members: string[] }).members.includes(did))) || (r.type === "asp.quarantine_release/v0.2" && (!did || (r.body as { member: string }).member === did)));
+  }
 
   /** Every certificate record whose holder is `did`, in log order (read by `asp academy`). */
   async certificatesOf(did: string): Promise<AspRecord[]> { return this.recordsWhere((r) => r.type === "asp.certificate/v0.2" && (r.body as { holder?: string }).holder === did); }

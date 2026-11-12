@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:quarantine",
+  "title": "Quarantine body",
+  "description": "A freeze the Clinic puts on agents (register rows DK29, DK30, DK53; docs/institutions/clinic.md). Signed by the Clinic. members is one agent or a cohort (a cohort of two or more needs an upheld report and at least three distinct sponsors among the members). level observe: the log refuses a new Mandate for a member that grants a risky or network scope or any spend, so read-only work continues; level halt: it also refuses new Contracts, Bonds, Proposals, Offers and purchases other than essential or remedial items. Only the named members are frozen: every other job keeps running, and nothing here settles a job, slashes a bond or touches standing. Interim: until is at most 7 days after issued_at; a quarantine lapses on its own. Ended early per member by a quarantine_release. Chain: none (prev is null).",
+  "type": "object",
+  "required": ["members", "level", "reason", "until"],
+  "additionalProperties": false,
+  "properties": {
+    "members": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "urn:asp:v0.2:common#/$defs/did" } },
+    "level": { "enum": ["observe", "halt"] },
+    "reason": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "until": { "type": "string", "format": "date-time" },
+    "report": { "description": "The upheld report behind a cohort freeze.", "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "cluster": { "description": "The watcher's cluster key (a command fingerprint or a refused scope).", "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+  }
+}

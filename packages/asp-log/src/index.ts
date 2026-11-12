@@ -20,7 +20,7 @@ export { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_POOL, STARTER_UPFRONT, Start
 export { courtGuard, type CourtGuardOptions } from "./court-guard.ts";
 export { CHALLENGE_RE, JoinPickup, challengeOf, type PickupPayload } from "./join-pickup.ts";
 export {
-  BURN_DID, INSTITUTION_DIDS, INSTITUTION_NAMES, SPLIT_BOUNDS_V1, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem,
+  BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, INSTITUTION_NAMES, SPLIT_BOUNDS_V1, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem,
   type ItemClass, type Split, type SplitParts,
 } from "./economy.ts";
 export * from "./world.ts";

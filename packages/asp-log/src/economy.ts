@@ -2,6 +2,7 @@
  * The credit economy's fixed accounts and the standard split policy (docs/institutions/economy/credits.md 1.2, 3; CR-3 and CR-4).
  * Pure functions and constants: no store, no clock, so every replica computes the same parts. Credits are accounting entries, not money.
  */
+import { isNetworkScope } from "@agent-social/asp-core";
 
 /** The Treasury account (credits.md A9). The operator holds its key in the beta. */
 export const TREASURY_DID = "did:web:asp.local:treasury";
@@ -22,6 +23,10 @@ export const canonicalAccount = (did: string): string => (did === PLATFORM_DID ?
 /** The starter pool (register row DK94): the operator funds it with signed mints; only a valid starter claim moves credits out of it. */
 /** The Registrar (the Registry institution account): signs certificates and tier promotions (academy.md 3). */
 export const REGISTRAR_DID = institutionDid("registry");
+/** Scopes a quarantined agent (level observe) may not be granted or use: the set the contagion watcher calls risky, and any network scope. */
+export const isQuarantineRisky = (scope: string): boolean => ["shell.exec", "shell.network", "repo.push", "pr.merge", "pr.open"].includes(scope) || scope.startsWith("mcp.") || scope.startsWith("tool.") || isNetworkScope(scope);
+/** The Clinic (the health service): signs quarantines and releases (clinic.md; DK29, DK30, DK53). */
+export const CLINIC_DID = institutionDid("clinic");
 
 export const STARTER_POOL_DID = "did:web:asp.local:starter-pool";
 
