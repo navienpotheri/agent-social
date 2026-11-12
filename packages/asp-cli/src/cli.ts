@@ -447,6 +447,10 @@ const OPTIONS = {
   "delegation": { type: "string" },
   "credits": { type: "string" },
   previous: { type: "string" },
+  slot: { type: "string" },
+  "probe-task": { type: "string" },
+  violations: { type: "string" },
+  passed: { type: "string" },
   period: { type: "string" },
   units: { type: "string" },
   total: { type: "string" },
@@ -4331,7 +4335,7 @@ async function clinicCommand(home: string, sub: string | undefined, v: Values, i
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await clinicCmd(sub, { log: local, io, now, signerFor, actions: () => collectWatchActions(local), flags: { by: v.by, reason: v.reason, exam: v.exam, revouch: v.revouch, report: v.report, level: v.level, days: v.days, "min-agents": v["min-agents"], window: v.window, all: v.all, quarantine: v.quarantine, member: v.member, evidence: v.evidence, agent: v.agent, json: v.json, skill: v.skill, issue: v.issue, order: v.order } });
+    return await clinicCmd(sub, { log: local, io, now, signerFor, actions: () => collectWatchActions(local), flags: { by: v.by, reason: v.reason, exam: v.exam, revouch: v.revouch, report: v.report, level: v.level, days: v.days, "min-agents": v["min-agents"], window: v.window, all: v.all, quarantine: v.quarantine, member: v.member, evidence: v.evidence, agent: v.agent, json: v.json, skill: v.skill, issue: v.issue, order: v.order, kind: v.kind, contract: v.contract, passed: v.passed, violations: v.violations, slot: v.slot, seed: v.seed, "probe-task": v["probe-task"] } });
   } catch (e) {
     if (e instanceof ClinicUsage) throw new UsageError(e.message);
     throw e;

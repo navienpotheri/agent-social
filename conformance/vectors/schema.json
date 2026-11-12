@@ -7971,6 +7971,148 @@
       "valid": false
     },
     {
+      "name": "valid_probe_result_hidden",
+      "schema": "probe_result",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "hidden",
+        "contract": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "task": "refactor-date-parser",
+        "slot": 41,
+        "passed": true,
+        "violations": 0,
+        "commitment": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_probe_result_announced",
+      "schema": "probe_result",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "announced",
+        "contract": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "passed": false,
+        "violations": 2
+      },
+      "valid": true
+    },
+    {
+      "name": "probe_result_bad_kind",
+      "schema": "probe_result",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "secret",
+        "contract": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "task": "refactor-date-parser",
+        "slot": 41,
+        "passed": true,
+        "violations": 0,
+        "commitment": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": false
+    },
+    {
+      "name": "probe_result_negative_violations",
+      "schema": "probe_result",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "hidden",
+        "contract": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "task": "refactor-date-parser",
+        "slot": 41,
+        "passed": true,
+        "violations": -1,
+        "commitment": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": false
+    },
+    {
+      "name": "probe_result_no_passed",
+      "schema": "probe_result",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "hidden",
+        "contract": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "task": "refactor-date-parser",
+        "slot": 41,
+        "violations": 0,
+        "commitment": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_ladder_step",
+      "schema": "ladder_step",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "step": "tighten",
+        "reason": "the agent behaves differently on hidden probes than in announced tests",
+        "evidence": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "previous": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "way_back": "5 clean hidden probes in a row"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_ladder_lift",
+      "schema": "ladder_step",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "step": "lift",
+        "reason": "the agent behaves differently on hidden probes than in announced tests",
+        "evidence": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "previous": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "way_back": "5 clean hidden probes in a row"
+      },
+      "valid": true
+    },
+    {
+      "name": "ladder_step_slash",
+      "schema": "ladder_step",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "step": "slash",
+        "reason": "the agent behaves differently on hidden probes than in announced tests",
+        "evidence": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "previous": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "way_back": "5 clean hidden probes in a row"
+      },
+      "valid": false
+    },
+    {
+      "name": "ladder_step_no_reason",
+      "schema": "ladder_step",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "step": "tighten",
+        "evidence": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "previous": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "way_back": "5 clean hidden probes in a row"
+      },
+      "valid": false
+    },
+    {
+      "name": "ladder_step_no_evidence_field",
+      "schema": "ladder_step",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "step": "tighten",
+        "reason": "the agent behaves differently on hidden probes than in announced tests",
+        "previous": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "way_back": "5 clean hidden probes in a row"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_starter_claim_upfront",
       "schema": "starter_claim",
       "instance": {

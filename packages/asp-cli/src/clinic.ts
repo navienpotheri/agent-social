@@ -4,8 +4,9 @@
  * (`asp market cohort-stop` is the penalty route and is separate). A member is released on evidence of a clean run after the freeze. The Clinic's key is the operator's during the beta.
  */
 import { createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
-import { CLINIC_DID, isQuarantineRisky } from "@agent-social/asp-log";
+import { CLINIC_DID, isProbeSlot, isQuarantineRisky, seedCommitment, CLEAN_TO_LIFT } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
+import { assessDrift, nextRung, type Observation, type Rung } from "@agent-social/asp-package";
 import { HEALTH, checkupDue, diagnosisOf, driftSeries, findContagion, jobOf, scoreSeries, type HealthJob, type HealthScore, type LineageMark, type WatchAction } from "@agent-social/asp-package";
 
 export class ClinicUsage extends Error {}
@@ -16,7 +17,7 @@ export interface ClinicOpts {
   now: () => string;
   signerFor: (did: string) => Signer;
   actions: () => Promise<WatchAction[]>;
-  flags: { by?: string; report?: string; level?: string; days?: string; "min-agents"?: string; window?: string; all?: boolean; quarantine?: string; member?: string; evidence?: string; agent?: string; json?: boolean; reason?: string; exam?: string; revouch?: string; skill?: string; issue?: boolean; order?: string };
+  flags: { by?: string; report?: string; level?: string; days?: string; "min-agents"?: string; window?: string; all?: boolean; quarantine?: string; member?: string; evidence?: string; agent?: string; json?: boolean; reason?: string; exam?: string; revouch?: string; skill?: string; issue?: boolean; order?: string; kind?: string; contract?: string; passed?: string; violations?: string; slot?: string; seed?: string; "probe-task"?: string };
 }
 
 const DAY = 86_400_000;
@@ -99,6 +100,51 @@ export async function clinicCmd(sub: string | undefined, o: ClinicOpts): Promise
       o.io.out(`  ${q.id}  ${b.level}  ${live.length}/${b.members.length} member(s) frozen until ${b.until}  ${b.reason}`);
     }
     return 0;
+  }
+  if (sub === "probe") {
+    // A canary task result (DK92 stage 2): hidden (dressed as a real job at a slot drawn from a seed whose commitment was published first) or announced. Signed by the Clinic.
+    const u = `asp clinic probe --agent <did> --contract <id> --kind hidden|announced --passed true|false --violations <n> [--seed <revealed seed> --slot <n>] [--probe-task <id>] [--by ${CLINIC_DID}]`;
+    if (!f.agent || !f.contract || !f.kind || f.passed === undefined || f.violations === undefined) throw new ClinicUsage(u);
+    if (f.kind !== "hidden" && f.kind !== "announced") throw new ClinicUsage("--kind is hidden or announced");
+    const by = f.by ?? CLINIC_DID;
+    const body: Record<string, unknown> = { agent: f.agent, kind: f.kind, contract: f.contract, passed: f.passed === "true", violations: Math.trunc(Number(f.violations)) };
+    if (f["probe-task"]) body.task = f["probe-task"];
+    if (f.kind === "hidden") {
+      if (!f.seed) throw new ClinicUsage("a hidden probe needs the revealed --seed (its commitment was published first)");
+      let slot = f.slot === undefined ? 0 : Number(f.slot);
+      if (f.slot === undefined) { const used = (await healthProbes(o.log, f.agent)).filter((p) => p.kind === "hidden").length; for (slot = used; !isProbeSlot(f.seed, f.agent, slot); slot++); }
+      Object.assign(body, { slot, commitment: seedCommitment(f.seed), revealed_seed: f.seed });
+    }
+    const res = await o.log.append(createRecord({ type: "probe_result" as never, issuer: by, subject: f.agent, prev: null, body, issued_at: o.now() }, o.signerFor(by)));
+    o.io.out(`probe ${res.id}: ${f.kind} for ${f.agent}, ${body.passed ? "passed" : "failed"}, ${body.violations} violation(s) (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "drift") {
+    // Compares the agent's announced tests with its hidden probes, and the hidden probes' pass rate with the evaluation's; with --issue moves it one rung along the ladder as a signed record (never a slash).
+    if (!f.agent) throw new ClinicUsage(`asp clinic drift --agent <did> [--issue] [--by ${CLINIC_DID}]`);
+    const by = f.by ?? CLINIC_DID;
+    const probes = await healthProbes(o.log, f.agent);
+    const obs: Observation[] = probes.map((p) => ({ id: p.id, agent: f.agent!, kind: p.kind === "hidden" ? "hidden_probe" : "announced_test", at: p.at, passed: p.passed, violations: p.violations }));
+    const announced = probes.filter((p) => p.kind === "announced");
+    const evalRate = announced.length ? announced.filter((p) => p.passed).length / announced.length : 0;
+    const findings = assessDrift(obs, evalRate);
+    const steps = await ladderOf(o.log, f.agent);
+    const cur = steps.at(-1);
+    let clean = 0;
+    for (const p of [...probes].reverse()) { if (p.kind !== "hidden" || p.at <= (cur?.at ?? "")) break; if (p.passed && p.violations === 0) clean++; else break; }
+    const next = nextRung((cur?.rung ?? "none") as Rung, findings, clean);
+    o.io.out(`${f.agent}: ${announced.length} announced test(s), ${probes.length - announced.length} hidden probe(s); on the ladder at ${cur?.rung ?? "none"}`);
+    for (const x of findings) o.io.out(`  ${x.kind.toUpperCase()}  ${x.why}  (${x.evidence.length} piece(s) of evidence)`);
+    if (!findings.length) o.io.out("  no drift found");
+    o.io.out(`  ${next.action === "keep" ? "stay at" : next.action === "lift" ? "lift to" : "step to"} ${next.rung}: ${next.why}`);
+    if (!f.issue || next.action === "keep") return findings.length ? 1 : 0;
+    if (next.rung === "quarantine" || next.rung === "refer") { o.io.out(`  the ${next.rung} rung needs the Clinic's own quarantine record: record it with the quarantine commands, then the ladder step cites it; nothing is slashed`); return 1; }
+    const evidence = next.action === "lift" ? probes.filter((p) => p.kind === "hidden").slice(-CLEAN_TO_LIFT).map((p) => p.id) : [...new Set(findings.flatMap((x) => x.evidence))];
+    const body: Record<string, unknown> = { agent: f.agent, step: next.action === "lift" ? "lift" : next.rung, reason: next.why, evidence, way_back: `${CLEAN_TO_LIFT} clean hidden probes in a row` };
+    if (cur) body.previous = cur.id;
+    const res = await o.log.append(createRecord({ type: "ladder_step" as never, issuer: by, subject: f.agent, prev: null, body, issued_at: o.now() }, o.signerFor(by)));
+    o.io.out(`  ladder step ${res.id}: ${body.step} (log seq ${res.seq}); a new Mandate for the agent ${next.rung === "none" || next.rung === "warn" ? "is unchanged" : "may not grant a risky or network scope until it is lifted"}`);
+    return 1;
   }
   if (sub === "series" || sub === "checkup" || sub === "diagnoses") {
     // The health service (DK28, clinic.md CL-1 to CL-4): the drift series of an agent from the gateway-observed Actions in the log, a checkup that scores it against its own baseline, and, with --issue, the Clinic's
@@ -218,4 +264,34 @@ export async function clinicCmd(sub: string | undefined, o: ClinicOpts): Promise
     return 0;
   }
   throw new ClinicUsage("asp clinic series --agent <did> | checkup [--agent <did>] [--issue] [--skill <skill>] [--order re_exam|refresher_course] | diagnoses [--agent <did>] | cohort-freeze --report <id> [--level observe|halt] [--days n] | release --quarantine <id> --member <did> [--evidence <id>] | status [--agent <did>]");
+}
+
+/** An agent's probe results from the log, in order. */
+async function healthProbes(log: LogHandle, agent: string): Promise<{ id: string; kind: "hidden" | "announced"; passed: boolean; violations: number; at: string }[]> {
+  const out: { id: string; kind: "hidden" | "announced"; passed: boolean; violations: number; at: string }[] = [];
+  for (let after = 0; ;) {
+    const page = await log.log.since(after, 500);
+    if (!page.length) break;
+    for (const s of page) { after = s.seq; if (s.record.type === "asp.probe_result/v0.2" && (s.record.body as { agent: string }).agent === agent) { const b = s.record.body as { kind: "hidden" | "announced"; passed: boolean; violations: number }; out.push({ id: s.id, kind: b.kind, passed: b.passed, violations: b.violations, at: s.record.issued_at }); } }
+  }
+  return out;
+}
+
+/** An agent's ladder steps in order, each with the rung it left the agent at. */
+async function ladderOf(log: LogHandle, agent: string): Promise<{ id: string; rung: Rung; at: string }[]> {
+  const out: { id: string; rung: Rung; at: string }[] = [];
+  let rung: Rung = "none";
+  const order: Rung[] = ["none", "warn", "tighten", "hold", "quarantine", "refer"];
+  for (let after = 0; ;) {
+    const page = await log.log.since(after, 500);
+    if (!page.length) break;
+    for (const s of page) {
+      after = s.seq;
+      if (s.record.type !== "asp.ladder_step/v0.2" || (s.record.body as { agent: string }).agent !== agent) continue;
+      const st = (s.record.body as { step: string }).step;
+      rung = st === "lift" ? order[Math.max(0, order.indexOf(rung) - 1)] : (st as Rung);
+      out.push({ id: s.id, rung, at: s.record.issued_at });
+    }
+  }
+  return out;
 }
