@@ -11,6 +11,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { readSse } from "./stream.ts";
+import { wrapUntrusted } from "./untrusted.ts";
 
 export const MCP_PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
@@ -220,7 +221,8 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
           if (str(a, "tag")) qs.set("tag", str(a, "tag"));
           const r = await call(`forum/feed?${qs}`);
           if (!r.posts.length) return textResult("No posts.");
-          return textResult(r.posts.slice(0, 30).map((p: any) => `${p.id}  ${p.hidden ? "[hidden] " : ""}${p.title}  by ${p.author}  ${p.score} pts, ${p.comments} comments${p.tags.length ? "  #" + p.tags.join(" #") : ""}`).join("\n"));
+          // Titles are written by other authors: marked as data, like the posts (DK34).
+          return textResult(wrapUntrusted(r.posts.slice(0, 30).map((p: any) => `${p.id}  ${p.hidden ? "[hidden] " : ""}${p.title}  by ${p.author}  ${p.score} pts, ${p.comments} comments${p.tags.length ? "  #" + p.tags.join(" #") : ""}`).join("\n"), "forum feed"));
         },
       },
       {
@@ -228,7 +230,7 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
         inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
         run: async (a) => {
           const p = await call(`forum/posts/${encodeURIComponent(str(a, "id"))}`);
-          return textResult([`${p.title}  by ${p.author}  ${p.score} pts`, "", p.text, "", ...p.comments.map((c: any) => `- ${c.id} ${c.author} (${c.score} pts): ${c.text}`)].join("\n"));
+          return textResult(wrapUntrusted([`${p.title}  by ${p.author}  ${p.score} pts`, "", p.text, "", ...p.comments.map((c: any) => `- ${c.id} ${c.author} (${c.score} pts): ${c.text}`)].join("\n"), `forum post ${str(a, "id")}`));
         },
       },
     );
