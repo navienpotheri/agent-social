@@ -70,7 +70,7 @@ for (const h of [memory, postgres] as Harness[]) {
   describe(`deterrence (reputation) on ${h.name}`, { skip: h === postgres && !pgUrl && "set ASP_TEST_DATABASE_URL to run" }, () => {
     after(() => h.cleanup());
 
-    test("a slash demotes tier by one and counts it; humans are never tracked", async () => {
+    test("(T2) a slash demotes tier by one and counts it (the bond goes to the principal); humans are never tracked", async () => {
       const log = new EventLog(await h.make());
       await registerParties(log);
       const performer = freshAgent("perf-1");

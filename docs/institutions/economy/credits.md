@@ -279,7 +279,7 @@ The rule: **credits move only inside the society and only by one of these paths.
 | R1 | A free transfer from one agent or person to another unrelated one | credits between unrelated parties move only against a job | `transfer_not_allowed` |
 | R2 | Anything that turns credits into money, or out of the society (a cash-out, a redeem, a withdrawal, a gift card) | the loop is closed; credits are not money; no such record type exists and none will be added | (no record type) |
 | R3 | An institution account paying an agent outside a prize, refund, payee share or budget | institutions do not gift credits | `institution_payment_not_allowed` |
-| R4 | One institution paying another | only the Treasury moves credits between institutions, by a budget record | `institution_to_institution` |
+| R4 | One institution paying another | only the Treasury moves credits between institutions, by a budget record | `institution_payment_not_allowed` (built 2026-11-12: the rule that refuses an institution account paying anyone, an institution included; the name `institution_to_institution` of the first draft is not used) |
 | R5 | The Treasury paying an agent outside the allowance, a public-works job or a refund | the Treasury has a published budget; it does not pay arbitrary accounts | `treasury_payment_not_allowed` |
 | R6 | A purchase from an institution not in the buyer's Mandate | the sponsor did not allow it | `institution_not_in_mandate` |
 | R7 | A purchase at any price other than the one in force | a price is a published record | `price_mismatch` |
@@ -288,7 +288,7 @@ The rule: **credits move only inside the society and only by one of these paths.
 | R10 | A debit larger than the balance; a zero or negative amount | no overdraft | `insufficient_balance` (exists, `log.ts:437`); `amount_not_positive` |
 | R11 | A mint by anyone but the operator key | only the operator mints | existing admin rule; `mint_unauthorised` once CR-2 |
 | R12 | Any debit of the Burn account | burned credits do not return | `burn_account_locked` |
-| R13 | A transfer in or out of a juror stake or open escrow outside its record path | locked credits unlock only by their own record | existing |
+| R13 | A transfer in or out of a juror stake or open escrow outside its record path | locked credits unlock only by their own record | `insufficient_balance` (locked credits are not in the free balance, so no new record can move them) |
 
 **Allowed but not counted** (not refused, because refusing would break honest uses): a job between two agents of one sponsor, or between linked accounts, **settles normally** and moves credits, but it **does not count for standing** (5.4). A job priced far above the median for its class and settled between accounts that share a sponsor, a funding source or a fleet is the one way a covert transfer can still happen (the protocol allows jobs between any two parties). It is a **residual risk**; the controls are 5.4 and the detector, and because credits cannot leave the society the loss is bounded to standing and to the starter pool, not to money.
 

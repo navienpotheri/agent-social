@@ -4,7 +4,7 @@
  */
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { createRecord, cosign, b64urlEncode, signerFromSeed, staticResolver, type AspRecord, type RecordType, type Signer } from "@agent-social/asp-core";
+import { createRecord, cosign, b64urlEncode, signerFromSeed, staticResolver, RECORD_TYPES, type AspRecord, type RecordType, type Signer } from "@agent-social/asp-core";
 import { BURN_DID, EventLog, MemoryStore, PLATFORM_DID, SPLIT_BOUNDS_V1, TREASURY_DID, STARTER_POOL_DID, REGISTRAR_DID, computeGuardReport, institutionDid, refundParts, splitParts, splitProblem, type Split } from "../src/index.ts";
 import { alice, bank, coder, failure, registerParties } from "./harness.ts";
 import { Kit, hashOf } from "./academy-kit.ts";
@@ -108,7 +108,7 @@ describe("the split policy (CR-4)", () => {
 });
 
 describe("the slice, end to end", () => {
-  test("a job is accepted and earns credits; every credit has a signed mint; the fee is split provider/Treasury/burn; a Market listing is bought with a receipt; the audit balances; standing is untouched", async () => {
+  test("(T1, T3, T6, T12) a job is accepted and earns credits; every credit has a signed mint; the fee is split provider/Treasury/burn; a Market listing is bought with a receipt; the audit balances; standing is untouched", async () => {
     const w = await world();
     const { log } = w;
     // 1. Every credit created is a signed mint record, with a reason.
@@ -344,7 +344,7 @@ describe("purchase and receipt (CR-6): refusals and the closed loop", () => {
     assert.equal(await w.log.balance(market.did), 23);
   });
 
-  test("receipts: only the seller signs, at most one, a refund is at most price less burn and comes back by the split in reverse; the audit stays balanced", async () => {
+  test("(T7) receipts: only the seller signs, at most one, a refund is at most price less burn and comes back by the split in reverse; the audit stays balanced", async () => {
     const w = await ready();
     const p = w.buy(coder, w.list1);
     await w.log.append(p);
@@ -405,7 +405,7 @@ describe("institution_spend (credits.md 4.4, DK3): an agent buys only what its M
   }
   const DEC = "2026-12-02T10:00:00Z";
 
-  test("default-deny: an agent with no Mandate, or one that omits the institution or the service, buys nothing; a person spending their own credits is not limited", async () => {
+  test("(R6 institution_not_in_mandate) default-deny: an agent with no Mandate, or one that omits the institution or the service, buys nothing; a person spending their own credits is not limited", async () => {
     const w = await ready();
     assert.equal(await refused(w.log.append(w.buy(coder, w.list1))), "institution_not_in_mandate", "no Mandate named");
     const noMarket = await w.openMandate(coder, [{ institution: "academy", cap: credit(50), period: "month" }]);
@@ -717,5 +717,50 @@ describe("a copy does not begin with a clean record (DK11): it inherits its orig
     assert.equal(await refused(log.append(promote(c.p, 2))), "promotion_above_original", "the original is tier 1, so its copy cannot become tier 2");
     // The same promotion for an agent that is not a copy gets past this rule and stops at the next one (it has no certificate).
     assert.equal(await refused(log.append(promote(coder, 2))), "promotion_certificate_unknown");
+  });
+});
+
+describe("the closed loop's movements that needed a test of their own (DK71): T9, T11 and R2", () => {
+  test("(T9) juror stake: credits staked lock out of the free balance and come back when the stake is lowered; a stake above the free balance is refused (R10)", async () => {
+    const w = await world();
+    await w.mintSigned(coder.did, 100, "test");
+    const j1 = mk("juror", coder, { did: coder.did, stake: credit(40) }, null, { subject: coder.did });
+    await w.log.append(j1);
+    assert.equal(await w.log.balance(coder.did), 60, "40 locked in the stake");
+    assert.equal(await refused(w.log.append(mk("juror", coder, { did: coder.did, stake: credit(500) }, j1.id, { subject: coder.did }))), "insufficient_balance", "R10: no stake above what is free");
+    const j2 = mk("juror", coder, { did: coder.did, stake: credit(0) }, j1.id, { subject: coder.did });
+    await w.log.append(j2);
+    assert.equal(await w.log.balance(coder.did), 100, "the stake is released by its own record");
+    assert.equal((await w.log.creditAudit()).verdict, "balanced");
+  });
+
+  test("(T11) a public-works job: the Treasury is the principal of an ordinary job and pays the performer through the ordinary settlement; nothing else moves", async () => {
+    const w = await world();
+    await w.mintSigned(TREASURY_DID, 300, "test");
+    await w.mintSigned(coder.did, 50, "test");
+    const price = 100;
+    const contract = cosign(mk("contract", treasury, { principal: TREASURY_DID, performer: coder.did, bank: bank.did, purpose: "Public works: tidy the commons", price: credit(price), verification: "deterministic", deadline: "2026-12-03T18:00:00Z", basis: { intent: "sha256:" + "0".repeat(64), offer: "sha256:" + "1".repeat(64) } }, null, { subject: coder.did }), coder);
+    await w.log.append(contract);
+    const bond = mk("bond", coder, { contract: contract.id, backer: coder.did, amount: credit(20), escrow: { payer: TREASURY_DID, amount: credit(price) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, { subject: contract.id });
+    await w.log.append(bond);
+    const mandate = mk("mandate", treasury, { contract: contract.id, purpose: "Public works", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2027-01-01T00:00:00Z", revocable: true }, bond.id, { subject: coder.did });
+    await w.log.append(mandate);
+    const delivery = mk("delivery", coder, { contract: contract.id, result: { summary: "Done", artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] } }, mandate.id, { subject: contract.id });
+    await w.log.append(delivery);
+    const accept = mk("attestation", treasury, { kind: "acceptance", about: delivery.id, verdict: "accepted" }, delivery.id, { subject: contract.id });
+    await w.log.append(accept);
+    await w.log.append(mk("settlement", bank, { contract: contract.id, basis: "accepted", cites: accept.id, escrow_released: credit(95), fees: credit(5), bond_returned: credit(20), bond_slashed: credit(0) }, accept.id, { subject: contract.id }));
+    assert.equal(await w.log.balance(coder.did), 50 + 95, "the performer earned the released escrow; its bond came back");
+    assert.equal(await w.log.balance(TREASURY_DID), 300 - price + 5, "the Treasury paid the escrow and received the fee");
+    assert.equal((await w.log.creditAudit()).verdict, "balanced");
+  });
+
+  test("(R2) credits cannot leave the society: no record type cashes out, withdraws, redeems or gifts, and a forged one is refused as an unknown type", async () => {
+    assert.deepEqual(RECORD_TYPES.filter((t) => /cash|withdraw|redeem|payout|gift|export_credit|convert/i.test(t)), [], "no record type turns credits into money or sends them out");
+    const w = await world();
+    await w.mintSigned(coder.did, 10, "test");
+    const forged = { ...mk("price_list" as RecordType, coder, {}), type: "asp.cash_out/v0.2" };
+    assert.equal((await failure(w.log.append(forged)))?.code, "UNKNOWN_TYPE");
+    assert.equal(await w.log.balance(coder.did), 10, "nothing moved");
   });
 });
