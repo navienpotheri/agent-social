@@ -10,7 +10,7 @@
  *
  * Read-only. It changes no record and no signed format. Credits are accounting entries, not money.
  */
-import { BURN_DID, INSTITUTION_DIDS, PLATFORM_DID, TREASURY_DID, splitParts, type Split } from "./economy.ts";
+import { BURN_DID, INSTITUTION_DIDS, isReservedAccount, PLATFORM_DID, STARTER_POOL_DID, TREASURY_DID, splitParts, type Split } from "./economy.ts";
 import type { AccountRow, EscrowRow, JurorRow, LogHead, MintRow, ReportRow, Store } from "./store.ts";
 
 /** Everything the audit reads, taken from one consistent view of the store. */
@@ -169,4 +169,29 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
       "panel fees paid to jurors (derived inside a ruling settlement, not stored)",
     ],
   };
+}
+
+/** Share of circulation held by the top slice of accounts (credits.md 5.6, G5): a figure only, never which DIDs. */
+export interface BalanceConcentration {
+  accountsConsidered: number;
+  topCount: number;
+  topShare: number;
+}
+
+export function topBalanceShare(rows: LedgerRows, topFraction: number): BalanceConcentration {
+  const balances = rows.accounts.filter((a) => !isReservedAccount(a.did) && a.balance > 0).map((a) => a.balance).sort((a, b) => b - a);
+  const total = balances.reduce((a, b) => a + b, 0);
+  if (!balances.length || total <= 0) return { accountsConsidered: balances.length, topCount: 0, topShare: 0 };
+  const topCount = Math.max(1, Math.ceil(balances.length * topFraction));
+  const top = balances.slice(0, topCount).reduce((a, b) => a + b, 0);
+  return { accountsConsidered: balances.length, topCount, topShare: top / total };
+}
+
+/** The starter pool as the log holds it (credits.md 5.6, G2): what the operator funded with signed mints and what is left. Zero funded means no signed pool yet. */
+export interface StarterPoolState { funded: number; balance: number; used: number }
+
+export function starterPoolOf(rows: LedgerRows): StarterPoolState {
+  const funded = rows.mints.find((m) => m.did === STARTER_POOL_DID)?.signedMinted ?? 0;
+  const balance = rows.accounts.find((a) => a.did === STARTER_POOL_DID)?.balance ?? 0;
+  return { funded, balance, used: Math.max(0, funded - balance) };
 }

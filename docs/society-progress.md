@@ -21,7 +21,7 @@ As of 2026-11-12. Scope is unchanged: the society (twelve institutions) is a bet
 
 Around the institutions:
 
-- **Credit economy:** mostly built (signed mint, split, burn, audit, budgets, sponsor funding, starter claims with no service key, and the agent's own `asp_standing` and `asp_buy` tools inside its loop). Left: prizes, Treasury budgets, the newcomer allowance, standing orders.
+- **Credit economy:** mostly built, with the guard measures G1, G2, G5, G6 and G8 computed and published (`asp credits guard`) (signed mint, split, burn, audit, budgets, sponsor funding, starter claims with no service key, and the agent's own `asp_standing` and `asp_buy` tools inside its loop). Left: prizes, Treasury budgets, the newcomer allowance, standing orders.
 - **World calendar and events:** built (DK76); measuring adaptation (DK77) is not.
 - **Drift and circumvention checks:** first stage built (DK92: retry and reroute, one agent at a time). Left: split-into-pieces (needs the gateway to record the refused call's target), post-evaluation drift, signed steps, real-time use.
 - **Residency and handover, cognition telemetry, lenses, the floor:** specified only.

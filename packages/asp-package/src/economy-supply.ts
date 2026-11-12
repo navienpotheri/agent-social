@@ -23,17 +23,27 @@ export interface SupplyAudit {
   problems: string[];
 }
 
+/** The guard monitor's report (packages/asp-log/src/guard-monitor.ts, credits.md 5.6), as the page shows it. */
+export interface SupplyGuard {
+  at: string;
+  measures: { id: string; label: string; value: number; threshold: string; triggered: boolean; action: string }[];
+  unavailable: { id: string; label: string; reason: string }[];
+  anyTriggered: boolean;
+}
+
 const esc = (t: string) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /** `publicRoutes` for `createLogServer`: `GET /economy/supply` (HTML by default, JSON with `?format=json` or `Accept: application/json`). */
-export function economySupplyRoutes(o: { audit: () => Promise<SupplyAudit> }) {
+export function economySupplyRoutes(o: { audit: () => Promise<SupplyAudit>; guard?: () => Promise<SupplyGuard> }) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<boolean> => {
     const url = new URL(req.url ?? "/", "http://x");
     if (url.pathname !== "/economy/supply") return false;
     if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, { allow: "GET, HEAD" }); res.end(); return true; }
     let audit: SupplyAudit;
+    let guard: SupplyGuard | undefined;
     try {
       audit = await o.audit();
+      guard = o.guard ? await o.guard() : undefined;
     } catch (e) {
       res.writeHead(500, { "content-type": "application/json" });
       res.end(JSON.stringify({ ok: false, error: { code: "SERVER_ERROR", message: (e as Error).message } }));
@@ -42,7 +52,7 @@ export function economySupplyRoutes(o: { audit: () => Promise<SupplyAudit> }) {
     const wantsJson = url.searchParams.get("format") === "json" || (req.headers.accept ?? "").includes("application/json");
     if (wantsJson) {
       res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
-      res.end(req.method === "HEAD" ? undefined : JSON.stringify({ ok: true, ...audit, note: "credits are accounting entries, not money; recompute with: asp credits audit --json" }));
+      res.end(req.method === "HEAD" ? undefined : JSON.stringify({ ok: true, ...audit, ...(guard ? { guard } : {}), note: "credits are accounting entries, not money; recompute with: asp credits audit --json" }));
       return true;
     }
     const rows: [string, number, string][] = [
@@ -60,6 +70,9 @@ export function economySupplyRoutes(o: { audit: () => Promise<SupplyAudit> }) {
       + `<h1>Credit supply</h1>`
       + `<p class="${audit.verdict === "balanced" ? "ok" : "bad"}">${audit.verdict === "balanced" ? "Balanced: every credit minted is in exactly one account or lock." : `MISMATCH: ${esc(audit.problems.join("; "))}`}</p>`
       + `<table><tbody>${rows.map(([k, v, note]) => `<tr><th>${esc(k)}</th><td>${esc(String(v))}</td><td>${esc(note)}</td></tr>`).join("")}</tbody></table>`
+      + (guard ? `<h2>Guard measures</h2><p class="${guard.anyTriggered ? "bad" : "ok"}">${guard.anyTriggered ? "A measure is over its threshold; the action named is the operator's decision." : "No measure is over its threshold."}</p>`
+        + `<table><tbody>${guard.measures.map((m) => `<tr><th>${esc(m.id)}</th><td class="${m.triggered ? "bad" : "ok"}">${esc(m.value.toFixed(3))}</td><td>${esc(m.threshold)}</td><td>${esc(m.label)}${m.triggered ? ` Action: ${esc(m.action)}` : ""}</td></tr>`).join("")}`
+        + `${guard.unavailable.map((u) => `<tr><th>${esc(u.id)}</th><td colspan="3">not available: ${esc(u.label)}: ${esc(u.reason)}</td></tr>`).join("")}</tbody></table>` : "")
       + `<p>${audit.accounts} account(s) in all. Log head: seq ${audit.head.seq}, hash ${esc(audit.head.logHash.slice(0, 19))}&hellip;</p>`
       + `<p>Credits are accounting entries, not money; the service is a beta; there has been no outside security review.</p>`
       + `<p>Recompute these figures yourself: <code>asp credits audit --json</code>, or fetch this page with <code>Accept: application/json</code>.</p>`

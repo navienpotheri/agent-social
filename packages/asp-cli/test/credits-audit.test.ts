@@ -101,3 +101,22 @@ test("asp credits fund: a sponsor funds its own agent and the agent returns cred
   assert.match(bad.err, /credits between unrelated parties move only against a job/);
   assert.equal((await asp(home, ["credits", "audit", "--json"])).code, 0, "the books still balance");
 });
+
+test("asp credits guard: names the measures the log can compute and the ones it cannot; a concentration over its threshold is flagged with its action and exits 1, and nothing is changed (DK1, CR-19)", async () => {
+  const home = mkdtempSync(join(tmpdir(), "asp-guard-"));
+  const WHALE = "did:web:example.com:users:whale";
+  assert.equal((await asp(home, ["credits", "grant", "--to", WHALE, "--amount", "1000"])).code, 0);
+  const one = await asp(home, ["credits", "guard"]);
+  assert.equal(one.code, 1, "one holder has all the circulation: hoarding is over its threshold");
+  assert.match(one.out, /G5 .*OVER .*hoarding/);
+  assert.match(one.out, /action: publish, and review the tax rate/);
+  assert.match(one.out, /G2  not available: starter pool use: no signed starter pool has been funded yet/);
+  assert.match(one.out, /G7  not available: dormancy/);
+  assert.match(one.out, /nothing was changed/);
+  for (let i = 0; i < 5; i++) assert.equal((await asp(home, ["credits", "grant", "--to", `did:web:example.com:users:p${i}`, "--amount", "1000"])).code, 0);
+  const even = await asp(home, ["credits", "guard", "--json"]);
+  const j = JSON.parse(even.out);
+  assert.equal(j.measures.find((m: { id: string }) => m.id === "G5").triggered, false, "six equal holders: the top 1 % hold a sixth");
+  assert.equal(j.measures.find((m: { id: string }) => m.id === "G8").triggered, false, "the books balance");
+  assert.equal((await asp(home, ["credits", "audit", "--json"])).code, 0, "the guard changed nothing");
+});

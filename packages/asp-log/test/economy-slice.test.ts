@@ -5,7 +5,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createRecord, cosign, b64urlEncode, signerFromSeed, staticResolver, type AspRecord, type RecordType, type Signer } from "@agent-social/asp-core";
-import { BURN_DID, EventLog, MemoryStore, PLATFORM_DID, SPLIT_BOUNDS_V1, TREASURY_DID, STARTER_POOL_DID, REGISTRAR_DID, institutionDid, refundParts, splitParts, splitProblem, type Split } from "../src/index.ts";
+import { BURN_DID, EventLog, MemoryStore, PLATFORM_DID, SPLIT_BOUNDS_V1, TREASURY_DID, STARTER_POOL_DID, REGISTRAR_DID, computeGuardReport, institutionDid, refundParts, splitParts, splitProblem, type Split } from "../src/index.ts";
 import { alice, bank, coder, failure, registerParties } from "./harness.ts";
 
 type Party = { did: string } & Signer & { publicKey: Uint8Array };
@@ -657,5 +657,21 @@ describe("the Academy's promotion path (academy.md 3, DK25, DK27): the only way 
     await w.log.append(theirs);
     assert.equal(await refused(w.log.append(promote(coder, 1, 2, [theirs.id]))), "promotion_certificate_not_holders");
     assert.equal(await refused(w.log.append(cert(mallory, "foundations", 1))), "certificate_no_passport");
+  });
+});
+
+describe("the guard monitor on a real log (DK1, credits.md 5.6)", () => {
+  test("the starter pool state and the concentration are read from the ledger, and the report moves when a claim is made", async () => {
+    const w = await world();
+    await w.mintSigned(STARTER_POOL_DID, 250, "starter_upfront");
+    assert.deepEqual(await w.log.starterPoolState(), { funded: 250, balance: 250, used: 0 });
+    await w.log.append(mk("starter_claim", coder, { part: "upfront", amount: credit(100) }, null, { subject: coder.did }));
+    assert.deepEqual(await w.log.starterPoolState(), { funded: 250, balance: 150, used: 100 });
+    const c = await w.log.creditConcentration(0.01);
+    assert.deepEqual([c.accountsConsidered, c.topCount, c.topShare], [1, 1, 1], "one holder has all the circulation");
+    const report = await computeGuardReport({ handle: { log: w.log } as never });
+    assert.equal(report.measures.find((m) => m.id === "G2")!.value, 0.4);
+    assert.equal(report.measures.find((m) => m.id === "G5")!.triggered, true, "a single holder is a concentration");
+    assert.equal(report.measures.find((m) => m.id === "G8")!.triggered, false, "the books balance");
   });
 });

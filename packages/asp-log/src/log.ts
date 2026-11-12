@@ -2,7 +2,7 @@ import {
   AspError, Job, isNetworkScope, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
 } from "@agent-social/asp-core";
-import { auditLedger, creditFlowsOf, type CreditAudit, type CreditFlows } from "./credit-audit.ts";
+import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type StarterPoolState } from "./credit-audit.ts";
 import { bondFloorPermille } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { BURN_DID, INSTITUTION_DIDS, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
@@ -1527,6 +1527,12 @@ export class EventLog {
    * released, returned, slashed and charged in fees, optionally from a time. Flows the records do not carry are listed as unavailable.
    */
   async creditFlows(since?: string): Promise<CreditFlows> { return creditFlowsOf(this.store, since); }
+
+  /** Share of circulation held by the top slice of accounts (credits.md 5.6, G5, CR-19): a number only, never which DIDs hold it. */
+  async creditConcentration(topFraction = 0.01): Promise<BalanceConcentration> { return topBalanceShare(await this.store.ledgerRows(), topFraction); }
+
+  /** The starter pool as the log holds it: funded by signed mints, what is left and used (credits.md 5.6, G2). */
+  async starterPoolState(): Promise<StarterPoolState> { return starterPoolOf(await this.store.ledgerRows()); }
 
   /** Credits ever minted per DID (not records; a replica needs them to replay Bonds). Local bootstrap, MOCKS.md #13. */
   async mints() { return (await this.store.allMints()).map((m) => ({ did: m.did, amount: m.balance })); }
