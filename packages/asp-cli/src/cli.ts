@@ -336,6 +336,7 @@ import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCan
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { societyHealth, activityFromRecords, healthFigure } from "@agent-social/asp-log";
 import { MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -933,6 +934,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "credits" && sub === "guard") return await creditsGuard(home, v, io);
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
     if (cmd === "world") return await worldCommand(home, sub, rest, v, io);
+    if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "prices") return await pricesCommand(home, sub, rest, v, io);
     if (cmd === "spend") return await spendCommand(home, sub, rest, v, io);
     if (cmd === "shops") return await shopsCommand(home, sub, rest, v, io);
@@ -4128,6 +4130,23 @@ async function creditsGuard(home: string, v: Values, io: Io): Promise<number> {
   for (const u of report.unavailable) io.out(`  ${u.id}  not available: ${u.label}: ${u.reason}`);
   io.out(report.anyTriggered ? "a measure is over its threshold; the action named is the operator's decision, nothing was changed" : "no measure is over its threshold");
   return report.anyTriggered ? 1 : 0;
+}
+
+/**
+ * asp society health [--days <n>] [--json] (register row DK77): whether the society stays non-stationary and whether agents adapt to change, counted from the finished jobs and the world events
+ * the log holds over the last n days (30 by default): job-mix drift, price movement, event frequency, behaviour after an event, adaptation time, and the QUIET, TOO FAST and FROZEN alarms.
+ * Exit 1 when an alarm is raised. It only reads and reports.
+ */
+async function societyHealthCommand(home: string, v: Values, io: Io): Promise<number> {
+  const days = v.days === undefined ? 30 : Number(v.days);
+  if (!Number.isInteger(days) || days < 2 || days > 366) throw new UsageError("--days must be a whole number from 2 to 366");
+  const local = await openLog(home, logEnv);
+  const { activity, events } = activityFromRecords(await local.log.since(0, 1_000_000));
+  const until = Date.parse(now()), from = Math.floor(until / 86_400_000) * 86_400_000 - (days - 1) * 86_400_000;
+  const report = societyHealth(activity.filter((a) => a.at >= from), events.filter((e) => e.at >= from), { from, until });
+  if (v.json) io.out(JSON.stringify(report, null, 2));
+  else io.out(healthFigure(report, `the last ${days} days`));
+  return report.alarms.length ? 1 : 0;
 }
 
 async function creditsAudit(home: string, v: Values, io: Io): Promise<number> {

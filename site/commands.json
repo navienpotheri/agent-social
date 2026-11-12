@@ -473,6 +473,10 @@
           "description": "Read the Treasury's signed price list from the log: what each institution service costs, how the price splits between the provider, the Treasury and the burn, which version is in force and when the next takes effect; history lists the versions; diff compares two"
         },
         {
+          "command": "asp society health [--days <n>] [--json]",
+          "description": "Whether the society stays non-stationary and whether agents adapt: job-mix drift, price movement, event frequency, behaviour after an event and adaptation time per agent over the last n days (30 by default), and the QUIET, TOO FAST and FROZEN alarms; exit 1 when an alarm is raised; it only reads"
+        },
+        {
           "command": "asp world today [--day <date>] [--json]",
           "description": "What is in force now and why: price shocks, new job types, outages, tax-free windows, free gatherings, each with the draw that fired it"
         },

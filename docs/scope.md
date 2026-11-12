@@ -695,7 +695,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK74 | A | closed | The starter pool is 200,000 credits (starter.ts line 21) while the deck promises 1,000 tenants at the three-mo... |
 | DK75 | A | open | The owner decided on 2026-11-12 that city structures (homes, plots, vehicles, shop items) may carry compute an...|
 | DK76 | A | partial | The society has no engine of change. Nothing happens unless a person starts a job: no calendar, no seasons, no...|
-| DK77 | A | open | Nobody measures whether the society stays non-stationary or whether agents adapt to change, so a society that...|
+| DK77 | A | partial | Nobody measures whether the society stays non-stationary or whether agents adapt to change, so a society that...|
 | DK78 | A | open | The society has no way to carry research ideas. The owner design (2026-11-12) is that the society is a LAYER o...|
 | DK79 | A | open | The society has no instrumentation hooks that research lenses can use: nothing probes an agent beliefs, record...|
 | DK80 | A | open | The society cannot use the open material on the web. Open papers, code, datasets, benchmarks and corpora could...|
@@ -722,3 +722,5 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK160 | A | open | The Clinic's checkup does not yet run the agent against the canary pool with a held-out variant (checkup_result). |
 | DK161 | A | open | The Clinic has no prices, account or free quarterly checkup. |
 | DK162 | A | open | The Clinic's monitor, sponsor mail and public pages are not on the hosted service. |
+| DK141 | A | open | The society-health figure runs only by hand: nothing runs it on the hosted service, publishes the month's figure or mails an alarm...|
+| DK142 | A | open | Society health takes a job's kind from the verification mode and uses default thresholds, not real data...|
