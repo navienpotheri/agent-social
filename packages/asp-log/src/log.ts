@@ -756,6 +756,16 @@ export class EventLog {
     if (escrow.forcedFault && (body.escrow_released.value !== 0 || fees !== 0 || body.bond_returned.value !== 0 || body.bond_slashed.value !== escrow.bondLocked)) {
       throw rule("report_requires_full_fault", `an upheld report requires a full-fault settlement: nothing released, the remaining ${escrow.bondLocked} of the bond slashed`);
     }
+    // The job tax (credits.md CR-15, DK68): once a price list is in force, the fee on a paid settlement is the list's rate times what is released, so the bank cannot choose it.
+    // It applies from the list's effective time only (older settlements stay valid) and only to the bases that pay for work.
+    if (body.basis === "accepted" || body.basis === "ruling") {
+      const list = await this.priceListInForce(tx, Date.parse(r.issued_at));
+      if (list) {
+        const rate = (list.record.body as unknown as PriceListBody).job_tax_permille;
+        const owed = Math.floor((body.escrow_released.value * rate) / 1000);
+        if (fees !== owed) throw rule("fees_not_job_tax", `the price list in force sets the job tax at ${rate} permille, so the fee on releasing ${body.escrow_released.value} is ${owed} (got ${fees})`);
+      }
+    }
     if (body.escrow_released.value + fees > escrow.escrowLocked) {
       throw rule("over_release", `escrow_released + fees exceeds the ${escrow.escrowLocked} locked`);
     }
@@ -1302,6 +1312,17 @@ export class EventLog {
 
   /** The world as of `at` (an ISO time; default now): price multipliers, outages, tax-free, open job types. Read-only; it changes no tier, rank, standing or eligibility. */
   async worldState(at?: string): Promise<WorldState> { return worldStateAt(await this.worldRecords(), at ?? this.now().toISOString()); }
+
+  /** Every price_list record in log order (credits.md 4.1; read by `asp prices`). */
+  async priceLists(): Promise<AspRecord[]> {
+    const out: AspRecord[] = [];
+    for (let after = 0; ; ) {
+      const page = await this.store.since(after, 500);
+      if (!page.length) break;
+      for (const s of page) { after = s.seq; if (s.record.type === "asp.price_list/v0.2") out.push(s.record); }
+    }
+    return out;
+  }
 
   async creditAudit(): Promise<CreditAudit> { return auditLedger(await this.store.ledgerRows()); }
 

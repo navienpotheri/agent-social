@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 121 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 122 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (24)</summary><pre>Most people use only these.
 
 asp
@@ -350,8 +350,10 @@ asp market settle --contract &lt;id&gt; --bank &lt;did&gt; --basis &lt;b&gt;
     Close the job: release escrow, return or slash the bond
 asp market show &lt;contract&gt;
     Show a job's records and its state</pre></details>
-<details><summary>The world (calendar and events) (5)</summary><pre>What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.
+<details><summary>The world (calendar and events) (6)</summary><pre>What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.
 
+asp prices show [&lt;service|institution&gt;] [--at &lt;time&gt;] | history | diff &lt;version&gt; &lt;version&gt; [--json]
+    Read the Treasury's signed price list from the log: what each institution service costs, how the price splits between the provider, the Treasury and the burn, which version is in force and when the next takes effect; history lists the versions; diff compares two
 asp world today [--day &lt;date&gt;] [--json]
     What is in force now and why: price shocks, new job types, outages, tax-free windows, free gatherings, each with the draw that fired it
 asp world calendar [--from &lt;time&gt;] [--days &lt;n&gt;] [--json]

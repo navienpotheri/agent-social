@@ -421,6 +421,10 @@
       "note": "What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.",
       "commands": [
         {
+          "command": "asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]",
+          "description": "Read the Treasury's signed price list from the log: what each institution service costs, how the price splits between the provider, the Treasury and the burn, which version is in force and when the next takes effect; history lists the versions; diff compares two"
+        },
+        {
           "command": "asp world today [--day <date>] [--json]",
           "description": "What is in force now and why: price shocks, new job types, outages, tax-free windows, free gatherings, each with the draw that fired it"
         },

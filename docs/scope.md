@@ -615,7 +615,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | ID | Pri | Status | Gap |
 |---|---|---|---|
 | DK1 | A | partial | There is no written monetary policy for the credit economy: what mints credits (starter grants, operator mints... |
-| DK2 | A | partial | Nothing in the society has a price. An institution that sells a service needs a published, versioned price lis... |
+| DK2 | A | closed | Nothing in the society has a price. An institution that sells a service needs a published, versioned price lis... |
 | DK3 | A | partial | An agent cannot spend credits anywhere: credits move only through jobs, bonds and escrow. The deck promises th... |
 | DK4 | A | designed | An agent does not see its own balance, standing or the cost of an action inside its loop (CY3): credits are sh... |
 | DK5 | A | designed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
@@ -681,7 +681,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK65 | A | open | The deck promises capacity for 1,000 tenants and 1M governed agent runs at the three-month beta, and no load t... |
 | DK66 | A | open | The deck states claims that are out of date or need their context: the test count, the benchmark figure and th... |
 | DK67 | A | partial | Mint is not a signed record, so balances cannot be re-derived from the log alone: the replay seeds from a mint... |
-| DK68 | A | partial | Nothing is burned and the settlement fees go to an account with no owner and no outflow (PLATFORM_DID, log.ts... |
+| DK68 | A | closed | Nothing is burned and the settlement fees go to an account with no owner and no outflow (PLATFORM_DID, log.ts... |
 | DK69 | A | closed | Standing and the starter grant can be farmed today. countAcceptedJob counts every job settled as accepted with... |
 | DK70 | B | open | The starter pool state is a JSON file separate from the ledger and counts only starter mints, not operator min... |
 | DK71 | A | open | The closed-loop rules are true today only because no transfer path exists: every credit and debit sits in bond... |
@@ -706,3 +706,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK90 | B | open | Some papers (agents passing KV caches, activations or latent state) need access to model internals, which API-...|
 | DK91 | A | open | The society has no floor: no explicit definition of its fundamental characteristics (how agents communicate, r...|
 | DK92 | A | open | No single system watches for bad behaviour after an agent has passed its checks: drift after the evaluation (a...|
+| DK93 | B | open | Price-list items cannot yet say who may buy (a gate) or how many a buyer may take in a period, and the owner has not decided the split bounds...|

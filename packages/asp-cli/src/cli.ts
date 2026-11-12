@@ -188,6 +188,7 @@
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
  *   asp credits balance <did>
+ *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
  *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
  *   asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
  *   asp credits audit [--by-flow] [--since <time>] [--require-signed] [--json]
@@ -297,6 +298,7 @@ import { fileDiff, findLesson, listLessons, markReviewed, memoryAfterEdit, memor
 import { buildToday, buildTrend, periodOf, renderToday, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
+import { PricesUsage, pricesCmd } from "./prices.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -374,6 +376,7 @@ const OPTIONS = {
   "trust-unverified": { type: "boolean" },
   isolate: { type: "boolean" },
   "min-agents": { type: "string" },
+  at: { type: "string" },
   agents: { type: "string" },
   real: { type: "string", multiple: true },
   exploiters: { type: "string" },
@@ -815,6 +818,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "credits" && sub === "audit") return await creditsAudit(home, v, io);
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
     if (cmd === "world") return await worldCommand(home, sub, rest, v, io);
+    if (cmd === "prices") return await pricesCommand(home, sub, rest, v, io);
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
   } catch (e) {
@@ -3719,6 +3723,16 @@ async function worldCommand(home: string, sub: string | undefined, rest: string[
     return await worldCmd(sub, rest, { home, log: local, io, now, flags: { day: v.day, days: v.days, seed: v.seed, json: v.json, title: v.title, kind: v.kind, from: v.from, to: v.to, target: v.target, effect: v.effect, value: v.value } });
   } catch (e) {
     if (e instanceof WorldUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function pricesCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  try {
+    return await pricesCmd(sub, rest, { log: local, io, now, flags: { at: v.at, json: v.json } });
+  } catch (e) {
+    if (e instanceof PricesUsage) throw new UsageError(e.message);
     throw e;
   }
 }

@@ -343,3 +343,33 @@ describe("purchase and receipt (CR-6): refusals and the closed loop", () => {
     assert.equal((await w.log.verify()).ok, true);
   });
 });
+
+describe("the job tax (CR-15, DK68)", () => {
+  test("with a price list in force, the fee on a paid settlement is the list's rate times what is released: another fee is refused, the right one is accepted and lands in the Treasury", async () => {
+    const w = await world();
+    const { log } = w;
+    await w.mintSigned(poster.did, 1000, "test");
+    await w.mintSigned(coder.did, 200, "starter_upfront");
+    await log.append(passport(poster));
+    const t0 = tick();
+    await w.issueList(listV1(t0), null, t0); // job tax 20 permille
+    const price = 100;
+    const contract = cosign(mk("contract", poster, { principal: poster.did, performer: coder.did, bank: bank.did, purpose: "Fix the flaky test", price: credit(price), verification: "deterministic", deadline: "2026-12-03T18:00:00Z", basis: { intent: "sha256:" + "0".repeat(64), offer: "sha256:" + "1".repeat(64) } }, null, { subject: coder.did }), coder);
+    await log.append(contract);
+    const bond = mk("bond", coder, { contract: contract.id, backer: coder.did, amount: credit(20), escrow: { payer: poster.did, amount: credit(price) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, { subject: contract.id });
+    await log.append(bond);
+    const mandate = mk("mandate", poster, { contract: contract.id, purpose: "Fix the flaky test", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2027-01-01T00:00:00Z", revocable: true }, bond.id, { subject: coder.did });
+    await log.append(mandate);
+    const delivery = mk("delivery", coder, { contract: contract.id, result: { summary: "Done", artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] } }, mandate.id, { subject: contract.id });
+    await log.append(delivery);
+    const accept = mk("attestation", poster, { kind: "acceptance", about: delivery.id, verdict: "accepted" }, delivery.id, { subject: contract.id });
+    await log.append(accept);
+    const settle = (fee: number) => mk("settlement", bank, { contract: contract.id, basis: "accepted", cites: accept.id, escrow_released: credit(95), fees: credit(fee), bond_returned: credit(20), bond_slashed: credit(0) }, accept.id, { subject: contract.id });
+    // 20 permille of 95 is 1 (floor). The bank may not choose 5, nor 0.
+    assert.equal(await refused(log.append(settle(5))), "fees_not_job_tax");
+    assert.equal(await refused(log.append(settle(0))), "fees_not_job_tax");
+    await log.append(settle(1));
+    assert.equal(await log.balance(TREASURY_DID), 1, "the job tax lands in the Treasury");
+    assert.equal((await log.creditAudit()).verdict, "balanced");
+  });
+});
