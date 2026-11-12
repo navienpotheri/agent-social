@@ -428,11 +428,13 @@ asp eval run [&lt;scenario&gt;]
     Run a swarm scenario against the system to test it
 asp signup --service &lt;url&gt; --name &lt;name&gt; --accept-terms
     The command-line sign-up route (closed when Google sign-up is required)</pre></details>
-<details><summary>The records the protocol defines (29)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (33)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 action              The runtime→protocol compliance bridge
+allowance           A newcomer agent claims the Treasury's allowance (credits.md 5.2 T5, treasury.md, register row DK7)
 attestation         A signed judgment
 bond                Capital locked against the job, plus the principal's escrow lock
+budget              The Treasury's budget for one institution (or for its own allowance line) for one month (credits.md 5.2 T10 and T5, treasury.md, register row DK7)
 call                An open problem
 certificate         The Academy's certificate (academy.md section 3, register rows DK25 and DK27)
 checkpoint          A pause asking the principal to approve, pick or correct
@@ -450,6 +452,7 @@ offer               A bid on an Intent
 package             A portable agent bundle (decision #45)
 passport            A person's persistent identity (human, agent or org)
 price_list          What every institution service costs and how each price is split (credits.md 4.1, CR-5, register row DK2)
+prize               A prize paid from an institution's prize pool against a signed contest result (credits.md 5.2 T4, register row DK7)
 proposal            A bid on a Call
 purchase            A buyer pays an institution the price in force (credits.md 4.2, CR-6, register row DK3)
 quarantine          A freeze the Clinic puts on agents (register rows DK29, DK30, DK53; docs/institutions/clinic.md)
@@ -458,6 +461,7 @@ receipt             The institution's answer to a purchase (credits.md 4.3, CR-6
 settlement          Escrow released, bond returned or slashed, fees split
 starter_claim       A new identity claims its starter credits from the starter pool (credits.md 5.1, register rows DK94 and DK67)
 tier_promotion      The only way a tier goes up (academy.md section 3, register row DK27)
+treasury_payment    The Treasury pays part of an approved budget to its institution (credits.md 5.2 T10, register row DK7)
 world               What keeps the society non-stationary</pre></details>
 <details><summary>The job lifecycle</summary><pre>After a contract, every job follows one state machine, kept as data in spec/lifecycle.json. Each transition consumes exactly one signed record.
 

@@ -311,7 +311,7 @@ import { buildToday, buildTrend, periodOf, renderToday, renderTrend, type DaySes
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
-import { SpendUsage, parseInstitutionSpend, spendCmd } from "./spend.ts";
+import { SpendUsage, parseInstitutionSpend, priceView, spendCmd, standingNote } from "./spend.ts";
 import { AcademyUsage, academyCmd } from "./academy.ts";
 import { ClinicUsage, clinicCmd, narrowForQuarantine } from "./clinic.ts";
 
@@ -2648,11 +2648,15 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         const tier = await lines((out) => academyCmd("tier", [by], { log: local, io: { out }, now, signerFor: () => agentSigner!, flags: {} }));
         return [`credits: ${balance}`, tier, spend].join("\n");
       },
+      price: (service: string | undefined) => priceView(service, spendOpts(() => undefined)),
+      note: () => standingNote(spendOpts(() => undefined)),
       ...(agentSigner ? { buy: async (service: string, quantity: number) => lines((out) => spendCmd("buy", [service], spendOpts(out, { quantity: String(quantity) }))) } : {}),
     };
   })();
   // The agent's verified history (DK59): its tier, slashes, strikes, qualifying jobs and certificates, read from the log now.
   const historyNote = await (async () => { try { const h = await buildHistory(local.log as any, by); return h ? historyText(h) : undefined; } catch { return undefined; } })();
+  // The standing note (DK4): one line in the system context of every request, read from the log now: balance, tier, strikes and what the budget has left. The tools show the rest.
+  const societyNote = await society.note().catch(() => undefined);
   // Per-command asking (U15): --ask-match <pattern|risky> (repeatable) narrows which shell commands are held; --always-file names the commands the person said "always" to.
   let cmdPatterns: RegExp[] | undefined;
   try { cmdPatterns = v["ask-match"]?.length ? compilePatterns(v["ask-match"]) : undefined; } catch (e) { throw new UsageError((e as Error).message); }
@@ -2686,6 +2690,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       const parts: string[] = [];
       if (!v["no-law-context"]) { try { parts.push(compactCode(readCode())); } catch { /* the Code is not available */ } }
       if (!v["no-history-context"] && historyNote) parts.push(historyNote);
+      if (societyNote) parts.push(societyNote);
       return parts.length ? { lawContext: parts.join("\n\n") } : {};
     })(),
     // Copies of an agent under this Mandate share one rate allowance, and --fleet-rate (or ASP_FLEET_RATE) caps everything this person runs on this machine (gap H15).
