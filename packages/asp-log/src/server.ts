@@ -64,7 +64,7 @@ export const hashToken = (token: string): string => createHash("sha256").update(
 /** EventLog methods a client may call: reads, plus verification. Nothing that writes. */
 export const LOG_METHODS = new Set([
   "get", "head", "since", "chain", "chainInfo", "passport", "keys", "fleet", "balance", "escrow", "juror", "reputationOf", "mandateOf",
-  "verificationOf", "report", "drawPanel", "drawReportPanel", "verify", "verifyCheckpoint", "mints", "creditAudit", "creditFlows", "priceLists", "mandatesOf", "certificatesOf", "quarantinesOf", "purchasesBy", "worldRecords", "worldState", "creditConcentration", "starterPoolState",
+  "verificationOf", "report", "drawPanel", "drawReportPanel", "verify", "verifyCheckpoint", "mints", "creditAudit", "creditFlows", "priceLists", "mandatesOf", "certificatesOf", "academyRecords", "certificateStatus", "arenaBoard", "quarantinesOf", "purchasesBy", "worldRecords", "worldState", "creditConcentration", "starterPoolState",
 ]);
 const TENANT_HANDLE_METHODS = new Set(["append", "importRecords"]);
 const ADMIN_HANDLE_METHODS = new Set(["mint"]);

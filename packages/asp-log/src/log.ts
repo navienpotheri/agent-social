@@ -2041,6 +2041,38 @@ export class EventLog {
   /** Every certificate record whose holder is `did`, in log order (read by `asp academy`). */
   async certificatesOf(did: string): Promise<AspRecord[]> { return this.recordsWhere((r) => r.type === "asp.certificate/v0.2" && (r.body as { holder?: string }).holder === did); }
 
+  /** The Academy's records of the given short types (exam, exam_result, certificate, certificate_revocation, arena, arena_entry, arena_result, prize, course, enrolment, completion, tier_promotion), in log order. Read by `asp academy` and the public pages. */
+  async academyRecords(types: string[]): Promise<AspRecord[]> {
+    const full = new Set(types.map((t) => `asp.${t}/v0.2`));
+    return this.recordsWhere((r) => full.has(r.type));
+  }
+
+  /** A certificate as anyone can verify it (academy.md 7): its record, whether it is valid now, expired or revoked, and the revocation if any. Public: it reveals only what the signed records say. */
+  async certificateStatus(id: string, at: string = new Date().toISOString()): Promise<{ certificate: AspRecord; status: "valid" | "expired" | "revoked"; revocation?: AspRecord } | undefined> {
+    const cert = (await this.recordsWhere((r) => r.id === id && r.type === "asp.certificate/v0.2"))[0];
+    if (!cert) return undefined;
+    const revocation = (await this.recordsWhere((r) => r.type === "asp.certificate_revocation/v0.2" && (r.body as { certificate: string }).certificate === id))[0];
+    if (revocation) return { certificate: cert, status: "revoked", revocation };
+    return { certificate: cert, status: Date.parse((cert.body as { expires: string }).expires) > Date.parse(at) ? "valid" : "expired" };
+  }
+
+  /** The leaderboard of an arena (all seasons, or one): the signed results in rank order with the prizes paid against them (academy.md AC-16). */
+  async arenaBoard(arena: string, season?: string): Promise<{ season: string; results: { agent: string; rank: number; score: number; field_size: number; prize: number }[] }[]> {
+    const recs = await this.academyRecords(["arena_result", "prize"]);
+    const seasons = new Map<string, { agent: string; rank: number; score: number; field_size: number; prize: number }[]>();
+    for (const r of recs) if (r.type === "asp.arena_result/v0.2") {
+      const b = r.body as { arena: string; season: string; agent: string; rank: number; score: number; field_size: number };
+      if (b.arena !== arena || (season && b.season !== season)) continue;
+      seasons.set(b.season, [...(seasons.get(b.season) ?? []), { agent: b.agent, rank: b.rank, score: b.score, field_size: b.field_size, prize: 0 }]);
+    }
+    for (const r of recs) if (r.type === "asp.prize/v0.2") {
+      const b = r.body as { arena: string; season: string; agent: string; amount: { value: number } };
+      const row = seasons.get(b.season)?.find((x) => b.arena === arena && x.agent === b.agent);
+      if (row) row.prize = b.amount.value;
+    }
+    return [...seasons.entries()].map(([s, results]) => ({ season: s, results: results.sort((a, b) => a.rank - b.rank) }));
+  }
+
   /** Every Mandate record whose subject is `did`, in log order (read by `asp spend`). */
   async mandatesOf(did: string): Promise<AspRecord[]> { return this.recordsWhere((r) => r.type === "asp.mandate/v0.2" && r.subject === did); }
 
