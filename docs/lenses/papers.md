@@ -184,14 +184,49 @@ Fields: **Source** image(s) · **Cite** · **Claim** (own words) · **Mechanism*
 - **Risks:** theory; needs a measurable proxy.
 - **Priority: B.**
 
-### P17. Simulators must rank alternatives and be validated (fragment; paper not identified)
-- **Theme:** evaluation. **Source:** IMG_6883 (a section "What the research opens up" from a post; no title).
-- **Cite:** not legible.
-- **Claim:** evaluating agents takes more than right answers; a user simulator's job is to rank alternatives correctly, not mimic humans perfectly, and simulators themselves must be validated; calls for simulator reliability tests, agent improvement loops, and evaluation of proactive agents.
-- **Mechanism:** lens only; a rule for the society's cohort tests (validate any simulated users by whether they rank mechanisms correctly).
-- **Cells:** Academy x perceive; Research and Commons x reflect.
-- **Needs:** none.
+### P17. Synthetic-customer simulation for testing agents (Nubank research, via a post)
+- **Theme:** evaluation. **Source:** IMG_6883, IMG_6884, IMG_6885, IMG_6886 (four consecutive screenshots of one post; no title, authors or link visible; the post names Nubank's AI Research team).
+- **Cite:** not legible. All numbers are the post's claims.
+- **Claim:** testing agent versions against synthetic customers in large simulation before real customers speeds development (4.4 days per version against 21.2 without) and helps pick better versions. Nubank screened 29 model configurations over 16,000+ simulated conversations and chose an open-weight Qwen with reasoning; a Card Management agent cut unnecessary handoffs to humans from 22.4% to 16.0% offline, then in a live A/B test showed +4.9 points self-service and +36.7 points tNPS against a different agent (so not a clean comparison, as the post admits). Lessons: a simulator's job is to rank alternatives correctly, not mimic humans perfectly; simulators must themselves be validated.
+- **Mechanism:** evaluation mechanism: simulate first, then a live cohort against control; validate the simulator by whether it ranks versions the same way the live test does. Pairs with P10.
+- **Cells:** Businesses x perceive; Shops and Services x transact; Bank and Insurer x perceive; Academy x perceive.
+- **Needs:** a simulator, model calls; open-weight screening optional.
 - **Licence/code:** unknown.
-- **Risks:** fragment; may belong to a nearby image.
-- **Priority: B.**
+- **Risks:** secondhand; a bank's own evaluation; the live comparison is confounded.
+- **Priority: B.** Gives the cohort-versus-control design a "validate the simulator" rule.
+
+### P18. Measuring AI agents as teammates (Collaborative Intelligence Benchmark)
+- **Theme:** evaluation / communication between agents. **Source:** IMG_6887.
+- **Cite:** Wu, Pappu, J. Zou, Kim, Mao, Zhou, Yu, Chen, J. Zou (Stanford, MIT, Oxford); arXiv 2611.02633v1, 2 Nov 2026. GitHub and website links shown (not legible).
+- **Claim:** 240 tasks over 8 dimensions of teamwork (from refusing an unsafe shortcut to checking a weaker model's leftover work), scored only on tasks a model can solve alone. 18 models; best 82.2/100. Frontier models refuse unsafe shortcuts and report misconduct but cave under interpersonal pressure (best deal in only 14% of conflicts) and their pass rate falls from 97% to 81% when taking over a task a weaker model cheated on. General capability does not predict teamwork: near-equal models differ by up to 11 points. 160 public tasks, 80 held out.
+- **Mechanism:** lens plus ready tests: a teamwork score per agent, usable in Market, Forum and Businesses cohorts, and as a matching input.
+- **Cells:** Businesses x act/plan; Forum x act; Market x transact; Courts x perceive (checking others' work).
+- **Needs:** tasks (160 public); API models suffice.
+- **Licence/code:** code and data stated as released; licence unknown.
+- **Risks:** teamwork measured only on tasks solvable alone; models named in the figure are future-versioned names this worker cannot verify.
+- **Priority: A.** Directly measures what a society of agents needs.
+
+### P19. EnvOpt: automated optimisation of agent environments
+- **Theme:** world models and environments. **Source:** IMG_6888.
+- **Cite:** Li, Mao, Mang, Li, Gonzalez, Dimakis (UC Berkeley, Chicago, Bespoke Labs); arXiv 2611.07372, 5 Nov 2026. Code github.com/itea1001/EnvOpt (as printed).
+- **Claim:** besides tuning the model and the harness, optimise the stationary environment itself (how a company's Slack history or document store is organised and presented): cuts cost of a small model by 72.7% and raises pass rate by 14.34% on AutomationBench, transfers to a larger model and other harnesses, with no graders needed.
+- **Mechanism:** adoptable: the society's institutions (Registry, Courts, Forum archives) are the agent's environment; reorganise how their records are presented to agents and measure cost and success. Environment design as a mechanism.
+- **Cells:** Registry x perceive; Research and Commons x remember/perceive; Forum x perceive; Courts x perceive.
+- **Needs:** tasks (real or synthetic), API models.
+- **Licence/code:** code link shown; licence unknown.
+- **Risks:** only for stationary environments; a changing city needs re-optimisation.
+- **Priority: A.** Treats the institutions as the thing to tune, which is the owner's layer idea.
+
+### P20. Anthropic: agent memory and "dreaming" (blog post)
+- **Theme:** memory and learning. **Source:** IMG_6889 (status bar 4:18), IMG_6890 (4:53), IMG_6891 (4:53, same text as 6889 scrolled), IMG_6892 (4:53, Figure 1), IMG_6893 (4:53). Same post; 6889 and 6891 overlap.
+- **Cite:** anthropic.com blog post; title and date not legible. Mentions Letta and UC Berkeley's "sleep-time compute" as the source idea.
+- **Claim:** agents keep logs; between sessions an offline "dreaming" step replays and reorganises them (fixing mistakes, writing notes, building representations such as wikis, shaping what loads into the next session), like human hippocampal replay and consolidation. Figure 1 layers: transcripts (event log), memory notes (salient observations), memory representations (computed from transcripts and notes), injected context (loaded each session). Memory here excludes weights, in-context learning and compaction. Marking a memory as important makes it replay more often.
+- **Mechanism:** memory mechanism: an off-hours consolidation job per agent in the Academy or Clinic, with salience marks. Complements P3 (what lessons) and P4 (compaction).
+- **Cells:** Academy x reflect/learn/remember; Clinic x reflect; Housing x remember (overnight).
+- **Needs:** logs; API models suffice; idle compute.
+- **Licence/code:** unknown (a blog post).
+- **Risks:** consolidation can entrench errors or leak private details into representations.
+- **Priority: A.** Already close to the owner's reflect/remember functions; time-based, fits a city with days and nights.
+
+
 
