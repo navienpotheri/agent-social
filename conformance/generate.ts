@@ -795,6 +795,27 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
     sv("valid_ruling_with_precedent", "attestation", { kind: "ruling", about: id6, verdict: "for_principal", fault: { [a1]: 1000 }, reasons: ["follows the earlier ruling"], code, route: "small_claim", precedents: [id7], departs_from: [] }, true);
     sv("ruling_route_unknown", "attestation", { kind: "ruling", about: id6, verdict: "for_principal", fault: { [a1]: 1000 }, route: "blitz" }, false);
   }
+  // S250: the Shops and Services records (shops.md 3; DK21, DK22) and the catalogue fields of a price-list item.
+  {
+    const id6 = "sha256:" + "6".repeat(64), id7 = "sha256:" + "7".repeat(64), id8 = "sha256:" + "8".repeat(64), a1 = "did:web:example.com:agents:a";
+    const badge = { type: "badge", value: "plain" };
+    sv("valid_price_list_catalogue_item", "price_list", { ...list, items: [{ ...item, effect: badge, duration_days: 90, gate: { min_tier: 1, certificate: "*" } }] }, true);
+    sv("price_list_effect_no_type", "price_list", { ...list, items: [{ ...item, effect: { value: "plain" } }] }, false);
+    sv("price_list_gate_tier_four", "price_list", { ...list, items: [{ ...item, gate: { min_tier: 4 } }] }, false);
+    sv("valid_shops_holding", "shops_act", { act: "holding", holder: a1, item: "shops.badge.plain", purchase: id6, receipt: id7, effect: badge, from: "2026-11-01T00:00:00Z", until: "2027-01-30T00:00:00Z" }, true);
+    sv("shops_holding_no_receipt", "shops_act", { act: "holding", holder: a1, item: "shops.badge.plain", purchase: id6, effect: badge, from: "2026-11-01T00:00:00Z", until: "2027-01-30T00:00:00Z" }, false);
+    sv("valid_shops_residency", "shops_act", { act: "residency", agent: a1, mode: "resident", budget: { credits_per_month: 40 }, since: "2026-11-01T00:00:00Z" }, true);
+    sv("shops_residency_bad_mode", "shops_act", { act: "residency", agent: a1, mode: "tourist", budget: { credits_per_month: 40 }, since: "2026-11-01T00:00:00Z" }, false);
+    sv("valid_shops_standing_order", "shops_act", { act: "standing_order", agent: a1, service: "shops.upkeep", max_per_period: 30, period: "month", mandate: id8 }, true);
+    sv("shops_standing_order_other_service", "shops_act", { act: "standing_order", agent: a1, service: "shops.badge.plain", max_per_period: 30, period: "month", mandate: id8 }, false);
+    sv("valid_shops_standing_order_revoke", "shops_act", { act: "standing_order_revoke", order: id8 }, true);
+    sv("valid_shops_upkeep_charge", "shops_act", { act: "upkeep_charge", agent: a1, order: id8, price_list: id6, from_day: "2026-11-15", days: 3, amount: cr(3) }, true);
+    sv("shops_upkeep_charge_zero_days", "shops_act", { act: "upkeep_charge", agent: a1, order: id8, price_list: id6, from_day: "2026-11-15", days: 0, amount: cr(3) }, false);
+    sv("valid_shops_residency_status", "shops_act", { act: "residency_status", agent: a1, status: "dormant", reason: "upkeep unpaid for 7 days" }, true);
+    sv("shops_residency_status_no_reason", "shops_act", { act: "residency_status", agent: a1, status: "dormant" }, false);
+    sv("shops_act_unknown", "shops_act", { act: "gift", holder: a1 }, false);
+    sv("shops_act_extra_field", "shops_act", { act: "standing_order_revoke", order: id8, boost: 1 }, false);
+  }
   // S190: Treasury budgets, payments, the newcomer allowance, prizes, and the standing flag on a price-list item (credits.md 5.2 T4, T5, T10, R9).
   const did1 = "did:web:example.com:agents:alice-coder", rid = "sha256:" + "7".repeat(64);
   sv("valid_price_list_standing_item", "price_list", { ...list, items: [{ ...item, gives_standing: true }] }, true);

@@ -44,6 +44,9 @@
           },
           "class": { "enum": ["standard", "essential", "remedial"] },
           "deliver_within_seconds": { "type": "integer", "minimum": 1 },
+          "effect": { "description": "A catalogue item's stated effect (shops.md 3). `type` is checked by the log against an allowlist (effect_not_allowed); a `target` or type that names standing (tier, rank, certificate, bond floor, Mandate scope, eligibility) is refused (effect_touches_standing); a resource effect needs `resource`, `amount`, `cap_per_sponsor` and `unit_cost_ref` and a duration (resource_effect_uncapped).", "type": "object", "required": ["type"], "additionalProperties": false, "properties": { "type": { "type": "string" }, "value": { "type": "string", "maxLength": 60 }, "target": { "type": "string" }, "resource": { "type": "string" }, "amount": { "type": "integer", "minimum": 1 }, "cap_per_sponsor": { "type": "integer", "minimum": 1 }, "unit_cost_ref": { "type": "string" } } },
+          "duration_days": { "description": "How long a purchase of this item lasts: 1 for the daily upkeep, 30 for a resource, 90 for a display item.", "type": "integer", "minimum": 0, "maximum": 365 },
+          "gate": { "description": "What the buyer needs: a tier at or above `min_tier`, and a valid certificate in `certificate` (a skill, or * for any).", "type": "object", "additionalProperties": false, "properties": { "min_tier": { "type": "integer", "minimum": 0, "maximum": 3 }, "certificate": { "type": "string" } } },
           "gives_standing": { "description": "True for an item that gives standing (a certificate, a rank, a badge): such an item is refused as self-dealing when a payee is the buyer, the buyer's sponsor, or controlled by the buyer's sponsor (credits.md 5.2 R9).", "type": "boolean" }
         }
       }

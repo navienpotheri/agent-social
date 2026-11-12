@@ -6,6 +6,7 @@
 import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { bondFloorPermille } from "./bond-floor.ts";
 import { MAX_OPEN_POSTINGS_TIER1, MARKET_DID, POSTING_DEPOSIT_SERVICE, CLASS_WEIGHT, JOB_CLASSES, classPriceProblem, eligibility, higherClass, rankAgents, type AgentFacts, type JobClass, type JobNeeds } from "./market.ts";
+import { assertNotDormant } from "./shops-rules.ts";
 import type { LogTx, Store } from "./store.ts";
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
@@ -77,6 +78,7 @@ export async function projectMarketAct(tx: LogTx, r: AspRecord, env: MarketEnv):
   const now = r.issued_at;
 
   if (b.act === "posting") {
+    await assertNotDormant(tx, r.issuer, "post a job");
     const intent = await tx.getRecord(b.intent);
     if (!intent || intent.record.type !== "asp.intent/v0.2") throw rule("posting_intent_unknown", `${b.intent} is not an intent in this log`);
     if (intent.record.issuer !== r.issuer) throw rule("posting_not_posters", `the intent ${b.intent} was signed by ${intent.record.issuer}: only its poster lists it`);
@@ -126,6 +128,7 @@ export async function projectMarketAct(tx: LogTx, r: AspRecord, env: MarketEnv):
   }
 
   if (b.act === "bid") {
+    await assertNotDormant(tx, r.issuer, "bid on a job");
     const info = await loadPosting(tx, b.posting, now);
     if (info.poster === r.issuer) throw rule("self_hire", "a poster does not bid on its own posting");
     const offer = await tx.getRecord(b.offer);

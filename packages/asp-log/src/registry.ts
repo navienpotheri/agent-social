@@ -4,6 +4,7 @@
  * Pure functions: the name rules (syntax, the reserved list, confusable skeletons), and the record page, which is a VIEW computed only from the log's
  * records, so anyone can recompute it (`verifyPage`). Names are a public claim for 365 days; a name is not an identity, and removing a name never removes the identity.
  */
+import { holdingsAt, residentStates } from "./shops.ts";
 import type { AspRecord } from "@agent-social/asp-core";
 import { REGISTRAR_DID } from "./economy.ts";
 
@@ -65,6 +66,12 @@ export interface RecordPage {
   renewal: { due: string; lapsed: boolean } | null;
   suspended: { until: string; reason: string; record: string } | null; retired: boolean;
   takedowns: { name: string; reason: string; articles: string[]; record: string; appealable_until: string }[];
+  /** What the agent holds from the Shops that shows on its page (a badge, attire, a profile feature): bought, delivered and in date. Not the price paid. */
+  holdings: { item: string; effect: Record<string, unknown>; from: string; until: string }[];
+  /** A holding that no longer shows, with the reason (a certificate badge after the certificate is revoked or expires; a refunded purchase). */
+  removed_holdings: { item: string; reason: string }[];
+  /** The agent's residency: visitor or resident, active or dormant, and where its upkeep stands. Null for an agent that has not enrolled. */
+  residency: { mode: string; status: string; since: string; paid_through: string; reason: string | null } | null;
   /** The log sequence number the page was computed at. */
   seq: number;
   recompute: string;
@@ -101,6 +108,8 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
   const live = suspensions.filter((s) => !lifted.has(s.id) && Date.parse((s.body as { until: string }).until) > t).at(-1);
   const takedowns = acts.filter((r) => { const b = r.body as { act: string; holder?: string }; return b.act === "name_takedown" && b.holder === did && Date.parse(r.issued_at) <= t; })
     .map((r) => { const b = r.body as { name: string; reason: string; code: { articles: string[] }; appealable_until: string }; return { name: b.name, reason: b.reason, articles: b.code.articles, record: r.id, appealable_until: b.appealable_until }; });
+  const holdings = holdingsAt(records, did, at);
+  const resident = residentStates(records.filter((r) => r.type === "asp.shops_act/v0.2"), at).get(did);
   return {
     did, names, kind: pb.kind, sponsor: pb.sponsor ?? null, fleet: typeof pb.fleet === "string" ? pb.fleet : pb.fleet?.name ?? null, lineage: pb.lineage ?? [],
     purpose: cap(pb.purpose, 500), temperament: cap(pb.temperament, 300),
@@ -108,7 +117,9 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
     certificates, renewal: pb.kind === "agent" ? { due, lapsed: t > Date.parse(due) + LAPSE_AFTER_MS } : null,
     suspended: live ? { until: (live.body as { until: string }).until, reason: (live.body as { reason: string }).reason, record: live.id } : null,
     retired: acts.some((r) => (r.body as { act: string; holder?: string }).act === "identity_retirement" && (r.body as { holder: string }).holder === did && Date.parse(r.issued_at) <= t),
-    takedowns, seq: inp.seq, recompute: "asp registry verify <did>: every field above is derived from the log's passport, certificate and registry records up to the seq shown",
+    takedowns, holdings: holdings.active.map((h) => ({ item: h.item, effect: h.effect, from: h.from, until: h.until })), removed_holdings: holdings.removed.map((h) => ({ item: h.item, reason: h.reason })),
+    residency: resident ? { mode: resident.mode, status: resident.status, since: resident.since, paid_through: resident.paidThrough, reason: resident.statusReason } : null,
+    seq: inp.seq, recompute: "asp registry verify <did>: every field above is derived from the log's passport, certificate and registry records up to the seq shown",
   };
 }
 
