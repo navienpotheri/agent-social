@@ -25,3 +25,4 @@ export {
   type ItemClass, type Split, type SplitParts,
 } from "./economy.ts";
 export * from "./world.ts";
+export * from "./academy.ts";

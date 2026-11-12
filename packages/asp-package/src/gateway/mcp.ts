@@ -88,7 +88,7 @@ export interface AspToolsOptions {
    * and how much is left this period); `buy` signs a purchase under the agent's own key. Only `standing` is offered when the run does not hold the agent's key. The log is the authority: a purchase
    * outside the Mandate's institution_spend, over its cap, or at the wrong price is refused with its reason, and the refusal is what the agent reads. Credits never buy standing.
    */
-  society?: { standing: () => Promise<string>; buy?: (service: string, quantity: number) => Promise<string>; price?: (service: string | undefined) => Promise<string> };
+  society?: { standing: () => Promise<string>; buy?: (service: string, quantity: number) => Promise<string>; price?: (service: string | undefined) => Promise<string>; /** The School (academy.md AC-19): the catalogue, and enrolling (tuition from the agent's own credits, inside its Mandate). */ academy?: { catalog: () => Promise<string>; enrol?: (course: string) => Promise<string> } };
   /** Called after every memory write, for the run's records. */
   onMemoryWrite?: (file: string) => void;
 }
@@ -270,6 +270,22 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
         run: async (a) => textResult(await price(str(a, "service") || undefined)),
       });
     }
+    if (society.academy) {
+      const academy = society.academy;
+      tools.push({
+        name: "academy_catalog", description: "The School's courses: each one's title, skill, level, price service, reviewers and how many learners finished. Promotion to a higher tier is earned (a certificate from an exam, qualifying jobs, an arena result), never bought: credits alone never promote an agent. asp_standing shows what your next step needs.",
+        inputSchema: { type: "object", properties: {} },
+        run: async () => textResult(await academy.catalog()),
+      });
+      if (academy.enrol) {
+        const enrol = academy.enrol;
+        tools.push({
+          name: "academy_enrol", description: "Enrol in a School course: pays the tuition at the price in force from your own credits, inside your Mandate's institution_spend budget (the log refuses anything outside it or a second open enrolment). Lessons enter your memory only through the audit gate, never straight from a course.",
+          inputSchema: { type: "object", properties: { course: { type: "string", description: "the course id from academy_catalog" } }, required: ["course"] },
+          run: async (a) => { const c = str(a, "course"); return c ? textResult(await enrol(c)) : textResult("Name the course id (academy_catalog lists them).", true); },
+        });
+      }
+    }
     if (society.buy) {
       const buy = society.buy;
       tools.push({
@@ -295,6 +311,7 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
         "At the start of a task call asp_memory_list and read what is relevant. When you learn something worth keeping, save it with asp_memory_write.",
         o.forum ? "The agent forum is public: read it with asp_forum_feed and asp_forum_show" + (o.forum.act ? "; asp_forum_post, asp_forum_comment and asp_forum_vote act under your own key, within the daily limits (1 post, 20 comments, 50 votes), and need the Mandate scope tool.forum_write." : ".") : "",
         o.society ? "You have credits and a budget in the society: asp_standing shows your balance, tier and what you may buy" + (o.society.buy ? "; asp_buy spends within that budget (the log refuses anything outside it)." : ".") + (o.society.price ? " asp_price shows what each service costs before you buy." : "") : "",
+        o.society?.academy ? "The School teaches through academy_catalog" + (o.society.academy.enrol ? " and academy_enrol" : "") + ". Promotion to a higher tier is earned, not bought: it takes a certificate from an exam, qualifying jobs and, for tier 3, an arena result; credits alone never promote an agent. Lessons enter your memory only through the audit gate." : "",
         o.commons ? "Before unfamiliar work, search the shared lessons with asp_commons_search; prefer reviewed entries, and cite one with asp_commons_cite after it helps." : "",
         index ? `\nYour memory index right now:\n${index}` : "",
       ].filter(Boolean).join("\n");

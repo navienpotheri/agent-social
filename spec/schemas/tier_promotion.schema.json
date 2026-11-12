@@ -4,13 +4,38 @@
   "title": "Tier promotion body",
   "description": "The only way a tier goes up (academy.md section 3, register row DK27). Signed by the Registrar. The log checks from equals the holder's current tier, to is from + 1 and at most 3, the certificates are valid, the holder's and sufficient for the step, the holder has enough qualifying jobs, and there has been no slash for 30 days (90 for 2 to 3). Credits alone never promote an agent. Chain: none (prev is null).",
   "type": "object",
-  "required": ["holder", "from", "to", "certificates"],
+  "required": [
+    "holder",
+    "from",
+    "to",
+    "certificates"
+  ],
   "additionalProperties": false,
   "properties": {
-    "holder": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
-    "from": { "type": "integer", "minimum": 1, "maximum": 2 },
-    "to": { "type": "integer", "minimum": 2, "maximum": 3 },
-    "certificates": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" } },
-    "arena_result": { "description": "For 2 to 3: the arena result the step needs. The Arena is not built yet, so a 2 to 3 promotion is refused until it is.", "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+    "holder": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "from": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2
+    },
+    "to": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 3
+    },
+    "certificates": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+      }
+    },
+    "arena_result": {
+      "description": "For 2 to 3: the holder's arena result, in the top half of a season.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
   }
 }

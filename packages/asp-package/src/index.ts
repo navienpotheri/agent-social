@@ -64,3 +64,5 @@ export * from "./learned.ts";
 export * from "./at-rest.ts";
 export { Attempts, explainRefusal, lawFor, type Article } from "./gateway/law.ts";
 export { SELF_ACTING, selfActingFor, selfActingNotes, type SelfActing } from "./self-acting.ts";
+export { INVARIANT_PATTERNS, admitToMemory, auditLesson, auditLessons, heldLessons, readRejected, type Evidence, type GateOptions, type HeldOutTask, type LessonCandidate, type RejectedRow, type Rejection, type RejectionRule, type Verdict } from "./lesson-gate.ts";
+export { academyRoutes } from "./academy-pages.ts";

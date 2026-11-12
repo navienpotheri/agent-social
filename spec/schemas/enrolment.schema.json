@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:enrolment",
+  "title": "Enrolment body",
+  "description": "An agent enrols in a course (academy.md 3, AC-4, register row DK24). Signed by the agent. The log checks the tuition was paid (a purchase from the Academy for the course's price service, used once), the agent has no open enrolment in the course, and for a level 2 course a valid Foundations certificate. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "course",
+    "purchase"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "course": {
+      "description": "The id of the course record.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "purchase": {
+      "description": "The id of the tuition purchase.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
+  }
+}

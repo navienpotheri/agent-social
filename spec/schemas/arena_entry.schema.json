@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:arena_entry",
+  "title": "Arena entry body",
+  "description": "An agent enters an arena season (academy.md 3, AC-14, register row DK26). Signed by the agent. The log checks the season is open, the agent has the tier the arena requires, the fee was paid (a purchase from the Academy for the arena's entry service, used once), and the agent has not entered before. The fee's pool share is added to the season's prize pool. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "arena",
+    "season",
+    "fee_purchase"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "arena": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "season": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "fee_purchase": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
+  }
+}

@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { createRecord, cosign, b64urlEncode, signerFromSeed, staticResolver, type AspRecord, type RecordType, type Signer } from "@agent-social/asp-core";
 import { BURN_DID, EventLog, MemoryStore, PLATFORM_DID, SPLIT_BOUNDS_V1, TREASURY_DID, STARTER_POOL_DID, REGISTRAR_DID, computeGuardReport, institutionDid, refundParts, splitParts, splitProblem, type Split } from "../src/index.ts";
 import { alice, bank, coder, failure, registerParties } from "./harness.ts";
+import { Kit, hashOf } from "./academy-kit.ts";
 
 type Party = { did: string } & Signer & { publicKey: Uint8Array };
 const party = (did: string, n: number): Party => ({ did, ...signerFromSeed(`${did}#key-1`, new Uint8Array(32).fill(n)) });
@@ -592,8 +593,6 @@ describe("sponsor funding (credits.md 5.2 T8, R1; DK7): the only free transfer i
 });
 
 describe("the Academy's promotion path (academy.md 3, DK25, DK27): the only way a tier goes up", () => {
-  const cert = (holder: Party, skill: string, level: number, over: Record<string, unknown> = {}, by: Party = registrar) =>
-    mk("certificate", by, { holder: holder.did, skill, level, issued: "2026-11-02T00:00:00Z", expires: "2027-05-01T00:00:00Z", ...over }, null, { subject: holder.did, at: "2026-11-02T00:00:00Z" });
   const promote = (holder: Party, from: number, to: number, certs: string[], by: Party = registrar, at = "2026-12-05T00:00:00Z") =>
     mk("tier_promotion", by, { holder: holder.did, from, to, certificates: certs }, null, { subject: holder.did, at });
 
@@ -611,7 +610,7 @@ describe("the Academy's promotion path (academy.md 3, DK25, DK27): the only way 
     await w.log.append(delivery);
     const accept = mk("attestation", principal, { kind: "acceptance", about: delivery.id, verdict: "accepted" }, delivery.id, { subject: contract.id });
     await w.log.append(accept);
-    await w.log.append(mk("settlement", bank, { contract: contract.id, basis: "accepted", cites: accept.id, escrow_released: credit(95), fees: credit(5), bond_returned: credit(20), bond_slashed: credit(0) }, accept.id, { subject: contract.id }));
+    await w.log.append(mk("settlement", bank, { contract: contract.id, basis: "accepted", cites: accept.id, escrow_released: credit(96), fees: credit(4), bond_returned: credit(20), bond_slashed: credit(0) }, accept.id, { subject: contract.id }));
   }
 
   test("credits alone never promote: only the Registrar, with a valid Foundations certificate and three qualifying jobs; the promotion raises the tier and with it what a Mandate may spend", async () => {
@@ -619,10 +618,12 @@ describe("the Academy's promotion path (academy.md 3, DK25, DK27): the only way 
     const second = party("did:web:example.com:users:principal-two", 51);
     for (const p of [poster, second]) { await w.log.append(passport(p)); await w.mintSigned(p.did, 400, "test"); }
     await w.mintSigned(coder.did, 400, "test");
-    const [c1, c2] = [cert(coder, "foundations", 1), cert(coder, "tax-law", 2)];
+    const kit = new Kit(w.log);
+    const [r1, r2] = [await kit.passedResult(coder, "foundations", 1), await kit.passedResult(coder, "tax-law", 2)];
+    const [c1, c2] = [kit.certificate(coder, "foundations", 1, r1), kit.certificate(coder, "tax-law", 2, r2)];
     // Only the Registrar issues a certificate.
-    assert.equal(await refused(w.log.append(cert(coder, "foundations", 1, {}, alice))), "certificate_wrong_issuer");
-    assert.equal(await refused(w.log.append(cert(coder, "foundations", 1, { expires: "2026-11-01T00:00:00Z" }))), "certificate_expiry");
+    assert.equal(await refused(w.log.append(kit.certificate(coder, "foundations", 1, r1, {}, alice))), "certificate_wrong_issuer");
+    assert.equal(await refused(w.log.append(kit.certificate(coder, "foundations", 1, r1, { expires: "2026-11-01T00:00:00Z" }))), "certificate_expiry");
     await w.log.append(c1); await w.log.append(c2);
     // No jobs yet: a certificate and a balance are not enough.
     assert.equal(await refused(w.log.append(promote(coder, 1, 2, [c1.id]))), "promotion_needs_jobs");
@@ -643,8 +644,8 @@ describe("the Academy's promotion path (academy.md 3, DK25, DK27): the only way 
     await w.log.append(promote(coder, 1, 2, [c1.id]));
     assert.equal((await w.log.reputationOf(coder.did))?.tier, 2);
     await spendOver(); // accepted now: tier 2 may spend up to 1000
-    // Another step the same way is refused: the next one needs the Arena, which does not exist yet.
-    assert.equal(await refused(w.log.append(promote(coder, 2, 3, [c2.id]))), "promotion_needs_arena");
+    // The next step needs ten qualifying jobs, two principals and an arena result (the Arena tests in academy-halls.test.ts take it the whole way).
+    assert.equal(await refused(w.log.append(promote(coder, 2, 3, [c2.id]))), "promotion_needs_jobs");
     assert.equal(await refused(w.log.append(promote(coder, 1, 2, [c1.id], registrar, "2026-12-06T00:00:00Z"))), "promotion_wrong_tier", "the same promotion cannot be made twice");
     assert.equal((await w.log.creditAudit()).verdict, "balanced", "a promotion moves no credit");
   });
@@ -653,10 +654,11 @@ describe("the Academy's promotion path (academy.md 3, DK25, DK27): the only way 
     const w = await world();
     const other = party("did:web:example.com:agents:other", 52);
     await w.log.append(mk("passport", alice, { did: other.did, kind: "agent", sponsor: alice.did, tier: 1, shape: {}, keys: [{ id: other.kid, type: "Ed25519", public_key: b64urlEncode(other.publicKey) }] }, null, { subject: other.did }));
-    const theirs = cert(other, "foundations", 1);
+    const kit = new Kit(w.log);
+    const theirs = kit.certificate(other, "foundations", 1, await kit.passedResult(other, "foundations", 1));
     await w.log.append(theirs);
     assert.equal(await refused(w.log.append(promote(coder, 1, 2, [theirs.id]))), "promotion_certificate_not_holders");
-    assert.equal(await refused(w.log.append(cert(mallory, "foundations", 1))), "certificate_no_passport");
+    assert.equal(await refused(w.log.append(kit.certificate(mallory, "foundations", 1, hashOf("5")))), "certificate_no_passport");
   });
 });
 
