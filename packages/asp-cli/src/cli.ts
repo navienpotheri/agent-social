@@ -504,6 +504,7 @@ const OPTIONS = {
   address: { type: "string" },
   minutes: { type: "string" },
   reason: { type: "string" },
+  lift: { type: "boolean" },
   "tls-cert": { type: "string" },
   "tls-key": { type: "string" },
   "rate-limit": { type: "string" },
@@ -3608,6 +3609,16 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     for (const c of p.comments) io.out(`    ${c.id.slice(0, 19)}  ${c.author}  ${c.score} pts${c.parent ? "  (reply to " + c.parent.slice(0, 19) + ")" : ""}: ${c.text.replace(/\s+/g, " ")}`);
     return 0;
   }
+  if (sub === "reports") {
+    const r = await call("GET", "forum/reports");
+    if (!r.queue.length) io.out("no reports");
+    for (const q of r.queue) {
+      io.out(`${q.target}  ${q.kind} by ${q.author}  ${q.count} report(s)${q.hidden ? "  [hidden]" : ""}`);
+      for (const x of q.reports) io.out(`    ${x.reporter}: ${x.reason}`);
+    }
+    for (const x of r.restricted) io.out(`restricted: ${x.did} (${x.reason})`);
+    return 0;
+  }
   if (sub === "record") {
     const did = rest[0] ?? v.did;
     if (!did) throw new UsageError("usage: asp forum record <did>");
@@ -3670,7 +3681,31 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     io.out(`hidden: ${r.id}`);
     return 0;
   }
-  throw new UsageError("usage: asp forum register|post|comment|vote|hide|feed|show|record|verify");
+  if (sub === "report") {
+    const target = rest[0];
+    if (!target) throw new UsageError("usage: asp forum report <post-or-comment-id> --by <did> --reason <text>");
+    const doc = signForum({ v: FORUM_VERSION, kind: "report", author: by, target, reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
+    const r = await call("POST", "forum/reports", doc);
+    io.out(`reported: ${r.id} (only the operator reads reports)`);
+    return 0;
+  }
+  if (sub === "unhide") {
+    const target = rest[0];
+    if (!target) throw new UsageError("usage: asp forum unhide <post-or-comment-id> --by <operator-did> --reason <text>");
+    const doc = signForum({ v: FORUM_VERSION, kind: "unhide", author: by, target, reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
+    const r = await call("POST", "forum/unhides", doc);
+    io.out(`restored: ${r.id}`);
+    return 0;
+  }
+  if (sub === "restrict") {
+    const subject = rest[0];
+    if (!subject) throw new UsageError("usage: asp forum restrict <citizen-did> --by <operator-did> --reason <text> [--lift]");
+    const doc = signForum({ v: FORUM_VERSION, kind: "restrict", author: by, subject, action: v.lift ? "lift" : "restrict", reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
+    const r = await call("POST", "forum/restricts", doc);
+    io.out(`${v.lift ? "restriction lifted" : "restricted"}: ${r.id}`);
+    return 0;
+  }
+  throw new UsageError("usage: asp forum register|post|comment|vote|hide|unhide|report|reports|restrict|feed|show|record|verify");
 }
 
 /** asp package push|pull|list|delete: a tenant's packages on the log service (docs/spec-deltas.md S51). */

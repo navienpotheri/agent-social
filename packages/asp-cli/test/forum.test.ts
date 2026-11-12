@@ -207,3 +207,56 @@ test("a post written in the meme convention is drawn as a meme card, escaped, an
   assert.match(page, /class="meme classic"/);
   assert.match(page, /&lt;b&gt;pass&lt;\/b&gt;/);
 });
+
+test("moderation (DK130): a citizen reports a post and only the operator reads the queue; the operator hides, restores with a reason and restricts a citizen, and the record keeps every act", async () => {
+  const f = await setup();
+  const post = idOf((await f.asp(["forum", "post", f.file("a.md", "a post that someone will flag"), "--by", A, "--title", "Flag me"])).out);
+  const own = await f.act(A, "reports", { kind: "report", target: post, reason: "my own" });
+  assert.equal(own.json.error.code, "OWN_TARGET", "no reporting your own post");
+  assert.equal((await f.act(B, "reports", { kind: "report", target: "sha256:" + "0".repeat(64), reason: "x" })).json.error.code, "NO_SUCH_TARGET");
+
+  // Two citizens flag it; a second flag from the same citizen is refused; the cap of ten reports a day holds.
+  const r1 = await f.asp(["forum", "report", post, "--by", B, "--reason", "spam"]);
+  assert.equal(r1.code, 0, r1.err);
+  assert.match(r1.out, /only the operator reads reports/);
+  assert.equal((await f.asp(["forum", "report", post, "--by", C, "--reason", "advertising"])).code, 0);
+  assert.equal((await f.act(B, "reports", { kind: "report", target: post, reason: "again" })).json.error.code, "ALREADY_REPORTED");
+
+  // Only the operator reads the queue: not a citizen, not the public.
+  assert.equal((await fetch(`${f.url}/forum/reports`)).status, 401);
+  assert.equal((await fetch(`${f.url}/forum/reports`, { headers: { authorization: `Bearer ${TOKEN}` } })).status, 403);
+  const queue = await (await fetch(`${f.url}/forum/reports`, { headers: { authorization: `Bearer ${ADMIN}` } })).json() as any;
+  assert.equal(queue.queue.length, 1);
+  assert.deepEqual([queue.queue[0].target, queue.queue[0].count, queue.queue[0].hidden], [post, 2, false]);
+  assert.deepEqual(queue.queue[0].reports.map((x: { reason: string }) => x.reason).sort(), ["advertising", "spam"]);
+  const listed = await f.asp(["forum", "reports"], ADMIN);
+  assert.match(listed.out, /2 report\(s\)/);
+  assert.match(listed.out, /spam/);
+  assert.equal(JSON.stringify(await f.get("/forum/feed")).includes("advertising"), false, "reports are not in any public read");
+
+  // The operator hides it, restores it with a reason, and cannot restore what is not hidden.
+  assert.equal((await f.asp(["forum", "unhide", post, "--by", OPERATOR, "--reason", "not hidden"], ADMIN)).code, 1, "not hidden yet");
+  assert.equal((await f.asp(["forum", "hide", post, "--by", OPERATOR, "--reason", "spam, confirmed"], ADMIN)).code, 0);
+  assert.match((await f.asp(["forum", "show", post])).out, /\[hidden by the operator: spam, confirmed\]/);
+  assert.equal((await f.act(B, "unhides", { kind: "unhide", target: post, reason: "i say so" })).json.error.code, "NOT_OPERATOR");
+  const back = await f.asp(["forum", "unhide", post, "--by", OPERATOR, "--reason", "appeal upheld: not spam"], ADMIN);
+  assert.equal(back.code, 0, back.err);
+  assert.match((await f.asp(["forum", "show", post])).out, /a post that someone will flag/);
+
+  // A restricted citizen cannot post, comment, vote or report; reading and the record stay; a lift restores the rights.
+  assert.equal((await f.act(B, "restricts", { kind: "restrict", subject: A, action: "restrict", reason: "i say so" })).json.error.code, "NOT_OPERATOR");
+  assert.equal((await f.asp(["forum", "restrict", "did:web:example.com:agents:nobody", "--by", OPERATOR, "--reason", "x"], ADMIN)).code, 1, "no such citizen");
+  assert.equal((await f.asp(["forum", "restrict", A, "--by", OPERATOR, "--reason", "repeated spam"], ADMIN)).code, 0);
+  assert.equal((await f.asp(["forum", "restrict", A, "--by", OPERATOR, "--reason", "again"], ADMIN)).code, 1, "already restricted");
+  const refused = await f.act(A, "comments", { kind: "comment", post, text: "let me back in" });
+  assert.equal(refused.json.error.code, "RESTRICTED");
+  assert.match(refused.json.error.message, /repeated spam/);
+  assert.match((await f.asp(["forum", "show", post])).out, /a post that someone will flag/, "the restricted citizen's earlier post is still readable");
+  assert.match((await f.asp(["forum", "reports"], ADMIN)).out, /restricted: .*alice \(repeated spam\)/);
+  assert.equal((await f.asp(["forum", "restrict", A, "--by", OPERATOR, "--reason", "served its time", "--lift"], ADMIN)).code, 0);
+  assert.equal((await f.act(A, "comments", { kind: "comment", post, text: "thank you" })).status, 201);
+
+  // Every act is in the public record, and it still verifies.
+  const verified = await f.get("/forum/verify");
+  assert.equal(verified.ok, true, JSON.stringify(verified.problems));
+});

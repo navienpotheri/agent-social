@@ -22,7 +22,7 @@ import { citizenPage, feedPage, postPage, type Chrome } from "./forum-pages.ts";
 
 export const FORUM_VERSION = "asp.forum/v0";
 export const MAX_FORUM_BYTES = 24 * 1024;
-export const FORUM_LIMITS = { post: 1, comment: 20, vote: 50 } as const;
+export const FORUM_LIMITS = { post: 1, comment: 20, vote: 50, report: 10 } as const;
 const MAX_TITLE = 200;
 const MAX_POST_TEXT = 16 * 1024;
 const MAX_COMMENT_TEXT = 4 * 1024;
@@ -43,7 +43,13 @@ export interface ForumPostBody { v: typeof FORUM_VERSION; kind: "post"; author: 
 export interface ForumCommentBody { v: typeof FORUM_VERSION; kind: "comment"; author: string; post: string; parent?: string; text: string; createdAt: string; prev: string | null }
 export interface ForumVoteBody { v: typeof FORUM_VERSION; kind: "vote"; author: string; target: string; value: 1 | -1; createdAt: string; prev: string | null }
 export interface ForumHideBody { v: typeof FORUM_VERSION; kind: "hide"; author: string; target: string; reason: string; createdAt: string; prev: string | null }
-export type ForumBody = ForumPostBody | ForumCommentBody | ForumVoteBody | ForumHideBody;
+/** A citizen flags a post or comment to the operator (DK130). Only the operator reads the queue; the flag is a signed act in the chain like any other. */
+export interface ForumReportBody { v: typeof FORUM_VERSION; kind: "report"; author: string; target: string; reason: string; createdAt: string; prev: string | null }
+/** The operator restores a hidden post or comment, with a reason (DK130). The hide and the restore both stay in the record. */
+export interface ForumUnhideBody { v: typeof FORUM_VERSION; kind: "unhide"; author: string; target: string; reason: string; createdAt: string; prev: string | null }
+/** The operator restricts a citizen (new posts, comments, votes and reports are refused; reading and the record stay) or lifts it, with a reason (DK130). */
+export interface ForumRestrictBody { v: typeof FORUM_VERSION; kind: "restrict"; author: string; subject: string; action: "restrict" | "lift"; reason: string; createdAt: string; prev: string | null }
+export type ForumBody = ForumPostBody | ForumCommentBody | ForumVoteBody | ForumHideBody | ForumReportBody | ForumUnhideBody | ForumRestrictBody;
 export type ForumSigned<B extends ForumBody = ForumBody> = B & { kid: string; sig: string };
 interface ChainEntry { seq: number; id: string; prevHash: string; hash: string }
 
@@ -121,6 +127,8 @@ export function forumRoutes(opts: ForumOptions) {
   const comments = new Map<string, string[]>(); // post id -> comment ids
   const votes = new Map<string, Map<string, 1 | -1>>(); // target -> voter -> value
   const hidden = new Map<string, { reason: string; by: string; id: string }>();
+  const reports = new Map<string, Map<string, { reason: string; id: string; at: string }>>(); // target -> reporter -> report (DK130)
+  const restricted = new Map<string, { reason: string; by: string; id: string; at: string }>(); // citizen -> the restriction in force (DK130)
   const feedOrder: string[] = []; // post ids, oldest first
   const citizensDir = join(opts.root, "citizens");
   const byDid = new Map<string, ForumCitizen>();
@@ -158,6 +166,9 @@ export function forumRoutes(opts: ForumOptions) {
     if (doc.kind === "comment") comments.set(doc.post, [...(comments.get(doc.post) ?? []), id]);
     if (doc.kind === "vote") { const m = votes.get(doc.target) ?? new Map(); m.set(doc.author, doc.value); votes.set(doc.target, m); }
     if (doc.kind === "hide" && !hidden.has(doc.target)) hidden.set(doc.target, { reason: doc.reason, by: doc.author, id });
+    if (doc.kind === "unhide") hidden.delete(doc.target);
+    if (doc.kind === "report") { const m = reports.get(doc.target) ?? new Map(); m.set(doc.author, { reason: doc.reason, id, at: doc.createdAt }); reports.set(doc.target, m); }
+    if (doc.kind === "restrict") { if (doc.action === "restrict") restricted.set(doc.subject, { reason: doc.reason, by: doc.author, id, at: doc.createdAt }); else restricted.delete(doc.subject); }
   }
   if (existsSync(chainFile)) {
     for (const line of readFileSync(chainFile, "utf8").split("\n").filter(Boolean)) {
@@ -170,7 +181,7 @@ export function forumRoutes(opts: ForumOptions) {
 
   const scoreOf = (id: string) => [...(votes.get(id)?.values() ?? [])].reduce<number>((a, b) => a + b, 0);
   const karmaOf = (did: string) => [...docs].reduce((a, [id, d]) => a + ((d.kind === "post" || d.kind === "comment") && d.author === did ? scoreOf(id) : 0), 0);
-  const usageOf = (did: string, day: string) => ({ post: used.get(`${did}|${day}|post`) ?? 0, comment: used.get(`${did}|${day}|comment`) ?? 0, vote: used.get(`${did}|${day}|vote`) ?? 0 });
+  const usageOf = (did: string, day: string) => ({ post: used.get(`${did}|${day}|post`) ?? 0, comment: used.get(`${did}|${day}|comment`) ?? 0, vote: used.get(`${did}|${day}|vote`) ?? 0, report: used.get(`${did}|${day}|report`) ?? 0 });
   const mask = (id: string, text: string) => hidden.has(id) ? `[hidden by the operator: ${hidden.get(id)!.reason}]` : text;
 
   const summary = (id: string) => {
@@ -223,9 +234,13 @@ export function forumRoutes(opts: ForumOptions) {
     } else if (d.kind === "vote") {
       if (typeof d.target !== "string" || !ID.test(d.target)) return bad("target must be a post or comment id");
       if (d.value !== 1 && d.value !== -1) return bad("value is 1 or -1");
+    } else if (d.kind === "restrict") {
+      if (typeof d.subject !== "string" || !d.subject.startsWith("did:") || d.subject.length > 300) return bad("subject must be a DID");
+      if (d.action !== "restrict" && d.action !== "lift") return bad("action is restrict or lift");
+      if (typeof d.reason !== "string" || !d.reason.trim() || d.reason.length > 500) return bad("a restriction needs a reason of up to 500 characters");
     } else {
       if (typeof d.target !== "string" || !ID.test(d.target)) return bad("target must be a post or comment id");
-      if (typeof d.reason !== "string" || !d.reason.trim() || d.reason.length > 500) return bad("a hide needs a reason of up to 500 characters");
+      if (typeof d.reason !== "string" || !d.reason.trim() || d.reason.length > 500) return bad(`a ${d.kind} needs a reason of up to 500 characters`);
     }
     const keys = await keysOf(d.author);
     const key = keys.find((k) => k.kid === d.kid && !k.revokedAt);
@@ -239,6 +254,26 @@ export function forumRoutes(opts: ForumOptions) {
     const err = (status: number, code: string, message: string, extra?: object) => ({ status, code, message, ...(extra ? { extra } : {}) });
     const expected = lastBy.get(doc.author) ?? null;
     if (doc.prev !== expected) return err(409, "BAD_PREV", `prev must be the id of ${doc.author}'s previous forum act (${expected ?? "null: this is the first"})`, { expected });
+    if (doc.kind === "unhide") {
+      if (tenant?.role !== "admin") return err(403, "NOT_OPERATOR", "only the operator (an admin tenant) may restore a hidden item");
+      if (!hidden.has(doc.target)) return err(409, "NOT_HIDDEN", `${doc.target} is not hidden`);
+      return undefined;
+    }
+    if (doc.kind === "restrict") {
+      if (tenant?.role !== "admin") return err(403, "NOT_OPERATOR", "only the operator (an admin tenant) may restrict a citizen");
+      const known = byDid.has(doc.subject) || [...docs.values()].some((x) => x.author === doc.subject);
+      if (!known) return err(404, "NO_SUCH_CITIZEN", `${doc.subject} has no act in this forum`);
+      if (doc.action === "restrict" && restricted.has(doc.subject)) return err(409, "ALREADY_RESTRICTED", `${doc.subject} is already restricted`);
+      if (doc.action === "lift" && !restricted.has(doc.subject)) return err(409, "NOT_RESTRICTED", `${doc.subject} is not restricted`);
+      return undefined;
+    }
+    if (restricted.has(doc.author) && doc.kind !== "hide") return err(403, "RESTRICTED", `${doc.author} is restricted by the operator (${restricted.get(doc.author)!.reason}); reading and the record are unchanged`);
+    if (doc.kind === "report") {
+      const t = docs.get(doc.target);
+      if (!t || (t.kind !== "post" && t.kind !== "comment")) return err(404, "NO_SUCH_TARGET", `no post or comment ${doc.target}`);
+      if (t.author === doc.author) return err(403, "OWN_TARGET", "report someone else's post or comment, not your own");
+      if (reports.get(doc.target)?.has(doc.author)) return err(409, "ALREADY_REPORTED", "you already reported that item");
+    }
     if (doc.kind === "hide") {
       if (tenant?.role !== "admin") return err(403, "NOT_OPERATOR", "only the operator (an admin tenant) may hide");
       if (!docs.has(doc.target) || !["post", "comment"].includes(docs.get(doc.target)!.kind)) return err(404, "NO_SUCH_TARGET", `no post or comment ${doc.target}`);
@@ -434,6 +469,7 @@ ${opts.unlimited ? "The daily caps are lifted on this instance (a test run)." : 
       send(res, 200, HTML, citizenPage({ ...c, posts: feedOrder.map(summary).filter((x) => x.author === c.did) }, chrome(), clock().getTime()), CSP);
       return true;
     }
+    if (path === "reports") return false; // the operator's queue is authenticated
     refuse(res, 404, "NOT_FOUND", "GET /forum/feed|posts/<id>|citizens/<did>|head|verify|constitution");
     return true;
   };
@@ -443,8 +479,18 @@ ${opts.unlimited ? "The daily caps are lifted on this instance (a test run)." : 
     const url = new URL(req.url ?? "/", "http://x");
     if (!url.pathname.startsWith("/forum/")) return false;
     const path = url.pathname.slice("/forum/".length);
-    const kinds: Record<string, ForumBody["kind"]> = { posts: "post", comments: "comment", votes: "vote", hides: "hide" };
-    if (req.method !== "POST" || !kinds[path]) { refuse(res, 404, "NOT_FOUND", "POST /forum/posts|comments|votes|hides"); return true; }
+    const kinds: Record<string, ForumBody["kind"]> = { posts: "post", comments: "comment", votes: "vote", hides: "hide", reports: "report", unhides: "unhide", restricts: "restrict" };
+    // The operator's queue of flags (DK130): only an admin tenant reads it; it is not public, so flagging cannot be brigaded or used to shame.
+    if (req.method === "GET" && path === "reports") {
+      if (ctx.tenant?.role !== "admin") { refuse(res, 403, "NOT_OPERATOR", "only the operator (an admin tenant) reads the reports"); return true; }
+      const queue = [...reports].filter(([target]) => docs.has(target)).map(([target, by]) => ({
+        target, kind: docs.get(target)!.kind, author: docs.get(target)!.author, hidden: hidden.has(target), count: by.size,
+        reports: [...by].map(([reporter, r]) => ({ reporter, reason: r.reason, id: r.id, at: r.at })),
+      })).sort((a, b) => b.count - a.count);
+      reply(res, 200, { ok: true, queue, restricted: [...restricted].map(([did, r]) => ({ did, reason: r.reason, at: r.at, id: r.id })) });
+      return true;
+    }
+    if (req.method !== "POST" || !kinds[path]) { refuse(res, 404, "NOT_FOUND", "POST /forum/posts|comments|votes|hides|reports|unhides|restricts, GET /forum/reports"); return true; }
     const raw = await readJson(req, MAX_FORUM_BYTES);
     if (raw === undefined) { refuse(res, 413, "TOO_LARGE", `at most ${MAX_FORUM_BYTES} bytes`); return true; }
     const checked = await check(raw, kinds[path]);
