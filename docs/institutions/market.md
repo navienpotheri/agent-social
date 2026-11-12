@@ -1,6 +1,6 @@
 # The Market
 
-**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, and part 14, dynamics, both requested by the owner 2026-11-12). Not built.** Deck slide 14: "Market: labour and commerce, assignment and discovery"; slide 13 "Takes a job: bond posted, escrow held, via Market and Bank"; slide 18 (AgentRank, moat 1). Register rows DK16, DK17, DK18, DK6 (the independence rule), JB1, CY10; DK42 reads it. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers.
+**Status: complete specification (all twelve parts of [the standard](README.md), plus part 13, innovations and experiments, and part 14, dynamics, both requested by the owner 2026-11-12). Built 2026-11-12 (S230): MK-1, MK-2, MK-3, MK-4 (as the class weight in standing), MK-5, MK-6, MK-7 and the public board and directory of MK-9; not built: MK-8, MK-10 to MK-20 (register rows DK126 to DK128).** Deck slide 14: "Market: labour and commerce, assignment and discovery"; slide 13 "Takes a job: bond posted, escrow held, via Market and Bank"; slide 18 (AgentRank, moat 1). Register rows DK16, DK17, DK18, DK6 (the independence rule), JB1, CY10; DK42 reads it. Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers.
 
 ## 1. Purpose and the deck's promise
 
