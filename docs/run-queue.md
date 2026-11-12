@@ -8,6 +8,7 @@ Written 2026-11-12 by the lead. This file is the lead's memory across context co
 - **Standing permission: whenever a specific task is completed (a worker reports, or the lead finishes its own), and every suite is green, the lead merges that work into `claude/open-forum`, commits, and pushes `claude/open-forum`, without waiting to be asked.** (This applies to this run only. Never push a failing tree. Never force-push. Never merge or push anything else.)
 - The priority is **closed rows**. No "good enough": a row closes only when its "Done:" criterion is met by a passing test; what cannot be met here is split into a new row and put on `docs/owner-checklist.md`.
 - Credits are accounting entries, not money; the service is a beta; no outside security review has happened. No secrets in anything. Never run `asp law sign`.
+- **The cycle repeats (owner, 2026-11-12):** the lead also takes tasks itself, continuously. When the 5-hour window reaches its limit, everything stops; when it resets to 0%, the lead and both workers start again on the next workable items of the backlog and to-do list, and each completed item is committed, merged and pushed (standing permission above). Repeat until the backlog is done.
 - No terminal (API-billed) agent in this run unless the owner starts one; their balance was about $1.
 
 ## How a task is handled
@@ -44,4 +45,4 @@ Round 3 (if the window allows): Research and Commons (DK31, DK78 to DK80), resid
 ## State (the lead updates this at the end of each step)
 
 - `claude/open-forum` was pushed at 335ae96 (2026-11-12): 54 of 173 priority-A rows closed. CI on d0824fe was in progress.
-- Round 1 starting: workers not yet started when this was written; update below.
+- 2026-11-12 ~17:00: DK92 split pattern pushed (d7f7e36, S186, UC-295; DK92 partial). Workers run-shops (local_5aa5ab9f) and run-clinic (local_18354207) are running; 5-hour window 44%, weekly 67%.
