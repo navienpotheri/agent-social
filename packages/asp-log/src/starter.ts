@@ -11,7 +11,12 @@ import { existsSync, readFileSync, renameSync, statSync, writeFileSync } from "n
 export const STARTER_PER_DID = 500;
 export const STARTER_UPFRONT = 100;
 export const STARTER_MAX_DIDS = 2;
-export const STARTER_POOL = 200_000;
+/** The tenants the three-month beta is planned for (deck slide 18; register rows DK65 and DK74). */
+export const STARTER_LAUNCH_TENANTS = 1000;
+/** What a pool must hold so that every one of `tenants` tenants can take the whole grant for both identities (DK74). The up-front parts alone are tenants x identities x STARTER_UPFRONT. */
+export const starterPoolFor = (tenants: number): number => Math.max(0, Math.trunc(tenants)) * STARTER_MAX_DIDS * STARTER_PER_DID;
+/** The pool the service starts with: sized from the launch target, not a round default (it was 200,000, which covers only the up-front parts of 1,000 tenants). The operator can change it at any time. */
+export const STARTER_POOL = starterPoolFor(STARTER_LAUNCH_TENANTS);
 
 /** Where the operator's change to the pool's size is kept (written by `asp serve starter`, read by the service on each use, so no restart). */
 export const starterCapFile = (poolFile: string) => `${poolFile}.cap.json`;

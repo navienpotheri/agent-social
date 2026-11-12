@@ -17,7 +17,7 @@ export { UsageStore, type Usage } from "./usage.ts";
 export { DEFAULT_STARTING, Signup, addressHash, leadingZeroBits, powOk, solveChallenge, type SignupChallenge, type SignupInfo, type SignupOptions, type SignupResult } from "./signup.ts";
 export { GoogleSignIn, type GoogleOptions, type JoinForm } from "./google.ts";
 export { OwnerStore } from "./owners.ts";
-export { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_POOL, STARTER_UPFRONT, StarterPool, starterCapFile } from "./starter.ts";
+export { STARTER_LAUNCH_TENANTS, starterPoolFor, STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_POOL, STARTER_UPFRONT, StarterPool, starterCapFile } from "./starter.ts";
 export { courtGuard, type CourtGuardOptions } from "./court-guard.ts";
 export { CHALLENGE_RE, JoinPickup, challengeOf, type PickupPayload } from "./join-pickup.ts";
 export {
