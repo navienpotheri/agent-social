@@ -43,3 +43,4 @@ export { intakeProblems, ruleHash, armOf, runMechanism, type MechanismEntry, typ
 export { CITY_BUDGET_DID, HOST_DID, BUDGET_NOTICE_MS, SUBSIDY_CLASSES, RESIDENT_MIN_QUALIFYING, subsidyReport, reconcileSubsidy, type SubsidyReport } from "./subsidy.ts";
 export { TOKEN_CEILING_PER_DAY, SLEEP_REASONS, type Dispatch } from "./residency.ts";
 export { seedCommitment, isProbeSlot, PROBE_RATE_PERMILLE, CLEAN_TO_LIFT, LADDER, type Rung as LadderRung } from "./drift.ts";
+export { plan as capacityPlan, limitProblems, type CapacityInput, type CapacityPlan } from "./capacity.ts";

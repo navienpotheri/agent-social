@@ -11,6 +11,7 @@
  */
 import type { AspRecord } from "@agent-social/asp-core";
 import { calendarBetween } from "./world.ts";
+import { effectiveClass, higherClass, type JobClass } from "./market.ts";
 
 export interface Activity { at: number; agent: string; kind: string; price: number }
 export interface HealthEvent { at: number; type: string; title?: string }
@@ -128,11 +129,19 @@ export function societyHealth(activity: Activity[], events: HealthEvent[] = [], 
   return { periodMs, periods, jobs: rows.length, events: inWindow.length, eventsPerPeriod: n ? inWindow.length / n : 0, afterEvents, adaptation, adaptedShare: before ? adapted / before : null, alarms };
 }
 
-/** Finished jobs and world events from the records a log holds: an accepted settlement joined to its contract (the performer, the price in credits, the verification mode as the job's kind). */
+/** Finished jobs and world events from the records a log holds: an accepted settlement joined to its contract (the performer, the price in credits, and the listing class as the job's kind, the verification mode when the intent is not in the log). */
 export function activityFromRecords(records: { id?: string; record?: AspRecord }[] | AspRecord[]): { activity: Activity[]; events: HealthEvent[]; recordsList: AspRecord[] } {
   const recs: (AspRecord & { id?: string })[] = (records as any[]).map((x) => (x.record ? { ...x.record, id: x.id ?? x.record.id } : x));
   const contracts = new Map<string, AspRecord>();
   for (const r of recs) if (r.type === "asp.contract/v0.2" && r.id) contracts.set(r.id, r);
+  // A job's kind is its listing class (DK142): the contract's basis names the intent, the intent states a class (routine when none), the Market may have raised it (a class_check, never lowered), and the
+  // price caps it as the standing rule does. A contract with no intent in the log (an older job) keeps the verification mode as its kind.
+  const intents = new Map<string, AspRecord>();
+  const raised = new Map<string, JobClass>();
+  for (const r of recs) {
+    if (r.type === "asp.intent/v0.2" && r.id) intents.set(r.id, r);
+    if (r.type === "asp.market_act/v0.2") { const m = r.body as { act?: string; verdict?: string; intent?: string; class?: JobClass }; if (m.act === "class_check" && m.verdict === "changed_to" && m.intent && m.class) raised.set(m.intent, raised.has(m.intent) ? higherClass(raised.get(m.intent)!, m.class) : m.class); }
+  }
   const activity: Activity[] = [];
   for (const r of recs) {
     if (r.type !== "asp.settlement/v0.2") continue;
@@ -142,7 +151,11 @@ export function activityFromRecords(records: { id?: string; record?: AspRecord }
     if (!c) continue;
     const cb = c.body as { performer?: string; price?: { value?: number } | number; verification?: { mode?: string } | string };
     const price = typeof cb.price === "number" ? cb.price : Number(cb.price?.value ?? 0);
-    const kind = typeof cb.verification === "string" ? cb.verification : cb.verification?.mode ?? "job";
+    const verification = typeof cb.verification === "string" ? cb.verification : cb.verification?.mode ?? "job";
+    const intentId = (c.body as { basis?: { intent?: string } }).basis?.intent;
+    const intent = intentId ? intents.get(intentId) : undefined;
+    const declared = intent ? ((intent.body as { class?: JobClass }).class ?? "routine") : undefined;
+    const kind = declared ? effectiveClass(raised.has(intentId!) ? higherClass(raised.get(intentId!)!, declared) : declared, price) : verification;
     activity.push({ at: Date.parse(r.issued_at), agent: String(cb.performer ?? r.issuer), kind, price });
   }
   const first = Math.min(...recs.map((r) => Date.parse(r.issued_at)).filter(Number.isFinite), Date.now());

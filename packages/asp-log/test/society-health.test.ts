@@ -84,3 +84,39 @@ test("DK77: the measures only read: the input is untouched, and a run with nothi
   const empty = societyHealth([]);
   assert.deepEqual([empty.periods.length, empty.jobs, empty.alarms.length, empty.adaptedShare], [0, 0, 0, null]);
 });
+
+// DK142: a finished job's kind is its listing class, joined through the contract's intent (and the Market's class checks), not the verification mode.
+import { activityFromRecords } from "../src/society-health.ts";
+const rec = (id: string, type: string, issued_at: string, body: unknown, issuer = "did:web:bank") => ({ id, record: { type, issuer, issued_at, body } });
+function job(n: number, day: string, cls: string | undefined, price: number, extra: ReturnType<typeof rec>[] = []) {
+  return [
+    rec(`i${n}`, "asp.intent/v0.2", `${day}T08:00:00Z`, { purpose: "x", budget: { value: price }, ...(cls ? { class: cls } : {}) }),
+    rec(`c${n}`, "asp.contract/v0.2", `${day}T09:00:00Z`, { performer: `did:web:a${n % 3}`, price: { value: price, unit: "credit" }, verification: "principal", basis: { intent: `i${n}`, offer: "o" } }),
+    rec(`s${n}`, "asp.settlement/v0.2", `${day}T10:00:00Z`, { contract: `c${n}`, basis: "accepted" }),
+    ...extra,
+  ];
+}
+
+test("DK142: two listing classes in a log give a mix drift; the same class every day gives none, though the contracts all share one verification mode", () => {
+  const days = ["2026-11-01", "2026-11-02"];
+  const two = [1, 2, 3].flatMap((n) => job(n, days[0], "routine", 30)).concat([4, 5, 6].flatMap((n) => job(n, days[1], "skilled", 100)));
+  const { activity } = activityFromRecords(two as never);
+  assert.deepEqual([...new Set(activity.map((a) => a.kind))].sort(), ["routine", "skilled"]);
+  const report = societyHealth(activity, [], { periodMs: 86_400_000, from: Date.parse("2026-11-01T00:00:00Z"), until: Date.parse("2026-11-03T00:00:00Z") });
+  assert.equal(report.periods[1].mixDrift, 1, "every job changed class from one day to the next");
+  const same = [1, 2, 3].flatMap((n) => job(n, days[0], "routine", 30)).concat([4, 5, 6].flatMap((n) => job(n, days[1], "routine", 30)));
+  const flat = societyHealth(activityFromRecords(same as never).activity, [], { periodMs: 86_400_000, from: Date.parse("2026-11-01T00:00:00Z"), until: Date.parse("2026-11-03T00:00:00Z") });
+  assert.equal(flat.periods[1].mixDrift, 0);
+});
+
+test("DK142: a class the Market raised counts, the price caps a declared class as the standing rule does, and a contract with no intent in the log keeps its verification mode", () => {
+  const raise = rec("m1", "asp.market_act/v0.2", "2026-11-01T08:30:00Z", { act: "class_check", intent: "i1", verdict: "changed_to", class: "critical" }, "did:web:asp.local:market");
+  const { activity } = activityFromRecords([
+    ...job(1, "2026-11-01", "routine", 250, [raise]), // declared routine, raised to critical, priced for critical
+    ...job(2, "2026-11-01", "critical", 30),          // declared critical, but 30 credits only supports routine
+    ...job(3, "2026-11-01", undefined, 30),            // no class stated: routine
+    rec("c9", "asp.contract/v0.2", "2026-11-01T09:00:00Z", { performer: "did:web:z", price: { value: 40, unit: "credit" }, verification: "oracle" }),
+    rec("s9", "asp.settlement/v0.2", "2026-11-01T10:00:00Z", { contract: "c9", basis: "accepted" }),
+  ] as never);
+  assert.deepEqual(activity.map((a) => a.kind), ["critical", "routine", "routine", "oracle"]);
+});
