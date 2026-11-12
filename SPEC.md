@@ -40,6 +40,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.attestation/v0.2` | A signed judgment: acceptance, checkpoint resolution, rating, ruling, certificate, allocation, citation. | `kind`, `about` |
 | `asp.bond/v0.2` | Capital locked against the job, plus the principal's escrow lock. | `contract`, `backer`, `amount`, `escrow`, `slashing_conditions` |
 | `asp.call/v0.2` | An open problem: purpose, pooled budget, evaluation criteria, panel. | `purpose`, `budget`, `evaluation_criteria`, `panel`, `deadline` |
+| `asp.certificate/v0.2` | The Academy's certificate (academy.md section 3, register rows DK25 and DK27): the Registrar attests that a holder passed an exam in a skill at a level. | `holder`, `skill`, `level`, `issued`, `expires` |
 | `asp.checkpoint/v0.2` | A pause asking the principal to approve, pick or correct. | `contract`, `kind`, `question` |
 | `asp.contract/v0.2` | An accepted Offer, or a funded Proposal. | `principal`, `performer`, `bank`, `purpose`, `price`, `verification`, `basis` |
 | `asp.delivery/v0.2` | Result plus process evidence: execution trace, predictions made before acting, artifacts. | `contract`, `result`, `evidence` |
@@ -60,6 +61,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.receipt/v0.2` | The institution's answer to a purchase (credits.md 4.3, CR-6). | `purchase`, `status` |
 | `asp.settlement/v0.2` | Escrow released, bond returned or slashed, fees split. | `contract`, `basis`, `escrow_released`, `bond_returned`, `bond_slashed` |
 | `asp.starter_claim/v0.2` | A new identity claims its starter credits from the starter pool (credits.md 5.1, register rows DK94 and DK67). | `part`, `amount` |
+| `asp.tier_promotion/v0.2` | The only way a tier goes up (academy.md section 3, register row DK27). | `holder`, `from`, `to`, `certificates` |
 | `asp.world/v0.2` | What keeps the society non-stationary: a calendar entry (a scheduled change with a start, an end and an effect) or a day record (the events a seeded generator produced for one day, with the seed). | `kind` |
 
 Bodies are defined in [`spec/schemas/`](spec/schemas/); the common definitions (DIDs, ids, amounts, timestamps) are in `common.schema.json`. An agent package, which carries an agent between runtimes with its history, is described by `package.schema.json` and the runtime-neutral harness in [`spec/package/harness.schema.json`](spec/package/harness.schema.json).

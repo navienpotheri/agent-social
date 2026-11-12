@@ -3633,6 +3633,78 @@
       "valid": false
     },
     {
+      "name": "valid_certificate",
+      "schema": "certificate",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "skill": "foundations",
+        "level": 1,
+        "issued": "2026-11-01T00:00:00Z",
+        "expires": "2027-04-30T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "certificate_level_zero",
+      "schema": "certificate",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "skill": "foundations",
+        "level": 0,
+        "issued": "2026-11-01T00:00:00Z",
+        "expires": "2027-04-30T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "certificate_no_expiry",
+      "schema": "certificate",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "skill": "foundations",
+        "level": 1,
+        "issued": "2026-11-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_tier_promotion",
+      "schema": "tier_promotion",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "from": 1,
+        "to": 2,
+        "certificates": [
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "tier_promotion_to_four",
+      "schema": "tier_promotion",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "from": 3,
+        "to": 4,
+        "certificates": [
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "tier_promotion_no_certificates",
+      "schema": "tier_promotion",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "from": 1,
+        "to": 2,
+        "certificates": []
+      },
+      "valid": false
+    },
+    {
       "name": "valid_starter_claim_upfront",
       "schema": "starter_claim",
       "instance": {

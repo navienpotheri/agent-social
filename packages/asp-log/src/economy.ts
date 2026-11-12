@@ -20,6 +20,9 @@ export const canonicalAccount = (did: string): string => (did === PLATFORM_DID ?
 
 /** Every account the society itself holds (not an agent or a person). */
 /** The starter pool (register row DK94): the operator funds it with signed mints; only a valid starter claim moves credits out of it. */
+/** The Registrar (the Registry institution account): signs certificates and tier promotions (academy.md 3). */
+export const REGISTRAR_DID = institutionDid("registry");
+
 export const STARTER_POOL_DID = "did:web:asp.local:starter-pool";
 
 export const isReservedAccount = (did: string): boolean => did === TREASURY_DID || did === BURN_DID || did === PLATFORM_DID || did === STARTER_POOL_DID || INSTITUTION_DIDS.includes(did);

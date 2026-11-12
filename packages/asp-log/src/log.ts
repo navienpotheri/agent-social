@@ -5,7 +5,7 @@ import {
 import { auditLedger, creditFlowsOf, type CreditAudit, type CreditFlows } from "./credit-audit.ts";
 import { bondFloorPermille } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
-import { BURN_DID, INSTITUTION_DIDS, PLATFORM_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { BURN_DID, INSTITUTION_DIDS, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
@@ -25,6 +25,10 @@ const RISK_PERMILLE_PER_OWN_SLASH = 250;
 const RISK_PERMILLE_PER_FLEET_SLASH = 100;
 const RISK_PERMILLE_PER_STRIKE = 10;
 const RISK_PERMILLE_STRIKE_CAP = 200;
+/** The promotion rule (academy.md 3, proposals the owner decides): qualifying jobs for tier 1 to 2, and how long after a slash or a blocked attempt no promotion is made. */
+const PROMOTION_QUALIFYING_JOBS_1_TO_2 = 3;
+const PROMOTION_SLASH_FREE_MS = 30 * 24 * 60 * 60 * 1000;
+
 /** Graduated tier limits: the most credit a Mandate may let a tier spend (tier 3 and above: uncapped; tier 0 is excluded outright). */
 const TIER_SPEND_LIMIT: Record<number, number> = { 1: 100, 2: 1000 };
 /** ...and how many parallel nodes (Mandate nodes.max_parallel) it may run. */
@@ -239,6 +243,8 @@ export class EventLog {
     if (type === "purchase") await this.projectPurchase(tx, verified);
     if (type === "starter_claim") await this.projectStarterClaim(tx, verified);
     if (type === "internal_transfer") await this.projectInternalTransfer(tx, verified);
+    if (type === "certificate") await this.projectCertificate(tx, verified);
+    if (type === "tier_promotion") await this.projectTierPromotion(tx, verified);
     if (type === "receipt") await this.projectReceipt(tx, verified);
     if (type === "attestation") {
       await this.checkRulingPanel(tx, verified);
@@ -530,9 +536,10 @@ export class EventLog {
   }
 
   /** Demotes a slashed backer by one tier (floor 0) and counts the slash, for its next Bond's risk floor. */
-  private async demote(tx: LogTx, did: string): Promise<void> {
+  private async demote(tx: LogTx, did: string, at: string): Promise<void> {
     const rep = await this.reputation(tx, did);
     if (!rep) return; // not an agent (or has no passport at all): this mechanism doesn't apply
+    await tx.putMarker(`slashed_at:${did}`, at); // when the last slash happened, for the promotion rule (no promotion within 30 days of a slash)
     await this.saveReputation(tx, did, { ...rep, tier: Math.max(0, rep.tier - 1), slashCount: rep.slashCount + 1 });
   }
 
@@ -891,7 +898,7 @@ export class EventLog {
     if (fees > 0) await this.credit(tx, PLATFORM_DID, fees);
     await this.credit(tx, cbody.principal, escrowLeftover + slashedToPrincipal + principalReserve);
     await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover + backerReserve);
-    if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer);
+    if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer, r.issued_at);
     else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at });
     await tx.putEscrow({ ...escrow, settled: true });
   }
@@ -1295,6 +1302,54 @@ export class EventLog {
     await this.credit(tx, b.to, b.amount.value);
   }
 
+  /**
+   * A certificate (academy.md 3, DK25): only the Registrar issues one, to an agent with a passport. Until the exam engine exists (AC-8) the Registrar signs on its own judgement and the pass-mark-before-scoring
+   * rule cannot be enforced by the log; that gap is written down (DK25). The latest certificate for a holder, skill and level is kept as a marker.
+   */
+  private async projectCertificate(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { holder: string; skill: string; level: number; issued: string; expires: string };
+    if (r.prev !== null) throw rule("certificate_not_chained", "a certificate starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID) throw rule("certificate_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar issues a certificate`);
+    if (!(await tx.getPassport(b.holder))) throw rule("certificate_no_passport", `${b.holder} has no passport in this log`);
+    if (Date.parse(b.expires) <= Date.parse(b.issued)) throw rule("certificate_expiry", "a certificate expires after it is issued");
+    await tx.putMarker(`cert:${b.holder}|${b.skill}|${b.level}`, r.id);
+  }
+
+  /**
+   * A tier promotion (academy.md 3 and the promotion rule, DK27): the only way a tier goes up. Credits alone never promote. Tier 1 to 2: a valid Foundations certificate, 3 qualifying jobs, no slash for 30
+   * days. Tier 2 to 3 needs a top-half arena result and two distinct principals, and the Arena does not exist yet, so it is refused until it does (`promotion_needs_arena`). The tier takes the new value in
+   * the reputation row, where the Mandate's spend and node limits already read it.
+   */
+  private async projectTierPromotion(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { holder: string; from: number; to: number; certificates: string[]; arena_result?: string };
+    if (r.prev !== null) throw rule("promotion_not_chained", "a tier promotion starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID) throw rule("promotion_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar promotes an agent`);
+    const rep = await this.reputation(tx, b.holder);
+    if (!rep) throw rule("promotion_not_an_agent", `${b.holder} has no passport in this log, so it has no tier`);
+    if (b.from !== rep.tier) throw rule("promotion_wrong_tier", `${b.holder} is tier ${rep.tier}, not ${b.from}`);
+    if (b.to !== b.from + 1 || b.to > 3) throw rule("promotion_one_step", "a promotion is one tier at a time, and at most to tier 3");
+    if (rep.tier === 0) throw rule("promotion_tier_zero", "a tier 0 agent returns only through the Clinic's retraining path, not by the Academy alone");
+    if (b.to === 3) throw rule("promotion_needs_arena", "tier 2 to 3 needs a result in the top half of an arena season and two distinct principals; the Arena is not built yet, so this step is refused for now");
+    const at = Date.parse(r.issued_at);
+    let foundations = false;
+    for (const id of b.certificates) {
+      const c = await tx.getRecord(id);
+      if (!c || c.record.type !== "asp.certificate/v0.2") throw rule("promotion_certificate_unknown", `${id} is not a certificate in this log`);
+      const cb = c.record.body as { holder: string; skill: string; level: number; issued: string; expires: string };
+      if (cb.holder !== b.holder) throw rule("promotion_certificate_not_holders", `the certificate ${id} belongs to ${cb.holder}, not ${b.holder}`);
+      if (Date.parse(cb.expires) <= at) throw rule("promotion_certificate_expired", `the certificate ${id} expired at ${cb.expires}`);
+      if (Date.parse(cb.issued) > at) throw rule("promotion_certificate_future", `the certificate ${id} is dated after the promotion`);
+      if (cb.skill === "foundations" && cb.level >= 1) foundations = true;
+    }
+    if (!foundations) throw rule("promotion_needs_foundations", "tier 1 to 2 needs a valid Foundations certificate (skill foundations, level 1 or more)");
+    if (rep.qualifyingJobs < PROMOTION_QUALIFYING_JOBS_1_TO_2) throw rule("promotion_needs_jobs", `tier 1 to 2 needs ${PROMOTION_QUALIFYING_JOBS_1_TO_2} qualifying jobs (accepted, from an independent principal); ${b.holder} has ${rep.qualifyingJobs}`);
+    const slashed = await tx.getMarker(`slashed_at:${b.holder}`);
+    if (slashed && at - Date.parse(slashed) < PROMOTION_SLASH_FREE_MS) throw rule("promotion_recent_slash", `${b.holder} was slashed at ${slashed}; no promotion within 30 days of a slash`);
+    const recentStrikes = rep.strikeLog.filter((s) => at - Date.parse(s.at) < PROMOTION_SLASH_FREE_MS).reduce((n, s) => n + s.count, 0);
+    if (recentStrikes > 0) throw rule("promotion_recent_strikes", `${b.holder} has ${recentStrikes} blocked attempt(s) in the last 30 days; no promotion while the strike window is not clear`);
+    await this.saveReputation(tx, b.holder, { ...rep, tier: b.to });
+  }
+
   /** A receipt (credits.md 4.3): the purchase's institution closes it; a refund comes back by the split in reverse and never includes the burned part. */
   private async projectReceipt(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { purchase: string; status: string; refund_amount?: { value: number } };
@@ -1434,6 +1489,9 @@ export class EventLog {
 
   /** The world as of `at` (an ISO time; default now): price multipliers, outages, tax-free, open job types. Read-only; it changes no tier, rank, standing or eligibility. */
   async worldState(at?: string): Promise<WorldState> { return worldStateAt(await this.worldRecords(), at ?? this.now().toISOString()); }
+
+  /** Every certificate record whose holder is `did`, in log order (read by `asp academy`). */
+  async certificatesOf(did: string): Promise<AspRecord[]> { return this.recordsWhere((r) => r.type === "asp.certificate/v0.2" && (r.body as { holder?: string }).holder === did); }
 
   /** Every Mandate record whose subject is `did`, in log order (read by `asp spend`). */
   async mandatesOf(did: string): Promise<AspRecord[]> { return this.recordsWhere((r) => r.type === "asp.mandate/v0.2" && r.subject === did); }

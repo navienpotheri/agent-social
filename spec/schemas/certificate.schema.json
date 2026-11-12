@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:certificate",
+  "title": "Certificate body",
+  "description": "The Academy's certificate (academy.md section 3, register rows DK25 and DK27): the Registrar attests that a holder passed an exam in a skill at a level. Signed by the Registrar (the envelope's issuer). Level 1 with skill foundations is the Foundations certificate; level 2 or more in another skill is a Practitioner certificate. A certificate lasts until expires; a tier already reached is not lost at expiry. Chain: none (prev is null). Credits never buy a certificate's standing.",
+  "type": "object",
+  "required": ["holder", "skill", "level", "issued", "expires"],
+  "additionalProperties": false,
+  "properties": {
+    "holder": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "skill": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "level": { "type": "integer", "minimum": 1, "maximum": 3 },
+    "issued": { "type": "string", "format": "date-time" },
+    "expires": { "type": "string", "format": "date-time" },
+    "exam_result": { "description": "The exam result record or run-log hash this rests on. Until the exam engine exists the Registrar may leave it out.", "type": "string" }
+  }
+}

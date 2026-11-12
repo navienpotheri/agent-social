@@ -5,7 +5,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createRecord, cosign, b64urlEncode, signerFromSeed, staticResolver, type AspRecord, type RecordType, type Signer } from "@agent-social/asp-core";
-import { BURN_DID, EventLog, MemoryStore, PLATFORM_DID, SPLIT_BOUNDS_V1, TREASURY_DID, STARTER_POOL_DID, institutionDid, refundParts, splitParts, splitProblem, type Split } from "../src/index.ts";
+import { BURN_DID, EventLog, MemoryStore, PLATFORM_DID, SPLIT_BOUNDS_V1, TREASURY_DID, STARTER_POOL_DID, REGISTRAR_DID, institutionDid, refundParts, splitParts, splitProblem, type Split } from "../src/index.ts";
 import { alice, bank, coder, failure, registerParties } from "./harness.ts";
 
 type Party = { did: string } & Signer & { publicKey: Uint8Array };
@@ -17,9 +17,10 @@ const treasury = party(TREASURY_DID, 13);
 const market = party(institutionDid("market"), 14);
 const burn = party(BURN_DID, 15);
 const mallory = party("did:web:evil.example:mallory", 16);
+const registrar = party(REGISTRAR_DID, 50);
 const poster = party("did:web:example.com:users:poster", 17);
 const worker = party("did:web:example.com:agents:worker-9", 18);
-const resolver = staticResolver(Object.fromEntries([operator, owner, treasury, market, burn, mallory].map((p) => [p.kid, p.publicKey])));
+const resolver = staticResolver(Object.fromEntries([operator, owner, treasury, market, burn, mallory, registrar].map((p) => [p.kid, p.publicKey])));
 
 const HOUR = 3_600_000;
 let clockMs = Date.parse("2026-11-01T00:00:00Z");
@@ -587,5 +588,74 @@ describe("sponsor funding (credits.md 5.2 T8, R1; DK7): the only free transfer i
     assert.deepEqual([await w.log.balance(alice.did), await w.log.balance(coder.did)], [150, 50], "every refusal left the balances alone");
     const a = await w.log.creditAudit();
     assert.deepEqual([a.minted, a.verdict], [300, "balanced"]);
+  });
+});
+
+describe("the Academy's promotion path (academy.md 3, DK25, DK27): the only way a tier goes up", () => {
+  const cert = (holder: Party, skill: string, level: number, over: Record<string, unknown> = {}, by: Party = registrar) =>
+    mk("certificate", by, { holder: holder.did, skill, level, issued: "2026-11-02T00:00:00Z", expires: "2027-05-01T00:00:00Z", ...over }, null, { subject: holder.did, at: "2026-11-02T00:00:00Z" });
+  const promote = (holder: Party, from: number, to: number, certs: string[], by: Party = registrar, at = "2026-12-05T00:00:00Z") =>
+    mk("tier_promotion", by, { holder: holder.did, from, to, certificates: certs }, null, { subject: holder.did, at });
+
+  /** One accepted, settled job for `agent` from `principal` (price 100, so it is above the minimum for a qualifying job). */
+  let jobs = 0;
+  async function acceptedJob(w: Awaited<ReturnType<typeof world>>, principal: Party, agent: Party) {
+    const n = ++jobs;
+    const contract = cosign(mk("contract", principal, { principal: principal.did, performer: agent.did, bank: bank.did, purpose: `Qualifying job ${n}`, price: credit(100), verification: "deterministic", deadline: "2026-12-03T18:00:00Z", basis: { intent: "sha256:" + "0".repeat(64), offer: "sha256:" + "1".repeat(64) } }, null, { subject: agent.did }), agent);
+    await w.log.append(contract);
+    const bond = mk("bond", agent, { contract: contract.id, backer: agent.did, amount: credit(20), escrow: { payer: principal.did, amount: credit(100) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, { subject: contract.id });
+    await w.log.append(bond);
+    const mandate = mk("mandate", principal, { contract: contract.id, purpose: `Qualifying job ${n}`, floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2027-01-01T00:00:00Z", revocable: true }, bond.id, { subject: agent.did });
+    await w.log.append(mandate);
+    const delivery = mk("delivery", agent, { contract: contract.id, result: { summary: "Done", artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] } }, mandate.id, { subject: contract.id });
+    await w.log.append(delivery);
+    const accept = mk("attestation", principal, { kind: "acceptance", about: delivery.id, verdict: "accepted" }, delivery.id, { subject: contract.id });
+    await w.log.append(accept);
+    await w.log.append(mk("settlement", bank, { contract: contract.id, basis: "accepted", cites: accept.id, escrow_released: credit(95), fees: credit(5), bond_returned: credit(20), bond_slashed: credit(0) }, accept.id, { subject: contract.id }));
+  }
+
+  test("credits alone never promote: only the Registrar, with a valid Foundations certificate and three qualifying jobs; the promotion raises the tier and with it what a Mandate may spend", async () => {
+    const w = await world();
+    const second = party("did:web:example.com:users:principal-two", 51);
+    for (const p of [poster, second]) { await w.log.append(passport(p)); await w.mintSigned(p.did, 400, "test"); }
+    await w.mintSigned(coder.did, 400, "test");
+    const [c1, c2] = [cert(coder, "foundations", 1), cert(coder, "tax-law", 2)];
+    // Only the Registrar issues a certificate.
+    assert.equal(await refused(w.log.append(cert(coder, "foundations", 1, {}, alice))), "certificate_wrong_issuer");
+    assert.equal(await refused(w.log.append(cert(coder, "foundations", 1, { expires: "2026-11-01T00:00:00Z" }))), "certificate_expiry");
+    await w.log.append(c1); await w.log.append(c2);
+    // No jobs yet: a certificate and a balance are not enough.
+    assert.equal(await refused(w.log.append(promote(coder, 1, 2, [c1.id]))), "promotion_needs_jobs");
+    await acceptedJob(w, poster, coder); await acceptedJob(w, second, coder);
+    assert.equal(await refused(w.log.append(promote(coder, 1, 2, [c1.id]))), "promotion_needs_jobs", "two qualifying jobs are one short");
+    await acceptedJob(w, poster, coder);
+    assert.equal((await w.log.reputationOf(coder.did))?.qualifyingJobs, 3);
+    // The rule, one refusal each.
+    assert.equal(await refused(w.log.append(promote(coder, 1, 2, [c1.id], alice))), "promotion_wrong_issuer");
+    assert.equal(await refused(w.log.append(promote(coder, 1, 2, [c2.id]))), "promotion_needs_foundations", "a Practitioner certificate is not Foundations");
+    assert.equal(await refused(w.log.append(promote(coder, 2, 3, [c1.id]))), "promotion_wrong_tier");
+    assert.equal(await refused(w.log.append(promote(coder, 1, 3, [c1.id]))), "promotion_one_step");
+    assert.equal(await refused(w.log.append(promote(coder, 1, 2, ["sha256:" + "9".repeat(64)]))), "promotion_certificate_unknown");
+    assert.equal(await refused(w.log.append(promote(coder, 1, 2, [c1.id], registrar, "2027-06-01T00:00:00Z"))), "promotion_certificate_expired");
+    // A Mandate may not spend more than the tier allows, before the promotion.
+    const spendOver = async () => w.openMandate(coder, [{ institution: "market", cap: credit(150), period: "month" }]);
+    assert.equal(await refused(spendOver()), "tier_limit_exceeded", "tier 1 may spend at most 100");
+    await w.log.append(promote(coder, 1, 2, [c1.id]));
+    assert.equal((await w.log.reputationOf(coder.did))?.tier, 2);
+    await spendOver(); // accepted now: tier 2 may spend up to 1000
+    // Another step the same way is refused: the next one needs the Arena, which does not exist yet.
+    assert.equal(await refused(w.log.append(promote(coder, 2, 3, [c2.id]))), "promotion_needs_arena");
+    assert.equal(await refused(w.log.append(promote(coder, 1, 2, [c1.id], registrar, "2026-12-06T00:00:00Z"))), "promotion_wrong_tier", "the same promotion cannot be made twice");
+    assert.equal((await w.log.creditAudit()).verdict, "balanced", "a promotion moves no credit");
+  });
+
+  test("a certificate belongs to its holder: another agent's certificate does not promote", async () => {
+    const w = await world();
+    const other = party("did:web:example.com:agents:other", 52);
+    await w.log.append(mk("passport", alice, { did: other.did, kind: "agent", sponsor: alice.did, tier: 1, shape: {}, keys: [{ id: other.kid, type: "Ed25519", public_key: b64urlEncode(other.publicKey) }] }, null, { subject: other.did }));
+    const theirs = cert(other, "foundations", 1);
+    await w.log.append(theirs);
+    assert.equal(await refused(w.log.append(promote(coder, 1, 2, [theirs.id]))), "promotion_certificate_not_holders");
+    assert.equal(await refused(w.log.append(cert(mallory, "foundations", 1))), "certificate_no_passport");
   });
 });

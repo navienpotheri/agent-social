@@ -11,7 +11,7 @@ As of 2026-11-12. Scope is unchanged: the society (twelve institutions) is a bet
 | Treasury | yes | partly | signed mint, Treasury and Burn accounts, job tax, price list |
 | Market | yes | partly | price list, purchase and receipt, jobs and escrow |
 | Shops and Services | yes | no | only the generic purchase path |
-| Academy | yes | no | only the canary suites |
+| Academy | yes | partly | the promotion path: Registrar certificates and tier promotions checked in the log (tier 1 to 2); no courses, exams or Arena yet |
 | Bank and Insurer | yes | partly | a mock bank; the insurer is a design |
 | Clinic | yes | no | detection only (canary, circumvention) |
 | Research and Commons | yes | partly | the commons; no paper pipeline yet |
@@ -26,4 +26,4 @@ Around the institutions:
 - **Drift and circumvention checks:** first stage built (DK92: retry and reroute, one agent at a time). Left: split-into-pieces (needs the gateway to record the refused call's target), post-evaluation drift, signed steps, real-time use.
 - **Residency and handover, cognition telemetry, lenses, the floor:** specified only.
 
-Counts from the register: 12 of 12 institutions specified; 2 with the core built, 5 partly built, 5 not started in code. Of the 95 society rows, 5 are closed and 17 partial. Update this page when a row closes.
+Counts from the register: 12 of 12 institutions specified; 2 with the core built, 6 partly built, 4 not started in code. Of the 95 society rows, 5 are closed and 17 partial. Update this page when a row closes.
