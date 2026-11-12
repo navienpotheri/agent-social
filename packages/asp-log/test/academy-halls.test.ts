@@ -352,3 +352,41 @@ describe("the School: courses, tuition, enrolment, completion (DK24, AC-3 to AC-
     await k.log.append(await enrol());
   });
 });
+
+describe("conservation (academy.md 9, AC-20): after any sequence of tuition, sittings, entries, prizes and revocations, balances plus the burn equal what was minted", () => {
+  // A fixed-seed generator: the same thousand operations on every run.
+  const rng = (seed: number) => () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+
+  test("1000 random operations over a handful of agents; every refusal leaves the books as they were, and the audit balances at every checkpoint and at the end", async () => {
+    const k = new Kit();
+    const rand = rng(20261112);
+    const agents: Party[] = [];
+    for (let i = 0; i < 6; i++) { const a = await k.agent(`g${i}`, undefined, 2); agents.push(a); await k.job(a, 1000); }
+    await k.priceList();
+    const examDef = await k.defineExam("foundations-v1", "foundations", 1);
+    const author = agents[0];
+    const course = await k.put(k.mk("course", author, { course: "f1", title: "Foundations", skill: "foundations", level: 1, lessons: [hashOf("a")], exercises: hashOf("e"), exercise_count: 2, price_service: SERVICES.foundations, author_share_permille: 550, reviews: [hashOf("b"), hashOf("c")], reviewers: [agents[1].did, agents[2].did] }, null, { cosigners: [registrar] }));
+    k.at("2026-11-02T00:00:00Z");
+    await k.put(k.mk("arena", registrar, { arena: "refactoring", season: "2026-q4", min_tier: 1, entry_service: SERVICES.arena, min_distinct_sponsors: 3, opens: "2026-11-02T00:00:00Z", closes: "2027-03-01T00:00:00Z", prize_split_permille: [500, 300, 200] }));
+    const sittings = new Map<string, Sittings>(agents.map((a) => [a.did, new Sittings(k, a, examDef)]));
+    const certs: string[] = [];
+    let accepted = 0, refusedN = 0;
+    const attempt = async (fn: () => Promise<unknown>) => { try { await fn(); accepted++; } catch { refusedN++; } };
+    for (let i = 1; i <= 1000; i++) {
+      const a = agents[Math.floor(rand() * agents.length)];
+      const op = Math.floor(rand() * 7);
+      if (op === 0) await attempt(() => k.fund(a, 40 + Math.floor(rand() * 120)));
+      else if (op === 1) await attempt(async () => k.put(k.mk("enrolment", a, { course, purchase: await k.buy(a, SERVICES.foundations, 30) }, null, { subject: a.did })));
+      else if (op === 2) await attempt(async () => { const id = await sittings.get(a.did)!.sit(rand() < 0.5 ? 900 : 400); if (rand() < 0.5) certs.push(await k.put(k.certificate(a, "foundations", 1, id))); });
+      else if (op === 3) await attempt(async () => k.put(k.mk("arena_entry", a, { arena: "refactoring", season: "2026-q4", fee_purchase: await k.buy(a, SERVICES.arena, 10) }, null, { subject: a.did })));
+      else if (op === 4 && certs.length) await attempt(() => k.log.append(k.revoke(certs[Math.floor(rand() * certs.length)], rand() < 0.5 ? "cheating" : "error")));
+      else if (op === 5) k.addDays(Math.floor(rand() * 12));
+      else await attempt(() => k.buy(a, SERVICES.sitting, 20));
+      if (i % 100 === 0) assert.equal((await k.log.creditAudit()).verdict, "balanced", `balanced after ${i} operations`);
+    }
+    assert.ok(accepted > 150 && refusedN > 20, `a real mix of accepted (${accepted}) and refused (${refusedN}) operations`);
+    const audit = await k.log.creditAudit();
+    assert.equal(audit.verdict, "balanced");
+    assert.deepEqual(audit.problems, []);
+  });
+});

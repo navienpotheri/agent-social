@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { cosign, createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
 import { REGISTRAR_DID, examSeed, examVariant, institutionDid, prizeFor, splitParts, inTopHalf } from "@agent-social/asp-log";
-import type { LogHandle } from "@agent-social/asp-package";
+import { admitToMemory, type HeldOutTask, type LessonCandidate, type LogHandle } from "@agent-social/asp-package";
 import { buildSitting, foundationsDefinition, scoreSitting, tasksOf, POOL_SIZE, type Transcript } from "./exam.ts";
 
 export class AcademyUsage extends Error {}
@@ -325,6 +325,20 @@ export async function academyCmd(sub: string | undefined, rest: string[], o: Aca
     return 0;
   }
 
+  // ---------------------------------------------------------------- lessons: the audit gate (DK32)
+  if (sub === "lessons" && rest[0] === "admit") {
+    const usage = "asp academy lessons admit --package <agent package dir> --file <lessons.json> --heldout <heldout.json> --by <agent did>   (lessons: [{id, text, evidence:[{kind: commons_entry|run, ref}], source}]; heldout: [{id, forbid: <regex a rule must not match>}], at least 3)";
+    const pkg = need(o, "package", usage), file = need(o, "file", usage), by = need(o, "by", usage);
+    const heldOut: HeldOutTask[] = (JSON.parse(readFileSync(need(o, "heldout", usage), "utf8")) as { id: string; forbid: string }[]).map((t) => ({ id: t.id, run: (m) => !m.some((x) => new RegExp(t.forbid, "i").test(x)) }));
+    const lessons = JSON.parse(readFileSync(file, "utf8")) as LessonCandidate[];
+    const own = new Set<string>();
+    for (const l of lessons) for (const e of l.evidence ?? []) if (e.kind === "run") { const r = (await o.log.log.get(e.ref)) as { record: { type: string; issuer: string } } | undefined; if (r?.record.type === "asp.action/v0.2" && r.record.issuer === by) own.add(e.ref); }
+    const verdicts = await admitToMemory(pkg, lessons, { existing: [], heldOut, signer: o.signerFor(by), isOwnRun: (id) => own.has(id), now: new Date(o.now()) });
+    for (const v of verdicts) out(v.admitted ? `admitted  ${v.lesson.id} (evidence: ${(v.cited ?? []).map((e) => e.ref).join(", ")})` : `rejected  ${v.lesson.id}: ${v.reasons.map((r) => r.reason).join("; ")}`);
+    out(`${verdicts.filter((v) => v.admitted).length} admitted, ${verdicts.filter((v) => !v.admitted).length} rejected (kept with reasons in learned/rejected.json; asp learned shows what entered memory). A lesson reaches memory only through this gate.`);
+    return verdicts.every((v) => v.admitted) ? 0 : 1;
+  }
+
   // ---------------------------------------------------------------- reports
   if (sub === "account") {
     const balance = await o.log.log.balance(ACADEMY);
@@ -351,5 +365,5 @@ export async function academyCmd(sub: string | undefined, rest: string[], o: Aca
     out(`  cost so far: ${spent} credits in Academy fees (credits are accounting entries, not money). Promotion is earned, never bought: asp academy tier ${did} shows what the next step needs.`);
     return 0;
   }
-  throw new AcademyUsage("asp academy courses | enrol <course> --by <agent> | course publish | complete | exam define|list|results|run | certify | revoke | verify <id> | certificates <agent> | tier <agent> | promote | arena define|enter|result|payout|board | report <agent> | account");
+  throw new AcademyUsage("asp academy courses | enrol <course> --by <agent> | course publish | complete | exam define|list|results|run | certify | revoke | verify <id> | certificates <agent> | tier <agent> | promote | arena define|enter|result|payout|board | lessons admit | report <agent> | account");
 }

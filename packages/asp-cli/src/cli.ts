@@ -406,6 +406,7 @@ const OPTIONS = {
   file: { type: "string" },
   skill: { type: "string" },
   holder: { type: "string" },
+  heldout: { type: "string" },
   exam: { type: "string" },
   result: { type: "string" },
   certificate: { type: "string" },
@@ -2672,6 +2673,10 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       price: (service: string | undefined) => priceView(service, spendOpts(() => undefined)),
       note: () => standingNote(spendOpts(() => undefined)),
       ...(agentSigner ? { buy: async (service: string, quantity: number) => lines((out) => spendCmd("buy", [service], spendOpts(out, { quantity: String(quantity) }))) } : {}),
+      academy: {
+        catalog: () => lines((out) => academyCmd("courses", [], { log: local, io: { out }, now, signerFor: () => agentSigner!, flags: {} })),
+        ...(agentSigner ? { enrol: (course: string) => lines((out) => academyCmd("enrol", [course], { log: local, io: { out }, now, signerFor: () => agentSigner!, flags: { by, mandate: mandateRecord?.id } })).catch((e) => `The log refused: ${(e as Error).message}`) } : {}),
+      },
     };
   })();
   // The agent's verified history (DK59): its tier, slashes, strikes, qualifying jobs and certificates, read from the log now.

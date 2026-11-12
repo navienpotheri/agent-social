@@ -50,3 +50,17 @@ test("asp_price is offered only when the CLI supplies prices; it passes the serv
   assert.equal(text(await h.callTool("asp_price", {})), "price of everything");
   assert.deepEqual(asked, ["academy.exam.sit", undefined]);
 });
+
+test("the School's tools (AC-19): academy_catalog passes the CLI's catalogue through, academy_enrol only when the run holds the agent's key, and the instructions say promotion is earned, not bought", async () => {
+  const enrolled: string[] = [];
+  const read = aspHandler({ society: { standing: async () => "credits: 5", academy: { catalog: async () => "co1  Working inside a Mandate" } } });
+  assert.ok((await read.listTools()).some((t) => t.name === "academy_catalog"));
+  assert.ok(!(await read.listTools()).some((t) => t.name === "academy_enrol"), "no key, no enrolling");
+  assert.equal(text(await read.callTool("academy_catalog", {})), "co1  Working inside a Mandate");
+  const full = aspHandler({ society: { standing: async () => "credits: 5", academy: { catalog: async () => "x", enrol: async (c) => { enrolled.push(c); return `enrolled in ${c}`; } } } });
+  assert.equal(text(await full.callTool("academy_enrol", { course: "co1" })), "enrolled in co1");
+  assert.equal((await full.callTool("academy_enrol", {})).isError, true);
+  assert.deepEqual(enrolled, ["co1"]);
+  assert.match(String(full.instructions?.()), /Promotion to a higher tier is earned, not bought/);
+  assert.doesNotMatch(String(aspHandler({ society: { standing: async () => "x" } }).instructions?.()), /The School teaches/);
+});
