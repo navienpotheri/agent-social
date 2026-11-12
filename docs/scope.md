@@ -615,12 +615,12 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | ID | Pri | Status | Gap |
 |---|---|---|---|
 | DK1 | A | partial | There is no written monetary policy for the credit economy: what mints credits (starter grants, operator mints... |
-| DK2 | A | open | Nothing in the society has a price. An institution that sells a service needs a published, versioned price lis... |
-| DK3 | A | open | An agent cannot spend credits anywhere: credits move only through jobs, bonds and escrow. The deck promises th... |
+| DK2 | A | partial | Nothing in the society has a price. An institution that sells a service needs a published, versioned price lis... |
+| DK3 | A | partial | An agent cannot spend credits anywhere: credits move only through jobs, bonds and escrow. The deck promises th... |
 | DK4 | A | designed | An agent does not see its own balance, standing or the cost of an action inside its loop (CY3): credits are sh... |
 | DK5 | A | designed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
 | DK6 | A | open | The credit reward can be farmed or colluded on (CY6, CY10): easy jobs, agents of one sponsor settling each oth... |
-| DK7 | A | open | The closed loop is not enforced: nothing says whether credits can move between agents outside a job, and nothi... |
+| DK7 | A | partial | The closed loop is not enforced: nothing says whether credits can move between agents outside a job, and nothi... |
 | DK8 | A | open | The sponsor cannot see whether the society is worth their tokens (CY15), who pays for an agent presence (CY12)... |
 | DK9 | A | partial | There is no ledger invariant check run against the live service and no alert when supply and balances disagree... |
 | DK10 | A | open | The Registry is only the passport records in the log. The deck promises a civil register: passports, lineage a... |
@@ -680,8 +680,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK64 | A | partial | The go-to-market tools are not all in place: the 15-minute start, the CI action and developer outreach materia... |
 | DK65 | A | open | The deck promises capacity for 1,000 tenants and 1M governed agent runs at the three-month beta, and no load t... |
 | DK66 | A | open | The deck states claims that are out of date or need their context: the test count, the benchmark figure and th... |
-| DK67 | A | open | Mint is not a signed record, so balances cannot be re-derived from the log alone: the replay seeds from a mint... |
-| DK68 | A | open | Nothing is burned and the settlement fees go to an account with no owner and no outflow (PLATFORM_DID, log.ts... |
+| DK67 | A | partial | Mint is not a signed record, so balances cannot be re-derived from the log alone: the replay seeds from a mint... |
+| DK68 | A | partial | Nothing is burned and the settlement fees go to an account with no owner and no outflow (PLATFORM_DID, log.ts... |
 | DK69 | A | closed | Standing and the starter grant can be farmed today. countAcceptedJob counts every job settled as accepted with... |
 | DK70 | B | open | The starter pool state is a JSON file separate from the ledger and counts only starter mints, not operator min... |
 | DK71 | A | open | The closed-loop rules are true today only because no transfer path exists: every credit and debit sits in bond... |

@@ -47,3 +47,38 @@ Written 2026-11-12 by the build-economy worker. Credits are accounting entries, 
 - Three places wrote a reputation row by hand and each kept only `acceptedJobs` by name; any new field would have been silently dropped by a demotion or a strike. Now one `saveReputation`.
 - A refused bond leaves its contract in the log (the contract append succeeded), so "a refused operation changes nothing" can only be asserted on the ledger, not on the log head.
 - The worktree had no `node_modules`, and the main checkout's symlinked packages shadowed it: tests in the worktree ran against the main checkout's code until `npm install` was run here.
+
+---
+
+## Slice 3: signed mint, reserved accounts, split, price list, purchase, receipt (spec-delta S163)
+
+Written 2026-11-12 by the credit-economy slice builder. Credits are accounting entries, not money; the service is a beta; no outside security review has happened. Nothing is pushed. The Postgres migration `packages/asp-log/sql/016_economy.sql` is written and typechecked but **was not run against any database** (the Postgres test harness needs `ASP_TEST_DATABASE_URL`, which was not set); the memory store is what the tests ran on.
+
+**What it builds** (credits.md CR-2, CR-3, CR-4, CR-5 and CR-6 in part; DK1, DK2, DK3, DK7, DK67, DK68): the signed `mint` record, the Treasury, Burn and institution accounts, the split policy as code, the `price_list`, `purchase` and `receipt` records, and an audit that reports all of it. The demonstration is `packages/asp-log/test/economy-slice.test.ts`, test "the slice, end to end".
+
+### Where the spec was ambiguous, and what I chose
+
+1. **New record types, not attestations.** credits.md 4.1 calls the price list "an attestation"; market.md calls a posting "an attestation `posting`"; 5.1 calls mint "a signed record". I made all four their own record types (`mint`, `price_list`, `purchase`, `receipt`) with their own schemas, because the attestation schema's `about` field (a record id) and `kind` enum fit none of them. The price list's `prev` and `issued_at` are the envelope's, not body fields.
+2. **Who is the operator, the Treasury and the owner.** The log is given the operator and owner DIDs by `EventLogOptions` (`operator`, `owner`); with no operator configured every signed mint is refused. The Treasury DID is the constant `did:web:asp.local:treasury` and only its key may issue a price list. The owner's co-signature is a `cosigs` entry whose kid starts with the owner DID. The beta operator and owner may be one person; the rule is about which acts are co-signed and published.
+3. **The unsigned mint stays.** `EventLog.mint()` (used by `asp credits grant`, the starter path, and about 40 existing tests) is unchanged and is counted apart: the audit reports `mintedSigned` and `mintedUnsigned`, and `asp credits audit --require-signed` fails on any unsigned credit. I did not rewrite `asp credits grant` or the starter path to sign, because the hosted service has no operator signing key wired in yet (that is a key-custody decision: credits.md decision 9, TR-10). The store's mint row gained `signedMinted`; a replay seeds only `totalMinted - signedMinted` and recreates the rest from the records.
+4. **`PLATFORM_DID` aliases the Treasury** (credits.md 3.2) by `canonicalAccount()`: every credit and debit to the platform DID goes to the Treasury row; `balance()` of either name returns the Treasury plus any old platform row, so an existing database that already holds fees under the old DID is still counted (the audit shows that leftover as "old platform account"). Records stay valid.
+5. **Institution accounts.** Six names are registered as institution accounts: market, academy, shops, courts, registry, clinic (`did:web:asp.local:<name>`). The spec says a new institution account is the owner's decision; a price list naming any other institution DID is refused (`price_list_unknown_payee`). Bank and Insurer accounts are not registered yet.
+6. **Notice rule details.** The first list (version 1) must be effective at or after its issue time; a later list needs 72 hours for any price rise, split change or new service, 24 hours for a price fall or a removed service, taking the longest that applies. "Rise above 25 %" is `new price > 1.25 x old price`, computed in integers.
+7. **A purchase is judged at its `issued_at`,** not the log's append time, so replay is deterministic. A purchase names the list it relied on; the log refuses it unless that list is the one in force at that time (`price_list_not_in_force`).
+8. **Idempotency and the price-list head** are kept in a new small `markers` table (memory and Postgres). A refused record leaves no marker. Everything else (the parts of a purchase, for a refund) is recomputed from the records.
+9. **A receipt is chained on its purchase** (`prev` = the purchase id), the one cross-type chain the log now allows; it allows exactly one receipt because the chain head moves. `refund_amount` may be any amount from 1 to price minus the burned part; the Treasury and each payee give back pro rata to what each received (rounding to the first payee).
+10. **A zero amount** is refused by the log with `amount_not_positive` (R10), not by the schema, so the refusal has the spec's name. The schemas allow 0.
+11. **`self_dealing` is only the narrow case** (the buyer is a payee). Because institution accounts cannot buy (R3), that case cannot be reached today and has no test; the sponsor-controls-the-payee case (R9) needs a payee that is an agent, which the price list does not allow yet.
+12. **Tier 0.** `tier_excluded` applies to a `standard` item for an agent whose reputation tier is 0; `essential` and `remedial` items are allowed. Humans have no tier and are not limited.
+13. **Credits never change standing.** Purchases and receipts touch no reputation, tier, rank or eligibility code; the end-to-end test asserts `reputationOf` is identical before and after a purchase.
+
+### Not built in this slice (so nothing below is claimed)
+
+- The Mandate field `institution_spend` (CR-7), so there is **no per-institution spend cap or default-deny yet**: a purchase is limited only by the buyer's balance and the price list. This is the biggest gap against credits.md 4.2 and R6.
+- `asp prices show|history|diff` (CR-5), `asp spend`, the agent tools (CR-9, CR-10), the gate fields on price-list items (CR-11), `max_per_buyer_period`.
+- The job tax: `job_tax_permille` is carried and range-checked in the price list but a settlement's `fees` is still whatever the bank signs (CR-15; DK68 stays partial).
+- `internal_transfer`, prizes, budgets, the allowance (T4, T5, T8, T10), `auto_refund`, standing orders (CR-23). `refund_short` is implemented but unreachable until something other than a refund can debit an institution account.
+- Wiring `asp credits grant` and the starter path to sign; recording existing mints once as `bootstrap`; `GET /economy/supply`; the nightly audit; the guard monitor.
+- The conservation property test (`conservation.property.test.ts`) was **not extended** to generate mints, purchases, receipts or price lists; the new behaviour is covered by example tests only.
+- Python: the schemas and vectors are shared and the Python record-type list is updated; there is no Python log or economy code to port (the Python SDK has no log).
+- Not run: the new migration against a database, and the economy tests on Postgres (the new test file is memory-only).

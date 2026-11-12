@@ -393,6 +393,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-222 | Ctrl-C of a hooked runtime session (Antigravity, OpenHands) | none | no | T2 | Run with the real runtime | P1 |
 | UC-223 | Ctrl-C in an interactive session does not end the whole session by accident | packages/asp-cli/test/run-interrupt.test.ts | yes 10-13 (real Claude Code: Ctrl-C at the tool's own permission prompt closed only that prompt and the session carried on; two Ctrl-Cs at the first-run screen were the tool's; closing the tab left it `interrupted`) | T2 | none | P1 |
 | UC-224 | A process the agent started is ended with the session on macOS and Linux | none | no | T1 | Test on both; kill the process group if the terminal does not | P1 |
+| UC-264 | [agent] An accepted job earns credits, a signed mint exists for every credit created, an institution purchase is split provider, Treasury and burn by the published rule, the buyer gets a receipt, the audit still balances, and credits never change tier or eligibility; a corrupted log fails the audit | packages/asp-log/test/economy-slice.test.ts, packages/asp-cli/test/credits-audit.test.ts | no | DK1 | Run it against the hosted service once the operator signing key is wired (live-run checklist); extend the conservation property test to mints, purchases and receipts; add `institution_spend` (CR-7) | P1 |
 
 ## Journey index
 
