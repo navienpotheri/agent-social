@@ -31,3 +31,5 @@ export * from "./public-pages.ts";
 export * from "./courts.ts";
 export * from "./academy.ts";
 export { SHOPS_DID, UPKEEP_SERVICE, FREE_DAYS, DORMANT_AFTER_DAYS, WARN_AFTER_DAYS, EFFECT_ALLOWLIST, DISPLAY_EFFECTS, RESOURCE_EFFECTS, PROTECTED_TARGETS, SHOPS_CATALOGUE, catalogueProblem, residentStates, holdingsAt, unpaidDays, runShops, freeThrough, type CatalogueItem, type ResidentState, type HoldingView, type ShopsRun, type ShopsIo } from "./shops.ts";
+
+export { BANK_DID, LINE_LIMIT, LINE_MAX_COUNTED_JOBS, GUARANTOR_PERMILLE, LINE_WINDOW_MS, type Line } from "./bank.ts";

@@ -1,3 +1,4 @@
+import { projectCreditLine, projectCreditDefault, projectBankStatement, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
   AspError, Job, isNetworkScope, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
@@ -173,6 +174,7 @@ export class EventLog {
   private readonly now: () => Date;
   private readonly maxNodeTtlMs: number;
   private readonly panelSize: number;
+  private readonly bankEnv: BankEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
 
   private readonly bondFloor: "legacy" | "v2";
   private readonly operator?: string;
@@ -275,6 +277,9 @@ export class EventLog {
     if (type === "retraining_release") await this.projectRetrainingRelease(tx, verified);
     if (type === "clinic_diagnosis") await this.projectClinicDiagnosis(tx, verified);
     if (type === "clinic_order") await this.projectClinicOrder(tx, verified);
+    if (type === "credit_line") await projectCreditLine(tx, verified, this.bankEnv);
+    if (type === "credit_default") await projectCreditDefault(tx, verified, this.bankEnv);
+    if (type === "bank_statement") await projectBankStatement(tx, verified);
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
     if (type === "allowance") await this.projectAllowance(tx, verified);
@@ -882,6 +887,7 @@ export class EventLog {
     const contractRec = await tx.getRecord(body.contract);
     const contractPrice = (contractRec?.record.body as { price?: { value: number } } | undefined)?.price?.value ?? 0;
     const reserveEach = (await tx.activeJurors()).length > 0 ? Math.ceil(Math.floor((contractPrice * PANEL_FEE_PERMILLE) / 1000) / 2) : 0;
+    await drawAtBond(tx, r, this.bankEnv); // a newcomer's first bond on a credit line: the Bank's reserve funds the lock (bank.ts)
     const debits = new Map<string, number>();
     debits.set(body.escrow.payer, (debits.get(body.escrow.payer) ?? 0) + body.escrow.amount.value + reserveEach);
     debits.set(body.backer, (debits.get(body.backer) ?? 0) + body.amount.value + reserveEach);
@@ -1024,6 +1030,11 @@ export class EventLog {
     if (fees > 0) await this.credit(tx, PLATFORM_DID, fees);
     await this.credit(tx, cbody.principal, escrowLeftover + slashedToPrincipal + principalReserve);
     await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover + backerReserve);
+    {
+      // The Bank's line is repaid first from what this settlement credited to the borrower (bank.ts): the performer's pay, then the returned bond.
+      const pay = agentPermille < 1000 && body.escrow_released.value > 0 ? Math.floor((body.escrow_released.value * agentPermille) / 1000) : body.escrow_released.value;
+      await repayAtSettlement(tx, body.contract, (cbody.performer === escrow.backer ? pay : 0) + body.bond_returned.value + bondLeftover + backerReserve, this.bankEnv);
+    }
     if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer, r.issued_at);
     else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at, intent: (contract!.record.body as { basis?: { intent?: string } }).basis?.intent });
     await tx.putEscrow({ ...escrow, settled: true });

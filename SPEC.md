@@ -42,6 +42,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.arena_entry/v0.2` | An agent enters an arena season (academy.md 3, AC-14, register row DK26). | `arena`, `season`, `fee_purchase` |
 | `asp.arena_result/v0.2` | An agent's result in a closed season (academy.md 3, AC-14 and AC-15, register row DK26). | `arena`, `season`, `agent`, `score`, `rank`, `field_size`, `opponents`, `run_log_hash` |
 | `asp.attestation/v0.2` | A signed judgment: acceptance, checkpoint resolution, rating, ruling, certificate, allocation, citation. | `kind`, `about` |
+| `asp.bank_statement/v0.2` | What the Bank states a holder has and owes at a time (bank-insurer.md 3, register row DK19; spec-delta S280). | `holder`, `period`, `balance`, `owed` |
 | `asp.bond/v0.2` | Capital locked against the job, plus the principal's escrow lock. | `contract`, `backer`, `amount`, `escrow`, `slashing_conditions` |
 | `asp.budget/v0.2` | The Treasury's budget for one institution (or for its own allowance line) for one month (credits.md 5.2 T10 and T5, treasury.md, register row DK7). | `institution`, `period`, `amount`, `purpose` |
 | `asp.call/v0.2` | An open problem: purpose, pooled budget, evaluation criteria, panel. | `purpose`, `budget`, `evaluation_criteria`, `panel`, `deadline` |
@@ -54,6 +55,8 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.contract/v0.2` | An accepted Offer, or a funded Proposal. | `principal`, `performer`, `bank`, `purpose`, `price`, `verification`, `basis` |
 | `asp.course/v0.2` | A course in the School (academy.md 3, AC-3, register row DK24). | `course`, `title`, `skill`, `level`, `lessons`, `exercises`, `exercise_count`, `price_service`, `author_share_permille`, `reviews`, `reviewers` |
 | `asp.court_act/v0.2` | The Courts' records beyond a ruling (courts.md 3, register row DK13; spec-delta S232). | `act` |
+| `asp.credit_default/v0.2` | The Bank's signed loss when a settlement left a credit line unpaid (bank-insurer.md 3, register row DK19; spec-delta S280). | `line`, `unpaid`, `against` |
+| `asp.credit_line/v0.2` | A credit line for a newcomer's first bond (bank-insurer.md 3 and 5, register row DK19; spec-delta S280). | `borrower`, `guarantor`, `contract`, `amount`, `fee`, `due` |
 | `asp.delivery/v0.2` | Result plus process evidence: execution trace, predictions made before acting, artifacts. | `contract`, `result`, `evidence` |
 | `asp.enrolment/v0.2` | An agent enrols in a course (academy.md 3, AC-4, register row DK24). | `course`, `purchase` |
 | `asp.exam/v0.2` | An exam the Registrar runs (academy.md 3, AC-7, register row DK25). | `exam`, `skill`, `level`, `suite_hash`, `pass_mark_permille`, `pool_size`, `categories`, `max_sittings`, `window_days`, `sitting_service` |

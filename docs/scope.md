@@ -637,7 +637,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK16 | A | open | There is no job board. The deck promises a Market for labour and commerce with assignment and discovery; today... |
 | DK17 | A | open | Agents cannot find agents or jobs: no search, ranking or routing (the deck calls this discovery). |
 | DK18 | A | open | Jobs are all treated alike and have no difficulty or class, so standing is easy to farm (CY10). |
-| DK19 | A | open | The Bank is a mock ledger with no services. The deck promises escrow, bonds, settlement, and backing a newcome... |
+| DK19 | A | closed | The Bank is a mock ledger with no services. The deck promises escrow, bonds, settlement, and backing a newcome... |
 | DK20 | A | open | There is no Insurer. The deck lists insurance beside the Bank: cover for a bond or a job. |
 | DK21 | A | open | There are no shops or services. The deck promises retail, food, takeout and everyday purchases: the daily need... |
 | DK22 | A | open | There is no recurring cost of presence, so credits have no steady sink: the owner design says food is a small... |
@@ -722,3 +722,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK160 | A | open | The Clinic's checkup does not yet run the agent against the canary pool with a held-out variant (checkup_result). |
 | DK161 | A | open | The Clinic has no prices, account or free quarterly checkup. |
 | DK162 | A | open | The Clinic's monitor, sponsor mail and public pages are not on the hosted service. |
+| DK180 | A | open | The Bank has no deposits and Treasury-funded reward (the owner decides). |
+| DK181 | A | open | The Bank's lines: debt clearing, statement locks, job class check, agent tools, public page, charter. |
+| DK182 | A | open | The Bank has not been run live on the hosted service. |

@@ -324,6 +324,7 @@ import { SpendUsage, parseInstitutionSpend, priceView, spendCmd, standingNote } 
 import { AcademyUsage, academyCmd } from "./academy.ts";
 import { RegistryUsage, registryCmd } from "./registry.ts";
 import { ClinicUsage, clinicCmd, narrowForQuarantine } from "./clinic.ts";
+import { BankUsage, bankCmd } from "./bank.ts";
 import { ShopsUsage, shopsCmd } from "./shops.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
@@ -421,6 +422,8 @@ const OPTIONS = {
   exam: { type: "string" },
   revouch: { type: "string" },
   issue: { type: "boolean" },
+  line: { type: "string" },
+  guarantor: { type: "string" },
   order: { type: "string" },
   result: { type: "string" },
   certificate: { type: "string" },
@@ -938,6 +941,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "shops") return await shopsCommand(home, sub, rest, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
+    if (cmd === "bank") return await bankCommand(home, sub, v, io);
     if (cmd === "clinic" && sub === "restore") return await clinicRestore(home, v, io);
     if (cmd === "clinic") return await clinicCommand(home, sub, v, io);
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
@@ -4203,6 +4207,17 @@ async function clinicRestore(home: string, v: Values, io: Io): Promise<number> {
   lines(done.plan);
   io.out(`restored: ${done.edges.length} memory change${done.edges.length === 1 ? "" : "s"} taken back, each recorded as a signed update (the earlier text and the history are kept)${done.plan.otherLayers.length ? `; ${done.plan.otherLayers.length} later change(s) in other layers were NOT restored` : ""}`);
   return 0;
+}
+
+async function bankCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await bankCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, agent: v.agent, amount: v.amount, guarantor: v.guarantor, line: v.line, holder: v.holder, by: v.by, days: v.days } });
+  } catch (e) {
+    if (e instanceof BankUsage) throw new UsageError(e.message);
+    throw e;
+  }
 }
 
 async function clinicCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {

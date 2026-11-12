@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:bank_statement",
+  "title": "Bank statement body",
+  "description": "What the Bank states a holder has and owes at a time (bank-insurer.md 3, register row DK19; spec-delta S280). Signed by the Bank. The log refuses a statement whose balance or owed amount differs from its own ledger, so a statement is recomputable from the log. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "holder",
+    "period",
+    "balance",
+    "owed"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "holder": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "period": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "balance": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    },
+    "owed": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    }
+  }
+}

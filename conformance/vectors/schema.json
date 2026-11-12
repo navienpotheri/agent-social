@@ -6257,6 +6257,149 @@
       "valid": false
     },
     {
+      "name": "valid_credit_line",
+      "schema": "credit_line",
+      "instance": {
+        "borrower": "did:web:example.com:agents:alice-coder",
+        "guarantor": "did:web:example.com:users:alice",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "fee": 0,
+        "due": "2026-11-19T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "credit_line_with_a_fee",
+      "schema": "credit_line",
+      "instance": {
+        "borrower": "did:web:example.com:agents:alice-coder",
+        "guarantor": "did:web:example.com:users:alice",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "fee": 2,
+        "due": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_line_no_guarantor",
+      "schema": "credit_line",
+      "instance": {
+        "borrower": "did:web:example.com:agents:alice-coder",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "fee": 0,
+        "due": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_line_no_due",
+      "schema": "credit_line",
+      "instance": {
+        "borrower": "did:web:example.com:agents:alice-coder",
+        "guarantor": "did:web:example.com:users:alice",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "fee": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_line_extra_field",
+      "schema": "credit_line",
+      "instance": {
+        "borrower": "did:web:example.com:agents:alice-coder",
+        "guarantor": "did:web:example.com:users:alice",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "fee": 0,
+        "due": "2026-11-19T00:00:00Z",
+        "interest": 5
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_credit_default",
+      "schema": "credit_default",
+      "instance": {
+        "line": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "unpaid": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "against": "did:web:example.com:users:alice"
+      },
+      "valid": true
+    },
+    {
+      "name": "credit_default_no_against",
+      "schema": "credit_default",
+      "instance": {
+        "line": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "unpaid": {
+          "value": 20,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_default_no_unpaid",
+      "schema": "credit_default",
+      "instance": {
+        "line": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "against": "did:web:example.com:users:alice"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_bank_statement",
+      "schema": "bank_statement",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "period": "2026-11",
+        "balance": {
+          "value": 96,
+          "unit": "credit"
+        },
+        "owed": {
+          "value": 0,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "bank_statement_no_owed",
+      "schema": "bank_statement",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "period": "2026-11",
+        "balance": {
+          "value": 96,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
       "name": "valid_starter_claim_upfront",
       "schema": "starter_claim",
       "instance": {
