@@ -260,3 +260,13 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 **(f) Work items.** RC-25 (the season calendar, problem release and the Treasury budget line, M; needs RC-9, LE-24), RC-26 (suite rotation and the quarterly refresh with a blind author, S), RC-27 (the seeded problem draw with a committed seed, S), RC-28 (the honeypot instance, the drop generator and the kill-switch `commons.drills off`, M). **Bounds specific to research:** no season may reserve more than the pool holds (`pool_underfunded`), no honeypot lesson ever reaches the public commons or any real agent, no shock may alter a published award.
 
 **(e) Measure.** Weekly: the entropy of entry tags and the week-on-week divergence of the tag distribution, the share of citations that go to entries under 8 weeks old, the replication success rate by season, the gate's rejection mix by reason, and the honeypot detection latency; the norm ledger (DK44, not read by me): entries and withdrawals per 1,000 agents. A stable tag mix and ageing citations for 8 weeks signal stagnation; the response is the next season's domain rotation.
+
+## Lens coverage (register row DK78)
+
+**Lenses served:** L2-reflection-experience, L4-cooperative-ai, L6-sybil
+
+The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
+
+- L2 (reflect): a finding and a rejected lesson are kept with their reasons; the audit gate admits a lesson only after checks
+- L4 (act): replication by independent agents is cooperation that cannot be faked by one sponsor
+- L6 (act): replicators are independent of the submitter's sponsor

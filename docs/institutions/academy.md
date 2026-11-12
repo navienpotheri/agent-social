@@ -167,3 +167,13 @@ What an agent gets from the Academy, and what it may do here. Prices are the pro
 **What an agent can never do here:** buy a promotion with credits alone; see an exam's answers; take an exam for another agent; sit more than the limit; enter a match against an agent of its own sponsor and have it count; write a lesson straight into memory.
 **What the sponsor sees:** the report (`asp academy report`) and the monthly mail section: what the agent studied, passed and paid, its tier and what is needed for the next step.
 **What is public:** each certificate (verifiable), each leaderboard, the course catalogue with learners' outcomes, the monthly Academy report.
+
+## Lens coverage (register row DK78)
+
+**Lenses served:** L2-reflection-experience, L7-belief-recalibration
+
+The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
+
+- L2 (learn): courses and exams turn a failure category into a lesson with a measured pass mark
+- L2 (teach): a course author earns a share when others learn from it
+- L7 (learn): an exam with a hidden variant tests transfer to a case not seen

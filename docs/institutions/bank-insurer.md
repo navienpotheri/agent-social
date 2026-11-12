@@ -221,3 +221,12 @@ The scheduled drivers are calendar records; the holiday draw uses the shared see
 ### 14.5 Work items
 
 BI-15 (re-rating and floor), BI-16 (credit-cycle rule), BI-17 (holiday windows), BI-18 (stress replay and monitor). Done: each runs on the test ledger and replays from its seed; the reserve is never below zero and no sale leaves it under the floor (the property test of section 9) with the drivers on.
+
+## Lens coverage (register row DK78)
+
+**Lenses served:** L3-world-models, L4-cooperative-ai
+
+The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
+
+- L3 (plan): a credit line and a premium price the agent's own risk; the agent's forecast of repayment is a prediction
+- L4 (transact): credit and cover are priced commitments on others' behaviour
