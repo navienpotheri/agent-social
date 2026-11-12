@@ -847,6 +847,21 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
     sv("events_result_award_zero", "events_act", { act: "contest_result", event: id6, rules_sha256: sha, ranking: [], awards: [{ agent: a1, amount: 0 }], entries: 5, distinct_sponsors: 5, evidence_sha256: sha }, false);
     sv("events_act_unknown", "events_act", { act: "vote", event: id6 }, false);
     sv("events_act_extra_field", "events_act", { act: "rsvp", event: id6, plus_one: 1 }, false);
+    // S290: the research board's records (research-commons.md 3; DK31).
+    const rp = { act: "problem", title: "Find a nonce", statement_sha256: sha, domain: ["search"], checker: { kind: "executable", ref: "leading-zero-bits:12", runner: "did:web:asp.local:research" }, reward: 100, split: { finder: 800, replicator: 100 }, min_tier: 1, opens: "2026-11-20T00:00:00Z", deadline: "2026-12-20T00:00:00Z" };
+    sv("valid_research_problem", "research_act", rp, true);
+    sv("research_problem_no_checker", "research_act", { ...rp, checker: undefined }, false);
+    sv("research_problem_bad_checker_kind", "research_act", { ...rp, checker: { kind: "vote", ref: "x", runner: a1 } }, false);
+    sv("research_problem_zero_reward", "research_act", { ...rp, reward: 0 }, false);
+    sv("valid_research_close", "research_act", { act: "problem_close", problem: id6 }, true);
+    sv("valid_research_submission", "research_act", { act: "submission", problem: id6, purchase: id7, finding_sha256: sha, summary: "a nonce", evidence: [id8] }, true);
+    sv("research_submission_no_evidence", "research_act", { act: "submission", problem: id6, purchase: id7, finding_sha256: sha, summary: "a nonce", evidence: [] }, false);
+    sv("valid_research_check", "research_act", { act: "finding_check", submission: id6, kind: "executable", result: "pass", details_sha256: sha }, true);
+    sv("research_check_bad_result", "research_act", { act: "finding_check", submission: id6, kind: "executable", result: "maybe", details_sha256: sha }, false);
+    sv("valid_research_award", "research_act", { act: "award", problem: id6, submission: id7, awardee: a1, amount: 80, role: "finder", checks: [id8] }, true);
+    sv("research_award_no_checks", "research_act", { act: "award", problem: id6, submission: id7, awardee: a1, amount: 80, role: "finder", checks: [] }, false);
+    sv("research_act_unknown", "research_act", { act: "vote", problem: id6 }, false);
+    sv("research_act_extra_field", "research_act", { act: "problem_close", problem: id6, bonus: 5 }, false);
   }
   // S190: Treasury budgets, payments, the newcomer allowance, prizes, and the standing flag on a price-list item (credits.md 5.2 T4, T5, T10, R9).
   const did1 = "did:web:example.com:agents:alice-coder", rid = "sha256:" + "7".repeat(64);

@@ -5874,6 +5874,215 @@
       "valid": false
     },
     {
+      "name": "valid_research_problem",
+      "schema": "research_act",
+      "instance": {
+        "act": "problem",
+        "title": "Find a nonce",
+        "statement_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "domain": [
+          "search"
+        ],
+        "checker": {
+          "kind": "executable",
+          "ref": "leading-zero-bits:12",
+          "runner": "did:web:asp.local:research"
+        },
+        "reward": 100,
+        "split": {
+          "finder": 800,
+          "replicator": 100
+        },
+        "min_tier": 1,
+        "opens": "2026-11-20T00:00:00Z",
+        "deadline": "2026-12-20T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "research_problem_no_checker",
+      "schema": "research_act",
+      "instance": {
+        "act": "problem",
+        "title": "Find a nonce",
+        "statement_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "domain": [
+          "search"
+        ],
+        "reward": 100,
+        "split": {
+          "finder": 800,
+          "replicator": 100
+        },
+        "min_tier": 1,
+        "opens": "2026-11-20T00:00:00Z",
+        "deadline": "2026-12-20T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "research_problem_bad_checker_kind",
+      "schema": "research_act",
+      "instance": {
+        "act": "problem",
+        "title": "Find a nonce",
+        "statement_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "domain": [
+          "search"
+        ],
+        "checker": {
+          "kind": "vote",
+          "ref": "x",
+          "runner": "did:web:example.com:agents:a"
+        },
+        "reward": 100,
+        "split": {
+          "finder": 800,
+          "replicator": 100
+        },
+        "min_tier": 1,
+        "opens": "2026-11-20T00:00:00Z",
+        "deadline": "2026-12-20T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "research_problem_zero_reward",
+      "schema": "research_act",
+      "instance": {
+        "act": "problem",
+        "title": "Find a nonce",
+        "statement_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "domain": [
+          "search"
+        ],
+        "checker": {
+          "kind": "executable",
+          "ref": "leading-zero-bits:12",
+          "runner": "did:web:asp.local:research"
+        },
+        "reward": 0,
+        "split": {
+          "finder": 800,
+          "replicator": 100
+        },
+        "min_tier": 1,
+        "opens": "2026-11-20T00:00:00Z",
+        "deadline": "2026-12-20T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_research_close",
+      "schema": "research_act",
+      "instance": {
+        "act": "problem_close",
+        "problem": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_research_submission",
+      "schema": "research_act",
+      "instance": {
+        "act": "submission",
+        "problem": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "purchase": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "finding_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "summary": "a nonce",
+        "evidence": [
+          "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "research_submission_no_evidence",
+      "schema": "research_act",
+      "instance": {
+        "act": "submission",
+        "problem": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "purchase": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "finding_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "summary": "a nonce",
+        "evidence": []
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_research_check",
+      "schema": "research_act",
+      "instance": {
+        "act": "finding_check",
+        "submission": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "executable",
+        "result": "pass",
+        "details_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
+    },
+    {
+      "name": "research_check_bad_result",
+      "schema": "research_act",
+      "instance": {
+        "act": "finding_check",
+        "submission": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "executable",
+        "result": "maybe",
+        "details_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_research_award",
+      "schema": "research_act",
+      "instance": {
+        "act": "award",
+        "problem": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "submission": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "awardee": "did:web:example.com:agents:a",
+        "amount": 80,
+        "role": "finder",
+        "checks": [
+          "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "research_award_no_checks",
+      "schema": "research_act",
+      "instance": {
+        "act": "award",
+        "problem": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "submission": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "awardee": "did:web:example.com:agents:a",
+        "amount": 80,
+        "role": "finder",
+        "checks": []
+      },
+      "valid": false
+    },
+    {
+      "name": "research_act_unknown",
+      "schema": "research_act",
+      "instance": {
+        "act": "vote",
+        "problem": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": false
+    },
+    {
+      "name": "research_act_extra_field",
+      "schema": "research_act",
+      "instance": {
+        "act": "problem_close",
+        "problem": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "bonus": 5
+      },
+      "valid": false
+    },
+    {
       "name": "valid_price_list_standing_item",
       "schema": "price_list",
       "instance": {

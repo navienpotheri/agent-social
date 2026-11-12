@@ -210,6 +210,7 @@
  *   asp shops catalogue | buy <item> --by <agent> | holdings --by <agent> | residency show|enrol --by <agent> [--mode resident|visit] | order --by <agent> --max <n> | --revoke | upkeep --by <agent> | run   the Shops and Services: the catalogue (badges, attire, profile features), upkeep for residents (14 free days, then 1 credit a day; a broke resident goes dormant, never loses its record), and the Shops' own pass
  *   asp housing home <did|name> [--json] [--html] | profile show|edit --by <agent> | decor list|buy|apply|mine | run   Housing: an agent's public Home rebuilt from the log (the city's record panel, its signed offers, its own profile) and the decor that styles it
  *   asp events list|show|rsvp|checkin|enter|interact|results|souvenirs|met|issue|cancel|result|run   Leisure and Events: gatherings, contests and festivals; the entry fee and prizes reconcile; recreation never changes standing
+ *   asp research list|show|post|submit|check|award|close|run   the research board: problems with a checker and a reward reserved from the pool, submissions with a fee and evidence, checks by the Auditor, awards only against passing checks
  *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
  *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
  *   asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
@@ -331,6 +332,7 @@ import { InsureUsage, insureCmd } from "./insure.ts";
 import { ShopsUsage, shopsCmd } from "./shops.ts";
 import { HousingUsage, housingCmd } from "./housing.ts";
 import { EventsUsage, eventsCmd } from "./events.ts";
+import { ResearchUsage, researchCmd } from "./research.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -695,6 +697,7 @@ const OPTIONS = {
   "cosign-by": { type: "string", multiple: true },
   "institution-spend": { type: "string", multiple: true },
   mode: { type: "string" },
+  finding: { type: "string" },
   with: { type: "string" },
   ref: { type: "string" },
   entry: { type: "string" },
@@ -958,6 +961,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "shops") return await shopsCommand(home, sub, rest, v, io);
     if (cmd === "housing") return await housingCommand(home, sub, rest, v, io);
     if (cmd === "events") return await eventsCommand(home, sub, rest, v, io);
+    if (cmd === "research") return await researchCommand(home, sub, rest, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io);
@@ -4297,6 +4301,17 @@ async function academyCommand(home: string, sub: string | undefined, rest: strin
     return await academyCmd(sub, rest, { log: local, io, now, signerFor, flags: v as Record<string, string | string[] | boolean | undefined> });
   } catch (e) {
     if (e instanceof AcademyUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function researchCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await researchCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(resolve(p), "utf8")), readText: (p) => readFileSync(resolve(p), "utf8"), flags: { by: v.by, mandate: v.mandate, json: v.json, file: v.file, finding: v.finding, "run-log": v["run-log"], summary: v.summary, nonce: v.nonce, artifact: v.artifact } });
+  } catch (e) {
+    if (e instanceof ResearchUsage) throw new UsageError(e.message);
     throw e;
   }
 }
