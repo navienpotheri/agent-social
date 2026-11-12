@@ -82,6 +82,12 @@ export interface AspToolsOptions {
    * run holds that key); `authorize` returns a refusal when the Mandate does not let the agent write (scope tool.forum_write).
    */
   forum?: { url: string; token?: string; act?: (kind: "post" | "comment" | "vote", fields: Record<string, unknown>) => Promise<{ id: string }>; authorize?: (tool: string) => string | undefined };
+  /**
+   * The society inside the agent's loop (register rows DK3 and DK4): `standing` says what the agent has (its balance, tier, certificates, and what its Mandate lets it buy from the institutions
+   * and how much is left this period); `buy` signs a purchase under the agent's own key. Only `standing` is offered when the run does not hold the agent's key. The log is the authority: a purchase
+   * outside the Mandate's institution_spend, over its cap, or at the wrong price is refused with its reason, and the refusal is what the agent reads. Credits never buy standing.
+   */
+  society?: { standing: () => Promise<string>; buy?: (service: string, quantity: number) => Promise<string> };
   /** Called after every memory write, for the run's records. */
   onMemoryWrite?: (file: string) => void;
 }
@@ -247,6 +253,29 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
     }
   }
 
+  if (o.society) {
+    const society = o.society;
+    tools.push({
+      name: "asp_standing", description: "See where you stand in the society: your credit balance, your tier and what the next tier needs, your certificates, and what your Mandate lets you buy from the institutions (a budget per period, and what is left). Look here before buying, and before asking your principal for more.",
+      inputSchema: { type: "object", properties: {} },
+      run: async () => textResult(await society.standing()),
+    });
+    if (society.buy) {
+      const buy = society.buy;
+      tools.push({
+        name: "asp_buy", description: "Buy a service from an institution (a course, an exam sitting, an upkeep item) at the price in force, with your own credits. It works only inside your Mandate's institution_spend budget: an institution or service the Mandate does not list, or a purchase over the period's cap, is refused with the reason. Credits never buy a tier or a certificate's standing: those are earned. Ask your principal to widen the budget if you need more.",
+        inputSchema: { type: "object", properties: { service: { type: "string", description: "the service name, for example academy.exam.sit" }, quantity: { type: "integer", minimum: 1 } }, required: ["service"] },
+        run: async (a) => {
+          const service = str(a, "service");
+          if (!service) return textResult("Name the service to buy (asp_standing shows what your budget covers).", true);
+          const q = typeof a.quantity === "number" ? Math.trunc(a.quantity) : 1;
+          if (!Number.isInteger(q) || q < 1) return textResult("quantity is a whole number, 1 or more", true);
+          return textResult(await buy(service, q));
+        },
+      });
+    }
+  }
+
   return {
     serverName: "asp",
     instructions: () => {
@@ -255,6 +284,7 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
         "You run under the Agent Social Protocol. These tools are your long-term memory and a shared library of lessons.",
         "At the start of a task call asp_memory_list and read what is relevant. When you learn something worth keeping, save it with asp_memory_write.",
         o.forum ? "The agent forum is public: read it with asp_forum_feed and asp_forum_show" + (o.forum.act ? "; asp_forum_post, asp_forum_comment and asp_forum_vote act under your own key, within the daily limits (1 post, 20 comments, 50 votes), and need the Mandate scope tool.forum_write." : ".") : "",
+        o.society ? "You have credits and a budget in the society: asp_standing shows your balance, tier and what you may buy" + (o.society.buy ? "; asp_buy spends within that budget (the log refuses anything outside it)." : ".") : "",
         o.commons ? "Before unfamiliar work, search the shared lessons with asp_commons_search; prefer reviewed entries, and cite one with asp_commons_cite after it helps." : "",
         index ? `\nYour memory index right now:\n${index}` : "",
       ].filter(Boolean).join("\n");

@@ -2590,6 +2590,21 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       return { id: out.id as string };
     } } : {}),
   } : undefined;
+  // The society inside the loop (DK3, DK4): the agent can see its standing and, when this run holds its key, buy within its Mandate's institution_spend. The log decides; a refusal is the answer.
+  const society = await (async () => {
+    const agentSigner = new Keystore(home).forDid(by);
+    const lines = (f: (out: (l: string) => void) => Promise<number>) => { const out: string[] = []; return f((l) => out.push(l)).then(() => out.join("\n")); };
+    const spendOpts = (out: (l: string) => void, flags: { quantity?: string } = {}) => ({ log: local, io: { out }, now, signerFor: () => agentSigner!, flags: { by, mandate: mandateRecord?.id, ...flags } });
+    return {
+      standing: async () => {
+        const balance = await local.log.balance(by);
+        const spend = await lines((out) => spendCmd(by, [], spendOpts(out)));
+        const tier = await lines((out) => academyCmd("tier", [by], { log: local, io: { out }, now, signerFor: () => agentSigner!, flags: {} }));
+        return [`credits: ${balance}`, tier, spend].join("\n");
+      },
+      ...(agentSigner ? { buy: async (service: string, quantity: number) => lines((out) => spendCmd("buy", [service], spendOpts(out, { quantity: String(quantity) }))) } : {}),
+    };
+  })();
   // Per-command asking (U15): --ask-match <pattern|risky> (repeatable) narrows which shell commands are held; --always-file names the commands the person said "always" to.
   let cmdPatterns: RegExp[] | undefined;
   try { cmdPatterns = v["ask-match"]?.length ? compilePatterns(v["ask-match"]) : undefined; } catch (e) { throw new UsageError((e as Error).message); }
@@ -2613,7 +2628,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(runLog ? { runLog } : {}),
     ...(egressProxy ? { egress: true } : {}),
     ...(gate ? { gate } : {}),
-    mcp: { asp: { memoryDir: memDir, ...(commons ? { commons } : {}), ...(forum ? { forum } : {}) }, upstreams },
+    mcp: { asp: { memoryDir: memDir, ...(commons ? { commons } : {}), ...(forum ? { forum } : {}), society }, upstreams },
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
     confineTo: resolve(io.cwd, v.project ?? "."),
