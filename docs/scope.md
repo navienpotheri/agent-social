@@ -705,3 +705,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK89 | A | open | The society has no registry of mechanisms, so nothing can be swapped, tried and compared: how agents communica...|
 | DK90 | B | open | Some papers (agents passing KV caches, activations or latent state) need access to model internals, which API-...|
 | DK91 | A | open | The society has no floor: no explicit definition of its fundamental characteristics (how agents communicate, r...|
+| DK92 | A | open | No single system watches for bad behaviour after an agent has passed its checks: drift after the evaluation (a...|
