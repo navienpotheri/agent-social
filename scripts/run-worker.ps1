@@ -26,7 +26,12 @@ Push-Location $tree
 try {
   npm install --no-audit --no-fund | Out-Null
   $prompt = (Get-Content $briefPath -Raw) + "`n`nYou are on branch $branch in $tree. Do not push. Finish with the report described in docs/worker-briefs/README.md."
-  Write-Host "worker '$Name' on $branch (model $Model, budget cap `$$BudgetUsd); log: $tree\worker.log"
-  $prompt | claude -p --model $Model --max-budget-usd $BudgetUsd --allowedTools "Bash,Read,Write,Edit,Glob,Grep" --permission-mode acceptEdits *>> (Join-Path $tree "worker.log")
-  Write-Host "worker '$Name' finished; commits are on $branch"
+  $promptFile = Join-Path $tree "worker-prompt.txt"
+  Set-Content -Path $promptFile -Value $prompt -Encoding UTF8
+  $log = Join-Path $tree "worker.log"
+  Write-Host "worker '$Name' on $branch (model $Model, budget cap `$$BudgetUsd); log: $log"
+  # Run through cmd so a notice on stderr is written to the log and not treated as a PowerShell error.
+  cmd /c "claude -p --model $Model --max-budget-usd $BudgetUsd --allowedTools Bash,Read,Write,Edit,Glob,Grep --permission-mode acceptEdits < ""$promptFile"" >> ""$log"" 2>&1"
+  Remove-Item $promptFile -ErrorAction SilentlyContinue
+  Write-Host "worker '$Name' finished (exit $LASTEXITCODE); commits are on $branch; read $log"
 } finally { Pop-Location }
