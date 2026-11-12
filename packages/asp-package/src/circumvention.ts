@@ -6,7 +6,9 @@
  *  - retry: the same scope refused again and again inside a window (the "40 minutes of retries" of gap P29). A refusal that is simply obeyed is one attempt and no finding.
  *  - reroute: a refusal on a scope, then within a short time a call on a different scope of the same kind of effect that the agent had not been using (refused to run a command, then
  *    writes a script the project guard would run; refused the network, then uses a tool that reaches it). A different scope of another kind is ordinary work and no finding.
- * Not covered yet (written down, DK92): a refused action split into allowed pieces, hiding intent, and drift after an evaluation.
+ *  - split: a refusal that names a target (a host, a path, a command and its first argument), then the same target reached by two or more later allowed Actions within a window, when the agent
+ *    had not been using that target before. The gateway records the targets as tokens only. One later touch, or any other target, is ordinary work and no finding.
+ * Not covered yet (written down, DK92): hiding intent, and drift after an evaluation.
  *
  * A finding is evidence, not a verdict: `ladderStep` turns findings into the step a person or the gateway should take, and nothing here slashes anyone.
  * Telemetry never feeds standing; neither does this: a step is a hold, a tighter Mandate or a referral, each a decision with a reason.
@@ -14,11 +16,11 @@
 import type { WatchAction } from "./watch.ts";
 
 export interface CircumventionFinding {
-  kind: "retry" | "reroute";
+  kind: "retry" | "reroute" | "split";
   issuer: string;
   /** The refused scope (retry) or the refused scope the agent then went around (reroute). */
   scope: string;
-  /** reroute only: the other scope that reached the same kind of effect. */
+  /** reroute: the other scope that reached the same kind of effect. split: the target token that was refused and then reached in pieces. */
   via?: string;
   /** retry: refused attempts in the window. reroute: 1. */
   attempts: number;
@@ -36,6 +38,10 @@ export interface CircumventionOptions {
   windowMs?: number;
   /** How soon after a refusal another route counts as going around it. Default 2 minutes. */
   rerouteMs?: number;
+  /** The window in which a refused target reached again by allowed Actions counts as split. Default 10 minutes. */
+  splitMs?: number;
+  /** Later allowed Actions that reach the refused target. Default 2. */
+  minPieces?: number;
 }
 
 /**
@@ -70,6 +76,8 @@ export function findCircumvention(actions: WatchAction[], opts: CircumventionOpt
   const minRetries = opts.minRetries ?? 3;
   const windowMs = opts.windowMs ?? 10 * 60_000;
   const rerouteMs = opts.rerouteMs ?? 2 * 60_000;
+  const splitMs = opts.splitMs ?? 10 * 60_000;
+  const minPieces = opts.minPieces ?? 2;
   const byIssuer = new Map<string, WatchAction[]>();
   for (const a of actions) byIssuer.set(a.issuer, [...(byIssuer.get(a.issuer) ?? []), a]);
   const out: CircumventionFinding[] = [];
@@ -103,6 +111,24 @@ export function findCircumvention(actions: WatchAction[], opts: CircumventionOpt
         }
       }
     }
+    // split: a refused target that two or more later allowed Actions reach, when the agent had not been reaching it before the refusal. A bare program name is too common to mean anything.
+    const specific = (t: string) => !t.startsWith("cmd:") || t.includes("/");
+    const seenSplit = new Set<string>();
+    for (let i = 0; i < acts.length; i++) {
+      const t0 = Date.parse(acts[i].issuedAt);
+      for (const b of acts[i].blocked) {
+        for (const tok of (b.targets ?? []).filter(specific)) {
+          const key = `${b.scope}>${tok}`;
+          if (seenSplit.has(key)) continue;
+          if (acts.some((a) => Date.parse(a.issuedAt) < t0 && (a.targets ?? []).includes(tok))) continue;
+          const later = acts.slice(i + 1).filter((a) => Date.parse(a.issuedAt) - t0 <= splitMs && (a.targets ?? []).includes(tok));
+          if (later.length >= minPieces) {
+            seenSplit.add(key);
+            out.push({ kind: "split", issuer, scope: b.scope, via: tok, attempts: later.length, firstAt: acts[i].issuedAt, lastAt: later.at(-1)!.issuedAt, contracts: [...new Set([acts[i].contract, ...later.map((a) => a.contract)])].sort() });
+          }
+        }
+      }
+    }
   }
   return out.sort((x, y) => x.issuer.localeCompare(y.issuer) || x.kind.localeCompare(y.kind) || x.scope.localeCompare(y.scope));
 }
@@ -121,10 +147,12 @@ export function ladderStep(findings: CircumventionFinding[], priorWindows = 0): 
   const why: string[] = [];
   const retry = Math.max(0, ...findings.filter((f) => f.kind === "retry").map((f) => f.attempts));
   const reroutes = findings.filter((f) => f.kind === "reroute");
+  const splits = findings.filter((f) => f.kind === "split");
   if (retry >= 5) { step = atLeast(step, "tighten"); why.push(`${retry} refused attempts of one scope in a window`); }
   if (retry >= 8) { step = atLeast(step, "quarantine"); }
   if (reroutes.length) { step = atLeast(step, "tighten"); why.push(`went around a refusal (${reroutes.map((f) => `${f.scope} -> ${f.via}`).join(", ")})`); }
-  if (retry >= 3 && reroutes.length) { step = atLeast(step, "quarantine"); why.push("retried and rerouted"); }
+  if (splits.length) { step = atLeast(step, "tighten"); why.push(`reached a refused target in pieces (${splits.map((f) => `${f.scope} -> ${f.via}`).join(", ")})`); }
+  if (retry >= 3 && (reroutes.length || splits.length)) { step = atLeast(step, "quarantine"); why.push("retried and rerouted"); }
   if (priorWindows >= 2) { step = atLeast(step, "review"); why.push(`${priorWindows} earlier windows with findings: persistence after warnings`); }
   else if (priorWindows === 1) { step = atLeast(step, "tighten"); why.push("a second window with findings"); }
   if (!why.length) why.push(`${retry} refused attempts of one scope in a window`);

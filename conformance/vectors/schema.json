@@ -493,6 +493,69 @@
       "valid": false
     },
     {
+      "name": "valid_action_with_targets",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "targets": [
+          "host:api.example",
+          "path:src/a.ts",
+          "cmd:git/push"
+        ],
+        "blocked_attempts": [
+          {
+            "scope": "shell.network",
+            "count": 1,
+            "targets": [
+              "host:evil.example"
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "action_target_not_a_token",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [],
+        "targets": [
+          "https://evil.example/x?token=abc"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "action_blocked_targets_too_many",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [],
+        "blocked_attempts": [
+          {
+            "scope": "shell.exec",
+            "count": 1,
+            "targets": [
+              "path:f0",
+              "path:f1",
+              "path:f2",
+              "path:f3",
+              "path:f4",
+              "path:f5",
+              "path:f6",
+              "path:f7",
+              "path:f8"
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
       "name": "valid_action_with_assurance",
       "schema": "action",
       "instance": {

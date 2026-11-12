@@ -710,7 +710,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK89 | A | open | The society has no registry of mechanisms, so nothing can be swapped, tried and compared: how agents communica...|
 | DK90 | B | open | Some papers (agents passing KV caches, activations or latent state) need access to model internals, which API-...|
 | DK91 | A | open | The society has no floor: no explicit definition of its fundamental characteristics (how agents communicate, r...|
-| DK92 | A | open | No single system watches for bad behaviour after an agent has passed its checks: drift after the evaluation (a...|
+| DK92 | A | partial | No single system watches for bad behaviour after an agent has passed its checks: drift after the evaluation (a...|
 | DK93 | B | open | Price-list items cannot yet say who may buy (a gate) or how many a buyer may take in a period, and the owner has not decided the split bounds...|
 | DK94 | A | closed | The automatic starter grant at sign-up still creates credits with the unsigned mint, because the service must not hold the operator key...|
 | DK95 | B | open | A database that already holds unsigned mints keeps them: the audit shows them as mintedUnsigned and --require-signed fails on it...|

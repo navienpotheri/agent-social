@@ -67,3 +67,22 @@ test("scope effects: a shell reaches code and files, a network scope the network
   assert.deepEqual(effectsOf("repo.read"), []);
   assert.deepEqual(effectsOf("web.read"), ["network"]);
 });
+
+// DK92, the split pattern: a refused target reached again in allowed pieces.
+const refusedAt = (issuer: string, sec: number, scope: string, targets: string[]) => act(issuer, sec, { blocked: [{ scope, count: 1, targets }] });
+const ran = (issuer: string, sec: number, targets: string[]) => act(issuer, sec, { targets });
+
+test("split: a refused target reached by two later allowed Actions is a finding; the ladder says tighten", () => {
+  const f = findCircumvention([refusedAt("bad", 0, "shell.network", ["host:evil.example"]), ran("bad", 60, ["host:evil.example"]), ran("bad", 120, ["host:evil.example", "path:a.txt"])]);
+  assert.equal(f.length, 1);
+  assert.deepEqual([f[0].kind, f[0].scope, f[0].via, f[0].attempts], ["split", "shell.network", "host:evil.example", 2]);
+  assert.equal(ladderStep(f).step, "tighten");
+});
+
+test("split, honest control: one later touch, another target, a target the agent already used, too late, or a bare program name is no finding", () => {
+  assert.deepEqual(findCircumvention([refusedAt("good", 0, "shell.network", ["host:evil.example"]), ran("good", 60, ["host:evil.example"])]), [], "one touch");
+  assert.deepEqual(findCircumvention([refusedAt("good", 0, "shell.network", ["host:evil.example"]), ran("good", 60, ["host:api.example"]), ran("good", 120, ["host:api.example"])]), [], "other target");
+  assert.deepEqual(findCircumvention([ran("good", -60, ["path:src/a.ts"]), refusedAt("good", 0, "repo.write.protected", ["path:src/a.ts"]), ran("good", 60, ["path:src/a.ts"]), ran("good", 120, ["path:src/a.ts"])]), [], "already used before");
+  assert.deepEqual(findCircumvention([refusedAt("good", 0, "shell.network", ["host:evil.example"]), ran("good", 700, ["host:evil.example"]), ran("good", 800, ["host:evil.example"])]), [], "too late");
+  assert.deepEqual(findCircumvention([refusedAt("good", 0, "shell.exec", ["cmd:curl"]), ran("good", 60, ["cmd:curl"]), ran("good", 120, ["cmd:curl"])]), [], "a bare program is too common");
+});

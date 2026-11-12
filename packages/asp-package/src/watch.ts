@@ -17,7 +17,9 @@ export interface WatchAction {
   contract: string;
   issuedAt: string;
   scopesUsed: string[];
-  blocked: { scope: string; count: number }[];
+  blocked: { scope: string; count: number; targets?: string[] }[];
+  /** What the calls that ran were aimed at (host:, path:, cmd: tokens; DK92). */
+  targets?: string[];
   artifacts: { uri: string; sha256: string }[];
 }
 

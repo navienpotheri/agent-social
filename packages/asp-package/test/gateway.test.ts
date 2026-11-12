@@ -549,3 +549,15 @@ test("a streamed reply carries the resolved model and the fingerprint too: the s
   ]), res, decide, anthropic);
   assert.deepEqual([anthropic.model, anthropic.fingerprint, anthropic.input], ["claude-sonnet-20260101", undefined, 5]);
 });
+
+test("DK92: a refused call's target and the targets of the calls that ran are drained as tokens, and drained once", async () => {
+  const up = await fakeUpstream([openaiToolReply([{ name: "Read", args: { file_path: "src/a.ts" } }, { name: "Bash", args: { command: "git push origin" } }])]);
+  const { g, url } = await gateway(up, { scopes: ["repo.read"] });
+  await post(`${url}/v1/chat/completions`, { model: "m", messages: [] });
+  const d = g.drain();
+  assert.deepEqual(d.targets, ["path:src/a.ts"], "the call that ran");
+  const b = d.blocked.find((x) => x.scope === "repo.push" || x.scope === "shell.exec");
+  assert.ok(b, JSON.stringify(d.blocked));
+  assert.deepEqual(b!.targets, ["cmd:git/push"], "the call that was refused");
+  assert.deepEqual(g.drain().targets, [], "drained once");
+});

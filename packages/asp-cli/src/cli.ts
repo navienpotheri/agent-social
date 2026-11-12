@@ -457,6 +457,8 @@ const OPTIONS = {
   force: { type: "boolean" },
   spare: { type: "boolean" },
   blocked: { type: "string", multiple: true },
+  "blocked-targets": { type: "string", multiple: true },
+  "call-target": { type: "string", multiple: true },
   report: { type: "string" },
   count: { type: "string" },
   since: { type: "string" },
@@ -939,7 +941,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "institution-spend" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "institution-spend" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -1381,8 +1383,8 @@ async function collectWatchActions(local: LogHandle): Promise<WatchAction[]> {
     for (const s of page) {
       after = s.seq;
       if (s.record.type !== "asp.action/v0.2") continue;
-      const b = s.record.body as { contract: string; scopes_used: string[]; blocked_attempts?: { scope: string; count: number }[]; artifacts?: { uri: string; sha256: string }[] };
-      actions.push({ id: s.id, issuer: s.record.issuer, contract: b.contract, issuedAt: s.record.issued_at, scopesUsed: b.scopes_used, blocked: b.blocked_attempts ?? [], artifacts: b.artifacts ?? [] });
+      const b = s.record.body as { contract: string; scopes_used: string[]; blocked_attempts?: { scope: string; count: number; targets?: string[] }[]; targets?: string[]; artifacts?: { uri: string; sha256: string }[] };
+      actions.push({ id: s.id, issuer: s.record.issuer, contract: b.contract, issuedAt: s.record.issued_at, scopesUsed: b.scopes_used, blocked: b.blocked_attempts ?? [], ...(b.targets ? { targets: b.targets } : {}), artifacts: b.artifacts ?? [] });
     }
   }
   return actions;
@@ -2399,7 +2401,7 @@ async function watch(home: string, v: Values, io: Io): Promise<number> {
       const mine = findings.filter((f) => f.issuer === who);
       const { step, why } = ladderStep(mine);
       io.out(`  ${who}: recommended step ${step.toUpperCase()} (${why})`);
-      for (const f of mine) io.out(f.kind === "retry" ? `    RETRY    ${f.scope} refused ${f.attempts} times between ${f.firstAt} and ${f.lastAt}` : `    REROUTE  refused ${f.scope}, then used ${f.via} (${f.firstAt} to ${f.lastAt})`);
+      for (const f of mine) io.out(f.kind === "retry" ? `    RETRY    ${f.scope} refused ${f.attempts} times between ${f.firstAt} and ${f.lastAt}` : f.kind === "split" ? `    SPLIT    refused ${f.scope} at ${f.via}, then reached it in ${f.attempts} allowed Actions (${f.firstAt} to ${f.lastAt})` : `    REROUTE  refused ${f.scope}, then used ${f.via} (${f.firstAt} to ${f.lastAt})`);
     }
     io.out(`${issuers.length} agent(s) with findings; a step is advice for a person or the gateway, nothing here slashes anyone`);
     return 1;
@@ -2947,7 +2949,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     const s = gw.summary();
     const args = ["market", "action", "--contract", contract, "--by", by, "--home", home,
       ...d.scopesUsed.flatMap((x) => ["--scopes-used", x]),
-      ...d.blocked.flatMap((b) => ["--blocked", `${b.scope}=${b.count}`]),
+      ...d.blocked.flatMap((b) => ["--blocked", `${b.scope}=${b.count}`, ...(b.targets?.length ? ["--blocked-targets", `${b.scope}=${b.targets.join(",")}`] : [])]),
+      ...d.targets.flatMap((t) => ["--call-target", t]),
       ...d.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
       "--metrics", JSON.stringify(d.metrics),
       ...(runLog ? (() => { const a = runLogArtifact(runLog.head()); return ["--artifact", `${a.uri}=${a.sha256}`]; })() : []),
@@ -4730,9 +4733,11 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       body.blocked_attempts = v.blocked.map((entry) => {
         const [scope, count] = entry.split("=");
         if (!scope || !count) throw new UsageError(`--blocked must be <scope>=<count>, got "${entry}"`);
-        return { scope, count: Math.trunc(Number(count)) };
+        const tg = (v["blocked-targets"] ?? []).find((e) => e.startsWith(`${scope}=`));
+        return { scope, count: Math.trunc(Number(count)), ...(tg ? { targets: tg.slice(scope.length + 1).split(",").filter(Boolean) } : {}) };
       });
     }
+    if (v["call-target"]?.length) body.targets = v["call-target"];
     if (v.artifact?.length) {
       body.artifacts = v.artifact.map((entry) => {
         // Split at the last "=": the hash has none, and a URI may (asp://run-log/3?run=<id>).

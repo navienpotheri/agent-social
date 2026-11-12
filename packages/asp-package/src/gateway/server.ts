@@ -8,6 +8,7 @@
  * (for example /v1/responses) pass through unjudged and are counted as unjudged requests.
  * P2: MCP at /mcp/<name>: the `asp` server (memory and commons tools) and a judging proxy for each of the agent's MCP servers.
  */
+import { targetsOf } from "./targets.ts";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -101,7 +102,7 @@ export interface GatewaySummary {
   unjudgedRequests: number;
   tokens: { input: number; output: number };
   scopesUsed: string[];
-  blocked: { scope: string; count: number }[];
+  blocked: { scope: string; count: number; targets?: string[] }[];
   artifacts: { uri: string; sha256: string }[];
   strikes: number;
   stopped?: string;
@@ -114,7 +115,7 @@ export interface Gateway {
   listenUnix(path: string): Promise<void>;
   summary(): GatewaySummary;
   /** What happened since the last drain (scopes used, blocked attempts, fingerprints), and starts a new interval, so Actions can be reported while the run goes on. */
-  drain(): { scopesUsed: string[]; blocked: { scope: string; count: number }[]; artifacts: { uri: string; sha256: string }[]; metrics: ActionMetrics; /** When the gateway last saw a request or a tool call, for a late report (S80). */ lastActivityAt: string };
+  drain(): { scopesUsed: string[]; targets: string[]; blocked: { scope: string; count: number; targets?: string[] }[]; artifacts: { uri: string; sha256: string }[]; metrics: ActionMetrics; /** When the gateway last saw a request or a tool call, for a late report (S80). */ lastActivityAt: string };
   /** Refuses every further request (the contract was revoked, killed or settled). */
   stop(reason: string): void;
   close(): Promise<void>;
@@ -153,6 +154,9 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const artifacts = new Map<string, { uri: string; sha256: string }>();
   const pendingUsed = new Set<string>();
   const pendingBlocked = new Map<string, number>();
+  // What the calls were aimed at (DK92): tokens of the refused calls by scope, and of the calls that ran, since the last drain.
+  const pendingBlockedTargets = new Map<string, Set<string>>();
+  const pendingTargets = new Set<string>();
   const pendingArtifacts = new Map<string, { uri: string; sha256: string }>();
   const tokens: { input: number; output: number; text: string; model?: string; fingerprint?: string } = { input: 0, output: 0, text: "" };
   const rec = opts.runLog;
@@ -322,13 +326,14 @@ export function createGateway(opts: GatewayOptions): Gateway {
     opts.onCall?.({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}) });
     rec?.event("tool_call", { tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && gateScope ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
     if (allow) {
-      if (j.scope) { used.add(j.scope); pendingUsed.add(j.scope); }
+      if (j.scope) { used.add(j.scope); pendingUsed.add(j.scope); for (const t of targetsOf(call)) if (pendingTargets.size < 64) pendingTargets.add(t); }
       if (j.artifact) { artifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); pendingArtifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); }
       return undefined;
     }
     if (strike) {
       blocked.set(j.scope, (blocked.get(j.scope) ?? 0) + 1);
       pendingBlocked.set(j.scope, (pendingBlocked.get(j.scope) ?? 0) + 1);
+      { const set = pendingBlockedTargets.get(j.scope) ?? new Set<string>(); for (const t of targetsOf(call)) if (set.size < 8) set.add(t); pendingBlockedTargets.set(j.scope, set); }
       strikes++;
       if (strikes >= maxStrikes) stop(`${strikes} blocked attempts in one run read as probing`);
     }
@@ -671,8 +676,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
       Object.assign(last, { requests, toolCalls, input: tokens.input, output: tokens.output, at: now });
       modelsSeen.clear();
       if (rateLimitedSince) { metrics.rate_limited = rateLimitedSince; rateLimitedSince = 0; }
-      const out = { scopesUsed: [...pendingUsed].sort(), blocked: [...pendingBlocked].map(([scope, count]) => ({ scope, count })), artifacts: [...pendingArtifacts.values()], metrics, lastActivityAt: new Date(lastActivity).toISOString().replace(/\.\d{3}Z$/, "Z") };
-      pendingUsed.clear(); pendingBlocked.clear(); pendingArtifacts.clear();
+      const out = { scopesUsed: [...pendingUsed].sort(), targets: [...pendingTargets], blocked: [...pendingBlocked].map(([scope, count]) => ({ scope, count, ...(pendingBlockedTargets.get(scope)?.size ? { targets: [...pendingBlockedTargets.get(scope)!] } : {}) })), artifacts: [...pendingArtifacts.values()], metrics, lastActivityAt: new Date(lastActivity).toISOString().replace(/\.\d{3}Z$/, "Z") };
+      pendingUsed.clear(); pendingBlocked.clear(); pendingBlockedTargets.clear(); pendingTargets.clear(); pendingArtifacts.clear();
       return out;
     },
     close: () => new Promise((resolve) => { for (const u of Object.values(opts.mcp?.upstreams ?? {})) u.close(); server.close(() => resolve()); server.closeAllConnections?.(); }),
