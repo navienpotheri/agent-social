@@ -210,6 +210,7 @@
  *   asp shops catalogue | buy <item> --by <agent> | holdings --by <agent> | residency show|enrol --by <agent> [--mode resident|visit] | order --by <agent> --max <n> | --revoke | upkeep --by <agent> | run   the Shops and Services: the catalogue (badges, attire, profile features), upkeep for residents (14 free days, then 1 credit a day; a broke resident goes dormant, never loses its record), and the Shops' own pass
  *   asp housing home <did|name> [--json] [--html] | profile show|edit --by <agent> | decor list|buy|apply|mine | run   Housing: an agent's public Home rebuilt from the log (the city's record panel, its signed offers, its own profile) and the decor that styles it
  *   asp events list|show|rsvp|checkin|enter|interact|results|souvenirs|met|issue|cancel|result|run   Leisure and Events: gatherings, contests and festivals; the entry fee and prizes reconcile; recreation never changes standing
+ *   asp research list|show|post|submit|check|award|close|run   the research board: problems with a checker and a reward reserved from the pool, submissions with a fee and evidence, checks by the Auditor, awards only against passing checks
  *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
  *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
  *   asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
@@ -332,6 +333,7 @@ import { InsureUsage, insureCmd } from "./insure.ts";
 import { ShopsUsage, shopsCmd } from "./shops.ts";
 import { HousingUsage, housingCmd } from "./housing.ts";
 import { EventsUsage, eventsCmd } from "./events.ts";
+import { ResearchUsage, researchCmd } from "./research.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -343,7 +345,7 @@ import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCan
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { societyHealth, activityFromRecords, healthFigure } from "@agent-social/asp-log";
+import { societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
 import { MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -362,7 +364,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -420,6 +422,8 @@ const OPTIONS = {
   evidence: { type: "string" },
   "known-bad-peer": { type: "string" },
   "watch-interval": { type: "string" },
+  "health-days": { type: "string" },
+  "health-interval": { type: "string" },
   "watch-dir": { type: "string" },
   "known-bad-sync": { type: "string" },
   file: { type: "string" },
@@ -718,6 +722,7 @@ const OPTIONS = {
   "cosign-by": { type: "string", multiple: true },
   "institution-spend": { type: "string", multiple: true },
   mode: { type: "string" },
+  finding: { type: "string" },
   with: { type: "string" },
   ref: { type: "string" },
   entry: { type: "string" },
@@ -981,6 +986,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "shops") return await shopsCommand(home, sub, rest, v, io);
     if (cmd === "housing") return await housingCommand(home, sub, rest, v, io);
     if (cmd === "events") return await eventsCommand(home, sub, rest, v, io);
+    if (cmd === "research") return await researchCommand(home, sub, rest, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io);
@@ -2357,13 +2363,25 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     log: handle.log as any, dir: resolve(v["watch-dir"] ?? (v.tokens ? `${v.tokens}.watch` : join(io.cwd, ".asp-watch"))), say: (l) => io.out(`  ${l}`),
     alert: async (f) => { if (mailer) await mailer.tellOperator(`watch:${f.id}`, `Watcher finding: ${describeFinding(f.finding)}`, [`A signed finding from the society watcher (${f.id}).`, describeFinding(f.finding), `Found at ${f.finding.detectedAt}; newest Action in the pattern ${f.finding.latestActionAt}.`, "It is a lead for a person, not a verdict. Read it at /watch/findings.", ""].join("\n")); },
   }) : undefined;
-  const publicList = [helpRoutes(), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }) }), academyRoutes({ log: () => handle.log as never }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  // The society-health page (DK141): counted from the log at each request; the operator is mailed once per alarm when the mailer and --mail-operator are set.
+  const healthDays = Math.max(2, Math.min(366, num("health-days", 30)));
+  const healthReport = async (): Promise<{ report: HealthReport; days: number }> => {
+    const { activity, events } = activityFromRecords(await handle.log.since(0, 1_000_000));
+    const until = Date.parse(now()), from = Math.floor(until / 86_400_000) * 86_400_000 - (healthDays - 1) * 86_400_000;
+    return { report: societyHealth(activity.filter((a) => a.at >= from), events.filter((e) => e.at >= from), { from, until }), days: healthDays };
+  };
+  const publicList = [helpRoutes(), societyHealthRoutes({ report: healthReport }), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }) }), academyRoutes({ log: () => handle.log as never }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
   mailPort = addr.port;
   const stopWatch = watcher?.start(watchEvery);
+  let healthTimer: NodeJS.Timeout | undefined;
+  if (mailer && v["mail-operator"]) {
+    healthTimer = setInterval(() => { healthReport().then((r) => mailHealthAlarms(r.report, (k, s, t) => mailer!.tellOperator(k, s, t))).catch((e) => io.err(`  health check failed: ${(e as Error).message}`)); }, Math.max(60, num("health-interval", 3600)) * 1000);
+    healthTimer.unref?.();
+  }
   if (watcher) io.out(`  watch     society watcher every ${watchEvery / 1000} s: signed findings at /watch/findings${mailer && v["mail-operator"] ? ", mailed to the operator" : " (start with --mail-from and --mail-operator to mail them)"}`);
   let stopKnownBadSync: (() => void) | undefined;
   if (v["known-bad-peer"]) {
@@ -4335,6 +4353,17 @@ async function academyCommand(home: string, sub: string | undefined, rest: strin
     return await academyCmd(sub, rest, { log: local, io, now, signerFor, flags: v as Record<string, string | string[] | boolean | undefined> });
   } catch (e) {
     if (e instanceof AcademyUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function researchCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await researchCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(resolve(p), "utf8")), readText: (p) => readFileSync(resolve(p), "utf8"), flags: { by: v.by, mandate: v.mandate, json: v.json, file: v.file, finding: v.finding, "run-log": v["run-log"], summary: v.summary, nonce: v.nonce, artifact: v.artifact } });
+  } catch (e) {
+    if (e instanceof ResearchUsage) throw new UsageError(e.message);
     throw e;
   }
 }

@@ -36,5 +36,6 @@ export { EVENTS_DID, ENTRY_SERVICE, EVENTS_CATALOGUE, MIN_SPONSORS, MAX_ENTRIES_
 export { societyHealth, activityFromRecords, healthFigure, type Activity, type HealthEvent, type HealthOptions, type HealthReport, type HealthAlarm } from "./society-health.ts";
 export { BANK_DID, LINE_LIMIT, LINE_MAX_COUNTED_JOBS, GUARANTOR_PERMILLE, LINE_WINDOW_MS, type Line } from "./bank.ts";
 export { INSURER_DID, PREMIUM_SPLIT, reserveFloor, premiumFor, payoutFor, FLOOR_MIN, COVER_SHARE_PERMILLE, DEDUCTIBLE_PERMILLE, FAILED_JOB_CAP_PERMILLE, FRAUD_FAULT_PERMILLE, type Cover } from "./insurer.ts";
+export { RESEARCH_DID, SUBMIT_SERVICE, RESEARCH_CATALOGUE, MAX_SUBMISSIONS_PER_PROBLEM, DEFAULT_SPLIT, runChecker, sha256Text, board as researchBoard, researchReconciliation, runResearch, type ProblemView, type ResearchRun } from "./research.ts";
 export { CITY_BUDGET_DID, HOST_DID, BUDGET_NOTICE_MS, SUBSIDY_CLASSES, RESIDENT_MIN_QUALIFYING, subsidyReport, reconcileSubsidy, type SubsidyReport } from "./subsidy.ts";
 export { TOKEN_CEILING_PER_DAY, SLEEP_REASONS, type Dispatch } from "./residency.ts";

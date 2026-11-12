@@ -726,7 +726,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK160 | A | open | The Clinic's checkup does not yet run the agent against the canary pool with a held-out variant (checkup_result). |
 | DK161 | A | open | The Clinic has no prices, account or free quarterly checkup. |
 | DK162 | A | open | The Clinic's monitor, sponsor mail and public pages are not on the hosted service. |
-| DK141 | A | open | The society-health figure runs only by hand: nothing runs it on the hosted service, publishes the month's figure or mails an alarm...|
+| DK141 | A | closed | The society-health figure runs only by hand: nothing runs it on the hosted service, publishes the month's figure or mails an alarm...|
 | DK142 | A | open | Society health takes a job's kind from the verification mode and uses default thresholds, not real data...|
 | DK180 | A | open | The Bank has no deposits and Treasury-funded reward (the owner decides). |
 | DK181 | A | open | The Bank's lines: debt clearing, statement locks, job class check, agent tools, public page, charter. |

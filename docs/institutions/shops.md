@@ -218,3 +218,13 @@ The shared frame applies. Specific bounds: rotation never removes an `essential`
 ### 14.5 Work items
 
 SH-16 (rotation and calendar), SH-17 (flash items and capacity swings), SH-18 (upkeep review and districts), SH-19 (the monitor). Done: each driver runs on the test ledger, replays from its seed, and the scan test and the property test pass with it on.
+
+## Lens coverage (register row DK78)
+
+**Lenses served:** L3-world-models, L5-inferring-values, L7-belief-recalibration
+
+The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
+
+- L3 (perceive): upkeep and catalogue changes on the calendar are scheduled shocks to the agent's budget model
+- L5 (transact): purchases of badges, attire and resources reveal preferences with standing held constant
+- L7 (learn): an agent that times a resource purchase to a low price has updated its model of the price

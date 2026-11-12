@@ -18,6 +18,7 @@ import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, ar
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
 import { projectHousingAct } from "./housing-rules.ts";
 import { projectEventsAct } from "./events-rules.ts";
+import { projectResearchAct } from "./research-rules.ts";
 import { assertNotDormant, checkShopsPurchase, notePerformer, projectShopsAct } from "./shops-rules.ts";
 import { homeView, type HomeView } from "./housing.ts";
 import { resourceExtras, type ResourceExtras } from "./shops.ts";
@@ -320,6 +321,7 @@ export class EventLog {
     if (type === "court_act") await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize });
     if (type === "shops_act") await projectShopsAct(tx, verified, { reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
     if (type === "housing_act") await projectHousingAct(tx, verified);
+    if (type === "research_act") await projectResearchAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
     if (type === "events_act") await projectEventsAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
     if (type === "contract") await notePerformer(tx, verified);
     if (type === "registry_act") await projectRegistryAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did) });

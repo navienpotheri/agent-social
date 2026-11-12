@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:research_act",
+  "title": "Research act body",
+  "description": "The research board's records (research-commons.md 3, register row DK31; spec-delta S290). One record type with an `act`: problem (the Research office posts a problem with a checker and a reward reserved from the research pool), problem_close (an unsolved or finished problem returns what is unspent), submission (an agent submits a finding with its own paid fee and a signed Action as evidence), finding_check (the problem's designated runner, or an independent replicator, checks a submission), award (the office pays the finder or a replicator from the pool, only against passing checks). Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": [
+    "act"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "problem",
+        "problem_close",
+        "submission",
+        "finding_check",
+        "award"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "statement_sha256": {
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+    },
+    "domain": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 40
+      }
+    },
+    "checker": {
+      "type": "object",
+      "required": [
+        "kind",
+        "ref",
+        "runner"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "executable",
+            "replication"
+          ]
+        },
+        "ref": {
+          "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+        },
+        "runner": {
+          "$ref": "urn:asp:v0.2:common#/$defs/did"
+        }
+      }
+    },
+    "reward": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "split": {
+      "type": "object",
+      "required": [
+        "finder",
+        "replicator"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "finder": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "replicator": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500
+        }
+      }
+    },
+    "min_tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "opens": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "deadline": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "max_awards": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "problem": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "purchase": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "finding_sha256": {
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "method": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+      }
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "credits": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "submission": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "kind": {
+      "enum": [
+        "executable",
+        "replication"
+      ]
+    },
+    "result": {
+      "enum": [
+        "pass",
+        "fail",
+        "inconclusive"
+      ]
+    },
+    "details_sha256": {
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+    },
+    "variant": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "reasons": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+      }
+    },
+    "awardee": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "amount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "role": {
+      "enum": [
+        "finder",
+        "replicator"
+      ]
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "problem"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "title",
+          "statement_sha256",
+          "checker",
+          "reward",
+          "split",
+          "opens",
+          "deadline"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "problem_close"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "problem"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "submission"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "problem",
+          "purchase",
+          "finding_sha256",
+          "summary",
+          "evidence"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "finding_check"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "submission",
+          "kind",
+          "result",
+          "details_sha256"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "award"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "problem",
+          "submission",
+          "awardee",
+          "amount",
+          "role",
+          "checks"
+        ]
+      }
+    }
+  ]
+}

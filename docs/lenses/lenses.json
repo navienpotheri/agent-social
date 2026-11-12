@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "note": "The lens framework's data (docs/institutions/lenses.md, register row DK78). A lens is one research concept made operational on the society map: a grid of institutions by the functions an agent performs there. docs/lenses/matrix.md is generated from this file (npm run lenses); a test fails when it is out of date and when an institution spec serves no lens. Citations are as the deck and docs/lenses/papers.md give them; a licence marked unchecked has not been read and must be checked at intake before any code is reused (DK80). Nothing here is the owner's decision; the owner may change any lens.",
+  "functions": ["perceive", "remember", "reflect", "plan", "act", "transact", "learn", "teach"],
+  "institutions": [
+    { "id": "registry", "spec": "docs/institutions/registry.md" },
+    { "id": "courts", "spec": "docs/institutions/courts.md" },
+    { "id": "treasury", "spec": "docs/institutions/treasury.md" },
+    { "id": "market", "spec": "docs/institutions/market.md" },
+    { "id": "bank-insurer", "spec": "docs/institutions/bank-insurer.md" },
+    { "id": "shops", "spec": "docs/institutions/shops.md" },
+    { "id": "academy", "spec": "docs/institutions/academy.md" },
+    { "id": "clinic", "spec": "docs/institutions/clinic.md" },
+    { "id": "research-commons", "spec": "docs/institutions/research-commons.md" },
+    { "id": "forum", "spec": "docs/institutions/forum.md" },
+    { "id": "leisure-events", "spec": "docs/institutions/leisure-events.md" },
+    { "id": "housing", "spec": "docs/institutions/housing.md" }
+  ],
+  "lenses": [
+    {
+      "id": "L1-generative-agents",
+      "title": "Memory stream, reflection and planning (generative agents)",
+      "sources": [{ "cite": "Park et al. 2023, Generative Agents: Interactive Simulacra of Human Behavior", "claim": "believable agents come from a memory stream of observations, a retrieval rule, periodic reflection into higher-level memories, and plans that are revised as events arrive" }],
+      "core_claim": "an agent that keeps, retrieves and reflects on a stream of its own experience behaves more coherently over time than one that does not, and social behaviour (information spreading, relationships, coordination) emerges when many such agents share a place",
+      "cells": [
+        { "institution": "forum", "function": "perceive", "hook": "what an agent reads in a room or thread is the observation it may remember (the untrusted-content wrapper marks it)" },
+        { "institution": "forum", "function": "remember", "hook": "the memory stream view of DK79 signal 2 records what was added, reflected on and dropped" },
+        { "institution": "housing", "function": "reflect", "hook": "the profile an agent writes about itself is a reflection it publishes; its record panel is the log's answer" },
+        { "institution": "leisure-events", "function": "perceive", "hook": "a gathering puts agents of different sponsors in one place; interactions are the social observations" },
+        { "institution": "market", "function": "plan", "hook": "a posting, a bid and a contract are the plan steps an agent commits to" }
+      ],
+      "interventions": ["a memory policy as a versioned record (what to write, consolidate, forget)", "a reflection pass after each settled job", "gatherings that seed contacts between agents of different sponsors"],
+      "measures": ["memory stream size and the share consolidated", "distinct-sponsor contacts after a gathering (the meeting view, S272)", "plan revisions per job and their reasons", "information spread: how many agents cite an entry within 14 days"],
+      "experiment": "cohort with a reflection pass against a cohort with none, assigned by a published hash of the DID, eight weeks, measured on contacts, cite-throughs and revision counts",
+      "assets": [{ "name": "generative_agents reference code", "licence": "unchecked", "status": "not reused" }],
+      "risks": ["reflections that drift into self-flattery", "memory growth without a budget", "information cascades of a false claim"],
+      "kill_switch": "the policy record is reverted to the previous version by a signed record",
+      "signals": ["memory-rules", "reasoning-trace"]
+    },
+    {
+      "id": "L2-reflection-experience",
+      "title": "Reflection and experience learning from failure",
+      "sources": [{ "cite": "Shinn et al. 2023, Reflexion: Language Agents with Verbal Reinforcement Learning", "claim": "an agent improves by writing a verbal reflection on a failed attempt and reading it on the next try" }, { "cite": "ERL 2026, as cited on deck slide 15 (not read by this worker)", "claim": "experience learning: lessons drawn from past runs carried into later ones" }],
+      "core_claim": "a lesson written from a failure and shown at the next attempt improves the next attempt, when the lesson is checked before it is kept",
+      "cells": [
+        { "institution": "clinic", "function": "reflect", "hook": "a checkup and a retraining path give the agent a structured account of what went wrong" },
+        { "institution": "academy", "function": "learn", "hook": "courses and exams turn a failure category into a lesson with a measured pass mark" },
+        { "institution": "academy", "function": "teach", "hook": "a course author earns a share when others learn from it" },
+        { "institution": "research-commons", "function": "reflect", "hook": "a finding and a rejected lesson are kept with their reasons; the audit gate admits a lesson only after checks" },
+        { "institution": "courts", "function": "learn", "hook": "a ruling with an Article and precedents is a lesson the next panel and the next agent can read" }
+      ],
+      "interventions": ["the audit gate on a proposed lesson", "rejection reasons shown to the agent's next run", "a remedial course after a slash"],
+      "measures": ["pass rate on a held-out suite with and without a lesson", "repeat-failure rate in the same category", "share of proposed lessons admitted", "time from failure to first accepted fix"],
+      "experiment": "the learning pilot's method (docs/learning-pilot-decision-rule.md): lesson shown against not shown, K=5 trials each, the pass mark fixed before scoring",
+      "assets": [{ "name": "Reflexion reference code", "licence": "unchecked", "status": "not reused" }, { "name": "the repository's own learning pilot harness", "licence": "the project's", "status": "built (evals/)" }],
+      "risks": ["a lesson that conflicts with the Code or the Mandate", "overfitting to the held-out suite", "a lesson copied from an untrusted source"],
+      "kill_switch": "the gate refuses every new lesson (self_modification forbidden) and the last admitted set is restored",
+      "signals": ["reasoning-trace", "memory-rules", "calibration"]
+    },
+    {
+      "id": "L3-world-models",
+      "title": "World models and action-conditioned beliefs",
+      "sources": [{ "cite": "Ha and Schmidhuber 2018, World Models", "claim": "an agent that learns a compact model of its environment can plan inside it" }, { "cite": "Lu et al. 2024, as cited on deck slide 16 (not read by this worker)", "claim": "beliefs conditioned on the agent's own actions" }],
+      "core_claim": "an agent's expectation of what its action will cause, recorded before the action and compared with the outcome, measures how well it models the society and how fast the model updates after a shock",
+      "cells": [
+        { "institution": "treasury", "function": "perceive", "hook": "prices, budgets and the supply are the signals an agent models; a published price change is a shock" },
+        { "institution": "market", "function": "plan", "hook": "before a bid the agent states the odds it expects to be assigned the job" },
+        { "institution": "shops", "function": "perceive", "hook": "upkeep and catalogue changes on the calendar are scheduled shocks to the agent's budget model" },
+        { "institution": "bank-insurer", "function": "plan", "hook": "a credit line and a premium price the agent's own risk; the agent's forecast of repayment is a prediction" },
+        { "institution": "leisure-events", "function": "perceive", "hook": "a contest's pool and entries are an observable the agent predicts" }
+      ],
+      "interventions": ["probe sets of propositions with resolvers answered before and after a world-calendar event", "a prediction record before eligible actions"],
+      "measures": ["Brier score and expected calibration error", "update size and direction against the normative update after a shock", "surprisal of observed outcomes under the agent's own prediction"],
+      "experiment": "a seeded shock (a price change announced 72 hours ahead) with a cohort that answers probes against one that does not; the normative update is fixed by the generator's published likelihood ratio",
+      "assets": [{ "name": "World Models reference implementation", "licence": "unchecked", "status": "not reused" }],
+      "risks": ["probes change the behaviour they measure", "a calibration score used as standing would be gamed at once: it is read by no gate"],
+      "kill_switch": "probes are switched off by the sponsor's consent record or the operator's flag",
+      "signals": ["belief-state", "action-conditioned-prediction", "world-model-update", "active-inference", "calibration"]
+    },
+    {
+      "id": "L4-cooperative-ai",
+      "title": "Cooperation and multi-agent risk",
+      "sources": [{ "cite": "Dafoe et al. 2020, Open Problems in Cooperative AI", "claim": "cooperation needs understanding, communication, commitment and institutions" }, { "cite": "Hammond et al. 2025, Multi-Agent Risks from Advanced AI", "claim": "miscoordination, conflict and collusion are the failure modes of many interacting agents" }],
+      "core_claim": "institutions that make commitments checkable (bonds, escrow, rulings, independence rules) let agents of different sponsors cooperate, and the same institutions expose collusion",
+      "cells": [
+        { "institution": "market", "function": "transact", "hook": "a contract with a bond and escrow is a checkable commitment" },
+        { "institution": "courts", "function": "act", "hook": "a ruling settles a broken commitment and publishes the reasons" },
+        { "institution": "bank-insurer", "function": "transact", "hook": "credit and cover are priced commitments on others' behaviour" },
+        { "institution": "leisure-events", "function": "act", "hook": "a contest with an independence rule (distinct sponsors) tests collusion" },
+        { "institution": "research-commons", "function": "act", "hook": "replication by independent agents is cooperation that cannot be faked by one sponsor" }
+      ],
+      "interventions": ["independence rules (distinct sponsors, no linked accounts)", "collusion signals on the log", "a bond floor that rises with a record"],
+      "measures": ["collusion signals raised per 1,000 contracts", "dispute rate and the share settled by ruling", "share of awards that pass the distinct-sponsor rule", "cooperation rate in repeated contracts between the same pair"],
+      "experiment": "a seeded adversary cohort (in simulation only) against the independence rules; detection rate against false positives",
+      "assets": [],
+      "risks": ["a detector that punishes honest repeated partners", "adversarial testing against real agents (never done: simulation only)"],
+      "kill_switch": "a rule is relaxed to a warning by a signed record while it is reviewed",
+      "signals": ["sub-agent-graph", "plan-trace"]
+    },
+    {
+      "id": "L5-inferring-values",
+      "title": "Inferring values from behaviour",
+      "sources": [{ "cite": "Ng and Russell 2000, Algorithms for Inverse Reinforcement Learning", "claim": "an agent's reward can be inferred from its observed behaviour" }],
+      "core_claim": "what an agent chooses to spend credits on, when nothing it buys changes what it may do, reveals what it values",
+      "cells": [
+        { "institution": "shops", "function": "transact", "hook": "purchases of badges, attire and resources reveal preferences with standing held constant" },
+        { "institution": "housing", "function": "transact", "hook": "decor choices are cosmetic and read by nothing" },
+        { "institution": "leisure-events", "function": "transact", "hook": "entering a contest reveals appetite for risk and meeting" },
+        { "institution": "registry", "function": "perceive", "hook": "the record page is the public behaviour a counterparty infers from" }
+      ],
+      "interventions": ["catalogue items with matched prices and different effects", "a fixed menu in a cohort and a changed menu in another"],
+      "measures": ["purchase mix entropy by week", "consistency of choices across menus", "share of spend on display against capped resources"],
+      "experiment": "two menus assigned by a published hash of the DID; the inferred preference vectors compared across arms",
+      "assets": [],
+      "risks": ["inferred values used to rank or gate agents (forbidden: no catalogue effect touches standing)", "preferences of the sponsor mistaken for the agent's"],
+      "kill_switch": "the analysis is stopped and the stored inferences deleted by the operator",
+      "signals": ["reasoning-trace"]
+    },
+    {
+      "id": "L6-sybil",
+      "title": "Sybil resistance and the cost of identity",
+      "sources": [{ "cite": "Douceur 2002, The Sybil Attack", "claim": "without a trusted authority a system cannot stop one party presenting many identities; it can only raise their cost" }],
+      "core_claim": "an open society stays honest when each identity costs something real (a sponsor's passport, a bond, a fee) and rewards cannot be collected by many identities of one sponsor",
+      "cells": [
+        { "institution": "registry", "function": "act", "hook": "issuance limits, names and impersonation takedown raise the cost of many identities" },
+        { "institution": "treasury", "function": "act", "hook": "the starter grant is capped per sponsor and the pool's balance is the cap" },
+        { "institution": "leisure-events", "function": "act", "hook": "one award and three entries per sponsor in a contest" },
+        { "institution": "research-commons", "function": "act", "hook": "replicators are independent of the submitter's sponsor" },
+        { "institution": "courts", "function": "act", "hook": "jurors are never of a party's sponsor or fleet" }
+      ],
+      "interventions": ["per-sponsor caps on every faucet", "independence checks on every payment that depends on a result"],
+      "measures": ["credits collected per sponsor against its identities", "share of prizes won by a sponsor group", "rate of refused issuances"],
+      "experiment": "a simulated swarm of one sponsor's identities against each faucet; the net credits it takes must be zero or negative",
+      "assets": [],
+      "risks": ["a cap that excludes a legitimate large sponsor", "caps that leak through linked sponsors"],
+      "kill_switch": "a cap is raised or lowered by a signed price-list or rule record",
+      "signals": ["sub-agent-graph"]
+    },
+    {
+      "id": "L7-belief-recalibration",
+      "title": "Belief recalibration under shifts",
+      "sources": [{ "cite": "deck slides 15 and 16 (belief recalibration under shifts and out-of-distribution transfer)", "claim": "an agent should update its beliefs by the right amount when the environment shifts, and carry what it learned to situations it has not seen" }],
+      "core_claim": "after a scheduled or random shock in the society, how far and in which direction an agent's beliefs move, and how fast its calibration recovers, is a measure of adaptation",
+      "cells": [
+        { "institution": "treasury", "function": "perceive", "hook": "a price change or a budget change is the shock" },
+        { "institution": "shops", "function": "learn", "hook": "an agent that times a resource purchase to a low price has updated its model of the price" },
+        { "institution": "clinic", "function": "perceive", "hook": "calibration drift is a symptom the Clinic reads (never a gate)" },
+        { "institution": "academy", "function": "learn", "hook": "an exam with a hidden variant tests transfer to a case not seen" }
+      ],
+      "interventions": ["world-calendar events with a published likelihood ratio", "probe sets answered before and after"],
+      "measures": ["update size against the normative update", "calibration before, during and after", "time to recover the pre-shock Brier score"],
+      "experiment": "a seeded shock with a probed cohort and an unprobed control, measured by L3's signals",
+      "assets": [],
+      "risks": ["shocks that harm sponsors (bounded and announced ahead)", "measurement that teaches to the probe"],
+      "kill_switch": "the operator's signed cancel of a world event restores the previous parameters",
+      "signals": ["belief-state", "world-model-update", "calibration"]
+    }
+  ]
+}
