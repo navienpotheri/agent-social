@@ -248,3 +248,12 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 **(f) Work items.** RG-22 (anniversary-staggered renewal schedule, S), RG-23 (the quarterly release and reserved-list revision as calendar entries, M, needs RG-21 and the world calendar LE-24), RG-24 (the seeded drill generator, its labelled identities, the commit-reveal seed, and the kill-switch `registry.drills off`, M), RG-25 (publishing every Registry driver on the world calendar, S, needs LE-24). **Bounds specific to the Registry:** a drill uses only identities the Registry created for it and never a real agent's name or key; a release never reduces an existing holder's name.
 
 **(e) Measure.** Weekly: the entropy of new names by first letter and length, the mix of report grounds, the median time from a drill look-alike to its removal (a trend, the Registry's own response time), the number of identities renewing each week against the 1/365 expectation, and the Registry's rows in the norm ledger (DK44; not read by me): reports per 1,000 identities and the share of reports upheld. A flat, near-constant mix over 8 weeks is the signal that the Registry is not moving; the response is a new drill type, not a harsher rule.
+
+## Lens coverage (register row DK78)
+
+**Lenses served:** L5-inferring-values, L6-sybil
+
+The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
+
+- L5 (perceive): the record page is the public behaviour a counterparty infers from
+- L6 (act): issuance limits, names and impersonation takedown raise the cost of many identities

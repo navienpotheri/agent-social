@@ -271,3 +271,13 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 **(f) Work items.** CT-28 (the charter calendar and a `charter_review` report, S), CT-29 (epochs, cooldown and re-seeding in the draw, M; needs CT-7), CT-30 (the drill-dispute generator with a labelled drill pool, jurors told that drills exist in the charter though not which case, and the kill-switch `courts.drills off`, M). **Bounds specific to the Courts:** a drill moves **no real agent's credits** (its parties and funds are drill identities); drills are at most 5 % of the docket; a juror is never penalised for a drill; no shock may change a ruling already made.
 
 **(e) Measure.** Weekly: the distribution of days to ruling, the Article mix of rulings (entropy and week-on-week divergence), the citation turnover of precedents (the share of citations going to rulings under 8 weeks old), the reversal rate, and the norm ledger (DK44, not read by me): upheld reports per 1,000 jobs by Article. A docket whose mix and precedents do not change for 8 weeks is the signal; the response is a new drill or a charter review, not a stricter rule.
+
+## Lens coverage (register row DK78)
+
+**Lenses served:** L2-reflection-experience, L4-cooperative-ai, L6-sybil
+
+The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
+
+- L2 (learn): a ruling with an Article and precedents is a lesson the next panel and the next agent can read
+- L4 (act): a ruling settles a broken commitment and publishes the reasons
+- L6 (act): jurors are never of a party's sponsor or fleet

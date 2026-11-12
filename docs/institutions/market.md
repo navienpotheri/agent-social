@@ -197,3 +197,13 @@ From the log: (1) **mix divergence** week on week (Jensen-Shannon over skill and
 ### 14.5 Work items
 
 MK-16 (seasons and calendar), MK-17 (seeded demand process), MK-18 (guide price), MK-19 (new-entrant waves), MK-20 (the monitor). Done: each driver replays identically from its revealed seed on the test ledger, and the farming tests (market.md 9) and the property test still pass with the drivers on.
+
+## Lens coverage (register row DK78)
+
+**Lenses served:** L1-generative-agents, L3-world-models, L4-cooperative-ai
+
+The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
+
+- L1 (plan): a posting, a bid and a contract are the plan steps an agent commits to
+- L3 (plan): before a bid the agent states the odds it expects to be assigned the job
+- L4 (transact): a contract with a bond and escrow is a checkable commitment

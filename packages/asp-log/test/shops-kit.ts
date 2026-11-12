@@ -3,10 +3,10 @@
  * agents whose Mandate lists institution_spend, and the institutions' own passes. Fake keys only. Credits are accounting entries, not money.
  */
 import { cosign, type AspRecord, type Signer } from "@agent-social/asp-core";
-import { EVENTS_CATALOGUE, HOUSING_CATALOGUE, HOUSING_DID, SHOPS_CATALOGUE, SHOPS_DID, runEvents, runHousing, runShops, type CatalogueItem } from "../src/index.ts";
-import { credit, jump, kit, mk, nowIso, PRICES, shops, housing, events, tick, treasury, type Party } from "./society-kit.ts";
+import { EVENTS_CATALOGUE, HOUSING_CATALOGUE, HOUSING_DID, SHOPS_CATALOGUE, SHOPS_DID, runEvents, runHousing, runResearch, RESEARCH_CATALOGUE, runShops, type CatalogueItem } from "../src/index.ts";
+import { credit, jump, kit, mk, nowIso, PRICES, shops, housing, events, research, tick, treasury, type Party } from "./society-kit.ts";
 import { bank } from "./harness.ts";
-export { housing, events };
+export { housing, events, research };
 
 export async function shopsWorld(o: { late?: boolean; extraItems?: unknown[] } = {}) {
   const k = await kit();
@@ -14,7 +14,7 @@ export async function shopsWorld(o: { late?: boolean; extraItems?: unknown[] } =
   const sponsor = await k.person("sponsor", 100);
   const v1 = await k.withPrices();
   let list = v1;
-  const items = () => [...PRICES, ...SHOPS_CATALOGUE, ...HOUSING_CATALOGUE, ...EVENTS_CATALOGUE, ...(o.extraItems ?? [])];
+  const items = () => [...PRICES, ...SHOPS_CATALOGUE, ...HOUSING_CATALOGUE, ...EVENTS_CATALOGUE, ...RESEARCH_CATALOGUE, ...(o.extraItems ?? [])];
   /** Publishes the catalogues (price list version 2) and waits out the notice. */
   const activate = async () => {
     const at = jump(1000);
@@ -23,7 +23,7 @@ export async function shopsWorld(o: { late?: boolean; extraItems?: unknown[] } =
   };
   if (!o.late) await activate();
   let n = 0;
-  const catalogue = (service: string): CatalogueItem => [...SHOPS_CATALOGUE, ...HOUSING_CATALOGUE, ...EVENTS_CATALOGUE].find((i) => i.service === service)!;
+  const catalogue = (service: string): CatalogueItem => [...SHOPS_CATALOGUE, ...HOUSING_CATALOGUE, ...EVENTS_CATALOGUE, ...RESEARCH_CATALOGUE].find((i) => i.service === service)!;
 
   /** An agent with a settled job that opened its Mandate (so no job is running), or one still running; optionally a resident of the Shops. */
   const agentWith = async (name: string, a: { spend?: { institution: string; cap: number }[]; funds?: number; tier?: number; running?: boolean; resident?: boolean; agent?: Party } = {}) => {
@@ -59,5 +59,6 @@ export async function shopsWorld(o: { late?: boolean; extraItems?: unknown[] } =
   const runShopsPass = (only?: string) => runShops(io(), shops, nowIso(), only);
   const runHousingPass = (only?: string) => runHousing(io(), housing, nowIso(), only);
   const runEventsPass = () => runEvents(io(), events, nowIso());
-  return { k, log, sponsor, runEventsPass, activate, agentWith, buy, io, runShopsPass, runHousingPass, catalogue, listId: () => list, jump, tick, SHOPS_DID };
+  const runResearchPass = () => runResearch(io(), research, nowIso());
+  return { k, log, sponsor, runEventsPass, runResearchPass, activate, agentWith, buy, io, runShopsPass, runHousingPass, catalogue, listId: () => list, jump, tick, SHOPS_DID };
 }

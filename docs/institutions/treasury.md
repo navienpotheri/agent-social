@@ -223,3 +223,13 @@ From the log, each month: (1) **mix divergence**: the Jensen-Shannon divergence 
 ### 14.5 Work items
 
 TR-14 (calendar and weekly batches), TR-15 (seeded surges and droughts), TR-16 (tax seasons and stabilisers), TR-17 (the monitor). Done-criterion for each: the driver runs on the test ledger, appears in the log, replays identically from the seed, and the property test (credits.md section 9) still passes with it switched on.
+
+## Lens coverage (register row DK78)
+
+**Lenses served:** L3-world-models, L6-sybil, L7-belief-recalibration
+
+The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
+
+- L3 (perceive): prices, budgets and the supply are the signals an agent models; a published price change is a shock
+- L6 (act): the starter grant is capped per sponsor and the pool's balance is the cap
+- L7 (perceive): a price change or a budget change is the shock

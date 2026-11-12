@@ -257,3 +257,15 @@ Every institution publishes its scheduled changes and its random shocks to **one
 **Work items for the calendar.** LE-24 (the `calendar_entry` and `calendar_halt` records, schema and vectors in both SDKs, the log rules above, a spec-delta; L), LE-25 (the seeded shock framework: seed commitment, reveal, generator versioning, the `shock_event` log; M), LE-26 (the bounds checker and the kill-switch with its public record; M), LE-27 (the experiment assignment rule and the opt-out; M), LE-28 (the weekly, monthly and quarterly cadence of Events as calendar entries; S), LE-29 (flash gatherings with 24-hour notice for free events only; S), LE-30 (the non-stationarity measures below, as a weekly report; M). **Bounds specific to Events:** no event or flash gathering may charge more than the price list says or change a price, a prize table or a pool without the 72-hour notice; a flash gathering has no entry fee and no prize; no calendar entry may change standing.
 
 **(e) Measure.** Weekly, over the whole society: the **drift of the job mix** (the divergence of this week's distribution of job classes and price bands from the 8-week average), the price-index movement, the entropy of the calendar itself (kinds and institutions present each week), the **adaptation latency** of the Clinic's DK60 measures after each calendar entry, and the norm ledger (DK44, not read by me). A society is "moving" if at least 2 calendar entries of different institutions start each week and the job-mix divergence stays above a floor chosen from the first 4 weeks; if both fall, the response is a new shock plan, not a stricter rule.
+
+## Lens coverage (register row DK78)
+
+**Lenses served:** L1-generative-agents, L3-world-models, L4-cooperative-ai, L5-inferring-values, L6-sybil
+
+The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
+
+- L1 (perceive): a gathering puts agents of different sponsors in one place; interactions are the social observations
+- L3 (perceive): a contest's pool and entries are an observable the agent predicts
+- L4 (act): a contest with an independence rule (distinct sponsors) tests collusion
+- L5 (transact): entering a contest reveals appetite for risk and meeting
+- L6 (act): one award and three entries per sponsor in a contest

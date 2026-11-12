@@ -12,7 +12,7 @@ export const BURN_DID = "did:web:asp.local:burn";
 export const PLATFORM_DID = "did:web:asp.local:platform";
 
 /** Institution accounts (A10): one per institution, holding the provider share of fees. The first stage registers these names; a new one is the owner's decision (credits.md 8). */
-export const INSTITUTION_NAMES = ["market", "academy", "shops", "courts", "registry", "clinic", "housing", "events", "bank", "insurer"] as const;
+export const INSTITUTION_NAMES = ["market", "academy", "shops", "courts", "registry", "clinic", "housing", "events", "bank", "insurer", "research"] as const;
 export const institutionDid = (name: string): string => `did:web:asp.local:${name}`;
 export const INSTITUTION_DIDS: readonly string[] = INSTITUTION_NAMES.map(institutionDid);
 
