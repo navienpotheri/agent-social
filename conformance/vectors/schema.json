@@ -2951,6 +2951,197 @@
         }
       },
       "valid": false
+    },
+    {
+      "name": "valid_world_calendar_entry",
+      "schema": "world",
+      "instance": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z",
+        "effect": {
+          "type": "price_multiplier",
+          "target": "code",
+          "value": 1100
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_world_day",
+      "schema": "world",
+      "instance": {
+        "kind": "day",
+        "day": "2026-11-12",
+        "generator": "asp-world-gen/1",
+        "seed": "vector-seed",
+        "seed_commitment": "sha256:b08aaf756b5bc4b46a37723b0235af8cbb8a34ed87ceab82e549682119617e95",
+        "events": []
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_world_day_no_events",
+      "schema": "world",
+      "instance": {
+        "kind": "day",
+        "day": "2026-11-13",
+        "generator": "asp-world-gen/1",
+        "seed": "vector-seed",
+        "seed_commitment": "sha256:b08aaf756b5bc4b46a37723b0235af8cbb8a34ed87ceab82e549682119617e95",
+        "events": []
+      },
+      "valid": true
+    },
+    {
+      "name": "world_effect_names_a_tier",
+      "schema": "world",
+      "instance": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z",
+        "effect": {
+          "type": "price_multiplier",
+          "target": "code",
+          "value": 1000,
+          "tier": 3
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "world_effect_unknown_type",
+      "schema": "world",
+      "instance": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z",
+        "effect": {
+          "type": "tier_up",
+          "target": "code",
+          "value": 1
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "world_effect_names_standing",
+      "schema": "world",
+      "instance": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z",
+        "effect": {
+          "type": "tax_free",
+          "target": "all",
+          "value": 1000,
+          "standing": 50
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "world_effect_target_is_a_did",
+      "schema": "world",
+      "instance": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z",
+        "effect": {
+          "type": "price_multiplier",
+          "target": "did:web:example.com:agents:coder",
+          "value": 1000
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "world_entry_missing_effect",
+      "schema": "world",
+      "instance": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_day_missing_seed",
+      "schema": "world",
+      "instance": {
+        "kind": "day",
+        "day": "2026-11-12",
+        "generator": "asp-world-gen/1",
+        "seed_commitment": "sha256:6134e1d29f6e34f364a6286946a76cecc46c7c50d4fdeb3f9aa409ff0b4a50f6",
+        "events": []
+      },
+      "valid": false
+    },
+    {
+      "name": "world_day_bad_date",
+      "schema": "world",
+      "instance": {
+        "kind": "day",
+        "day": "12/11/2026",
+        "generator": "asp-world-gen/1",
+        "seed": "x",
+        "seed_commitment": "sha256:6134e1d29f6e34f364a6286946a76cecc46c7c50d4fdeb3f9aa409ff0b4a50f6",
+        "events": []
+      },
+      "valid": false
+    },
+    {
+      "name": "world_unknown_kind",
+      "schema": "world",
+      "instance": {
+        "kind": "halt",
+        "day": "2026-11-12"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_extra_field",
+      "schema": "world",
+      "instance": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z",
+        "effect": {
+          "type": "price_multiplier",
+          "target": "code",
+          "value": 1100
+        },
+        "rank": 1
+      },
+      "valid": false
     }
   ]
 }
