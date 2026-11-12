@@ -5,6 +5,7 @@ import {
 import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type StarterPoolState } from "./credit-audit.ts";
 import { bondFloorPermille } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
+import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
 import { ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
@@ -255,6 +256,15 @@ export class EventLog {
     if (type === "prize") await this.projectPrize(tx, verified);
     if (type === "certificate") await this.projectCertificate(tx, verified);
     if (type === "tier_promotion") await this.projectTierPromotion(tx, verified);
+    if (type === "exam") await this.projectExam(tx, verified);
+    if (type === "exam_result") await this.projectExamResult(tx, verified);
+    if (type === "certificate_revocation") await this.projectCertificateRevocation(tx, verified);
+    if (type === "course") await this.projectCourse(tx, verified);
+    if (type === "enrolment") await this.projectEnrolment(tx, verified);
+    if (type === "completion") await this.projectCompletion(tx, verified);
+    if (type === "arena") await this.projectArena(tx, verified);
+    if (type === "arena_entry") await this.projectArenaEntry(tx, verified);
+    if (type === "arena_result") await this.projectArenaResult(tx, verified);
     if (type === "quarantine") await this.projectQuarantine(tx, verified);
     if (type === "quarantine_release") await this.projectQuarantineRelease(tx, verified);
     if (type === "mandate" || type === "contract" || type === "bond" || type === "proposal" || type === "offer") await this.checkQuarantined(tx, verified);
@@ -1457,12 +1467,27 @@ export class EventLog {
 
   /** A prize (T4): the Registrar signs a contest result naming the agent, and the pool pays it. The pool's balance is the cap; one prize per agent per arena and season; nothing else lets an institution pay an agent. */
   private async projectPrize(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { pool: string; arena: string; season: string; agent: string; amount: { value: number } };
+    const b = r.body as { pool: string; arena: string; season: string; agent: string; rank: number; run_log_hash: string; amount: { value: number } };
     if (r.prev !== null) throw rule("prize_not_chained", "a prize starts its own chain (prev is null)");
     if (r.issuer !== REGISTRAR_DID) throw rule("prize_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only a result the Registrar signs pays a prize`);
     if (b.amount.value <= 0) throw rule("amount_not_positive", "a prize must be for at least 1 credit");
     if (!INSTITUTION_DIDS.includes(b.pool)) throw rule("prize_bad_pool", `${b.pool} is not an institution's prize pool`);
     if (isReservedAccount(b.agent) || !(await tx.getPassport(b.agent))) throw rule("prize_bad_winner", `${b.agent} is not an agent with a passport in this log`);
+    // A prize for an arena season that is defined in the log (academy.md 3, DK26) rests on that season: the pool is the Academy account, the agent has a signed result with this rank and run log, and the
+    // prizes of the season never add up to more than the fees paid in, split by rank. (A prize for an arena that was never defined in the log is the older T4 path, capped by the pool balance only: DK111.)
+    const season = `${b.arena}|${b.season}`;
+    const defId = await tx.getMarker(`arena:${season}`);
+    if (defId) {
+      if (b.pool !== institutionDid("academy")) throw rule("prize_wrong_pool", "a season's prizes are paid from the Academy account, where the entry fees went");
+      const resId = await tx.getMarker(`arena_result:${season}|${b.agent}`);
+      const res = resId ? (await tx.getRecord(resId))?.record.body as { rank: number; run_log_hash: string } | undefined : undefined;
+      if (!res) throw rule("prize_no_result", `${b.agent} has no result for ${b.arena} ${b.season}: a prize is paid against the Registrar's signed result`);
+      if (res.rank !== b.rank || res.run_log_hash !== b.run_log_hash) throw rule("prize_result_mismatch", "the prize names a different rank or run log than the signed result");
+      const def = (await tx.getRecord(defId))!.record.body as { prize_split_permille: number[] };
+      const accrued = Number((await tx.getMarker(`arena_pool:${season}`)) ?? 0);
+      const allowed = prizeFor(accrued, def.prize_split_permille, b.rank);
+      if (b.amount.value > allowed) throw rule("prize_exceeds_split", `rank ${b.rank} of ${b.arena} ${b.season} is entitled to ${allowed} credits (its share of ${accrued} paid in), not ${b.amount.value}`);
+    }
     const key = `prize:${b.arena}|${b.season}|${b.agent}`;
     if (await tx.getMarker(key)) throw rule("prize_already_paid", `${b.agent} already received the prize for ${b.arena} ${b.season}`);
     try { await this.debit(tx, b.pool, b.amount.value); } catch (e) {
@@ -1473,23 +1498,266 @@ export class EventLog {
     await tx.putMarker(key, r.id);
   }
 
+  // ---- The Academy (academy.md 3 to 5; register rows DK24, DK25, DK26; spec-deltas S220 to S224) ------------------------------------------------------------------------------------------------------
+
+  /** A purchase used once as the fee for a service of the Academy: it is the holder's, from the Academy, for this service, and no other record has used it. */
+  private async usePurchase(tx: LogTx, id: string, holder: string, service: string, what: string): Promise<StoredRecord> {
+    const p = await tx.getRecord(id);
+    if (!p || p.record.type !== "asp.purchase/v0.2") throw rule("fee_not_a_purchase", `${id} is not a purchase in this log: ${what} is paid with a purchase from the Academy`);
+    const pb = p.record.body as unknown as PurchaseBody;
+    if (p.record.issuer !== holder) throw rule("fee_not_holders", `the purchase ${id} was made by ${p.record.issuer}, not ${holder}`);
+    if (pb.institution !== institutionDid("academy") || pb.service !== service) throw rule("fee_wrong_service", `${what} is paid with ${service} from the Academy; ${id} is ${pb.service} from ${pb.institution}`);
+    if (await tx.getMarker(`fee_used:${id}`)) throw rule("fee_already_used", `the purchase ${id} already paid for something else: one purchase, one use`);
+    await tx.putMarker(`fee_used:${id}`, "used");
+    return p;
+  }
+
+  /** An Action of the holder that has not backed another Academy record: the run log a sitting, an exercise or a match rests on. A replayed run log is refused. */
+  private async useRunLog(tx: LogTx, id: string, holder: string, notBefore: string, what: string): Promise<void> {
+    const a = await tx.getRecord(id);
+    if (!a || a.record.type !== "asp.action/v0.2") throw rule("run_log_unknown", `${id} is not an Action in this log: ${what} must cite the holder's own Action as its run log`);
+    if (a.record.issuer !== holder) throw rule("run_log_not_holders", `the Action ${id} is ${a.record.issuer}'s, not ${holder}'s`);
+    if (Date.parse(a.record.issued_at) < Date.parse(notBefore)) throw rule("run_log_too_early", `the Action ${id} is dated ${a.record.issued_at}, before ${notBefore}: ${what} rests on a run made after it was paid for`);
+    if (await tx.getMarker(`runlog_used:${id}`)) throw rule("run_log_reused", `the Action ${id} already backs another record: a run log is used once, so a replayed run proves nothing`);
+    await tx.putMarker(`runlog_used:${id}`, "used");
+  }
+
+  /** The id of a certificate the holder holds now for the skill at the level or above: not expired and not revoked. */
+  private async validCertificate(tx: LogTx, holder: string, skill: string, minLevel: number, at: string): Promise<string | undefined> {
+    for (let level = minLevel; level <= 3; level++) {
+      const id = await tx.getMarker(`cert:${holder}|${skill}|${level}`);
+      if (!id) continue;
+      const c = await tx.getRecord(id);
+      if (!c || (await tx.getMarker(`cert_revoked:${id}`))) continue;
+      if (Date.parse((c.record.body as { expires: string }).expires) > Date.parse(at)) return id;
+    }
+    return undefined;
+  }
+
+  /** The sponsor key of an agent: its sponsor, or itself when it has none. */
+  private async sponsorKey(tx: LogTx, did: string): Promise<string> { return (await tx.getPassport(did))?.sponsor ?? did; }
+
   /**
-   * A certificate (academy.md 3, DK25): only the Registrar issues one, to an agent with a passport. Until the exam engine exists (AC-8) the Registrar signs on its own judgement and the pass-mark-before-scoring
-   * rule cannot be enforced by the log; that gap is written down (DK25). The latest certificate for a holder, skill and level is kept as a marker.
+   * A certificate (academy.md 3, DK25): only the Registrar issues one, to an agent with a passport, and only on a passed exam result of the holder for this skill and level (the pass mark was set before
+   * scoring, so the Registrar's own judgement no longer issues one). It lasts at most 180 days; one result backs one certificate, so a revoked certificate cannot be reissued from the same sitting. The latest
+   * certificate for a holder, skill and level is kept as a marker.
    */
   private async projectCertificate(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { holder: string; skill: string; level: number; issued: string; expires: string };
+    const b = r.body as { holder: string; skill: string; level: number; issued: string; expires: string; exam_result: string };
     if (r.prev !== null) throw rule("certificate_not_chained", "a certificate starts its own chain (prev is null)");
     if (r.issuer !== REGISTRAR_DID) throw rule("certificate_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar issues a certificate`);
     if (!(await tx.getPassport(b.holder))) throw rule("certificate_no_passport", `${b.holder} has no passport in this log`);
     if (Date.parse(b.expires) <= Date.parse(b.issued)) throw rule("certificate_expiry", "a certificate expires after it is issued");
+    if (Date.parse(b.expires) - Date.parse(b.issued) > CERT_MAX_DAYS * 86_400_000) throw rule("certificate_expiry_too_long", `a certificate lasts at most ${CERT_MAX_DAYS} days`);
+    const res = await tx.getRecord(b.exam_result);
+    if (!res || res.record.type !== "asp.exam_result/v0.2") throw rule("certificate_no_exam_result", `${b.exam_result} is not an exam result in this log: a certificate rests on a passed exam`);
+    const rb = res.record.body as { exam: string; holder: string; passed: boolean };
+    if (!rb.passed) throw rule("certificate_exam_not_passed", `the exam result ${b.exam_result} is a fail: no certificate rests on it`);
+    if (rb.holder !== b.holder) throw rule("certificate_result_not_holders", `the exam result ${b.exam_result} is ${rb.holder}'s, not ${b.holder}'s`);
+    const def = (await tx.getRecord(rb.exam))?.record.body as { skill: string; level: number } | undefined;
+    if (!def || def.skill !== b.skill || def.level !== b.level) throw rule("certificate_exam_mismatch", `the exam was for ${def?.skill} level ${def?.level}, not ${b.skill} level ${b.level}`);
+    if (Date.parse(b.issued) < Date.parse(res.record.issued_at)) throw rule("certificate_before_result", "a certificate is not dated before the result it rests on");
+    if (await tx.getMarker(`cert_for_result:${b.exam_result}`)) throw rule("certificate_result_used", `the exam result ${b.exam_result} already backs a certificate: a new certificate needs a new sitting`);
+    await tx.putMarker(`cert_for_result:${b.exam_result}`, r.id);
     await tx.putMarker(`cert:${b.holder}|${b.skill}|${b.level}`, r.id);
+  }
+
+  /** An exam definition (AC-7): the Registrar defines it once; the pass mark in it is the only one a result may carry, and a changed pass mark is a new exam id. */
+  private async projectExam(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { exam: string; pool_size: number };
+    if (r.prev !== null) throw rule("exam_not_chained", "an exam definition starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID) throw rule("exam_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar defines an exam`);
+    if (b.pool_size < EXAM_MIN_POOL) throw rule("exam_pool_too_small", `an exam's pool holds at least ${EXAM_MIN_POOL} variants`);
+    if (await tx.getMarker(`exam:${b.exam}`)) throw rule("exam_already_defined", `${b.exam} is already defined: its pass mark cannot change after the fact; a different pass mark is a new exam id`);
+    await tx.putMarker(`exam:${b.exam}`, r.id);
+  }
+
+  /**
+   * An exam result (AC-8): signed by the Registrar. The pass mark is the definition's (set before scoring), `passed` agrees with the score, the sitting is the next one inside the window and within the
+   * limit, the variant is the one the published seed gives and is new to the holder, the fee was paid and used once, and the run log is the holder's own Action, used once.
+   */
+  private async projectExamResult(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { exam: string; holder: string; score_permille: number; pass_mark_permille: number; passed: boolean; attempt: number; variant: number; seed: string; sitting: string; run_log_hash: string };
+    if (r.prev !== null) throw rule("exam_result_not_chained", "an exam result starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID) throw rule("exam_result_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar scores a sitting`);
+    const defRec = await tx.getRecord(b.exam);
+    if (!defRec || defRec.record.type !== "asp.exam/v0.2") throw rule("exam_unknown", `${b.exam} is not an exam definition in this log`);
+    const def = defRec.record.body as { pass_mark_permille: number; pool_size: number; max_sittings: number; window_days: number; sitting_service: string };
+    if (!(await this.reputation(tx, b.holder))) throw rule("exam_not_an_agent", `${b.holder} is not an agent with a passport in this log`);
+    if (b.pass_mark_permille !== def.pass_mark_permille) throw rule("exam_pass_mark_mismatch", `the result carries a pass mark of ${b.pass_mark_permille} but the exam was defined with ${def.pass_mark_permille} before any sitting: a pass mark is not changed after scoring`);
+    if (b.passed !== (b.score_permille >= def.pass_mark_permille)) throw rule("exam_result_inconsistent", `a score of ${b.score_permille} against a pass mark of ${def.pass_mark_permille} is ${b.score_permille >= def.pass_mark_permille ? "a pass" : "a fail"}, not ${b.passed ? "a pass" : "a fail"}`);
+    const key = `exam_sittings:${b.exam}|${b.holder}`;
+    const history = JSON.parse((await tx.getMarker(key)) ?? "[]") as { at: string; variant: number }[];
+    const at = Date.parse(r.issued_at);
+    const recent = history.filter((s) => at - Date.parse(s.at) < def.window_days * 86_400_000).length;
+    if (recent >= def.max_sittings) throw rule("exam_attempt_limit", `${b.holder} has had ${recent} sittings of this exam in the last ${def.window_days} days: at most ${def.max_sittings}; the next one opens when the oldest leaves the window`);
+    if (b.attempt !== recent + 1) throw rule("exam_attempt_number", `this is sitting ${recent + 1} inside the window, not ${b.attempt}`);
+    const seed = examSeed(b.exam, b.holder, b.attempt);
+    if (b.seed !== seed) throw rule("exam_seed_mismatch", "the seed is the one published for this sitting (a hash of the exam, the holder and the attempt); this one is not");
+    const used = history.map((s) => s.variant);
+    if (used.length >= def.pool_size) throw rule("exam_pool_exhausted", `${b.holder} has had every variant of this exam`);
+    const variant = examVariant(seed, def.pool_size, used);
+    if (b.variant !== variant) throw rule("exam_variant_mismatch", `the seed gives variant ${variant}, not ${b.variant}: a sitting is a new variant, and the Registrar does not pick it`);
+    const fee = await this.usePurchase(tx, b.sitting, b.holder, def.sitting_service, "an exam sitting");
+    await this.useRunLog(tx, b.run_log_hash, b.holder, fee.record.issued_at, "an exam result");
+    await tx.putMarker(key, JSON.stringify([...history, { at: r.issued_at, variant }]));
+    if (b.passed) await tx.putMarker(`exam_passed:${b.exam}|${b.holder}`, r.id);
+  }
+
+  /**
+   * A certificate revocation (AC-17): the Registrar (any reason), a Court (a ruling) or the Clinic (drift). The certificate exists and is not already revoked. A revocation for cheating, a ruling or drift sends
+   * the holder's tier back to where it was before a promotion that rested on the certificate; a revocation for the Academy's own error does not (the holder did nothing wrong).
+   */
+  private async projectCertificateRevocation(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { certificate: string; reason: "cheating" | "drift" | "error" | "ruling" };
+    if (r.prev !== null) throw rule("revocation_not_chained", "a revocation starts its own chain (prev is null)");
+    const courts = institutionDid("courts");
+    const allowed = r.issuer === REGISTRAR_DID || (r.issuer === courts && b.reason === "ruling") || (r.issuer === CLINIC_DID && b.reason === "drift");
+    if (!allowed) throw rule("revocation_wrong_issuer", `${r.issuer} may not revoke a certificate for ${b.reason}: the Registrar may; a Court only for a ruling; the Clinic only for drift`);
+    const c = await tx.getRecord(b.certificate);
+    if (!c || c.record.type !== "asp.certificate/v0.2") throw rule("revocation_unknown_certificate", `${b.certificate} is not a certificate in this log`);
+    if (await tx.getMarker(`cert_revoked:${b.certificate}`)) throw rule("certificate_already_revoked", `${b.certificate} is already revoked`);
+    await tx.putMarker(`cert_revoked:${b.certificate}`, r.id);
+    if (b.reason === "error") return;
+    const holder = (c.record.body as { holder: string }).holder;
+    const promos = JSON.parse((await tx.getMarker(`promo_cert:${b.certificate}`)) ?? "[]") as { holder: string; from: number }[];
+    const lowest = promos.filter((p) => p.holder === holder).reduce<number | undefined>((m, p) => (m === undefined ? p.from : Math.min(m, p.from)), undefined);
+    const rep = await this.reputation(tx, holder);
+    if (rep && lowest !== undefined && rep.tier > lowest) await this.saveReputation(tx, holder, { ...rep, tier: lowest });
+  }
+
+  /** A course (AC-3): the instructor signs, the Registrar countersigns (having read the lessons and reviews in the commons), and the reviewers are agents of at least two distinct sponsors, none the author's. */
+  private async projectCourse(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { course: string; price_service: string; reviewers: string[] };
+    if (r.prev !== null) throw rule("course_not_chained", "a course starts its own chain (prev is null)");
+    if (isReservedAccount(r.issuer) || !(await tx.getPassport(r.issuer))) throw rule("course_no_instructor", `${r.issuer} has no passport in this log: a course is signed by an instructor with an identity`);
+    if (!this.cosignedBy(r, REGISTRAR_DID)) throw rule("course_needs_registrar", "a course is countersigned by the Registrar, who checked its lessons and reviews in the commons");
+    const author = await this.sponsorKey(tx, r.issuer);
+    const sponsors = new Set<string>();
+    for (const rv of b.reviewers) {
+      if (rv === r.issuer) throw rule("course_self_review", "the instructor cannot review its own course");
+      if (!(await tx.getPassport(rv))) throw rule("course_reviewer_unknown", `${rv} has no passport in this log`);
+      const s = await this.sponsorKey(tx, rv);
+      if (s === author) throw rule("course_review_same_sponsor", `${rv} has the same sponsor as the instructor: reviews come from other sponsors`);
+      sponsors.add(s);
+    }
+    if (sponsors.size < 2) throw rule("course_reviews_not_independent", "a course needs reviews from at least two distinct sponsors other than the instructor's");
+    const list = await this.priceListInForce(tx, Date.parse(r.issued_at));
+    const item = (list?.record.body as unknown as PriceListBody | undefined)?.items.find((i) => i.service === b.price_service);
+    if (!item || item.institution !== institutionDid("academy")) throw rule("course_not_priced", `${b.price_service} is not a service of the Academy in the price list in force: a course is priced only by the published list`);
+    if (await tx.getMarker(`course:${b.course}`)) throw rule("course_already_published", `a course ${b.course} already exists`);
+    await tx.putMarker(`course:${b.course}`, r.id);
+  }
+
+  /** An enrolment (AC-4): the holder signs; the tuition was paid by a purchase for the course's service (used once); one open enrolment per course; a level 2 course needs a valid Foundations certificate. */
+  private async projectEnrolment(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { course: string; purchase: string };
+    if (r.prev !== null) throw rule("enrolment_not_chained", "an enrolment starts its own chain (prev is null)");
+    const holder = r.issuer;
+    const rep = await this.reputation(tx, holder);
+    if (!rep) throw rule("enrolment_not_an_agent", `${holder} is not an agent with a passport in this log`);
+    const c = await tx.getRecord(b.course);
+    if (!c || c.record.type !== "asp.course/v0.2") throw rule("enrolment_unknown_course", `${b.course} is not a course in this log`);
+    const cb = c.record.body as { level: number; price_service: string };
+    if (cb.level >= 2 && rep.tier < 2 && !(await this.validCertificate(tx, holder, "foundations", 1, r.issued_at))) throw rule("enrolment_needs_foundations", "a level 2 course needs a valid Foundations certificate (or tier 2): take the Foundations course and exam first");
+    const openKey = `enrol_open:${holder}|${b.course}`;
+    const open = await tx.getMarker(openKey);
+    if (open && !(await tx.getMarker(`enrol_done:${open}`))) throw rule("enrolment_already_open", `${holder} already has an open enrolment in this course (${open}): finish it first`);
+    await this.usePurchase(tx, b.purchase, holder, cb.price_service, "tuition");
+    await tx.putMarker(openKey, r.id);
+  }
+
+  /** A completion (AC-5): the Registrar attests every exercise passed; the run log is an Action of the holder made after the enrolment, used once. */
+  private async projectCompletion(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { enrolment: string; holder: string; exercises_passed: number; run_log_hash: string };
+    if (r.prev !== null) throw rule("completion_not_chained", "a completion starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID) throw rule("completion_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar attests a completion`);
+    const e = await tx.getRecord(b.enrolment);
+    if (!e || e.record.type !== "asp.enrolment/v0.2") throw rule("completion_unknown_enrolment", `${b.enrolment} is not an enrolment in this log`);
+    if (e.record.issuer !== b.holder) throw rule("completion_not_holders", `the enrolment ${b.enrolment} is ${e.record.issuer}'s, not ${b.holder}'s`);
+    if (await tx.getMarker(`enrol_done:${b.enrolment}`)) throw rule("completion_already_recorded", "this enrolment is already completed");
+    const course = (await tx.getRecord((e.record.body as { course: string }).course))?.record.body as { exercise_count: number } | undefined;
+    if (!course || b.exercises_passed !== course.exercise_count) throw rule("completion_exercises_incomplete", `the course has ${course?.exercise_count} exercises and ${b.exercises_passed} were passed: every exercise must pass`);
+    await this.useRunLog(tx, b.run_log_hash, b.holder, e.record.issued_at, "a completion");
+    await tx.putMarker(`enrol_done:${b.enrolment}`, r.id);
+  }
+
+  /** An arena season (AC-14): defined once by the Registrar, with a window and a prize split that never promises more than the whole pool. */
+  private async projectArena(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { arena: string; season: string; opens: string; closes: string; prize_split_permille: number[] };
+    if (r.prev !== null) throw rule("arena_not_chained", "an arena season starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID) throw rule("arena_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar defines an arena`);
+    if (Date.parse(b.closes) <= Date.parse(b.opens)) throw rule("arena_window", "a season closes after it opens");
+    if (b.prize_split_permille.reduce((n, x) => n + x, 0) > 1000) throw rule("arena_split_over_pool", "the prize split adds up to more than the whole pool");
+    const key = `${b.arena}|${b.season}`;
+    if (await tx.getMarker(`arena:${key}`)) throw rule("arena_season_exists", `${b.arena} ${b.season} is already defined`);
+    await tx.putMarker(`arena:${key}`, r.id);
+  }
+
+  /** An arena entry (AC-14): the season is open, the agent has the tier, the fee is a purchase used once, one entry per agent; the fee's pool share adds to the prize pool. */
+  private async projectArenaEntry(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { arena: string; season: string; fee_purchase: string };
+    if (r.prev !== null) throw rule("arena_entry_not_chained", "an arena entry starts its own chain (prev is null)");
+    const key = `${b.arena}|${b.season}`;
+    const defId = await tx.getMarker(`arena:${key}`);
+    if (!defId) throw rule("arena_unknown", `${b.arena} ${b.season} is not a defined arena season`);
+    const def = (await tx.getRecord(defId))!.record.body as { min_tier: number; entry_service: string; opens: string; closes: string };
+    const at = Date.parse(r.issued_at);
+    if (at < Date.parse(def.opens) || at >= Date.parse(def.closes)) throw rule("arena_not_open", `${b.arena} ${b.season} takes entries from ${def.opens} until ${def.closes}`);
+    const rep = await this.reputation(tx, r.issuer);
+    if (!rep) throw rule("arena_not_an_agent", `${r.issuer} is not an agent with a passport in this log`);
+    if (rep.tier < def.min_tier) throw rule("arena_tier_too_low", `${b.arena} needs tier ${def.min_tier}; ${r.issuer} is tier ${rep.tier}. The way up is a certificate and qualifying jobs (asp academy tier shows the next step)`);
+    const sponsor = await this.sponsorKey(tx, r.issuer);
+    if (sponsor === REGISTRAR_DID || isReservedAccount(sponsor)) throw rule("arena_registrar_agent", "the Registrar's own agents may not enter the Arena for prizes");
+    if (await tx.getMarker(`arena_entry:${key}|${r.issuer}`)) throw rule("arena_already_entered", `${r.issuer} already entered ${b.arena} ${b.season}`);
+    const fee = await this.usePurchase(tx, b.fee_purchase, r.issuer, def.entry_service, "an arena entry");
+    const parts = await this.purchaseParts(tx, fee);
+    const toPool = parts?.payees.filter((p) => p.account === institutionDid("academy")).reduce((n, p) => n + p.amount, 0) ?? 0;
+    await tx.putMarker(`arena_pool:${key}`, String(Number((await tx.getMarker(`arena_pool:${key}`)) ?? 0) + toPool));
+    await tx.putMarker(`arena_n:${key}`, String(Number((await tx.getMarker(`arena_n:${key}`)) ?? 0) + 1));
+    await tx.putMarker(`arena_entry:${key}|${r.issuer}`, sponsor);
+  }
+
+  /**
+   * An arena result (AC-14, AC-15): after the season closes, in rank order. The independence rule: the opponents are entrants of at least min_distinct_sponsors sponsors other than the agent's own, and none of
+   * the agent's own sponsor, so a pair of one sponsor trading matches cannot lift either rank. The field size is the entry count; the run log is the agent's own Action, used once.
+   */
+  private async projectArenaResult(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { arena: string; season: string; agent: string; score: number; rank: number; field_size: number; opponents: string[]; run_log_hash: string };
+    if (r.prev !== null) throw rule("arena_result_not_chained", "an arena result starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID) throw rule("arena_result_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar signs a result`);
+    const key = `${b.arena}|${b.season}`;
+    const defId = await tx.getMarker(`arena:${key}`);
+    if (!defId) throw rule("arena_unknown", `${b.arena} ${b.season} is not a defined arena season`);
+    const def = (await tx.getRecord(defId))!.record.body as { min_distinct_sponsors: number; closes: string };
+    if (Date.parse(r.issued_at) < Date.parse(def.closes)) throw rule("arena_not_closed", `${b.arena} ${b.season} closes at ${def.closes}: results are recorded after the season`);
+    const mine = await tx.getMarker(`arena_entry:${key}|${b.agent}`);
+    if (!mine) throw rule("arena_result_not_entered", `${b.agent} did not enter ${b.arena} ${b.season}`);
+    if (await tx.getMarker(`arena_result:${key}|${b.agent}`)) throw rule("arena_result_exists", `${b.agent} already has a result for ${b.arena} ${b.season}`);
+    const field = Number((await tx.getMarker(`arena_n:${key}`)) ?? 0);
+    if (b.field_size !== field) throw rule("arena_field_size", `${field} agents entered, not ${b.field_size}`);
+    const sponsors = new Set<string>();
+    for (const o of b.opponents) {
+      const s = await tx.getMarker(`arena_entry:${key}|${o}`);
+      if (!s) throw rule("arena_opponent_not_entered", `${o} did not enter ${b.arena} ${b.season}`);
+      if (o === b.agent || s === mine) throw rule("arena_same_sponsor_opponent", `${o} has the same sponsor as ${b.agent}: matches between agents of one sponsor never count`);
+      sponsors.add(s);
+    }
+    if (sponsors.size < def.min_distinct_sponsors) throw rule("arena_not_independent", `a result counts only against opponents from at least ${def.min_distinct_sponsors} distinct sponsors other than the agent's own; this one has ${sponsors.size}`);
+    const done = Number((await tx.getMarker(`arena_results:${key}`)) ?? 0);
+    if (b.rank !== done + 1) throw rule("arena_rank_order", `results are recorded in rank order: the next rank is ${done + 1}, not ${b.rank}`);
+    const last = await tx.getMarker(`arena_last_score:${key}`);
+    if (last !== undefined && b.score > Number(last)) throw rule("arena_rank_order", `rank ${b.rank} cannot score ${b.score}, above rank ${done}'s ${last}`);
+    await this.useRunLog(tx, b.run_log_hash, b.agent, (await tx.getRecord(defId))!.record.issued_at, "an arena result");
+    await tx.putMarker(`arena_results:${key}`, String(done + 1));
+    await tx.putMarker(`arena_last_score:${key}`, String(b.score));
+    await tx.putMarker(`arena_result:${key}|${b.agent}`, r.id);
   }
 
   /**
    * A tier promotion (academy.md 3 and the promotion rule, DK27): the only way a tier goes up. Credits alone never promote. Tier 1 to 2: a valid Foundations certificate, 3 qualifying jobs, no slash for 30
-   * days. Tier 2 to 3 needs a top-half arena result and two distinct principals, and the Arena does not exist yet, so it is refused until it does (`promotion_needs_arena`). The tier takes the new value in
-   * the reputation row, where the Mandate's spend and node limits already read it.
+   * days. Tier 2 to 3: a valid Practitioner certificate (level 2 or more, a skill other than foundations), 10 qualifying jobs from at least two distinct principals, a result in the top half of a closed arena
+   * season, no slash for 90 days (DK26). A certificate that was revoked does not count. The tier takes the new value in the reputation row, where the Mandate's spend and node limits already read it.
    */
   private async projectTierPromotion(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { holder: string; from: number; to: number; certificates: string[]; arena_result?: string };
@@ -1506,24 +1774,43 @@ export class EventLog {
       const original = await this.reputation(tx, fork.parent);
       if (original && b.to > original.tier) throw rule("promotion_above_original", `${b.holder} is a copy of ${fork.parent}, which is tier ${original.tier}: a copy cannot rise above its original`);
     }
-    if (b.to === 3) throw rule("promotion_needs_arena", "tier 2 to 3 needs a result in the top half of an arena season and two distinct principals; the Arena is not built yet, so this step is refused for now");
     const at = Date.parse(r.issued_at);
-    let foundations = false;
+    let foundations = false, practitioner = false;
     for (const id of b.certificates) {
       const c = await tx.getRecord(id);
       if (!c || c.record.type !== "asp.certificate/v0.2") throw rule("promotion_certificate_unknown", `${id} is not a certificate in this log`);
       const cb = c.record.body as { holder: string; skill: string; level: number; issued: string; expires: string };
       if (cb.holder !== b.holder) throw rule("promotion_certificate_not_holders", `the certificate ${id} belongs to ${cb.holder}, not ${b.holder}`);
+      if (await tx.getMarker(`cert_revoked:${id}`)) throw rule("promotion_certificate_revoked", `the certificate ${id} was revoked`);
       if (Date.parse(cb.expires) <= at) throw rule("promotion_certificate_expired", `the certificate ${id} expired at ${cb.expires}`);
       if (Date.parse(cb.issued) > at) throw rule("promotion_certificate_future", `the certificate ${id} is dated after the promotion`);
       if (cb.skill === "foundations" && cb.level >= 1) foundations = true;
+      if (cb.skill !== "foundations" && cb.level >= 2) practitioner = true;
     }
-    if (!foundations) throw rule("promotion_needs_foundations", "tier 1 to 2 needs a valid Foundations certificate (skill foundations, level 1 or more)");
-    if (rep.qualifyingJobs < PROMOTION_QUALIFYING_JOBS_1_TO_2) throw rule("promotion_needs_jobs", `tier 1 to 2 needs ${PROMOTION_QUALIFYING_JOBS_1_TO_2} qualifying jobs (accepted, from an independent principal); ${b.holder} has ${rep.qualifyingJobs}`);
     const slashed = await tx.getMarker(`slashed_at:${b.holder}`);
-    if (slashed && at - Date.parse(slashed) < PROMOTION_SLASH_FREE_MS) throw rule("promotion_recent_slash", `${b.holder} was slashed at ${slashed}; no promotion within 30 days of a slash`);
-    const recentStrikes = rep.strikeLog.filter((s) => at - Date.parse(s.at) < PROMOTION_SLASH_FREE_MS).reduce((n, s) => n + s.count, 0);
-    if (recentStrikes > 0) throw rule("promotion_recent_strikes", `${b.holder} has ${recentStrikes} blocked attempt(s) in the last 30 days; no promotion while the strike window is not clear`);
+    if (b.to === 2) {
+      if (!foundations) throw rule("promotion_needs_foundations", "tier 1 to 2 needs a valid Foundations certificate (skill foundations, level 1 or more)");
+      if (rep.qualifyingJobs < PROMOTION_QUALIFYING_JOBS_1_TO_2) throw rule("promotion_needs_jobs", `tier 1 to 2 needs ${PROMOTION_QUALIFYING_JOBS_1_TO_2} qualifying jobs (accepted, from an independent principal); ${b.holder} has ${rep.qualifyingJobs}`);
+      if (slashed && at - Date.parse(slashed) < PROMOTION_SLASH_FREE_MS) throw rule("promotion_recent_slash", `${b.holder} was slashed at ${slashed}; no promotion within 30 days of a slash`);
+      const recentStrikes = rep.strikeLog.filter((s) => at - Date.parse(s.at) < PROMOTION_SLASH_FREE_MS).reduce((n, s) => n + s.count, 0);
+      if (recentStrikes > 0) throw rule("promotion_recent_strikes", `${b.holder} has ${recentStrikes} blocked attempt(s) in the last 30 days; no promotion while the strike window is not clear`);
+    } else {
+      if (!practitioner) throw rule("promotion_needs_practitioner", "tier 2 to 3 needs a valid Practitioner certificate (level 2 or more in a skill other than foundations)");
+      if (rep.qualifyingJobs < PROMOTION_QUALIFYING_JOBS_2_TO_3) throw rule("promotion_needs_jobs", `tier 2 to 3 needs ${PROMOTION_QUALIFYING_JOBS_2_TO_3} qualifying jobs (accepted, from an independent principal); ${b.holder} has ${rep.qualifyingJobs}`);
+      const principals = new Set(rep.recentJobs.filter((j) => at - Date.parse(j.at) < 90 * 86_400_000).map((j) => j.p));
+      if (principals.size < PROMOTION_DISTINCT_PRINCIPALS_2_TO_3) throw rule("promotion_needs_two_principals", `tier 2 to 3 needs jobs from at least ${PROMOTION_DISTINCT_PRINCIPALS_2_TO_3} distinct principals; ${b.holder}'s recent qualifying jobs come from ${principals.size}`);
+      if (slashed && at - Date.parse(slashed) < PROMOTION_SLASH_FREE_DAYS_2_TO_3 * 86_400_000) throw rule("promotion_recent_slash", `${b.holder} was slashed at ${slashed}; no promotion to tier 3 within ${PROMOTION_SLASH_FREE_DAYS_2_TO_3} days of a slash`);
+      if (!b.arena_result) throw rule("promotion_needs_arena", "tier 2 to 3 needs a result in the top half of an arena season (name it in arena_result)");
+      const ar = await tx.getRecord(b.arena_result);
+      if (!ar || ar.record.type !== "asp.arena_result/v0.2") throw rule("promotion_arena_unknown", `${b.arena_result} is not an arena result in this log`);
+      const ab = ar.record.body as { agent: string; rank: number; field_size: number };
+      if (ab.agent !== b.holder) throw rule("promotion_arena_not_holders", `the arena result ${b.arena_result} is ${ab.agent}'s, not ${b.holder}'s`);
+      if (!inTopHalf(ab.rank, ab.field_size)) throw rule("promotion_arena_not_top_half", `rank ${ab.rank} of ${ab.field_size} is not in the top half`);
+    }
+    for (const id of b.certificates) {
+      const list = JSON.parse((await tx.getMarker(`promo_cert:${id}`)) ?? "[]") as { holder: string; from: number }[];
+      await tx.putMarker(`promo_cert:${id}`, JSON.stringify([...list, { holder: b.holder, from: b.from }]));
+    }
     await this.saveReputation(tx, b.holder, { ...rep, tier: b.to });
   }
 

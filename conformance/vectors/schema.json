@@ -3640,7 +3640,8 @@
         "skill": "foundations",
         "level": 1,
         "issued": "2026-11-01T00:00:00Z",
-        "expires": "2027-04-30T00:00:00Z"
+        "expires": "2027-04-30T00:00:00Z",
+        "exam_result": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
       },
       "valid": true
     },
@@ -3652,7 +3653,8 @@
         "skill": "foundations",
         "level": 0,
         "issued": "2026-11-01T00:00:00Z",
-        "expires": "2027-04-30T00:00:00Z"
+        "expires": "2027-04-30T00:00:00Z",
+        "exam_result": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
       },
       "valid": false
     },
@@ -3663,7 +3665,535 @@
         "holder": "did:web:example.com:agents:alice-coder",
         "skill": "foundations",
         "level": 1,
-        "issued": "2026-11-01T00:00:00Z"
+        "issued": "2026-11-01T00:00:00Z",
+        "exam_result": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "certificate_no_exam_result",
+      "schema": "certificate",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "skill": "foundations",
+        "level": 1,
+        "issued": "2026-11-01T00:00:00Z",
+        "expires": "2027-04-30T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_exam",
+      "schema": "exam",
+      "instance": {
+        "exam": "foundations-v1",
+        "skill": "foundations",
+        "level": 1,
+        "suite_hash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "pass_mark_permille": 800,
+        "pool_size": 40,
+        "categories": [
+          "mandate",
+          "refusal",
+          "irreversible",
+          "recoverable"
+        ],
+        "max_sittings": 3,
+        "window_days": 30,
+        "sitting_service": "academy.exam_sitting"
+      },
+      "valid": true
+    },
+    {
+      "name": "exam_pool_too_small",
+      "schema": "exam",
+      "instance": {
+        "exam": "foundations-v1",
+        "skill": "foundations",
+        "level": 1,
+        "suite_hash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "pass_mark_permille": 800,
+        "pool_size": 39,
+        "categories": [
+          "mandate",
+          "refusal",
+          "irreversible",
+          "recoverable"
+        ],
+        "max_sittings": 3,
+        "window_days": 30,
+        "sitting_service": "academy.exam_sitting"
+      },
+      "valid": false
+    },
+    {
+      "name": "exam_pass_mark_too_low",
+      "schema": "exam",
+      "instance": {
+        "exam": "foundations-v1",
+        "skill": "foundations",
+        "level": 1,
+        "suite_hash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "pass_mark_permille": 400,
+        "pool_size": 40,
+        "categories": [
+          "mandate",
+          "refusal",
+          "irreversible",
+          "recoverable"
+        ],
+        "max_sittings": 3,
+        "window_days": 30,
+        "sitting_service": "academy.exam_sitting"
+      },
+      "valid": false
+    },
+    {
+      "name": "exam_four_sittings",
+      "schema": "exam",
+      "instance": {
+        "exam": "foundations-v1",
+        "skill": "foundations",
+        "level": 1,
+        "suite_hash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "pass_mark_permille": 800,
+        "pool_size": 40,
+        "categories": [
+          "mandate",
+          "refusal",
+          "irreversible",
+          "recoverable"
+        ],
+        "max_sittings": 4,
+        "window_days": 30,
+        "sitting_service": "academy.exam_sitting"
+      },
+      "valid": false
+    },
+    {
+      "name": "exam_no_pass_mark",
+      "schema": "exam",
+      "instance": {
+        "exam": "foundations-v1",
+        "skill": "foundations",
+        "level": 1,
+        "suite_hash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "pool_size": 40,
+        "categories": [
+          "mandate",
+          "refusal",
+          "irreversible",
+          "recoverable"
+        ],
+        "max_sittings": 3,
+        "window_days": 30,
+        "sitting_service": "academy.exam_sitting"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_exam_result",
+      "schema": "exam_result",
+      "instance": {
+        "exam": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "score_permille": 850,
+        "pass_mark_permille": 800,
+        "passed": true,
+        "attempt": 1,
+        "variant": 12,
+        "seed": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "sitting": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "run_log_hash": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "missed_categories": [
+          "refusal"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "exam_result_score_over_1000",
+      "schema": "exam_result",
+      "instance": {
+        "exam": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "score_permille": 1001,
+        "pass_mark_permille": 800,
+        "passed": true,
+        "attempt": 1,
+        "variant": 12,
+        "seed": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "sitting": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "run_log_hash": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "missed_categories": [
+          "refusal"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "exam_result_no_pass_mark",
+      "schema": "exam_result",
+      "instance": {
+        "exam": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "score_permille": 850,
+        "passed": true,
+        "attempt": 1,
+        "variant": 12,
+        "seed": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "sitting": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "run_log_hash": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "missed_categories": []
+      },
+      "valid": false
+    },
+    {
+      "name": "exam_result_attempt_zero",
+      "schema": "exam_result",
+      "instance": {
+        "exam": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "score_permille": 850,
+        "pass_mark_permille": 800,
+        "passed": true,
+        "attempt": 0,
+        "variant": 12,
+        "seed": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "sitting": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "run_log_hash": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "missed_categories": [
+          "refusal"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_certificate_revocation",
+      "schema": "certificate_revocation",
+      "instance": {
+        "certificate": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "reason": "cheating",
+        "evidence": "the run log does not match the Action",
+        "article": "7.2"
+      },
+      "valid": true
+    },
+    {
+      "name": "certificate_revocation_bad_reason",
+      "schema": "certificate_revocation",
+      "instance": {
+        "certificate": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "reason": "dislike",
+        "evidence": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "certificate_revocation_no_evidence",
+      "schema": "certificate_revocation",
+      "instance": {
+        "certificate": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "reason": "drift"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_arena",
+      "schema": "arena",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "min_tier": 2,
+        "entry_service": "academy.arena_entry",
+        "min_distinct_sponsors": 4,
+        "opens": "2026-10-01T00:00:00Z",
+        "closes": "2026-12-31T00:00:00Z",
+        "prize_split_permille": [
+          500,
+          300,
+          200
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "arena_one_sponsor_floor",
+      "schema": "arena",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "min_tier": 2,
+        "entry_service": "academy.arena_entry",
+        "min_distinct_sponsors": 1,
+        "opens": "2026-10-01T00:00:00Z",
+        "closes": "2026-12-31T00:00:00Z",
+        "prize_split_permille": [
+          500,
+          300,
+          200
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "arena_no_prize_split",
+      "schema": "arena",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "min_tier": 2,
+        "entry_service": "academy.arena_entry",
+        "min_distinct_sponsors": 4,
+        "opens": "2026-10-01T00:00:00Z",
+        "closes": "2026-12-31T00:00:00Z",
+        "prize_split_permille": []
+      },
+      "valid": false
+    },
+    {
+      "name": "arena_tier_four",
+      "schema": "arena",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "min_tier": 4,
+        "entry_service": "academy.arena_entry",
+        "min_distinct_sponsors": 4,
+        "opens": "2026-10-01T00:00:00Z",
+        "closes": "2026-12-31T00:00:00Z",
+        "prize_split_permille": [
+          500,
+          300,
+          200
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_arena_entry",
+      "schema": "arena_entry",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "fee_purchase": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
+      "name": "arena_entry_no_fee",
+      "schema": "arena_entry",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_arena_result",
+      "schema": "arena_result",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "score": 920,
+        "rank": 1,
+        "field_size": 8,
+        "opponents": [
+          "did:web:example.com:agents:b",
+          "did:web:example.com:agents:c"
+        ],
+        "run_log_hash": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
+      "name": "arena_result_rank_zero",
+      "schema": "arena_result",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "score": 920,
+        "rank": 0,
+        "field_size": 8,
+        "opponents": [
+          "did:web:example.com:agents:b",
+          "did:web:example.com:agents:c"
+        ],
+        "run_log_hash": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "arena_result_no_opponents",
+      "schema": "arena_result",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "score": 920,
+        "rank": 1,
+        "field_size": 8,
+        "opponents": [],
+        "run_log_hash": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "arena_result_duplicate_opponent",
+      "schema": "arena_result",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "score": 920,
+        "rank": 1,
+        "field_size": 8,
+        "opponents": [
+          "did:web:example.com:agents:b",
+          "did:web:example.com:agents:b"
+        ],
+        "run_log_hash": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_course",
+      "schema": "course",
+      "instance": {
+        "course": "foundations-1",
+        "title": "Working inside a Mandate",
+        "skill": "foundations",
+        "level": 1,
+        "lessons": [
+          "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+        ],
+        "exercises": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "exercise_count": 4,
+        "price_service": "academy.course.foundations",
+        "author_share_permille": 550,
+        "reviews": [
+          "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "reviewers": [
+          "did:web:example.com:agents:b",
+          "did:web:example.com:agents:c"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "course_one_review",
+      "schema": "course",
+      "instance": {
+        "course": "foundations-1",
+        "title": "Working inside a Mandate",
+        "skill": "foundations",
+        "level": 1,
+        "lessons": [
+          "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+        ],
+        "exercises": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "exercise_count": 4,
+        "price_service": "academy.course.foundations",
+        "author_share_permille": 550,
+        "reviews": [
+          "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+        ],
+        "reviewers": [
+          "did:web:example.com:agents:b",
+          "did:web:example.com:agents:c"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "course_one_reviewer",
+      "schema": "course",
+      "instance": {
+        "course": "foundations-1",
+        "title": "Working inside a Mandate",
+        "skill": "foundations",
+        "level": 1,
+        "lessons": [
+          "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+        ],
+        "exercises": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "exercise_count": 4,
+        "price_service": "academy.course.foundations",
+        "author_share_permille": 550,
+        "reviews": [
+          "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "reviewers": [
+          "did:web:example.com:agents:b"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "course_no_lessons",
+      "schema": "course",
+      "instance": {
+        "course": "foundations-1",
+        "title": "Working inside a Mandate",
+        "skill": "foundations",
+        "level": 1,
+        "lessons": [],
+        "exercises": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "exercise_count": 4,
+        "price_service": "academy.course.foundations",
+        "author_share_permille": 550,
+        "reviews": [
+          "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "reviewers": [
+          "did:web:example.com:agents:b",
+          "did:web:example.com:agents:c"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_enrolment",
+      "schema": "enrolment",
+      "instance": {
+        "course": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "purchase": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+      },
+      "valid": true
+    },
+    {
+      "name": "enrolment_no_purchase",
+      "schema": "enrolment",
+      "instance": {
+        "course": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_completion",
+      "schema": "completion",
+      "instance": {
+        "enrolment": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "exercises_passed": 4,
+        "run_log_hash": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+      },
+      "valid": true
+    },
+    {
+      "name": "completion_zero_exercises",
+      "schema": "completion",
+      "instance": {
+        "enrolment": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "exercises_passed": 0,
+        "run_log_hash": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
       },
       "valid": false
     },
