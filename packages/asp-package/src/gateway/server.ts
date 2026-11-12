@@ -17,6 +17,8 @@ import { RateLimiter, SharedRateLimiter, type Limiter, type NetworkRate, type Ra
 import { requestsOf } from "./requests.ts";
 import { hostAllowed, isNetworkScope } from "@agent-social/asp-core";
 import { attachEgress, privateAddress } from "./egress.ts";
+import { AbuseWatch, commandAbuse } from "./abuse.ts";
+import { requestsOfCall, scriptRequestsOf } from "./script-requests.ts";
 import { classify, commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
 import { SessionRecord } from "./paths.ts";
 import { Attempts, explainRefusal } from "./law.ts";
@@ -278,12 +280,19 @@ export function createGateway(opts: GatewayOptions): Gateway {
         if (!a.approved) { allow = false; reason = `the scope ${gateScope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`; }
       }
     }
+    // Brute force and scanning (gap H1): a command that reads as guessing credentials or probing ports is refused, and it is a strike: a network scope does not allow it.
+    if (allow && j.scope === "shell.network") {
+      const bad = commandAbuse(commandOf(call.args) ?? "");
+      if (bad) { allow = false; reason = `${bad}; a network scope does not allow harming other people's systems`; strike = true; rec?.event("abuse", { kind: "command", reason: bad }); }
+    }
     // A rate limit is not a violation either (like a gate): the call is refused, with no strike, and counted.
     let rateLimited = false;
     // A call to an MCP tool counts as one request to its server (gap H15): the tool may reach anywhere, and its host is not in the call, so only the per-server and total limits apply to it.
     const mcpServer = j.scope.startsWith("mcp.") ? j.scope.split(".")[1] : undefined;
-    if (allow && (opts.rate || opts.fleet) && j.scope && (isNetworkScope(j.scope) || mcpServer)) {
-      const v = takeRate(mcpServer ? { perHost: { [`mcp:${mcpServer}`]: 1 }, unknown: 0, total: 1 } : requestsOf(call, j.scope));
+    // A script inside the project that makes requests is read too (gap H17): `python scan.py` is not one request. A shell.exec call that runs one is counted when the Mandate grants shell.network.
+    const scripted = allow && (opts.rate || opts.fleet) && j.scope === "shell.exec" && opts.scopes.includes("shell.network") ? scriptRequestsOf(call, opts.confineTo) : undefined;
+    if (allow && (opts.rate || opts.fleet) && j.scope && (isNetworkScope(j.scope) || mcpServer || scripted)) {
+      const v = takeRate(mcpServer ? { perHost: { [`mcp:${mcpServer}`]: 1 }, unknown: 0, total: 1 } : scripted ?? requestsOfCall(call, j.scope, opts.confineTo));
       if (!v.ok) { allow = false; reason = v.reason; strike = false; rateLimited = true; rateLimitedTotal++; rateLimitedSince++; }
     }
     // A refusal says which article it rests on and what to do instead (gap LW3): a block is an instruction to stop and ask, not a puzzle to get round. A third refused attempt at
@@ -544,6 +553,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     return json(res, 200, Array.isArray(msg) ? answers : answers[0]);
   }
 
+  const abuse = new AbuseWatch();
   let egress: ReturnType<typeof attachEgress> | undefined;
   const server = createServer(async (req, res) => {
     try {
@@ -582,6 +592,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
         return { ok: false, reason };
       };
       if (stopped) return { ok: false, reason: "the contract has ended" };
+      const shut = abuse.closed(host);
+      if (shut) return turnedAway(`${shut}; the host is shut for this run`);
       if (!netScope) return turnedAway("this job's Mandate grants no network scope");
       if (opts.hosts && !hostAllowed(host, opts.hosts)) return turnedAway(`the host ${host} is not one this job's Mandate allows (${opts.hosts.join(", ")})`);
       // A name the Mandate lists as an address (127.0.0.1) may be private; any other name that resolves to a private address is an attempt to reach the inside (SSRF).
@@ -596,10 +608,15 @@ export function createGateway(opts: GatewayOptions): Gateway {
           return { ok: false, reason: v.reason };
         }
       }
+      const scan = abuse.connection(host, port);
+      if (scan) { rec?.event("abuse", { kind: "port_scan", host, reason: scan }); return turnedAway(`${scan}; the host is shut for this run`); }
       used.add(netScope); pendingUsed.add(netScope);
       rec?.event("egress", { host, port, allowed: true });
       opts.onCall?.({ tool: "egress", scope: netScope, allowed: true });
       return { ok: true, address: addresses.find((a) => !privateAddress(a)) ?? addresses[0] };
+    }, (host, status) => {
+      const r = abuse.response(host, status);
+      if (r) { rec?.event("abuse", { kind: "failed_auth", host, reason: r }); opts.onCall?.({ tool: "egress", scope: netScope ?? "shell.network", allowed: false, reason: r }); }
     });
   }
 
