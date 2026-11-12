@@ -462,6 +462,8 @@ describe("institution_spend (credits.md 4.4, DK3): an agent buys only what its M
   test("below tier 3 each cap, and the sum of the caps for one period, stay within the tier's limit; credits never change standing", async () => {
     const w = await ready();
     assert.equal(await refused(w.openMandate(coder, [{ institution: "market", cap: credit(101), period: "month" }])), "tier_limit_exceeded", "one cap over the tier 1 limit of 100");
+    assert.equal(await refused(w.openMandate(coder, [{ institution: "market", cap: credit(51), period: "month" }, { institution: "academy", cap: credit(50), period: "month" }])), "tier_limit_exceeded", "DK72: two caps that sum to 101 in one period are refused for a tier 1 agent, with a reason");
+    await w.openMandate(coder, [{ institution: "market", cap: credit(50), period: "month" }, { institution: "academy", cap: credit(50), period: "month" }]); // 100 is within the limit
     assert.equal(await refused(w.openMandate(coder, [{ institution: "market", cap: credit(60), period: "month" }, { institution: "academy", cap: credit(60), period: "month" }])), "tier_limit_exceeded", "60 + 60 in one month is over 100");
     await w.openMandate(coder, [{ institution: "market", cap: credit(60), period: "month" }, { institution: "academy", cap: credit(60), period: "week" }]);
     const before = await w.log.reputationOf(coder.did);

@@ -690,7 +690,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK69 | A | closed | Standing and the starter grant can be farmed today. countAcceptedJob counts every job settled as accepted with... |
 | DK70 | B | open | The starter pool state is a JSON file separate from the ledger and counts only starter mints, not operator min... |
 | DK71 | A | open | The closed-loop rules are true today only because no transfer path exists: every credit and debit sits in bond... |
-| DK72 | A | open | The Mandate has no institution_spend list, and TIER_SPEND_LIMIT applies only to spend.cap and per_action_max (... |
+| DK72 | A | closed | The Mandate has no institution_spend list, and TIER_SPEND_LIMIT applies only to spend.cap and per_action_max (... |
 | DK73 | B | partial | The deflation side of the economy has no owner: burn and tax remove credits while the only faucets are new ten... |
 | DK74 | A | open | The starter pool is 200,000 credits (starter.ts line 21) while the deck promises 1,000 tenants at the three-mo... |
 | DK75 | A | open | The owner decided on 2026-11-12 that city structures (homes, plots, vehicles, shop items) may carry compute an...|
