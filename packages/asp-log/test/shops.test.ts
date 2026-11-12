@@ -70,9 +70,10 @@ describe("shops: the catalogue and the guard that no item touches standing (CY7,
     for (const i of SHOPS_CATALOGUE) assert.equal(catalogueProblem(i), null, i.service);
     const base = { service: "shops.x", institution: SHOPS_DID };
     for (const type of ["badge", "attire", "district_access", "meal", "profile_feature"]) assert.equal(catalogueProblem({ ...base, effect: { type } }), null, type);
-    for (const type of ["quota_storage_bytes", "quota_records", "quota_bytes", "rate_per_minute", "runlog_retention_days"]) {
-      assert.equal(catalogueProblem({ ...base, duration_days: 30, effect: { type, resource: type, amount: 10, cap_per_sponsor: 30, unit_cost_ref: "cap:1" } }), null, type);
-    }
+    const ledger: Record<string, string> = { quota_storage_bytes: "cap:package_storage", quota_records: "cap:log_records", quota_bytes: "cap:log_bytes", rate_per_minute: "cap:request_rate" };
+    for (const [type, ref] of Object.entries(ledger)) assert.equal(catalogueProblem({ ...base, duration_days: 30, effect: { type, resource: type, amount: 10, cap_per_sponsor: 30, unit_cost_ref: ref } }), null, type);
+    // Run-log retention is allowlisted but not offered: no row of the capacity ledger exists for it (shops.md 3b).
+    assert.equal(catalogueProblem({ ...base, duration_days: 30, effect: { type: "runlog_retention_days", resource: "days", amount: 10, cap_per_sponsor: 30, unit_cost_ref: "cap:runlog" } })?.rule, "resource_effect_uncapped");
   });
 
   test("an effect type off the allowlist is refused (effect_not_allowed); a resource effect with no cap, cost reference or duration is refused (resource_effect_uncapped)", () => {
@@ -83,7 +84,7 @@ describe("shops: the catalogue and the guard that no item touches standing (CY7,
     assert.equal(catalogueProblem({ ...base, effect: { type: "quota_records", resource: "records", amount: 10, cap_per_sponsor: 30, unit_cost_ref: "c" } })?.rule, "resource_effect_uncapped");
     assert.equal(catalogueProblem({ ...base })?.rule, "effect_missing");
     assert.equal(catalogueProblem({ service: "market.x", institution: "did:web:asp.local:market", effect: { type: "badge" } })?.rule, "effect_wrong_institution");
-    assert.ok(EFFECT_ALLOWLIST.length === 10);
+    assert.equal(EFFECT_ALLOWLIST.length, 12); // five display and access types, theme and layout (Housing), five resources
   });
 
   test("a deliberately bad item for each protected target fails the scan, in the function and in the log", async () => {

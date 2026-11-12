@@ -10,7 +10,7 @@ export {
   type AccountRow, type ChainRow, type EscrowRow, type FleetRow, type JurorRow, type KeyRow, type LogHead, type LogTx,
   type MandateRow, type MintRow, type PassportRow, type ProbationRow, type ReportRow, type ReputationRow, type Store, type StoredRecord, type VerificationRow,
 } from "./store.ts";
-export { LOG_METHODS, authenticate, createLogServer, hashToken, type LogHandle, type ServerOptions, type Tenant } from "./server.ts";
+export { LOG_METHODS, authenticate, withResourceExtras, createLogServer, hashToken, type LogHandle, type ServerOptions, type Tenant } from "./server.ts";
 export { postgresHandle } from "./postgres-handle.ts";
 export { Limits, clientAddress, renameSyncRetry, withFileLock, type LimitOptions, type Verdict } from "./limits.ts";
 export { UsageStore, type Usage } from "./usage.ts";
@@ -30,4 +30,5 @@ export * from "./registry.ts";
 export * from "./public-pages.ts";
 export * from "./courts.ts";
 export * from "./academy.ts";
-export { SHOPS_DID, UPKEEP_SERVICE, FREE_DAYS, DORMANT_AFTER_DAYS, WARN_AFTER_DAYS, EFFECT_ALLOWLIST, DISPLAY_EFFECTS, RESOURCE_EFFECTS, PROTECTED_TARGETS, SHOPS_CATALOGUE, catalogueProblem, residentStates, holdingsAt, unpaidDays, runShops, freeThrough, type CatalogueItem, type ResidentState, type HoldingView, type ShopsRun, type ShopsIo } from "./shops.ts";
+export { SHOPS_DID, UPKEEP_SERVICE, FREE_DAYS, DORMANT_AFTER_DAYS, WARN_AFTER_DAYS, EFFECT_ALLOWLIST, DISPLAY_EFFECTS, RESOURCE_EFFECTS, PROTECTED_TARGETS, SHOPS_CATALOGUE, HOUSING_CATALOGUE, HOUSING_DID, CAPACITY_LEDGER, mimicsMark, resourceExtras, resourceReconciliation, runHousing, catalogueProblem, residentStates, holdingsAt, unpaidDays, runShops, freeThrough, type CatalogueItem, type ResidentState, type HoldingView, type ShopsRun, type ShopsIo } from "./shops.ts";
+export { PROFILE_LIMITS, THEME_PREFIX, LAYOUT_PREFIX, textProblem, homeView, homeHtml, decorAt, type HomeView } from "./housing.ts";

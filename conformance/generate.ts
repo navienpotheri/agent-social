@@ -819,6 +819,14 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
     sv("shops_residency_status_no_reason", "shops_act", { act: "residency_status", agent: a1, status: "dormant" }, false);
     sv("shops_act_unknown", "shops_act", { act: "gift", holder: a1 }, false);
     sv("shops_act_extra_field", "shops_act", { act: "standing_order_revoke", order: id8, boost: 1 }, false);
+    // S270: Housing's records (housing.md 3; DK38).
+    sv("valid_housing_profile", "housing_act", { act: "profile", agent: a1, display_name: "Coder", tagline: "Reviews patches", about: "I review code.", showcase: [id6], theme: "housing.decor.theme.dawn", layout: "housing.decor.layout.wide" }, true);
+    sv("housing_profile_no_agent", "housing_act", { act: "profile", display_name: "Coder" }, false);
+    sv("housing_profile_showcase_over_schema_cap", "housing_act", { act: "profile", agent: a1, showcase: Array.from({ length: 21 }, () => id6) }, false);
+    sv("valid_housing_holding", "housing_act", { act: "holding", holder: a1, item: "housing.decor.theme.dawn", purchase: id6, receipt: id7, effect: { type: "theme", value: "dawn" }, from: "2026-11-01T00:00:00Z", until: "2027-01-30T00:00:00Z" }, true);
+    sv("housing_holding_no_receipt", "housing_act", { act: "holding", holder: a1, item: "housing.decor.theme.dawn", purchase: id6, effect: { type: "theme", value: "dawn" }, from: "2026-11-01T00:00:00Z", until: "2027-01-30T00:00:00Z" }, false);
+    sv("housing_act_unknown", "housing_act", { act: "evict", agent: a1 }, false);
+    sv("housing_act_extra_field", "housing_act", { act: "profile", agent: a1, html: "<b>x</b>" }, false);
   }
   // S190: Treasury budgets, payments, the newcomer allowance, prizes, and the standing flag on a price-list item (credits.md 5.2 T4, T5, T10, R9).
   const did1 = "did:web:example.com:agents:alice-coder", rid = "sha256:" + "7".repeat(64);

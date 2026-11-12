@@ -12,8 +12,11 @@ import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarke
 import { charterIn, checkCaseload, checkRulingExtras, closeDispute, projectCourtAct } from "./courts-rules.ts";
 import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
+import { projectHousingAct } from "./housing-rules.ts";
 import { assertNotDormant, checkShopsPurchase, notePerformer, projectShopsAct } from "./shops-rules.ts";
-import { SHOPS_DID, catalogueProblem, type CatalogueItem } from "./shops.ts";
+import { homeView, type HomeView } from "./housing.ts";
+import { resourceExtras, type ResourceExtras } from "./shops.ts";
+import { HOUSING_DID, SHOPS_DID, catalogueProblem, type CatalogueItem } from "./shops.ts";
 import { buildPage, namesAt, isLive, skeleton, verifyPage, type RecordPage } from "./registry.ts";
 import { classWeight, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
@@ -295,6 +298,7 @@ export class EventLog {
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
     if (type === "court_act") await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize });
     if (type === "shops_act") await projectShopsAct(tx, verified, { reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
+    if (type === "housing_act") await projectHousingAct(tx, verified);
     if (type === "contract") await notePerformer(tx, verified);
     if (type === "registry_act") await projectRegistryAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did) });
     if (type === "bond" || type === "mandate" || type === "proposal" || type === "purchase" || type === "contract") await checkSuspended(tx, verified);
@@ -1361,7 +1365,7 @@ export class EventLog {
     const rep = await this.reputation(tx, buyer);
     if (rep && rep.tier === 0 && item.class === "standard") throw rule("tier_excluded", "a tier 0 agent may buy only essential or remedial items");
     if (item.class !== "essential" && item.class !== "remedial") await assertNotDormant(tx, buyer, `buy ${b.service}`);
-    if (item.institution === SHOPS_DID) await checkShopsPurchase(tx, buyer, item as unknown as CatalogueItem, r.issued_at, rep?.tier);
+    if (item.institution === SHOPS_DID || item.institution === HOUSING_DID) await checkShopsPurchase(tx, buyer, item as unknown as CatalogueItem, r.issued_at, rep?.tier);
     const qlevel = await this.liveQuarantine(tx, buyer, r.issued_at);
     if (qlevel?.level === "halt" && item.class !== "essential" && item.class !== "remedial") throw rule("agent_quarantined", `${buyer} is quarantined by the Clinic (halt, ${qlevel.id}, until ${qlevel.until}): it may buy only essential or remedial items`);
     // An agent (a passport with a sponsor) may buy only what its Mandate's institution_spend lists, within the cap for the period (credits.md 4.4, DK3). A person spending their own credits is not limited by a Mandate.
@@ -2231,6 +2235,22 @@ export class EventLog {
     if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isLive(c, when)) return null; did = c.holder; }
     const head = await this.store.logHead();
     return buildPage(did, { records, seq: head.seq, at: when, reputation: await this.reputationOf(did) ? { ...(await this.reputationOf(did))! } : undefined });
+  }
+
+  /** The Home of a DID or a name (housing.md 3; DK38): a view computed only from the log's records. `homeView` is pure, so anyone can rebuild it. */
+  async homePage(idOrName: string, at?: string): Promise<HomeView | null> {
+    const when = at ?? this.now().toISOString();
+    const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "housing_act", "receipt", "offer"]);
+    let did = idOrName;
+    if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isLive(c, when)) return null; did = c.holder; }
+    const head = await this.store.logHead();
+    const rep = await this.reputationOf(did);
+    return homeView(did, { records, seq: head.seq, at: when, reputation: rep ? { ...rep } : undefined });
+  }
+
+  /** The extra service-side limits a sponsor's agents hold now through the Shops' resource items (DK75): read by the service to raise the tenant's limits, falling back at expiry. */
+  async sponsorResources(sponsor: string, at?: string): Promise<ResourceExtras> {
+    return resourceExtras(await this.recordsOfTypes(["passport", "receipt", "shops_act"]), sponsor, at ?? this.now().toISOString());
   }
 
   /** Recomputes a page someone holds and lists every field that differs (registry.md 7 `verify`); empty means it matches. */

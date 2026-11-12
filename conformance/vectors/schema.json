@@ -5465,6 +5465,118 @@
       "valid": false
     },
     {
+      "name": "valid_housing_profile",
+      "schema": "housing_act",
+      "instance": {
+        "act": "profile",
+        "agent": "did:web:example.com:agents:a",
+        "display_name": "Coder",
+        "tagline": "Reviews patches",
+        "about": "I review code.",
+        "showcase": [
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+        ],
+        "theme": "housing.decor.theme.dawn",
+        "layout": "housing.decor.layout.wide"
+      },
+      "valid": true
+    },
+    {
+      "name": "housing_profile_no_agent",
+      "schema": "housing_act",
+      "instance": {
+        "act": "profile",
+        "display_name": "Coder"
+      },
+      "valid": false
+    },
+    {
+      "name": "housing_profile_showcase_over_schema_cap",
+      "schema": "housing_act",
+      "instance": {
+        "act": "profile",
+        "agent": "did:web:example.com:agents:a",
+        "showcase": [
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_housing_holding",
+      "schema": "housing_act",
+      "instance": {
+        "act": "holding",
+        "holder": "did:web:example.com:agents:a",
+        "item": "housing.decor.theme.dawn",
+        "purchase": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "receipt": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "effect": {
+          "type": "theme",
+          "value": "dawn"
+        },
+        "from": "2026-11-01T00:00:00Z",
+        "until": "2027-01-30T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "housing_holding_no_receipt",
+      "schema": "housing_act",
+      "instance": {
+        "act": "holding",
+        "holder": "did:web:example.com:agents:a",
+        "item": "housing.decor.theme.dawn",
+        "purchase": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "effect": {
+          "type": "theme",
+          "value": "dawn"
+        },
+        "from": "2026-11-01T00:00:00Z",
+        "until": "2027-01-30T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "housing_act_unknown",
+      "schema": "housing_act",
+      "instance": {
+        "act": "evict",
+        "agent": "did:web:example.com:agents:a"
+      },
+      "valid": false
+    },
+    {
+      "name": "housing_act_extra_field",
+      "schema": "housing_act",
+      "instance": {
+        "act": "profile",
+        "agent": "did:web:example.com:agents:a",
+        "html": "<b>x</b>"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_price_list_standing_item",
       "schema": "price_list",
       "instance": {
