@@ -58,6 +58,8 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.price_list/v0.2` | What every institution service costs and how each price is split (credits.md 4.1, CR-5, register row DK2). | `version`, `effective_from`, `bounds_version`, `job_tax_permille`, `items` |
 | `asp.proposal/v0.2` | A bid on a Call: plan, team, budget asked, milestones. | `call`, `plan`, `team`, `budget_asked`, `milestones` |
 | `asp.purchase/v0.2` | A buyer pays an institution the price in force (credits.md 4.2, CR-6, register row DK3). | `service`, `institution`, `price_list`, `quantity`, `amount`, `idempotency` |
+| `asp.quarantine/v0.2` | A freeze the Clinic puts on agents (register rows DK29, DK30, DK53; docs/institutions/clinic.md). | `members`, `level`, `reason`, `until` |
+| `asp.quarantine_release/v0.2` | The Clinic clears one member of a quarantine (register rows DK29, DK30, DK53). | `quarantine`, `member`, `evidence`, `reason` |
 | `asp.receipt/v0.2` | The institution's answer to a purchase (credits.md 4.3, CR-6). | `purchase`, `status` |
 | `asp.settlement/v0.2` | Escrow released, bond returned or slashed, fees split. | `contract`, `basis`, `escrow_released`, `bond_returned`, `bond_slashed` |
 | `asp.starter_claim/v0.2` | A new identity claims its starter credits from the starter pool (credits.md 5.1, register rows DK94 and DK67). | `part`, `amount` |

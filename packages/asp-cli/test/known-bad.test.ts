@@ -83,4 +83,17 @@ test("only an upheld report can list a command, and only one the reported job re
   const dir = /run dir\s+(.*)/.exec(run.err)![1].trim();
   const mandate = JSON.parse(readFileSync(join(dir, "plugin", "asp-mandate.json"), "utf8"));
   assert.deepEqual(mandate.knownBad, [{ fingerprint: FP, report: reportId }]);
+
+  // A false entry is withdrawn by a signed review from another trusted key (DK54, S178); the one who listed it cannot withdraw it.
+  const REVIEWER = "did:web:example.com:users:kb-reviewer";
+  await ok(f, ["identity", "new", "--kind", "human", "--did", REVIEWER]);
+  const self = await asp(f, ["known-bad", "review", "--fingerprint", FP, "--by", WATCHER, "--reason", "it is our own installer"]);
+  assert.equal(self.code, 1);
+  assert.match(self.err, /reviewer other than the one who listed/);
+  await ok(f, ["known-bad", "trust", "--did", REVIEWER]);
+  const review = await ok(f, ["known-bad", "review", "--fingerprint", FP, "--by", REVIEWER, "--reason", "it is our own installer"]);
+  assert.match(review.out, /withdrawn/);
+  assert.match((await ok(f, ["known-bad", "list"])).out, /0 known-bad fingerprint/);
+  const later = await ok(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", "--contract", contract, "--dry-run"], fake);
+  assert.doesNotMatch(later.err, /known-bad command fingerprint/);
 });

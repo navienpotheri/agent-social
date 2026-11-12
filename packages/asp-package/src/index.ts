@@ -34,7 +34,9 @@ import type { RuntimeAdapter } from "./harness.ts";
 /** Runtime adapters by name. */
 export const ADAPTERS: Record<string, RuntimeAdapter> = { [claudeCode.name]: claudeCode, [codex.name]: codex, [openhands.name]: openhands, [antigravity.name]: antigravity };
 export { COMMONS_VERSION, commonsId, commonsRoutes, signCommons, verifyCommonsSignature, type CommonsBody, type CommonsCitationBody, type CommonsEntryBody, type CommonsReviewBody, type EntryStatus, type EntryView, type Signed } from "./commons.ts";
-export { addKnownBad, fetchKnownBad, isKnownBadFingerprint, knownBadRoutes, postKnownBad, readKnownBad, type KnownBadEntry } from "./known-bad.ts";
+export { addKnownBad, fetchKnownBad, isKnownBadFingerprint, knownBadPublicRoutes, knownBadRoutes, postKnownBad, postSignedKnownBad, readKnownBad, signedFileFor, trustFileFor, type KnownBadEntry } from "./known-bad.ts";
+export { SocietyWatcher, WATCHER_KID, describe as describeFinding, toWatchAction, verifyFinding, watchPublicRoutes, type SignedFinding, type WatchFinding } from "./society-watch.ts";
+export { addSigned, addTrust, effectiveEntries, itemProblem, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, syncKnownBad, type SignedItem, type Trust } from "./known-bad-signed.ts";
 export * from "./gateway/index.ts";
 export { RUNTIMES, runtimeByName, supportMatrix, type RuntimeDescriptor, type RuntimeReach, type RuntimeWire, type RuntimeAssurance, type RuntimeEvidence } from "./runtimes.ts";
 export { AgentReporter, MandateRefusal, type Assurance, type ReporterOptions } from "./sdk/reporter.ts";

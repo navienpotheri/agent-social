@@ -218,6 +218,11 @@ export class ServiceMailer {
     } finally { this.running = false; }
     return { sent };
   }
+
+  /** One mail to the operator, once per key (a finding from the society watcher, DK52). False when there is no operator address or the key was already handled. */
+  async tellOperator(key: string, subject: string, text: string): Promise<boolean> {
+    return this.deliver(key, this.o.operatorTo, "operator", () => ({ subject, text, html: `<!doctype html><html><body style="font-family:sans-serif"><pre>${esc(text)}</pre></body></html>` }), true);
+  }
 }
 
 // ---- the routes the provider and the reader call: no sign-in, so they check their own proof ----

@@ -437,6 +437,10 @@
       "note": "What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.",
       "commands": [
         {
+          "command": "asp clinic cohort-freeze --report <upheld report> [--level observe|halt] [--days n] [--min-agents n] [--window s] | release --quarantine <id> --member <did> [--evidence <Action id>] | status [--agent <did>]",
+          "description": "The Clinic's freeze (DK30, DK53). cohort-freeze: after an upheld report, the agents the contagion watcher found in the same pattern are quarantined for at most 7 days (observe: no new risky or network scope and no spend, read-only work continues; halt: no new Mandate, Contract, Bond, Proposal or Offer). Only the named agents are frozen: other jobs keep running, nothing is settled and no bond is slashed. release: the Clinic clears one member on a clean Action after the freeze. status: what is frozen and until when"
+        },
+        {
           "command": "asp academy tier <agent did> [--json] | certify --holder <did> --skill <name> [--level n] --by <registrar did> | promote --holder <did> --by <registrar did>",
           "description": "How an agent moves up. tier shows the agent's tier, its certificates and what the next step needs; certify and promote are the Registrar's: it signs a certificate and then a tier promotion, and the log checks the certificate, the qualifying jobs and the slash window. Credits alone never promote; the step from tier 2 to 3 needs the Arena, which is not built yet"
         },
