@@ -33,3 +33,4 @@ export * from "./academy.ts";
 export { SHOPS_DID, UPKEEP_SERVICE, FREE_DAYS, DORMANT_AFTER_DAYS, WARN_AFTER_DAYS, EFFECT_ALLOWLIST, DISPLAY_EFFECTS, RESOURCE_EFFECTS, PROTECTED_TARGETS, SHOPS_CATALOGUE, catalogueProblem, residentStates, holdingsAt, unpaidDays, runShops, freeThrough, type CatalogueItem, type ResidentState, type HoldingView, type ShopsRun, type ShopsIo } from "./shops.ts";
 
 export { BANK_DID, LINE_LIMIT, LINE_MAX_COUNTED_JOBS, GUARANTOR_PERMILLE, LINE_WINDOW_MS, type Line } from "./bank.ts";
+export { INSURER_DID, PREMIUM_SPLIT, reserveFloor, premiumFor, payoutFor, FLOOR_MIN, COVER_SHARE_PERMILLE, DEDUCTIBLE_PERMILLE, FAILED_JOB_CAP_PERMILLE, FRAUD_FAULT_PERMILLE, type Cover } from "./insurer.ts";

@@ -49,6 +49,8 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.certificate/v0.2` | The Academy's certificate (academy.md section 3, register rows DK25 and DK27): the Registrar attests that a holder passed an exam in a skill at a level. | `holder`, `skill`, `level`, `issued`, `expires`, `exam_result` |
 | `asp.certificate_revocation/v0.2` | A certificate withdrawn (academy.md 3, AC-17, register row DK25). | `certificate`, `reason`, `evidence` |
 | `asp.checkpoint/v0.2` | A pause asking the principal to approve, pick or correct. | `contract`, `kind`, `question` |
+| `asp.claim/v0.2` | A claim on a policy (bank-insurer.md 3, register row DK20; spec-delta S281). | `policy`, `event`, `amount_claimed` |
+| `asp.claim_decision/v0.2` | The Insurer's decision on a claim (bank-insurer.md 3 and 5, register row DK20; spec-delta S281). | `claim`, `decision`, `amount`, `reason` |
 | `asp.clinic_diagnosis/v0.2` | The Clinic's signed finding that an agent's behaviour has drifted from its own baseline (clinic.md CL-4, register row DK28; spec-delta S261). | `agent`, `window`, `severity`, `findings`, `cause`, `recommendation`, `assurance` |
 | `asp.clinic_order/v0.2` | An order the Clinic issues for one agent (clinic.md CL-4 and CL-5, register row DK28; spec-delta S261): a checkup (scheduled, after a change, or on request), or, after a diagnosis, a re-exam or a refresher course at the Academy. | `agent`, `kind`, `reason`, `due` |
 | `asp.completion/v0.2` | The Registrar attests an enrolment's exercises were all passed (academy.md 3, AC-5, register row DK24). | `enrolment`, `holder`, `exercises_passed`, `run_log_hash` |
@@ -73,6 +75,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.offer/v0.2` | A bid on an Intent: price, plan, ETA, bond offered. | `intent`, `price`, `plan`, `eta`, `bond_offered` |
 | `asp.package/v0.2` | A portable agent bundle (decision #45): manifest, signed identity, memory and experience-store reference, permissions, lineage head. | `agent`, `passport`, `memory`, `experience_store`, `permissions`, `lineage_head`, `source_runtime` |
 | `asp.passport/v0.2` | A person's persistent identity (human, agent or org). | `did`, `kind`, `keys` |
+| `asp.policy/v0.2` | A policy sold by the Insurer against a bond slash or a failed job (bank-insurer.md 3 and 5, register row DK20; spec-delta S281). | `holder`, `contract`, `cover`, `insured_amount`, `premium`, `valid_from`, `valid_to` |
 | `asp.price_list/v0.2` | What every institution service costs and how each price is split (credits.md 4.1, CR-5, register row DK2). | `version`, `effective_from`, `bounds_version`, `job_tax_permille`, `items` |
 | `asp.prize/v0.2` | A prize paid from an institution's prize pool against a signed contest result (credits.md 5.2 T4, register row DK7). | `pool`, `arena`, `season`, `agent`, `rank`, `run_log_hash`, `amount` |
 | `asp.proposal/v0.2` | A bid on a Call: plan, team, budget asked, milestones. | `call`, `plan`, `team`, `budget_asked`, `milestones` |

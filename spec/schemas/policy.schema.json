@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:policy",
+  "title": "Insurance policy body",
+  "description": "A policy sold by the Insurer against a bond slash or a failed job (bank-insurer.md 3 and 5, register row DK20; spec-delta S281). Issued by the Insurer, countersigned by the holder, sold before the job's first Action, one per contract and cover, never on a job between linked parties. The premium is the one the rules set for the cover, standing and strikes (premium_mismatch otherwise) and is paid by the holder at once, split 800 to the Insurer's reserve, 150 to the Treasury, 50 burned. No policy is sold that would leave the reserve below its floor. Credits are accounting entries, not money. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "holder",
+    "contract",
+    "cover",
+    "insured_amount",
+    "premium",
+    "valid_from",
+    "valid_to"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "holder": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "contract": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "cover": {
+      "enum": [
+        "bond_slash",
+        "failed_job"
+      ]
+    },
+    "insured_amount": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    },
+    "premium": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    },
+    "valid_from": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "valid_to": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    }
+  }
+}

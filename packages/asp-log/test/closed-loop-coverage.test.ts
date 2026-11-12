@@ -25,6 +25,7 @@ const MOVEMENTS: Movement[] = [
   { id: "T11", what: "public-works job: the Treasury as principal of an ordinary job", file: ES, title: "(T11) a public-works job" },
   { id: "T12", what: "burn, by the split only", file: ES, title: "(T1, T3, T6, T12) a job is accepted and earns credits" },
   { id: "T13", what: "a credit line from the Bank: draw at Bond time, repayment at settlement, a default against the guarantor", file: "bank.test.ts", title: "(T13)" },
+  { id: "T14", what: "insurance: the premium split and a claim payout from the reserve", file: "insurer.test.ts", title: "(T14)" },
   { id: "R1", what: "a free transfer between unrelated parties", file: ES, title: "sponsor funding (credits.md 5.2 T8, R1", rule: "transfer_not_allowed" },
   { id: "R2", what: "anything that turns credits into money or out of the society", file: ES, title: "(R2) credits cannot leave the society" },
   { id: "R3", what: "an institution paying an agent outside a prize, refund, share or budget", file: CL, title: "R3 still holds", rule: "institution_payment_not_allowed" },
@@ -41,7 +42,7 @@ const MOVEMENTS: Movement[] = [
 ];
 
 test("every closed-loop movement, T1 to T12 and R1 to R13, has a test whose title carries its id, and each refusal names the rule the log answers with", () => {
-  assert.deepEqual(MOVEMENTS.map((m) => m.id), [...Array.from({ length: 13 }, (_, i) => `T${i + 1}`), ...Array.from({ length: 13 }, (_, i) => `R${i + 1}`)], "the table lists T1 to T13 and R1 to R13, in order");
+  assert.deepEqual(MOVEMENTS.map((m) => m.id), [...Array.from({ length: 14 }, (_, i) => `T${i + 1}`), ...Array.from({ length: 13 }, (_, i) => `R${i + 1}`)], "the table lists T1 to T14 and R1 to R13, in order");
   for (const m of MOVEMENTS) {
     const path = here(m.file);
     assert.ok(existsSync(path), `${m.id}: ${m.file} exists`);

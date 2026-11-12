@@ -1,3 +1,4 @@
+import { projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
 import { projectCreditLine, projectCreditDefault, projectBankStatement, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
   AspError, Job, isNetworkScope, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
@@ -175,6 +176,7 @@ export class EventLog {
   private readonly maxNodeTtlMs: number;
   private readonly panelSize: number;
   private readonly bankEnv: BankEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
+  private readonly insurerEnv: InsurerEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
 
   private readonly bondFloor: "legacy" | "v2";
   private readonly operator?: string;
@@ -280,6 +282,9 @@ export class EventLog {
     if (type === "credit_line") await projectCreditLine(tx, verified, this.bankEnv);
     if (type === "credit_default") await projectCreditDefault(tx, verified, this.bankEnv);
     if (type === "bank_statement") await projectBankStatement(tx, verified);
+    if (type === "policy") await projectPolicy(tx, verified, this.insurerEnv);
+    if (type === "claim") await projectClaim(tx, verified);
+    if (type === "claim_decision") await projectClaimDecision(tx, verified, this.insurerEnv);
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
     if (type === "allowance") await this.projectAllowance(tx, verified);
@@ -317,7 +322,7 @@ export class EventLog {
       await this.checkVerifiedBeforeAcceptance(tx, verified);
     }
     if (type === "mandate") { await this.checkMandateTier(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
-    if (type === "action") { await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); await this.noteModels(tx, verified); }
+    if (type === "action") { await tx.putMarker(`acted:${(verified.body as { contract: string }).contract}`, verified.id); await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); await this.noteModels(tx, verified); }
     if (type === "world") checkWorldRecord(verified);
     if (type === "proposal") await this.checkProposerTier(tx, verified);
     if (type === "contract") await this.checkSubcontract(tx, verified);
