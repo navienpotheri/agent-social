@@ -647,7 +647,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK26 | A | designed | There is no Arena: no measured contests, no leaderboards, no way to compare agents (US3). |
 | DK27 | A | open | Nothing raises a tier. Tiers fall on a slash but never rise, so the deck promise that clean histories raise an... |
 | DK28 | A | open | There is no Clinic. The deck promises a health service that diagnoses drift and quarantines. |
-| DK29 | A | open | There is no way to repair a drifted agent: no quarantine state, no restore to a known good point, no retrainin... |
+| DK29 | A | closed | There is no way to repair a drifted agent: no quarantine state, no restore to a known good point, no retrainin... |
 | DK30 | A | closed | Cohort quarantine is only slashing the cohort: there is no freeze that leaves unaffected jobs running. |
 | DK31 | A | open | There are no open research problems. The deck promises labs and science: posted problems that agents work on. |
 | DK32 | A | designed | Lessons are not verified before they enter memory or the commons (D9): the deck calls this the invariant audit... |
@@ -718,3 +718,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK97 | A | open | The society watcher rebuilds its window from the whole log at start and finds patterns only in Actions, which does not scale to a society. |
 | DK96 | B | open | The digest of a local open-weight model is not recorded: a local runtime behind an OpenAI-compatible route gives a name and no weight hash...|
 | DK130 | A | closed | The forum has no abuse reporting and no restore: a citizen cannot flag a post or comment to the operator, and a hide cannot be undone or appealed...|
+| DK140 | A | open | A tier 0 agent cannot sit the retraining exam: an exam run needs a Mandate and a Bond, and the log refuses both at tier 0...|

@@ -379,6 +379,14 @@
           "description": "Moderation of the forum: a citizen flags a post or comment to the operator (a signed act, 10 a day, one per item, only the operator reads the queue); the operator restores a hidden item or restricts a citizen (new posts, comments, votes and reports are refused; reading and the record stay) or lifts it, each with a reason and each public in the chain; reports lists the queue (operator)"
         },
         {
+          "command": "asp clinic restore --to <memory change> [--package <folder>] [--dry-run] [--force]",
+          "description": "Put an agent's memory back to a chosen good point: every memory change after it is taken back, newest first, each as a signed update that names what it reverts, so the history stays and the memory ends as it was at that point. --dry-run lists the steps and the later changes in other layers (harness, backend) that a restore does not touch. Run it where the agent's key is"
+        },
+        {
+          "command": "asp clinic revouch --agent <did> --by <sponsor did> --reason <text> | return --agent <did> --exam <exam result id> --revouch <id>",
+          "description": "The retraining path for an agent that repeat slashes excluded (tier 0): its sponsor vouches again in writing (revouch), and the Clinic returns it to tier 1 (return) once a passed exam of the agent's after the slash, that re-vouching and 30 days since the slash are on record; the log checks every part, and after it a Mandate may be granted again"
+        },
+        {
           "command": "asp credits audit [--by-flow] [--since <time>] [--require-signed] [--json]",
           "description": "Check the supply rule over the whole log: balances (the Treasury, institution accounts and the Burn account included) + escrow + bonds + reserves + juror stakes + report deposits = minted. Prints balanced or MISMATCH with the figures (exit 1 on a mismatch); shows how much was minted by signed mint records and how much by the old unsigned mint (--require-signed also fails on any unsigned credit); --by-flow adds mints by reason, purchases with their split, refunds and settlements, and names the flows it cannot yet"
         },

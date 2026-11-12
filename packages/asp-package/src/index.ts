@@ -61,6 +61,7 @@ export * from "./infer-scope.ts";
 export * from "./infer-scope-model.ts";
 export * from "./law-code.ts";
 export * from "./learned.ts";
+export { planRestore, runRestore, type RestorePlan, type RestoreStep } from "./clinic-restore.ts";
 export * from "./at-rest.ts";
 export { Attempts, explainRefusal, lawFor, type Article } from "./gateway/law.ts";
 export { SELF_ACTING, selfActingFor, selfActingNotes, type SelfActing } from "./self-acting.ts";

@@ -42,6 +42,10 @@ const PROMOTION_SLASH_FREE_MS = 30 * 24 * 60 * 60 * 1000;
 /** How long a probation lasts after a model change (D4): the same 7 days as a lineage update's. */
 const MODEL_CHANGE_PROBATION_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** The retraining path (clinic.md CL-10; proposals the owner decides): days from the last slash before an excluded agent may be returned, and how many returns an agent gets. */
+const RETRAINING_MIN_MS = 30 * 24 * 60 * 60 * 1000;
+const RETRAINING_LIMIT = 2;
+
 /** Graduated tier limits: the most credit a Mandate may let a tier spend (tier 3 and above: uncapped; tier 0 is excluded outright). */
 const TIER_SPEND_LIMIT: Record<number, number> = { 1: 100, 2: 1000 };
 /** ...and how many parallel nodes (Mandate nodes.max_parallel) it may run. */
@@ -263,6 +267,8 @@ export class EventLog {
     if (type === "purchase") await this.projectPurchase(tx, verified);
     if (type === "starter_claim") await this.projectStarterClaim(tx, verified);
     if (type === "internal_transfer") await this.projectInternalTransfer(tx, verified);
+    if (type === "revouch") await this.projectRevouch(tx, verified);
+    if (type === "retraining_release") await this.projectRetrainingRelease(tx, verified);
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
     if (type === "allowance") await this.projectAllowance(tx, verified);
@@ -1921,6 +1927,47 @@ export class EventLog {
     if (!["gateway_observed", "gateway_enforced", "hook_enforced", "sandbox_enforced"].includes(ab.assurance ?? "")) throw rule("release_evidence_weak", "the evidence must be an Action the gateway observed or stronger, not one the agent reported about itself");
     if ((ab.blocked_attempts ?? []).length) throw rule("release_evidence_not_clean", "the evidence Action has blocked attempts: a release needs a clean run");
     await tx.putMarker(`quarantine_released:${b.quarantine}|${b.member}`, r.id);
+  }
+
+  /** A sponsor vouches again for an agent that repeat slashes excluded (clinic.md CL-10, DK29). Only the sponsor named in the agent's passport, and only for an agent at tier 0. */
+  private async projectRevouch(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { agent: string };
+    if (r.prev !== null) throw rule("revouch_not_chained", "a re-vouching starts its own chain (prev is null)");
+    const passport = await tx.getPassport(b.agent);
+    if (!passport?.sponsor) throw rule("revouch_not_an_agent", `${b.agent} is not an agent with a sponsor in this log`);
+    if (r.issuer !== passport.sponsor) throw rule("revouch_not_the_sponsor", `only ${passport.sponsor}, the sponsor of ${b.agent}, vouches for it`);
+    const rep = await this.reputation(tx, b.agent);
+    if (!rep || rep.tier !== 0) throw rule("revouch_not_excluded", `${b.agent} is not excluded (tier 0): there is nothing to vouch for again`);
+  }
+
+  /**
+   * The retraining path's end (clinic.md CL-10, DK29): the Clinic returns an agent at tier 0 to tier 1. All of: 30 days since the last slash, a passed exam result of the agent's made after that slash, the
+   * sponsor's re-vouching made after it, and no more than two returns. A Mandate may then be granted to the agent again (the tier 0 exclusion no longer applies); the slash count stays.
+   */
+  private async projectRetrainingRelease(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { agent: string; exam_result: string; revouch: string };
+    if (r.prev !== null) throw rule("retraining_not_chained", "a retraining release starts its own chain (prev is null)");
+    if (r.issuer !== CLINIC_DID) throw rule("retraining_wrong_issuer", `${r.issuer} is not the Clinic (${CLINIC_DID}): only the Clinic returns an agent from tier 0`);
+    const rep = await this.reputation(tx, b.agent);
+    if (!rep || rep.tier !== 0) throw rule("retraining_not_excluded", `${b.agent} is not at tier 0`);
+    const slashed = await tx.getMarker(`slashed_at:${b.agent}`);
+    if (!slashed) throw rule("retraining_no_slash_on_record", `the log has no slash on record for ${b.agent}, so there is no path to measure from`);
+    const at = Date.parse(r.issued_at);
+    if (at - Date.parse(slashed) < RETRAINING_MIN_MS) throw rule("retraining_too_soon", `${b.agent} was slashed at ${slashed}: the retraining path takes at least 30 days from the slash`);
+    const retrained = Number((await tx.getMarker(`retrained:${b.agent}`)) ?? 0);
+    if (retrained >= RETRAINING_LIMIT) throw rule("retraining_limit", `${b.agent} has been returned from tier 0 ${retrained} times already: a further return needs a Court`);
+    const exam = await tx.getRecord(b.exam_result);
+    const eb = exam?.record.body as { holder?: string; passed?: boolean } | undefined;
+    if (!exam || exam.record.type !== "asp.exam_result/v0.2") throw rule("retraining_exam_unknown", `${b.exam_result} is not an exam result in this log`);
+    if (eb?.holder !== b.agent) throw rule("retraining_exam_not_holders", `the exam result ${b.exam_result} is for ${eb?.holder}, not ${b.agent}`);
+    if (!eb?.passed) throw rule("retraining_exam_not_passed", "the exam result must be a passed one: the retraining path needs a clean exam");
+    if (Date.parse(exam.record.issued_at) <= Date.parse(slashed)) throw rule("retraining_exam_before_slash", "the exam must be taken after the slash, as part of the retraining");
+    const v = await tx.getRecord(b.revouch);
+    const vb = v?.record.body as { agent?: string } | undefined;
+    if (!v || v.record.type !== "asp.revouch/v0.2" || vb?.agent !== b.agent) throw rule("retraining_revouch_unknown", `${b.revouch} is not a re-vouching for ${b.agent}`);
+    if (Date.parse(v.record.issued_at) <= Date.parse(slashed)) throw rule("retraining_revouch_before_slash", "the sponsor's re-vouching must come after the slash");
+    await this.saveReputation(tx, b.agent, { ...rep, tier: 1 });
+    await tx.putMarker(`retrained:${b.agent}`, String(retrained + 1));
   }
 
   /** A receipt (credits.md 4.3): the purchase's institution closes it; a refund comes back by the split in reverse and never includes the burned part. */

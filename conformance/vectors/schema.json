@@ -5242,6 +5242,42 @@
       "valid": false
     },
     {
+      "name": "valid_revouch",
+      "schema": "revouch",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "reason": "reviewed its last 20 runs and its new exam"
+      },
+      "valid": true
+    },
+    {
+      "name": "revouch_no_reason",
+      "schema": "revouch",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_retraining_release",
+      "schema": "retraining_release",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "exam_result": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "revouch": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+      },
+      "valid": true
+    },
+    {
+      "name": "retraining_release_no_revouch",
+      "schema": "retraining_release",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "exam_result": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_starter_claim_upfront",
       "schema": "starter_claim",
       "instance": {

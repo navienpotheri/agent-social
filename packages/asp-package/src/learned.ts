@@ -23,6 +23,8 @@ export interface Lesson {
   review?: { state: Review; at: string };
   /** The edge that rolled this one back, if one did. */
   undoneBy?: string;
+  /** Set when this change is itself a roll-back: the edge it rolled back. */
+  reverts?: string;
 }
 
 const dirOf = (pkg: string) => join(pkg, "learned");
@@ -47,7 +49,7 @@ export function listLessons(pkg: string): Lesson[] {
     const rec = existsSync(fileFor(pkg, e.id)) ? (readJson(fileFor(pkg, e.id)) as { files: LessonFile[] }) : undefined;
     return {
       edge: e.id, short: shortOf(e.id), at: e.issued_at, description: String((e.body as any).change.description),
-      ...(rec ? { files: rec.files } : {}), ...(review[e.id] ? { review: review[e.id] } : {}), ...(reverted.has(e.id) ? { undoneBy: reverted.get(e.id)! } : {}),
+      ...(rec ? { files: rec.files } : {}), ...(review[e.id] ? { review: review[e.id] } : {}), ...(reverted.has(e.id) ? { undoneBy: reverted.get(e.id)! } : {}), ...((e.body as any).change?.reverts ? { reverts: String((e.body as any).change.reverts) } : {}),
     };
   }).reverse();
 }

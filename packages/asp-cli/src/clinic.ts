@@ -16,7 +16,7 @@ export interface ClinicOpts {
   now: () => string;
   signerFor: (did: string) => Signer;
   actions: () => Promise<WatchAction[]>;
-  flags: { by?: string; report?: string; level?: string; days?: string; "min-agents"?: string; window?: string; all?: boolean; quarantine?: string; member?: string; evidence?: string; agent?: string; json?: boolean };
+  flags: { by?: string; report?: string; level?: string; days?: string; "min-agents"?: string; window?: string; all?: boolean; quarantine?: string; member?: string; evidence?: string; agent?: string; json?: boolean; reason?: string; exam?: string; revouch?: string };
 }
 
 const DAY = 86_400_000;
@@ -95,6 +95,23 @@ export async function clinicCmd(sub: string | undefined, o: ClinicOpts): Promise
     o.io.out(`quarantine ${res.id}: ${members.length} agent(s) frozen at ${level} until ${body.until} (log seq ${res.seq})`);
     for (const m of members) o.io.out(`  ${m}`);
     o.io.out("every other job keeps running; nothing was settled and no bond slashed. Release a member after a clean run: asp clinic release --quarantine <id> --member <did>");
+    return 0;
+  }
+  if (sub === "revouch") {
+    // The sponsor vouches again, in writing, for an agent that repeat slashes excluded (the retraining path, DK29). Signed with the sponsor's key.
+    if (!f.agent || !f.by || !f.reason) throw new ClinicUsage("asp clinic revouch --agent <did> --by <sponsor did> --reason <text>");
+    const rec = createRecord({ type: "revouch", issuer: f.by, subject: f.agent, prev: null, body: { agent: f.agent, reason: f.reason }, issued_at: o.now() }, o.signerFor(f.by));
+    const res = await o.log.append(rec);
+    o.io.out(`re-vouching ${res.id}: ${f.by} vouches again for ${f.agent} (log seq ${res.seq}); the Clinic can return it from tier 0 once 30 days have passed since its slash and it has a passed exam after the slash`);
+    return 0;
+  }
+  if (sub === "return") {
+    // The Clinic returns an excluded agent to tier 1: a passed exam of the agent's after the slash, the sponsor's re-vouching, 30 days since the slash (the log checks every part).
+    const by = f.by ?? CLINIC_DID;
+    if (!f.agent || !f.exam || !f.revouch) throw new ClinicUsage(`asp clinic return --agent <did> --exam <exam result id> --revouch <re-vouching id> [--by ${CLINIC_DID}]`);
+    const rec = createRecord({ type: "retraining_release", issuer: by, subject: f.agent, prev: null, body: { agent: f.agent, exam_result: f.exam, revouch: f.revouch }, issued_at: o.now() }, o.signerFor(by));
+    const res = await o.log.append(rec);
+    o.io.out(`returned ${f.agent} to tier 1 (${res.id}, log seq ${res.seq}): a Mandate may be granted to it again; its slashes stay on its record`);
     return 0;
   }
   if (sub === "release") {

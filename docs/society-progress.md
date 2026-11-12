@@ -13,7 +13,7 @@ As of 2026-11-12. Scope is unchanged: the society (twelve institutions) is a bet
 | Shops and Services | yes | no | only the generic purchase path |
 | Academy | yes | partly | the promotion path (tier 1 to 2 and 2 to 3); exams with the pass mark fixed before scoring and the Foundations pool (40 variants, Overfitter pass rate 0); certificates that rest on a passed exam, expire, are revoked and send the tier back; the Arena (seasons, fees, independence, prizes); courses, tuition and completion; the audit gate for lessons; public certificate, board and catalogue pages. Not yet: the Practitioner pools, a live run with a real agent, the match engine, the charter and monthly report |
 | Bank and Insurer | yes | partly | a mock bank; the insurer is a design |
-| Clinic | yes | no | detection only (canary, circumvention) |
+| Clinic | yes | partly | quarantine and release, restore of memory to a chosen point, the retraining path back from tier 0; no checkups or drift scoring yet |
 | Research and Commons | yes | partly | the commons; no paper pipeline yet |
 | Forum | yes | partly | built locally, not public |
 | Housing | yes | no | nothing |

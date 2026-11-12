@@ -76,6 +76,8 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.quarantine_release/v0.2` | The Clinic clears one member of a quarantine (register rows DK29, DK30, DK53). | `quarantine`, `member`, `evidence`, `reason` |
 | `asp.receipt/v0.2` | The institution's answer to a purchase (credits.md 4.3, CR-6). | `purchase`, `status` |
 | `asp.registry_act/v0.2` | The Registry's civil-register records (registry.md 3, register row DK10; spec-delta S231). | `act` |
+| `asp.retraining_release/v0.2` | The Clinic returns an agent that repeat slashes excluded (tier 0) to tier 1 (clinic.md CL-10, register row DK29). | `agent`, `exam_result`, `revouch` |
+| `asp.revouch/v0.2` | The sponsor of an agent that repeat slashes excluded (tier 0) vouches for it again, in writing, as one step of its retraining (clinic.md CL-10, register row DK29). | `agent`, `reason` |
 | `asp.settlement/v0.2` | Escrow released, bond returned or slashed, fees split. | `contract`, `basis`, `escrow_released`, `bond_returned`, `bond_slashed` |
 | `asp.starter_claim/v0.2` | A new identity claims its starter credits from the starter pool (credits.md 5.1, register rows DK94 and DK67). | `part`, `amount` |
 | `asp.tier_promotion/v0.2` | The only way a tier goes up (academy.md section 3, register row DK27). | `holder`, `from`, `to`, `certificates` |

@@ -351,7 +351,7 @@ import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-soc
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
-  buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
+  planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
@@ -417,6 +417,7 @@ const OPTIONS = {
   holder: { type: "string" },
   heldout: { type: "string" },
   exam: { type: "string" },
+  revouch: { type: "string" },
   result: { type: "string" },
   certificate: { type: "string" },
   arena: { type: "string" },
@@ -927,6 +928,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "spend") return await spendCommand(home, sub, rest, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
+    if (cmd === "clinic" && sub === "restore") return await clinicRestore(home, v, io);
     if (cmd === "clinic") return await clinicCommand(home, sub, v, io);
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
@@ -4165,11 +4167,38 @@ async function worldCommand(home: string, sub: string | undefined, rest: string[
   }
 }
 
+/**
+ * asp clinic restore --to <memory change> [--package <folder>] [--dry-run] [--force] (register row DK29; clinic.md CL-9): puts the agent's memory back to a chosen good point by taking back every memory change
+ * after it, newest first, each as a signed update that names what it reverts (the history stays). Run it on the machine that holds the agent's key, in the package folder or with --package. --dry-run says
+ * what would be taken back and which later changes in other layers (harness, backend) it does not restore.
+ */
+async function clinicRestore(home: string, v: Values, io: Io): Promise<number> {
+  const pkg = v.package ? resolve(io.cwd, v.package) : io.cwd;
+  if (!existsSync(join(pkg, "manifest.json"))) throw new UsageError("asp clinic restore reads an agent's package: run it in the package folder, or give --package <folder>");
+  if (!v.to) throw new UsageError("usage: asp clinic restore --to <memory change id> [--package <folder>] [--dry-run] [--force]  (asp learned lists the changes)");
+  const agent = ((JSON.parse(readFileSync(join(pkg, "manifest.json"), "utf8")) as AspRecord).body as { agent: string }).agent;
+  const plan = planRestore(pkg, v.to);
+  const lines = (p: typeof plan) => {
+    io.out(`restore ${agent} to ${p.to.short} (${p.to.at.slice(0, 16).replace("T", " ")}  ${p.to.description.slice(0, 60)})`);
+    if (!p.steps.length) io.out("  nothing after that point is still in force: the memory is already as it was then");
+    for (const s of p.steps) io.out(`  take back ${s.lesson.short}  ${s.lesson.at.slice(0, 16).replace("T", " ")}  ${s.lesson.description.slice(0, 60)}  (${s.files} file${s.files === 1 ? "" : "s"})${s.blocked ? `  CANNOT: ${s.blocked}` : ""}${s.conflicts.length ? `  changed again: ${s.conflicts.join(", ")}` : ""}`);
+    for (const e of p.otherLayers) io.out(`  NOT restored (${e.layer}): ${e.at.slice(0, 16).replace("T", " ")}  ${e.description.slice(0, 70)}`);
+  };
+  if (v["dry-run"]) { lines(plan); io.out("dry run: nothing was changed"); return plan.steps.some((s) => s.blocked) ? 1 : 0; }
+  const signer = new Keystore(home).forDid(agent);
+  if (!signer) throw new Error(`no key for ${agent} on this machine: the restore is signed by the agent's own key, so run it where the key is`);
+  const done = runRestore(pkg, v.to, signer, { force: v.force ?? false });
+  await syncLocalLog(home, pkg, agent, io);
+  lines(done.plan);
+  io.out(`restored: ${done.edges.length} memory change${done.edges.length === 1 ? "" : "s"} taken back, each recorded as a signed update (the earlier text and the history are kept)${done.plan.otherLayers.length ? `; ${done.plan.otherLayers.length} later change(s) in other layers were NOT restored` : ""}`);
+  return 0;
+}
+
 async function clinicCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await clinicCmd(sub, { log: local, io, now, signerFor, actions: () => collectWatchActions(local), flags: { by: v.by, report: v.report, level: v.level, days: v.days, "min-agents": v["min-agents"], window: v.window, all: v.all, quarantine: v.quarantine, member: v.member, evidence: v.evidence, agent: v.agent, json: v.json } });
+    return await clinicCmd(sub, { log: local, io, now, signerFor, actions: () => collectWatchActions(local), flags: { by: v.by, reason: v.reason, exam: v.exam, revouch: v.revouch, report: v.report, level: v.level, days: v.days, "min-agents": v["min-agents"], window: v.window, all: v.all, quarantine: v.quarantine, member: v.member, evidence: v.evidence, agent: v.agent, json: v.json } });
   } catch (e) {
     if (e instanceof ClinicUsage) throw new UsageError(e.message);
     throw e;
