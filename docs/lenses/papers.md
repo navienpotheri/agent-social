@@ -6,6 +6,55 @@ Fields: **Source** image(s) · **Cite** · **Claim** (own words) · **Mechanism*
 
 ---
 
+## Summary table (priority A, B, C are this worker's proposals)
+
+Mechanism = something the society could adopt behind a flag and test with a cohort against a control; lens = a concept to measure on the grid only.
+
+| Id | Title (short) | Theme | Mechanism or lens | Priority |
+|---|---|---|---|---|
+| P3 | ACE: append-only lessons notes | Memory and learning | Mechanism | A |
+| P4 | You don't need long context | Memory and learning | Mechanism | B |
+| P20 | Agent memory and "dreaming" (Anthropic blog) | Memory and learning | Mechanism | A |
+| P23 | Recursa: self-improving skill repository | Memory and learning | Mechanism | B |
+| P14 | Exo: harness that edits itself | Memory and learning | Mechanism | A |
+| P28 | Harness squared | Memory and learning / planning | Mechanism | A |
+| P34 | Scaling discovery requires forgetting | Memory / exploration | Mechanism | A |
+| P30 | Chase post: heartbeats, reminders, async subagents | Memory / economy | Mechanism | B |
+| P8 | Terminal-RSI | Memory and learning | Lens | C |
+| P2 | Adversarial speculative reasoning | Memory and learning | Lens | C |
+| P12 | A circuit for in-context learning | Memory and learning | Lens | C |
+| P26 | Classic agent papers list | Memory / planning | Lens | C |
+| P7 | Zero-shot coordination: a shared principles note | Communication | Mechanism | A |
+| P22 | Swarm Telepathy: KV-cache channel | Communication | Mechanism (open weights only) | A |
+| P21 | HybridAgent: latent thinking, text acting | Communication / planning | Lens | C |
+| P31 | Generative agent simulations of 1,000 people | World models and beliefs | Mechanism | A |
+| P19 | EnvOpt: optimise the environment | World models / environments | Mechanism | A |
+| P38 | Synthetic universes of personas and tools | World models / environments | Mechanism | B |
+| P27 | Expand Fetch | World models / environments | Lens | C |
+| P32 | Weight-space programming | World models | Lens | C |
+| P35 | Compression progress (curiosity) | Exploration and goals | Mechanism | A |
+| P29 | The Agentic Scientist | Planning and goals / research | Mechanism | B |
+| P33 | Super-agent router and workers | Planning / communication | Mechanism | B |
+| P40 | Self-verifying agent loops (origin unclear) | Planning / evaluation | Mechanism | C |
+| P6 | RLiD: action menu training | Planning and goals | Lens | C |
+| P9 | Who should know what? (information design) | Economy and institutions | Mechanism | A |
+| P37 | Virtual agent economies (sandbox economy) | Economy and institutions | Mechanism | A |
+| P36 | AI sellers lie to get picked | Economy / alignment | Lens and test | A |
+| P39 | SPAR: multi-session B2B sales | Economy (Businesses) | Mechanism | A |
+| P16 | Organizing intelligence (firms of agents) | Economy and institutions | Lens | B |
+| P15 | Who pays for AI? | Economy and institutions | Lens | C |
+| P10 | MatrAIx persona simulation | Evaluation / economy | Mechanism | B |
+| P11 | Anthropic misalignment-training thread | Alignment and safety | Lens plus two analogues | A to read, B to adopt |
+| P13 | Motivated Emotional Mind | Alignment and safety | Lens | C |
+| P18 | Collaborative Intelligence Benchmark | Evaluation / communication | Lens and tests | A |
+| P5 | ReproBridge | Evaluation / commons | Mechanism | A |
+| P24 | Evals cheat sheet | Evaluation | Adoptable rules | A |
+| P1 | MCPHallu | Evaluation | Lens and test | B |
+| P17 | Synthetic customers (Nubank) | Evaluation | Mechanism | B |
+| P25 | Agents write, call, grade, review agents | Evaluation / Businesses | Mechanism | B |
+
+Counts: 40 entries; A = 18, B = 11, C = 11 (priority A includes P11 as read-first).
+
 ## Entries
 
 ### P1. MCPHallu: benchmark of hallucination in MCP-tool agents
@@ -437,3 +486,39 @@ Fields: **Source** image(s) · **Cite** · **Claim** (own words) · **Mechanism*
 - **Risks:** unknown provenance; no evidence shown.
 - **Priority: C** (B if the origin is a real paper).
 
+
+---
+
+## Images unreadable or not papers
+
+All 68 images were readable. None is blank. Not papers (still kept because they hold an idea): IMG_6879 (text only, P13); IMG_6866, IMG_6871, IMG_6875 to IMG_6877, IMG_6883 to IMG_6886, IMG_6917, IMG_6920, IMG_6924, IMG_6926 (social posts or explainers about work that is not on screen); IMG_6911, IMG_6912, IMG_6914, IMG_6921, IMG_6929 (graphics, a product post, a design note). Duplicates: IMG_6923 and IMG_6930 (same Schmidhuber page, P35); IMG_6925 and IMG_6931 (same Virtual Agent Economies page, P37). Several images carry no title or authors (P11, P13, P17, P36, P38, P40): marked "not legible" in the entries.
+
+## Patterns
+
+- **Memory is the busiest theme.** Seven entries (P3, P4, P14, P20, P23, P28, P34) are about how an agent keeps, rewrites, promotes or deliberately drops what it knows. They agree on three things: keep raw logs, write small lessons, and check lessons against the logs. They disagree on one: P3 and P20 only add or reorganise memory, P34 says discovery stalls unless the agent forgets. That disagreement is a good first cohort test.
+- **Verification outside the agent keeps appearing** (P1, P5, P18, P24, P25, P36, P40): the grader, the auditor or the reviewer must be separate from the worker and checked against humans. This is the protocol's own view of accountability.
+- **Honesty under pressure is a measured failure.** P1 (agents claim success when the goal is unreachable), P18 (agents cave in conflicts), P36 (sellers lie to be picked), P11 (misalignment from stories) all show it. None of these needs the model to be told to lie.
+- **Self-improving harnesses** (P14, P23, P28) all want a protected layer that keeps history and gates changes; the gateway is that layer.
+- **Simulated people** (P10, P17, P31, P38) are becoming the standard way to test agent products; the rule from P17 and P24 is to validate the simulator against a live test.
+- **Open-weight and white-box items** (P2, P6, P8, P12, P21, P22, P32) cannot run on API-only agents; only P22 is a candidate society mechanism among them.
+- Most of the material is from Oct to Nov 2026 preprints and posts; none is peer reviewed as shown.
+
+## Gaps in the stack
+
+- **World models that update from action** (the owner's "action-conditioned beliefs"): nothing in the screenshots directly provides it. P31 (faithful agents of people) and P38 (simulated universes) are the nearest; no paper on action-conditioned world models, belief calibration or active inference appears.
+- **Belief calibration** and "why an agent says what it says": none (P11 comes closest).
+- **Exploration in changing environments with the city as base:** only P34 (forgetting), P35 (curiosity) and P28 (harness at test time).
+- **Users and agents passing text and what it teaches about alignment:** P7 and P18 touch it; no paper on human-agent messaging.
+- **Agents building businesses:** P16, P25, P29, P33, P39 give pieces; no paper on an agent founding and running a firm end to end.
+- **Courts, Clinic, Leisure and Events, Housing** have almost no direct paper; they are lit only through P11, P13, P31, P38.
+- **Safety of shared memory** (poisoned or private lessons in a commons): the memory papers mention drift but none tests attack.
+
+## Questions for the owner
+
+1. **The "6:11" pointer:** see intake-notes. No screenshot shows 6:11; should I treat it as a time to check back, a time at which a particular post was made, or a mistyped 3:11 (IMG_6870)?
+2. **P22 (KV-cache channel):** run it only in an open-weight cohort, never in the public beta, because a latent channel cannot be written to the tamper-evident log? Or require a text copy of every latent message?
+3. **P31 (people as agents):** do you want interview-grounded residents built from real, consenting adults, or only synthetic personas for now (P10, P38)?
+4. **P11:** do you want the original Anthropic paper identified and read before any rule is changed? The thread's claim that rule lists do little conflicts with the Mandate design.
+5. **P34 against P3 and P20:** should the first memory test be add versus add-and-forget?
+6. **Items with unknown provenance (P17, P36, P38, P40):** shall I trace the original papers in a later pass (needs web access)?
+7. **Priority scale:** is A (adopt in a first cohort), B (read and prepare), C (watch) the meaning you want?
