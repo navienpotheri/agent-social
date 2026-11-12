@@ -1431,6 +1431,8 @@ async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io
 /**
  * asp account show | export [--out <dir>] | close --confirm <tenant> [--skip-export] [--out <dir>] (an admin adds --tenant <name>): a tenant's own data on the service named by
  * ASP_LOG_URL and ASP_LOG_TOKEN. Export writes account.json, records.ndjson, commons.json, the packages and a README; close exports first (unless --skip-export), then deletes.
+ * close also writes a deletion receipt (gap U9) to <home>/exports: the service's own account/close answer (what it deleted, what it kept and why, when), with a sha256 over it,
+ * saved before anything else happens, since the account cannot be asked again afterwards to show this.
  */
 async function accountCmd(sub: string | undefined, v: Values, io: Io, home: string): Promise<number> {
   const url = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
@@ -1528,9 +1530,16 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     io.out(`account ${r.tenant} closed: deleted ${r.deleted.packages} package(s), ${r.deleted.commonsEntries} commons entr(ies), ${r.deleted.commonsReviews} review(s) and ${r.deleted.commonsCitations} citation(s), and its token and personal details`);
     io.out(r.stays.records);
     io.out(`kept ${r.stays.retained}`);
+    // A deletion receipt (gap U9): the service's own account cannot be asked again once it is closed, so what it just said is written here, with a hash over it, before anything else happens.
+    const receipt = { ...r, closedAt: now() };
+    const receiptBytes = Buffer.from(JSON.stringify(receipt), "utf8");
+    const receiptPath = join(home, "exports", `deletion-receipt-${r.tenant}-${now().replace(/[:.]/g, "-")}.json`);
+    mkdirSync(dirname(receiptPath), { recursive: true });
+    writeFileSync(receiptPath, JSON.stringify({ ...receipt, sha256: createHash("sha256").update(receiptBytes).digest("hex") }, null, 2) + "\n");
+    io.out(`  deletion receipt saved to ${receiptPath} (what the service said it deleted and kept, and when; the account cannot be asked again to show this)`);
     return 0;
   }
-  throw new UsageError("usage: asp account show | starter --did <did>[,<did>] | export [--out <dir>] | close --confirm <tenant name> [--skip-export] [--out <dir>]");
+  throw new UsageError("usage: asp account show | starter --did <did>[,<did>] | export [--out <dir>] | close --confirm <tenant name> [--skip-export] [--out <dir>]   (close also saves a deletion receipt to <home>/exports)");
 }
 
 interface JoinConfig { service: string; token: string; tenant: string; joinedAt: string; /** Made by asp join: who asp run uses. */ identities?: { me: string; agent: string; bank: string } }
