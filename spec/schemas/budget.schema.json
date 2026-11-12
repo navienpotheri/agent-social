@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:budget",
+  "title": "Treasury budget body",
+  "description": "The Treasury's budget for one institution (or for its own allowance line) for one month (credits.md 5.2 T10 and T5, treasury.md, register row DK7). Signed by the Treasury; one budget per institution per month; the first budget of an institution, and any later one that raises it by more than a quarter, also carries the owner's co-signature. The sum of open budgets never exceeds the Treasury's balance. Treasury payments to an institution, and allowances to newcomers, are capped by it. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": ["institution", "period", "amount", "purpose"],
+  "additionalProperties": false,
+  "properties": {
+    "institution": { "description": "The institution account the budget funds; the Treasury's own account for the newcomer allowance line (purpose allowance).", "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "period": { "description": "The month, YYYY-MM.", "type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$" },
+    "amount": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "purpose": { "description": "The charter line the budget funds, or allowance.", "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+  }
+}

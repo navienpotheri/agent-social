@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:treasury_payment",
+  "title": "Treasury payment body",
+  "description": "The Treasury pays part of an approved budget to its institution (credits.md 5.2 T10, register row DK7). Signed by the Treasury. The payee is the budget's institution, the month of the budget is the month of the payment, and the payments of a budget never add up to more than it (over_budget). Debits only the Treasury account. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": ["budget", "to", "amount"],
+  "additionalProperties": false,
+  "properties": {
+    "budget": { "description": "The budget record this draws on.", "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "to": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "amount": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "memo": { "type": "string", "maxLength": 200 }
+  }
+}

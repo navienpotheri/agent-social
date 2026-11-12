@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:allowance",
+  "title": "Newcomer allowance claim body",
+  "description": "A newcomer agent claims the Treasury's allowance (credits.md 5.2 T5, treasury.md, register row DK7). Signed by the agent; the log applies fixed rules and pays from the Treasury under an allowance budget, so no operator key is needed. Once per identity and once per sponsor; a passport under 90 days old; a first course or a first bond; no slash; the amount is the allowance and no more; the month's allowance budget is the cap. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": ["amount", "trigger", "budget"],
+  "additionalProperties": false,
+  "properties": {
+    "amount": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "trigger": { "enum": ["first_course", "first_bond"] },
+    "budget": { "description": "The allowance budget (institution: the Treasury, purpose allowance) for the month of the claim.", "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+  }
+}

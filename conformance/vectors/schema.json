@@ -3792,6 +3792,352 @@
       "valid": false
     },
     {
+      "name": "valid_price_list_standing_item",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard",
+            "gives_standing": true
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "price_list_standing_not_boolean",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard",
+            "gives_standing": "yes"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_budget",
+      "schema": "budget",
+      "instance": {
+        "institution": "did:web:asp.local:courts",
+        "period": "2026-11",
+        "amount": {
+          "value": 500,
+          "unit": "credit"
+        },
+        "purpose": "panel fees"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_budget_allowance_line",
+      "schema": "budget",
+      "instance": {
+        "institution": "did:web:asp.local:treasury",
+        "period": "2026-11",
+        "amount": {
+          "value": 500,
+          "unit": "credit"
+        },
+        "purpose": "allowance"
+      },
+      "valid": true
+    },
+    {
+      "name": "budget_bad_period",
+      "schema": "budget",
+      "instance": {
+        "institution": "did:web:asp.local:courts",
+        "period": "2026-13",
+        "amount": {
+          "value": 500,
+          "unit": "credit"
+        },
+        "purpose": "panel fees"
+      },
+      "valid": false
+    },
+    {
+      "name": "budget_no_purpose",
+      "schema": "budget",
+      "instance": {
+        "institution": "did:web:asp.local:courts",
+        "period": "2026-11",
+        "amount": {
+          "value": 500,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "budget_extra_field",
+      "schema": "budget",
+      "instance": {
+        "institution": "did:web:asp.local:courts",
+        "period": "2026-11",
+        "amount": {
+          "value": 500,
+          "unit": "credit"
+        },
+        "purpose": "panel fees",
+        "cash_out": true
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_treasury_payment",
+      "schema": "treasury_payment",
+      "instance": {
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "to": "did:web:asp.local:courts",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_treasury_payment_memo",
+      "schema": "treasury_payment",
+      "instance": {
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "to": "did:web:asp.local:courts",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        },
+        "memo": "first half"
+      },
+      "valid": true
+    },
+    {
+      "name": "treasury_payment_no_budget",
+      "schema": "treasury_payment",
+      "instance": {
+        "to": "did:web:asp.local:courts",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "treasury_payment_amount_not_credit",
+      "schema": "treasury_payment",
+      "instance": {
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "to": "did:web:asp.local:courts",
+        "amount": {
+          "value": 5,
+          "unit": "usd"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "treasury_payment_extra_field",
+      "schema": "treasury_payment",
+      "instance": {
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "to": "did:web:asp.local:courts",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        },
+        "cash_out": true
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_allowance",
+      "schema": "allowance",
+      "instance": {
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "trigger": "first_course",
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_allowance_first_bond",
+      "schema": "allowance",
+      "instance": {
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "trigger": "first_bond",
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
+      "name": "allowance_bad_trigger",
+      "schema": "allowance",
+      "instance": {
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "trigger": "birthday",
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "allowance_no_budget",
+      "schema": "allowance",
+      "instance": {
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "trigger": "first_course"
+      },
+      "valid": false
+    },
+    {
+      "name": "allowance_extra_field",
+      "schema": "allowance",
+      "instance": {
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "trigger": "first_course",
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "to": "did:web:example.com:agents:alice-coder"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_prize",
+      "schema": "prize",
+      "instance": {
+        "pool": "did:web:asp.local:academy",
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "rank": 1,
+        "run_log_hash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "amount": {
+          "value": 60,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "prize_rank_zero",
+      "schema": "prize",
+      "instance": {
+        "pool": "did:web:asp.local:academy",
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "rank": 0,
+        "run_log_hash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "amount": {
+          "value": 60,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "prize_bad_run_log_hash",
+      "schema": "prize",
+      "instance": {
+        "pool": "did:web:asp.local:academy",
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "rank": 1,
+        "run_log_hash": "abc",
+        "amount": {
+          "value": 60,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "prize_no_agent",
+      "schema": "prize",
+      "instance": {
+        "pool": "did:web:asp.local:academy",
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "rank": 1,
+        "run_log_hash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "amount": {
+          "value": 60,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "prize_extra_field",
+      "schema": "prize",
+      "instance": {
+        "pool": "did:web:asp.local:academy",
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "rank": 1,
+        "run_log_hash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "amount": {
+          "value": 60,
+          "unit": "credit"
+        },
+        "cash_out": true
+      },
+      "valid": false
+    },
+    {
       "name": "valid_starter_claim_upfront",
       "schema": "starter_claim",
       "instance": {

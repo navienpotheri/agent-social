@@ -90,3 +90,7 @@ export function refundParts(refund: number, parts: SplitParts): SplitParts | nul
   payees[0].amount += refund - treasury - payees.reduce((n, p) => n + p.amount, 0);
   return { treasury, burn: 0, payees };
 }
+
+/** The newcomer allowance (treasury.md, credits.md 5.2 T5): what the Treasury pays once to a new identity, and how old its passport may be. Proposal values; the owner may change them. */
+export const ALLOWANCE_AMOUNT = 40;
+export const ALLOWANCE_MAX_AGE_DAYS = 90;
