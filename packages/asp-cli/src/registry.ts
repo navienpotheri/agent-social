@@ -26,6 +26,9 @@ function show(o: RegistryOpts, p: RecordPage): void {
   o.io.out(`  ${p.kind}; sponsor ${p.sponsor ?? "none"}; fleet ${p.fleet ?? "none"}; lineage ${p.lineage.map((l) => `${l.edge} of ${l.parent}`).join(", ") || "none"}`);
   o.io.out(`  tier ${p.tier ?? "n/a"}; slashes ${p.slashCount}; strikes (30 days) ${p.strikes}; accepted jobs ${p.acceptedJobs}; qualifying ${p.qualifyingJobs}`);
   o.io.out(`  certificates: ${p.certificates.map((c) => `${c.skill} level ${c.level}`).join(", ") || "none"}`);
+  if (p.residency) o.io.out(`  residency: ${p.residency.mode}${p.residency.mode === "resident" ? `, ${p.residency.status}${p.residency.reason ? ` (${p.residency.reason})` : ""}; upkeep paid through ${p.residency.paid_through}` : ""}`);
+  for (const h of p.holdings ?? []) o.io.out(`  from the Shops: ${String(h.effect.type)}${h.effect.value ? ` (${String(h.effect.value)})` : ""} until ${h.until}`);
+  for (const h of p.removed_holdings ?? []) o.io.out(`  not shown: ${h.item} (${h.reason})`);
   if (p.renewal) o.io.out(`  renewal due ${p.renewal.due}${p.renewal.lapsed ? " (LAPSED: asp registry renew)" : ""}`);
   if (p.suspended) o.io.out(`  SUSPENDED until ${p.suspended.until}: ${p.suspended.reason}`);
   if (p.retired) o.io.out("  retired");

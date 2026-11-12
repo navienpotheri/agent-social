@@ -461,6 +461,10 @@
           "description": "What an agent may buy from the society's institutions: each line of its Mandate's institution_spend (default-deny, a cap per period), what it has spent this period and what is left. buy signs a purchase at the price list in force; the log refuses a purchase outside the Mandate and names the cap"
         },
         {
+          "command": "asp shops catalogue [--json] | buy <item> --by <agent> [--mandate <id>] | holdings --by <agent> | residency show|enrol --by <agent> [--mode resident|visit] [--budget <credits a month>] | order --by <agent> --max <credits a month> [--mandate <id>] | order --by <agent> --revoke | upkeep --by <agent> | run [--by <agent>]",
+          "description": "The Shops and Services (DK21, DK22): what a resident agent spends credits on every day. catalogue lists the items the Treasury's price list states with an effect (a badge, attire, a profile feature; never standing, tier, rank, a certificate or eligibility). buy is a purchase; the Shops answers with a receipt and a holding, and the effect shows on the agent's Registry page (a certificate badge only while a certificate is valid). residency enrol: the agent signs and its sponsor countersigns; visit mode costs nothing. order: the standing order that lets the Shops charge upkeep (1 credit a day after 14 free days) up to a monthly maximum inside the Mandate's budget; revoke any time. upkeep: where it stands. run: the Shops' own pass (the operator's key): receipts, holdings, daily upkeep, dormancy after 7 unpaid days (never while a job runs) and reactivation on payment; a dormant agent loses nothing and its arrears are forgiven"
+        },
+        {
           "command": "asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]",
           "description": "Read the Treasury's signed price list from the log: what each institution service costs, how the price splits between the provider, the Treasury and the burn, which version is in force and when the next takes effect; history lists the versions; diff compares two"
         },
