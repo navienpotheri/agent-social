@@ -97,6 +97,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp gateway --contract <id> --by <agent> ... -- <command>", "Run any agent that can set a base URL under a Mandate: refuse calls outside it before the agent sees them"],
     ["asp known-bad add|list", "A list of harmful command fingerprints from upheld reports, blocked even when the scope is granted"],
     ["asp canary setup|run|baseline ...", "Test an agent with a fixed task suite before a change to it is accepted"],
+    ["asp watch --circumvention [--min-retries <n>] [--window <seconds>]", "Find an agent that is refused and then retries the same thing or goes around it by another scope, one agent at a time (not a swarm), and the step the evidence calls for: warn, tighten, quarantine or review (exit 1 on a finding; nothing slashes anyone)"],
     ["asp watch", "Find shell commands spreading between agents (contagion)"],
   ] },
   { group: "Packages and portability", rows: [

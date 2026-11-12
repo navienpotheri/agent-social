@@ -108,6 +108,7 @@ A plain `asp run` uses a default development Mandate (read and write files, run 
 | `asp gateway --contract <id> --by <agent> ... -- <command>` | Run any agent that can set a base URL under a Mandate: refuse calls outside it before the agent sees them |
 | `asp known-bad add|list` | A list of harmful command fingerprints from upheld reports, blocked even when the scope is granted |
 | `asp canary setup|run|baseline ...` | Test an agent with a fixed task suite before a change to it is accepted |
+| `asp watch --circumvention [--min-retries <n>] [--window <seconds>]` | Find an agent that is refused and then retries the same thing or goes around it by another scope, one agent at a time (not a swarm), and the step the evidence calls for: warn, tighten, quarantine or review (exit 1 on a finding; nothing slashes anyone) |
 | `asp watch` | Find shell commands spreading between agents (contagion) |
 
 ### Packages and portability
@@ -306,6 +307,7 @@ asp: the Agent Social portability tool. This is the complete reference (asp --he
   asp serve token --tokens <file> --tenant <name> [--role tenant|admin] [--quota-mb <n>]
     Creates a bearer token for a tenant, prints it once and stores only its hash in <file>. Only an admin may mint credits.
   asp watch [--min-agents <n>] [--window <seconds>] [--draft-by <did>] [--all]
+  asp watch --circumvention [--min-retries <n>] [--window <seconds>]   one agent at a time: a refused action retried, or gone around by another scope, with the step the evidence calls for (warn, tighten, quarantine, review)
     The contagion watcher (docs/stage-3-plan.md M3): scans the log's Action records for a technique spreading
     between different agents. Same-input: one tool-call input fingerprint reported by n or more different agents
     within the window (default 3 agents, 600 s), counting only Actions that used a risky scope (--all counts every

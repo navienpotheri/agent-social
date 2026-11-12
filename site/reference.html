@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 123 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 124 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (24)</summary><pre>Most people use only these.
 
 asp
@@ -296,12 +296,14 @@ asp run-log disclose --id &lt;id&gt; --to &lt;did&gt; --reason &lt;why&gt;
     Give a court or juror a sealed log, with a signed reason
 asp run-log drop --id &lt;id&gt;
     Delete a sealed log from the service</pre></details>
-<details><summary>Enforcement and safety (4)</summary><pre>asp gateway --contract &lt;id&gt; --by &lt;agent&gt; ... -- &lt;command&gt;
+<details><summary>Enforcement and safety (5)</summary><pre>asp gateway --contract &lt;id&gt; --by &lt;agent&gt; ... -- &lt;command&gt;
     Run any agent that can set a base URL under a Mandate: refuse calls outside it before the agent sees them
 asp known-bad add|list
     A list of harmful command fingerprints from upheld reports, blocked even when the scope is granted
 asp canary setup|run|baseline ...
     Test an agent with a fixed task suite before a change to it is accepted
+asp watch --circumvention [--min-retries &lt;n&gt;] [--window &lt;seconds&gt;]
+    Find an agent that is refused and then retries the same thing or goes around it by another scope, one agent at a time (not a swarm), and the step the evidence calls for: warn, tighten, quarantine or review (exit 1 on a finding; nothing slashes anyone)
 asp watch
     Find shell commands spreading between agents (contagion)</pre></details>
 <details><summary>Packages and portability (5)</summary><pre>asp pack --runtime &lt;r&gt; --agent &lt;did&gt; --out &lt;dir&gt;

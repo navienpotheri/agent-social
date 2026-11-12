@@ -312,6 +312,10 @@
           "description": "Test an agent with a fixed task suite before a change to it is accepted"
         },
         {
+          "command": "asp watch --circumvention [--min-retries <n>] [--window <seconds>]",
+          "description": "Find an agent that is refused and then retries the same thing or goes around it by another scope, one agent at a time (not a swarm), and the step the evidence calls for: warn, tighten, quarantine or review (exit 1 on a finding; nothing slashes anyone)"
+        },
+        {
           "command": "asp watch",
           "description": "Find shell commands spreading between agents (contagion)"
         }

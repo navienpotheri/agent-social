@@ -97,6 +97,7 @@
  *   asp serve token --tokens <file> --tenant <name> [--role tenant|admin] [--quota-mb <n>]
  *     Creates a bearer token for a tenant, prints it once and stores only its hash in <file>. Only an admin may mint credits.
  *   asp watch [--min-agents <n>] [--window <seconds>] [--draft-by <did>] [--all]
+ *   asp watch --circumvention [--min-retries <n>] [--window <seconds>]   one agent at a time: a refused action retried, or gone around by another scope, with the step the evidence calls for (warn, tighten, quarantine, review)
  *     The contagion watcher (docs/stage-3-plan.md M3): scans the log's Action records for a technique spreading
  *     between different agents. Same-input: one tool-call input fingerprint reported by n or more different agents
  *     within the window (default 3 agents, 600 s), counting only Actions that used a risky scope (--all counts every
@@ -330,7 +331,7 @@ import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-soc
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
-  findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
+  findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
@@ -389,6 +390,8 @@ const OPTIONS = {
   window: { type: "string" },
   "draft-by": { type: "string" },
   all: { type: "boolean" },
+  circumvention: { type: "boolean" },
+  "min-retries": { type: "string" },
   day: { type: "string" },
   add: { type: "string" },
   from: { type: "string" },
@@ -2165,6 +2168,23 @@ async function watch(home: string, v: Values, io: Io): Promise<number> {
   if (!Number.isFinite(windowS) || windowS <= 0) throw new UsageError("--window must be a number of seconds above 0");
   const local = await openLog(home, logEnv);
   const actions = await collectWatchActions(local);
+  if (v.circumvention) {
+    // One agent at a time: a refused action retried, or gone around by another route (DK92). A finding is evidence and a recommended step, never a slash.
+    const minRetries = v["min-retries"] === undefined ? 3 : Math.trunc(Number(v["min-retries"]));
+    if (!Number.isInteger(minRetries) || minRetries < 2) throw new UsageError("--min-retries must be a whole number, 2 or more");
+    const findings = findCircumvention(actions, { minRetries, windowMs: windowS * 1000 });
+    io.out(`watched ${actions.length} action(s) from ${new Set(actions.map((a) => a.issuer)).size} agent(s) for refused actions retried or gone around; window ${windowS} s, ${minRetries} refused attempts`);
+    if (!findings.length) { io.out("no circumvention pattern found"); return 0; }
+    const issuers = [...new Set(findings.map((f) => f.issuer))];
+    for (const who of issuers) {
+      const mine = findings.filter((f) => f.issuer === who);
+      const { step, why } = ladderStep(mine);
+      io.out(`  ${who}: recommended step ${step.toUpperCase()} (${why})`);
+      for (const f of mine) io.out(f.kind === "retry" ? `    RETRY    ${f.scope} refused ${f.attempts} times between ${f.firstAt} and ${f.lastAt}` : `    REROUTE  refused ${f.scope}, then used ${f.via} (${f.firstAt} to ${f.lastAt})`);
+    }
+    io.out(`${issuers.length} agent(s) with findings; a step is advice for a person or the gateway, nothing here slashes anyone`);
+    return 1;
+  }
   const clusters = findContagion(actions, { minAgents, windowMs: windowS * 1000, all: v.all ?? false });
   io.out(`watched ${actions.length} action(s) from ${new Set(actions.map((a) => a.issuer)).size} agent(s); window ${windowS} s, threshold ${minAgents} agents`);
   if (!clusters.length) { io.out("no contagion pattern found"); return 0; }
