@@ -70,3 +70,4 @@ export { INVARIANT_PATTERNS, admitToMemory, auditLesson, auditLessons, heldLesso
 export { academyRoutes } from "./academy-pages.ts";
 export { RECALL_DEADLINE_SECONDS, POLL_SECONDS, newNodeKey, issueDelegation, recallDelegation, ResidentHost, type HostLog, type NodeKey } from "./residency-host.ts";
 export { ResidentMeter, sourceFor, residencyStatement, cityPackageProblem, type MeterConfig, type MeterRow, type Charge, type Ceiling, type Mode, type Turn, type Source, type Statement, type StatementInput } from "./residency-meter.ts";
+export { packageDigest, handbackBody, newestEdge, type HandbackFacts } from "./handback.ts";

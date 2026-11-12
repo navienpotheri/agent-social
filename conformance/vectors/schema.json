@@ -7373,6 +7373,190 @@
       "valid": false
     },
     {
+      "name": "valid_handback",
+      "schema": "handback",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256_after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lineage_edges": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "lessons": [
+          {
+            "edge": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "description": "memory updated during a run: +1"
+          }
+        ],
+        "tier_before": 1,
+        "tier_after": 1,
+        "strikes": 0,
+        "slashes": 0,
+        "credits_earned": 120,
+        "credits_spent_by_institution": {
+          "academy": 30
+        },
+        "usage": {
+          "tokens_by_source": {
+            "sponsor": 210,
+            "subsidy": 300
+          },
+          "host_seconds": 3600,
+          "wakes": 12,
+          "ceilings_hit": [
+            "allowance_daily"
+          ],
+          "refusals": 1
+        },
+        "diff_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": true
+    },
+    {
+      "name": "handback_no_usage",
+      "schema": "handback",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256_after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lineage_edges": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "lessons": [
+          {
+            "edge": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "description": "memory updated during a run: +1"
+          }
+        ],
+        "tier_before": 1,
+        "tier_after": 1,
+        "strikes": 0,
+        "slashes": 0,
+        "credits_earned": 120,
+        "credits_spent_by_institution": {
+          "academy": 30
+        },
+        "diff_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": false
+    },
+    {
+      "name": "handback_bad_package_hash",
+      "schema": "handback",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256_after": "abc",
+        "lineage_edges": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "lessons": [
+          {
+            "edge": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "description": "memory updated during a run: +1"
+          }
+        ],
+        "tier_before": 1,
+        "tier_after": 1,
+        "strikes": 0,
+        "slashes": 0,
+        "credits_earned": 120,
+        "credits_spent_by_institution": {
+          "academy": 30
+        },
+        "usage": {
+          "tokens_by_source": {
+            "sponsor": 210,
+            "subsidy": 300
+          },
+          "host_seconds": 3600,
+          "wakes": 12,
+          "ceilings_hit": [
+            "allowance_daily"
+          ],
+          "refusals": 1
+        },
+        "diff_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": false
+    },
+    {
+      "name": "handback_negative_credits",
+      "schema": "handback",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256_after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lineage_edges": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "lessons": [
+          {
+            "edge": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "description": "memory updated during a run: +1"
+          }
+        ],
+        "tier_before": 1,
+        "tier_after": 1,
+        "strikes": 0,
+        "slashes": 0,
+        "credits_earned": -1,
+        "credits_spent_by_institution": {
+          "academy": 30
+        },
+        "usage": {
+          "tokens_by_source": {
+            "sponsor": 210,
+            "subsidy": 300
+          },
+          "host_seconds": 3600,
+          "wakes": 12,
+          "ceilings_hit": [
+            "allowance_daily"
+          ],
+          "refusals": 1
+        },
+        "diff_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": false
+    },
+    {
+      "name": "handback_extra_field",
+      "schema": "handback",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256_after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lineage_edges": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "lessons": [
+          {
+            "edge": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "description": "memory updated during a run: +1"
+          }
+        ],
+        "tier_before": 1,
+        "tier_after": 1,
+        "strikes": 0,
+        "slashes": 0,
+        "credits_earned": 120,
+        "credits_spent_by_institution": {
+          "academy": 30
+        },
+        "usage": {
+          "tokens_by_source": {
+            "sponsor": 210,
+            "subsidy": 300
+          },
+          "host_seconds": 3600,
+          "wakes": 12,
+          "ceilings_hit": [
+            "allowance_daily"
+          ],
+          "refusals": 1
+        },
+        "diff_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "verdict": "good agent"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_starter_claim_upfront",
       "schema": "starter_claim",
       "instance": {

@@ -62,6 +62,8 @@ export async function projectDispatch(tx: LogTx, r: AspRecord): Promise<void> {
     const node = b.delegation ? await tx.getRecord(b.delegation) : undefined;
     const nb = node?.record.body as { purpose?: string; mandate?: string } | undefined;
     if (!node || node.record.type !== "asp.node/v0.2" || node.record.issuer !== b.agent || nb?.purpose !== "residency" || nb.mandate !== b.mandate) throw rule("dispatch_delegation_mismatch", "the delegation is the agent's residency node under the same Mandate: the host acts only through it");
+    const key = await tx.getKey((node.record.body as { node: string }).node);
+    if (!key || key.revokedAt || !key.expiresAt || Date.parse(key.expiresAt) <= Date.parse(r.issued_at)) throw rule("dispatch_delegation_not_live", "the delegation is revoked or expired: a new residency needs a fresh one from the sponsor's machine");
   }
   if (b.previous) {
     const prev = await readDispatch(tx, b.previous);
@@ -93,6 +95,49 @@ export async function projectResidencyStatus(tx: LogTx, r: AspRecord): Promise<v
   if (b.status === "sleeping" && !b.reason) throw rule("status_needs_reason", "a sleeping resident says why: the ceiling or event that stopped it");
   if (b.status === "active" && b.reason) throw rule("status_reason_only_when_sleeping", "an active resident has no reason to give");
   await tx.putMarker(`resident_status:${d.agent}`, JSON.stringify({ status: b.status, reason: b.reason ?? null, dispatch: b.dispatch, at: r.issued_at }));
+}
+
+
+/**
+ * A handback closes the cycle (residency.md 5, 9; register row DK84; spec-delta S303): what the agent became while it lived in the city. Issued by the host (city and split) or the sponsor (home) and
+ * countersigned by the agent's own key. The dispatch is open or recalled; the delegation is revoked or expired first; the lineage edges it lists are the agent's own, in order, extending the dispatch's
+ * version (a host cannot hide a change); the tier it states is the log's; the subsidy it states equals the host's signed use. The dispatch is then closed and the next one may follow it.
+ */
+export async function projectHandback(tx: LogTx, r: AspRecord, env: ResidencyEnv): Promise<void> {
+  const b = r.body as { dispatch: string; lineage_edges: string[]; tier_after: number; usage: { tokens_by_source: { sponsor: number; subsidy: number } }; package_sha256_after: string };
+  if (r.prev !== null) throw rule("residency_not_chained", "a residency record starts its own chain (prev is null)");
+  const d = await readDispatch(tx, b.dispatch);
+  if (!d) throw rule("handback_unknown_dispatch", `${b.dispatch} is not a dispatch in this log`);
+  if (d.state === "closed") throw rule("handback_dispatch_closed", "the dispatch was already closed by a handback");
+  const expectedIssuer = d.mode === "home" ? d.sponsor : HOST_DID;
+  if (r.issuer !== expectedIssuer) throw rule("handback_wrong_issuer", `the handback of a ${d.mode} residency is signed by ${expectedIssuer}`);
+  if (!signedBy(r, d.agent)) throw rule("handback_needs_agent", "the agent's own key countersigns its handback: the host cannot hand back an agent that does not agree what it brought");
+  if (d.delegation) {
+    const node = await tx.getRecord(d.delegation);
+    const kid = (node?.record.body as { node?: string } | undefined)?.node;
+    const key = kid ? await tx.getKey(kid) : undefined;
+    if (key && !key.revokedAt && key.expiresAt && Date.parse(key.expiresAt) > Date.parse(r.issued_at)) throw rule("delegation_still_live", `the delegation ${kid} is still live: the sponsor recalls it (or it expires) before the agent is handed back`);
+  }
+  // The chain: every edge is the agent's own lineage edge, in order, the first following the version that was sent.
+  const sent = await tx.getRecord(d.version);
+  let prev: string | null = sent?.record.type === "asp.lineage/v0.2" ? d.version : null;
+  for (const id of b.lineage_edges) {
+    const e = await tx.getRecord(id);
+    if (!e || e.record.type !== "asp.lineage/v0.2" || (e.record.body as { child?: string }).child !== d.agent) throw rule("package_chain_broken", `${id} is not a lineage edge of ${d.agent} in this log`);
+    if (e.record.prev !== prev) throw rule("package_chain_broken", `${id} does not follow ${prev ?? "the start of the agent's lineage"}: the handback must list the agent's changes in order from the version that was dispatched`);
+    if (Date.parse(e.record.issued_at) < Date.parse(d.from)) throw rule("package_chain_broken", `${id} is dated before the dispatch began`);
+    prev = id;
+  }
+  if (b.lineage_edges.length === 0 && b.package_sha256_after !== d.sha) throw rule("package_chain_broken", "no edge was added, so the package is the one that was sent: its hash cannot differ");
+  const rep = await env.reputation(tx, d.agent);
+  if (!rep || rep.tier !== b.tier_after) throw rule("handback_ledger_mismatch", `the log says ${d.agent} is at tier ${rep?.tier ?? "none"}, not ${b.tier_after}`);
+  if (d.grant) {
+    const used = Number((await tx.getMarker(`sgrant_used:${d.grant}`)) ?? 0);
+    if (b.usage.tokens_by_source.subsidy !== used) throw rule("handback_ledger_mismatch", `the host signed ${used} subsidy units for this grant, not ${b.usage.tokens_by_source.subsidy}`);
+  }
+  await writeDispatch(tx, { ...d, state: "closed" });
+  await tx.putMarker(`dispatch_open:${d.agent}`, "");
+  await tx.putMarker(`handback:${b.dispatch}`, r.id);
 }
 
 export { readDispatch, writeDispatch };

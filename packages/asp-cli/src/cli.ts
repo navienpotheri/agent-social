@@ -440,6 +440,7 @@ const OPTIONS = {
   "subsidy-grant": { type: "string" },
   "delegation": { type: "string" },
   "credits": { type: "string" },
+  previous: { type: "string" },
   period: { type: "string" },
   units: { type: "string" },
   total: { type: "string" },
@@ -4284,7 +4285,10 @@ async function residencyCommand(home: string, sub: string | undefined, rest: str
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await residencyCmd(sub, rest, { log: local, io, now, signerFor, flags: v as unknown as Record<string, string | string[] | boolean | undefined> });
+    const opts: Parameters<typeof residencyCmd>[2] = { log: local, io, now, signerFor, flags: v as unknown as Record<string, string | string[] | boolean | undefined> };
+    // After the package's history is brought into the local log the handle is reopened, so the rules see the new edges.
+    opts.sync = async (pkg, agent) => { await syncLocalLog(home, resolve(io.cwd, pkg), agent, io); opts.log = await openLog(home, logEnv); };
+    return await residencyCmd(sub, rest, opts);
   } catch (e) {
     if (e instanceof ResidencyUsage) throw new UsageError(e.message);
     throw e;
