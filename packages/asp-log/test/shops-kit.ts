@@ -3,7 +3,7 @@
  * agents whose Mandate lists institution_spend, and the institutions' own passes. Fake keys only. Credits are accounting entries, not money.
  */
 import { cosign, type AspRecord, type Signer } from "@agent-social/asp-core";
-import { HOUSING_CATALOGUE, HOUSING_DID, SHOPS_CATALOGUE, SHOPS_DID, runHousing, runShops, type CatalogueItem } from "../src/index.ts";
+import { EVENTS_CATALOGUE, HOUSING_CATALOGUE, HOUSING_DID, SHOPS_CATALOGUE, SHOPS_DID, runEvents, runHousing, runShops, type CatalogueItem } from "../src/index.ts";
 import { credit, jump, kit, mk, nowIso, PRICES, shops, housing, events, tick, treasury, type Party } from "./society-kit.ts";
 import { bank } from "./harness.ts";
 export { housing, events };
@@ -14,7 +14,7 @@ export async function shopsWorld(o: { late?: boolean; extraItems?: unknown[] } =
   const sponsor = await k.person("sponsor", 100);
   const v1 = await k.withPrices();
   let list = v1;
-  const items = () => [...PRICES, ...SHOPS_CATALOGUE, ...HOUSING_CATALOGUE, ...(o.extraItems ?? [])];
+  const items = () => [...PRICES, ...SHOPS_CATALOGUE, ...HOUSING_CATALOGUE, ...EVENTS_CATALOGUE, ...(o.extraItems ?? [])];
   /** Publishes the catalogues (price list version 2) and waits out the notice. */
   const activate = async () => {
     const at = jump(1000);
@@ -23,7 +23,7 @@ export async function shopsWorld(o: { late?: boolean; extraItems?: unknown[] } =
   };
   if (!o.late) await activate();
   let n = 0;
-  const catalogue = (service: string): CatalogueItem => [...SHOPS_CATALOGUE, ...HOUSING_CATALOGUE].find((i) => i.service === service)!;
+  const catalogue = (service: string): CatalogueItem => [...SHOPS_CATALOGUE, ...HOUSING_CATALOGUE, ...EVENTS_CATALOGUE].find((i) => i.service === service)!;
 
   /** An agent with a settled job that opened its Mandate (so no job is running), or one still running; optionally a resident of the Shops. */
   const agentWith = async (name: string, a: { spend?: { institution: string; cap: number }[]; funds?: number; tier?: number; running?: boolean; resident?: boolean; agent?: Party } = {}) => {
@@ -47,7 +47,7 @@ export async function shopsWorld(o: { late?: boolean; extraItems?: unknown[] } =
       const at = jump(1000);
       await log.append(cosign(mk("shops_act", ag, { act: "residency", agent: ag.did, mode: "resident", budget: { credits_per_month: 40 }, since: at }, null, { at }), sponsor as Signer));
     }
-    return { a: ag, mandate: mandate.id };
+    return { a: ag, mandate: mandate.id, contract: contract.id };
   };
   const buy = async (a: Party, service: string, mandate: string, quantity = 1) => {
     const item = catalogue(service);
@@ -58,5 +58,6 @@ export async function shopsWorld(o: { late?: boolean; extraItems?: unknown[] } =
   const io = () => ({ append: (r: AspRecord) => log.append(r), recordsOfTypes: (t: string[]) => log.recordsOfTypes(t), priceLists: () => log.priceLists(), balance: (d: string) => log.balance(d) });
   const runShopsPass = (only?: string) => runShops(io(), shops, nowIso(), only);
   const runHousingPass = (only?: string) => runHousing(io(), housing, nowIso(), only);
-  return { k, log, sponsor, activate, agentWith, buy, io, runShopsPass, runHousingPass, catalogue, listId: () => list, jump, tick, SHOPS_DID };
+  const runEventsPass = () => runEvents(io(), events, nowIso());
+  return { k, log, sponsor, runEventsPass, activate, agentWith, buy, io, runShopsPass, runHousingPass, catalogue, listId: () => list, jump, tick, SHOPS_DID };
 }

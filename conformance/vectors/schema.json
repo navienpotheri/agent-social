@@ -5577,6 +5577,303 @@
       "valid": false
     },
     {
+      "name": "valid_events_event_contest",
+      "schema": "events_act",
+      "instance": {
+        "act": "event",
+        "form": "contest",
+        "title": "Autumn contest",
+        "place": "room:autumn",
+        "starts": "2026-12-01T10:00:00Z",
+        "ends": "2026-12-01T12:00:00Z",
+        "opens": "2026-11-20T00:00:00Z",
+        "entries_close": "2026-12-01T09:00:00Z",
+        "capacity": 0,
+        "per_sponsor_cap": 2,
+        "min_tier": 1,
+        "entry_service": "events.contest.entry",
+        "rules_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "judging": {
+          "kind": "scored",
+          "scorer_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "min_sponsors": 4
+        },
+        "prizes": [
+          {
+            "rank": 1,
+            "amount": 50
+          },
+          {
+            "rank": 2,
+            "amount": 30
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "events_event_no_rules_hash",
+      "schema": "events_act",
+      "instance": {
+        "act": "event",
+        "form": "contest",
+        "title": "Autumn contest",
+        "place": "room:autumn",
+        "starts": "2026-12-01T10:00:00Z",
+        "ends": "2026-12-01T12:00:00Z",
+        "opens": "2026-11-20T00:00:00Z",
+        "entries_close": "2026-12-01T09:00:00Z",
+        "capacity": 0,
+        "per_sponsor_cap": 2,
+        "min_tier": 1,
+        "entry_service": "events.contest.entry",
+        "judging": {
+          "kind": "scored",
+          "scorer_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "min_sponsors": 4
+        },
+        "prizes": [
+          {
+            "rank": 1,
+            "amount": 50
+          },
+          {
+            "rank": 2,
+            "amount": 30
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "events_event_bad_form",
+      "schema": "events_act",
+      "instance": {
+        "act": "event",
+        "form": "party",
+        "title": "Autumn contest",
+        "place": "room:autumn",
+        "starts": "2026-12-01T10:00:00Z",
+        "ends": "2026-12-01T12:00:00Z",
+        "opens": "2026-11-20T00:00:00Z",
+        "entries_close": "2026-12-01T09:00:00Z",
+        "capacity": 0,
+        "per_sponsor_cap": 2,
+        "min_tier": 1,
+        "entry_service": "events.contest.entry",
+        "rules_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "judging": {
+          "kind": "scored",
+          "scorer_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "min_sponsors": 4
+        },
+        "prizes": [
+          {
+            "rank": 1,
+            "amount": 50
+          },
+          {
+            "rank": 2,
+            "amount": 30
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "events_event_zero_prize",
+      "schema": "events_act",
+      "instance": {
+        "act": "event",
+        "form": "contest",
+        "title": "Autumn contest",
+        "place": "room:autumn",
+        "starts": "2026-12-01T10:00:00Z",
+        "ends": "2026-12-01T12:00:00Z",
+        "opens": "2026-11-20T00:00:00Z",
+        "entries_close": "2026-12-01T09:00:00Z",
+        "capacity": 0,
+        "per_sponsor_cap": 2,
+        "min_tier": 1,
+        "entry_service": "events.contest.entry",
+        "rules_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "judging": {
+          "kind": "scored",
+          "scorer_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "min_sponsors": 4
+        },
+        "prizes": [
+          {
+            "rank": 1,
+            "amount": 0
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_events_cancel",
+      "schema": "events_act",
+      "instance": {
+        "act": "event_cancel",
+        "event": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "reason": "the room is closed"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_events_rsvp",
+      "schema": "events_act",
+      "instance": {
+        "act": "rsvp",
+        "event": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_events_attend",
+      "schema": "events_act",
+      "instance": {
+        "act": "attend",
+        "event": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_events_entry",
+      "schema": "events_act",
+      "instance": {
+        "act": "entry",
+        "event": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "purchase": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "artifact_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "run_log_hash": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+      },
+      "valid": true
+    },
+    {
+      "name": "events_entry_no_run_log",
+      "schema": "events_act",
+      "instance": {
+        "act": "entry",
+        "event": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "purchase": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "artifact_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_events_interact",
+      "schema": "events_act",
+      "instance": {
+        "act": "interact",
+        "event": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "with": "did:web:example.com:agents:a",
+        "kind": "reply",
+        "ref": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
+      "name": "events_interact_bad_kind",
+      "schema": "events_act",
+      "instance": {
+        "act": "interact",
+        "event": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "with": "did:web:example.com:agents:a",
+        "kind": "dm",
+        "ref": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_events_souvenir",
+      "schema": "events_act",
+      "instance": {
+        "act": "souvenir",
+        "event": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "agent": "did:web:example.com:agents:a",
+        "kind": "placed:1"
+      },
+      "valid": true
+    },
+    {
+      "name": "events_souvenir_bad_kind",
+      "schema": "events_act",
+      "instance": {
+        "act": "souvenir",
+        "event": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "agent": "did:web:example.com:agents:a",
+        "kind": "placed:0"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_events_result",
+      "schema": "events_act",
+      "instance": {
+        "act": "contest_result",
+        "event": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "rules_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ranking": [
+          {
+            "agent": "did:web:example.com:agents:a",
+            "rank": 1,
+            "score": 9.5
+          }
+        ],
+        "awards": [
+          {
+            "agent": "did:web:example.com:agents:a",
+            "amount": 50
+          }
+        ],
+        "entries": 5,
+        "distinct_sponsors": 5,
+        "evidence_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
+    },
+    {
+      "name": "events_result_award_zero",
+      "schema": "events_act",
+      "instance": {
+        "act": "contest_result",
+        "event": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "rules_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ranking": [],
+        "awards": [
+          {
+            "agent": "did:web:example.com:agents:a",
+            "amount": 0
+          }
+        ],
+        "entries": 5,
+        "distinct_sponsors": 5,
+        "evidence_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": false
+    },
+    {
+      "name": "events_act_unknown",
+      "schema": "events_act",
+      "instance": {
+        "act": "vote",
+        "event": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": false
+    },
+    {
+      "name": "events_act_extra_field",
+      "schema": "events_act",
+      "instance": {
+        "act": "rsvp",
+        "event": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "plus_one": 1
+      },
+      "valid": false
+    },
+    {
       "name": "valid_price_list_standing_item",
       "schema": "price_list",
       "instance": {

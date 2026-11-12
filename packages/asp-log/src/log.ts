@@ -13,6 +13,7 @@ import { charterIn, checkCaseload, checkRulingExtras, closeDispute, projectCourt
 import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
 import { projectHousingAct } from "./housing-rules.ts";
+import { projectEventsAct } from "./events-rules.ts";
 import { assertNotDormant, checkShopsPurchase, notePerformer, projectShopsAct } from "./shops-rules.ts";
 import { homeView, type HomeView } from "./housing.ts";
 import { resourceExtras, type ResourceExtras } from "./shops.ts";
@@ -299,6 +300,7 @@ export class EventLog {
     if (type === "court_act") await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize });
     if (type === "shops_act") await projectShopsAct(tx, verified, { reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
     if (type === "housing_act") await projectHousingAct(tx, verified);
+    if (type === "events_act") await projectEventsAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
     if (type === "contract") await notePerformer(tx, verified);
     if (type === "registry_act") await projectRegistryAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did) });
     if (type === "bond" || type === "mandate" || type === "proposal" || type === "purchase" || type === "contract") await checkSuspended(tx, verified);
@@ -2240,7 +2242,7 @@ export class EventLog {
   /** The Home of a DID or a name (housing.md 3; DK38): a view computed only from the log's records. `homeView` is pure, so anyone can rebuild it. */
   async homePage(idOrName: string, at?: string): Promise<HomeView | null> {
     const when = at ?? this.now().toISOString();
-    const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "housing_act", "receipt", "offer"]);
+    const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "housing_act", "events_act", "receipt", "offer"]);
     let did = idOrName;
     if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isLive(c, when)) return null; did = c.holder; }
     const head = await this.store.logHead();

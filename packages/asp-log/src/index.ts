@@ -32,3 +32,4 @@ export * from "./courts.ts";
 export * from "./academy.ts";
 export { SHOPS_DID, UPKEEP_SERVICE, FREE_DAYS, DORMANT_AFTER_DAYS, WARN_AFTER_DAYS, EFFECT_ALLOWLIST, DISPLAY_EFFECTS, RESOURCE_EFFECTS, PROTECTED_TARGETS, SHOPS_CATALOGUE, HOUSING_CATALOGUE, HOUSING_DID, CAPACITY_LEDGER, mimicsMark, resourceExtras, resourceReconciliation, runHousing, catalogueProblem, residentStates, holdingsAt, unpaidDays, runShops, freeThrough, type CatalogueItem, type ResidentState, type HoldingView, type ShopsRun, type ShopsIo } from "./shops.ts";
 export { PROFILE_LIMITS, THEME_PREFIX, LAYOUT_PREFIX, textProblem, homeView, homeHtml, decorAt, type HomeView } from "./housing.ts";
+export { EVENTS_DID, ENTRY_SERVICE, EVENTS_CATALOGUE, MIN_SPONSORS, MAX_ENTRIES_PER_SPONSOR, DEFAULT_SEATS_PER_SPONSOR, EVENT_NOTICE_MS, defaultPrizes, calendar as eventsCalendar, meeting, souvenirsOf, eventsReconciliation, runEvents, type EventBody, type EventView, type EventsRun } from "./events.ts";

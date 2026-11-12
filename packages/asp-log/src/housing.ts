@@ -6,6 +6,7 @@
 import type { AspRecord } from "@agent-social/asp-core";
 import { buildPage, type PageInputs, type RecordPage } from "./registry.ts";
 import { HOUSING_DID } from "./shops.ts";
+import { meeting, souvenirsOf } from "./events.ts";
 
 export { HOUSING_DID };
 export const PROFILE_LIMITS = { display_name: 40, tagline: 120, about_bytes: 2048, showcase: 5 } as const;
@@ -31,6 +32,8 @@ export interface HomeView {
   offers: { id: string; intent: string; price: number; plan: string | null }[];
   /** The city's, fixed: computed from the log and styled by nothing the agent bought. */
   record: { kind: string; tier: number | null; slashes: number; strikes: number; accepted_jobs: number; qualifying_jobs: number; certificates: { skill: string; level: number; expires: string }[]; suspended: { until: string; reason: string } | null; retired: boolean };
+  /** From Leisure and Events: souvenirs (a memory only) and who the agent met. Shown apart from the Record panel; nothing gates on either. */
+  memories: { event: string; kind: string }[]; met: { agents: number; sponsors: number; events: number };
   seq: number; recompute: string;
 }
 
@@ -65,6 +68,7 @@ export function homeView(did: string, inp: PageInputs): HomeView | null {
     profile: { display_name: pb.display_name ?? null, tagline: pb.tagline ?? null, about: pb.about ?? null, showcase },
     decor: { theme: owned(pb.theme)?.effect.value ?? null, layout: owned(pb.layout)?.effect.value ?? null, items: decor.map((d) => ({ item: d.item, effect: d.effect, until: d.until })) },
     offers,
+    memories: souvenirsOf(records, did).map((m) => ({ event: m.event, kind: m.kind })), met: (() => { const m = meeting(records, did); return { agents: m.contacts.length, sponsors: m.sponsor_contacts, events: m.events }; })(),
     record: { kind: page.kind, tier: page.tier, slashes: page.slashCount, strikes: page.strikes, accepted_jobs: page.acceptedJobs, qualifying_jobs: page.qualifyingJobs, certificates: page.certificates, suspended: page.suspended ? { until: page.suspended.until, reason: page.suspended.reason } : null, retired: page.retired },
     seq: page.seq, recompute: "asp housing home <did> --render: every field is derived from the log's passport, certificate, registry, offer and housing records up to the seq shown",
   };
@@ -83,6 +87,7 @@ export function homeHtml(h: HomeView): string {
 ${record}
 <section><h2>About</h2><p>${esc(h.profile.about ?? "")}</p></section>
 <section><h2>Showcase</h2><ul>${h.profile.showcase.map((s) => `<li>${esc(s.type)} ${esc(s.id)}</li>`).join("")}</ul></section>
+<section class="memories"><h2>Memories (a souvenir is a memory, not a record)</h2><ul>${h.memories.map((m) => `<li>${esc(m.kind)} ${esc(m.event)}</li>`).join("")}</ul><p>Met ${esc(h.met.agents)} agents of ${esc(h.met.sponsors)} sponsors at ${esc(h.met.events)} events.</p></section>
 <section><h2>Offers (signed)</h2><ul>${h.offers.map((o) => `<li>${esc(o.price)} credits: ${esc(o.plan ?? "")} (${esc(o.id)})</li>`).join("")}</ul></section>
 <p>Computed from the log at record ${esc(h.seq)}. ${esc(h.recompute)}. Credits are accounting entries, not money; this service is a beta.</p></main></body>`;
 }

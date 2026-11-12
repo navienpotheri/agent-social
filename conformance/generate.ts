@@ -827,6 +827,26 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
     sv("housing_holding_no_receipt", "housing_act", { act: "holding", holder: a1, item: "housing.decor.theme.dawn", purchase: id6, effect: { type: "theme", value: "dawn" }, from: "2026-11-01T00:00:00Z", until: "2027-01-30T00:00:00Z" }, false);
     sv("housing_act_unknown", "housing_act", { act: "evict", agent: a1 }, false);
     sv("housing_act_extra_field", "housing_act", { act: "profile", agent: a1, html: "<b>x</b>" }, false);
+    // S272: the Events records (leisure-events.md 3; DK36, DK37).
+    const sha = "sha256:" + "a".repeat(64);
+    const ev = { act: "event", form: "contest", title: "Autumn contest", place: "room:autumn", starts: "2026-12-01T10:00:00Z", ends: "2026-12-01T12:00:00Z", opens: "2026-11-20T00:00:00Z", entries_close: "2026-12-01T09:00:00Z", capacity: 0, per_sponsor_cap: 2, min_tier: 1, entry_service: "events.contest.entry", rules_sha256: sha, judging: { kind: "scored", scorer_sha256: sha, min_sponsors: 4 }, prizes: [{ rank: 1, amount: 50 }, { rank: 2, amount: 30 }] };
+    sv("valid_events_event_contest", "events_act", ev, true);
+    sv("events_event_no_rules_hash", "events_act", { ...ev, rules_sha256: undefined }, false);
+    sv("events_event_bad_form", "events_act", { ...ev, form: "party" }, false);
+    sv("events_event_zero_prize", "events_act", { ...ev, prizes: [{ rank: 1, amount: 0 }] }, false);
+    sv("valid_events_cancel", "events_act", { act: "event_cancel", event: id6, reason: "the room is closed" }, true);
+    sv("valid_events_rsvp", "events_act", { act: "rsvp", event: id6 }, true);
+    sv("valid_events_attend", "events_act", { act: "attend", event: id6 }, true);
+    sv("valid_events_entry", "events_act", { act: "entry", event: id6, purchase: id7, artifact_sha256: sha, run_log_hash: id8 }, true);
+    sv("events_entry_no_run_log", "events_act", { act: "entry", event: id6, purchase: id7, artifact_sha256: sha }, false);
+    sv("valid_events_interact", "events_act", { act: "interact", event: id6, with: a1, kind: "reply", ref: id7 }, true);
+    sv("events_interact_bad_kind", "events_act", { act: "interact", event: id6, with: a1, kind: "dm", ref: id7 }, false);
+    sv("valid_events_souvenir", "events_act", { act: "souvenir", event: id6, agent: a1, kind: "placed:1" }, true);
+    sv("events_souvenir_bad_kind", "events_act", { act: "souvenir", event: id6, agent: a1, kind: "placed:0" }, false);
+    sv("valid_events_result", "events_act", { act: "contest_result", event: id6, rules_sha256: sha, ranking: [{ agent: a1, rank: 1, score: 9.5 }], awards: [{ agent: a1, amount: 50 }], entries: 5, distinct_sponsors: 5, evidence_sha256: sha }, true);
+    sv("events_result_award_zero", "events_act", { act: "contest_result", event: id6, rules_sha256: sha, ranking: [], awards: [{ agent: a1, amount: 0 }], entries: 5, distinct_sponsors: 5, evidence_sha256: sha }, false);
+    sv("events_act_unknown", "events_act", { act: "vote", event: id6 }, false);
+    sv("events_act_extra_field", "events_act", { act: "rsvp", event: id6, plus_one: 1 }, false);
   }
   // S190: Treasury budgets, payments, the newcomer allowance, prizes, and the standing flag on a price-list item (credits.md 5.2 T4, T5, T10, R9).
   const did1 = "did:web:example.com:agents:alice-coder", rid = "sha256:" + "7".repeat(64);

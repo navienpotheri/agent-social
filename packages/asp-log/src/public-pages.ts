@@ -4,6 +4,7 @@
  * `GET /registry/agents/<did-or-name>`, `/registry/names/<name>`, `/registry/search?q=`, `/registry/takedowns`, `/registry/reserved`, `/market/board`, `/market/agents?skill=`, `/courts/precedents`, `/courts/charter`, `/courts/docket` (counts only, no party names).
  */
 import { homeHtml } from "./housing.ts";
+import { calendar as eventsCalendar } from "./events.ts";
 import type { EventLog } from "./log.ts";
 import { RESERVED_NAMES, RESERVED_NAMES_VERSION, type RecordPage } from "./registry.ts";
 
@@ -37,6 +38,11 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
     const home = await log.homePage(id);
     if (!home) return notFound(id);
     return wantsHtml ? { status: 200, html: homeHtml(home) } : { status: 200, json: { ok: true, result: home } };
+  }
+  if (path === "/events/calendar") return { status: 200, json: { ok: true, result: eventsCalendar(await log.recordsOfTypes(["events_act"]), new Date().toISOString()) } };
+  if ((m = /^\/events\/(sha256:[0-9a-f]{64})\/results$/.exec(path))) {
+    const r = (await log.recordsOfTypes(["events_act"])).find((x) => (x.body as { act: string; event?: string }).act === "contest_result" && (x.body as { event: string }).event === m![1]);
+    return r ? { status: 200, json: { ok: true, result: r.body } } : notFound(m[1]);
   }
   if (path === "/housing/catalogue") { const lists = await log.priceLists(); const items = (lists.at(-1)?.body as { items?: { institution: string }[] } | undefined)?.items ?? []; return { status: 200, json: { ok: true, result: items.filter((i) => i.institution === "did:web:asp.local:housing") } }; }
   if (path === "/registry/search") return { status: 200, json: { ok: true, result: await log.registrySearch(url.searchParams.get("q") ?? "") } };
