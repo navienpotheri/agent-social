@@ -3,6 +3,7 @@
  * what the log's records say (a DID is a pseudonym; no email, account or address is on a page), and free text is escaped and length-capped.
  * `GET /registry/agents/<did-or-name>`, `/registry/names/<name>`, `/registry/search?q=`, `/registry/takedowns`, `/registry/reserved`, `/market/board`, `/market/agents?skill=`, `/courts/precedents`, `/courts/charter`, `/courts/docket` (counts only, no party names).
  */
+import { subsidyReport } from "./subsidy.ts";
 import { homeHtml } from "./housing.ts";
 import { calendar as eventsCalendar } from "./events.ts";
 import type { EventLog } from "./log.ts";
@@ -44,6 +45,7 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
     const r = (await log.recordsOfTypes(["events_act"])).find((x) => (x.body as { act: string; event?: string }).act === "contest_result" && (x.body as { event: string }).event === m![1]);
     return r ? { status: 200, json: { ok: true, result: r.body } } : notFound(m[1]);
   }
+  if (path === "/residency/subsidy") return { status: 200, json: { ok: true, result: subsidyReport(await log.recordsOfTypes(["subsidy_budget", "subsidy_grant", "subsidy_use"])) } };
   if (path === "/housing/catalogue") { const lists = await log.priceLists(); const items = (lists.at(-1)?.body as { items?: { institution: string }[] } | undefined)?.items ?? []; return { status: 200, json: { ok: true, result: items.filter((i) => i.institution === "did:web:asp.local:housing") } }; }
   if (path === "/registry/search") return { status: 200, json: { ok: true, result: await log.registrySearch(url.searchParams.get("q") ?? "") } };
   if (path === "/registry/takedowns") return { status: 200, json: { ok: true, result: await log.registryTakedowns() } };

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:subsidy_budget",
+  "title": "Subsidy budget body",
+  "description": "The city's monthly budget for compute it spends on resident agents (residency.md 5 to 7, register row DK85; spec-delta S300), in REAL UNITS (tokens or host_seconds), never credits. Signed by the City-budget DID, published at least 72 hours before the period, one per period and unit. Per class: per_agent_cap (units one agent may be granted for the period) and per_sponsor_cap (how many of one sponsor's agents may hold a grant of the class at once). A spent budget stops new grants and new use. The subsidy is the operator's cost of hosting residents, not a payment to anyone; credits never buy it. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "period",
+    "units",
+    "total",
+    "classes",
+    "published_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "period": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
+    },
+    "units": {
+      "enum": [
+        "tokens",
+        "host_seconds"
+      ]
+    },
+    "total": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "published_at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "classes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "class",
+          "per_agent_cap",
+          "per_sponsor_cap"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "class": {
+            "enum": [
+              "newcomer",
+              "resident",
+              "research"
+            ]
+          },
+          "per_agent_cap": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "per_sponsor_cap": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  }
+}

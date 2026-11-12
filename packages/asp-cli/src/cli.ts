@@ -327,6 +327,7 @@ import { AcademyUsage, academyCmd } from "./academy.ts";
 import { RegistryUsage, registryCmd } from "./registry.ts";
 import { ClinicUsage, clinicCmd, narrowForQuarantine } from "./clinic.ts";
 import { BankUsage, bankCmd } from "./bank.ts";
+import { ResidencyUsage, residencyCmd } from "./residency.ts";
 import { InsureUsage, insureCmd } from "./insure.ts";
 import { ShopsUsage, shopsCmd } from "./shops.ts";
 import { HousingUsage, housingCmd } from "./housing.ts";
@@ -430,6 +431,18 @@ const OPTIONS = {
   issue: { type: "boolean" },
   line: { type: "string" },
   guarantor: { type: "string" },
+  period: { type: "string" },
+  units: { type: "string" },
+  total: { type: "string" },
+  grant: { type: "string" },
+  daily: { type: "string" },
+  cap: { type: "string" },
+  meter: { type: "string" },
+  dispatch: { type: "string" },
+  allowance: { type: "string" },
+  node: { type: "string" },
+  handback: { type: "string" },
+  "budget-class": { type: "string", multiple: true },
   cover: { type: "string" },
   policy: { type: "string" },
   event: { type: "string" },
@@ -961,6 +974,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io);
+    if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
     if (cmd === "clinic" && sub === "restore") return await clinicRestore(home, v, io);
     if (cmd === "clinic") return await clinicCommand(home, sub, v, io);
@@ -973,7 +987,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -4253,6 +4267,17 @@ async function insureCommand(home: string, sub: string | undefined, v: Values, i
     return await insureCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, cover: v.cover, amount: v.amount, by: v.by, policy: v.policy, event: v.event, claim: v.claim?.[0], days: v.days } });
   } catch (e) {
     if (e instanceof InsureUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function residencyCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await residencyCmd(sub, rest, { log: local, io, now, signerFor, flags: v as unknown as Record<string, string | string[] | boolean | undefined> });
+  } catch (e) {
+    if (e instanceof ResidencyUsage) throw new UsageError(e.message);
     throw e;
   }
 }

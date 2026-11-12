@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:subsidy_grant",
+  "title": "Subsidy grant body",
+  "description": "A capped allowance of subsidy units for one agent (residency.md 5 to 7, register row DK85; spec-delta S300). Signed by the City-budget DID. Not a credit grant: it never creates, adds or repays a credit. Within its budget's period and the class caps; one active grant per agent and class; a newcomer grant once per agent; a resident grant needs tier 1 and 3 qualifying jobs; refused when the budget is spent. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "agent",
+    "class",
+    "budget",
+    "daily_cap",
+    "period_cap",
+    "from",
+    "until"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "class": {
+      "enum": [
+        "newcomer",
+        "resident",
+        "research"
+      ]
+    },
+    "budget": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "daily_cap": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "period_cap": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "from": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "until": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    }
+  }
+}

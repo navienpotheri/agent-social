@@ -1,3 +1,4 @@
+import { projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
 import { projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
 import { projectCreditLine, projectCreditDefault, projectBankStatement, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
@@ -288,6 +289,9 @@ export class EventLog {
     if (type === "bank_statement") await projectBankStatement(tx, verified);
     if (type === "policy") await projectPolicy(tx, verified, this.insurerEnv);
     if (type === "claim") await projectClaim(tx, verified);
+    if (type === "subsidy_budget") await projectSubsidyBudget(tx, verified);
+    if (type === "subsidy_grant") await projectSubsidyGrant(tx, verified, this.insurerEnv);
+    if (type === "subsidy_use") await projectSubsidyUse(tx, verified);
     if (type === "claim_decision") await projectClaimDecision(tx, verified, this.insurerEnv);
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
