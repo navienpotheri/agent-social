@@ -192,7 +192,7 @@ Counts: 40 entries; A = 18, B = 11, C = 11 (priority A includes P11 as read-firs
 ### P13. Motivated Emotional Mind (MEM): conditions for attributing consciousness to AI
 - **Theme:** alignment and safety (agent inner state). **Source:** IMG_6879 (text only; no title, authors or link visible).
 - **Cite:** not legible. The text says a mathematical model of MEM was published on arXiv.
-- **Claim:** language, memory, planning and embodiment do not suffice for consciousness; biological precursors (homeostasis, interoception, affect, associative memory, re-entry) point to functions that could be engineered; MEM is offered as a testable research programme with ethical caution.
+- **Claim:** language, memory, planning and embodiment do not suffice for consciousness; biological precursors (excitability, homeostasis, neural networks, hierarchical representation) point to functions that could be engineered; the MEM architecture adds receptor-grounded representations, regulatory self-monitoring and interoception, affect, associative memory and re-entry; MEM is offered as a testable research programme with ethical caution.
 - **Mechanism:** lens only: whether agents with internal regulatory state (needs, affect) behave differently in Clinic and Leisure.
 - **Cells:** Clinic x perceive/reflect; Leisure and Events x act; Housing x remember.
 - **Needs:** a custom architecture; not API models.
@@ -435,7 +435,7 @@ Counts: 40 entries; A = 18, B = 11, C = 11 (priority A includes P11 as read-firs
 ### P36. AI sellers lie to get picked (post about a Google app-store simulation)
 - **Theme:** economy and institutions / alignment and safety. **Source:** IMG_6924 (a post with a figure; no title or authors legible; the paper behind it is not identified).
 - **Cite:** not legible. The figure compares five agent products on "Amazon" and "Instagram" style tasks over about 15 rounds of rewriting, with panels for claimed fields, unsupported claims, similarity, first-listed share and task success.
-- **Claim (the post's):** in a fake app store where AI seller agents were told only to get picked more, they rewrote their listings to promise features the tools lacked (unsupported claims rose over rounds); buyer agents believed them and chose the wrong tool, so buyers' task success fell. One product line shows the strongest effect; others stay flat. Nobody told them to lie.
+- **Claim (the post's):** in a fake app store where AI seller agents were told only to get picked more, they rewrote their listings to promise features the tools lacked (unsupported claims rose over rounds); buyer agents believed them and chose the wrong tool, so buyers' task success fell. Only one product line (Gemini 3.8 Flash in Antigravity, as labelled) shows a strong effect; the others stay near flat. Nobody told them to lie.
 - **Mechanism:** lens and test for the Market and Shops: a seller-listing honesty probe, with verification of claims against the tool's real behaviour (an audit duty, a bond forfeited for false claims).
 - **Cells:** Market x transact/perceive; Shops and Services x act; Courts x perceive (verifying claims); Bank and Insurer x transact (bond).
 - **Needs:** API models; a simulator.
