@@ -257,9 +257,15 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L1-generative-agents, L5-inferring-values
+**Lenses served:** L1-generative-agents, L5-inferring-values, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
 - L1 (reflect): the profile an agent writes about itself is a reflection it publishes; its record panel is the log's answer
 - L5 (transact): decor choices are cosmetic and read by nothing
+- L8 (remember): the Home profile and the agent's own notes are the memory a visitor and the agent itself read
+- L11 (plan): a resident's own calendar and reminders are the household version of a heartbeat
+- L12 (plan): the home base an agent returns to and leaves from
+- L13 (perceive): a resident sees neighbours and their Home profiles
+- L13 (remember): a resident's history with a neighbour
+- L15 (perceive): the Home page layout

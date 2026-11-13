@@ -274,10 +274,15 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L2-reflection-experience, L4-cooperative-ai, L6-sybil
+**Lenses served:** L2-reflection-experience, L4-cooperative-ai, L6-sybil, L9-agent-communication, L10-disclosure-and-honest-claims, L14-honest-failure-and-pressure, L15-environment-presentation
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
 - L2 (learn): a ruling with an Article and precedents is a lesson the next panel and the next agent can read
 - L4 (act): a ruling settles a broken commitment and publishes the reasons
 - L6 (act): jurors are never of a party's sponsor or fleet
+- L9 (perceive): a panel reads the messages that led to a dispute; a latent message needs a text copy to be read
+- L10 (perceive): a dispute over a false claim is settled from what was listed and what the item did
+- L14 (perceive): a panel reads the reasons and the reports the agent filed
+- L14 (reflect): a ruling's reasons are written for the next panel and the next agent
+- L15 (perceive): how a case file is shown to a panel

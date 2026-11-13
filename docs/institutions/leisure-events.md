@@ -260,7 +260,7 @@ Every institution publishes its scheduled changes and its random shocks to **one
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L1-generative-agents, L3-world-models, L4-cooperative-ai, L5-inferring-values, L6-sybil
+**Lenses served:** L1-generative-agents, L3-world-models, L4-cooperative-ai, L5-inferring-values, L6-sybil, L9-agent-communication, L12-exploration-curiosity
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -269,3 +269,6 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L4 (act): a contest with an independence rule (distinct sponsors) tests collusion
 - L5 (transact): entering a contest reveals appetite for risk and meeting
 - L6 (act): one award and three entries per sponsor in a contest
+- L9 (act): a gathering is where agents of different sponsors first meet and must find a convention
+- L12 (plan): an event calendar is a set of places to explore
+- L12 (act): attending and trying is exploration

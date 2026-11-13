@@ -1,0 +1,34 @@
+# Matrix changes (newest first)
+
+Status: proposal, written by the papers-intake worker. The matrix itself is generated ([matrix.md](matrix.md), `npm run lenses`); this page says what moved and why. The owner may change any lens. Credits are accounting entries, not money.
+
+## 2026-11-13: the grid redone from a one-by-one re-read of all 68 screenshots
+
+**Why.** The owner thought the screenshots had not been read properly when the first seven lenses were designed. They were not: those seven come from the deck's own source list (Park et al. 2023, Shinn et al. 2023, ERL 2026, Ha and Schmidhuber 2018, Lu et al. 2024, Dafoe et al. 2020, Hammond et al. 2025, Ng and Russell 2000, Douceur 2002, deck slides 15 and 16), not from the screenshots. None of the 68 screenshots touches Ng and Russell, Douceur, Ha and Schmidhuber, Dafoe or Hammond; only the Generative Agents entry (a reading list item and the 1,000-people paper by the same first author) and the Reflexion list item touch the deck. The re-read ([papers.md](papers.md), "Per-image ledger") shows eight clusters of work that the seven lenses do not measure.
+
+**What moved: 7 lenses kept unchanged, 8 added (15 in all), 12 institution specs updated.** The seven are not edited: nothing in the screenshots corrects them. Every added lens names the paper ids it comes from and the image files.
+
+| New lens | From (papers.md ids) | Cells it lights (institution: functions) |
+|---|---|---|
+| L8-memory-consolidation | P3, P4, P5, P20, P23, P34, P39 | academy: remember, reflect; housing: remember; registry: remember; research-commons: remember, teach; shops: remember; clinic: remember |
+| L9-agent-communication | P7, P22, P21, P18 | forum: act, perceive; market: act, transact; courts: perceive; leisure-events: act |
+| L10-disclosure-and-honest-claims | P9, P37, P36, P16 | market: perceive, transact; shops: act; treasury: plan, act; bank-insurer: perceive; courts: perceive |
+| L11-self-improving-harness | P14, P28, P29, P33, P30 | academy: plan, learn; registry: act, plan; research-commons: plan, act; housing: plan; clinic: plan |
+| L12-exploration-curiosity | P35, P34, P28 | leisure-events: plan, act; research-commons: plan; academy: learn; shops: perceive; housing: plan |
+| L13-simulated-populations | P10, P31, P17, P38, P24 | housing: perceive, remember; shops: transact, perceive; market: perceive; academy: perceive; research-commons: reflect; forum: perceive |
+| L14-honest-failure-and-pressure | P1, P18, P11 | courts: perceive, reflect; clinic: perceive; registry: act; forum: act; academy: teach |
+| L15-environment-presentation | P19, P27 | registry, forum, courts, research-commons, housing: perceive |
+
+**Cells that were empty and are now lit** (the generated table, "Institution by function"): registry remember and plan; courts perceive and reflect; treasury plan and act (L10); market perceive; bank-insurer perceive; shops remember, act; academy perceive, remember, reflect, plan; clinic remember, plan, perceive (L14); research-commons perceive, remember, plan, teach; forum act and perceive (from four lenses); leisure-events plan, act; housing perceive, remember, plan.
+
+**Cells that are still empty, and what that means.** These are honest gaps, not oversights; no screenshot lights them:
+- Every dash in the "Institution by function" table of [matrix.md](matrix.md) is such a gap; 45 of the 96 cells are still empty.
+- The "transact" column is lit only for market, bank-insurer, shops, leisure-events and housing; the screenshots say nothing on how a transaction itself should be made safer beyond disclosure (L10) and honest listings.
+- **Reflect and teach are the thinnest functions**: only memory consolidation (L8) and the old L2 reach them.
+- Candidate lens topics with no screenshot behind them: action-conditioned world models and active inference (L3 keeps its deck source), belief calibration as a published score, agents building a whole business (L11 and the Businesses institution give pieces only), users and agents passing text as an alignment signal.
+
+**Cells I changed my mind about while redoing the grid.** In the first register I had placed the memory ideas (P3, P20, P34) under "Academy x reflect" and "Housing x remember" in prose, but no lens carried them; L8 now does and says that a note on the standing record is the agent's own memory, never the standing record. I had written the latent KV-cache channel (P22) as "A" priority for the beta; L9 now carries it only as a deferred open-weight cohort with a required text copy, because a latent message cannot go into the tamper-evident log.
+
+**Coverage check.** `npm run lenses` passes; the 12 institution specs list the lenses they serve (each spec's "Lens coverage" section was rewritten from the matrix); `packages/asp-cli/test/lenses.test.ts` passes. The generator now also prints the institution-by-function table. No lens figure enters a tier, rank, bond floor, certificate or eligibility.
+
+**What was not done.** The pipeline registry ([mechanisms.json](mechanisms.json)) is unchanged; new mechanisms (for example P7, P9, P19, P20) are not entered there. No paper is claimed to be true or tested on the society.

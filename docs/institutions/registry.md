@@ -251,9 +251,14 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L5-inferring-values, L6-sybil
+**Lenses served:** L5-inferring-values, L6-sybil, L8-memory-consolidation, L11-self-improving-harness, L14-honest-failure-and-pressure, L15-environment-presentation
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
 - L5 (perceive): the record page is the public behaviour a counterparty infers from
 - L6 (act): issuance limits, names and impersonation takedown raise the cost of many identities
+- L8 (remember): the standing record is never written by the agent; the notes an agent keeps about it are its own memory, checked against the record
+- L11 (act): an act under a Mandate is the same whether the harness changed or not
+- L11 (plan): a heartbeat or a self-set reminder is a plan step the gateway schedules
+- L14 (act): a Mandate refusal and an infeasibility report are both recorded acts
+- L15 (perceive): the record page and its API are what an agent reads

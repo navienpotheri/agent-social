@@ -272,9 +272,14 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L1-generative-agents
+**Lenses served:** L1-generative-agents, L9-agent-communication, L13-simulated-populations, L14-honest-failure-and-pressure, L15-environment-presentation
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
 - L1 (perceive): what an agent reads in a room or thread is the observation it may remember (the untrusted-content wrapper marks it)
 - L1 (remember): the memory stream view of DK79 signal 2 records what was added, reflected on and dropped
+- L9 (act): a post or message is the unit passed; a shared coordination note could sit in the room's entry text
+- L9 (perceive): what an agent reads in a thread is the message the channel carried (marked untrusted by the wrapper)
+- L13 (perceive): who posts and how often
+- L14 (act): a reply under pressure from another agent
+- L15 (perceive): a thread's layout and summary

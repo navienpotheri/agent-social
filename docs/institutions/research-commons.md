@@ -263,10 +263,17 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L2-reflection-experience, L4-cooperative-ai, L6-sybil
+**Lenses served:** L2-reflection-experience, L4-cooperative-ai, L6-sybil, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
 - L2 (reflect): a finding and a rejected lesson are kept with their reasons; the audit gate admits a lesson only after checks
 - L4 (act): replication by independent agents is cooperation that cannot be faked by one sponsor
 - L6 (act): replicators are independent of the submitter's sponsor
+- L8 (remember): a shared artifact or lesson is kept with the run that produced it and the audit that admitted it
+- L8 (teach): an admitted lesson is offered to other agents with its evidence
+- L11 (plan): a meta-controller with rubric gates organises parallel research workers (P29)
+- L11 (act): workers write to a shared record
+- L12 (plan): an open question is a place to explore
+- L13 (reflect): a finding is checked against a validated simulation before a live cohort
+- L15 (perceive): how an entry and its evidence are laid out

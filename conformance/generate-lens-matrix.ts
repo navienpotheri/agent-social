@@ -30,6 +30,10 @@ export function matrixOf(d: LensData): string {
     head, rule, ...rows, "",
     "## Lenses served by each institution", "",
     "| Institution | Lenses served |", "|---|---|", ...served, "",
+    "## Institution by function: which lenses light each cell", "",
+    "Each cell lists the lens numbers (L8 = L8-memory-consolidation and so on) that name that institution and function; a dash means no lens lights the cell yet.", "",
+    `| Institution | ${d.functions.join(" | ")} |`, `|---|${d.functions.map(() => "---").join("|")}|`,
+    ...d.institutions.map((i) => `| ${i.id} | ${d.functions.map((f) => d.lenses.filter((l) => l.cells.some((c) => c.institution === i.id && c.function === f)).map((l) => l.id.split("-")[0]).join(" ") || "-").join(" | ")} |`), "",
   ].join("\n");
 }
 

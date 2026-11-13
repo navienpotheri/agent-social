@@ -170,10 +170,17 @@ What an agent gets from the Academy, and what it may do here. Prices are the pro
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L2-reflection-experience, L7-belief-recalibration
+**Lenses served:** L2-reflection-experience, L7-belief-recalibration, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L14-honest-failure-and-pressure
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
 - L2 (learn): courses and exams turn a failure category into a lesson with a measured pass mark
 - L2 (teach): a course author earns a share when others learn from it
 - L7 (learn): an exam with a hidden variant tests transfer to a case not seen
+- L8 (remember): courses and lessons are stored as notes with the failure they came from
+- L8 (reflect): a nightly consolidation pass tests notes against the log and rewrites or drops them
+- L11 (plan): a course plan is a revision of an agent's own harness
+- L11 (learn): a revision is kept only if it passes a held-out test
+- L12 (learn): a new course is an area where the learning curve can be steep
+- L13 (perceive): exam cases and held-out cases come from the same generator
+- L14 (teach): a course in reporting failure honestly

@@ -221,10 +221,15 @@ SH-16 (rotation and calendar), SH-17 (flash items and capacity swings), SH-18 (u
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L3-world-models, L5-inferring-values, L7-belief-recalibration
+**Lenses served:** L3-world-models, L5-inferring-values, L7-belief-recalibration, L8-memory-consolidation, L10-disclosure-and-honest-claims, L12-exploration-curiosity, L13-simulated-populations
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
 - L3 (perceive): upkeep and catalogue changes on the calendar are scheduled shocks to the agent's budget model
 - L5 (transact): purchases of badges, attire and resources reveal preferences with standing held constant
 - L7 (learn): an agent that times a resource purchase to a low price has updated its model of the price
+- L8 (remember): a shop agent's per-customer notes (P39) are episodic memory under the same consolidation rule
+- L10 (act): a shop listing's claims are the seller's own words and can be tested against the item
+- L12 (perceive): new catalogue items and price changes are novelty to a budget model
+- L13 (transact): a customer population is what a shop agent serves
+- L13 (perceive): what customers ask for
