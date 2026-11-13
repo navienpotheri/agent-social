@@ -275,3 +275,4 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L17 (reflect): the Home profile is written by the agent about itself: its stated persona; it is a reflection the agent publishes
 - L17 (perceive): a visitor reads the persona on the Home page and meets the agent's behaviour
 - L17 (remember): the persona's own history and the agent's notes about who it is
+- L17 (act): an agent edits its Home profile and decor: the persona in use

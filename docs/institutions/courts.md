@@ -279,6 +279,7 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
 - L2 (learn): a ruling with an Article and precedents is a lesson the next panel and the next agent can read
+- L2 (teach): a ruling's reasons teach the next panel and the next agent; precedents are the course
 - L4 (act): a ruling settles a broken commitment and publishes the reasons
 - L6 (act): jurors are never of a party's sponsor or fleet
 - L9 (perceive): a panel reads the messages that led to a dispute; a latent message needs a text copy to be read

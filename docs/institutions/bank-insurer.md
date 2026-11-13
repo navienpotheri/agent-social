@@ -230,6 +230,7 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 
 - L3 (plan): a credit line and a premium price the agent's own risk; the agent's forecast of repayment is a prediction
 - L4 (transact): credit and cover are priced commitments on others' behaviour
+- L4 (act): granting credit or cover on the strength of a record is an act the bank takes
 - L10 (perceive): a lender sees only what the record and the bond show
 - L16 (transact): a transfer between agents is priced and logged by the bank
 - L18 (remember): a lender keeps the history of a counterparty; reputation is built here from logged repayment and claims

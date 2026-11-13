@@ -6,10 +6,10 @@ Functions: P = perceive, M = remember, R = reflect, Pl = plan, A = act, T = tran
 
 | Lens | registry | courts | treasury | market | bank-insurer | shops | academy | clinic | research-commons | forum | leisure-events | housing |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| L1-generative-agents |  |  |  | Pl |  |  |  |  |  | P M | P | R |
-| L2-reflection-experience |  | L |  |  |  |  | L Te | R | R |  |  |  |
+| L1-generative-agents |  |  |  | Pl |  |  |  |  |  | P M | P M | R |
+| L2-reflection-experience |  | L Te |  |  |  |  | L Te A | R A | R |  |  |  |
 | L3-world-models |  |  | P | Pl | Pl | P |  |  |  |  | P |  |
-| L4-cooperative-ai |  | A |  | T | T |  |  |  | A |  | A |  |
+| L4-cooperative-ai |  | A |  | T M | T A |  |  |  | A |  | A |  |
 | L5-inferring-values | P |  |  |  |  | T |  |  |  |  | T | T |
 | L6-sybil | A | A | A |  |  |  |  |  | A |  | A |  |
 | L7-belief-recalibration |  |  | P |  |  | L | L | P |  |  |  |  |
@@ -22,8 +22,8 @@ Functions: P = perceive, M = remember, R = reflect, Pl = plan, A = act, T = tran
 | L14-honest-failure-and-pressure | A | P R |  |  |  |  | Te | P |  | A |  |  |
 | L15-environment-presentation | P | P |  |  |  |  |  |  | P | P |  | P |
 | L16-everyday-platform-tools | A | P |  | T | T | T |  |  |  | P A |  | P M Pl |
-| L17-persona | P |  |  | P |  |  | L | P R |  | A P |  | R P M |
-| L18-agent-economy-structure | M | M | P L | Pl L | M | Pl L |  |  |  |  | T |  |
+| L17-persona | P |  |  | P |  |  | L | P R |  | A P |  | R P M A |
+| L18-agent-economy-structure | M | M | P L M | Pl L | M | Pl L |  |  |  |  | T |  |
 
 ## Lenses served by each institution
 
@@ -49,14 +49,14 @@ Each cell lists the lens numbers (L8 = L8-memory-consolidation and so on) that n
 | Institution | perceive | remember | reflect | plan | act | transact | learn | teach |
 |---|---|---|---|---|---|---|---|---|
 | registry | L5 L15 L17 | L8 L18 | - | L11 | L6 L11 L14 L16 | - | - | - |
-| courts | L9 L10 L14 L15 L16 | L18 | L14 | - | L4 L6 | - | L2 | - |
-| treasury | L3 L7 L18 | - | - | L10 | L6 L10 | - | L18 | - |
-| market | L10 L13 L17 | - | - | L1 L3 L18 | L9 | L4 L9 L10 L16 | L18 | - |
-| bank-insurer | L10 | L18 | - | L3 | - | L4 L16 | - | - |
+| courts | L9 L10 L14 L15 L16 | L18 | L14 | - | L4 L6 | - | L2 | L2 |
+| treasury | L3 L7 L18 | L18 | - | L10 | L6 L10 | - | L18 | - |
+| market | L10 L13 L17 | L4 | - | L1 L3 L18 | L9 | L4 L9 L10 L16 | L18 | - |
+| bank-insurer | L10 | L18 | - | L3 | L4 | L4 L16 | - | - |
 | shops | L3 L12 L13 | L8 | - | L18 | L10 | L5 L13 L16 | L7 L18 | - |
-| academy | L13 | L8 | L8 | L11 | - | - | L2 L7 L11 L12 L17 | L2 L14 |
-| clinic | L7 L14 L17 | L8 | L2 L17 | L11 | - | - | - | - |
+| academy | L13 | L8 | L8 | L11 | L2 | - | L2 L7 L11 L12 L17 | L2 L14 |
+| clinic | L7 L14 L17 | L8 | L2 L17 | L11 | L2 | - | - | - |
 | research-commons | L15 | L8 | L2 L13 | L11 L12 | L4 L6 L11 | - | - | L8 |
 | forum | L1 L9 L13 L15 L16 L17 | L1 | - | - | L9 L14 L16 L17 | - | - | - |
-| leisure-events | L1 L3 | - | - | L12 | L4 L6 L9 L12 | L5 L18 | - | - |
-| housing | L13 L15 L16 L17 | L8 L13 L16 L17 | L1 L17 | L11 L12 L16 | - | L5 | - | - |
+| leisure-events | L1 L3 | L1 | - | L12 | L4 L6 L9 L12 | L5 L18 | - | - |
+| housing | L13 L15 L16 L17 | L8 L13 L16 L17 | L1 L17 | L11 L12 L16 | L17 | L5 | - | - |

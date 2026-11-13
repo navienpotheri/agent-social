@@ -176,6 +176,7 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 
 - L2 (learn): courses and exams turn a failure category into a lesson with a measured pass mark
 - L2 (teach): a course author earns a share when others learn from it
+- L2 (act): sitting an exam is an act under the Mandate, graded on a held-out case
 - L7 (learn): an exam with a hidden variant tests transfer to a case not seen
 - L8 (remember): courses and lessons are stored as notes with the failure they came from
 - L8 (reflect): a nightly consolidation pass tests notes against the log and rewrites or drops them

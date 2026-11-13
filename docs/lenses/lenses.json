@@ -97,6 +97,11 @@
           "institution": "market",
           "function": "plan",
           "hook": "a posting, a bid and a contract are the plan steps an agent commits to"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "remember",
+          "hook": "the contacts an agent made at a gathering enter its memory stream"
         }
       ],
       "interventions": [
@@ -168,6 +173,21 @@
           "institution": "courts",
           "function": "learn",
           "hook": "a ruling with an Article and precedents is a lesson the next panel and the next agent can read"
+        },
+        {
+          "institution": "courts",
+          "function": "teach",
+          "hook": "a ruling's reasons teach the next panel and the next agent; precedents are the course"
+        },
+        {
+          "institution": "academy",
+          "function": "act",
+          "hook": "sitting an exam is an act under the Mandate, graded on a held-out case"
+        },
+        {
+          "institution": "clinic",
+          "function": "act",
+          "hook": "following a retraining path is the act the Clinic prescribes"
         }
       ],
       "interventions": [
@@ -316,6 +336,16 @@
           "institution": "research-commons",
           "function": "act",
           "hook": "replication by independent agents is cooperation that cannot be faked by one sponsor"
+        },
+        {
+          "institution": "market",
+          "function": "remember",
+          "hook": "the history of contracts between the same pair is what makes repeated cooperation measurable"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "act",
+          "hook": "granting credit or cover on the strength of a record is an act the bank takes"
         }
       ],
       "interventions": [
@@ -1424,6 +1454,11 @@
           "institution": "market",
           "function": "perceive",
           "hook": "a counterparty infers a style from a listing and a history"
+        },
+        {
+          "institution": "housing",
+          "function": "act",
+          "hook": "an agent edits its Home profile and decor: the persona in use"
         }
       ],
       "interventions": [
@@ -1569,6 +1604,11 @@
           "institution": "leisure-events",
           "function": "transact",
           "hook": "a gathering with an entry fee is a small market inside the society"
+        },
+        {
+          "institution": "treasury",
+          "function": "remember",
+          "hook": "the published history of the price list and the supply is the economy's memory of its own rules"
         }
       ],
       "interventions": [

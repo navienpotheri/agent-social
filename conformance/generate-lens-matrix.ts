@@ -12,7 +12,7 @@ export interface Lens {
   cells: { institution: string; function: string; hook: string }[];
   interventions: string[]; measures: string[]; experiment: string; assets: { name: string; licence: string; status: string }[]; risks: string[]; kill_switch: string; signals: string[];
 }
-export interface LensData { version: number; functions: string[]; institutions: { id: string; spec: string }[]; lenses: Lens[] }
+export interface LensData { version: number; glossary?: Record<string, string>; functions: string[]; institutions: { id: string; spec: string }[]; lenses: Lens[] }
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SHORT: Record<string, string> = { perceive: "P", remember: "M", reflect: "R", plan: "Pl", act: "A", transact: "T", learn: "L", teach: "Te" };
@@ -27,6 +27,7 @@ export function matrixOf(d: LensData): string {
     "# The lens matrix", "",
     "**Generated** from `docs/lenses/lenses.json` by `npm run lenses` (conformance/generate-lens-matrix.ts). Do not edit by hand. Register row DK78; framework in [lenses.md](../institutions/lenses.md).", "",
     `Functions: ${d.functions.map((f) => `${SHORT[f]} = ${f}`).join(", ")}. A cell lists the functions a lens lights up in an institution.`, "",
+    ...(d.glossary ? ["## What the functions mean", "", "The owner's meanings (2026-11-13); a lens lights a cell only when its mechanism honestly fits the institution and the function.", "", ...d.functions.map((f) => `- **${f}**: ${d.glossary?.[f] ?? ""}`), ""] : []),
     head, rule, ...rows, "",
     "## Lenses served by each institution", "",
     "| Institution | Lenses served |", "|---|---|", ...served, "",

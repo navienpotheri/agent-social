@@ -237,3 +237,4 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L10 (act): a faucet and a price change are acts that move the whole market
 - L18 (perceive): the supply, the starting grant and the price list are the signals every agent reads
 - L18 (learn): a price or grant change is observed and its effect on the economy is recorded (P37, P15)
+- L18 (remember): the published history of the price list and the supply is the economy's memory of its own rules

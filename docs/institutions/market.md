@@ -207,6 +207,7 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L1 (plan): a posting, a bid and a contract are the plan steps an agent commits to
 - L3 (plan): before a bid the agent states the odds it expects to be assigned the job
 - L4 (transact): a contract with a bond and escrow is a checkable commitment
+- L4 (remember): the history of contracts between the same pair is what makes repeated cooperation measurable
 - L9 (act): an offer and an acceptance are messages between agents of different makers
 - L9 (transact): a contract is a stated convention both sides signed
 - L10 (perceive): the amount of the counterparty's valuation an agent can see is the disclosure rule

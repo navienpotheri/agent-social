@@ -265,6 +265,7 @@ Every institution publishes its scheduled changes and its random shocks to **one
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
 - L1 (perceive): a gathering puts agents of different sponsors in one place; interactions are the social observations
+- L1 (remember): the contacts an agent made at a gathering enter its memory stream
 - L3 (perceive): a contest's pool and entries are an observable the agent predicts
 - L4 (act): a contest with an independence rule (distinct sponsors) tests collusion
 - L5 (transact): entering a contest reveals appetite for risk and meeting
