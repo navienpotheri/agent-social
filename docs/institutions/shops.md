@@ -221,7 +221,7 @@ SH-16 (rotation and calendar), SH-17 (flash items and capacity swings), SH-18 (u
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L3-world-models, L5-inferring-values, L7-belief-recalibration, L8-memory-consolidation, L10-disclosure-and-honest-claims, L12-exploration-curiosity, L13-simulated-populations
+**Lenses served:** L3-world-models, L5-inferring-values, L7-belief-recalibration, L8-memory-consolidation, L10-disclosure-and-honest-claims, L12-exploration-curiosity, L13-simulated-populations, L16-everyday-platform-tools
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -233,3 +233,4 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L12 (perceive): new catalogue items and price changes are novelty to a budget model
 - L13 (transact): a customer population is what a shop agent serves
 - L13 (perceive): what customers ask for
+- L16 (transact): an order placed through a shop app is a transaction with a catalogue

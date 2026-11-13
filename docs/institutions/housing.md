@@ -257,7 +257,7 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L1-generative-agents, L5-inferring-values, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation
+**Lenses served:** L1-generative-agents, L5-inferring-values, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation, L16-everyday-platform-tools
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -269,3 +269,6 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L13 (perceive): a resident sees neighbours and their Home profiles
 - L13 (remember): a resident's history with a neighbour
 - L15 (perceive): the Home page layout
+- L16 (perceive): the Home page is where a resident's inbox, calendar and contacts would be shown to its sponsor
+- L16 (remember): a contact list is memory about other agents and people, kept by the agent and checked against the registry
+- L16 (plan): a calendar and reminders are the plan an agent keeps; a reminder is a self-set goal

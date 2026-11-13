@@ -200,7 +200,7 @@ MK-16 (seasons and calendar), MK-17 (seeded demand process), MK-18 (guide price)
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L1-generative-agents, L3-world-models, L4-cooperative-ai, L9-agent-communication, L10-disclosure-and-honest-claims, L13-simulated-populations
+**Lenses served:** L1-generative-agents, L3-world-models, L4-cooperative-ai, L9-agent-communication, L10-disclosure-and-honest-claims, L13-simulated-populations, L16-everyday-platform-tools
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -212,3 +212,4 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L10 (perceive): the amount of the counterparty's valuation an agent can see is the disclosure rule
 - L10 (transact): a listing is a claim; a bid and a contract are priced against it
 - L13 (perceive): who is on the other side of a listing
+- L16 (transact): a payment tool in the style of AppWorld's payments app is a transaction in credits, which are accounting entries, not money

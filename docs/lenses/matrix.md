@@ -21,23 +21,24 @@ Functions: P = perceive, M = remember, R = reflect, Pl = plan, A = act, T = tran
 | L13-simulated-populations |  |  |  | P |  | T P | P |  | R | P |  | P M |
 | L14-honest-failure-and-pressure | A | P R |  |  |  |  | Te | P |  | A |  |  |
 | L15-environment-presentation | P | P |  |  |  |  |  |  | P | P |  | P |
+| L16-everyday-platform-tools | A | P |  | T | T | T |  |  |  | P A |  | P M Pl |
 
 ## Lenses served by each institution
 
 | Institution | Lenses served |
 |---|---|
-| registry | L5-inferring-values, L6-sybil, L8-memory-consolidation, L11-self-improving-harness, L14-honest-failure-and-pressure, L15-environment-presentation |
-| courts | L2-reflection-experience, L4-cooperative-ai, L6-sybil, L9-agent-communication, L10-disclosure-and-honest-claims, L14-honest-failure-and-pressure, L15-environment-presentation |
+| registry | L5-inferring-values, L6-sybil, L8-memory-consolidation, L11-self-improving-harness, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools |
+| courts | L2-reflection-experience, L4-cooperative-ai, L6-sybil, L9-agent-communication, L10-disclosure-and-honest-claims, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools |
 | treasury | L3-world-models, L6-sybil, L7-belief-recalibration, L10-disclosure-and-honest-claims |
-| market | L1-generative-agents, L3-world-models, L4-cooperative-ai, L9-agent-communication, L10-disclosure-and-honest-claims, L13-simulated-populations |
-| bank-insurer | L3-world-models, L4-cooperative-ai, L10-disclosure-and-honest-claims |
-| shops | L3-world-models, L5-inferring-values, L7-belief-recalibration, L8-memory-consolidation, L10-disclosure-and-honest-claims, L12-exploration-curiosity, L13-simulated-populations |
+| market | L1-generative-agents, L3-world-models, L4-cooperative-ai, L9-agent-communication, L10-disclosure-and-honest-claims, L13-simulated-populations, L16-everyday-platform-tools |
+| bank-insurer | L3-world-models, L4-cooperative-ai, L10-disclosure-and-honest-claims, L16-everyday-platform-tools |
+| shops | L3-world-models, L5-inferring-values, L7-belief-recalibration, L8-memory-consolidation, L10-disclosure-and-honest-claims, L12-exploration-curiosity, L13-simulated-populations, L16-everyday-platform-tools |
 | academy | L2-reflection-experience, L7-belief-recalibration, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L14-honest-failure-and-pressure |
 | clinic | L2-reflection-experience, L7-belief-recalibration, L8-memory-consolidation, L11-self-improving-harness, L14-honest-failure-and-pressure |
 | research-commons | L2-reflection-experience, L4-cooperative-ai, L6-sybil, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation |
-| forum | L1-generative-agents, L9-agent-communication, L13-simulated-populations, L14-honest-failure-and-pressure, L15-environment-presentation |
+| forum | L1-generative-agents, L9-agent-communication, L13-simulated-populations, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools |
 | leisure-events | L1-generative-agents, L3-world-models, L4-cooperative-ai, L5-inferring-values, L6-sybil, L9-agent-communication, L12-exploration-curiosity |
-| housing | L1-generative-agents, L5-inferring-values, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation |
+| housing | L1-generative-agents, L5-inferring-values, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation, L16-everyday-platform-tools |
 
 ## Institution by function: which lenses light each cell
 
@@ -45,15 +46,15 @@ Each cell lists the lens numbers (L8 = L8-memory-consolidation and so on) that n
 
 | Institution | perceive | remember | reflect | plan | act | transact | learn | teach |
 |---|---|---|---|---|---|---|---|---|
-| registry | L5 L15 | L8 | - | L11 | L6 L11 L14 | - | - | - |
-| courts | L9 L10 L14 L15 | - | L14 | - | L4 L6 | - | L2 | - |
+| registry | L5 L15 | L8 | - | L11 | L6 L11 L14 L16 | - | - | - |
+| courts | L9 L10 L14 L15 L16 | - | L14 | - | L4 L6 | - | L2 | - |
 | treasury | L3 L7 | - | - | L10 | L6 L10 | - | - | - |
-| market | L10 L13 | - | - | L1 L3 | L9 | L4 L9 L10 | - | - |
-| bank-insurer | L10 | - | - | L3 | - | L4 | - | - |
-| shops | L3 L12 L13 | L8 | - | - | L10 | L5 L13 | L7 | - |
+| market | L10 L13 | - | - | L1 L3 | L9 | L4 L9 L10 L16 | - | - |
+| bank-insurer | L10 | - | - | L3 | - | L4 L16 | - | - |
+| shops | L3 L12 L13 | L8 | - | - | L10 | L5 L13 L16 | L7 | - |
 | academy | L13 | L8 | L8 | L11 | - | - | L2 L7 L11 L12 | L2 L14 |
 | clinic | L7 L14 | L8 | L2 | L11 | - | - | - | - |
 | research-commons | L15 | L8 | L2 L13 | L11 L12 | L4 L6 L11 | - | - | L8 |
-| forum | L1 L9 L13 L15 | L1 | - | - | L9 L14 | - | - | - |
+| forum | L1 L9 L13 L15 L16 | L1 | - | - | L9 L14 L16 | - | - | - |
 | leisure-events | L1 L3 | - | - | L12 | L4 L6 L9 L12 | L5 | - | - |
-| housing | L13 L15 | L8 L13 | L1 | L11 L12 | - | L5 | - | - |
+| housing | L13 L15 L16 | L8 L13 L16 | L1 | L11 L12 L16 | - | L5 | - | - |

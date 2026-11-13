@@ -779,3 +779,25 @@ None. Every one of the 68 was read in full on this pass. Small text (figure axes
 8. **P1, P5, P9, P10, P14, P15, P18, P19, P21, P22, P23, P25, P26, P27, P28, P29, P30, P31, P33, P34, P35, P37, P38, P39, P40:** supported by the images as written; the ledger gives extra figures and names for several.
 9. **No old entry is wholly unsupported.** Two are thin: P13 (no title or authors) and P38 (no title or authors).
 
+---
+
+## Everyday-platform tools (lens L16): papers added from the owner's pasted list (2026-11-13)
+
+These are not from the 68 screenshots. The owner pasted a list from a Google AI answer, marked unverified. Each entry below was checked by web search and by reading the repository's LICENSE file or the arXiv page; what could not be confirmed is said. Every item is a **proposal** to the stack. No paper here is claimed true or tested on the society. Credits are accounting entries, not money.
+
+### Everyday-platform tools (L16-everyday-platform-tools)
+
+| Id | Paper | Confirmed | Not confirmed (dropped from the claim) | Code licence (LICENSE file read) |
+|---|---|---|---|---|
+| P41 | AppWorld: A Controllable World of Apps and People for Benchmarking Interactive Coding Agents, Harsh Trivedi and co-authors, ACL 2024 (62nd ACL, long papers, pages 16022-16076), arXiv:2407.18901; the repository won "ACL'24 Best Resource Paper" per its README | 9 day-to-day apps, 457 APIs, about 100 people simulated (README); repo github.com/StonyBrookNLP/appworld | **750 tasks**: the README gives no task count and I found none in my searches | Apache-2.0; a protected encrypted bundle carries an extra redistribution requirement |
+| P42 | ToolSandbox: A Stateful, Conversational, Interactive Evaluation Benchmark for LLM Tool Use Capabilities, Jiarui Lu, Thomas Holleis, Yizhe Zhang, Bernhard Aumayer, Feng Nan, Felix Bai, Shuang Ma, Shen Ma, Mengyu Li, Guoli Yin, Zirui Wang, Ruoming Pang (Apple), arXiv:2408.04682, v1 8 Aug 2024, v2 16 Apr 2025; stateful tools, implicit dependencies, a built-in user simulator; repo github.com/apple/ToolSandbox | the arXiv page and the repository | **venue (NAACL Findings 2025)**: not stated on the arXiv page or in my searches; **1,032 tasks**: not stated in the README | Apple's own licence text ("Copyright (C) 2024 Apple Inc. All Rights Reserved", permissive wording); not a standard SPDX licence; read it before reuse |
+| P43 | AndroidWorld: A Dynamic Benchmarking Environment for Autonomous Agents, Christopher Rawles and co-authors (Google Research), ICLR 2025, arXiv:2405.14573 | a live Android environment, reward signals for 116 programmatic tasks across 20 real-world apps; repo github.com/google-research/android_world ("not an officially supported Google product") | none of the owner's claims contradicted | Apache-2.0 (one MIT block for third-party files) |
+| P44 | OSWorld: Benchmarking Multimodal Agents for Open-Ended Tasks in Real Computer Environments, Tianbao Xie and co-authors, NeurIPS 2024 (Datasets and Benchmarks track), arXiv:2404.07972; and OSWorld 2.0: Benchmarking Computer Use Agents on Long-Horizon Real-World Tasks, Mengqi Yuan, Zilong Zhou, Xinzhuang Xiong and 33 others, arXiv:2606.29537, submitted 28 Jun 2026, revised 13 Jul 2026 | OSWorld 2.0 has 108 long-horizon computer-use workflows (abstract); repo github.com/xlang-ai/OSWorld | no venue shown for 2.0 | Apache-2.0 (copyright XLANG NLP Lab 2024) |
+| P45 | AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents, Edoardo Debenedetti, Jie Zhang, Mislav Balunovic, Luca Beurer-Kellner, Marc Fischer, Florian Tramer, NeurIPS 2024 (Datasets and Benchmarks track), arXiv:2406.13352; repo github.com/ethz-spylab/agentdojo | the authors, venue, repository | **97 tasks** and the suite list (Workspace, Slack, banking, travel): not confirmed (the README shows only examples such as the workspace suite) | MIT |
+
+**What these light up on the grid (proposal).** Forum and Housing for messaging, inbox, contacts, calendar and reminders (perceive, act, remember, plan); Market and Bank for payments (transact); Registry for identity behind a phone number or a message (act); Courts for settling a dispute from logged tool calls (perceive); Shops for orders (transact). The **untrusted-content handling already exists** in `packages/asp-package/src/gateway/untrusted.ts`; AgentDojo's attack suites are the test for it (in simulation only). A user simulator (ToolSandbox) and a final-state grader (AppWorld, AndroidWorld) match the cohort-against-control method.
+
+**Needs.** None needs open weights. AndroidWorld needs an Android emulator; OSWorld needs virtual machines; AppWorld and ToolSandbox run in Python; compute for the runs. None of them has been run on the society.
+
+**Priority (proposal).** P45 A (it tests the untrusted-content wrapper); P41 and P42 B (a task set and a user simulator for a standard tool set); P43 and P44 C (screen-level control is a different layer from tool calls).
+

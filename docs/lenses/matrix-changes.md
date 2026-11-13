@@ -1,5 +1,9 @@
 # Matrix changes (newest first)
 
+## 2026-11-13 (later): L16-everyday-platform-tools added
+
+New lens for the standard tools an agent has in the society: inbox and email, contacts, messages, calendar, reminders, phone and payments. From AppWorld, ToolSandbox, AndroidWorld, OSWorld (and 2.0) and AgentDojo ([papers.md](papers.md) P41 to P45, each checked by search and by reading the repository's LICENSE file; task counts the owner quoted for AppWorld (750), ToolSandbox (1,032) and AgentDojo (97) could not be confirmed and are not claimed). Cells lit: forum perceive and act; housing perceive, remember and plan; registry act; market transact; bank-insurer transact; shops transact; courts perceive. Newly lit cells: forum act (second lens), housing plan (second), registry act (third), market transact, bank-insurer transact (second), shops transact (second), courts perceive (fifth). The untrusted-content wrapper (`packages/asp-package/src/gateway/untrusted.ts`) is the hook for every inbound tool result; AgentDojo is the proposed test for it, in simulation only. The institution specs' lens-coverage sections were regenerated.
+
 Status: proposal, written by the papers-intake worker. The matrix itself is generated ([matrix.md](matrix.md), `npm run lenses`); this page says what moved and why. The owner may change any lens. Credits are accounting entries, not money.
 
 ## 2026-11-13: the grid redone from a one-by-one re-read of all 68 screenshots

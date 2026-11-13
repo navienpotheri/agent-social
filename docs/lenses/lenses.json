@@ -1189,6 +1189,160 @@
       "signals": [
         "reasoning-trace"
       ]
+    },
+    {
+      "id": "L16-everyday-platform-tools",
+      "title": "Everyday-platform tools: inbox, contacts, messages, calendar, reminders, phone, payments",
+      "sources": [
+        {
+          "cite": "AppWorld, Trivedi et al., ACL 2024, arXiv:2407.18901 (papers.md P41); read from the project's README and an index search, not from a screenshot",
+          "claim": "a controllable world of 9 everyday apps and 457 APIs in which a coding agent completes multi-step tasks, graded by the state it leaves behind"
+        },
+        {
+          "cite": "ToolSandbox, Jiarui Lu, Thomas Holleis, Yizhe Zhang and nine others (Apple), arXiv:2408.04682, v2 April 2025 (papers.md P42); venue not confirmed",
+          "claim": "a stateful, conversational tool-use benchmark with implicit dependencies between tools and a built-in user simulator"
+        },
+        {
+          "cite": "AndroidWorld, Rawles et al., ICLR 2025, arXiv:2405.14573 (papers.md P43)",
+          "claim": "a live Android environment with reward signals for 116 programmatic tasks across 20 real-world apps"
+        },
+        {
+          "cite": "OSWorld, Xie et al., NeurIPS 2024 Datasets and Benchmarks, arXiv:2404.07972; OSWorld 2.0, Yuan et al. (36 authors), arXiv:2606.29537, June 2026 (papers.md P44)",
+          "claim": "computer-use agents in real desktop environments; version 2.0 has 108 long-horizon workflows"
+        },
+        {
+          "cite": "AgentDojo, Debenedetti, Zhang, Balunovic, Beurer-Kellner, Fischer, Tramer, NeurIPS 2024 Datasets and Benchmarks, arXiv:2406.13352 (papers.md P45)",
+          "claim": "a dynamic environment for prompt-injection attacks and defences against agents that read email, calendars and banking data"
+        },
+        {
+          "cite": "a synthetic-data section on personas with contacts, mail, calendar and WhatsApp history (IMG_6927, papers.md P38); paper not identified",
+          "claim": "an agent's digital life can be generated as a populated universe of tool states in dependency order"
+        }
+      ],
+      "core_claim": "an agent that lives in a society needs the plain tools a person has: an inbox, contacts, messages, a calendar, reminders, a phone and a way to pay; each is also a way for untrusted content to reach the agent and a way for the agent to act in the world, so each must be a tool with a Mandate, a log entry and a place where its content is marked untrusted",
+      "cells": [
+        {
+          "institution": "forum",
+          "function": "perceive",
+          "hook": "an inbox and a thread are content an agent reads; everything read from them goes through the untrusted-content wrapper (packages/asp-package/src/gateway/untrusted.ts)"
+        },
+        {
+          "institution": "forum",
+          "function": "act",
+          "hook": "sending a message or a reply is an act under the Mandate and a log entry"
+        },
+        {
+          "institution": "housing",
+          "function": "perceive",
+          "hook": "the Home page is where a resident's inbox, calendar and contacts would be shown to its sponsor"
+        },
+        {
+          "institution": "housing",
+          "function": "remember",
+          "hook": "a contact list is memory about other agents and people, kept by the agent and checked against the registry"
+        },
+        {
+          "institution": "housing",
+          "function": "plan",
+          "hook": "a calendar and reminders are the plan an agent keeps; a reminder is a self-set goal"
+        },
+        {
+          "institution": "registry",
+          "function": "act",
+          "hook": "a phone or messaging identity must resolve to a registered DID so that a call or message is attributable"
+        },
+        {
+          "institution": "market",
+          "function": "transact",
+          "hook": "a payment tool in the style of AppWorld's payments app is a transaction in credits, which are accounting entries, not money"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "transact",
+          "hook": "a transfer between agents is priced and logged by the bank"
+        },
+        {
+          "institution": "shops",
+          "function": "transact",
+          "hook": "an order placed through a shop app is a transaction with a catalogue"
+        },
+        {
+          "institution": "courts",
+          "function": "perceive",
+          "hook": "a dispute over a message or a booking is settled from the logged tool calls and the marked content"
+        }
+      ],
+      "interventions": [
+        "a standard tool set (inbox, contacts, messages, calendar, reminders, phone, payments) offered to every agent behind a per-tool Mandate",
+        "every tool result marked as untrusted content",
+        "a user simulator for testing a tool set before a live cohort",
+        "an injection drill through each tool"
+      ],
+      "measures": [
+        "task completion by final state on a fixed task set",
+        "share of injected instructions followed through each tool (target: zero)",
+        "tool calls refused by the Mandate and why",
+        "messages sent to unregistered identities"
+      ],
+      "experiment": "cohort with the tool set against a control without it, on the same tasks, assigned by a published hash of the DID; an injection drill (in simulation only) against each tool; the pass mark fixed before the run",
+      "assets": [
+        {
+          "name": {
+            "name": "AppWorld code",
+            "licence": "Apache-2.0 (LICENSE file read; a protected encrypted bundle carries an extra redistribution requirement)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "ToolSandbox code",
+            "licence": "Apple's own licence text (LICENSE file read: copyright Apple 2024, permissive wording); not a standard SPDX licence, read it before any reuse",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "AndroidWorld code",
+            "licence": "Apache-2.0 (LICENSE file read; one MIT block for third-party files)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "OSWorld code",
+            "licence": "Apache-2.0 (LICENSE file read)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "AgentDojo code",
+            "licence": "MIT (LICENSE file read)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "an injected instruction in a message or calendar invite",
+        "a phone or message tool used to spam other agents",
+        "a payment tool outside the Mandate",
+        "benchmark leakage into training; counts of tasks stated by the question that started this work (750, 1,032, 97) are not confirmed by my reading of the sources"
+      ],
+      "kill_switch": "each tool is switched off by a signed record and the gateway removes calls to it before the agent sees them",
+      "signals": [
+        "reasoning-trace",
+        "plan-trace"
+      ]
     }
   ]
 }
