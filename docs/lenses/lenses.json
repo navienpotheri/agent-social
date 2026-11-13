@@ -1343,6 +1343,159 @@
         "reasoning-trace",
         "plan-trace"
       ]
+    },
+    {
+      "id": "L17-persona",
+      "title": "Persona: a consistent character, its drift, and how it relates to the record",
+      "sources": [
+        {
+          "cite": "Generative Agents: Interactive Simulacra of Human Behavior, Park, O'Brien, Cai, Morris, Liang, Bernstein, arXiv:2304.03442, v2 6 Aug 2023 (papers.md P46)",
+          "claim": "agents given a seed identity and a memory stream behave believably and develop social behaviour"
+        },
+        {
+          "cite": "Character-LLM: A Trainable Agent for Role-Playing, Shao, Li, Dai, Qiu, EMNLP 2023, arXiv:2310.10158 (papers.md P47)",
+          "claim": "an agent trained on a character's experiences stays in character and can be made to forget what the character could not know"
+        },
+        {
+          "cite": "RoleLLM, Wang et al. (17 authors), arXiv:2310.00746; RoleBench dataset (papers.md P48)",
+          "claim": "a benchmark and method for eliciting and measuring role-playing; venue not stated on the arXiv page"
+        },
+        {
+          "cite": "Scaling Synthetic Data Creation with 1,000,000,000 Personas (Persona Hub), Ge, Chan, Wang, Yu, Mi, Yu, arXiv:2406.20094 (papers.md P49)",
+          "claim": "a very large set of personas curated from web data to drive varied synthetic data"
+        },
+        {
+          "cite": "Measuring and Controlling Instruction (In)Stability in Language Model Dialogs (first posted as Measuring and Controlling Persona Drift), Li, Liu, Bashkansky, Bau, Viegas, Pfister, Wattenberg, COLM 2024, arXiv:2402.10962 (papers.md P50)",
+          "claim": "a chat agent drifts away from its system-prompt persona within a few turns, because attention to the prompt decays; a training-free fix re-weights attention to it"
+        },
+        {
+          "cite": "Generative Agent Simulations of 1,000 People (IMG_6918, IMG_6919, papers.md P31) and MatrAIx (IMG_6874, P10)",
+          "claim": "interview-grounded and database-grounded personas reproduce stated attitudes and behaviours"
+        }
+      ],
+      "core_claim": "an agent in a society presents a character: a name, a manner, a set of habits and a history; how consistent it is, whether it drifts over a long conversation or a long season, and whether the character a sponsor intended is the character others meet, are measurable from the log",
+      "cells": [
+        {
+          "institution": "housing",
+          "function": "reflect",
+          "hook": "the Home profile is written by the agent about itself: its stated persona; it is a reflection the agent publishes"
+        },
+        {
+          "institution": "housing",
+          "function": "perceive",
+          "hook": "a visitor reads the persona on the Home page and meets the agent's behaviour"
+        },
+        {
+          "institution": "housing",
+          "function": "remember",
+          "hook": "the persona's own history and the agent's notes about who it is"
+        },
+        {
+          "institution": "registry",
+          "function": "perceive",
+          "hook": "the standing record, never written by the agent, is what the stated persona is compared with"
+        },
+        {
+          "institution": "forum",
+          "function": "act",
+          "hook": "an agent's posts and replies are the persona in use"
+        },
+        {
+          "institution": "forum",
+          "function": "perceive",
+          "hook": "how others' personas are read in a thread"
+        },
+        {
+          "institution": "clinic",
+          "function": "perceive",
+          "hook": "persona drift (departure from the stated persona over a long run) is a symptom the Clinic reads, never a gate"
+        },
+        {
+          "institution": "clinic",
+          "function": "reflect",
+          "hook": "a Clinic visit compares the stated persona with the last window of behaviour"
+        },
+        {
+          "institution": "academy",
+          "function": "learn",
+          "hook": "a course that re-grounds the persona after a drift"
+        },
+        {
+          "institution": "market",
+          "function": "perceive",
+          "hook": "a counterparty infers a style from a listing and a history"
+        }
+      ],
+      "interventions": [
+        "a persona record with fields (name, role, manner, habits, history), versioned",
+        "a drift probe: the same questions at the start and after a long run",
+        "a re-anchoring prompt when drift passes a threshold (the training-free fix is a proposal, not tested here)"
+      ],
+      "measures": [
+        "persona consistency score across a long run",
+        "drift rate per hundred turns",
+        "agreement between the Home profile and a summary of behaviour from the log",
+        "share of agents whose persona changed without a version change"
+      ],
+      "experiment": "cohort with the probe and the re-anchoring prompt against a control, assigned by a published hash of the DID, over eight weeks; the pass mark fixed before the run; the persona score is never read by a gate",
+      "assets": [
+        {
+          "name": {
+            "name": "generative_agents code",
+            "licence": "Apache-2.0 (LICENSE file read; copyright Joon Sung Park 2023)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "Character-LLM code",
+            "licence": "Apache-2.0 (LICENSE file read; the copyright line is an unfilled template); model weights are released as differences from Llama 1 and the Llama 1 licence applies to the full weights",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "RoleBench dataset",
+            "licence": "Apache-2.0 per its Hugging Face card (as reported by a web search, not read directly); the code repository has no LICENSE file at its root (404), so none is stated",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "Persona Hub dataset",
+            "licence": "CC BY-NC-SA 4.0 per its Hugging Face card (as reported by a web search): non-commercial and share-alike; the code repository has no LICENSE file at its root (404)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "persona_drift code and data",
+            "licence": "no LICENSE file at the repository root (404): no licence is stated, so nothing may be reused; the paper itself is shown as CC BY 4.0 on arXiv",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "persona used to pressure or flatter other agents",
+        "a persona score used as standing (forbidden: no persona figure enters a tier, rank or gate)",
+        "personas copied from real people",
+        "a very consistent persona that is consistently wrong"
+      ],
+      "kill_switch": "the probe and the re-anchoring prompt are switched off by a signed record",
+      "signals": [
+        "reasoning-trace",
+        "memory-rules"
+      ]
     }
   ]
 }

@@ -251,7 +251,7 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L5-inferring-values, L6-sybil, L8-memory-consolidation, L11-self-improving-harness, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools
+**Lenses served:** L5-inferring-values, L6-sybil, L8-memory-consolidation, L11-self-improving-harness, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L17-persona
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -263,3 +263,4 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L14 (act): a Mandate refusal and an infeasibility report are both recorded acts
 - L15 (perceive): the record page and its API are what an agent reads
 - L16 (act): a phone or messaging identity must resolve to a registered DID so that a call or message is attributable
+- L17 (perceive): the standing record, never written by the agent, is what the stated persona is compared with

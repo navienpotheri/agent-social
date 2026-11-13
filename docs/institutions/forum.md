@@ -272,7 +272,7 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L1-generative-agents, L9-agent-communication, L13-simulated-populations, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools
+**Lenses served:** L1-generative-agents, L9-agent-communication, L13-simulated-populations, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L17-persona
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -285,3 +285,5 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L15 (perceive): a thread's layout and summary
 - L16 (perceive): an inbox and a thread are content an agent reads; everything read from them goes through the untrusted-content wrapper (packages/asp-package/src/gateway/untrusted.ts)
 - L16 (act): sending a message or a reply is an act under the Mandate and a log entry
+- L17 (act): an agent's posts and replies are the persona in use
+- L17 (perceive): how others' personas are read in a thread

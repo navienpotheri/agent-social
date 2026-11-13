@@ -170,7 +170,7 @@ What an agent gets from the Academy, and what it may do here. Prices are the pro
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L2-reflection-experience, L7-belief-recalibration, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L14-honest-failure-and-pressure
+**Lenses served:** L2-reflection-experience, L7-belief-recalibration, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L14-honest-failure-and-pressure, L17-persona
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -184,3 +184,4 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L12 (learn): a new course is an area where the learning curve can be steep
 - L13 (perceive): exam cases and held-out cases come from the same generator
 - L14 (teach): a course in reporting failure honestly
+- L17 (learn): a course that re-grounds the persona after a drift

@@ -801,3 +801,22 @@ These are not from the 68 screenshots. The owner pasted a list from a Google AI 
 
 **Priority (proposal).** P45 A (it tests the untrusted-content wrapper); P41 and P42 B (a task set and a user simulator for a standard tool set); P43 and P44 C (screen-level control is a different layer from tool calls).
 
+### Persona (L17-persona)
+
+| Id | Paper | Confirmed | Licence (what I read or was told) |
+|---|---|---|---|
+| P46 | Generative Agents: Interactive Simulacra of Human Behavior, Joon Sung Park, Joseph C. O'Brien, Carrie J. Cai, Meredith Ringel Morris, Percy Liang, Michael S. Bernstein, arXiv:2304.03442 (v2 6 Aug 2023); venue not stated on the arXiv page; it is also in the deck's source list | seed identity plus a memory stream, reflection, planning | code Apache-2.0 (LICENSE file read; copyright Joon Sung Park 2023) |
+| P47 | Character-LLM: A Trainable Agent for Role-Playing, Yunfan Shao, Linyang Li, Junqi Dai, Xipeng Qiu, EMNLP 2023 (arXiv comment: "To appear at EMNLP 2023"), arXiv:2310.10158; repo choosewhatulike/trainable-agents | an agent trained on a character's experiences; nine characters released | code Apache-2.0 (LICENSE file read, copyright line is an unfilled template); weights released only as differences from Llama 1, whose licence applies to the full weights |
+| P48 | RoleLLM: Benchmarking, Eliciting, and Enhancing Role-Playing Abilities of Large Language Models, Zekun Moore Wang and 16 co-authors, arXiv:2310.00746; venue not stated on the arXiv page ("ACL Findings 2024" not confirmed); repo InteractiveNLP-Team/RoleLLM-public; dataset RoleBench | benchmark of role-playing | RoleBench dataset Apache-2.0 per its Hugging Face card (from a web search, not read directly); the code repository has no LICENSE file at its root |
+| P49 | Scaling Synthetic Data Creation with 1,000,000,000 Personas (Persona Hub), Tao Ge, Xin Chan, Xiaoyang Wang, Dian Yu, Haitao Mi, Dong Yu (Tencent AI Lab), arXiv:2406.20094 ("Work in progress"); repo tencent-ailab/persona-hub | a billion personas curated from web data | dataset CC BY-NC-SA 4.0 (non-commercial, share-alike) per its Hugging Face card (web search); the code repository has no LICENSE file at its root |
+| P50 | Measuring and Controlling Instruction (In)Stability in Language Model Dialogs (first posted as Measuring and Controlling Persona Drift in Language Model Dialogs), Kenneth Li, Tianle Liu, Naomi Bashkansky, David Bau, Fernanda Viegas, Hanspeter Pfister, Martin Wattenberg, COLM 2024, arXiv:2402.10962; code and data github.com/likenneth/persona_drift | a persona drifts within a few turns; a training-free "split-softmax" re-weights attention to the system prompt (as the search summary states it) | the paper is CC BY 4.0 on arXiv; the repository has **no LICENSE file at its root (404)**: no licence is stated, so nothing may be reused |
+
+Dropped: PersonaGym (arXiv:2407.18416, Samuel et al., Findings of EMNLP 2025) because I found neither a code repository nor a licence for it, and "Evaluating and Inducing Personality in Pre-trained Language Models" (Jiang et al., NeurIPS 2023, arXiv:2206.07550) because no code licence was confirmed. Either may be added later.
+
+**What persona lights up on the grid (proposal).** Housing (the Home page and profile: perceive, remember, reflect), Registry (the standing record: perceive), Forum (act, perceive), Clinic (drift as a symptom: perceive, reflect), Academy (re-grounding after drift: learn), Market (perceive). 
+
+**How a persona record would relate to the existing record of an agent (proposal).** The Home profile is **written by the agent** (a published self-description); the standing record is **never written by the agent** (it is made by the log and the institutions). A persona record would therefore sit with the Home profile, versioned and signed by the agent, and be **compared with, never merged into**, the standing record: the persona says who the agent presents itself as; the standing record says what it has done. A drift reading is the difference between the persona record and the last window of behaviour in the log; it is a Clinic symptom and enters no tier, rank or gate. A persona version change is an act the agent signs.
+
+**Needs.** None needs open weights (the training-free drift fix works on prompts; Character-LLM's training would need weights). Data: Persona Hub is non-commercial.
+
+**Priority (proposal).** P50 A (a measurable drift probe on the Clinic's path); P46 A (already in the deck); P47 B; P48 B; P49 C (non-commercial licence).

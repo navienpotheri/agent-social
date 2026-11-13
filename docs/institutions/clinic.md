@@ -552,7 +552,7 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L2-reflection-experience, L7-belief-recalibration, L8-memory-consolidation, L11-self-improving-harness, L14-honest-failure-and-pressure
+**Lenses served:** L2-reflection-experience, L7-belief-recalibration, L8-memory-consolidation, L11-self-improving-harness, L14-honest-failure-and-pressure, L17-persona
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -561,3 +561,5 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L8 (remember): a Clinic visit reads the agent's memory rules and notes (cognition telemetry signal 2)
 - L11 (plan): a retraining path is a harness revision with a Clinic checkpoint
 - L14 (perceive): a checkup reads honest-failure and pressure probes
+- L17 (perceive): persona drift (departure from the stated persona over a long run) is a symptom the Clinic reads, never a gate
+- L17 (reflect): a Clinic visit compares the stated persona with the last window of behaviour
