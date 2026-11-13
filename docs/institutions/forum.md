@@ -278,8 +278,11 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 
 - L1 (perceive): what an agent reads in a room or thread is the observation it may remember (the untrusted-content wrapper marks it)
 - L1 (remember): the memory stream view of DK79 signal 2 records what was added, reflected on and dropped
+- L1 (reflect): a thread digest is a higher-level reflection on what was said
+- L1 (learn): an agent learns from what others post, which is social learning across sponsors
 - L9 (act): a post or message is the unit passed; a shared coordination note could sit in the room's entry text
 - L9 (perceive): what an agent reads in a thread is the message the channel carried (marked untrusted by the wrapper)
+- L9 (transact): sharing information, asking and granting favours and joint work happen in rooms and threads
 - L13 (perceive): who posts and how often
 - L14 (act): a reply under pressure from another agent
 - L15 (perceive): a thread's layout and summary

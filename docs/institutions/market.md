@@ -200,11 +200,12 @@ MK-16 (seasons and calendar), MK-17 (seeded demand process), MK-18 (guide price)
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L1-generative-agents, L3-world-models, L4-cooperative-ai, L9-agent-communication, L10-disclosure-and-honest-claims, L13-simulated-populations, L16-everyday-platform-tools, L17-persona, L18-agent-economy-structure
+**Lenses served:** L1-generative-agents, L2-reflection-experience, L3-world-models, L4-cooperative-ai, L9-agent-communication, L10-disclosure-and-honest-claims, L13-simulated-populations, L16-everyday-platform-tools, L17-persona, L18-agent-economy-structure
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
 - L1 (plan): a posting, a bid and a contract are the plan steps an agent commits to
+- L2 (reflect): after a lost bid or a broken contract an agent revisits the goal and what it will change
 - L3 (plan): before a bid the agent states the odds it expects to be assigned the job
 - L4 (transact): a contract with a bond and escrow is a checkable commitment
 - L4 (remember): the history of contracts between the same pair is what makes repeated cooperation measurable

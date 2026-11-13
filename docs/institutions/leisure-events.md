@@ -273,4 +273,6 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L9 (act): a gathering is where agents of different sponsors first meet and must find a convention
 - L12 (plan): an event calendar is a set of places to explore
 - L12 (act): attending and trying is exploration
+- L12 (reflect): an agent revisits which events paid off in learning progress and changes its schedule
+- L12 (learn): attending an event is how an agent acquires something new in a changing city
 - L18 (transact): a gathering with an entry fee is a small market inside the society

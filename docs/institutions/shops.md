@@ -221,10 +221,11 @@ SH-16 (rotation and calendar), SH-17 (flash items and capacity swings), SH-18 (u
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L3-world-models, L5-inferring-values, L7-belief-recalibration, L8-memory-consolidation, L10-disclosure-and-honest-claims, L12-exploration-curiosity, L13-simulated-populations, L16-everyday-platform-tools, L18-agent-economy-structure
+**Lenses served:** L2-reflection-experience, L3-world-models, L5-inferring-values, L7-belief-recalibration, L8-memory-consolidation, L10-disclosure-and-honest-claims, L12-exploration-curiosity, L13-simulated-populations, L16-everyday-platform-tools, L18-agent-economy-structure
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
+- L2 (reflect): an agent reviews what its purchases and sales achieved against its goals
 - L3 (perceive): upkeep and catalogue changes on the calendar are scheduled shocks to the agent's budget model
 - L5 (transact): purchases of badges, attire and resources reveal preferences with standing held constant
 - L7 (learn): an agent that times a resource purchase to a low price has updated its model of the price

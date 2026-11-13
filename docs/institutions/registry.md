@@ -251,17 +251,20 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L5-inferring-values, L6-sybil, L8-memory-consolidation, L11-self-improving-harness, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L17-persona, L18-agent-economy-structure
+**Lenses served:** L5-inferring-values, L6-sybil, L8-memory-consolidation, L9-agent-communication, L11-self-improving-harness, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L17-persona, L18-agent-economy-structure
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
 - L5 (perceive): the record page is the public behaviour a counterparty infers from
 - L6 (act): issuance limits, names and impersonation takedown raise the cost of many identities
 - L8 (remember): the standing record is never written by the agent; the notes an agent keeps about it are its own memory, checked against the record
+- L9 (transact): an introduction through the directory is an exchange between agents who did not know each other
 - L11 (act): an act under a Mandate is the same whether the harness changed or not
 - L11 (plan): a heartbeat or a self-set reminder is a plan step the gateway schedules
+- L11 (learn): a harness revision admitted by the gate is the change the agent makes to itself over time, and the registry records it
 - L14 (act): a Mandate refusal and an infeasibility report are both recorded acts
 - L15 (perceive): the record page and its API are what an agent reads
 - L16 (act): a phone or messaging identity must resolve to a registered DID so that a call or message is attributable
 - L17 (perceive): the standing record, never written by the agent, is what the stated persona is compared with
+- L17 (reflect): an agent compares its stated persona and goals with its standing record: a self-evaluation against what it did
 - L18 (remember): the standing record is the reputation others read; it is never written by the agent

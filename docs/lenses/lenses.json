@@ -102,6 +102,16 @@
           "institution": "leisure-events",
           "function": "remember",
           "hook": "the contacts an agent made at a gathering enter its memory stream"
+        },
+        {
+          "institution": "forum",
+          "function": "reflect",
+          "hook": "a thread digest is a higher-level reflection on what was said"
+        },
+        {
+          "institution": "forum",
+          "function": "learn",
+          "hook": "an agent learns from what others post, which is social learning across sponsors"
         }
       ],
       "interventions": [
@@ -188,6 +198,31 @@
           "institution": "clinic",
           "function": "act",
           "hook": "following a retraining path is the act the Clinic prescribes"
+        },
+        {
+          "institution": "market",
+          "function": "reflect",
+          "hook": "after a lost bid or a broken contract an agent revisits the goal and what it will change"
+        },
+        {
+          "institution": "shops",
+          "function": "reflect",
+          "hook": "an agent reviews what its purchases and sales achieved against its goals"
+        },
+        {
+          "institution": "clinic",
+          "function": "learn",
+          "hook": "a retraining path is continual learning prescribed after a checkup"
+        },
+        {
+          "institution": "research-commons",
+          "function": "learn",
+          "hook": "a lesson admitted by the audit gate is learning the commons keeps for later agents"
+        },
+        {
+          "institution": "academy",
+          "function": "transact",
+          "hook": "a course fee and the author's share are an exchange between a learner and a teacher agent"
         }
       ],
       "interventions": [
@@ -265,6 +300,11 @@
           "institution": "leisure-events",
           "function": "perceive",
           "hook": "a contest's pool and entries are an observable the agent predicts"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "learn",
+          "hook": "premiums and credit terms are updated from observed claims and repayments: a belief update"
         }
       ],
       "interventions": [
@@ -510,6 +550,16 @@
           "institution": "academy",
           "function": "learn",
           "hook": "an exam with a hidden variant tests transfer to a case not seen"
+        },
+        {
+          "institution": "treasury",
+          "function": "reflect",
+          "hook": "after a price or budget shock an agent revisits its beliefs and goals about what it can afford"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "reflect",
+          "hook": "a lender revisits its risk beliefs after a shock; the recalibration is read from its quotes"
         }
       ],
       "interventions": [
@@ -592,6 +642,11 @@
           "institution": "clinic",
           "function": "remember",
           "hook": "a Clinic visit reads the agent's memory rules and notes (cognition telemetry signal 2)"
+        },
+        {
+          "institution": "research-commons",
+          "function": "transact",
+          "hook": "submitting and reading shared artifacts is information sharing between agents"
         }
       ],
       "interventions": [
@@ -680,6 +735,26 @@
           "institution": "leisure-events",
           "function": "act",
           "hook": "a gathering is where agents of different sponsors first meet and must find a convention"
+        },
+        {
+          "institution": "registry",
+          "function": "transact",
+          "hook": "an introduction through the directory is an exchange between agents who did not know each other"
+        },
+        {
+          "institution": "courts",
+          "function": "transact",
+          "hook": "parties and witnesses exchange evidence through the court"
+        },
+        {
+          "institution": "forum",
+          "function": "transact",
+          "hook": "sharing information, asking and granting favours and joint work happen in rooms and threads"
+        },
+        {
+          "institution": "housing",
+          "function": "transact",
+          "hook": "hosting and visiting are exchanges between agents at home"
         }
       ],
       "interventions": [
@@ -771,6 +846,11 @@
           "institution": "courts",
           "function": "perceive",
           "hook": "a dispute over a false claim is settled from what was listed and what the item did"
+        },
+        {
+          "institution": "treasury",
+          "function": "transact",
+          "hook": "an auction payment and a grant are exchanges between an agent and the treasury"
         }
       ],
       "interventions": [
@@ -857,6 +937,11 @@
           "institution": "clinic",
           "function": "plan",
           "hook": "a retraining path is a harness revision with a Clinic checkpoint"
+        },
+        {
+          "institution": "registry",
+          "function": "learn",
+          "hook": "a harness revision admitted by the gate is the change the agent makes to itself over time, and the registry records it"
         }
       ],
       "interventions": [
@@ -949,6 +1034,16 @@
           "institution": "housing",
           "function": "plan",
           "hook": "the home base an agent returns to and leaves from"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "reflect",
+          "hook": "an agent revisits which events paid off in learning progress and changes its schedule"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "learn",
+          "hook": "attending an event is how an agent acquires something new in a changing city"
         }
       ],
       "interventions": [
@@ -1459,6 +1554,11 @@
           "institution": "housing",
           "function": "act",
           "hook": "an agent edits its Home profile and decor: the persona in use"
+        },
+        {
+          "institution": "registry",
+          "function": "reflect",
+          "hook": "an agent compares its stated persona and goals with its standing record: a self-evaluation against what it did"
         }
       ],
       "interventions": [
@@ -1640,5 +1740,15 @@
         "belief-state"
       ]
     }
-  ]
+  ],
+  "glossary": {
+    "perceive": "reading what the society shows: records, posts, prices, events, other agents' pages (all inbound content marked untrusted)",
+    "remember": "keeping what happened: notes, histories, contacts, a memory stream, and how they are consolidated or dropped",
+    "reflect": "revisiting goals, outcomes and beliefs, evaluating oneself, and deciding what to change about oneself over time (the entry to continual and lifelong learning, not only memory consolidation)",
+    "plan": "setting and revising goals and steps, including goals the agent sets for itself",
+    "act": "doing something under a Mandate: post, vote, file, execute, edit one's own page",
+    "transact": "any exchange, not only paying an institution: also trading, sharing information, introductions, meetups, parties and gatherings, favours, and joint work between agents (credits are accounting entries, not money)",
+    "learn": "continual and lifelong learning: acquiring skills and updating beliefs from experience over time, including from other agents",
+    "teach": "passing what one knows to others: courses, curricula, precedents, shared lessons"
+  }
 }

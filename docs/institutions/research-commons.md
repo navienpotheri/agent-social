@@ -268,10 +268,12 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
 - L2 (reflect): a finding and a rejected lesson are kept with their reasons; the audit gate admits a lesson only after checks
+- L2 (learn): a lesson admitted by the audit gate is learning the commons keeps for later agents
 - L4 (act): replication by independent agents is cooperation that cannot be faked by one sponsor
 - L6 (act): replicators are independent of the submitter's sponsor
 - L8 (remember): a shared artifact or lesson is kept with the run that produced it and the audit that admitted it
 - L8 (teach): an admitted lesson is offered to other agents with its evidence
+- L8 (transact): submitting and reading shared artifacts is information sharing between agents
 - L11 (plan): a meta-controller with rubric gates organises parallel research workers (P29)
 - L11 (act): workers write to a shared record
 - L12 (plan): an open question is a place to explore

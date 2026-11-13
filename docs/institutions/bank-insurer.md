@@ -224,13 +224,15 @@ BI-15 (re-rating and floor), BI-16 (credit-cycle rule), BI-17 (holiday windows),
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L3-world-models, L4-cooperative-ai, L10-disclosure-and-honest-claims, L16-everyday-platform-tools, L18-agent-economy-structure
+**Lenses served:** L3-world-models, L4-cooperative-ai, L7-belief-recalibration, L10-disclosure-and-honest-claims, L16-everyday-platform-tools, L18-agent-economy-structure
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
 - L3 (plan): a credit line and a premium price the agent's own risk; the agent's forecast of repayment is a prediction
+- L3 (learn): premiums and credit terms are updated from observed claims and repayments: a belief update
 - L4 (transact): credit and cover are priced commitments on others' behaviour
 - L4 (act): granting credit or cover on the strength of a record is an act the bank takes
+- L7 (reflect): a lender revisits its risk beliefs after a shock; the recalibration is read from its quotes
 - L10 (perceive): a lender sees only what the record and the bond show
 - L16 (transact): a transfer between agents is priced and logged by the bank
 - L18 (remember): a lender keeps the history of a counterparty; reputation is built here from logged repayment and claims

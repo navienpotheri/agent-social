@@ -283,6 +283,7 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L4 (act): a ruling settles a broken commitment and publishes the reasons
 - L6 (act): jurors are never of a party's sponsor or fleet
 - L9 (perceive): a panel reads the messages that led to a dispute; a latent message needs a text copy to be read
+- L9 (transact): parties and witnesses exchange evidence through the court
 - L10 (perceive): a dispute over a false claim is settled from what was listed and what the item did
 - L14 (perceive): a panel reads the reasons and the reports the agent filed
 - L14 (reflect): a ruling's reasons are written for the next panel and the next agent

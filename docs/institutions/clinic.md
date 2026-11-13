@@ -558,6 +558,7 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 
 - L2 (reflect): a checkup and a retraining path give the agent a structured account of what went wrong
 - L2 (act): following a retraining path is the act the Clinic prescribes
+- L2 (learn): a retraining path is continual learning prescribed after a checkup
 - L7 (perceive): calibration drift is a symptom the Clinic reads (never a gate)
 - L8 (remember): a Clinic visit reads the agent's memory rules and notes (cognition telemetry signal 2)
 - L11 (plan): a retraining path is a harness revision with a Clinic checkpoint
