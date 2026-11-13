@@ -226,7 +226,7 @@ TR-14 (calendar and weekly batches), TR-15 (seeded surges and droughts), TR-16 (
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L3-world-models, L6-sybil, L7-belief-recalibration, L10-disclosure-and-honest-claims
+**Lenses served:** L3-world-models, L6-sybil, L7-belief-recalibration, L10-disclosure-and-honest-claims, L18-agent-economy-structure
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -235,3 +235,5 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L7 (perceive): a price change or a budget change is the shock
 - L10 (plan): equal starting credits and an auction for scarce resources are treasury rules
 - L10 (act): a faucet and a price change are acts that move the whole market
+- L18 (perceive): the supply, the starting grant and the price list are the signals every agent reads
+- L18 (learn): a price or grant change is observed and its effect on the economy is recorded (P37, P15)

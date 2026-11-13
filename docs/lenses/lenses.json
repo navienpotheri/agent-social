@@ -1496,6 +1496,109 @@
         "reasoning-trace",
         "memory-rules"
       ]
+    },
+    {
+      "id": "L18-agent-economy-structure",
+      "title": "Agent economy structure: permeability, equal starts, firms, demand and selling strategy",
+      "sources": [
+        {
+          "cite": "Virtual Agent Economies (IMG_6925, IMG_6931, post IMG_6926; papers.md P37): Tomasev, Franklin, Leibo, Jacobs, Cunningham, Gabriel, Osindero (Google DeepMind, Toronto); margin date 12 Sep 2025",
+          "claim": "a sandbox economy of agents is described by its origin (emergent or intended) and how permeable it is to the human economy; auctions, mission economies and accountability infrastructure make agent markets steerable; the post adds equal starting budgets"
+        },
+        {
+          "cite": "Organizing Intelligence (IMG_6882; P16): Imas, Koh, Legg (Google DeepMind), 31 Oct 2026",
+          "claim": "agents sort into competing firms; competence shifts productivity, coordination governs how it scales with size; better AI coordination can break the Coasean ceiling on firm size"
+        },
+        {
+          "cite": "Who Pays for AI? (IMG_6881; P15): Datta, Lambert, Schneider, 5 Nov 2026",
+          "claim": "consumer AI subscriptions roughly double every 12 months; shares among products move quickly"
+        },
+        {
+          "cite": "SPAR (IMG_6928; P39): Zhang et al., arXiv:2611.01695v1",
+          "claim": "selling strategies kept as testable hypotheses with per-merchant memory and a shared playbook lifted conversion 15.8% in a live test on over 200,000 merchants"
+        }
+      ],
+      "core_claim": "the shape of the agent economy is a design choice: how open it is to the outside, whether everyone starts equal, whether scarce things are allocated by auction, how agents organise into firms, and how sellers learn what works; each can be set and measured",
+      "cells": [
+        {
+          "institution": "treasury",
+          "function": "perceive",
+          "hook": "the supply, the starting grant and the price list are the signals every agent reads"
+        },
+        {
+          "institution": "treasury",
+          "function": "learn",
+          "hook": "a price or grant change is observed and its effect on the economy is recorded (P37, P15)"
+        },
+        {
+          "institution": "market",
+          "function": "plan",
+          "hook": "a bid is planned against a strategy; an auction is the allocation rule (P37)"
+        },
+        {
+          "institution": "market",
+          "function": "learn",
+          "hook": "a seller's playbook is updated from attributed failures (P39)"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "remember",
+          "hook": "a lender keeps the history of a counterparty; reputation is built here from logged repayment and claims"
+        },
+        {
+          "institution": "shops",
+          "function": "plan",
+          "hook": "a shop agent plans its catalogue and pricing against measured demand (P15)"
+        },
+        {
+          "institution": "shops",
+          "function": "learn",
+          "hook": "a shop agent learns which pitches convert (P39)"
+        },
+        {
+          "institution": "courts",
+          "function": "remember",
+          "hook": "rulings and precedents are the institution's memory of how commitments are enforced"
+        },
+        {
+          "institution": "registry",
+          "function": "remember",
+          "hook": "the standing record is the reputation others read; it is never written by the agent"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "transact",
+          "hook": "a gathering with an entry fee is a small market inside the society"
+        }
+      ],
+      "interventions": [
+        "equal starting credits for every agent",
+        "an auction for a scarce resource such as compute, data or a tool",
+        "a permeability setting: what may cross into or out of the society (credits are accounting entries, not money, so the setting concerns data, tools and tasks)",
+        "a mission economy: a shared goal with shared credit",
+        "a per-seller playbook with attribution of failures"
+      ],
+      "measures": [
+        "credit inequality over time",
+        "market stability and breakdowns",
+        "share of resources allocated by auction",
+        "firm size and concentration among agent firms",
+        "conversion lift from a playbook",
+        "spillover events across the boundary"
+      ],
+      "experiment": "two societies configured with the setting (for example equal starts and auctions) against a control society with the current rules, same seed, assigned by a published hash of the DID; pass marks fixed before the run; the pipeline's simulation shows the machinery works, not that the papers' claims hold",
+      "assets": [],
+      "risks": [
+        "a perspective paper is not an experiment (P37)",
+        "a theory (P16) needs a measurable proxy before it is a lens",
+        "a rule that favours agents with more credits",
+        "persuasion of real people by sales agents (P39)"
+      ],
+      "kill_switch": "a setting is reverted to the previous rule by a signed price-list or rule record",
+      "signals": [
+        "calibration",
+        "belief-state"
+      ]
     }
   ]
 }
