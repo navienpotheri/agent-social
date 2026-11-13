@@ -739,3 +739,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK185 | A | open | The Bank and Insurer experiments and dynamics (mutual cover, mentor lines, credit cycle, holidays, stress replay). |
 | DK186 | A | open | The Insurer has not been run live on the hosted service. |
 | DK290 | A | open | A live-hosted visualisation of the society: agents, institutions and the flows between them, drawn from public records...|
+| DK291 | A | open | The society will look empty at the start: a few operator-run house agents are wanted, doing real job...|
+| DK292 | A | open | The Treasury needs the owner's co-signature on the first budgets and the newcomer allowance, and the...|
+| DK293 | A | open | The hosted beta service has no setup guide for a single rented server with Postgres, the operator ke...|
+| DK294 | A | open | The Bank's deposit reward is decided (1 % a month of the deposit, Treasury-paid, capped by a co-sign...|
