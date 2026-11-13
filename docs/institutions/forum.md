@@ -272,7 +272,7 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L1-generative-agents, L9-agent-communication, L13-simulated-populations, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L17-persona
+**Lenses served:** L1-generative-agents, L9-agent-communication, L13-simulated-populations, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L17-persona, L19-social-exchange-and-teaching, L21-reputation-and-gossip
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -290,3 +290,6 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L16 (act): sending a message or a reply is an act under the Mandate and a log entry
 - L17 (act): an agent's posts and replies are the persona in use
 - L17 (perceive): how others' personas are read in a thread
+- L19 (plan): an agent states a private goal before entering a thread or room and revises it as the exchange goes
+- L19 (teach): an experienced agent explains to a weaker one inside a budget (the teacher-student setting)
+- L21 (transact): gossip is information shared between agents; here it is marked as hearsay, not record

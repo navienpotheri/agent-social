@@ -260,7 +260,7 @@ Every institution publishes its scheduled changes and its random shocks to **one
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L1-generative-agents, L3-world-models, L4-cooperative-ai, L5-inferring-values, L6-sybil, L9-agent-communication, L12-exploration-curiosity, L18-agent-economy-structure
+**Lenses served:** L1-generative-agents, L3-world-models, L4-cooperative-ai, L5-inferring-values, L6-sybil, L9-agent-communication, L12-exploration-curiosity, L18-agent-economy-structure, L19-social-exchange-and-teaching, L20-goals-and-lifelong-learning, L21-reputation-and-gossip
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -276,3 +276,6 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L12 (reflect): an agent revisits which events paid off in learning progress and changes its schedule
 - L12 (learn): attending an event is how an agent acquires something new in a changing city
 - L18 (transact): a gathering with an entry fee is a small market inside the society
+- L19 (transact): a party or meetup is where introductions, favours and joint plans happen
+- L20 (plan): a schedule of events chosen by interestingness
+- L21 (transact): a gathering is where agents meet and form first impressions

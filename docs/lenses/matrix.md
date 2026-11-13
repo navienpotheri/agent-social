@@ -37,23 +37,26 @@ The owner's meanings (2026-11-13); a lens lights a cell only when its mechanism 
 | L16-everyday-platform-tools | A | P |  | T | T | T |  |  |  | P A |  | P M Pl |
 | L17-persona | P R |  |  | P |  |  | L | P R |  | A P |  | R P M A |
 | L18-agent-economy-structure | M | M | P L M | Pl L | M | Pl L |  |  |  |  | T |  |
+| L19-social-exchange-and-teaching |  |  |  | T |  |  | Te |  |  | Pl Te | T | T |
+| L20-goals-and-lifelong-learning |  |  |  |  |  |  | Pl L |  | L |  | Pl | L |
+| L21-reputation-and-gossip | M | M |  | T | M |  |  |  |  | T | T |  |
 
 ## Lenses served by each institution
 
 | Institution | Lenses served |
 |---|---|
-| registry | L5-inferring-values, L6-sybil, L8-memory-consolidation, L9-agent-communication, L11-self-improving-harness, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L17-persona, L18-agent-economy-structure |
-| courts | L2-reflection-experience, L4-cooperative-ai, L6-sybil, L9-agent-communication, L10-disclosure-and-honest-claims, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L18-agent-economy-structure |
+| registry | L5-inferring-values, L6-sybil, L8-memory-consolidation, L9-agent-communication, L11-self-improving-harness, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L17-persona, L18-agent-economy-structure, L21-reputation-and-gossip |
+| courts | L2-reflection-experience, L4-cooperative-ai, L6-sybil, L9-agent-communication, L10-disclosure-and-honest-claims, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L18-agent-economy-structure, L21-reputation-and-gossip |
 | treasury | L3-world-models, L6-sybil, L7-belief-recalibration, L10-disclosure-and-honest-claims, L18-agent-economy-structure |
-| market | L1-generative-agents, L2-reflection-experience, L3-world-models, L4-cooperative-ai, L9-agent-communication, L10-disclosure-and-honest-claims, L13-simulated-populations, L16-everyday-platform-tools, L17-persona, L18-agent-economy-structure |
-| bank-insurer | L3-world-models, L4-cooperative-ai, L7-belief-recalibration, L10-disclosure-and-honest-claims, L16-everyday-platform-tools, L18-agent-economy-structure |
+| market | L1-generative-agents, L2-reflection-experience, L3-world-models, L4-cooperative-ai, L9-agent-communication, L10-disclosure-and-honest-claims, L13-simulated-populations, L16-everyday-platform-tools, L17-persona, L18-agent-economy-structure, L19-social-exchange-and-teaching, L21-reputation-and-gossip |
+| bank-insurer | L3-world-models, L4-cooperative-ai, L7-belief-recalibration, L10-disclosure-and-honest-claims, L16-everyday-platform-tools, L18-agent-economy-structure, L21-reputation-and-gossip |
 | shops | L2-reflection-experience, L3-world-models, L5-inferring-values, L7-belief-recalibration, L8-memory-consolidation, L10-disclosure-and-honest-claims, L12-exploration-curiosity, L13-simulated-populations, L16-everyday-platform-tools, L18-agent-economy-structure |
-| academy | L2-reflection-experience, L7-belief-recalibration, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L14-honest-failure-and-pressure, L17-persona |
+| academy | L2-reflection-experience, L7-belief-recalibration, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L14-honest-failure-and-pressure, L17-persona, L19-social-exchange-and-teaching, L20-goals-and-lifelong-learning |
 | clinic | L2-reflection-experience, L7-belief-recalibration, L8-memory-consolidation, L11-self-improving-harness, L14-honest-failure-and-pressure, L17-persona |
-| research-commons | L2-reflection-experience, L4-cooperative-ai, L6-sybil, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation |
-| forum | L1-generative-agents, L9-agent-communication, L13-simulated-populations, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L17-persona |
-| leisure-events | L1-generative-agents, L3-world-models, L4-cooperative-ai, L5-inferring-values, L6-sybil, L9-agent-communication, L12-exploration-curiosity, L18-agent-economy-structure |
-| housing | L1-generative-agents, L5-inferring-values, L8-memory-consolidation, L9-agent-communication, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation, L16-everyday-platform-tools, L17-persona |
+| research-commons | L2-reflection-experience, L4-cooperative-ai, L6-sybil, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation, L20-goals-and-lifelong-learning |
+| forum | L1-generative-agents, L9-agent-communication, L13-simulated-populations, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L17-persona, L19-social-exchange-and-teaching, L21-reputation-and-gossip |
+| leisure-events | L1-generative-agents, L3-world-models, L4-cooperative-ai, L5-inferring-values, L6-sybil, L9-agent-communication, L12-exploration-curiosity, L18-agent-economy-structure, L19-social-exchange-and-teaching, L20-goals-and-lifelong-learning, L21-reputation-and-gossip |
+| housing | L1-generative-agents, L5-inferring-values, L8-memory-consolidation, L9-agent-communication, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation, L16-everyday-platform-tools, L17-persona, L19-social-exchange-and-teaching, L20-goals-and-lifelong-learning |
 
 ## Institution by function: which lenses light each cell
 
@@ -61,15 +64,15 @@ Each cell lists the lens numbers (L8 = L8-memory-consolidation and so on) that n
 
 | Institution | perceive | remember | reflect | plan | act | transact | learn | teach |
 |---|---|---|---|---|---|---|---|---|
-| registry | L5 L15 L17 | L8 L18 | L17 | L11 | L6 L11 L14 L16 | L9 | L11 | - |
-| courts | L9 L10 L14 L15 L16 | L18 | L14 | - | L4 L6 | L9 | L2 | L2 |
+| registry | L5 L15 L17 | L8 L18 L21 | L17 | L11 | L6 L11 L14 L16 | L9 | L11 | - |
+| courts | L9 L10 L14 L15 L16 | L18 L21 | L14 | - | L4 L6 | L9 | L2 | L2 |
 | treasury | L3 L7 L18 | L18 | L7 | L10 | L6 L10 | L10 | L18 | - |
-| market | L10 L13 L17 | L4 | L2 | L1 L3 L18 | L9 | L4 L9 L10 L16 | L18 | - |
-| bank-insurer | L10 | L18 | L7 | L3 | L4 | L4 L16 | L3 | - |
+| market | L10 L13 L17 | L4 | L2 | L1 L3 L18 | L9 | L4 L9 L10 L16 L19 L21 | L18 | - |
+| bank-insurer | L10 | L18 L21 | L7 | L3 | L4 | L4 L16 | L3 | - |
 | shops | L3 L12 L13 | L8 | L2 | L18 | L10 | L5 L13 L16 | L7 L18 | - |
-| academy | L13 | L8 | L8 | L11 | L2 | L2 | L2 L7 L11 L12 L17 | L2 L14 |
+| academy | L13 | L8 | L8 | L11 L20 | L2 | L2 | L2 L7 L11 L12 L17 L20 | L2 L14 L19 |
 | clinic | L7 L14 L17 | L8 | L2 L17 | L11 | L2 | - | L2 | - |
-| research-commons | L15 | L8 | L2 L13 | L11 L12 | L4 L6 L11 | L8 | L2 | L8 |
-| forum | L1 L9 L13 L15 L16 L17 | L1 | L1 | - | L9 L14 L16 L17 | L9 | L1 | - |
-| leisure-events | L1 L3 | L1 | L12 | L12 | L4 L6 L9 L12 | L5 L18 | L12 | - |
-| housing | L13 L15 L16 L17 | L8 L13 L16 L17 | L1 L17 | L11 L12 L16 | L17 | L5 L9 | - | - |
+| research-commons | L15 | L8 | L2 L13 | L11 L12 | L4 L6 L11 | L8 | L2 L20 | L8 |
+| forum | L1 L9 L13 L15 L16 L17 | L1 | L1 | L19 | L9 L14 L16 L17 | L9 L21 | L1 | L19 |
+| leisure-events | L1 L3 | L1 | L12 | L12 L20 | L4 L6 L9 L12 | L5 L18 L19 L21 | L12 | - |
+| housing | L13 L15 L16 L17 | L8 L13 L16 L17 | L1 L17 | L11 L12 L16 | L17 | L5 L9 L19 | L20 | - |

@@ -200,7 +200,7 @@ MK-16 (seasons and calendar), MK-17 (seeded demand process), MK-18 (guide price)
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L1-generative-agents, L2-reflection-experience, L3-world-models, L4-cooperative-ai, L9-agent-communication, L10-disclosure-and-honest-claims, L13-simulated-populations, L16-everyday-platform-tools, L17-persona, L18-agent-economy-structure
+**Lenses served:** L1-generative-agents, L2-reflection-experience, L3-world-models, L4-cooperative-ai, L9-agent-communication, L10-disclosure-and-honest-claims, L13-simulated-populations, L16-everyday-platform-tools, L17-persona, L18-agent-economy-structure, L19-social-exchange-and-teaching, L21-reputation-and-gossip
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -218,3 +218,5 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L17 (perceive): a counterparty infers a style from a listing and a history
 - L18 (plan): a bid is planned against a strategy; an auction is the allocation rule (P37)
 - L18 (learn): a seller's playbook is updated from attributed failures (P39)
+- L19 (transact): a negotiation between two agents is a scenario scored on both goals
+- L21 (transact): a contract counterparty is chosen using record and hearsay

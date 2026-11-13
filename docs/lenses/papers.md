@@ -820,3 +820,23 @@ Dropped: PersonaGym (arXiv:2407.18416, Samuel et al., Findings of EMNLP 2025) be
 **Needs.** None needs open weights (the training-free drift fix works on prompts; Character-LLM's training would need weights). Data: Persona Hub is non-commercial.
 
 **Priority (proposal).** P50 A (a measurable drift probe on the Clinic's path); P46 A (already in the deck); P47 B; P48 B; P49 C (non-commercial licence).
+
+---
+
+## Found by search, not from the screenshots (2026-11-13)
+
+Added at the owner's request to fill thin cells of the grid, using open-source papers only. **These are not in the 68 screenshots**; the two sources are kept apart. Each was confirmed by a web search and by reading the arXiv page and the repository's LICENSE file; where a licence could not be read, the item was dropped. Proposals only; no paper is claimed true or tested on the society; credits are accounting entries, not money.
+
+| Id | Paper | Authors, year, venue, link | Code and licence (LICENSE file read) | Lens | Needs |
+|---|---|---|---|---|---|
+| P51 | Generative agent-based modeling with actions grounded in physical, social, or digital space using Concordia | Vezhnevets, Agapiou, Aharon, Ziv, Matyas, Duenez-Guzman, Cunningham, Osindero, Karmon, Leibo; arXiv:2312.03664, 6 Dec 2023, 32 pages | github.com/google-deepmind/concordia, Apache-2.0 | L19 | a simulator, model calls |
+| P52 | Magentic Marketplace: An Open-Source Environment for Studying Agentic Markets | Gagan Bansal and 23 co-authors (Microsoft and others); arXiv:2510.25779, 27 Oct 2025 | github.com/microsoft/multi-agent-marketplace, MIT | L10, L18 (sources only; no new cell) | model calls |
+| P53 | SOTOPIA: Interactive Evaluation for Social Intelligence in Language Agents | Xuhui Zhou, Hao Zhu, Leena Mathur and eight others; ICLR 2024, arXiv:2310.11667 | github.com/sotopia-lab/sotopia, MIT; the dataset card uses a different licence (AI2 ImpACT, per a web search) | L19 | model calls |
+| P54 | OMNI: Open-endedness via Models of human Notions of Interestingness | Jenny Zhang, Joel Lehman, Kenneth Stanley, Jeff Clune; ICLR 2024, arXiv:2306.01711 | github.com/jennyzzt/omni, MIT (read on the master branch) | L20 | a simulator (Crafter), model calls |
+| P55 | Voyager: An Open-Ended Embodied Agent with Large Language Models | Guanzhi Wang, Yuqi Xie, Yunfan Jiang, Ajay Mandlekar, Chaowei Xiao, Yuke Zhu, Linxi Fan, Anima Anandkumar; arXiv:2305.16291, 25 May 2023 | github.com/MineDojo/Voyager, MIT (also item 1 of the reading list in IMG_6913, P26) | L20 | a Minecraft environment |
+| P56 | Reputation as a Solution to Cooperation Collapse in LLM-based MASs | Siyue Ren, Wanli Fu, Xinkun Zou, Chen Shen, Yi Cai, Chen Chu, Zhen Wang, Shuyue Hu; AAMAS 2026, arXiv:2505.05029 | github.com/RGB-0000FF/RepuNet, MIT | L21 | model calls |
+| P57 | Can Language Models Teach Weaker Agents? Teacher Explanations Improve Students via Personalization | Swarnadeep Saha, Peter Hase, Mohit Bansal; NeurIPS 2023, arXiv:2306.09299 | github.com/swarnaHub/ExplanationIntervention, MIT | L19 | model calls |
+
+**Dropped because the licence or the code could not be confirmed:** AgentCourt (arXiv:2408.08089; code repository has no LICENSE file); Agent Hospital (arXiv:2405.02957; no code link on the arXiv page); Project Sid (arXiv:2411.00114; the repository shows a report and a video, no simulation code seen); ALIGN, "Talk, Judge, Cooperate" (arXiv:2602.07777, ICML 2026; repository has no LICENSE file); the Google Research "social learning" post (no repository found).
+
+**Mechanisms they would become (proposals).** Concordia and Sotopia: a social-scenario test set and a game-master simulator for rehearsing a rule before a live cohort (forum plan, housing and leisure-events transact). Saha et al.: a teaching budget with an alignment check on the teacher (forum and academy teach). OMNI and Voyager: an interestingness-guided curriculum and a verified skill library behind a gate (academy plan and learn, housing learn). RepuNet: a hearsay field kept apart from the standing record (registry, bank-insurer, courts remember; forum, market, leisure-events transact). Magentic Marketplace: a place to test the disclosure and auction rules of L10 and L18 before a live cohort.

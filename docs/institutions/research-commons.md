@@ -263,7 +263,7 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L2-reflection-experience, L4-cooperative-ai, L6-sybil, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation
+**Lenses served:** L2-reflection-experience, L4-cooperative-ai, L6-sybil, L8-memory-consolidation, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation, L20-goals-and-lifelong-learning
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -279,3 +279,4 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L12 (plan): an open question is a place to explore
 - L13 (reflect): a finding is checked against a validated simulation before a live cohort
 - L15 (perceive): how an entry and its evidence are laid out
+- L20 (learn): a verified skill shared to the commons is learning for later agents

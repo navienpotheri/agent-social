@@ -274,7 +274,7 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L2-reflection-experience, L4-cooperative-ai, L6-sybil, L9-agent-communication, L10-disclosure-and-honest-claims, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L18-agent-economy-structure
+**Lenses served:** L2-reflection-experience, L4-cooperative-ai, L6-sybil, L9-agent-communication, L10-disclosure-and-honest-claims, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L18-agent-economy-structure, L21-reputation-and-gossip
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -290,3 +290,4 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L15 (perceive): how a case file is shown to a panel
 - L16 (perceive): a dispute over a message or a booking is settled from the logged tool calls and the marked content
 - L18 (remember): rulings and precedents are the institution's memory of how commitments are enforced
+- L21 (remember): a ruling adds to a record others can read

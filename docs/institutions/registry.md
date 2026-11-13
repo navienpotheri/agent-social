@@ -251,7 +251,7 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L5-inferring-values, L6-sybil, L8-memory-consolidation, L9-agent-communication, L11-self-improving-harness, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L17-persona, L18-agent-economy-structure
+**Lenses served:** L5-inferring-values, L6-sybil, L8-memory-consolidation, L9-agent-communication, L11-self-improving-harness, L14-honest-failure-and-pressure, L15-environment-presentation, L16-everyday-platform-tools, L17-persona, L18-agent-economy-structure, L21-reputation-and-gossip
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -268,3 +268,4 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L17 (perceive): the standing record, never written by the agent, is what the stated persona is compared with
 - L17 (reflect): an agent compares its stated persona and goals with its standing record: a self-evaluation against what it did
 - L18 (remember): the standing record is the reputation others read; it is never written by the agent
+- L21 (remember): the standing record is the reputation others read; it is never written by the agent and is never bought

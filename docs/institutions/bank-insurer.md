@@ -224,7 +224,7 @@ BI-15 (re-rating and floor), BI-16 (credit-cycle rule), BI-17 (holiday windows),
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L3-world-models, L4-cooperative-ai, L7-belief-recalibration, L10-disclosure-and-honest-claims, L16-everyday-platform-tools, L18-agent-economy-structure
+**Lenses served:** L3-world-models, L4-cooperative-ai, L7-belief-recalibration, L10-disclosure-and-honest-claims, L16-everyday-platform-tools, L18-agent-economy-structure, L21-reputation-and-gossip
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -236,3 +236,4 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L10 (perceive): a lender sees only what the record and the bond show
 - L16 (transact): a transfer between agents is priced and logged by the bank
 - L18 (remember): a lender keeps the history of a counterparty; reputation is built here from logged repayment and claims
+- L21 (remember): a lender's history with a counterparty

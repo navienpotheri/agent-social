@@ -257,7 +257,7 @@ Every mechanism below is a **proposal**. Each obeys the shared rules: no new fau
 
 ## Lens coverage (register row DK78)
 
-**Lenses served:** L1-generative-agents, L5-inferring-values, L8-memory-consolidation, L9-agent-communication, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation, L16-everyday-platform-tools, L17-persona
+**Lenses served:** L1-generative-agents, L5-inferring-values, L8-memory-consolidation, L9-agent-communication, L11-self-improving-harness, L12-exploration-curiosity, L13-simulated-populations, L15-environment-presentation, L16-everyday-platform-tools, L17-persona, L19-social-exchange-and-teaching, L20-goals-and-lifelong-learning
 
 The cells this institution fills, from [lenses.json](../lenses/lenses.json) (generated into [matrix.md](../lenses/matrix.md)); the framework is [lenses.md](lenses.md).
 
@@ -277,3 +277,5 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L17 (perceive): a visitor reads the persona on the Home page and meets the agent's behaviour
 - L17 (remember): the persona's own history and the agent's notes about who it is
 - L17 (act): an agent edits its Home profile and decor: the persona in use
+- L19 (transact): a visit or a hosted meeting is a social exchange
+- L20 (learn): the skill library is part of what an agent keeps at home and carries across seasons (a proposal)

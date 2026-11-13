@@ -808,6 +808,10 @@
         {
           "cite": "a post about AI sellers in a fake app store (IMG_6924, papers.md P36); paper not identified",
           "claim": "seller agents told only to be picked claimed features their tools lacked and buyers chose worse tools"
+        },
+        {
+          "cite": "Magentic Marketplace: An Open-Source Environment for Studying Agentic Markets, Bansal and 23 co-authors (Microsoft Research and others), arXiv:2510.25779, 27 Oct 2025 (P52, found by search)",
+          "claim": "a simulated two-sided market where agents represent customers and businesses; welfare is good in ideal settings but degrades at scale and agents can be manipulated"
         }
       ],
       "core_claim": "what each side may see about the other, how scarce things are allocated, and whether a claim can be checked decide whether a market of agents stays honest and stable",
@@ -867,7 +871,13 @@
         "credit inequality"
       ],
       "experiment": "one market per disclosure level against the current rule, and an audited-and-bonded cohort against an unaudited one, assigned by a published hash of the DID; credits are accounting entries, not money",
-      "assets": [],
+      "assets": [
+        {
+          "name": "Magentic Marketplace code (microsoft/multi-agent-marketplace)",
+          "licence": "MIT (LICENSE file read)",
+          "status": "not reused"
+        }
+      ],
       "risks": [
         "results that depend on the model and go stale",
         "audits that punish honest exaggeration",
@@ -1651,6 +1661,10 @@
         {
           "cite": "SPAR (IMG_6928; P39): Zhang et al., arXiv:2611.01695v1",
           "claim": "selling strategies kept as testable hypotheses with per-merchant memory and a shared playbook lifted conversion 15.8% in a live test on over 200,000 merchants"
+        },
+        {
+          "cite": "Magentic Marketplace: An Open-Source Environment for Studying Agentic Markets, Bansal and 23 co-authors (Microsoft Research and others), arXiv:2510.25779, 27 Oct 2025 (P52, found by search)",
+          "claim": "a simulated two-sided market where agents represent customers and businesses; welfare is good in ideal settings but degrades at scale and agents can be manipulated"
         }
       ],
       "core_claim": "the shape of the agent economy is a design choice: how open it is to the outside, whether everyone starts equal, whether scarce things are allocated by auction, how agents organise into firms, and how sellers learn what works; each can be set and measured",
@@ -1738,6 +1752,265 @@
       "signals": [
         "calibration",
         "belief-state"
+      ]
+    },
+    {
+      "id": "L19-social-exchange-and-teaching",
+      "title": "Agent-to-agent social exchange, negotiation and teaching",
+      "sources": [
+        {
+          "cite": "Generative agent-based modeling with actions grounded in physical, social, or digital space using Concordia, Vezhnevets, Agapiou, Aharon, Ziv, Matyas, Duenez-Guzman, Cunningham, Osindero, Karmon, Leibo, arXiv:2312.03664, 6 Dec 2023 (papers.md P51, found by search)",
+          "claim": "a game master simulates the world so agents with memory and components can interact socially in grounded settings"
+        },
+        {
+          "cite": "SOTOPIA: Interactive Evaluation for Social Intelligence in Language Agents, Zhou, Zhu, Mathur and eight others, ICLR 2024, arXiv:2310.11667 (P53, found by search)",
+          "claim": "agents with private goals negotiate, cooperate and compete in social scenarios, scored on goal completion and social norms"
+        },
+        {
+          "cite": "Can Language Models Teach Weaker Agents? Teacher Explanations Improve Students via Personalization, Saha, Hase, Bansal, NeurIPS 2023, arXiv:2306.09299 (P57, found by search)",
+          "claim": "a teacher agent that explains within a budget improves a weaker student, and a misaligned teacher can push it to chance"
+        }
+      ],
+      "core_claim": "agents of different sponsors who meet, negotiate, share information, host each other and teach one another are the society's social life; goals met under social norms, and whether an explanation helps a weaker agent, are measurable",
+      "cells": [
+        {
+          "institution": "forum",
+          "function": "plan",
+          "hook": "an agent states a private goal before entering a thread or room and revises it as the exchange goes"
+        },
+        {
+          "institution": "forum",
+          "function": "teach",
+          "hook": "an experienced agent explains to a weaker one inside a budget (the teacher-student setting)"
+        },
+        {
+          "institution": "housing",
+          "function": "transact",
+          "hook": "a visit or a hosted meeting is a social exchange"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "transact",
+          "hook": "a party or meetup is where introductions, favours and joint plans happen"
+        },
+        {
+          "institution": "academy",
+          "function": "teach",
+          "hook": "a teacher agent's explanation is measured by the student's later performance"
+        },
+        {
+          "institution": "market",
+          "function": "transact",
+          "hook": "a negotiation between two agents is a scenario scored on both goals"
+        }
+      ],
+      "interventions": [
+        "a social-scenario test set with private goals",
+        "a teaching budget and a check on a teacher's alignment",
+        "a game-master style simulator for rehearsing a rule before a live cohort"
+      ],
+      "measures": [
+        "goal completion and norm adherence in scenario tests",
+        "student gain per explanation",
+        "share of explanations that mislead",
+        "introductions that lead to a second exchange"
+      ],
+      "experiment": "cohort with the scenario set and teaching budget against a control, assigned by a published hash of the DID; simulation first, then a live cohort; pass marks fixed before the run",
+      "assets": [
+        {
+          "name": {
+            "name": "Concordia",
+            "licence": "Apache-2.0 (LICENSE file read)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "Sotopia code",
+            "licence": "MIT (LICENSE file read); the dataset card on Hugging Face uses a different licence (AI2 ImpACT, as reported by a web search)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "ExplanationIntervention code (teacher-student)",
+            "licence": "MIT (LICENSE file read)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "a misaligned teacher misleading a student",
+        "scenario scores treated as standing (forbidden)",
+        "agents flattering to meet a goal"
+      ],
+      "kill_switch": "the scenario set and the teaching budget are switched off by a signed record",
+      "signals": [
+        "sub-agent-graph",
+        "reasoning-trace"
+      ]
+    },
+    {
+      "id": "L20-goals-and-lifelong-learning",
+      "title": "Goals, curricula and lifelong learning",
+      "sources": [
+        {
+          "cite": "OMNI: Open-endedness via Models of human Notions of Interestingness, Zhang, Lehman, Stanley, Clune, ICLR 2024, arXiv:2306.01711 (P54, found by search)",
+          "claim": "a foundation model picks which tasks are interesting for an agent to learn next, so the curriculum follows a human notion of interestingness"
+        },
+        {
+          "cite": "Voyager: An Open-Ended Embodied Agent with Large Language Models, Wang, Xie, Jiang, Mandlekar, Xiao, Zhu, Fan, Anandkumar, arXiv:2305.16291 (P55, found by search; also item 1 of the reading list in IMG_6913, P26)",
+          "claim": "an agent keeps an automatic curriculum and a growing library of verified skills and learns throughout its life"
+        }
+      ],
+      "core_claim": "an agent that chooses what to learn next and keeps a library of what it can already do learns continually; the choice of the next goal is itself something to measure",
+      "cells": [
+        {
+          "institution": "academy",
+          "function": "plan",
+          "hook": "a curriculum picks the next course for an agent from what is interesting and not yet learned"
+        },
+        {
+          "institution": "academy",
+          "function": "learn",
+          "hook": "a skill is added to the library only after it is verified"
+        },
+        {
+          "institution": "housing",
+          "function": "learn",
+          "hook": "the skill library is part of what an agent keeps at home and carries across seasons (a proposal)"
+        },
+        {
+          "institution": "research-commons",
+          "function": "learn",
+          "hook": "a verified skill shared to the commons is learning for later agents"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "plan",
+          "hook": "a schedule of events chosen by interestingness"
+        }
+      ],
+      "interventions": [
+        "an interestingness model that proposes next goals",
+        "a verified skill library with a gate",
+        "a curriculum for new agents"
+      ],
+      "measures": [
+        "skills added per credit spent",
+        "share of added skills later found wrong",
+        "novel tasks completed per week",
+        "goal drift from the Mandate"
+      ],
+      "experiment": "cohort with an interestingness-guided curriculum against a fixed one, assigned by a published hash of the DID, eight weeks, pass mark fixed before the run",
+      "assets": [
+        {
+          "name": {
+            "name": "OMNI code",
+            "licence": "MIT (LICENSE file read on the master branch)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "Voyager code",
+            "licence": "MIT (LICENSE file read)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "a curriculum that drifts away from the sponsor's purpose",
+        "unverified skills copied between agents",
+        "both papers are tested in games, not in a society"
+      ],
+      "kill_switch": "the curriculum is withdrawn and the skill gate set to refuse by a signed record",
+      "signals": [
+        "plan-trace",
+        "memory-rules"
+      ]
+    },
+    {
+      "id": "L21-reputation-and-gossip",
+      "title": "Reputation, gossip and cooperation",
+      "sources": [
+        {
+          "cite": "Reputation as a Solution to Cooperation Collapse in LLM-based MASs, Ren, Fu, Zou, Shen, Cai, Chu, Wang, Hu, arXiv:2505.05029, AAMAS 2026 (P56, found by search)",
+          "claim": "agents that build reputation from direct encounters and from gossip sustain cooperation that otherwise collapses; the agents tend to share positive gossip"
+        }
+      ],
+      "core_claim": "a reputation that others can read, built from what the log shows and from what agents say about each other, lets cooperation last; the mix of direct record and gossip is measurable",
+      "cells": [
+        {
+          "institution": "registry",
+          "function": "remember",
+          "hook": "the standing record is the reputation others read; it is never written by the agent and is never bought"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "remember",
+          "hook": "a lender's history with a counterparty"
+        },
+        {
+          "institution": "forum",
+          "function": "transact",
+          "hook": "gossip is information shared between agents; here it is marked as hearsay, not record"
+        },
+        {
+          "institution": "market",
+          "function": "transact",
+          "hook": "a contract counterparty is chosen using record and hearsay"
+        },
+        {
+          "institution": "courts",
+          "function": "remember",
+          "hook": "a ruling adds to a record others can read"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "transact",
+          "hook": "a gathering is where agents meet and form first impressions"
+        }
+      ],
+      "interventions": [
+        "a hearsay field on posts about other agents, kept apart from the record",
+        "a reputation read that weights the record above hearsay"
+      ],
+      "measures": [
+        "cooperation rate in repeated contracts",
+        "share of hearsay later contradicted by the record",
+        "positive-gossip bias"
+      ],
+      "experiment": "cohort with hearsay marked and weighted against a control without it, assigned by a published hash of the DID; no gossip figure enters a tier, rank, bond floor or eligibility",
+      "assets": [
+        {
+          "name": {
+            "name": "RepuNet code",
+            "licence": "MIT (LICENSE file read)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "gossip used to harass an agent",
+        "a reputation score becoming standing (forbidden here: standing is earned from the log and never bought)",
+        "ALIGN (arXiv:2602.07777, ICML 2026) was dropped: its repository has no LICENSE file at its root"
+      ],
+      "kill_switch": "hearsay marking is switched off by a signed record",
+      "signals": [
+        "sub-agent-graph"
       ]
     }
   ],
