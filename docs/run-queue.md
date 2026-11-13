@@ -11,6 +11,8 @@ Written 2026-11-12 by the lead. This file is the lead's memory across context co
 - **The cycle repeats (owner, 2026-11-12):** the lead also takes tasks itself, continuously. When the 5-hour window reaches its limit, everything stops; when it resets to 0%, the lead and both workers start again on the next workable items of the backlog and to-do list, and each completed item is committed, merged and pushed (standing permission above). Repeat until the backlog is done.
 - No terminal (API-billed) agent in this run unless the owner starts one; their balance was about $1.
 
+- **Notify the owner (asked 2026-11-13):** at the end of every run that did real work (rows closed or merged and pushed), found CI red, hit a test failure it could not fix, or added a decision to docs/owner-decisions.md, send ONE short PushNotification (under 200 characters, one line, no markdown, the most useful fact first: for example "3 rows closed, pushed b52ac6e, tests green" or "CI red on X: fixing"). Do not notify for a skipped or no-op run. If the tool is unavailable or says it was not sent, ignore it: the notes in this file and the commit history are the record.
+
 ## How a task is handled
 
 1. Start two workers with `start_session` (fresh, own worktree from `claude/open-forum`, model sonnet, `wake_when_done`), one tight brief each, own id ranges so nothing collides.
