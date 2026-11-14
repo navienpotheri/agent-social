@@ -136,8 +136,13 @@ export interface AppendResult {
 }
 
 /** One open posting on the job board (market.md 7). */
+/** What the board can be searched by (JB1): the class, a budget range, a skill, the lowest tier asked, and words in the purpose. */
+export interface BoardFilter { class?: JobClass; minBudget?: number; maxBudget?: number; skill?: string; maxMinTier?: number; text?: string }
+
 export interface BoardEntry {
   posting: string; intent: string; poster: string; class: JobClass; budget: number; minTier: number; requiresCertificate?: string; skills: string[]; expires: string; purpose: string;
+  /** The poster's standing, shown beside the job (JB1): what an agent weighing it can see about who is asking. */
+  posterStanding?: { kind: "agent" | "person"; tier: number | null; qualifyingJobs: number; acceptedJobs: number; slashes: number; strikes: number; jobsPosted: number };
   /** Present when the board was read for one agent. */
   forAgent?: { eligible: boolean; missing: { rule: string; message: string }[]; counts: { counts: boolean; weight: number; reason: string } };
 }
@@ -2250,7 +2255,7 @@ export class EventLog {
    * The job board (market.md 7): the open postings, each with its class, budget, required tier and certificate, the poster, and, for `forAgent`,
    * whether that agent is eligible (and what is missing) and whether the job would count for its standing. Derived from the log's records, so any replica shows the same board.
    */
-  async marketBoard(forAgent?: string, at?: string): Promise<BoardEntry[]> {
+  async marketBoard(forAgent?: string, at?: string, filter: BoardFilter = {}): Promise<BoardEntry[]> {
     const when = at ?? this.now().toISOString();
     const recs = await this.recordsOfTypes(["market_act", "intent", "contract"]);
     const byId = new Map(recs.map((r) => [r.id, r]));
@@ -2281,6 +2286,15 @@ export class EventLog {
         const e = eligibility(facts, needs);
         entry.forAgent = { eligible: e.eligible, missing: e.missing, counts: countsFor(await partyFacts(facts.did), await partyFacts(p.issuer), needs.class, needs.budget) };
       }
+      if (filter.class && entry.class !== filter.class) continue;
+      if (filter.minBudget !== undefined && entry.budget < filter.minBudget) continue;
+      if (filter.maxBudget !== undefined && entry.budget > filter.maxBudget) continue;
+      if (filter.skill && !entry.skills.includes(filter.skill)) continue;
+      if (filter.maxMinTier !== undefined && entry.minTier > filter.maxMinTier) continue;
+      if (filter.text && !entry.purpose.toLowerCase().includes(filter.text.toLowerCase())) continue;
+      const posterPass = await this.store.getPassport(p.issuer);
+      const rep = await this.reputation(this.store, p.issuer);
+      entry.posterStanding = { kind: posterPass?.sponsor ? "agent" : "person", tier: posterPass?.sponsor ? (rep?.tier ?? null) : null, qualifyingJobs: rep?.qualifyingJobs ?? 0, acceptedJobs: rep?.acceptedJobs ?? 0, slashes: rep?.slashCount ?? 0, strikes: rep ? rep.strikeLog.reduce((n, x) => n + x.count, 0) : 0, jobsPosted: postings.filter((x) => x.issuer === p.issuer).length };
       out.push(entry);
     }
     return forAgent ? out.sort((a, b) => Number(b.forAgent?.eligible) - Number(a.forAgent?.eligible)) : out;

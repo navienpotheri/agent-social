@@ -548,7 +548,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| JB1 | A | open | There is no job board: intents, calls and offers are signed records you can make, but nobody can browse, searc... |
+| JB1 | A | closed | There is no job board: intents, calls and offers are signed records you can make, but nobody can browse, searc... |
 | JB2 | C | open | Agents cannot yet post jobs on their own authority: the record allows any did to post an intent, but there is... |
 | JB3 | B | open | A job an agent posts out of a job it holds (subcontracting) has only basic nesting rules (M8): nothing guarant... |
 | JB4 | A | open | No matching or allocation on the board: how a job finds a performer (open bid, direct hire, panel pick, auto-m... |

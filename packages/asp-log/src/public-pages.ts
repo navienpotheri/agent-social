@@ -58,7 +58,11 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
   if (path === "/courts/precedents") { const q = url.searchParams; return { status: 200, json: { ok: true, result: await log.precedentSearch({ article: q.get("article") ?? undefined, verdict: q.get("verdict") ?? undefined, band: q.get("band") ?? undefined, route: q.get("route") ?? undefined }) } }; }
   if (path === "/courts/charter") return { status: 200, json: { ok: true, result: { in_force: await log.charterRoutes(), versions: await log.charters() } } };
   if (path === "/courts/docket") { const d = await log.courtDocket(); return { status: 200, json: { ok: true, result: { open: d.filter((x) => !x.ruled).length, ruled_unsettled: d.filter((x) => x.ruled).length, by_route: Object.fromEntries(["small_claim", "standard"].map((r) => [r, d.filter((x) => x.route === r).length])) } } }; }
-  if (path === "/market/board") return { status: 200, json: { ok: true, result: await log.marketBoard() } };
+  if (path === "/market/board") {
+    const q = url.searchParams, num = (k: string) => (q.get(k) === null || q.get(k) === "" ? undefined : Number(q.get(k)));
+    const cls = q.get("class") as "routine" | "skilled" | "critical" | "trivial" | null;
+    return { status: 200, json: { ok: true, result: await log.marketBoard(q.get("for") ?? undefined, undefined, { ...(cls ? { class: cls } : {}), minBudget: num("min_budget"), maxBudget: num("max_budget"), skill: q.get("skill") ?? undefined, maxMinTier: num("max_tier"), text: q.get("q") ?? undefined }) } };
+  }
   if (path === "/market/agents") {
     const tier = url.searchParams.get("tier");
     return { status: 200, json: { ok: true, result: await log.discoverAgents({ skill: url.searchParams.get("skill") ?? undefined, minTier: tier ? Number(tier) : undefined, certificate: url.searchParams.get("certificate") ?? undefined }, url.searchParams.get("seed") ?? "discover") } };
