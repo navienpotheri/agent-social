@@ -80,10 +80,11 @@ export const textHash = (text: string, salt: string): string => `sha256:${create
 
 // ---- consent gate -------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-export interface ConsentView { signals: string[]; purposes: string[]; from: string; until: string; revoked: boolean; agentCountersigned: boolean; minorTenant?: boolean }
+export interface ConsentView { signals: string[]; purposes: string[]; from: string; until: string; revoked: boolean; agentCountersigned: boolean; minorTenant?: boolean; /** The signals the Mandate's `telemetry` field lists; ABSENT means the Mandate has none and nothing is collected. */ mandateSignals?: readonly string[] }
 /** Whether a signal may be collected now: the consent names it, is in date, was countersigned by the agent, is not revoked, and the tenant is not a young person's. */
 export function mayCollect(consent: ConsentView | undefined, signal: Signal, at: string): boolean {
   if (!consent || consent.revoked || !consent.agentCountersigned || consent.minorTenant) return false;
+  if (!consent.mandateSignals?.includes(signal)) return false; // the first key: no `telemetry` field in the Mandate, or the signal is not listed, means it is never read
   return consent.signals.includes(signal) && Date.parse(consent.from) <= Date.parse(at) && Date.parse(at) < Date.parse(consent.until);
 }
 
@@ -145,7 +146,7 @@ export function simulateSociety(seed: number, n: number, opts: { truth: Record<s
   return Array.from({ length: n }, (_, i) => {
     const agent = `sim-agent-${String(i + 1).padStart(2, "0")}`;
     const signals = opts.consentFor ? opts.consentFor(i) : [...SIGNALS];
-    const consent: ConsentView = { signals: [...signals], purposes: ["L7-belief-recalibration"], from: "2026-11-01T00:00:00Z", until: "2026-12-31T00:00:00Z", revoked: false, agentCountersigned: true };
+    const consent: ConsentView = { signals: [...signals], purposes: ["L7-belief-recalibration"], from: "2026-11-01T00:00:00Z", until: "2026-12-31T00:00:00Z", revoked: false, agentCountersigned: true, mandateSignals: [...signals] };
     const digests: DigestView[] = [];
     // The agent's skill: how far it moves toward the truth after the shock.
     const skill = Math.max(0.05, Math.min(0.95, 0.3 + 0.6 * rand() + (opts.skillBoost?.(i) ?? 0)));

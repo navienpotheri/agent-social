@@ -72,7 +72,7 @@ describe("telemetry: the derived measures reproduce the worked example (instrume
 });
 
 describe("telemetry: a signal nobody consented to is never collected (DK79 Done, instrumentation.md 13)", () => {
-  const ok: ConsentView = { signals: [...SIGNALS], purposes: ["own_use"], from: "2026-11-01T00:00:00Z", until: "2026-12-01T00:00:00Z", revoked: false, agentCountersigned: true };
+  const ok: ConsentView = { signals: [...SIGNALS], purposes: ["own_use"], from: "2026-11-01T00:00:00Z", until: "2026-12-01T00:00:00Z", revoked: false, agentCountersigned: true, mandateSignals: [...SIGNALS] };
   const at = () => "2026-11-10T00:00:00Z";
   const cases: [string, ConsentView | undefined][] = [
     ["no consent at all", undefined],
@@ -81,6 +81,8 @@ describe("telemetry: a signal nobody consented to is never collected (DK79 Done,
     ["the consent has expired", { ...ok, until: "2026-11-05T00:00:00Z" }],
     ["the consent has not begun", { ...ok, from: "2026-11-20T00:00:00Z" }],
     ["a tenant held for a young person", { ...ok, minorTenant: true }],
+    ["the Mandate has no telemetry field (absent means nothing is collected)", { ...ok, mandateSignals: undefined }],
+    ["the Mandate lists no signal", { ...ok, mandateSignals: [] }],
   ];
   for (const [name, consent] of cases) {
     test(`for each of the nine signals, ${name}: nothing is collected and the source is never read`, () => {
@@ -270,7 +272,7 @@ describe("telemetry: no standing input (instrumentation.md 13)", () => {
     assert.deepEqual(importers, ["index.ts", "log.ts", "pipeline.ts", "telemetry-rules.ts"], "the pipeline reads telemetry only to measure a mechanism on a simulation");
     // And the log uses it for one thing: dispatching the record's own rule.
     const logSrc = readFileSync(join(SRC, "log.ts"), "utf8");
-    assert.equal((logSrc.match(/telemetry/gi) ?? []).length, 4, "an import and the dispatch line only");
+    assert.equal((logSrc.match(/telemetry/gi) ?? []).length, 7, "two imports, the dispatch line and the Mandate field check (DK195): nothing else in the log reads telemetry");
   });
 
   test("the telemetry schema has no free-text field: every string is an identifier, a hash, an enum, a timestamp or a size-limited name", () => {

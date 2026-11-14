@@ -43,6 +43,8 @@ export interface Tenant {
   /** Records this tenant may write to the log, and bytes of them, replacing the service's defaults (0 for no limit). Admins have none. */
   recordQuota?: number;
   byteQuota?: number;
+  /** Set by the operator for a tenant held for a young person: no cognition telemetry is accepted from it (`minor_tenant_no_telemetry`; the terms say the service does not track or monitor young people). */
+  minor?: boolean;
   /** Set when an operator suspended the tenant: every request is refused with SUSPENDED until it is resumed. */
   suspended?: { at: string; reason?: string };
   createdAt?: string;
@@ -296,6 +298,11 @@ export function createLogServer(opts: ServerOptions): Server {
       if (limits && isWrite) {
         const v = limits.checkWrite(tenant.name);
         if (!v.ok) return tooMany(res, v);
+      }
+      if (tenant.minor && isWrite) {
+        const recs = method === "importRecords" ? ((args[0] as { record?: { type?: string; body?: Record<string, unknown> } }[] | undefined) ?? []).map((x) => x?.record) : [args[0] as { type?: string; body?: Record<string, unknown> } | undefined];
+        const wants = recs.some((r) => (r?.type === "asp.telemetry_act/v0.2" && r.body?.act === "consent") || (r?.type === "asp.mandate/v0.2" && r.body?.telemetry !== undefined));
+        if (wants) return json(res, 403, { ok: false, error: { code: "minor_tenant_no_telemetry", message: "this tenant is held for a young person: the service does not collect cognition telemetry for it, so no consent or Mandate field for it is accepted" } });
       }
       if (opts.guard && isWrite) {
         const refused = await opts.guard({ tenant, method: String(method), args });

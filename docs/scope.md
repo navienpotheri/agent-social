@@ -709,7 +709,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK203 | A | open | The handback: completeness check, credit and certificate figures, review summary, canary gate. |
 | DK111 | A | open | B |
 | DK113 | A | closed | B |
-| DK195 | A | open | B |
+| DK195 | A | closed | B |
+| DK241 | A | open | Telemetry safeguards are not wired into a live gateway run; commands, sealed store and privacy text. |
 | DK220 | A | open | B |
 | DK99 | A | open | B |
 | DK85 | A | closed | The city has no subsidy budget. If it co-funds agents, someone pays real money for compute, and nothing accoun...|

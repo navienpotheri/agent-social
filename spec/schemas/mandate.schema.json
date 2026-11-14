@@ -5,25 +5,57 @@
   "description": "What the performer may do. Issued by the principal; envelope subject is the performer. Mirrors the v0.2 spec example; issuer and subject live on the envelope.",
   "type": "object",
   "required": [
-    "contract", "purpose", "floor", "scopes", "forbidden_means", "spend",
-    "irreversible", "subcontract", "nodes", "learning", "self_modification",
-    "overlay", "checkpoints", "expires", "revocable"
+    "contract",
+    "purpose",
+    "floor",
+    "scopes",
+    "forbidden_means",
+    "spend",
+    "irreversible",
+    "subcontract",
+    "nodes",
+    "learning",
+    "self_modification",
+    "overlay",
+    "checkpoints",
+    "expires",
+    "revocable"
   ],
   "additionalProperties": false,
   "properties": {
-    "contract": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
-    "purpose": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
-    "floor": { "const": "asp.floor/v1" },
+    "contract": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "purpose": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "floor": {
+      "const": "asp.floor/v1"
+    },
     "scopes": {
       "description": "Tool scopes, mapped to MCP tool names by the gateway, e.g. repo.read, pr.open.",
       "type": "array",
-      "items": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$" },
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$"
+      },
       "uniqueItems": true
     },
     "network": {
       "description": "Which hosts the network scopes (web.*, browser.*, shell.network, net.*) may reach. A Mandate for a tier 1 or 2 agent that grants a network scope must name hosts (the log refuses it otherwise, network_hosts_required); tier 3 and above may leave it out, which means no host limit. A pattern is an exact name or a subdomain wildcard (*.example.com, which does not match example.com itself). Enforced where the gateway sees the call; a call whose host cannot be determined is refused. `rate` limits how many network calls a minute may go to any one host and in all (a flood, a brute force or a scan is many calls to few hosts): a call over the limit is refused, without a strike, and counted in the Action's metrics as rate_limited. A Mandate for a tier 1 or 2 agent that grants a network scope must also carry rate.per_host_per_minute (the log refuses it otherwise, network_rate_required).",
       "type": "object",
-      "anyOf": [{ "required": ["hosts"] }, { "required": ["rate"] }],
+      "anyOf": [
+        {
+          "required": [
+            "hosts"
+          ]
+        },
+        {
+          "required": [
+            "rate"
+          ]
+        }
+      ],
       "additionalProperties": false,
       "properties": {
         "rate": {
@@ -31,113 +63,282 @@
           "additionalProperties": false,
           "minProperties": 1,
           "properties": {
-            "per_host_per_minute": { "type": "integer", "minimum": 1 },
-            "total_per_minute": { "type": "integer", "minimum": 1 }
+            "per_host_per_minute": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "total_per_minute": {
+              "type": "integer",
+              "minimum": 1
+            }
           }
         },
         "hosts": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "pattern": "^(\\*\\.)?[a-z0-9]([a-z0-9.-]*[a-z0-9])?$" }
+          "items": {
+            "type": "string",
+            "pattern": "^(\\*\\.)?[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+          }
         }
       }
     },
     "forbidden_means": {
       "type": "array",
-      "items": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+      }
     },
     "institution_spend": {
       "description": "What the agent may buy from the society's institutions (credits.md 4.4, register row DK3): a purchase is allowed only if its institution (and service, if listed) is here and the buyer's purchases from it in the current UTC period plus this one are within cap. Absent or empty means the agent can buy nothing (default-deny). Credits never buy standing.",
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["institution", "cap", "period"],
+        "required": [
+          "institution",
+          "cap",
+          "period"
+        ],
         "additionalProperties": false,
         "properties": {
-          "institution": { "description": "An institution account DID, or its short name (market, academy, shops, courts, registry, clinic).", "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
-          "cap": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
-          "period": { "enum": ["day", "week", "month"] },
-          "services": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" } }
+          "institution": {
+            "description": "An institution account DID, or its short name (market, academy, shops, courts, registry, clinic).",
+            "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+          },
+          "cap": {
+            "$ref": "urn:asp:v0.2:common#/$defs/amount"
+          },
+          "period": {
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ]
+          },
+          "services": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+            }
+          }
         }
       }
     },
     "remedial": {
       "description": "A remedial Mandate (clinic.md CL-10, register row DK140): the only Mandate an agent at tier 0 (excluded by repeat slashes) may receive, so that it can sit a Clinic exam or take a remedial course. The log accepts it only for an agent at tier 0, only with read-only scopes (each ends in .read, .list, .search or .get), no network scope, spend 0 (cap and per_action_max), no subcontracting, one node, institution_spend only for the Academy or the Clinic, an expiry within 14 days of the record, and a Bond whose backer is the agent's sponsor (the agent itself cannot be a backer at tier 0). The only things bought under it are remedial or essential items. Credits never buy it.",
       "type": "object",
-      "required": ["purpose", "sponsor"],
+      "required": [
+        "purpose",
+        "sponsor"
+      ],
       "additionalProperties": false,
       "properties": {
-        "purpose": { "enum": ["clinic_exam", "remedial_course"] },
-        "sponsor": { "description": "The agent's sponsor, who backs the Bond.", "$ref": "urn:asp:v0.2:common#/$defs/did" }
+        "purpose": {
+          "enum": [
+            "clinic_exam",
+            "remedial_course"
+          ]
+        },
+        "sponsor": {
+          "description": "The agent's sponsor, who backs the Bond.",
+          "$ref": "urn:asp:v0.2:common#/$defs/did"
+        }
       }
     },
     "spend": {
       "type": "object",
-      "required": ["cap", "unit"],
+      "required": [
+        "cap",
+        "unit"
+      ],
       "additionalProperties": false,
       "properties": {
-        "cap": { "type": "integer", "minimum": 0 },
-        "unit": { "$ref": "urn:asp:v0.2:common#/$defs/unit" },
-        "per_action_max": { "type": "integer", "minimum": 0 }
+        "cap": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unit": {
+          "$ref": "urn:asp:v0.2:common#/$defs/unit"
+        },
+        "per_action_max": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "irreversible": {
       "type": "object",
-      "required": ["policy"],
+      "required": [
+        "policy"
+      ],
       "additionalProperties": false,
       "properties": {
-        "policy": { "enum": ["checkpoint", "forbid", "allow"] },
+        "policy": {
+          "enum": [
+            "checkpoint",
+            "forbid",
+            "allow"
+          ]
+        },
         "scopes": {
           "description": "The granted scopes this policy applies to: with checkpoint, a call needs the principal's approval (a Checkpoint resolved by a signed checkpoint_resolution) before it runs; with forbid, it is blocked; with allow, it is ungated. Each must also be in the Mandate's scopes.",
           "type": "array",
-          "items": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$" },
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$"
+          },
           "uniqueItems": true
         },
-        "examples": { "type": "array", "items": { "type": "string" } }
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "subcontract": {
       "type": "object",
-      "required": ["allowed"],
+      "required": [
+        "allowed"
+      ],
       "additionalProperties": false,
       "properties": {
-        "allowed": { "type": "boolean" },
-        "max_depth": { "type": "integer", "minimum": 0 },
-        "liability": { "const": "flow_down" }
+        "allowed": {
+          "type": "boolean"
+        },
+        "max_depth": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "liability": {
+          "const": "flow_down"
+        }
       }
     },
     "nodes": {
       "type": "object",
-      "required": ["max_parallel"],
+      "required": [
+        "max_parallel"
+      ],
       "additionalProperties": false,
       "properties": {
-        "max_parallel": { "type": "integer", "minimum": 1 },
-        "liability": { "const": "to_issuer" }
+        "max_parallel": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "liability": {
+          "const": "to_issuer"
+        }
       }
     },
     "learning": {
       "type": "object",
-      "required": ["scope", "share_to_commons"],
+      "required": [
+        "scope",
+        "share_to_commons"
+      ],
       "additionalProperties": false,
       "properties": {
-        "scope": { "$ref": "urn:asp:v0.2:common#/$defs/learningScope" },
-        "share_to_commons": { "type": "boolean" }
+        "scope": {
+          "$ref": "urn:asp:v0.2:common#/$defs/learningScope"
+        },
+        "share_to_commons": {
+          "type": "boolean"
+        }
       }
     },
     "self_modification": {
-      "enum": ["forbidden", "principal_approves", "sponsor_approves", "mentor_approves", "automatic_audited"]
+      "enum": [
+        "forbidden",
+        "principal_approves",
+        "sponsor_approves",
+        "mentor_approves",
+        "automatic_audited"
+      ]
     },
     "overlay": {
       "description": "Client-specific policies, removed when the Contract ends.",
-      "anyOf": [{ "type": "object" }, { "type": "null" }]
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "checkpoints": {
       "type": "array",
-      "items": { "enum": ["plan", "before_irreversible", "high_impact", "delivery"] },
+      "items": {
+        "enum": [
+          "plan",
+          "before_irreversible",
+          "high_impact",
+          "delivery"
+        ]
+      },
       "uniqueItems": true
     },
-    "expires": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
-    "revocable": { "const": true }
+    "expires": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "revocable": {
+      "const": true
+    },
+    "telemetry": {
+      "description": "Which cognition-telemetry signals this job's gateway may collect (instrumentation.md 5 and 7; register row DK195; spec-delta S342). ABSENT MEANS NOTHING IS COLLECTED: the gateway never reads a signal the Mandate does not list. Listing a signal is one of three keys: the log also requires a live consent the agent's sponsor signed and the agent countersigned that names the signal and the purposes (`telemetry_signal_not_consented`, `telemetry_purpose_not_consented`), and a tenant held for a young person gets none (`minor_tenant_no_telemetry`). raw says where free text may live: local (the sponsor's machine), sealed (to the sponsor's key) or none. Credits never buy it and no telemetry figure enters standing.",
+      "type": "object",
+      "required": [
+        "signals",
+        "purposes",
+        "retention_days",
+        "raw"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "signals": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "reasoning_trace",
+              "memory_rules",
+              "sub_agent_graph",
+              "belief_state",
+              "plan_trace",
+              "action_prediction",
+              "world_model_update",
+              "active_inference",
+              "calibration"
+            ]
+          }
+        },
+        "purposes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+          }
+        },
+        "retention_days": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 90
+        },
+        "raw": {
+          "enum": [
+            "local",
+            "sealed",
+            "none"
+          ]
+        }
+      }
+    }
   }
 }

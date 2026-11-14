@@ -41,6 +41,7 @@ export async function projectTelemetryAct(tx: LogTx, r: AspRecord): Promise<void
       if (!old || old.agent !== b.agent || old.sponsor !== b.sponsor) throw rule("consent_revokes_unknown", `${b.revokes} is not a consent of this sponsor for this agent`);
       await tx.putMarker(`tconsent:${b.revokes}`, JSON.stringify({ ...old, revoked_at: now }));
     }
+    await tx.putMarker(`tconsent_ids:${b.agent}`, JSON.stringify([...(await getJson<string[]>(tx, `tconsent_ids:${b.agent}`) ?? []), r.id]));
     await tx.putMarker(`tconsent:${r.id}`, JSON.stringify({ sponsor: b.sponsor, agent: b.agent, signals: b.signals, purposes: b.purposes, from: b.from, until: b.until } satisfies ConsentState));
     return;
   }
@@ -123,4 +124,22 @@ export async function projectTelemetryAct(tx: LogTx, r: AspRecord): Promise<void
   }
   for (const cal of ([] as { n?: number; ece_milli?: number }[]).concat(b.entries.calibration ?? [])) if (cal.ece_milli !== undefined && (cal.n ?? 0) < MIN_CALIBRATION_N) throw rule("insufficient_n", `ECE and the trend are shown only over ${MIN_CALIBRATION_N} resolved items`);
   await tx.putMarker(`tdigest:${b.agent}|${b.day}`, r.id);
+}
+
+/**
+ * The Mandate's `telemetry` field (instrumentation.md 7, register row DK195, S342): a Mandate may list a signal only if the agent has a live consent (sponsor-signed, agent-countersigned, in date, not revoked)
+ * that names it and the purposes. A Mandate with no `telemetry` field says nothing is collected: the gateway reads no signal for it.
+ */
+export async function checkMandateTelemetry(tx: LogTx, r: AspRecord): Promise<void> {
+  const t = (r.body as { telemetry?: { signals: string[]; purposes: string[]; retention_days: number } }).telemetry;
+  if (!t) return;
+  if (t.retention_days > MAX_RETENTION_DAYS) throw rule("retention_too_long", `raw content is kept at most ${MAX_RETENTION_DAYS} days`);
+  const ids = (await getJson<string[]>(tx, `tconsent_ids:${r.subject}`)) ?? [];
+  const live: ConsentState[] = [];
+  for (const id of ids) {
+    const c = await getJson<ConsentState>(tx, `tconsent:${id}`);
+    if (c && !c.revoked_at && Date.parse(c.from) <= Date.parse(r.issued_at) && Date.parse(r.issued_at) < Date.parse(c.until)) live.push(c);
+  }
+  for (const s of t.signals) if (!live.some((c) => c.signals.includes(s))) throw rule("telemetry_signal_not_consented", `the signal ${s} is not in a live consent for ${r.subject}: the sponsor signs it and the agent countersigns it first (asp telemetry consent)`);
+  for (const p of t.purposes) if (!live.some((c) => c.purposes.includes(p))) throw rule("telemetry_purpose_not_consented", `the purpose ${p} is not in a live consent for ${r.subject}`);
 }
