@@ -333,6 +333,7 @@ import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
+import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
 import { InsureUsage, insureCmd } from "./insure.ts";
 import { ShopsUsage, shopsCmd } from "./shops.ts";
@@ -1017,6 +1018,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "prizes") return await prizesCommand(home, v, io);
     if (cmd === "wakes") return await wakesCommand(home, v, io);
     if (cmd === "collusion") return await collusionCommand(home, v, io);
+    if (cmd === "first-week") { try { return await firstWeekCmd(v.agent ?? v.by, { log: await openLog(home, logEnv), io }); } catch (e) { if (e instanceof FirstWeekUsage) throw new UsageError(e.message); throw e; } }
     if (cmd === "abuse") return await abuseCommand(home, sub, rest[0], v, io);
     if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
