@@ -36,7 +36,7 @@ import { buildPage, namesAt, isLive, skeleton, verifyPage, lapsedIdentities, ide
 import { OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, classWeight, effectiveClass, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
-import { DEFAULT_PANEL_SIZE, drawPanel, findRejection } from "./panel.ts";
+import { DEFAULT_PANEL_SIZE, drawPanel, findRejection, noteFunder, panelDrawIsV2 } from "./panel.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
 
 /** Record types that exist only inside a job chain. */
@@ -113,6 +113,8 @@ export interface EventLogOptions {
    * ran under `legacy` replays under `v2` with the same result everywhere (the rule reads the record's time, never the clock). Without it `v2` applies from the first record, as before: for a new log or a test. A log must be replayed with the same value.
    */
   bondFloorFrom?: string;
+  /** The time from which a record's panel is drawn by v2 (one seat for each funding source); before it, v1. Default `PANEL_DRAW_V2_FROM`. */
+  panelV2From?: string;
   /**
    * The operator's DID (credits.md 5.1, CR-2): the only issuer of a signed `mint` record. With none set, every `mint` record is refused (`mint_unauthorised`).
    * The unsigned local `mint()` stays for tests and bootstrap and is counted apart by the audit.
@@ -210,6 +212,7 @@ export class EventLog {
 
   private readonly bondFloor: "legacy" | "v2";
   private readonly bondFloorFrom?: string;
+  private readonly panelV2From?: string;
   private readonly operator?: string;
   private readonly allowUnsignedMint: boolean;
   private readonly owner?: string;
@@ -224,6 +227,8 @@ export class EventLog {
     this.bondFloor = opts.bondFloor ?? "legacy";
     if (opts.bondFloorFrom !== undefined && !Number.isFinite(Date.parse(opts.bondFloorFrom))) throw new Error(`bondFloorFrom must be an ISO time, got ${opts.bondFloorFrom}`);
     this.bondFloorFrom = opts.bondFloorFrom;
+    if (opts.panelV2From !== undefined && !Number.isFinite(Date.parse(opts.panelV2From))) throw new Error(`panelV2From must be an ISO time, got ${opts.panelV2From}`);
+    this.panelV2From = opts.panelV2From;
     this.operator = opts.operator;
     this.allowUnsignedMint = opts.allowUnsignedMint === true;
     this.owner = opts.owner;
@@ -231,7 +236,7 @@ export class EventLog {
 
   /** The options a replay needs to judge the same records the same way. */
   private replayOptions(): EventLogOptions {
-    return { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor, ...(this.bondFloorFrom ? { bondFloorFrom: this.bondFloorFrom } : {}), operator: this.operator, owner: this.owner };
+    return { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor, ...(this.bondFloorFrom ? { bondFloorFrom: this.bondFloorFrom } : {}), ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}), operator: this.operator, owner: this.owner };
   }
 
   append(raw: unknown): Promise<AppendResult> {
@@ -350,7 +355,7 @@ export class EventLog {
     if (type === "quarantine") await this.projectQuarantine(tx, verified);
     if (type === "quarantine_release") await this.projectQuarantineRelease(tx, verified);
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
-    if (type === "court_act") await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize });
+    if (type === "court_act") await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
     if (type === "shops_act") await projectShopsAct(tx, verified, { reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
     if (type === "housing_act") await projectHousingAct(tx, verified);
     if (type === "telemetry_act") await projectTelemetryAct(tx, verified);
@@ -1075,7 +1080,7 @@ export class EventLog {
       const route = croutes ? routeFor(price, croutes) : null;
       const fee = route?.flatFee ?? Math.floor((price * PANEL_FEE_PERMILLE) / 1000);
       const seed = ruling ? await findRejection(tx, ruling.record.prev) : undefined;
-      const panel = fee > 0 && ruling && seed ? await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: route?.panel ?? this.panelSize }) : [];
+      const panel = fee > 0 && ruling && seed ? await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: route?.panel ?? this.panelSize, v2: panelDrawIsV2(this.panelV2From, ruling?.record.issued_at ?? r.issued_at) }) : [];
       const signers = ruling ? [ruling.record.sig.kid, ...(ruling.record.cosigs ?? []).map((c) => c.kid)].map(didOf) : [];
       const paid = [...new Set(signers.filter((d) => panel.includes(d)))];
       if (fee > 0 && paid.length > 0) {
@@ -1115,8 +1120,11 @@ export class EventLog {
       const agentShare = Math.floor((body.escrow_released.value * agentPermille) / 1000);
       await this.credit(tx, cbody.performer, agentShare);
       await this.credit(tx, sponsor, body.escrow_released.value - agentShare);
+      await noteFunder(tx, cbody.performer, cbody.principal, isReservedAccount);
+      await noteFunder(tx, sponsor, cbody.principal, isReservedAccount);
     } else {
       await this.credit(tx, cbody.performer, body.escrow_released.value);
+      if (body.escrow_released.value > 0) await noteFunder(tx, cbody.performer, cbody.principal, isReservedAccount);
     }
     if (fees > 0) await this.credit(tx, PLATFORM_DID, fees);
     await this.credit(tx, cbody.principal, escrowLeftover + slashedToPrincipal + principalReserve);
@@ -1212,7 +1220,7 @@ export class EventLog {
     if (report.status !== "open") throw rule("report_already_ruled", `report ${reportId} was already ${report.status}`);
     const contract = (await tx.getRecord(report.contract))!;
     const cbody = contract.record.body as { principal: string; performer: string; price?: { value: number } };
-    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed: reportId, size: this.panelSize, also: [report.reporter] });
+    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed: reportId, size: this.panelSize, also: [report.reporter], v2: panelDrawIsV2(this.panelV2From, r.issued_at) });
     if (panel.length === 0) throw rule("no_panel_for_report", "no staked, conflict-free juror is registered, so no panel can rule on a report");
     const signers = new Set([r.sig.kid, ...(r.cosigs ?? []).map((c) => c.kid)].map(didOf));
     const paid = panel.filter((p) => signers.has(p));
@@ -1249,7 +1257,7 @@ export class EventLog {
     if (!seed) return; // defensive; the lifecycle's own guards already require a prior rejection
     const croutes = await charterIn(tx, r.issued_at);
     const cprice = (contract.record.body as { price?: { value: number } }).price?.value ?? 0;
-    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: croutes ? routeFor(cprice, croutes).panel : this.panelSize });
+    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: croutes ? routeFor(cprice, croutes).panel : this.panelSize, v2: panelDrawIsV2(this.panelV2From, r.issued_at) });
     // No staked, conflict-free juror is registered anywhere: Courts hasn't been bootstrapped in
     // this log, so fall back to the pre-Courts mocked behavior (any neutral DID may rule) rather
     // than blocking every dispute — this is what keeps the `dispute_ruled`/`ruling_by_party`
@@ -2676,7 +2684,9 @@ export class EventLog {
     if (!seed) throw rule("no_dispute", `contract ${contract} has no open dispute (no rejection found)`);
     const croutes = await this.charterRoutes();
     const price = (contractRec.record.body as { price?: { value: number } }).price?.value ?? 0;
-    return drawPanel(this.store, { principal: cbody.principal, performer: cbody.performer, seed, size: size ?? (croutes ? routeFor(price, croutes).panel : this.panelSize) });
+    const v2 = panelDrawIsV2(this.panelV2From, new Date().toISOString());
+    const opts = { principal: cbody.principal, performer: cbody.performer, seed, size: size ?? (croutes ? routeFor(price, croutes).panel : this.panelSize), v2 };
+    return v2 ? this.store.transaction((tx) => drawPanel(tx, opts)) : drawPanel(this.store, opts); // markers are read in a transaction
   }
 
   /** The panel a report's ruling would draw (excludes the principal, performer, reporter and anyone they sponsor). */
@@ -2684,7 +2694,9 @@ export class EventLog {
     const report = await this.store.getReport(reportId);
     if (!report) throw new AspError("BAD_PREV", `${reportId} is not a report in this log`);
     const contract = (await this.store.getRecord(report.contract))!.record.body as { principal: string; performer: string };
-    return drawPanel(this.store, { principal: contract.principal, performer: contract.performer, seed: reportId, size: size ?? this.panelSize, also: [report.reporter] });
+    const v2 = panelDrawIsV2(this.panelV2From, new Date().toISOString());
+    const opts = { principal: contract.principal, performer: contract.performer, seed: reportId, size: size ?? this.panelSize, also: [report.reporter], v2 };
+    return v2 ? this.store.transaction((tx) => drawPanel(tx, opts)) : drawPanel(this.store, opts);
   }
 
   report(id: string) { return this.store.getReport(id); }
