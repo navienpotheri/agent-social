@@ -7,7 +7,7 @@ import { projectAbuseReport } from "./abuse-report.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
-import { projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
+import { jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
 import { projectCreditLine, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
   AspError, Job, isNetworkScope, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
@@ -2287,6 +2287,14 @@ export class EventLog {
     await this.store.transaction(async (tx) => { for (const did of dids) quals.set(did, await readQualClass(tx, did)); });
     for (const did of [...dids].sort()) { if (lapsed.has(did)) continue; const f = await agentFacts(this.store, this.marketEnv(), did, at, certs, boards.get(did) ?? [], quals.get(did)); if (f) out.push({ ...f, level: identityLevelAt(acts, did, Date.parse(at), f.sponsor === did ? null : f.sponsor) }); }
     return out;
+  }
+
+  /** What a claim is still owed (DK183): the unpaid part of a `reduced` decision, paid later as the reserve recovers. */
+  async claimOwed(claim: string): Promise<number> { return this.store.transaction(async (tx) => Number((await tx.getMarker(`claim_owed:${claim}`)) ?? 0)); }
+
+  /** The class a contract's job counts as, for the failed-job premium (DK183). */
+  async jobClassOf(contract: string): Promise<JobClass> {
+    return this.store.transaction(async (tx) => { const c = await tx.getRecord(contract); if (!c) throw new AspError("BAD_PREV", `${contract} is not in the log`); return jobClassOfContract(tx, c.record); });
   }
 
   /**

@@ -761,7 +761,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK181 | A | closed | The Bank's lines: debt clearing, statement locks, job class check, agent tools, public page, charter. |
 | DK386 | A | open | The Bank's job-class check, its line in the standing note and its monthly report. |
 | DK182 | A | open | The Bank has not been run live on the hosted service. |
-| DK183 | A | open | The Insurer's loose ends: owed remainder, appeal window, outside-Mandate exclusion, job class, top-up, re-rating. |
+| DK183 | A | closed | The Insurer's loose ends: owed remainder, appeal window, outside-Mandate exclusion, job class, top-up, re-rating. |
 | DK184 | A | closed | The Insurer's agent tools, standing note, public pages, charter. |
 | DK387 | A | open | A holder buys cover without the Insurer's key, and the standing note shows the agent's cover. |
 | DK185 | A | open | The Bank and Insurer experiments and dynamics (mutual cover, mentor lines, credit cycle, holidays, stress replay). |

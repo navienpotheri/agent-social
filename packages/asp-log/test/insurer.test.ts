@@ -251,3 +251,79 @@ test("DK184 done: the Insurer's public page lists the reserve against its floor 
   assert.equal((await kit.log.insurerReport("2020-01")).policiesSold, 0);
   await assert.rejects(kit.log.insurerReport("next month"), /YYYY-MM/);
 });
+
+// ---- DK183 (spec-delta S483): what was left loose in the Insurer's terms
+test("DK183: a claim the reserve could not pay in full is `reduced`, the rest is owed and paid as the reserve recovers, never beyond what is owed or what the reserve holds", async () => {
+  const w = await world(500);
+  const jobs = [];
+  for (let i = 0; i < 22; i++) jobs.push(await w.job({ price: 100, cover: "failed_job", insured: 30 }));
+  let last = "";
+  let holder = w.principal.did;
+  for (const j of jobs) {
+    const settlement = await w.fail(j, 10);
+    last = await w.kit.put(w.claim(j, settlement, w.principal));
+    const due = Math.min(30, await w.bal(INSURER_DID));
+    await w.kit.put(w.decision(last, due < 30 ? "reduced" : "paid", due, "covered"));
+  }
+  const paidSoFar = await w.bal(holder);
+  const owed = await w.kit.log.claimOwed(last);
+  assert.ok(owed > 0 && owed < 30, `the 22nd claim was reduced and ${owed} is owed`);
+  assert.equal(await w.bal(INSURER_DID), 0);
+  assert.equal(await refused(w.kit.put(w.decision(last, "paid", owed, "covered"))), "decision_reserve_empty", "nothing to pay from an empty reserve: it waits");
+  // The Treasury tops the reserve up by a budget line (owner co-signed, never a mint); the Insurer then pays what is owed, in two steps.
+  const at = "2026-12-02T00:00:00Z";
+  const budget = await w.kit.put(w.kit.mk("budget", treasury, { institution: INSURER_DID, period: "2026-12", amount: credit(40), purpose: "insurer_reserve" }, null, { at, cosigners: [owner] }));
+  await w.kit.put(w.kit.mk("treasury_payment", treasury, { budget, to: INSURER_DID, amount: credit(Math.ceil(owed / 2)) }, null, { at }));
+  const half = Math.ceil(owed / 2);
+  assert.equal(await refused(w.kit.put(w.decision(last, "paid", owed, "covered"))), "decision_amount_mismatch", "never more than the reserve holds");
+  assert.equal(await refused(w.kit.put(w.decision(last, "denied", 0, "covered"))), "decision_wrongly_denied", "a reduced claim is paid further, not denied");
+  if (half < owed) {
+    assert.equal(await refused(w.kit.put(w.decision(last, "paid", half, "covered"))), "decision_kind_mismatch", "less than is owed is `reduced` again");
+    await w.kit.put(w.decision(last, "reduced", half, "covered"));
+    assert.equal(await w.kit.log.claimOwed(last), owed - half);
+    await w.kit.put(w.kit.mk("treasury_payment", treasury, { budget, to: INSURER_DID, amount: credit(owed - half) }, null, { at: "2026-12-03T00:00:00Z" }));
+  }
+  await w.kit.put(w.decision(last, "paid", owed - (half < owed ? half : 0), "covered", insurerParty));
+  assert.equal(await w.kit.log.claimOwed(last), 0);
+  assert.equal(await w.bal(holder), paidSoFar + owed, "the holder received everything the terms gave");
+  assert.equal(await refused(w.kit.put(w.decision(last, "paid", 1, "covered"))), "decision_exists", "once nothing is owed the claim is closed");
+  assert.equal((await w.kit.log.creditAudit()).verdict, "balanced");
+});
+
+test("DK183: the failed-job premium follows the job's class (routine 6 %, skilled 8 %, critical 10 %), read from the intent the contract rests on, with the class named in the refusal", async () => {
+  assert.equal(premiumFor("failed_job", 60, 250, 0, 0, "routine"), 15);
+  assert.equal(premiumFor("failed_job", 60, 250, 0, 0, "skilled"), 20);
+  assert.equal(premiumFor("failed_job", 60, 250, 0, 0, "critical"), 25);
+  assert.equal(premiumFor("failed_job", 60, 250, 0, 0), 15, "no class reads as routine");
+  assert.equal(premiumFor("bond_slash", 20, 250, 0, 0, "critical"), 2, "bond-slash cover does not read the class");
+  const w = await world(600);
+  const agent = await w.kit.agent("class-agent", w.sponsor, 1);
+  const classed = async (cls: string, price: number, intentBudget = price) => {
+    const intent = w.kit.mk("intent", w.principal, { purpose: `A ${cls} job`, acceptance_criteria: ["done"], budget: credit(intentBudget), class: cls, deadline: "2027-12-03T18:00:00Z", verification: { mode: "principal" } }, null, { subject: w.principal.did });
+    await w.kit.put(intent);
+    const c = cosign(w.kit.mk("contract", w.principal, { principal: w.principal.did, performer: agent.did, bank: bankP.did, purpose: `A ${cls} job`, price: credit(price), verification: "deterministic", deadline: "2027-12-03T18:00:00Z", basis: { intent: intent.id, offer: hashOf("1") } }, null, { subject: agent.did }), agent);
+    await w.kit.put(c);
+    return c.id;
+  };
+  const critical = await classed("critical", 250);
+  assert.equal(await w.kit.log.jobClassOf(critical), "critical");
+  assert.equal(await refused(w.kit.put(w.policyRec(critical, "failed_job", 60, w.principal, 250))), "premium_mismatch", "the routine premium (15) is refused for a critical job");
+  const ok = await w.kit.put(w.policyRec(critical, "failed_job", 60, w.principal, 250, { premium: credit(25) }));
+  assert.ok(ok);
+  // A class the price cannot support counts as what the price supports: a critical job contracted at 30 counts as routine, 6 %.
+  const cheap = await classed("critical", 30, 250);
+  assert.equal(await w.kit.log.jobClassOf(cheap), "routine");
+  await w.kit.put(w.policyRec(cheap, "failed_job", 9, w.principal, 30, { premium: credit(2) }));
+});
+
+test("DK183: the Treasury tops the reserve up by a budget line (owner co-signed, never a mint) and a sale the floor refused goes through", async () => {
+  const w = await world(569);
+  assert.equal(await refused(w.job({ price: 600, cover: "failed_job", insured: 60 })), "reserve_below_floor");
+  const at = "2026-12-02T00:00:00Z";
+  const budget = await w.kit.put(w.kit.mk("budget", treasury, { institution: INSURER_DID, period: "2026-12", amount: credit(100), purpose: "insurer_reserve" }, null, { at, cosigners: [owner] }));
+  await w.kit.put(w.kit.mk("treasury_payment", treasury, { budget, to: INSURER_DID, amount: credit(20) }, null, { at }));
+  assert.equal(await w.bal(INSURER_DID), 589);
+  assert.ok(await w.job({ price: 600, cover: "failed_job", insured: 60 }), "the reserve is above the floor again: the sale goes through");
+  assert.equal(await refused(w.kit.put(w.kit.mk("treasury_payment", treasury, { budget, to: INSURER_DID, amount: credit(81) }, null, { at }))), "over_budget", "the top-up is capped by the budget");
+  assert.equal((await w.kit.log.creditAudit()).verdict, "balanced");
+});

@@ -30,7 +30,7 @@ async function quote(o: InsureOpts): Promise<{ cover: Cover; insured: number; pr
   const insured = f.amount === undefined ? Math.min(price, f.cover === "bond_slash" ? 20 : Math.floor(price * 0.3)) : Math.trunc(Number(f.amount));
   const rep = await o.log.log.reputationOf(f.by);
   const strikes = rep?.strikes ?? 0;
-  return { cover: f.cover, insured, premium: premiumFor(f.cover, insured, price, rep?.qualifyingJobs ?? 0, strikes), holder: f.by, price };
+  return { cover: f.cover, insured, premium: premiumFor(f.cover, insured, price, rep?.qualifyingJobs ?? 0, strikes, await o.log.log.jobClassOf(f.contract)), holder: f.by, price };
 }
 
 export async function insureCmd(sub: string | undefined, o: InsureOpts): Promise<number> {

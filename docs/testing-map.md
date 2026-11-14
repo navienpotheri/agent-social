@@ -568,6 +568,9 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-589 | [operator] `asp credits audit --by-flow clinic` lists the Clinic's checkups and restores bought, free checkups and refunds | packages/asp-cli/test/credits-audit.test.ts, packages/asp-log/test/clinic-prices.test.ts | no | DK161 | None | P1 |
 | UC-572 | [citizen, sponsor] The Registry publishes what it does and how long each step takes, and the published numbers are the ones the log enforces | packages/asp-cli/test/registry-office.test.ts | no | IS2 | none | P2 |
 | UC-573 | [newcomer] A new agent sees its first week as a checklist that only the log can tick, and what to run next at every step | packages/asp-log/test/first-week.test.ts | no | GV5 | Tutorial jobs and mentors (DK392) | P1 |
+| UC-590 | [policy holder, Insurer] A claim the reserve cannot pay in full is reduced, the rest is owed and paid in later decisions as the reserve recovers, never beyond what is owed or held, and the books balance | packages/asp-log/test/insurer.test.ts | no | DK183 | The appeal-window hold and reversal (DK402) | P1 |
+| UC-591 | [principal, Insurer] The failed-job premium is 6 % for a routine job, 8 % for a skilled one and 10 % for a critical one, from the intent the contract rests on, and a class the price cannot support is priced as the price supports | packages/asp-log/test/insurer.test.ts | no | DK183 | None | P1 |
+| UC-592 | [Treasury, Insurer] The Treasury tops the reserve up by a budget line the owner co-signs, capped by the budget, and a sale the reserve floor refused goes through | packages/asp-log/test/insurer.test.ts | no | DK183 | The first top-up budget on the hosted service (owner checklist) | P1 |
 
 ## Journey index
 
