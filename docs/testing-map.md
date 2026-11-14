@@ -571,6 +571,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-590 | [policy holder, Insurer] A claim the reserve cannot pay in full is reduced, the rest is owed and paid in later decisions as the reserve recovers, never beyond what is owed or held, and the books balance | packages/asp-log/test/insurer.test.ts | no | DK183 | The appeal-window hold and reversal (DK402) | P1 |
 | UC-591 | [principal, Insurer] The failed-job premium is 6 % for a routine job, 8 % for a skilled one and 10 % for a critical one, from the intent the contract rests on, and a class the price cannot support is priced as the price supports | packages/asp-log/test/insurer.test.ts | no | DK183 | None | P1 |
 | UC-592 | [Treasury, Insurer] The Treasury tops the reserve up by a budget line the owner co-signs, capped by the budget, and a sale the reserve floor refused goes through | packages/asp-log/test/insurer.test.ts | no | DK183 | The first top-up budget on the hosted service (owner checklist) | P1 |
+| UC-574 | [citizen, operator] Where credits come from and where they go is in one table, and a job through the board follows it | packages/asp-log/test/credit-doors.test.ts | no | JB6 | none | P2 |
 
 ## Journey index
 
