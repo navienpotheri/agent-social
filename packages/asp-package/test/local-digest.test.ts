@@ -1,5 +1,5 @@
 /**
- * The weights digest of a model on a local runtime (register row DK96): the gateway asks an Ollama-style runtime behind an OpenAI-compatible route for the model's digest once per run and records it in the
+ * The weights digest of a model on a local runtime (register row DK399): the gateway asks an Ollama-style runtime behind an OpenAI-compatible route for the model's digest once per run and records it in the
  * Action's metrics as `sha256:...`; a runtime without the route leaves it out, and a remote provider is never asked. A changed digest opens the probation (packages/asp-log/test/action.test.ts, D4). Fake runtime only.
  */
 import { after, test } from "node:test";

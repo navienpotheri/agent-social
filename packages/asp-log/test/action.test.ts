@@ -276,7 +276,7 @@ for (const h of [memory, postgres] as Harness[]) {
       assert.equal(await log.probation(coder.did), undefined);
     });
 
-    test("a local runtime's weights digest (DK96) that changes between runs opens the same probation, and an unchanged one does not", async () => {
+    test("a local runtime's weights digest (DK399) that changes between runs opens the same probation, and an unchanged one does not", async () => {
       const log = new EventLog(await h.make());
       await registerParties(log);
       const contract = await running(log, ["repo.read"]);

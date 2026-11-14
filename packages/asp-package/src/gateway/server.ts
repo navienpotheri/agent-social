@@ -203,7 +203,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   // Totals at the last drain, and the models seen since, so each Action carries its own interval's figures.
   const last = { requests: 0, toolCalls: 0, input: 0, output: 0, at: Date.now() };
   const modelsSeen = new Map<string, { name: string; provider?: string; digest?: string }>();
-  // The weights digest of a model on a local runtime behind an OpenAI-compatible route (DK96): a name and no weight hash comes back in the reply, so the gateway asks the runtime once per run (Ollama:
+  // The weights digest of a model on a local runtime behind an OpenAI-compatible route (DK399): a name and no weight hash comes back in the reply, so the gateway asks the runtime once per run (Ollama:
   // GET /api/tags lists each model's digest, POST /api/show as a fallback) and records it as `sha256:...`. A runtime that does not answer leaves the digest out, as before; nothing is refused.
   const localDigests = new Map<string, string>(), askedDigest = new Set<string>();
   const askLocalDigest = (key: string, name: string, upstream: string) => {
