@@ -20,12 +20,20 @@ def round3(x: float) -> float:
     return math.floor(x * 1000 + 0.5) / 1000
 
 
+def _seq_sum(values) -> float:
+    """Left-to-right addition starting from 0, like the TypeScript reduce. Python 3.12's sum() of floats is compensated (Neumaier), which differs from plain addition in the last bit and moved a rounded result by 0.001."""
+    total = 0.0
+    for v in values:
+        total += v
+    return total
+
+
 def _log2(x: float) -> float:
     return math.log(x) / math.log(2)
 
 
 def brier(items: Sequence[Item]) -> float:
-    return round3(sum((i["p"] - i["outcome"]) ** 2 for i in items) / len(items))
+    return round3(_seq_sum((i["p"] - i["outcome"]) ** 2 for i in items) / len(items))
 
 
 def surprisal(p: float, outcome: int) -> float:
@@ -33,7 +41,7 @@ def surprisal(p: float, outcome: int) -> float:
 
 
 def mean_surprisal(items: Sequence[Item]) -> float:
-    return round3(sum(surprisal(i["p"], i["outcome"]) for i in items) / len(items))
+    return round3(_seq_sum(surprisal(i["p"], i["outcome"]) for i in items) / len(items))
 
 
 def kl_bits(post: float, prior: float) -> float:
@@ -59,5 +67,5 @@ def calibration(items: Sequence[Item], bins: int = 5) -> dict:
             b["mean_p"] = round3(b["mean_p"] / b["n"])
             b["freq"] = round3(b["freq"] / b["n"])
     met = len(items) >= MIN_CALIBRATION_N
-    ece = round3(sum((b["n"] / len(items)) * abs(b["mean_p"] - b["freq"]) for b in table)) if met else None
+    ece = round3(_seq_sum((b["n"] / len(items)) * abs(b["mean_p"] - b["freq"]) for b in table)) if met else None
     return {"n": len(items), "bins": table, "brier": brier(items) if items else 0, "ece": ece, "min_n_met": met}
