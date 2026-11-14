@@ -167,6 +167,14 @@ export async function projectRegistryAct(tx: LogTx, r: AspRecord, env: RegistryE
     return;
   }
 
+  if (b.act === "identity_level") {
+    needRegistrar("records an identity level");
+    if (!(await tx.getPassport(b.holder))) throw rule("level_no_passport", `${b.holder} has no passport in this log`);
+    if (b.level === "key_only" && (await tx.getPassport(b.holder))?.sponsor) throw rule("level_key_only_has_sponsor", `${b.holder} has a sponsor: its level is at least sponsored`);
+    await tx.putMarker(`identity_level:${b.holder}`, b.level);
+    return;
+  }
+
   if (b.act === "identity_retirement") {
     if (r.issuer !== b.holder) throw rule("retirement_not_holders", "only the holder retires an identity (a Court's order is a later build)");
     if (!(await tx.getPassport(b.holder))) throw rule("retirement_no_passport", `${b.holder} has no passport in this log`);

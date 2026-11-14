@@ -168,8 +168,10 @@ for (const h of [memory, postgres] as Harness[]) {
       const buyers = [await freshPerson(log, "fl-buyer-3a"), await freshPerson(log, "fl-buyer-3b"), await freshPerson(log, "fl-buyer-3c"), await freshPerson(log, "fl-buyer-3d")];
       await log.mint(alice.did, 40000); await log.mint(backer.did, 20000);
       for (const b of buyers) await log.mint(b.did, 10000);
+      // A sponsor opens at most 10 agent passports a day (RG-11): the twelve performers have three sponsors.
+      const sponsors = [alice as unknown as Person, await freshPerson(log, "fl-sponsor-3a"), await freshPerson(log, "fl-sponsor-3b")];
       for (let i = 0; i < 12; i++) {
-        const p = freshAgent(`fl-perf-3-${i}`); await registerAgent(log, p);
+        const p = freshAgent(`fl-perf-3-${i}`); await registerAgent(log, p, { sponsor: sponsors[i % 3] });
         assert.equal((await settleAccepted(log, p, backer, 1000, 1000, buyers[i % 4])).settlementResult, undefined);
       }
       const p = freshAgent("fl-perf-3z"); await registerAgent(log, p);

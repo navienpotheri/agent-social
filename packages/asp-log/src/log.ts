@@ -28,7 +28,7 @@ import { assertNotDormant, checkShopsPurchase, notePerformer, projectShopsAct } 
 import { homeView, type HomeView } from "./housing.ts";
 import { resourceExtras, type ResourceExtras } from "./shops.ts";
 import { HOUSING_DID, SHOPS_DID, catalogueProblem, type CatalogueItem } from "./shops.ts";
-import { buildPage, namesAt, isLive, skeleton, verifyPage, type RecordPage } from "./registry.ts";
+import { buildPage, namesAt, isLive, skeleton, verifyPage, lapsedIdentities, identityLevelAt, type RecordPage } from "./registry.ts";
 import { classWeight, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
@@ -83,6 +83,8 @@ const recentStrikes = (log: StrikeEntry[], now: string) => log.filter((s) => Dat
  * registration; it's just an account id.
  */
 export { PLATFORM_DID };
+/** How many new agent passports one sponsor may open in a day (registry.md RG-11). */
+export const SPONSOR_PASSPORTS_PER_DAY = 10;
 
 export interface EventLogOptions {
   schemas?: SchemaSet;
@@ -435,6 +437,13 @@ export class EventLog {
     const sponsor = current ? current.sponsor : body.sponsor ?? null;
     if (r.issuer !== body.did && r.issuer !== sponsor) {
       throw new AspError("WRONG_ISSUER", `${r.issuer} is neither ${body.did} nor its sponsor`);
+    }
+    // Issuance limit (register row DK124, RG-11; spec-delta S456): a sponsor opens at most 10 new agent passports a day. The operator's own house agents are not counted. The count is the sponsor's, by the day of the record, so replay gives the same answer.
+    if (!current && body.kind === "agent" && body.sponsor && body.sponsor !== this.operator) {
+      const dayKey = `passports_day:${body.sponsor}|${r.issued_at.slice(0, 10)}`;
+      const opened = Number((await tx.getMarker(dayKey)) ?? 0);
+      if (opened >= SPONSOR_PASSPORTS_PER_DAY) throw rule("sponsor_daily_limit", `${body.sponsor} opened ${opened} agent passports on ${r.issued_at.slice(0, 10)}; the limit is ${SPONSOR_PASSPORTS_PER_DAY} a day for one sponsor`);
+      await tx.putMarker(dayKey, String(opened + 1));
     }
     // A house agent (DK291, S371): only an agent the operator itself sponsors carries the label, and the label is permanent.
     if (body.house) {
@@ -2203,14 +2212,17 @@ export class EventLog {
 
   /** The facts about every agent at `at`, for discovery and the board (market.md 7). */
   private async allAgentFacts(at: string): Promise<AgentFacts[]> {
-    const recs = await this.recordsWhere((r) => r.type === "asp.passport/v0.2" || r.type === "asp.certificate/v0.2" || (r.type === "asp.market_act/v0.2" && (r.body as { act?: string }).act === "assignment"));
+    const recs = await this.recordsWhere((r) => r.type === "asp.passport/v0.2" || r.type === "asp.certificate/v0.2" || (r.type === "asp.market_act/v0.2" && (r.body as { act?: string }).act === "assignment") || (r.type === "asp.registry_act/v0.2" && ["identity_renewal", "identity_level"].includes((r.body as { act?: string }).act ?? "")));
     const certs = recs.filter((r) => r.type === "asp.certificate/v0.2");
     const boards = new Map<string, string[]>();
     for (const r of recs) if (r.type === "asp.market_act/v0.2") { const a = (r.body as { agent: string }).agent; boards.set(a, [...(boards.get(a) ?? []), r.issued_at]); }
     const dids = new Set<string>();
     for (const r of recs) if (r.type === "asp.passport/v0.2" && (r.body as { kind?: string }).kind === "agent") dids.add((r.body as { did: string }).did);
+    // The Market leaves out an identity whose renewal lapsed (registry.md RG-10, DK124): it is not listed, ranked or offered work until it renews.
+    const lapsed = lapsedIdentities(recs, at);
+    const acts = recs.filter((r) => r.type === "asp.registry_act/v0.2");
     const out: AgentFacts[] = [];
-    for (const did of [...dids].sort()) { const f = await agentFacts(this.store, this.marketEnv(), did, at, certs, boards.get(did) ?? []); if (f) out.push(f); }
+    for (const did of [...dids].sort()) { if (lapsed.has(did)) continue; const f = await agentFacts(this.store, this.marketEnv(), did, at, certs, boards.get(did) ?? []); if (f) out.push({ ...f, level: identityLevelAt(acts, did, Date.parse(at), f.sponsor === did ? null : f.sponsor) }); }
     return out;
   }
 

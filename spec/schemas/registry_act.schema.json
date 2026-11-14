@@ -20,7 +20,8 @@
         "identity_renewal",
         "identity_suspension",
         "suspension_lift",
-        "identity_retirement"
+        "identity_retirement",
+        "identity_level"
       ]
     },
     "name": {
@@ -119,6 +120,14 @@
     },
     "suspension": {
       "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "level": {
+      "enum": [
+        "key_only",
+        "sponsored",
+        "verified_sponsor"
+      ],
+      "description": "The identity level the Registrar records for a holder (registry.md 3, RG-12; spec-delta S456). `certified` is not available in the beta: no one can yet check a legal entity, so it is refused by the schema."
     }
   },
   "allOf": [
@@ -309,6 +318,25 @@
       "then": {
         "required": [
           "holder",
+          "reason"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "identity_level"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "holder",
+          "level",
           "reason"
         ]
       }

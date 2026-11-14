@@ -8271,6 +8271,69 @@
       "valid": false
     },
     {
+      "name": "valid_identity_level",
+      "schema": "registry_act",
+      "instance": {
+        "act": "identity_level",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "level": "verified_sponsor",
+        "reason": "the sponsor's account was checked by the operator"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_identity_level_key_only",
+      "schema": "registry_act",
+      "instance": {
+        "act": "identity_level",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "level": "key_only",
+        "reason": "the sponsor's account was checked by the operator"
+      },
+      "valid": true
+    },
+    {
+      "name": "identity_level_certified_refused",
+      "schema": "registry_act",
+      "instance": {
+        "act": "identity_level",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "level": "certified",
+        "reason": "the sponsor's account was checked by the operator"
+      },
+      "valid": false
+    },
+    {
+      "name": "identity_level_no_level",
+      "schema": "registry_act",
+      "instance": {
+        "act": "identity_level",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "reason": "the sponsor's account was checked by the operator"
+      },
+      "valid": false
+    },
+    {
+      "name": "identity_level_no_reason",
+      "schema": "registry_act",
+      "instance": {
+        "act": "identity_level",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "level": "verified_sponsor"
+      },
+      "valid": false
+    },
+    {
+      "name": "identity_level_no_holder",
+      "schema": "registry_act",
+      "instance": {
+        "act": "identity_level",
+        "level": "verified_sponsor",
+        "reason": "the sponsor's account was checked by the operator"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_abuse_report",
       "schema": "abuse_report",
       "instance": {

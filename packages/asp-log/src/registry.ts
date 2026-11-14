@@ -63,6 +63,8 @@ export interface RecordPage {
   purpose: string | null; temperament: string | null;
   /** A house agent (the operator's scripted agent, DK291): true and labelled on every page that shows it. */
   house: boolean; label: string | null;
+  /** The identity level (RG-12): key_only, sponsored or verified_sponsor; `certified` is not available in the beta. */
+  level: IdentityLevel;
   tier: number | null; slashCount: number; strikes: number; acceptedJobs: number; qualifyingJobs: number;
   certificates: { skill: string; level: number; expires: string }[];
   renewal: { due: string; lapsed: boolean } | null;
@@ -115,6 +117,7 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
   return {
     did, names, kind: pb.kind, sponsor: pb.sponsor ?? null, fleet: typeof pb.fleet === "string" ? pb.fleet : pb.fleet?.name ?? null, lineage: pb.lineage ?? [],
     purpose: cap(pb.purpose, 500), temperament: cap(pb.temperament, 300), house: pb.house === true, label: pb.house ? "house agent" : null,
+    level: identityLevelAt(acts, did, t, pb.sponsor),
     tier: inp.reputation?.tier ?? null, slashCount: inp.reputation?.slashCount ?? 0, strikes: inp.reputation?.strikes ?? 0, acceptedJobs: inp.reputation?.acceptedJobs ?? 0, qualifyingJobs: inp.reputation?.qualifyingJobs ?? 0,
     certificates, renewal: pb.kind === "agent" ? { due, lapsed: t > Date.parse(due) + LAPSE_AFTER_MS } : null,
     suspended: live ? { until: (live.body as { until: string }).until, reason: (live.body as { reason: string }).reason, record: live.id } : null,
@@ -134,3 +137,30 @@ export function verifyPage(held: RecordPage, fresh: RecordPage | null): string[]
 }
 
 export { REGISTRAR_DID };
+
+/** The agent identities whose renewal has lapsed at `at`: the first passport or the last renewal is more than a term and the lapse period ago (the page's `renewal.lapsed`, computed for every agent at once from the passports and renewal acts). */
+export function lapsedIdentities(records: AspRecord[], at: string): Set<string> {
+  const t = Date.parse(at);
+  const born = new Map<string, string>();
+  const passportOf = new Map<string, string>();
+  for (const r of records) if (r.type === "asp.passport/v0.2") { const b = r.body as { did: string; kind: string }; if (b.kind !== "agent") continue; if (!born.has(b.did)) born.set(b.did, r.issued_at); passportOf.set(r.id, b.did); }
+  const last = new Map(born);
+  for (const r of records) {
+    if (r.type !== "asp.registry_act/v0.2") continue;
+    const b = r.body as { act: string; passport?: string };
+    const did = b.act === "identity_renewal" && b.passport ? passportOf.get(b.passport) : undefined;
+    if (did && Date.parse(r.issued_at) <= t) last.set(did, r.issued_at);
+  }
+  const out = new Set<string>();
+  for (const [did, from] of last) if (t > Date.parse(from) + RENEWAL_TERM_MS + LAPSE_AFTER_MS) out.add(did);
+  return out;
+}
+
+/** The identity levels in order, weakest first. `certified` is not available in the beta. */
+export const IDENTITY_LEVELS = ["key_only", "sponsored", "verified_sponsor"] as const;
+export type IdentityLevel = (typeof IDENTITY_LEVELS)[number];
+/** The level of a holder at a time: the Registrar's last `identity_level` act up to then, else `sponsored` for an identity with a sponsor and `key_only` for one without. */
+export function identityLevelAt(acts: AspRecord[], did: string, t: number, sponsor?: string | null): IdentityLevel {
+  const last = acts.filter((r) => { const b = r.body as { act: string; holder?: string }; return b.act === "identity_level" && b.holder === did && Date.parse(r.issued_at) <= t; }).at(-1);
+  return last ? ((last.body as { level: IdentityLevel }).level) : sponsor ? "sponsored" : "key_only";
+}

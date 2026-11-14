@@ -23,10 +23,13 @@ async function world(reserve = 600) {
   void insurer;
   const bal = (d: string) => kit.log.balance(d);
   let n = 0;
+  // A sponsor opens at most 10 agent passports a day (RG-11): the first eight jobs' agents are the sponsor's, the next eight another's, and so on.
+  const sponsors = new Map<number, Awaited<ReturnType<typeof kit.person>>>([[0, sponsor]]);
+  const sponsorFor = async (k: number) => { const g = Math.floor((k - 1) / 8); if (!sponsors.has(g)) sponsors.set(g, await kit.person(`ins-sponsor-${g}`)); return sponsors.get(g)!; };
   /** A contract, optionally a policy on it, a bond (backed by the agent) and a Mandate. */
   async function job(opts: { price?: number; cover?: Cover; insured?: number; holder?: Party; actFirst?: boolean } = {}) {
     const price = opts.price ?? 100;
-    const agent = await kit.agent(`ins-agent-${++n}`, sponsor, 1);
+    const agent = await kit.agent(`ins-agent-${++n}`, await sponsorFor(n), 1);
     await kit.mint(agent.did, 100);
     const c = cosign(kit.mk("contract", principal, { principal: principal.did, performer: agent.did, bank: bankP.did, purpose: `job ${n}`, price: credit(price), verification: "deterministic", deadline: "2027-12-03T18:00:00Z", basis: { intent: hashOf("0"), offer: hashOf("1") } }, null, { subject: agent.did }), agent);
     await kit.put(c);
