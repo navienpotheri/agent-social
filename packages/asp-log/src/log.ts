@@ -17,7 +17,7 @@ import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type Balanc
 import { bondFloorPermille, floorIsV2 } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
-import { ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { charterIn, checkCaseload, checkRulingExtras, closeDispute, projectCourtAct } from "./courts-rules.ts";
@@ -2170,7 +2170,7 @@ export class EventLog {
    * diagnosis of the same agent and names the skill.
    */
   private async projectClinicOrder(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { agent: string; kind: string; reason: string; due: string; diagnosis?: string; skill?: string };
+    const b = r.body as { agent: string; kind: string; reason: string; due: string; diagnosis?: string; skill?: string; purchase?: string; budget?: string; change?: string };
     if (r.prev !== null) throw rule("order_not_chained", "an order starts its own chain (prev is null)");
     if (r.issuer !== CLINIC_DID) throw rule("order_wrong_issuer", `${r.issuer} is not the Clinic (${CLINIC_DID}): only the Clinic orders a checkup, a re-exam or a course`);
     if (!(await tx.getPassport(b.agent))) throw rule("order_not_an_agent", `${b.agent} has no passport in this log`);
@@ -2185,7 +2185,39 @@ export class EventLog {
     const key = `clinic_order:${b.agent}|${b.kind}`;
     const open = await tx.getMarker(key);
     if (open && Date.parse(open) > at) throw rule("order_already_open", `${b.agent} already has a ${b.kind} order that is due ${open}: one open order of each kind`);
+    if (b.kind === "checkup") await this.payForCheckup(tx, r, b);
     await tx.putMarker(key, b.due);
+  }
+
+  /**
+   * Who pays for a checkup (clinic.md section 4, CL-12; DK161). Once the Treasury's price list carries `clinic.checkup`, a checkup is either free (a scheduled one, the first in a UTC quarter, or one after a named
+   * change to the agent's runtime or memory, once for each change), paid for by the Treasury's budget line `free_checkups`, or requested and paid for by a purchase of `clinic.checkup` by the agent or its sponsor, used
+   * once. Before the list carries the item the Clinic orders as it did. A free checkup moves the price from the Treasury to the Clinic out of the budget (never beyond it).
+   */
+  private async payForCheckup(tx: LogTx, r: AspRecord, b: { agent: string; reason: string; purchase?: string; budget?: string; change?: string }): Promise<void> {
+    const list = await this.priceListInForce(tx, Date.parse(r.issued_at));
+    if (!(list?.record.body as unknown as PriceListBody | undefined)?.items.some((i) => i.service === CLINIC_CHECKUP_SERVICE)) return;
+    if (b.reason === "requested") {
+      const p = b.purchase ? await tx.getRecord(b.purchase) : undefined;
+      if (!p || p.record.type !== "asp.purchase/v0.2") throw rule("order_needs_purchase", `a requested checkup costs ${CLINIC_CHECKUP_SERVICE}: buy it and cite the purchase (purchase)`);
+      const pb = p.record.body as unknown as PurchaseBody;
+      if (pb.service !== CLINIC_CHECKUP_SERVICE || pb.institution !== CLINIC_DID) throw rule("order_purchase_wrong_item", `the purchase is of ${pb.service}, not ${CLINIC_CHECKUP_SERVICE} from the Clinic`);
+      if (p.record.issuer !== b.agent && (await tx.getPassport(b.agent))?.sponsor !== p.record.issuer) throw rule("order_purchase_not_owners", "a checkup is paid for by the agent or by its sponsor");
+      if (await tx.getMarker(`checkup_purchase_used:${p.id}`)) throw rule("order_purchase_used", "this purchase already paid for another checkup");
+      await tx.putMarker(`checkup_purchase_used:${p.id}`, r.id);
+      return;
+    }
+    const q = `${r.issued_at.slice(0, 4)}-Q${Math.floor((Number(r.issued_at.slice(5, 7)) - 1) / 3) + 1}`;
+    const freeKey = b.reason === "post_change" ? `free_change:${b.agent}|${b.change ?? ""}` : `free_scheduled:${b.agent}|${q}`;
+    if (b.reason === "post_change" && !b.change) throw rule("order_needs_change", "a checkup after a change names the change (the memory change or runtime change it follows)");
+    if (await tx.getMarker(freeKey)) throw rule("order_free_used", `${b.agent} has had its free checkup for ${b.reason === "post_change" ? `the change ${b.change}` : `${q}`}: request one for ${CLINIC_CHECKUP_PRICE} credits (${CLINIC_CHECKUP_SERVICE})`);
+    const bud = b.budget ? await tx.getRecord(b.budget) : undefined;
+    const bb = bud?.record.type === "asp.budget/v0.2" ? (bud.record.body as { institution: string; purpose: string }) : undefined;
+    if (!bb || bb.institution !== CLINIC_DID || bb.purpose !== CLINIC_FREE_BUDGET_PURPOSE) throw rule("order_needs_budget", `a free checkup is paid by the Treasury's ${CLINIC_FREE_BUDGET_PURPOSE} budget for the Clinic: cite it (budget)`);
+    await this.drawBudget(tx, b.budget!, CLINIC_CHECKUP_PRICE, r.issued_at);
+    await this.debit(tx, TREASURY_DID, CLINIC_CHECKUP_PRICE);
+    await this.credit(tx, CLINIC_DID, CLINIC_CHECKUP_PRICE);
+    await tx.putMarker(freeKey, r.id);
   }
 
   /** A receipt (credits.md 4.3): the purchase's institution closes it; a refund comes back by the split in reverse and never includes the burned part. */

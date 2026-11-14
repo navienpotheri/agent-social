@@ -366,7 +366,7 @@ Sizes: S under a day, M a few days, L a week or more. Row = the register row the
 
 | CL-11 | **Cohort freeze.** A cohort `quarantine` built from the watcher's cluster and an upheld report (3 or more sponsors), level `observe`; release per member after a passing checkup; `asp clinic cohort`; the swarm scenario test | M | CL-7, CL-5 | DK30, DK53 |
 
-| CL-12 | **Prices and the Clinic account.** `clinic.checkup`, `clinic.restore` in the price list; the account; refunds; the free quarterly checkup funded by a Treasury budget | M | CR-5, CR-6 (credits.md) | DK28 |
+| CL-12 | **Prices and the Clinic account (built, S482).** `clinic.checkup`, `clinic.restore` in the price list; the account; refunds; the free quarterly checkup funded by a Treasury budget | M | CR-5, CR-6 (credits.md) | DK28 |
 
 | CL-13 | **Value probes.** The temptation-task suite (a breach would pay, the agent should decline and ask), at least 20 task variants with an Overfitter pass rate of 0; the value drift curve | L | CL-5 | DK58 |
 

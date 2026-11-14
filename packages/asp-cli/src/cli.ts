@@ -216,9 +216,9 @@
  *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
  *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
  *   asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
- *   asp credits audit [--by-flow] [--since <time>] [--require-signed] [--json]
+ *   asp credits audit [--by-flow [clinic]] [--since <time>] [--require-signed] [--json]
  *     The supply rule over the whole log: balances + escrow + bonds + court-fee reserves + juror stakes + open report deposits must equal what was minted.
- *     Prints balanced or MISMATCH with the figures; the exit code is 1 on a mismatch. --by-flow adds the settlement flows the log can report today.
+ *     Prints balanced or MISMATCH with the figures; the exit code is 1 on a mismatch. --by-flow adds the settlement, purchase, Treasury and Clinic flows the log can report today (the Clinic line: checkups and restores bought, free checkups, refunds); `--by-flow clinic` is the same, named for the Clinic.
  *
  *   Assignment mode (one performer bidding directly):
  *   asp market intent --by <did> --purpose <text> [--criteria <text> ...] --budget <n> --deadline <iso> [--verification deterministic|principal|arbiter] [--review-deadline <iso>] [--verifier <did>]
@@ -996,7 +996,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "credits" && sub === "grant") return await creditsGrant(home, v, need, io);
     if (cmd === "credits" && sub === "adopt") return await creditsAdopt(home, v, need, io);
     if (cmd === "credits" && sub === "fund") return await creditsFund(home, v, need, io);
-    if (cmd === "credits" && sub === "audit") return await creditsAudit(home, v, io);
+    if (cmd === "credits" && sub === "audit") return await creditsAudit(home, v, io, rest[0]);
     if (cmd === "credits" && sub === "guard") return await creditsGuard(home, v, io);
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
     if (cmd === "world") return await worldCommand(home, sub, rest, v, io);
@@ -4292,7 +4292,8 @@ async function societyHealthCommand(home: string, v: Values, io: Io): Promise<nu
   return report.alarms.length ? 1 : 0;
 }
 
-async function creditsAudit(home: string, v: Values, io: Io): Promise<number> {
+async function creditsAudit(home: string, v: Values, io: Io, onlyFlow?: string): Promise<number> {
+  if (onlyFlow !== undefined && (!v["by-flow"] || onlyFlow !== "clinic")) throw new UsageError("usage: asp credits audit [--by-flow [clinic]] [--since <time>] [--require-signed] [--json]");
   const local = await openLog(home, logEnv);
   const audit = await local.log.creditAudit();
   const flows = v["by-flow"] ? await local.log.creditFlows(v.since) : undefined;
@@ -4321,6 +4322,8 @@ async function creditsAudit(home: string, v: Values, io: Io): Promise<number> {
     const pu = flows.purchases;
     io.out(`  ${n(pu.count)} purchase(s) for ${n(pu.amount)} credits: to institutions ${n(pu.provider)}, to the Treasury ${n(pu.treasury)}, burned ${n(pu.burned)}; ${n(flows.refunds.count)} refund(s) of ${n(flows.refunds.amount)}`);
     io.out(`  ${n(s.count)} settlement(s) ${Object.entries(s.byBasis).map(([k, c]) => `${k} ${c}`).join(", ") || "none"}: released to performers ${n(s.escrowReleased)}, fees to the Treasury ${n(s.fees)}, bonds returned ${n(s.bondReturned)}, bonds slashed ${n(s.bondSlashed)}`);
+    const cl = flows.clinic;
+    io.out(`  Clinic (DK161): ${n(cl.checkupsBought.count)} checkup(s) bought for ${n(cl.checkupsBought.amount)}, ${n(cl.restoresBought.count)} restore(s) bought for ${n(cl.restoresBought.amount)}, ${n(cl.freeCheckups.count)} free checkup(s) paid by the Treasury's budget line (${n(cl.freeCheckups.amount)}), ${n(cl.refunds.count)} refund(s) of ${n(cl.refunds.amount)}`);
     const tr = flows.treasury;
     io.out(`  Treasury closed loop: ${n(tr.budgets.count)} budget(s) for ${n(tr.budgets.amount)}, ${n(tr.payments.count)} payment(s) out of them for ${n(tr.payments.amount)}, ${n(tr.allowances.count)} newcomer allowance(s) for ${n(tr.allowances.amount)}, ${n(tr.prizes.count)} prize(s) for ${n(tr.prizes.amount)}`);
     io.out("  not available from the log yet:");

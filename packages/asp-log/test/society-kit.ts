@@ -17,13 +17,14 @@ export const treasury = party(TREASURY_DID);
 export const market = party(institutionDid("market"));
 export const registrar = party(REGISTRAR_DID);
 export const courts = party(institutionDid("courts"));
+export const clinic = party(institutionDid("clinic"));
 export const shops = party(institutionDid("shops"));
 export const housing = party(institutionDid("housing"));
 export const events = party(institutionDid("events"));
 export const research = party(institutionDid("research"));
 export const auditor = party("did:web:asp.local:auditor");
 export const telemetry = party("did:web:asp.local:telemetry");
-export const resolver = staticResolver(Object.fromEntries([operator, owner, treasury, market, registrar, courts, shops, housing, events, research, auditor, telemetry].map((p) => [p.kid, p.publicKey])));
+export const resolver = staticResolver(Object.fromEntries([operator, owner, treasury, market, registrar, courts, clinic, shops, housing, events, research, auditor, telemetry].map((p) => [p.kid, p.publicKey])));
 
 let clockMs = Date.parse("2026-11-01T00:00:00Z");
 export const tick = (): string => new Date((clockMs += 60_000)).toISOString().replace(".000Z", "Z");
@@ -51,6 +52,8 @@ export const PRICES = [
   { service: "academy.exam_sitting", institution: institutionDid("academy"), price: 20, split: FEE0A, class: "essential" },
   { service: "courts.appeal.small", institution: institutionDid("courts"), price: 5, split: FEE0, class: "essential" },
   { service: "courts.appeal.standard", institution: institutionDid("courts"), price: 20, split: FEE0, class: "essential" },
+  { service: "clinic.checkup", institution: institutionDid("clinic"), price: 10, split: { treasury_permille: 200, burn_permille: 0, payees: [{ account: institutionDid("clinic"), permille: 800 }] }, class: "essential" },
+  { service: "clinic.restore", institution: institutionDid("clinic"), price: 5, split: { treasury_permille: 200, burn_permille: 0, payees: [{ account: institutionDid("clinic"), permille: 800 }] }, class: "remedial" },
 ];
 
 export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean } = {}) {

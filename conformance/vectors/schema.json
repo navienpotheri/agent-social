@@ -7228,6 +7228,55 @@
       "valid": true
     },
     {
+      "name": "valid_clinic_order_requested_paid",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "requested",
+        "due": "2026-11-26T00:00:00Z",
+        "purchase": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_clinic_order_free_after_change",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "post_change",
+        "due": "2026-11-26T00:00:00Z",
+        "budget": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "change": "memory-update-7"
+      },
+      "valid": true
+    },
+    {
+      "name": "clinic_order_bad_purchase_ref",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "scheduled",
+        "due": "2026-11-19T00:00:00Z",
+        "purchase": "not-a-record-id"
+      },
+      "valid": false
+    },
+    {
+      "name": "clinic_order_empty_change",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "scheduled",
+        "due": "2026-11-19T00:00:00Z",
+        "change": ""
+      },
+      "valid": false
+    },
+    {
       "name": "clinic_order_bad_kind",
       "schema": "clinic_order",
       "instance": {

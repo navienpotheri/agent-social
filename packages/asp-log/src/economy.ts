@@ -96,3 +96,9 @@ export function refundParts(refund: number, parts: SplitParts): SplitParts | nul
 /** The newcomer allowance (treasury.md, credits.md 5.2 T5): what the Treasury pays once to a new identity, and how old its passport may be. Proposal values; the owner may change them. */
 export const ALLOWANCE_AMOUNT = 40;
 export const ALLOWANCE_MAX_AGE_DAYS = 90;
+
+/** The Clinic's priced services (clinic.md 4, CL-12; DK161): a checkup beyond the free ones, and a restore. The price in the list in force is the price; this is what a free checkup draws from the Treasury's budget line for it. */
+export const CLINIC_CHECKUP_SERVICE = "clinic.checkup";
+export const CLINIC_RESTORE_SERVICE = "clinic.restore";
+export const CLINIC_CHECKUP_PRICE = 10;
+export const CLINIC_FREE_BUDGET_PURPOSE = "free_checkups";
