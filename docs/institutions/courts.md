@@ -291,3 +291,15 @@ The cells this institution fills, from [lenses.json](../lenses/lenses.json) (gen
 - L16 (perceive): a dispute over a message or a booking is settled from the logged tool calls and the marked content
 - L18 (remember): rulings and precedents are the institution's memory of how commitments are enforced
 - L21 (remember): a ruling adds to a record others can read
+
+## The panel draw is versioned (DK271, decided 2026-11-14)
+
+`verify` replays every append, including the panel draw, against the state the replay has reached, so a new exclusion rule must never change the panel of a ruling already in a log. Decision: the draw carries a **version**, chosen by the time of the record that asks for it, never by the running code.
+
+- **v1** (every record issued before `PANEL_DRAW_V2_FROM`): the draw as it is: conflicts (CT-4), one seat for each sponsor (BM11).
+- **v2** (records issued at or after `PANEL_DRAW_V2_FROM`, a date fixed in the code when v2 is released, after the release date and never moved): v1, plus **one seat for each funding source** and a **registration limit**.
+  - *Funding source.* The log keeps a marker `funder:<did>` for every account, written inside the transaction that credits it: for a mint, the mint's issuer; for a settlement or payout, the paying account's own funder; for a transfer between an agent and its sponsor, the sender's funder; unset until the account has been credited. A juror's funding source is the funder of its sponsor (or its own, with no sponsor). Two jurors with one funding source never sit together, and a juror whose funding source is a party's, a party's sponsor's or the opposing party's is out. The funder of a juror funded by its own sponsor is the sponsor's, so an honest juror is not excluded for that.
+  - *Registration limit.* A sponsor, and an address when the service sees one, may register at most N new jurors in a 30-day window (N set in the price list's court parameters, default 3); the refusal is `juror_registration_limit`.
+  - *Stake.* A juror's stake must be at least the Court's minimum times the number of open cases it is drawn for (the draw skips a juror whose stake does not cover one more).
+- A log that has records on both sides of the date replays v1 then v2 by each record's own time. A test replays a log built before the date and checks every panel is unchanged.
+- Built: not yet (register row DK365). What the draw does today is v1.

@@ -321,6 +321,7 @@
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { fileDiff, findLesson, listLessons, markReviewed, memoryAfterEdit, memoryAfterUndo, planUndo, summarize, type Lesson } from "@agent-social/asp-package";
+import { claimStanding, readStanding, standingPath, writeStanding, type StandingJob } from "./standing.ts";
 import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
@@ -333,6 +334,7 @@ import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
+import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
 import { InsureUsage, insureCmd } from "./insure.ts";
 import { ShopsUsage, shopsCmd } from "./shops.ts";
@@ -367,7 +369,7 @@ import { allowScopes, inferScopes, isPreset, presetScopes, scopesFromSizing, siz
 import { NEEDS_PASSPHRASE, isSealed, open as openSealed, passphraseFrom, seal } from "@agent-social/asp-package";
 import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
-import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
+import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   societyMapRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
@@ -1017,6 +1019,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "prizes") return await prizesCommand(home, v, io);
     if (cmd === "wakes") return await wakesCommand(home, v, io);
     if (cmd === "collusion") return await collusionCommand(home, v, io);
+    if (cmd === "first-week") { try { return await firstWeekCmd(v.agent ?? v.by, { log: await openLog(home, logEnv), io }); } catch (e) { if (e instanceof FirstWeekUsage) throw new UsageError(e.message); throw e; } }
     if (cmd === "abuse") return await abuseCommand(home, sub, rest[0], v, io);
     if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
@@ -3410,7 +3413,24 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
         io.out(`queued ${done} to ${to}: ${mail.subject}`);
         queued++;
       };
-      for (const a of alerts) await send(a.key, `alert-${a.kind}`, a.contract, (f, to) => buildAlertMail(a, f, { to, ...linkBase }));
+      // Alerts go to the principal, and (E13) to the agent's sponsor for a kill or an upheld report, and to the reporter of an upheld report, each who has an address and once each.
+      for (const a of await findAlerts(local.log)) {
+        const f = await collectMandateFacts(local.log, a.contract);
+        if (!f) continue;
+        const sponsor = (await local.log.passport(f.contract.performer))?.sponsor;
+        const recips = v.to ? [{ role: "principal" as const, did: f.contract.principal, to: v.to, key: a.key }] : alertRecipients(a, f.contract.principal, sponsor, addresses);
+        if (!recips.some((r) => r.role === "principal") && !state[a.key] && sub !== "pending") io.err(`  skipped  alert-${a.kind} for ${a.contract.slice(0, 19)}: no address for ${f.contract.principal} (asp mail address set <did> <address>)`);
+        for (const r of recips) {
+          if (state[r.key]) continue;
+          const label = r.role === "principal" ? `alert-${a.kind}` : `alert-${a.kind}-${r.role}`;
+          if (sub === "pending") { io.out(`  ${label.padEnd(13)} ${f.contract.purpose}  (${a.contract.slice(0, 19)}, ${r.role} ${r.did} -> ${r.to})`); continue; }
+          const mail = buildAlertMail(a, f, { to: r.to, role: r.role, ...linkBase });
+          const done = await queueFiles(r.key, label, mail, r.to);
+          if (!done) continue;
+          io.out(`queued ${done} to ${r.to}: ${mail.subject}`);
+          queued++;
+        }
+      }
       for (const c of finals) await send(c, "end", c, (f, to) => buildMandateMail(f, { to, ...(runLogFor(c) ? { runLog: runLogFor(c)! } : {}), ...linkBase, ...learned }));
       if (sub === "pending") io.out(`${finals.length} ended Mandate(s) and ${alerts.length} alert(s) not mailed yet`);
       return queued;
@@ -5612,13 +5632,13 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     created = true;
   }
   if (v.prepare) {
-    standing[key] = job; writeStanding(home, standing);
+    if (!headless) job = claimStanding(home, key, job, created, false).job;
     io.out(`standing job ${job.contract} for ${ids.agent.split(":").slice(-1)[0]} (${created ? "made" : "already running"}), until ${job.expiresAt.slice(0, 10)}; scopes ${scopes.join(", ")}${hosts.length ? `; network ${hosts.join(", ")}` : "; no network"}`);
     io.out("for a CI job or a scheduled task: asp token create <name>, asp identity backup <agent did> --out <file>, then asp run claude-code --headless --contract <this id> --prompt-file <task>");
     return 0;
   }
-  job.sessions += 1;
-  if (!headless) { standing[key] = job; writeStanding(home, standing); }
+  // Two sessions started at once must not lose each other's count or each make a standing job (gap T3): the claim reads again under the lock and adopts a job another session made meanwhile.
+  if (headless) job.sessions += 1; else job = claimStanding(home, key, job, created).job;
   const sid = randomBytes(4).toString("hex");
   const stopFile = join(home, `stop-${sid}`);
   // Reports an earlier session could not send (a full account, a dropped connection) are sent now, by themselves; a service that does not answer is not waited for (T16).
@@ -6058,10 +6078,6 @@ function shimCmd(shell: string | undefined, io: Io): number {
 }
 
 // ---- standing jobs and the history of governed sessions, kept on this machine (prompts stay private) ----
-interface StandingJob { contract: string; agent: string; key: string; createdAt: string; expiresAt: string; scopes: string[]; hosts: string[]; gate?: string[]; sessions: number }
-const standingPath = (home: string) => join(home, "standing.json");
-function readStanding(home: string): Record<string, StandingJob> { try { return JSON.parse(readFileSync(standingPath(home), "utf8")); } catch { return {}; } }
-function writeStanding(home: string, s: Record<string, StandingJob>): void { mkdirSync(home, { recursive: true }); writeFileSync(standingPath(home), JSON.stringify(s, null, 2) + "\n"); }
 const standingKey = (agent: string, scopes: string[], hosts: string[], gate: string[] = []) => createHash("sha256").update(JSON.stringify(gate.length ? [agent, [...scopes].sort(), [...hosts].sort(), [...gate].sort()] : [agent, [...scopes].sort(), [...hosts].sort()])).digest("hex").slice(0, 16);
 
 interface SessionStart { t: "start"; /** The process of `asp run`, so a session whose process has gone without an end record can be called interrupted. */ pid?: number; sid: string; contract: string; at: string; runtime: string; agent: string; me: string; bank: string; purpose: string; scopes: string[]; hosts: string[] }

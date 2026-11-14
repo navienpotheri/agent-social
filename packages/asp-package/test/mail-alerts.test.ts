@@ -76,3 +76,23 @@ test("the end mail and the facts say what the rate limit was and how many calls 
   assert.match(mail.text, /4 network call\(s\) were refused for going over the rate limit \(not counted as strikes\)\./);
   assert.match(mail.text, /Nothing was blocked\./, "a rate limit is not a block");
 });
+
+test("E13: who hears about an alert: the principal always; the sponsor for a kill or an upheld report; the reporter of an upheld report; only those with an address, each person once", async () => {
+  const { alertRecipients, buildAlertMail } = await import("../src/mail.ts");
+  const base = { contract: "c", at: "2026-11-14T10:00:00Z", detail: "d", record: "r" };
+  const addr = { "did:p": "p@example.com", "did:s": "s@example.com", "did:r": "r@example.com" };
+  const killed = { ...base, key: "alert:killed:c", kind: "killed" as const };
+  assert.deepEqual(alertRecipients(killed, "did:p", "did:s", addr).map((x) => [x.role, x.to, x.key]), [["principal", "p@example.com", "alert:killed:c"], ["sponsor", "s@example.com", "alert:killed:c#sponsor"]]);
+  const upheld = { ...base, key: "alert:report:x", kind: "report_upheld" as const, reporter: "did:r" };
+  assert.deepEqual(alertRecipients(upheld, "did:p", "did:s", addr).map((x) => x.role), ["principal", "sponsor", "reporter"]);
+  const expired = { ...base, key: "alert:expired:c", kind: "expired" as const };
+  assert.deepEqual(alertRecipients(expired, "did:p", "did:s", addr).map((x) => x.role), ["principal"], "an expired Mandate is for the principal only");
+  assert.deepEqual(alertRecipients(upheld, "did:p", "did:s", { "did:s": "s@example.com" }).map((x) => x.role), ["sponsor"], "no address, no copy");
+  assert.deepEqual(alertRecipients(upheld, "did:p", "did:p", addr).map((x) => x.role), ["principal", "reporter"], "the principal who is also the sponsor gets one copy");
+  assert.deepEqual(alertRecipients(upheld, "did:p", null, addr).map((x) => x.role), ["principal", "reporter"], "an agent with no sponsor");
+  // the copies read for their role
+  const facts = { contract: { id: "c", purpose: "Fix the bug", performer: "did:agent", principal: "did:p" }, activity: { blocked: [], strikes: 0 }, evidence: { contractRecord: "sha256:" + "a".repeat(64) } } as never;
+  assert.match(buildAlertMail(killed, facts, { to: "s@example.com", role: "sponsor" }).subject, /^An agent you sponsor was stopped by the kill switch/);
+  assert.match(buildAlertMail(upheld, facts, { to: "r@example.com", role: "reporter" }).subject, /^The report you made was upheld/);
+  assert.match(buildAlertMail(upheld, facts, { to: "p@example.com" }).subject, /^A report against your agent was upheld/);
+});
