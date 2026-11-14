@@ -349,7 +349,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | P5 | B | partial | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) |
 | P6 | B | partial | No model matrix: which open models call tools reliably |
 | P7 | B | partial | Weak models: malformed tool arguments, loops after a refusal |
-| P8 | A | open | No public support matrix and no per-runtime conformance test |
+| P8 | A | closed | No public support matrix and no per-runtime conformance test |
+| DK314 | A | open | Goose, OpenHands, headless Antigravity and Codex on an OpenAI key are run live through asp run, and the public matrix updated. |
 | P9 | C | open | Free-tier hosted models are not reproducible |
 | P10 | B | open | OpenCode 1.18.35 starts but fails under the gateway with an unexplained server error (run config via opencode.... |
 | P11 | B | open | Gemini CLI 0.63.0 installed but not checked: it talks the Gemini API (not judged) and needs a Gemini API key,... |
