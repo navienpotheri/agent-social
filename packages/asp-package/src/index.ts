@@ -76,3 +76,4 @@ export { packageDigest, handbackBody, newestEdge, type HandbackFacts } from "./h
 export { ANNOUNCED_MIN, HIDDEN_MIN, PROBE_RATE_PERMILLE, AWARE_GAP, REGRESSION_DROP, PASS_BAR, CLEAN_TO_LIFT, LADDER, seedCommitment, isProbeSlot, disguise, assessDrift, nextRung, type Observation, type DriftFinding, type Rung, type Kind as ProbeKind } from "./drift-after-eval.ts";
 export { LocalRawStore, redactTelemetryText, saltedHash, MAX_TEXT as TELEMETRY_MAX_TEXT } from "./telemetry-local.ts";
 export { runReadOnlyProbe, type ProbeProposition } from "./telemetry-probe.ts";
+export { adminRoutes, AdminAudit, setSuspension, setBlock, type AuditEntry, type AdminOptions } from "./admin-routes.ts";

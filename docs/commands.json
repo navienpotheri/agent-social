@@ -780,6 +780,10 @@
           "description": "Block or unblock an address"
         },
         {
+          "command": "asp serve audit --tokens <file>",
+          "description": "Print and verify the hash-chained audit trail of suspensions and blocks"
+        },
+        {
           "command": "asp serve close-tenant | purge",
           "description": "Close a tenant on request; purge what has passed retention"
         },

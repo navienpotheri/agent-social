@@ -220,6 +220,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp serve starter --tokens <file> [--add n | --starter-pool n]", "The starter-credit pool: its size, what is given out, who waits; top it up on purpose"],
     ["asp serve suspend|resume --tenant <name>", "Suspend or restore one tenant"],
     ["asp serve block|unblock --address <ip>", "Block or unblock an address"],
+    ["asp serve audit --tokens <file>", "Print and verify the hash-chained audit trail of suspensions and blocks"],
     ["asp serve close-tenant | purge", "Close a tenant on request; purge what has passed retention"],
     ["asp eval run [<scenario>]", "Run a swarm scenario against the system to test it"],
     ["asp signup --service <url> --name <name> --accept-terms", "The command-line sign-up route (closed when Google sign-up is required)"],
