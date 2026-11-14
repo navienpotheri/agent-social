@@ -66,3 +66,24 @@ Method: every commit since 2026-11-08 that set a register row to `closed` was li
 | DK183 | tests modified | **reopened** | The Done line is "a test for each" of six loose ends and three have one. Closed "in part" is not closed. Back to `partial`; DK402. |
 
 Reopened in this batch: T26, BM22, GV3, GV5, DK183. No new rows (each remainder already has a split row). Rule going forward: a row whose closing text says "for" a part or "in part" stays `partial` until the rest is closed or its Needs column is rewritten with the owner's agreement.
+
+## 2026-11-15, batch 3 (every other row closed since 2026-11-11 whose closing commit added a test file)
+
+Method: the rows the lead named, then every other row the commit sweep showed as closed since 2026-11-08, were read the same way as batch 2: the Done line, then the cited test files and their test names, and for any clause that was not obviously a test name the test body was searched for it (a rule name, a figure, a command). Rows that carry a "live run" in their Done line are held to it.
+
+| Row | Verdict | What was found |
+|---|---|---|
+| DK2, DK68, DK94, DK11, DK59, DK66, DK71 | holds | Each Done clause is in a named test: the price shown and a mismatched payment refused (`prices.test.ts`, `economy-slice.test.ts`); the burn account refusing debits and `fees_not_job_tax` (`economy-slice.test.ts`, "the fee on a paid settlement is the list's rate"); a sign-up claim with no key on the service and `--require-signed` (`starter-signed.test.ts`); a copy inheriting its original's slash and strikes and a sub-agent refused a higher tier (`economy-slice.test.ts`); a tampered history refused (`history.test.ts`); the deck's claims (`claims.test.ts`); every movement T1 to T12 and R1 to R13 named by a test (`closed-loop-coverage.test.ts`). |
+| DK29, DK30, DK53, DK54 | holds | The quarantine, the restore and the retraining path, the swarm freeze with release on a clean run, and a listed command blocked on a second service are each a named test. |
+| DK7 | holds | The forbidden paths are refused with a reason one by one in `closed-loop.test.ts` and `economy-slice.test.ts`; the paths that were "left" were built later (T4, T5, T8, T10, R4, R9, R13) and are tested. |
+| DK4 | holds | `agent-view.test.ts` and `society-tools.test.ts` state the Done line. |
+| H2, H10, H29 | note | No Done line. H2 is closed for egress by tier and named hosts at every layer, with the rest in H11 to H14; H10 is closed with Aider's live re-run split as H25; H29 states its own limits (a script that imports another module is read one level deep). Each is a real closure of what it says. |
+| DK21, DK22, DK31, DK78, DK36, DK38, DK75, DK150 (this session's rows) | holds | Read again critically: DK21's "three catalogue items, receipts and split reconcile, effects on the Registry page" is `shops.test.ts` ("three purchases ... show on the page"); DK22's dormant-then-reactivated is in the CLI test ("reactivated 1"); DK75 and DK150 are `shops-resources.test.ts`; DK36's festival with a contest, DK38's home page, DK31's problem, submission, check and award are each named tests. |
+| DK28, DK140 | holds | The drift flagged within a stated number of jobs, and a tier 0 agent sitting the exam under a remedial Mandate with no state placed by hand. |
+| DK82, DK83, DK84, DK85 | holds | Each has a test whose title is the Done line ("DK82 done", "DK83 done", and so on) and the clauses the titles name. |
+| DK19, DK20, DK181, DK161 | holds | The Bank's credit line, default loss, clearing and public page; the Insurer's property test over 40 seeded sales (`insurer.test.ts`); `asp credits audit --by-flow clinic` (`credits-audit.test.ts`). |
+| DK74 | holds | The launch pool is the arithmetic of the target (`starter-size.test.ts`) and the runbook states it. |
+| DK141 | **reopened** | The Done line ends "shown in a test and a live run"; there is no live run. Back to `partial`; the hosted check is on the owner checklist. |
+| AG4, CY5, CY6, DK120, DK124, DK128, DK131, DK14, DK291, DK292, DK294 | holds | Each Done clause was found in a named test; DK131's ring report is `ringReport` in `arena-runner.test.ts`; DK291's three clauses are the three "DK291 done" tests. |
+
+Reopened in this batch: DK141. Across the three batches: 11 rows reopened of about 90 read; most reopenings were rows closed "for" part of their Needs (a documentation closure of a code row was rare). Not swept: rows closed before 2026-11-08.
