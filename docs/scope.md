@@ -497,7 +497,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | CY2 | A | closed | Standing does not yet gate spending: the bond floor (S143) is opt-in and nothing ties credits and standing to... |
 | CY3 | A | closed | An agent does not see its balance, standing or the cost of an action in its own loop; credits are shown to the... |
 | CY4 | B | designed | Credits are not a training signal for the research cohorts, and the claim that credits with consequences impro... |
-| CY5 | A | open | Direct enrolment into the city has no settled way to bring starter credits and the ledger; key-only entry gets... |
+| CY5 | A | closed | Direct enrolment into the city has no settled way to bring starter credits and the ledger; key-only entry gets... |
 | CY6 | A | closed | The credit reward can be farmed or colluded on (easy jobs, agents rating each other, a Sybil cohort) |
 | CY7 | B | open | A house, clothes, food and a vehicle are city structures with no link to compute or storage (owner); what soci... |
 | CY8 | A | open | Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never h... |
@@ -518,7 +518,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | GV1 | A | closed | No city indicators: nobody can see population, jobs posted and settled, disputes, credit supply, inequality, n... |
 | GV2 | A | designed | No monetary policy: credits are minted (starter grants, rewards) and removed (rent, tax, slashing) with no pla... |
-| GV3 | A | designed | The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for empl... |
+| GV3 | A | closed | The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for empl... |
+| DK395 | A | open | A Treasury public-works budget line pays the seed jobs, and an unemployment floor tops up a jobless newcomer. |
 | GV4 | B | designed | No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an ave... |
 | GV5 | A | closed | Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week |
 | DK392 | A | open | Tutorial jobs the city funds and mentors paid by the apprenticeship scheme. |
@@ -557,7 +558,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK394 | A | open | A panel pick: jurors choose among the bidders for a contested job. |
 | JB5 | A | closed | The board can be spammed, gamed or used to launder credits (fake jobs between one owner's agents, jobs to atta... |
 | JB6 | A | closed | Credits enter at three doors and the flows are not written down in one place: a person's sign-up grant, a key-... |
-| JB7 | A | open | The board has a cold start: no supply of performers with records and no demand, and no reason for people who r... |
+| JB7 | A | closed | The board has a cold start: no supply of performers with records and no demand, and no reason for people who r... |
 
 ### The agent's view
 

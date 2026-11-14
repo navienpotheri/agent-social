@@ -1,6 +1,7 @@
 import { checkMandateTelemetry } from "./telemetry-rules.ts";
 import { projectDepositAct } from "./deposits.ts";
 import { reserveFloor as insurerFloor, INSURER_DID as INSURER_ACCOUNT } from "./insurer.ts";
+import { summarize as coldStartSummary, type ColdStart } from "./cold-start.ts";
 import { closesLoop, findCollusion, LOOP_WINDOW_MS, type CollusionFinding, type Hire } from "./collusion.ts";
 import { noteLock, BANK_DID as BANK_ACCOUNT, LINE_LIMIT as BANK_LINE_LIMIT, LINE_MAX_COUNTED_JOBS as BANK_MAX_JOBS, GUARANTOR_PERMILLE as BANK_GUARANTOR_PERMILLE } from "./bank.ts";
 import { projectAbuseReport } from "./abuse-report.ts";
@@ -477,6 +478,16 @@ export class EventLog {
       const consents = (did: string) => r.issuer === did || (r.cosigs ?? []).some((c) => c.kid.startsWith(`${did}#`));
       if (!consents(body.sponsor)) throw rule("sponsor_consent_missing", `${body.did} names ${body.sponsor} as its sponsor, but ${body.sponsor} did not issue or countersign the passport`);
       if (current?.sponsor && !consents(current.sponsor)) throw rule("sponsor_change_needs_old_sponsor", `${body.did} is sponsored by ${current.sponsor}; moving to ${body.sponsor} needs ${current.sponsor}'s consent too`);
+    }
+    // Binding a sponsor to an identity that already exists (register row CY5; spec-delta S479): its history and balance stay. If it had claimed starter credits as a key-only identity it joins its new sponsor's group
+    // for the starter limit, and the binding is refused when that group already has its share (`sponsor_binding_group_full`), so a sponsor cannot gather unlimited starter grants by adopting key-only identities.
+    if (current && !current.sponsor && body.sponsor && (await tx.getMarker(`starter_upfront:${body.did}`))) {
+      const membersKey = `starter_group:${body.sponsor}`;
+      const members = ((await tx.getMarker(membersKey)) ?? "").split(",").filter(Boolean);
+      if (!members.includes(body.did)) {
+        if (members.length >= STARTER_MAX_DIDS) throw rule("sponsor_binding_group_full", `${body.sponsor} has already claimed ${STARTER_MAX_DIDS} starter grants for its identities: ${body.did} claimed one as a key-only identity and cannot be added to its group`);
+        await tx.putMarker(membersKey, [...members, body.did].join(","));
+      }
     }
     for (const k of body.keys) {
       if (!k.id.startsWith(`${body.did}#`)) throw new AspError("KID_NOT_ISSUER", `key ${k.id} does not belong to ${body.did}`);
@@ -2662,6 +2673,18 @@ export class EventLog {
 
   /** Collusion over the log (DK6): reciprocal pairs, rings of three to six, one sponsor's agents settling with each other, and one principal behind most of an agent's work. Leads for the Clinic and the Courts. */
   async collusionReport(): Promise<CollusionFinding[]> { return findCollusion(await this.recordsOfTypes(["passport", "contract", "settlement"])); }
+
+  /** The board's cold start (GV3, JB7): what a newcomer finds on the board and who is posting, from the log only. */
+  async coldStart(at?: string): Promise<ColdStart> {
+    const when = at ?? this.now().toISOString();
+    const board = await this.marketBoard(undefined, when);
+    const passports = await this.recordsOfTypes(["passport"]);
+    const house = new Set<string>(), sponsors = new Set<string>(), agents = new Set<string>();
+    for (const r of passports) { const b = r.body as { did: string; kind: string; sponsor?: string; house?: boolean }; if (b.house) house.add(b.did); else if (b.kind === "agent") agents.add(b.did); if (b.sponsor && !b.house) sponsors.add(b.sponsor); }
+    const newcomers: { did: string; eligible: number }[] = [];
+    for (const did of [...agents].sort()) { const rep = await this.reputationOf(did); if (!rep || rep.tier !== 1 || (rep.acceptedJobs ?? 0) > 0) continue; newcomers.push({ did, eligible: (await this.marketBoard(did, when)).filter((e) => e.forAgent?.eligible).length }); }
+    return coldStartSummary(when, { postings: board.map((e) => ({ poster: e.poster, purpose: e.purpose, budget: e.budget, minTier: e.minTier, requiresCertificate: e.requiresCertificate })), houseAgents: house, sponsors, newcomers });
+  }
 
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */
   async abuseReportsAbout(did: string): Promise<{ id: string; reporter: string; kind: string; at: string; about?: string }[]> {

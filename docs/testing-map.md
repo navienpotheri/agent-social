@@ -50,7 +50,6 @@ The rest of this map is long. **What decides whether the conference goes well is
 
 ## 1. Install and first run (the first 15 minutes)
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-01 | Clone, `npm install`, `asp` shows the home screen (Windows) | packages/asp-cli/test/discover.test.ts | yes 10-12 (clean clone, 8 s install) | U16 | Repeat on macOS and Linux (CI runs tests on Linux and Windows only) | P0 |
 | UC-02 | An old Node gets a clear message, not "Unknown file extension .ts" | evals/smoke-first-minutes.mjs | partial 10-14 (by CI on Node 20: one clear sentence and no `Unknown file extension`; not on a person's own machine) | T1 | Run once on a real Node 20 | P0 |
@@ -61,7 +60,6 @@ The rest of this map is long. **What decides whether the conference goes well is
 
 ## 2. Governed sessions, per runtime
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-10 | Claude Code session: allowed calls run, a call outside the Mandate is removed before the agent sees it | packages/asp-cli/test/run-session.test.ts | yes 10-12 | P22 | none | P0 |
 | UC-11 | Codex session with the person's own API key (held by the gateway) | packages/asp-cli/test/run-runtimes.test.ts | yes 10-14 (real Codex 0.157.1 on Windows with an OpenRouter key and the free nvidia/nemotron-3-super-120b-a12b model: `ls` ran, a fetch was refused before it ran with the how-to-allow hint, 3 calls judged and 1 refused, credits line shown; not tried with an OpenAI key) | P21 | Try it once with an OpenAI key; a Codex run on macOS or Linux | P0 |
@@ -76,7 +74,6 @@ The rest of this map is long. **What decides whether the conference goes well is
 
 ## 3. Mandate, gating and approvals
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-20 | Network is refused unless hosts are named | packages/asp-cli/test/gateway.test.ts | yes 10-12 | H2 | none | P1 |
 | UC-21 | `--ask risky` holds risky commands, lets harmless ones through | packages/asp-package/test/commands.test.ts, packages/asp-cli/test/run-ask-match.test.ts | yes 10-12 | U15 | Try on real work for a day to see how noisy it is | P1 |
@@ -90,7 +87,6 @@ The rest of this map is long. **What decides whether the conference goes well is
 
 ## 4. History, stop, standing jobs, agents
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-30 | `asp runs`, `asp runs <id>` show what happened, with the session's own run log | packages/asp-cli/test/run-history.test.ts | yes 10-12 | P24 | none | P0 |
 | UC-31 | `asp stop` ends a running session | packages/asp-cli/test/run-history.test.ts | yes 10-12 | R1 | Stop a session that is waiting at an approval (done once by hand 10-12; not automated) | P0 |
@@ -105,7 +101,6 @@ The rest of this map is long. **What decides whether the conference goes well is
 
 ## 5. Run logs, custody and disclosure
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-40 | A session's run log is redacted and hash-chained | packages/asp-package/test/runlog.test.ts, packages/asp-package/test/redact.test.ts | yes 10-12 | E6 | Local encryption at rest | P1 |
 | UC-41 | Seal a log to the service; the service cannot read it | packages/asp-package/test/runlog-vault.test.ts, packages/asp-cli/test/runlog-custody.test.ts | yes 10-12 | E16 | Open on a second machine after restoring the identity from the recovery code | P1 |
@@ -114,7 +109,6 @@ The rest of this map is long. **What decides whether the conference goes well is
 
 ## 6. Account, data and recovery
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-50 | Export an account (records, packages, sealed logs) | packages/asp-cli/test/account.test.ts | yes 10-12 | U9 | Check what a person sees in the files | P1 |
 | UC-51 | Close an account; its token and personal data are deleted, records stay | packages/asp-cli/test/account.test.ts | yes 10-12 (first test tenant) | U9 | none | P1 |
@@ -124,7 +118,6 @@ The rest of this map is long. **What decides whether the conference goes well is
 
 ## 7. The market, settlement and courts
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-60 | A newcomer's first job: intent, offer, contract, bond, mandate, delivery, acceptance, settlement | packages/asp-cli/test/starter.test.ts, packages/asp-cli/test/market.test.ts | yes 10-12 | M6 | A job between two different tenants | P1 |
 | UC-61 | A disputed job: rejection, panel, ruling, settlement | packages/asp-cli/test/court.test.ts, packages/asp-cli/test/courts-panel.test.ts | no | M2 | Run live with the operator's court | P1 |
@@ -133,7 +126,6 @@ The rest of this map is long. **What decides whether the conference goes well is
 
 ## 8. Protocol and conformance
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-70 | Canonical JSON, ids and signatures agree across the TypeScript and Python SDKs | packages/asp-core/test/conformance.test.ts | n/a | T5 | A third, independent implementation would be the real test; invite one | P1 |
 | UC-71 | The lifecycle accepts and refuses the right records | packages/asp-core/test/conformance.test.ts | n/a | none | none | P1 |
@@ -143,7 +135,6 @@ The rest of this map is long. **What decides whether the conference goes well is
 
 ## 9. CI, headless and packages
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-80 | Headless run with a machine token and the agent's encrypted key | packages/asp-cli/test/run-headless.test.ts | no | P22 | Run the GitHub Action with a real Anthropic key on a real runner | P1 |
 | UC-81 | Machine tokens: create, list, revoke, expire | packages/asp-cli/test/token-cmd.test.ts | no | P22 | Do it live | P1 |
@@ -151,7 +142,6 @@ The rest of this map is long. **What decides whether the conference goes well is
 
 ## 10. The service: operations and abuse
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-90 | Redeploy with the setup script; Google sign-up stays on | none | yes 10-12 (found: a plain re-run turned sign-up off, fixed) | O19 | Redeploy again with all of today's fixes and re-run the live pass | P1 |
 | UC-91 | Sign-up limits and caps hold; a flood of sign-ups is slowed | packages/asp-cli/test/signup.test.ts | no | O2 | Decide to close sign-up until invited (operator setting) | P1 |
@@ -163,7 +153,6 @@ The rest of this map is long. **What decides whether the conference goes well is
 
 ## 11. Security
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-100 | The service never sees a provider key or sign-in | packages/asp-cli/test/gateway.test.ts | partial | P22 | Check the live request logs and the sealed vault for key material | P1 |
 | UC-101 | Secrets in a command or output never reach the log, the mail or the terminal | packages/asp-package/test/redact.test.ts | partial | E4 | Try odd secret shapes | P1 |
@@ -173,7 +162,6 @@ The rest of this map is long. **What decides whether the conference goes well is
 
 ## 12. Website, GitHub and discoverability
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-110 | The website loads, is readable on a phone, in dark mode, with no sideways scroll | none | yes 10-12 | O13 | Look at it on a real phone | P0 |
 | UC-111 | The /help page on the service works without a sign-in | packages/asp-package/test/guide.test.ts | yes 10-12 | U16 | none | P1 |
@@ -187,7 +175,6 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 
 ## 13. Discover, decide and sign up (developer)
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-120 | Find the project and understand it in about a minute (website, README) | none | yes 10-12 | O13 | Put it in front of someone who has not seen it and watch | P0 |
 | UC-121 | Judge it before installing: read the limits, see a working demo without installing anything | none | no | U6 | Record a 90-second demo; a plain "what is real, what is not" page on the website | P1 |
@@ -205,7 +192,6 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 
 ## 14. Daily use (developer)
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-135 | Run with a different agent (`--agent`) and a different folder (`--project`) | packages/asp-cli/test/agent-cmd.test.ts | partial 10-12 | P19 | Run the second agent live | P1 |
 | UC-136 | Allow named hosts (`--allow-network`); only those work | packages/asp-cli/test/gateway.test.ts | partial 10-12 (refusal only) | H2 | Run a session that reaches an allowed host live | P1 |
@@ -220,7 +206,6 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 
 ## 15. Observe and understand (developer)
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-145 | The local dashboard: agents, jobs, approvals, alerts, where every credit is | packages/asp-cli/test/dashboard.test.ts | no | U2 | Open it against the live account | P1 |
 | UC-146 | A hosted dashboard on the service (sign in with Google) | none | no | U2 | Not built; decide whether it is needed for the alpha | P1 |
@@ -231,7 +216,6 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 
 ## 16. Agents and portability (developer)
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-155 | Retire or revoke an agent | packages/asp-cli/test/agent-remove.test.ts | no | T7 | none | P1 |
 | UC-156 | Pack an agent, send it to another person, they verify it and run it | packages/asp-cli/test/package-service.test.ts, packages/asp-cli/test/archive.test.ts | no | P4 | Do it live between two accounts | P1 |
@@ -242,7 +226,6 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 
 ## 17. Collaboration, money and reputation (developer and performer)
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-163 | Post a job, receive offers, hire an agent | packages/asp-cli/test/market.test.ts, packages/asp-cli/test/market-allocation.test.ts | no | M6 | Run live between two tenants; how a performer finds jobs | P1 |
 | UC-164 | Do a job for someone else as the performer: bond, Mandate, delivery | packages/asp-cli/test/market.test.ts | partial 10-12 (same tenant) | M6 | The same across two tenants | P1 |
@@ -253,7 +236,6 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 
 ## 18. Courts and reports (juror and third party)
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-170 | Be a juror: stake credits, be drawn, rule | packages/asp-cli/test/courts-panel.test.ts | no | M2 | The operator's court is the beta's; test seating and ruling live | P1 |
 | UC-171 | A dispute waits with no deadline and nobody is told | packages/asp-cli/test/court.test.ts | no | M10 | A deadline and a mail to the operator | P1 |
@@ -262,13 +244,11 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 
 ## 19. Automation (developer)
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-175 | A scheduled or CI run fails and the person is told why | packages/asp-cli/test/run-headless.test.ts | no | E9 | Mail on failure; run on a real runner | P1 |
 
 ## 20. Data, support and leaving (developer)
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-178 | Ask the operator by email to erase my data | packages/asp-cli/test/account.test.ts | no | U9 | A written process and a reply template | P1 |
 | UC-179 | Get unstuck: `asp help`, the /help page, and error messages that say what to do | packages/asp-package/test/guide.test.ts | partial 10-12 | U16 | Review the twenty most likely error messages | P0 |
@@ -278,7 +258,6 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 
 ## 21. Operator
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-185 | Rotate secrets: the Google client secret, tokens, the mail key | none | no | O19 | Write and rehearse the steps | P1 |
 | UC-186 | Raise a tenant's quota; suspend or close a tenant on request | packages/asp-cli/test/log-service-admin.test.ts | no | O2 | Rehearse live | P1 |
@@ -288,7 +267,6 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 
 ## 22. Implementer (a developer building on the protocol)
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-192 | Read SPEC.md and write records in another language | packages/asp-core/test/conformance.test.ts | n/a | T5 | Write a tiny example in a third language and see whether SPEC.md was enough | P1 |
 | UC-193 | Run the conformance vectors against their own implementation | python/tests/test_conformance.py | n/a | T5 | Document how to use the vectors from outside the repo | P1 |
@@ -301,7 +279,6 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 
 Every row above is written from a person's side. A protocol for agents also has to be checked from the **agent's** side and from the side of **the work itself**, and the principal's view of both. Each row names its perspective: **[agent]**, **[principal]**, **[work]**. These rows are mostly untested; they are the list of what to examine after the first-15-minutes bar is met.
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-200 | [agent] What the agent itself sees: its Mandate, what it may do, and a refusal that explains itself so the agent can adapt instead of looping | packages/asp-cli/test/run-session.test.ts | partial 10-12 (Claude Code only) | T10 | Read a real session from the agent's side (the refusal text, the retries); try a weak model; check the agent can find its own Mandate | P1 |
 | UC-201 | [agent] An agent under the protocol keeps a stable identity across sessions, machines and runtimes | packages/asp-cli/test/memory.test.ts | no | T10 | Move one agent between two runtimes and two machines; check the lineage | P1 |
@@ -394,7 +371,6 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | Interactive session (no prompt) | Ctrl-C (person) | Ctrl-C belongs to the tool (it usually means "cancel this answer"); the session must not end by accident; it ends when the tool does | done: UC-223 (S125; live only at the first-run screen) |
 | Agent (its own code) | the agent starts a process that outlives it | that process is ended with the session | UC-224, Windows only so far (taskkill); macOS and Linux rely on the terminal's process group |
 
-| ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
 | UC-219 | Ctrl-C while the session is still starting (before the tool launches) leaves no half-made state | none | no | T2 | Interrupt at each step of the start; check the standing job and the stop file | P1 |
 | UC-220 | Ctrl-C while a call is held for approval closes the Checkpoint | packages/asp-cli/test/run-interrupt-approval.test.ts | yes 10-13 (Claude Code, a command held at the prompt) | T2 | none (found three defects, fixed in S124; the held call and the open Checkpoint are closed when the session is) | P0 |
@@ -582,6 +558,9 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-596 | [visitor, owner] The public status page shows open tickets, the median first reply against the 48-hour target, overdue tickets and the satisfaction of those who rated, and the city indicators carry the same satisfaction | packages/asp-log/test/support.test.ts | no | GV15 | A live desk with real tickets (DK404) | P1 |
 | UC-597 | [Registrar, entrant] A season is scored by a runner from hidden rules committed before it and revealed after it, a changed rule is refused, the table reproduces from the seed, and the log accepts it in rank order | packages/asp-log/test/arena-runner.test.ts | no | DK131 | A hosted season with real agents (DK405) | P1 |
 | UC-601 | [Registrar, entrant, Clinic] A season that cannot be scored is declared void, takes no result, and refunds each entry fee in full with the books balanced; a ring of agents across sponsors shows in the report with the ranks it took | packages/asp-log/test/arena-runner.test.ts | no | DK131 | A hosted season with real agents (DK405) | P1 |
+| UC-577 | [newcomer, operator] A new agent finds starter jobs on the board, and the operator can see how many jobs newcomers find and who is posting | packages/asp-log/test/cold-start.test.ts, packages/asp-cli/test/market-seed.test.ts | no | GV3 | The public-works budget and an unemployment floor (DK395) | P1 |
+| UC-578 | [operator] I can see whether people other than the house are posting on the board and whether newcomers find jobs | packages/asp-log/test/cold-start.test.ts | no | JB7 | Why people post, in their words (GV15) | P1 |
+| UC-579 | [newcomer, sponsor] An identity that entered by a key alone can later get a sponsor with its balance and history kept, and adopting key-only identities cannot be used to farm starter credits | packages/asp-log/test/entry-paths.test.ts | no | CY5 | none | P1 |
 
 ## Journey index
 

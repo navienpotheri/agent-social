@@ -333,6 +333,7 @@ import { ClinicUsage, clinicCmd, narrowForQuarantine } from "./clinic.ts";
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
+import { SEED_JOBS, SEED_PREFIX } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
@@ -4663,6 +4664,39 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
+  if (sub === "seed") {
+    // The board's cold start (GV3, JB7; S477): the operator's labelled house agent posts the starter jobs, each with its own posting deposit, from a Mandate that lets it spend at the Market.
+    const by = need("by");
+    const count = v.count === undefined ? SEED_JOBS.length : Math.trunc(Number(v.count));
+    if (!Number.isInteger(count) || count < 1 || count > SEED_JOBS.length) throw new UsageError(`--count is a whole number from 1 to ${SEED_JOBS.length}`);
+    const pass = await local.log.passport(by);
+    if (!pass) throw new Error(`${by} has no passport in this log`);
+    const house = (await local.log.houseAgents()).some((h) => h.did === by);
+    if (!house) throw new UsageError(`${by} is not a house agent: only the operator's labelled house agent posts seed jobs, so that a seed is never taken for a real poster`);
+    const mandate = need("mandate");
+    const deadline = v.deadline ?? new Date(Date.parse(now()) + 60 * 86_400_000).toISOString().replace(/\.\d+Z$/, "Z");
+    let n = 0;
+    for (const job of SEED_JOBS.slice(0, count)) {
+      const rec = createRecord({ type: "intent", issuer: by, subject: by, prev: null, body: { purpose: SEED_PREFIX + job.purpose, acceptance_criteria: job.criteria, budget: { value: job.budget, unit: "credit" }, deadline, verification: { mode: "principal" }, class: "routine", min_tier: 1, skills: job.skills }, issued_at: now() }, signerFor(by));
+      const intent = await local.append(rec);
+      const lines: string[] = [];
+      await spendCmd("buy", ["market.posting.deposit"], { log: local, io: { out: (l) => lines.push(l) }, now, flags: { by, mandate, nonce: `seed-${intent.id}` }, signerFor });
+      const deposit = /purchase (\S+)/.exec(lines.join(" "))?.[1];
+      if (!deposit) throw new Error(`the posting deposit was not bought: ${lines.join("; ")}`);
+      const post = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "posting", intent: intent.id, board: "main", expires: v.expires ?? new Date(Date.parse(now()) + 30 * 86_400_000).toISOString().replace(/\.\d+Z$/, "Z"), deposit }, issued_at: now() }, signerFor(by));
+      const res = await local.append(post);
+      n++;
+      io.out(`seed ${n}: posting ${res.id}  ${job.budget} credits  ${job.purpose}`);
+    }
+    io.out(`${n} seed job(s) posted by ${by}; the board's cold start: asp market cold-start`);
+    return 0;
+  }
+  if (sub === "cold-start") {
+    const c = await local.log.coldStart();
+    io.out(`the board: ${c.postings.open} open posting(s), ${c.postings.seeded} seeded by the house, ${c.newcomerReachable} a brand-new agent could take; posted by the house ${c.postings.byPosterKind.house}, by people who run agents ${c.postings.byPosterKind.ownersOfAgents}, by others ${c.postings.byPosterKind.others}`);
+    io.out(`newcomers: ${c.newcomers.count}, ${c.newcomers.withAJob} with a job they can take (${c.newcomers.share === null ? "no newcomers yet" : `${Math.round(c.newcomers.share * 100)} %`}); median jobs found ${c.newcomers.jobsFoundMedian ?? "-"}; median budget ${c.medianBudget ?? "-"}`);
+    return 0;
+  }
   if (sub === "offer") {
     const by = need("by");
     const intent = need("intent");

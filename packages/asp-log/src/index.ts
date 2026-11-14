@@ -51,3 +51,4 @@ export { BANK_DEPOSIT_DID } from "./economy.ts";
 export { findCollusion, closesLoop, type CollusionFinding } from "./collusion.ts";
 export { SUPPORT_TARGET_HOURS, SUPPORT_METHOD, supportStatus, type SupportStatus } from "./support.ts";
 export { commitTask, passes, ringReport, runSeason, type CommittedTask, type Entrant, type HiddenRule, type RevealedTask, type RingReport, type SeasonRun } from "./arena-runner.ts";
+export { SEED_JOBS, SEED_PREFIX, COLD_START_METHOD, type SeedJob, type ColdStart } from "./cold-start.ts";
