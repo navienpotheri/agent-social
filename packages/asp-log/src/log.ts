@@ -2274,10 +2274,13 @@ export class EventLog {
     for (const r of recs) if (r.type === "asp.contract/v0.2") { const intent = (r.body as { basis?: { intent?: string } }).basis?.intent; for (const p of postings) if (intent && (p.body as { intent: string }).intent === intent) state.set(p.id, `filled:${r.id}`); }
     const facts = forAgent ? (await this.allAgentFacts(when)).find((f) => f.did === forAgent) : undefined;
     const partyFacts = async (did: string): Promise<PartyFacts> => { const p = await this.store.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+    // A posting the Market removed, or that reports have held, is off the board (JB5): the state is kept in the log's markers, not in a record the board reads.
+    const off = new Set<string>();
+    await this.store.transaction(async (tx) => { for (const p of postings) if (((await tx.getMarker(`posting_state:${p.id}`)) ?? "open") !== "open") off.add(p.id); });
     const out: BoardEntry[] = [];
     for (const p of postings) {
       const pb = p.body as { intent: string; expires: string };
-      if (Date.parse(pb.expires) <= Date.parse(when) || state.get(p.id) !== "open") continue;
+      if (Date.parse(pb.expires) <= Date.parse(when) || state.get(p.id) !== "open" || off.has(p.id)) continue;
       const intent = byId.get(pb.intent);
       if (!intent) continue;
       const needs = jobNeeds(intent, raised.get(pb.intent));

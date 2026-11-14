@@ -56,3 +56,4 @@ What only the owner (or the hosted service, or a live run) can finish. Each item
 | Choose and pay for an outside security reviewer and give them the scope in docs/security-process.md section 3 (DK310) | DK310 | an owner decision and money |
 | Read the twelve charters (docs/institutions/charter.md and charters.md), agree or change the text, and have a lawyer read the appeal wording before they are published as signed records (DK382) | DK382 | an owner decision and legal review |
 | Choose the tier limits for the Mandate's scopes, parallel nodes and irreversible policy (DK385): which scopes need tier 2, how many nodes at each tier, and when an irreversible action needs a checkpoint | DK385 | an owner policy decision |
+| Decide who reviews held and reported job postings on the hosted service (the operator, a named reviewer, or a model the operator runs) and the service level | DK400 | a staffing and policy decision |

@@ -4899,6 +4899,71 @@
       "valid": false
     },
     {
+      "name": "valid_market_report",
+      "schema": "market_act",
+      "instance": {
+        "act": "report",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "category": "attack",
+        "reason": "asks for a denial of service on a shop"
+      },
+      "valid": true
+    },
+    {
+      "name": "market_report_no_reason",
+      "schema": "market_act",
+      "instance": {
+        "act": "report",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "category": "attack"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_report_bad_category",
+      "schema": "market_act",
+      "instance": {
+        "act": "report",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "category": "rude",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_market_review_removed",
+      "schema": "market_act",
+      "instance": {
+        "act": "review",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "verdict": "removed",
+        "category": "unlawful",
+        "reason": "a denial of service on a third party"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_market_review_cleared",
+      "schema": "market_act",
+      "instance": {
+        "act": "review",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "verdict": "cleared",
+        "reason": "a security test the poster owns"
+      },
+      "valid": true
+    },
+    {
+      "name": "market_review_no_verdict",
+      "schema": "market_act",
+      "instance": {
+        "act": "review",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_registry_name_claim",
       "schema": "registry_act",
       "instance": {

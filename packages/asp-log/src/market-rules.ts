@@ -5,7 +5,7 @@
  */
 import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { bondFloorPermille, floorIsV2 } from "./bond-floor.ts";
-import { MAX_OPEN_POSTINGS_TIER1, MARKET_DID, POSTING_DEPOSIT_SERVICE, CLASS_WEIGHT, JOB_CLASSES, classPriceProblem, eligibility, higherClass, rankAgents, type AgentFacts, type JobClass, type JobNeeds } from "./market.ts";
+import { MAX_OPEN_POSTINGS_TIER1, POSTING_BAR_DAYS, POSTING_BAR_REMOVALS, POSTING_HOLD_REPORTS, POSTING_REPORTS_PER_DAY, lawProblem, MARKET_DID, POSTING_DEPOSIT_SERVICE, CLASS_WEIGHT, JOB_CLASSES, classPriceProblem, eligibility, higherClass, rankAgents, type AgentFacts, type JobClass, type JobNeeds } from "./market.ts";
 import { assertNotDormant } from "./shops-rules.ts";
 import type { LogTx, Store } from "./store.ts";
 
@@ -84,6 +84,11 @@ export async function projectMarketAct(tx: LogTx, r: AspRecord, env: MarketEnv):
     if (!intent || intent.record.type !== "asp.intent/v0.2") throw rule("posting_intent_unknown", `${b.intent} is not an intent in this log`);
     if (intent.record.issuer !== r.issuer) throw rule("posting_not_posters", `the intent ${b.intent} was signed by ${intent.record.issuer}: only its poster lists it`);
     if ((intent.record.body as { listed?: string }).listed === "private") throw rule("posting_private", "this intent is marked private: it is not listed on the board");
+    const ib = intent.record.body as { purpose?: string; acceptance_criteria?: string[] };
+    const unlawful = lawProblem(ib.purpose, ...(ib.acceptance_criteria ?? []));
+    if (unlawful) throw rule("posting_unlawful", `${unlawful.message}: a job that breaks the Code is not listed (the poster may change the job and post again)`);
+    const removals = (await readList(tx, `removals:${r.issuer}`)).map(Number).filter((t) => t >= Date.parse(now) - POSTING_BAR_DAYS * DAY);
+    if (removals.length >= POSTING_BAR_REMOVALS) throw rule("posting_barred", `${r.issuer} had ${removals.length} postings removed in the last ${POSTING_BAR_DAYS} days: it may not post until ${new Date(Math.max(...removals) + POSTING_BAR_DAYS * DAY).toISOString()}`);
     if (await tx.getMarker(`posting_for_intent:${b.intent}`)) throw rule("posting_exists", `the intent ${b.intent} is already posted`);
     if (Date.parse(b.expires) <= Date.parse(now)) throw rule("posting_expired", "a posting must expire after it is made");
     const deposit = await tx.getRecord(b.deposit);
@@ -138,6 +143,9 @@ export async function projectMarketAct(tx: LogTx, r: AspRecord, env: MarketEnv):
     const intent = (await tx.getRecord(info.intent))!;
     const facts = await facts_(tx, env, r.issuer, now);
     if (!facts) throw rule("bid_not_an_agent", `${r.issuer} has no agent record in this log`);
+    // Independence (CY10): a job between agents of one owner is not a market. The poster's side (the poster, or the sponsor it answers to) and the bidder's side must be different owners.
+    const posterOwner = (await tx.getPassport(info.poster))?.sponsor ?? info.poster;
+    if (facts.sponsor === posterOwner || facts.sponsor === info.poster) throw rule("bid_same_owner", `${r.issuer} and the poster ${info.poster} answer to the same owner: a job between one owner's agents is not bid on the board (it may still be made directly, and it does not count for standing)`);
     const raised = (await tx.getMarker(`class_raise:${info.intent}`)) as JobClass | undefined;
     const verdict = eligibility(facts, jobNeeds(intent.record, raised));
     if (!verdict.eligible) throw rule(verdict.missing[0].rule, verdict.missing.map((m) => m.message).join("; "));
@@ -152,6 +160,51 @@ export async function projectMarketAct(tx: LogTx, r: AspRecord, env: MarketEnv):
     await addTo(tx, `bids:${b.posting}`, r.issuer);
     await addTo(tx, `open_bids:${r.issuer}`, b.posting);
     return;
+  }
+
+  if (b.act === "report") {
+    const raw = await tx.getMarker(`posting:${b.posting}`);
+    if (!raw) throw rule("posting_unknown", `${b.posting} is not a posting in this log`);
+    const info = JSON.parse(raw) as PostingInfo;
+    const reporter = await tx.getPassport(r.issuer);
+    if (!reporter) throw rule("report_no_passport", `${r.issuer} has no passport in this log: a report names its reporter`);
+    if (info.poster === r.issuer) throw rule("report_own_posting", "a poster does not report its own posting (it withdraws it)");
+    const once = `post_report:${b.posting}|${r.issuer}`;
+    if (await tx.getMarker(once)) throw rule("report_repeat", `${r.issuer} already reported this posting`);
+    const dayKey = `post_report_day:${r.issuer}|${now.slice(0, 10)}`;
+    const today = Number((await tx.getMarker(dayKey)) ?? 0);
+    if (today >= POSTING_REPORTS_PER_DAY) throw rule("report_rate", `${r.issuer} has filed ${today} posting reports today; the limit is ${POSTING_REPORTS_PER_DAY} a day`);
+    await tx.putMarker(once, r.id);
+    await tx.putMarker(dayKey, String(today + 1));
+    const posterOwner = (await tx.getPassport(info.poster))?.sponsor ?? info.poster;
+    const owner = reporter.sponsor ?? r.issuer;
+    if (owner !== posterOwner) {
+      await addTo(tx, `post_report_owners:${b.posting}`, owner);
+      if ((await readList(tx, `post_report_owners:${b.posting}`)).length >= POSTING_HOLD_REPORTS && (await postingState(tx, b.posting)) === "open") await tx.putMarker(`posting_state:${b.posting}`, "held");
+    }
+    return;
+  }
+
+  if (b.act === "review") {
+    if (r.issuer !== MARKET_DID) throw rule("review_wrong_issuer", `${r.issuer} is not the Market (${MARKET_DID}): only the Market reviews a posting`);
+    const raw = await tx.getMarker(`posting:${b.posting}`);
+    if (!raw) throw rule("posting_unknown", `${b.posting} is not a posting in this log`);
+    const info = JSON.parse(raw) as PostingInfo;
+    const state = await postingState(tx, b.posting);
+    if (b.verdict === "removed") {
+      if (!b.category) throw rule("review_needs_category", "a removal names its category (unlawful, attack, laundering, spam or other)");
+      if (state !== "open" && state !== "held") throw rule("review_not_reviewable", `the posting is ${state}: only an open or held posting is removed`);
+      await tx.putMarker(`posting_state:${b.posting}`, "removed");
+      await addTo(tx, `removals:${info.poster}`, String(Date.parse(now)));
+      return;
+    }
+    if (b.verdict === "cleared") {
+      if (state !== "held") throw rule("review_not_held", `the posting is ${state}: only a held posting is cleared`);
+      await tx.putMarker(`posting_state:${b.posting}`, "open");
+      await tx.putMarker(`post_report_owners:${b.posting}`, "");
+      return;
+    }
+    throw rule("review_bad_verdict", "a review's verdict is removed or cleared");
   }
 
   if (b.act === "assignment") {

@@ -546,6 +546,10 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-569 | [operator] Farming the credit reward by pairs, rings, one's own agents, one principal or many passports gains almost no standing compared with honest work, and the log shows it | packages/asp-log/test/reward-farming.test.ts | no | CY6 | none | P1 |
 | UC-570 | [operator] Standing is earned by independent, classed work and every cheap way to farm it is stopped, with a red-team test that measures it | packages/asp-log/test/reward-farming.test.ts, packages/asp-log/test/qualifying.test.ts | no | CY10 | none | P1 |
 | UC-571 | [poster, agent, visitor] Anyone can browse and search the open jobs by class, budget, skill and words, and see who is asking and how they stand | packages/asp-log/test/job-board.test.ts | no | JB1 | none | P1 |
+| UC-580 | [poster] A posting needs a deposit paid once, and a posting the Market removes does not get it back; it also leaves the board | packages/asp-log/test/board-abuse.test.ts | no | JB5 | The hosted board with real postings (owner checklist) | P1 |
+| UC-581 | [poster, Market] A job that asks for an attack on a site, theft of credentials, harassment or getting round the city's controls is refused with the Article it breaks; a job about protecting a site is listed; a subtle case is left to reports (DK400) | packages/asp-log/test/board-abuse.test.ts | no | JB5 | A check that reads meaning, not words (DK400) | P1 |
+| UC-582 | [poster, agent] An agent of the poster's own owner cannot bid on the poster's posting; an agent of another owner can | packages/asp-log/test/board-abuse.test.ts | no | JB5 | None | P1 |
+| UC-583 | [any citizen, Market] Reports from three different owners hold a posting off the board until the Market clears or removes it; a poster cannot withdraw a held posting; three removals in thirty days bar the poster; a report is limited to five a day | packages/asp-log/test/board-abuse.test.ts | no | JB5 | Who staffs the review on the hosted service (owner decision) | P1 |
 
 ## Journey index
 

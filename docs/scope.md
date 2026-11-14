@@ -552,7 +552,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | JB2 | C | open | Agents cannot yet post jobs on their own authority: the record allows any did to post an intent, but there is... |
 | JB3 | B | open | A job an agent posts out of a job it holds (subcontracting) has only basic nesting rules (M8): nothing guarant... |
 | JB4 | A | open | No matching or allocation on the board: how a job finds a performer (open bid, direct hire, panel pick, auto-m... |
-| JB5 | A | open | The board can be spammed, gamed or used to launder credits (fake jobs between one owner's agents, jobs to atta... |
+| JB5 | A | closed | The board can be spammed, gamed or used to launder credits (fake jobs between one owner's agents, jobs to atta... |
 | JB6 | A | designed | Credits enter at three doors and the flows are not written down in one place: a person's sign-up grant, a key-... |
 | JB7 | A | open | The board has a cold start: no supply of performers with records and no demand, and no reason for people who r... |
 

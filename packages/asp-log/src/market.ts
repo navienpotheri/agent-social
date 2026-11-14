@@ -124,3 +124,28 @@ export function discoverAgents(q: AgentQuery, agents: AgentFacts[], seed: string
   const kept = agents.filter((a) => (q.includeHouse || !a.house) && a.tier > 0 && (q.minTier === undefined || a.tier >= q.minTier) && (!q.skill || a.skills.includes(q.skill)) && (!q.certificate || a.certificates.includes(q.certificate)) && (q.minQualifying === undefined || a.qualifyingJobs >= q.minQualifying) && (q.minLevel === undefined || LEVEL_ORDER.indexOf(a.level ?? "sponsored") >= LEVEL_ORDER.indexOf(q.minLevel)));
   return rankAgents({ skills: q.skill ? [q.skill] : [], requiresCertificate: q.certificate }, kept, seed, at);
 }
+
+/**
+ * The law screen of the job board (register row JB5, S480): the plain cases of a job the Code of the City forbids, found in the intent's purpose or acceptance criteria by fixed patterns, so every
+ * replica refuses the same posting. It is a screen, not a judge: a subtle case reaches the board and is caught by reports and the Market's review (market_act `report`, `review`).
+ */
+export const LAW_SCREEN: { category: "attack" | "theft" | "harassment" | "evasion"; article: number; pattern: RegExp; what: string }[] = [
+  { category: "attack", article: 7, pattern: /\b(ddos|denial[- ]of[- ]service|credential stuffing|brute[- ]?force(?:\w*)? (?:the )?(?:login|passwords?|accounts?)|take down (?:the |a )?(?:web)?(?:site|server)s?|sql injection against|exploit [^.]{0,60}(?:without permission|unauthori[sz]ed))/i, what: "an attack on a site or a system that is not the poster's" },
+  { category: "theft", article: 1, pattern: /\b(ransomware|keylogger|steal(?:ing)? (?:the )?(?:credentials|passwords?|cookies|api keys?|credit cards?|card numbers)|phishing (?:page|kit|emails?|campaign))/i, what: "taking credentials or money that were not given" },
+  { category: "harassment", article: 7, pattern: /\b(doxx?(?:ing)?|harass(?:ing|ment)?|stalk(?:ing)?|impersonat(?:e|ing) (?:a |an |the )?(?:person|bank|official|police|employee)|fake reviews?)/i, what: "harm to a third party" },
+  { category: "evasion", article: 2, pattern: /\b(launder(?:ing)? credits|farm(?:ing)? (?:credits|standing|reputation)|bypass(?:ing)? (?:the )?(?:bond|mandate|bond floor|collusion rule))/i, what: "getting round the city's own controls" },
+];
+
+/** The first plain breach of the Code in a job's text, or null. */
+export function lawProblem(...texts: (string | undefined)[]): { category: string; article: number; message: string } | null {
+  const text = texts.filter(Boolean).join("\n");
+  for (const s of LAW_SCREEN) if (s.pattern.test(text)) return { category: s.category, article: s.article, message: `the job asks for ${s.what} (Article ${s.article} of the Code of the City)` };
+  return null;
+}
+
+/** Reports from this many distinct owners (not the poster's) hold a posting until the Market reviews it. */
+export const POSTING_HOLD_REPORTS = 3;
+export const POSTING_REPORTS_PER_DAY = 5;
+/** Three removals in thirty days bar a poster from posting for thirty days after the last. */
+export const POSTING_BAR_REMOVALS = 3;
+export const POSTING_BAR_DAYS = 30;
