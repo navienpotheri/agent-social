@@ -5258,11 +5258,14 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const board = await local.log.get(posting);
     if (!board) throw new UsageError(`${posting} is not in the log`);
     const intent = (board.record.body as { intent: string }).intent;
-    const agent = need("agent");
     const seed = v.seed ?? posting.slice(7, 19);
     const ruleName = v.rule ?? "best_match";
     if (!["poster_choice", "best_match", "rotation"].includes(ruleName)) throw new UsageError("--rule is poster_choice, best_match or rotation");
     const ranked = await local.log.rankPosting(posting, ruleName as "poster_choice" | "best_match" | "rotation", seed);
+    // With no --agent the Market assigns from the intent alone: the first of the published ranking among the bidders (register row JB4).
+    if (!v.agent && ruleName === "poster_choice") throw new UsageError("--rule poster_choice needs --agent: the poster chooses");
+    const agent = v.agent ?? ranked[0]?.agent;
+    if (!agent) throw new Error("no eligible bidder on this posting: nobody to assign");
     const record = createRecord({ type: "market_act", issuer: MARKET_DID, subject: null, prev: null, body: { act: "assignment", posting, intent, agent, rule: ruleName, ranked, seed }, issued_at: now() }, signerFor(MARKET_DID));
     const cosigned = ruleName === "poster_choice" && v["cosign-by"]?.length ? v["cosign-by"].reduce((r, d) => cosign(r, signerFor(d)), record) : record;
     const res = await local.append(cosigned);
