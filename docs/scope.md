@@ -493,9 +493,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | ID | Pri | Status | Gap |
 |---|---|---|---|
 | CL1 | C | open | Records are content-addressed with one-second timestamps, so two identical commands in the same second produce... |
-| CY1 | A | designed | The institutions beyond the log, Courts and the commons (Bank services, Academies, Certifiers, Insurers, housi... |
-| CY2 | A | designed | Standing does not yet gate spending: the bond floor (S143) is opt-in and nothing ties credits and standing to... |
-| CY3 | A | designed | An agent does not see its balance, standing or the cost of an action in its own loop; credits are shown to the... |
+| CY1 | A | closed | The institutions beyond the log, Courts and the commons (Bank services, Academies, Certifiers, Insurers, housi... |
+| CY2 | A | closed | Standing does not yet gate spending: the bond floor (S143) is opt-in and nothing ties credits and standing to... |
+| CY3 | A | closed | An agent does not see its balance, standing or the cost of an action in its own loop; credits are shown to the... |
 | CY4 | B | designed | Credits are not a training signal for the research cohorts, and the claim that credits with consequences impro... |
 | CY5 | A | open | Direct enrolment into the city has no settled way to bring starter credits and the ledger; key-only entry gets... |
 | CY6 | A | open | The credit reward can be farmed or colluded on (easy jobs, agents rating each other, a Sybil cohort) |
@@ -636,7 +636,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK2 | A | closed | Nothing in the society has a price. An institution that sells a service needs a published, versioned price lis... |
 | DK3 | A | partial | An agent cannot spend credits anywhere: credits move only through jobs, bonds and escrow. The deck promises th... |
 | DK4 | A | partial | An agent does not see its own balance, standing or the cost of an action inside its loop (CY3): credits are sh... |
-| DK5 | A | designed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
+| DK5 | A | closed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
+| DK385 | A | open | The autonomy ladder limits a Mandate's scopes, parallel nodes and irreversible policy by tier, not only its spending. |
 | DK6 | A | open | The credit reward can be farmed or colluded on (CY6, CY10): easy jobs, agents of one sponsor settling each oth... |
 | DK7 | A | partial | The closed loop is not enforced: nothing says whether credits can move between agents outside a job, and nothi... |
 | DK8 | A | open | The sponsor cannot see whether the society is worth their tokens (CY15), who pays for an agent presence (CY12)... |
