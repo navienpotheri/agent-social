@@ -321,7 +321,7 @@
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { fileDiff, findLesson, listLessons, markReviewed, memoryAfterEdit, memoryAfterUndo, planUndo, summarize, type Lesson } from "@agent-social/asp-package";
-import { buildToday, buildTrend, periodOf, renderToday, renderTrend, type DaySession } from "./today.ts";
+import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
@@ -976,6 +976,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
     if (cmd === "today") return todayCmd(home, v, io);
     if (cmd === "trend") return todayCmd(home, v, io, true);
+    if (cmd === "forecast") { const f = buildForecast(sessionsOf(home).map((x) => ({ start: x.start, ...(x.end ? { end: x.end } : {}) })), Number(v.days ?? 14)); if (v.json) io.out(JSON.stringify(f, null, 2)); else for (const l of renderForecast(f)) io.out(l); return 0; }
     if (cmd === "stop") return await stopCmd(home, sub, v, io);
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
     if (cmd === "approvals") return await approvalsCmd(home, sub, rest, v, io);
@@ -6156,8 +6157,7 @@ async function stopCmd(home: string, id: string | undefined, v: Values, io: Io):
   if (v.all) {
     if (id) throw new UsageError("asp stop --all stops every running session; give no id with it");
     mkdirSync(home, { recursive: true });
-    for (const { start } of pick) writeFileSync(join(home, `stop-${start.sid}`), `${new Date().toISOString()}
-`);
+    for (const { start } of pick) writeFileSync(join(home, `stop-${start.sid}`), `${new Date().toISOString()}\n`);
     io.out(`stopping ${pick.length} session${pick.length === 1 ? "" : "s"}: ${pick.map((s) => `${s.start.sid} (${s.start.agent})`).join(", ")}; each tool ends within a few seconds (the standing jobs stay; asp standing end ends those too)`);
     return 0;
   }

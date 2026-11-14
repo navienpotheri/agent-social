@@ -212,3 +212,40 @@ export function renderTrend(t: Trend): string[] {
   out.push("Failed/cut is a session that failed or was left without an end. Refused and failed rates say how often an agent hit a wall or broke, not whether its work was good: that is what asp canary and a settled job show.");
   return out;
 }
+
+/** What a run of one agent has cost on this machine, and what the next ones are likely to (gap US2): from the sessions that ended in the window. Tokens and time, never a price: a model's price is the provider's. */
+export interface AgentForecast { agent: string; sessions: number; tokensMedian: number; tokensP90: number; tokensTotal: number; secondsMedian: number; perDayTokens: number; nextWeekTokens: number; todayTokens: number }
+export interface Forecast { days: number; agents: AgentForecast[] }
+
+const quantile = (xs: number[], q: number) => { if (!xs.length) return 0; const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.ceil(q * s.length) - 1)]; };
+
+/** The forecast over the last `days` days (default 14): per agent the median and 90th-percentile tokens of a session, the median time, the daily average and a week's worth at that rate, and today's tokens so far. */
+export function buildForecast(all: DaySession[], days: number, now: Date = new Date()): Forecast {
+  if (!Number.isInteger(days) || days < 1 || days > 366) throw new Error("--days is a whole number from 1 to 366");
+  const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1)).getTime();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const by = new Map<string, { tokens: number[]; seconds: number[]; today: number }>();
+  for (const s of all) {
+    if (!s.end) continue;
+    const at = Date.parse(s.start.at);
+    if (!(at >= from) || at > now.getTime()) continue;
+    const a = by.get(short(s.start.agent)) ?? { tokens: [], seconds: [], today: 0 };
+    a.tokens.push(s.end.tokens); a.seconds.push(Math.max(0, Math.round((Date.parse(s.end.at) - at) / 1000)));
+    if (at >= today) a.today += s.end.tokens;
+    by.set(short(s.start.agent), a);
+  }
+  const agents = [...by].map(([agent, a]) => {
+    const total = a.tokens.reduce((n, x) => n + x, 0);
+    return { agent, sessions: a.tokens.length, tokensMedian: quantile(a.tokens, 0.5), tokensP90: quantile(a.tokens, 0.9), tokensTotal: total, secondsMedian: quantile(a.seconds, 0.5), perDayTokens: Math.round(total / days), nextWeekTokens: Math.round(total / days) * 7, todayTokens: a.today };
+  }).sort((a, b) => b.tokensTotal - a.tokensTotal || a.agent.localeCompare(b.agent));
+  return { days, agents };
+}
+
+export function renderForecast(f: Forecast): string[] {
+  if (!f.agents.length) return [`no finished session in the last ${f.days} day${f.days === 1 ? "" : "s"} to forecast from (asp runs lists every session)`];
+  const out = [`Forecast from the last ${f.days} day${f.days === 1 ? "" : "s"} of finished sessions on this machine (tokens and time; the model's price is the provider's, so no money figure is given):`, ""];
+  out.push(`${pad("agent", 12)} ${pad("sessions", 9)} ${pad("a session (median)", 19)} ${pad("a bad one (p90)", 16)} ${pad("time (median)", 14)} ${pad("a day", 10)} ${pad("next 7 days", 12)} today so far`);
+  for (const a of f.agents) out.push(`${pad(cut(a.agent, 11), 12)} ${pad(a.sessions, 9)} ${pad(num(a.tokensMedian), 19)} ${pad(num(a.tokensP90), 16)} ${pad(duration(a.secondsMedian), 14)} ${pad(num(a.perDayTokens), 10)} ${pad(num(a.nextWeekTokens), 12)} ${num(a.todayTokens)}`);
+  out.push("", "A cap on one run is --token-cap, a cap on an agent's day is --daily-tokens; the next run's likely size is the median, a bad one the 90th percentile. Past sessions are a guide, not a promise.");
+  return out;
+}

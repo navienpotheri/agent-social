@@ -159,8 +159,8 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 183 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
-<details><summary>Everyday (24)</summary><pre>Most people use only these.
+  <p class="small">The page is generated from the repository, so it matches the 184 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+<details><summary>Everyday (25)</summary><pre>Most people use only these.
 
 asp
     A short home screen: the everyday commands and what to do next
@@ -182,6 +182,8 @@ asp learned
     What an agent learned: every memory change with what it added, changed and removed; show, keep, undo (a new signed update) and edit one (--package &lt;dir&gt;)
 asp trend
     The last 7 days day by day, and each agent: sessions, calls, refusals, failures, tokens, time (--days n)
+asp forecast [--days n] [--json]
+    What the next runs will likely use, from the sessions that finished: tokens and time per agent (median, a bad one), a day, the next 7 days
 asp stop [&lt;id&gt; | --all]
     End a running session from another window, or every running session on this machine at once; the standing jobs stay
 asp approvals

@@ -22,6 +22,7 @@ Most people use only these.
 | `asp today` | What your agents did today: each session, what was refused and why, what you answered, anything wrong (--day YYYY-MM-DD, --since 24h, --all adds scopes and cost) |
 | `asp learned` | What an agent learned: every memory change with what it added, changed and removed; show, keep, undo (a new signed update) and edit one (--package <dir>) |
 | `asp trend` | The last 7 days day by day, and each agent: sessions, calls, refusals, failures, tokens, time (--days n) |
+| `asp forecast [--days n] [--json]` | What the next runs will likely use, from the sessions that finished: tokens and time per agent (median, a bad one), a day, the next 7 days |
 | `asp stop [<id> | --all]` | End a running session from another window, or every running session on this machine at once; the standing jobs stay |
 | `asp approvals` | List calls waiting for your yes |
 | `asp approvals approve|refuse [<n>]` | Answer a waiting call; your answer is signed and goes in the log |
