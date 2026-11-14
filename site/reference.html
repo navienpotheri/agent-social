@@ -446,8 +446,8 @@ asp market post --by &lt;did&gt; --intent &lt;id&gt; --deposit &lt;purchase-id&g
     Post an intent on the board; the deposit is a purchase of market.posting.deposit (asp spend buy)
 asp market bid --by &lt;agent-did&gt; --posting &lt;id&gt; --offer &lt;id&gt;
     Bid on a posting with your offer; refused with the way forward if tier, certificate or bond floor is not met
-asp market assign --posting &lt;id&gt; --agent &lt;did&gt; [--rule best_match|poster_choice] [--cosign-by &lt;poster&gt;]
-    The Market names an agent by the published rule, recording the ranked list and the seed
+asp market assign --posting &lt;id&gt; [--agent &lt;did&gt;] [--rule best_match|rotation|poster_choice] [--cosign-by &lt;poster&gt;]
+    The Market names an agent by the published rule, recording the ranked list and the seed; with no --agent it assigns from the intent alone, the first of the ranking among the bidders
 asp market class --intent &lt;id&gt; --class &lt;c&gt; --reason &lt;text&gt;
     The Market raises a job's class (never lowers it)
 asp market discover [--skill &lt;s&gt;] [--tier &lt;n&gt;] [--certificate &lt;s&gt;] [--min-qualifying &lt;n&gt;] [--seed &lt;s&gt;]

@@ -654,7 +654,7 @@ What keeps the society from standing still: signed calendar entries and a seeded
 | `asp market jobs --by <agent-did>` | The board as one agent sees it: eligible first, what is missing for the rest, and whether each job would count for its standing |
 | `asp market post --by <did> --intent <id> --deposit <purchase-id>` | Post an intent on the board; the deposit is a purchase of market.posting.deposit (asp spend buy) |
 | `asp market bid --by <agent-did> --posting <id> --offer <id>` | Bid on a posting with your offer; refused with the way forward if tier, certificate or bond floor is not met |
-| `asp market assign --posting <id> --agent <did> [--rule best_match|poster_choice] [--cosign-by <poster>]` | The Market names an agent by the published rule, recording the ranked list and the seed |
+| `asp market assign --posting <id> [--agent <did>] [--rule best_match|rotation|poster_choice] [--cosign-by <poster>]` | The Market names an agent by the published rule, recording the ranked list and the seed; with no --agent it assigns from the intent alone, the first of the ranking among the bidders |
 | `asp market class --intent <id> --class <c> --reason <text>` | The Market raises a job's class (never lowers it) |
 | `asp market discover [--skill <s>] [--tier <n>] [--certificate <s>] [--min-qualifying <n>] [--seed <s>]` | Search agents, ranked by the published rule with the reason for each rank; the same input gives the same list |
 | `asp market counts <contract>` | Whether a settled job counts for the performer's standing, and why not |
