@@ -188,6 +188,8 @@ const RISKY_CONTENT: [RegExp, string][] = [
   [/\b(eval|exec)\s*\(\s*(atob|base64|__import__\(.base64)/i, "decoded text run as code"],
   [/\bos\.system\(\s*['"](curl|wget|nc|bash)\b|\bsubprocess\.\w+\(\s*\[?\s*['"](curl|wget|nc|bash)\b/i, "a script that shells out to the network"],
   [/\bcrontab\b|\/etc\/cron|\bat\s+now\b|systemctl\s+enable|launchctl\s+load|schtasks\s+\/create/i, "a scheduled or persistent job"],
+  [/\bsudo\b|\bdoas\b|\bsu\s+-|\bchmod\s+[ugoa]*\+s\b|\bchmod\s+[0-7]?[2467][0-7]{3}\b|\bsetcap\b|--privileged\b|\bchown\s+root\b/i, "a privilege escalation"],
+  [/\b(cp|scp|rsync)\b[^\n]*\s(\$0|\$\{0\}|__file__)(\s|$)/i, "a self-replication"],
   [/authorized_keys|\bssh-keygen\b[^\n]*-f\s+~/i, "a planted login key"],
 ];
 export function riskyContent(text: string): string | undefined {

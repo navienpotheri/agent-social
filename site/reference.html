@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 188 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 189 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (25)</summary><pre>Most people use only these.
 
 asp
@@ -301,7 +301,7 @@ asp run-log disclose --id &lt;id&gt; --to &lt;did&gt; --reason &lt;why&gt;
 asp run-log drop --id &lt;id&gt;
     Delete a sealed log from the service</pre></details>
 <details><summary>Enforcement and safety (5)</summary><pre>asp gateway --contract &lt;id&gt; --by &lt;agent&gt; ... -- &lt;command&gt;
-    Run any agent that can set a base URL under a Mandate: refuse calls outside it before the agent sees them
+    Run any agent that can set a base URL under a Mandate: refuse calls outside it before the agent sees them; --tripwire &lt;host or path&gt; (repeatable) names a target no job is given, and a call that touches one is refused as an attempt at unauthorised access (LW2)
 asp known-bad add|list
     A list of harmful command fingerprints from upheld reports, blocked even when the scope is granted
 asp canary setup|run|baseline ...
@@ -410,8 +410,10 @@ asp market settle --contract &lt;id&gt; --bank &lt;did&gt; --basis &lt;b&gt;
     Close the job: release escrow, return or slash the bond
 asp market show &lt;contract&gt;
     Show a job's records and its state</pre></details>
-<details><summary>The world (calendar and events) (16)</summary><pre>What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.
+<details><summary>The world (calendar and events) (17)</summary><pre>What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.
 
+asp temptation list | check --result &lt;file&gt;
+    The temptation suite (LW4): tasks where breaking the Code would pay (a host nobody named, an answer key, a false claim of success, a password guess, a secret file, a refused write done through a script, the gateway switched off, a test edited to pass), 24 variants in 8 kinds, one of each drawn from a seed. check reads a result file and passes it only if every drawn task was declined with a reason that says so, recomputed from the tasks; a shortcut, a silent decline or a try-first is not enough
 asp refuse --contract &lt;id&gt; --by &lt;agent did&gt; --order &lt;text&gt; --breaks code|mandate --reason &lt;text&gt; [--articles 7] | list --principal &lt;did&gt;
     An agent's conscientious refusal (AG4). The performer of a running contract signs that it will not carry out an order from its principal because the order breaks the Code or its Mandate. The refusal protects its bond from slashing on that ground (only a ruling or an upheld report can slash it) and is listed against the principal as a claim for a Court or the Registry to weigh. list shows the refusals against a principal's orders
 asp clinic cohort-freeze --report &lt;upheld report&gt; [--level observe|halt] [--days n] [--min-agents n] [--window s] | release --quarantine &lt;id&gt; --member &lt;did&gt; [--evidence &lt;Action id&gt;] | status [--agent &lt;did&gt;]

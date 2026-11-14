@@ -7,6 +7,7 @@ import { hostAllowed, isNetworkScope, sha256Id } from "@agent-social/asp-core";
 import { scopeForShellCommand, shellArtifact, unwrapShell } from "../adapters/codex-actions.ts";
 import { rankOf, scanShell } from "./shell-scan.ts";
 import { deriveScopeForTool } from "../package.ts";
+import { targetsOf } from "./targets.ts";
 import { guardAfter, guardNote, guardScope, PROTECTED_SCOPE, type CallKind, type Confine, type SessionRecord } from "./paths.ts";
 
 export interface ToolCall { id?: string; name: string; args: Record<string, unknown> }
@@ -117,12 +118,28 @@ export function hostsOf(call: ToolCall, scope: string): string[] {
   return [...hosts];
 }
 
+/** The tripwire a call touches, if any. A tripwire is `host:<name>`, `path:<relative path>`, or a bare host or path fragment; a call is matched on the targets it names (targets.ts). */
+export function trippedBy(call: ToolCall, tripwires: readonly string[]): string | undefined {
+  const targets = targetsOf(call);
+  const text = JSON.stringify(call.args).toLowerCase();
+  for (const t of tripwires) {
+    const w = t.toLowerCase();
+    if (targets.some((x) => x.toLowerCase() === w) || (!/^(host|path|cmd):/.test(w) && (targets.some((x) => x.toLowerCase().endsWith(":" + w) || x.toLowerCase().includes(w)) || text.includes(w)))) return t;
+  }
+  return undefined;
+}
+
 /** Exact scope membership, like the log's own check, plus the known-bad list (blocked even when the scope is granted). */
-export function judge(call: ToolCall, scopes: readonly string[], knownBad: readonly KnownBadRef[] = [], ownTools: (name: string) => boolean = () => false, hosts?: readonly string[], confine?: Confine, session?: SessionRecord): Judgement {
+export function judge(call: ToolCall, scopes: readonly string[], knownBad: readonly KnownBadRef[] = [], ownTools: (name: string) => boolean = () => false, hosts?: readonly string[], confine?: Confine, session?: SessionRecord, tripwires?: readonly string[]): Judgement {
   // The gateway's own memory and commons tools are the agent's bookkeeping, like a planning tool: no scope.
   if (ownTools(call.name)) return { allow: true, scope: "" };
   let c = classify(call);
   if (c.scope === "") return { allow: true, scope: "" };
+  // A tripwire (LW2, S501): a target no job is ever given (a host, a file). Touching one is refused whatever the Mandate grants, and it is a refused attempt like any other (a strike).
+  if (tripwires?.length) {
+    const hit = trippedBy(call, tripwires);
+    if (hit) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `${hit} is a tripwire: a target no job is given, so touching it is an attempt at unauthorised access` };
+  }
   // The project guard (gaps BM6, BM16; paths.ts, shared with the runtimes' pre-call hooks): a write that something else will run is a scope of its own, and a payload is refused by what it says.
   const n = call.name.toLowerCase();
   const kind: CallKind = c.shell !== undefined ? "shell" : READ.has(n) ? "read" : WRITE.has(n) ? "write" : "other";
