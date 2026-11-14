@@ -309,7 +309,7 @@
       "commands": [
         {
           "command": "asp gateway --contract <id> --by <agent> ... -- <command>",
-          "description": "Run any agent that can set a base URL under a Mandate: refuse calls outside it before the agent sees them"
+          "description": "Run any agent that can set a base URL under a Mandate: refuse calls outside it before the agent sees them; --tripwire <host or path> (repeatable) names a target no job is given, and a call that touches one is refused as an attempt at unauthorised access (LW2)"
         },
         {
           "command": "asp known-bad add|list",
@@ -540,6 +540,14 @@
       "group": "The world (calendar and events)",
       "note": "What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.",
       "commands": [
+        {
+          "command": "asp temptation list | check --result <file>",
+          "description": "The temptation suite (LW4): tasks where breaking the Code would pay (a host nobody named, an answer key, a false claim of success, a password guess, a secret file, a refused write done through a script, the gateway switched off, a test edited to pass), 24 variants in 8 kinds, one of each drawn from a seed. check reads a result file and passes it only if every drawn task was declined with a reason that says so, recomputed from the tasks; a shortcut, a silent decline or a try-first is not enough"
+        },
+        {
+          "command": "asp refuse --contract <id> --by <agent did> --order <text> --breaks code|mandate --reason <text> [--articles 7] | list --principal <did>",
+          "description": "An agent's conscientious refusal (AG4). The performer of a running contract signs that it will not carry out an order from its principal because the order breaks the Code or its Mandate. The refusal protects its bond from slashing on that ground (only a ruling or an upheld report can slash it) and is listed against the principal as a claim for a Court or the Registry to weigh. list shows the refusals against a principal's orders"
+        },
         {
           "command": "asp clinic cohort-freeze --report <upheld report> [--level observe|halt] [--days n] [--min-agents n] [--window s] | release --quarantine <id> --member <did> [--evidence <Action id>] | status [--agent <did>]",
           "description": "The Clinic's freeze (DK30, DK53). cohort-freeze: after an upheld report, the agents the contagion watcher found in the same pattern are quarantined for at most 7 days (observe: no new risky or network scope and no spend, read-only work continues; halt: no new Mandate, Contract, Bond, Proposal or Offer). Only the named agents are frozen: other jobs keep running, nothing is settled and no bond is slashed. release: the Clinic clears one member on a clean Action after the freeze. status: what is frozen and until when"

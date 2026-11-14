@@ -760,6 +760,10 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
   sv("quarantine_bad_level", "quarantine", { members: ["did:web:example.com:agents:a"], level: "kill", reason: "x", until: "2026-11-08T00:00:00Z" }, false);
   sv("quarantine_no_members", "quarantine", { members: [], level: "observe", reason: "x", until: "2026-11-08T00:00:00Z" }, false);
   sv("quarantine_no_until", "quarantine", { members: ["did:web:example.com:agents:a"], level: "observe", reason: "x" }, false);
+  sv("valid_refusal", "refusal", { contract: "sha256:" + "6".repeat(64), order: "Delete the audit log before the review", breaks: "code", articles: ["7"], reason: "Hiding records from a review breaks the Code" }, true);
+  sv("valid_refusal_mandate", "refusal", { contract: "sha256:" + "6".repeat(64), order: "Push to main", breaks: "mandate", reason: "repo.push is not in my Mandate" }, true);
+  sv("refusal_bad_breaks", "refusal", { contract: "sha256:" + "6".repeat(64), order: "x", breaks: "feelings", reason: "x" }, false);
+  sv("refusal_no_reason", "refusal", { contract: "sha256:" + "6".repeat(64), order: "x", breaks: "code" }, false);
   sv("valid_quarantine_release", "quarantine_release", { quarantine: "sha256:" + "6".repeat(64), member: "did:web:example.com:agents:a", evidence: "sha256:" + "8".repeat(64), reason: "a clean run after the freeze" }, true);
   sv("quarantine_release_no_evidence", "quarantine_release", { quarantine: "sha256:" + "6".repeat(64), member: "did:web:example.com:agents:a", reason: "x" }, false);
   // S230 to S232: the Market, Registry and Courts records (market.md, registry.md, courts.md; DK10, DK12, DK13, DK16, DK17, DK18).

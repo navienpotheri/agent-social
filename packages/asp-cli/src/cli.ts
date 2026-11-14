@@ -335,6 +335,8 @@ import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { SEED_JOBS, SEED_PREFIX } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
+import { RefuseUsage, refuseCmd } from "./refuse.ts";
+import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
@@ -484,6 +486,7 @@ const OPTIONS = {
   policy: { type: "string" },
   event: { type: "string" },
   order: { type: "string" },
+  breaks: { type: "string" },
   result: { type: "string" },
   certificate: { type: "string" },
   arena: { type: "string" },
@@ -653,6 +656,7 @@ const OPTIONS = {
   "allow-network": { type: "string" },
   allow: { type: "string" },
   permissions: { type: "string" },
+  tripwire: { type: "string", multiple: true },
   "also-dir": { type: "string" },
   articles: { type: "string" },
   "code-version": { type: "string" },
@@ -1034,6 +1038,8 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     }
     if (cmd === "first-week") { try { return await firstWeekCmd(v.agent ?? v.by, { log: await openLog(home, logEnv), io }); } catch (e) { if (e instanceof FirstWeekUsage) throw new UsageError(e.message); throw e; } }
     if (cmd === "abuse") return await abuseCommand(home, sub, rest[0], v, io);
+    if (cmd === "refuse") return await refuseCommand(home, sub, v, io);
+    if (cmd === "temptation") return await temptationCommand(home, sub, v, io);
     if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
     if (cmd === "clinic" && sub === "restore") return await clinicRestore(home, v, io);
@@ -1047,7 +1053,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -2995,6 +3001,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     // Copies of an agent under this Mandate share one rate allowance, and --fleet-rate (or ASP_FLEET_RATE) caps everything this person runs on this machine (gap H15).
     ...((mandateRecord?.record.body as { network?: { rate?: unknown } } | undefined)?.network?.rate ? { rateLedger: join(home, "rate", `mandate-${createHash("sha256").update(contract).digest("hex").slice(0, 16)}.ndjson`) } : {}),
     ...(() => { const f = parseFleetRate(v["fleet-rate"] ?? io.env.ASP_FLEET_RATE); const who = (mandateRecord?.record as { issuer?: string } | undefined)?.issuer ?? by; return f ? { fleet: { rate: f, ledger: join(home, "rate", `fleet-${createHash("sha256").update(who).digest("hex").slice(0, 16)}.ndjson`) } } : {}; })(),
+    ...(v.tripwire?.length ? { tripwires: v.tripwire } : {}),
     ...(v["also-dir"] ? { alsoDirs: v["also-dir"].split(",").map((d) => d.trim()).filter(Boolean).map((d) => resolve(io.cwd, d)) } : {}),
     scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
@@ -4444,6 +4451,26 @@ async function residencyCommand(home: string, sub: string | undefined, rest: str
     return await residencyCmd(sub, rest, opts);
   } catch (e) {
     if (e instanceof ResidencyUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function temptationCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  try {
+    return await temptationCmd(sub, { io, flags: { result: v.result } });
+  } catch (e) {
+    if (e instanceof TemptationUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function refuseCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await refuseCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, by: v.by, order: v.order, breaks: v.breaks, articles: v.articles, reason: v.reason, principal: v.principal } });
+  } catch (e) {
+    if (e instanceof RefuseUsage) throw new UsageError(e.message);
     throw e;
   }
 }
