@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:asp:v0.2:market_act",
   "title": "Market act body",
-  "description": "The Market's records (market.md 3, register rows DK16, DK17, DK18; spec-delta S230). One record type with an `act`: posting (the poster lists an intent on the board and pays the deposit), withdraw, class_check (the Market raises a class, never lowers it), bid (an eligible agent answers a posting with an offer), assignment (the Market names an agent by a published rule, with the ranked list). Chain: none (prev is null).",
+  "description": "The Market's records (market.md 3, register rows DK16, DK17, DK18; spec-delta S230). One record type with an `act`: posting (the poster lists an intent on the board and pays the deposit), withdraw, class_check (the Market raises a class, never lowers it), bid (an eligible agent answers a posting with an offer), assignment (the Market names an agent by a published rule, with the ranked list). Chain: none (prev is null). S480 (register row JB5) adds `report` (an agent or person with a passport reports a posting with a category and a reason; reports from three distinct owners hold it) and `review` (the Market removes a held or open posting, the deposit is forfeited, or clears a held one).",
   "type": "object",
   "required": [
     "act"
@@ -15,7 +15,9 @@
         "withdraw",
         "class_check",
         "bid",
-        "assignment"
+        "assignment",
+        "report",
+        "review"
       ]
     },
     "intent": {
@@ -49,7 +51,9 @@
     "verdict": {
       "enum": [
         "confirmed",
-        "changed_to"
+        "changed_to",
+        "removed",
+        "cleared"
       ]
     },
     "reason": {
@@ -61,7 +65,8 @@
     "rule": {
       "enum": [
         "poster_choice",
-        "best_match"
+        "best_match",
+        "rotation"
       ]
     },
     "seed": {
@@ -92,6 +97,15 @@
           }
         }
       }
+    },
+    "category": {
+      "enum": [
+        "unlawful",
+        "attack",
+        "laundering",
+        "spam",
+        "other"
+      ]
     }
   },
   "allOf": [
@@ -189,6 +203,44 @@
           "rule",
           "ranked",
           "seed"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "report"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "posting",
+          "category",
+          "reason"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "review"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "posting",
+          "verdict",
+          "reason"
         ]
       }
     }

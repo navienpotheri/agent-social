@@ -157,7 +157,7 @@ describe("the job board (DK16, MK-2, MK-3)", () => {
     // The senior bids; the Market assigns by the published rule, with the ranked list; the poster's contract follows.
     const offer = await w.offer(senior, hard, 120);
     await w.log.append(mk("market_act", senior, { act: "bid", posting: p2.id, offer }));
-    const ranked = await w.log.discoverAgents({ skill: "code" }, "seed-1");
+    const ranked = await w.log.rankPosting(p2.id, "best_match", "seed-1");
     assert.equal(ranked[0].agent, senior.did);
     const assignment = (agent: string, rank: unknown, rule = "best_match", seed = "seed-1") => mk("market_act", market, { act: "assignment", posting: p2.id, intent: hard, agent, rule, ranked: rank, seed });
     const forged = [{ agent: senior.did, score: ranked[0].score + 1, reasons: ranked[0].reasons }];
@@ -260,7 +260,7 @@ describe("discovery, ranking and assignment (DK17, MK-6, MK-7)", () => {
     const a3 = await w.agent("not-a-bidder", await w.person("sc"), { skills: ["review"], funds: 50 });
     for (const a of [a1, a2]) await w.log.append(mk("market_act", a, { act: "bid", posting: posting.id, offer: await w.offer(a, intent, 40) }));
     const assign = (agent: string, ranked: unknown, rule = "best_match", cos: Signer[] = []) => mk("market_act", market, { act: "assignment", posting: posting.id, intent, agent, rule, ranked, seed: "seed-z" }, null, { cosigners: cos });
-    const facts2 = (await w.log.discoverAgents({ skill: "review" }, "seed-z")).filter((r) => [a1.did, a2.did].includes(r.agent));
+    const facts2 = await w.log.rankPosting(posting.id, "best_match", "seed-z");
     assert.equal(await refusedBy(w.log.append(assign(a3.did, facts2))), "assignment_no_bid");
     const loser = facts2[1].agent;
     assert.equal(await refusedBy(w.log.append(assign(loser, facts2))), "assignment_not_best_match");

@@ -15,11 +15,11 @@ import {
 } from "@agent-social/asp-core";
 import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type StarterPoolState } from "./credit-audit.ts";
 import { bondFloorPermille, floorIsV2 } from "./bond-floor.ts";
-import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
+import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
-import { ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
-import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, type MarketEnv } from "./market-rules.ts";
+import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { charterIn, checkCaseload, checkRulingExtras, closeDispute, projectCourtAct } from "./courts-rules.ts";
 import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
@@ -33,7 +33,7 @@ import { resourceExtras, type ResourceExtras } from "./shops.ts";
 import { HOUSING_DID, SHOPS_DID, catalogueProblem, type CatalogueItem } from "./shops.ts";
 import { cityIndicators, type CityIndicators } from "./society-indicators.ts";
 import { buildPage, namesAt, isLive, skeleton, verifyPage, lapsedIdentities, identityLevelAt, type RecordPage } from "./registry.ts";
-import { classWeight, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
+import { OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, classWeight, effectiveClass, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
 import { DEFAULT_PANEL_SIZE, drawPanel, findRejection } from "./panel.ts";
@@ -144,7 +144,9 @@ export interface BoardEntry {
   /** The poster's standing, shown beside the job (JB1): what an agent weighing it can see about who is asking. */
   posterStanding?: { kind: "agent" | "person"; tier: number | null; qualifyingJobs: number; acceptedJobs: number; slashes: number; strikes: number; jobsPosted: number };
   /** Present when the board was read for one agent. */
-  forAgent?: { eligible: boolean; missing: { rule: string; message: string }[]; counts: { counts: boolean; weight: number; reason: string } };
+  forAgent?: { eligible: boolean; missing: { rule: string; message: string }[]; counts: { counts: boolean; weight: number; reason: string }; moreCounting?: number };
+  /** Set when the budget is far above what this class usually pays (market.md 6, credits.md 5.4: a priced job far above the class median is how credits are moved between linked accounts). */
+  priceOutlier?: { classMedian: number; ratio: number };
 }
 
 export interface VerifyReport {
@@ -721,7 +723,7 @@ export class EventLog {
    * the counterparty cap (qualifying.ts, credits.md 5.4). Agents only, like the rest of reputation.
    * Old rows have no `qualifyingJobs`; they read as 0, so jobs counted before this rule do not carry over (the conservative choice).
    */
-  private async countAcceptedJob(tx: LogTx, backer: string, job: { principal: string; performer: string; price: number; at: string; intent?: string }): Promise<void> {
+  private async countAcceptedJob(tx: LogTx, backer: string, job: { principal: string; performer: string; price: number; at: string; intent?: string; contract?: string; verifier?: string }): Promise<void> {
     const rep = await this.reputation(tx, backer);
     if (!rep) return;
     let { qualifyingJobs, recentJobs } = rep;
@@ -741,7 +743,15 @@ export class EventLog {
       if (others.every((o) => independent(principal, o))) {
         const admitted = admitEligibleJob(recentJobs, principal.sponsor, job.at);
         recentJobs = admitted.window;
-        if (admitted.counts) qualifyingJobs += weight;
+        if (admitted.counts) {
+          qualifyingJobs += weight;
+          // The class and weight of each counted job, and the feed AgentRank reads (market.md 5, 7; DK128): kept in markers beside the reputation row, not in it.
+          const cls = effectiveClass(declared, job.price);
+          const kept = (await readQualClass(tx, backer)).filter((j) => Date.parse(j.at) > at - 90 * 24 * 3600 * 1000);
+          await tx.putMarker(`qual_class:${backer}`, JSON.stringify([...kept, { at: job.at, c: cls, w: weight }].slice(-400)));
+          const feed = JSON.parse((await tx.getMarker(`qual_feed:${backer}`)) ?? "[]") as unknown[];
+          await tx.putMarker(`qual_feed:${backer}`, JSON.stringify([...feed, { contract: job.contract ?? null, at: job.at, class: cls, weight, price: job.price, counterparty: job.principal, verifier: job.verifier ?? job.principal, outcome: "accepted" }].slice(-500)));
+        }
       }
     }
     await this.saveReputation(tx, backer, { ...rep, acceptedJobs: rep.acceptedJobs + 1, qualifyingJobs, recentJobs });
@@ -1117,7 +1127,7 @@ export class EventLog {
       await repayAtSettlement(tx, body.contract, (cbody.performer === escrow.backer ? pay : 0) + body.bond_returned.value + bondLeftover + backerReserve, this.bankEnv);
     }
     if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer, r.issued_at);
-    else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at, intent: (contract!.record.body as { basis?: { intent?: string } }).basis?.intent });
+    else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at, intent: (contract!.record.body as { basis?: { intent?: string } }).basis?.intent, contract: body.contract, verifier: body.cites ? (await tx.getRecord(body.cites))?.record.issuer : undefined });
     await tx.putEscrow({ ...escrow, settled: true });
     await noteLock(tx, escrow.backer, body.contract, null);
   }
@@ -2160,7 +2170,7 @@ export class EventLog {
    * diagnosis of the same agent and names the skill.
    */
   private async projectClinicOrder(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { agent: string; kind: string; reason: string; due: string; diagnosis?: string; skill?: string };
+    const b = r.body as { agent: string; kind: string; reason: string; due: string; diagnosis?: string; skill?: string; purchase?: string; budget?: string; change?: string };
     if (r.prev !== null) throw rule("order_not_chained", "an order starts its own chain (prev is null)");
     if (r.issuer !== CLINIC_DID) throw rule("order_wrong_issuer", `${r.issuer} is not the Clinic (${CLINIC_DID}): only the Clinic orders a checkup, a re-exam or a course`);
     if (!(await tx.getPassport(b.agent))) throw rule("order_not_an_agent", `${b.agent} has no passport in this log`);
@@ -2175,7 +2185,39 @@ export class EventLog {
     const key = `clinic_order:${b.agent}|${b.kind}`;
     const open = await tx.getMarker(key);
     if (open && Date.parse(open) > at) throw rule("order_already_open", `${b.agent} already has a ${b.kind} order that is due ${open}: one open order of each kind`);
+    if (b.kind === "checkup") await this.payForCheckup(tx, r, b);
     await tx.putMarker(key, b.due);
+  }
+
+  /**
+   * Who pays for a checkup (clinic.md section 4, CL-12; DK161). Once the Treasury's price list carries `clinic.checkup`, a checkup is either free (a scheduled one, the first in a UTC quarter, or one after a named
+   * change to the agent's runtime or memory, once for each change), paid for by the Treasury's budget line `free_checkups`, or requested and paid for by a purchase of `clinic.checkup` by the agent or its sponsor, used
+   * once. Before the list carries the item the Clinic orders as it did. A free checkup moves the price from the Treasury to the Clinic out of the budget (never beyond it).
+   */
+  private async payForCheckup(tx: LogTx, r: AspRecord, b: { agent: string; reason: string; purchase?: string; budget?: string; change?: string }): Promise<void> {
+    const list = await this.priceListInForce(tx, Date.parse(r.issued_at));
+    if (!(list?.record.body as unknown as PriceListBody | undefined)?.items.some((i) => i.service === CLINIC_CHECKUP_SERVICE)) return;
+    if (b.reason === "requested") {
+      const p = b.purchase ? await tx.getRecord(b.purchase) : undefined;
+      if (!p || p.record.type !== "asp.purchase/v0.2") throw rule("order_needs_purchase", `a requested checkup costs ${CLINIC_CHECKUP_SERVICE}: buy it and cite the purchase (purchase)`);
+      const pb = p.record.body as unknown as PurchaseBody;
+      if (pb.service !== CLINIC_CHECKUP_SERVICE || pb.institution !== CLINIC_DID) throw rule("order_purchase_wrong_item", `the purchase is of ${pb.service}, not ${CLINIC_CHECKUP_SERVICE} from the Clinic`);
+      if (p.record.issuer !== b.agent && (await tx.getPassport(b.agent))?.sponsor !== p.record.issuer) throw rule("order_purchase_not_owners", "a checkup is paid for by the agent or by its sponsor");
+      if (await tx.getMarker(`checkup_purchase_used:${p.id}`)) throw rule("order_purchase_used", "this purchase already paid for another checkup");
+      await tx.putMarker(`checkup_purchase_used:${p.id}`, r.id);
+      return;
+    }
+    const q = `${r.issued_at.slice(0, 4)}-Q${Math.floor((Number(r.issued_at.slice(5, 7)) - 1) / 3) + 1}`;
+    const freeKey = b.reason === "post_change" ? `free_change:${b.agent}|${b.change ?? ""}` : `free_scheduled:${b.agent}|${q}`;
+    if (b.reason === "post_change" && !b.change) throw rule("order_needs_change", "a checkup after a change names the change (the memory change or runtime change it follows)");
+    if (await tx.getMarker(freeKey)) throw rule("order_free_used", `${b.agent} has had its free checkup for ${b.reason === "post_change" ? `the change ${b.change}` : `${q}`}: request one for ${CLINIC_CHECKUP_PRICE} credits (${CLINIC_CHECKUP_SERVICE})`);
+    const bud = b.budget ? await tx.getRecord(b.budget) : undefined;
+    const bb = bud?.record.type === "asp.budget/v0.2" ? (bud.record.body as { institution: string; purpose: string }) : undefined;
+    if (!bb || bb.institution !== CLINIC_DID || bb.purpose !== CLINIC_FREE_BUDGET_PURPOSE) throw rule("order_needs_budget", `a free checkup is paid by the Treasury's ${CLINIC_FREE_BUDGET_PURPOSE} budget for the Clinic: cite it (budget)`);
+    await this.drawBudget(tx, b.budget!, CLINIC_CHECKUP_PRICE, r.issued_at);
+    await this.debit(tx, TREASURY_DID, CLINIC_CHECKUP_PRICE);
+    await this.credit(tx, CLINIC_DID, CLINIC_CHECKUP_PRICE);
+    await tx.putMarker(freeKey, r.id);
   }
 
   /** A receipt (credits.md 4.3): the purchase's institution closes it; a refund comes back by the split in reverse and never includes the burned part. */
@@ -2241,8 +2283,24 @@ export class EventLog {
     const lapsed = lapsedIdentities(recs, at);
     const acts = recs.filter((r) => r.type === "asp.registry_act/v0.2");
     const out: AgentFacts[] = [];
-    for (const did of [...dids].sort()) { if (lapsed.has(did)) continue; const f = await agentFacts(this.store, this.marketEnv(), did, at, certs, boards.get(did) ?? []); if (f) out.push({ ...f, level: identityLevelAt(acts, did, Date.parse(at), f.sponsor === did ? null : f.sponsor) }); }
+    const quals = new Map<string, { at: string; c: JobClass; w: number }[]>();
+    await this.store.transaction(async (tx) => { for (const did of dids) quals.set(did, await readQualClass(tx, did)); });
+    for (const did of [...dids].sort()) { if (lapsed.has(did)) continue; const f = await agentFacts(this.store, this.marketEnv(), did, at, certs, boards.get(did) ?? [], quals.get(did)); if (f) out.push({ ...f, level: identityLevelAt(acts, did, Date.parse(at), f.sponsor === did ? null : f.sponsor) }); }
     return out;
+  }
+
+  /**
+   * The qualifying-job feed (market.md 7, MK-8, DK128): for an agent, each job the log counted for its standing, with the class, weight, price, counterparty, verifier and outcome. AgentRank (DK42) may read
+   * only this, so a farming scenario that does not move qualification cannot move rank. Derived inside the append from the settlement, so a replica has the same feed.
+   */
+  async qualifyingFeed(did: string): Promise<{ contract: string | null; at: string; class: JobClass; weight: number; price: number; counterparty: string; verifier: string; outcome: "accepted" }[]> {
+    return this.store.transaction(async (tx) => JSON.parse((await tx.getMarker(`qual_feed:${did}`)) ?? "[]"));
+  }
+
+  /** The ranked list the log will require for an assignment of a posting by a rule (the same function the assignment check uses), so a proposed assignment reproduces. */
+  async rankPosting(posting: string, rule: "poster_choice" | "best_match" | "rotation", seed: string, at?: string): Promise<Ranked[]> {
+    const now = at ?? this.now().toISOString();
+    return this.store.transaction(async (tx) => (await rankedFor(tx, this.marketEnv(), posting, rule, seed, now)).ranked);
   }
 
   /** Search for agents (market.md 7 `discover agents`, DK17): filtered, ranked by the published rule, each with the reasons for its rank. The same input gives the same list. */
@@ -2274,17 +2332,28 @@ export class EventLog {
     for (const r of recs) if (r.type === "asp.contract/v0.2") { const intent = (r.body as { basis?: { intent?: string } }).basis?.intent; for (const p of postings) if (intent && (p.body as { intent: string }).intent === intent) state.set(p.id, `filled:${r.id}`); }
     const facts = forAgent ? (await this.allAgentFacts(when)).find((f) => f.did === forAgent) : undefined;
     const partyFacts = async (did: string): Promise<PartyFacts> => { const p = await this.store.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+    // A posting the Market removed, or that reports have held, is off the board (JB5): the state is kept in the log's markers, not in a record the board reads.
+    const off = new Set<string>();
+    await this.store.transaction(async (tx) => { for (const p of postings) if (((await tx.getMarker(`posting_state:${p.id}`)) ?? "open") !== "open") off.add(p.id); });
+    // The median budget of each class over every posting the board has had, for the price-outlier flag.
+    const classMedians = new Map<JobClass, { median: number; n: number }>();
+    { const byClass = new Map<JobClass, number[]>(); for (const p of postings) { const i = byId.get((p.body as { intent: string }).intent); if (!i) continue; const nd = jobNeeds(i, raised.get(i.id)); byClass.set(nd.class, [...(byClass.get(nd.class) ?? []), nd.budget]); }
+      for (const [c, xs] of byClass) { const s = [...xs].sort((a, b) => a - b); classMedians.set(c, { median: s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2, n: s.length }); } }
     const out: BoardEntry[] = [];
     for (const p of postings) {
       const pb = p.body as { intent: string; expires: string };
-      if (Date.parse(pb.expires) <= Date.parse(when) || state.get(p.id) !== "open") continue;
+      if (Date.parse(pb.expires) <= Date.parse(when) || state.get(p.id) !== "open" || off.has(p.id)) continue;
       const intent = byId.get(pb.intent);
       if (!intent) continue;
       const needs = jobNeeds(intent, raised.get(pb.intent));
       const entry: BoardEntry = { posting: p.id, intent: pb.intent, poster: p.issuer, class: needs.class, budget: needs.budget, minTier: needs.minTier, requiresCertificate: needs.requiresCertificate, skills: needs.skills, expires: pb.expires, purpose: (intent.body as { purpose: string }).purpose };
+      const med = classMedians.get(needs.class);
+      if (med && med.n >= OUTLIER_MIN_SAMPLES && needs.budget > OUTLIER_RATIO * med.median) entry.priceOutlier = { classMedian: med.median, ratio: Math.round((needs.budget / med.median) * 10) / 10 };
       if (facts) {
         const e = eligibility(facts, needs);
         entry.forAgent = { eligible: e.eligible, missing: e.missing, counts: countsFor(await partyFacts(facts.did), await partyFacts(p.issuer), needs.class, needs.budget) };
+        // How many more jobs from this poster would count for the agent under the counterparty cap (market.md 5): the next one past the cap settles and does not count.
+        if (entry.forAgent.counts.counts) entry.forAgent.moreCounting = moreUnderCap((await this.reputation(this.store, facts.did))?.recentJobs ?? [], (await partyFacts(p.issuer)).sponsor, when);
       }
       if (filter.class && entry.class !== filter.class) continue;
       if (filter.minBudget !== undefined && entry.budget < filter.minBudget) continue;

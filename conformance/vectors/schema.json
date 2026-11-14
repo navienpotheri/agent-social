@@ -4875,7 +4875,7 @@
       "valid": true
     },
     {
-      "name": "market_assignment_rotation_not_built",
+      "name": "valid_market_assignment_rotation",
       "schema": "market_act",
       "instance": {
         "act": "assignment",
@@ -4886,7 +4886,7 @@
         "seed": "s1",
         "ranked": []
       },
-      "valid": false
+      "valid": true
     },
     {
       "name": "market_act_extra_field",
@@ -4895,6 +4895,71 @@
         "act": "withdraw",
         "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
         "boost": 5
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_market_report",
+      "schema": "market_act",
+      "instance": {
+        "act": "report",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "category": "attack",
+        "reason": "asks for a denial of service on a shop"
+      },
+      "valid": true
+    },
+    {
+      "name": "market_report_no_reason",
+      "schema": "market_act",
+      "instance": {
+        "act": "report",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "category": "attack"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_report_bad_category",
+      "schema": "market_act",
+      "instance": {
+        "act": "report",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "category": "rude",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_market_review_removed",
+      "schema": "market_act",
+      "instance": {
+        "act": "review",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "verdict": "removed",
+        "category": "unlawful",
+        "reason": "a denial of service on a third party"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_market_review_cleared",
+      "schema": "market_act",
+      "instance": {
+        "act": "review",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "verdict": "cleared",
+        "reason": "a security test the poster owns"
+      },
+      "valid": true
+    },
+    {
+      "name": "market_review_no_verdict",
+      "schema": "market_act",
+      "instance": {
+        "act": "review",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "reason": "x"
       },
       "valid": false
     },
@@ -7161,6 +7226,55 @@
         "skill": "foundations"
       },
       "valid": true
+    },
+    {
+      "name": "valid_clinic_order_requested_paid",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "requested",
+        "due": "2026-11-26T00:00:00Z",
+        "purchase": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_clinic_order_free_after_change",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "post_change",
+        "due": "2026-11-26T00:00:00Z",
+        "budget": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "change": "memory-update-7"
+      },
+      "valid": true
+    },
+    {
+      "name": "clinic_order_bad_purchase_ref",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "scheduled",
+        "due": "2026-11-19T00:00:00Z",
+        "purchase": "not-a-record-id"
+      },
+      "valid": false
+    },
+    {
+      "name": "clinic_order_empty_change",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "scheduled",
+        "due": "2026-11-19T00:00:00Z",
+        "change": ""
+      },
+      "valid": false
     },
     {
       "name": "clinic_order_bad_kind",
