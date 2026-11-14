@@ -255,8 +255,19 @@ export class SessionRecord {
     try {
       try { if (existsSync(file)) this.merge(JSON.parse(readFileSync(file, "utf8"))); } catch { /* a damaged file is replaced */ }
       const tmp = `${file}.${process.pid}.part`;
-      writeFileSync(tmp, JSON.stringify(this.snapshot()));
-      renameSync(tmp, file);
+      const body = JSON.stringify(this.snapshot());
+      writeFileSync(tmp, body);
+      // On Windows a rename onto a file another process is reading or renaming can fail (EPERM, EBUSY): try again a few times, then write in place. A hook must never fail because its record could not be saved.
+      let done = false;
+      for (let attempt = 0; attempt < 20 && !done; attempt++) {
+        try { renameSync(tmp, file); done = true; } catch {
+          const wait = Date.now() + 10; while (Date.now() < wait) { /* a few milliseconds */ }
+        }
+      }
+      if (!done) {
+        try { writeFileSync(file, body); } catch { /* the record is a help, never a condition */ }
+        try { rmSync(tmp, { force: true }); } catch { /* left for the next write */ }
+      }
     } finally { if (held) rmSync(lock, { force: true }); }
   }
 
