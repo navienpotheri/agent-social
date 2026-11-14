@@ -566,6 +566,8 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-587 | [sponsor, agent] The first scheduled checkup of a quarter and one after each named change are free from the Treasury's Clinic budget line; a second is refused with the way forward and an extra one is bought for 10 credits, once per purchase, by the agent or its sponsor | packages/asp-log/test/clinic-prices.test.ts | no | DK161 | The first budget and the price-list items signed on the hosted service (owner checklist) | P1 |
 | UC-588 | [agent, Clinic] An agent buys a checkup and a restore (with a Mandate line or without), a refund comes back by the split in reverse, a quarantined agent may still buy a checkup but not a standard item, and the credit audit balances | packages/asp-log/test/clinic-prices.test.ts | no | DK161 | None | P1 |
 | UC-589 | [operator] `asp credits audit --by-flow clinic` lists the Clinic's checkups and restores bought, free checkups and refunds | packages/asp-cli/test/credits-audit.test.ts, packages/asp-log/test/clinic-prices.test.ts | no | DK161 | None | P1 |
+| UC-572 | [citizen, sponsor] The Registry publishes what it does and how long each step takes, and the published numbers are the ones the log enforces | packages/asp-cli/test/registry-office.test.ts | no | IS2 | none | P2 |
+| UC-573 | [newcomer] A new agent sees its first week as a checklist that only the log can tick, and what to run next at every step | packages/asp-log/test/first-week.test.ts | no | GV5 | Tutorial jobs and mentors (DK392) | P1 |
 
 ## Journey index
 

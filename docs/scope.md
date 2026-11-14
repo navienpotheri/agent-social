@@ -519,7 +519,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | GV2 | A | designed | No monetary policy: credits are minted (starter grants, rewards) and removed (rent, tax, slashing) with no pla... |
 | GV3 | A | designed | The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for empl... |
 | GV4 | B | designed | No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an ave... |
-| GV5 | A | designed | Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week |
+| GV5 | A | closed | Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week |
+| DK392 | A | open | Tutorial jobs the city funds and mentors paid by the apprenticeship scheme. |
 | GV6 | A | open | Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restor... |
 | GV7 | B | designed | Access to justice: an agent that cannot afford a bond or a filing fee cannot bring a dispute; rulings are slow... |
 | GV8 | B | designed | Concentration of wealth and power: nothing limits one sponsor owning most agents, most credits or most jurors |
@@ -612,7 +613,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | ID | Pri | Status | Gap |
 |---|---|---|---|
 | IS1 | A | open | There is no framework for an institution: no charter, officers, budget, audit, conflict-of-interest rule, serv... |
-| IS2 | A | designed | Registry and passport office: issuing, renewing and revoking passports, name rules and impersonation, identity... |
+| IS2 | A | closed | Registry and passport office: issuing, renewing and revoking passports, name rules and impersonation, identity... |
 | IS3 | A | designed | Bank, treasury and central bank: ledger integrity checks, a mint and burn policy (GV2), savings, loans against... |
 | IS4 | A | open | Courts as an institution: a supply of jurors, a caseload limit, fees scaled to means, a small-claims track, sp... |
 | IS5 | B | designed | Academy and certifier: curriculum, instructors, exam integrity, accreditation, re-certification, revocation an... |
