@@ -362,7 +362,7 @@ import {
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
-import { DailyCeiling, askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
+import { DailyCeiling, screenMemoryWriteBack, askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
 import { allowScopes, inferScopes, isPreset, presetScopes, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
 import { NEEDS_PASSPHRASE, isSealed, open as openSealed, passphraseFrom, seal } from "@agent-social/asp-package";
 import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
@@ -3186,6 +3186,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
 /** After a gateway run, the agent's memory goes back into its package the way `asp run` does it: diffed, merged with any other run's, kept in budget, signed. */
 async function gatewayWriteBack(o: { home: string; pkgDir: string; agent: string; memDir: string; baseMemory: string; gwRunDir: string; v: Values; io: Io }): Promise<void> {
   const { home, pkgDir, agent, memDir, baseMemory, gwRunDir, v, io } = o;
+  // The audit gate on the agent's own writes (DK112): a note that breaks an invariant is not written back, and is listed in learned/rejected.json.
+  for (const h of screenMemoryWriteBack(pkgDir, memDir, baseMemory)) io.err(`  held back  memory/${h.file}: ${h.reasons.map((r) => r.reason).join("; ")} (see asp learned)`);
   const diff = diffTrees(baseMemory, memDir);
   if (isEmptyDiff(diff)) return;
   let memoryFrom = memDir;
@@ -6987,6 +6989,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   // Write back: a backend swap and any memory the agent changed become signed lineage updates.
   const changes: LineageChange[] = [];
   if (swap) changes.push({ layer: "backend", description: `runtime ${current} -> ${backend}`, probationDays: 7 });
+  if (plan.memoryDir) for (const h of screenMemoryWriteBack(pkgDir, plan.memoryDir, baseMemory)) io.err(`  held back  memory/${h.file}: ${h.reasons.map((r) => r.reason).join("; ")} (see asp learned)`);
   const diff = plan.memoryDir ? diffTrees(baseMemory, plan.memoryDir) : undefined;
   const memoryChanged = !!diff && !isEmptyDiff(diff) && !v["no-write-back"];
   let memoryFrom = plan.memoryDir;
