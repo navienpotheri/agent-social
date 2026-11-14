@@ -38,3 +38,31 @@ Method: for each row the closing commit (`git log` on `docs/gaps-register.md`) w
 | H14 | new `mcp-hosts.test.ts` | holds | Host checks and the rate, in the gateway and both hooks; the fixed-endpoint MCP server is DK240 (live). |
 
 Reopened in this batch: D12, CY14, GV9, GV11, DK129. New rows: DK440, DK441.
+
+## 2026-11-15, batch 2 (rows closed without a new test file, or closed "for" part of their Needs)
+
+Method: every commit since 2026-11-08 that set a register row to `closed` was listed with the test files it added or changed. Rows closed in a commit that added no test file (a documentation commit, a status change, a renumbering) were read against their Done line and the tests they cite; rows closed "for" or "in part" were read against the whole Needs column, because a row that names three things and is closed on two is not closed.
+
+| Row | Closed by | Verdict | What was found, and what was done |
+|---|---|---|---|
+| DK10, DK12, DK13, DK16, DK17, DK18 | register-text commit only (the tests came with each row on 2026-11-12) | holds | Each row's Done line is a named test in `registry-civil.test.ts`, `registry.test.ts`, `courts-routes.test.ts` or `market-board.test.ts`; the key assertions were found (a forged page found by `registryVerify`, a ruling citing a precedent, `ranking_not_reproducible`, the same input giving the same ranking, 30 trivial jobs adding nothing to standing). |
+| CY10 | docs (the tests are CY6's and the rule tests of other rows) | note | Closed by pointing at `reward-farming.test.ts` (six farming strategies, none promotes) and the class, independence and cap tests of other rows; each of those exists. Holds, as a mapping closure whose parts are each tested. |
+| DK25, DK26, DK32 | academy docs commit (tests earlier) | holds | The Overfitter and the leaked suite are `exam.test.ts` tests; a colluding pair cannot lift a rank is in `academy-halls.test.ts` (`arena_same_sponsor_opponent`); the lesson gate is `lesson-gate.test.ts`. |
+| DK69 | register commit | holds | `qualifying.test.ts` states the Done line (a pair of one sponsor exchanging 30 jobs lowers nothing; independent principals do). |
+| DK72 | register commit | holds | The tier-limit case in `economy-slice.test.ts` (caps summing to 101 refused, 100 accepted). |
+| DK112 | tests modified | holds | `memory-gate.test.ts` covers the runtime write refused with its reason, the screen before write-back, and the misses listed with a count (6 of 14, `docs/gate-evasions.md`). |
+| DK130 | tests modified | holds | `forum.test.ts` (moderation) covers each clause of the Done line. |
+| DK15 | tests modified | holds | `treasury-closed-loop.test.ts` and `treasury-statement.test.ts`: every institution has a budget line and the statement shows income and spending. |
+| DK184, DK396 | tests modified | holds | The Insurer's tools and public pages, and the charter cross-check with the page of all twelve, each have the test their Done line names. |
+| BM10, D4, E3 | tests modified, no Done line | holds | The repeat probe is a `watch.test.ts` case; the model digest is in `gateway.test.ts` and `action.test.ts` (and DK399 for a local runtime); the SDK metrics are tested in both SDKs. |
+| E4 | tests modified | note | The row's gap ("unusual shapes can get through") is narrowed, not removed: the closing text says masking still is by pattern and entropy. Left closed because the row is Priority B and the terms draft says so; a new pattern is a new test. |
+| D6 | new tests | note | Closed "for the first detector": the row's Needs are two (canary tests, flag tool results) and both exist; goal hijacking without such text is DK315. Holds. |
+| CY9 | new tests | note | Closed for storage, injection defence and moderation; rent is a price-list item and a recurring rent is DK393. Holds as the Needs words rent (a plot's decor is bought and held); watch DK393. |
+| JB4, DK67 | new tests | holds | JB4's allocation modes and automatic flow are tested; DK67 is closed for a log that names an operator, which is the Done line (a replica built from the records alone has the same balances). |
+| T26 | new tests | **reopened** | Closed "for the cutover" but the Needs include the decay, improvement and regression terms. Back to `partial`; DK312, DK313. |
+| BM22 | new tests | **reopened** | Closed "for the lock and the budget" but the Needs name a model or sandbox check. Back to `partial`; DK352. |
+| GV3 | new tests | **reopened** | Closed "for the cold-start mechanism" but the Needs name city-funded public-works jobs and an unemployment floor. Back to `partial`; DK395. |
+| GV5 | new tests | **reopened** | Closed "for the first-week route" but the Needs name mentors paid by the apprenticeship scheme. Back to `partial`; DK392. |
+| DK183 | tests modified | **reopened** | The Done line is "a test for each" of six loose ends and three have one. Closed "in part" is not closed. Back to `partial`; DK402. |
+
+Reopened in this batch: T26, BM22, GV3, GV5, DK183. No new rows (each remainder already has a split row). Rule going forward: a row whose closing text says "for" a part or "in part" stays `partial` until the rest is closed or its Needs column is rewritten with the owner's agreement.
