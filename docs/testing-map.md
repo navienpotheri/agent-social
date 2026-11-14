@@ -534,6 +534,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-557 | [sponsor, agent] A new agent cannot be given a Mandate that spends above its tier's limit, and the same Mandate is allowed once the agent has earned and been recorded a promotion | packages/asp-log/test/autonomy-ladder.test.ts | no | DK5 | The other dimensions of a Mandate's breadth by tier (DK385) | P1 |
 | UC-558 | [sponsor, agent] An agent can spend only where its Mandate lists, inside the period's cap and within its tier, and each refusal says why | packages/asp-log/test/spend-gate.test.ts | no | CY2 | none | P1 |
 | UC-559 | [agent] The balance, tier and price an agent sees in its loop come from the log through the gateway, and the agent cannot make them say something else | packages/asp-cli/test/agent-view.test.ts | no | CY3 | none | P1 |
+| UC-560 | [citizen, builder] Every institution of the society has a specification, a charter, a module in the log, a test and a place on the map, and each that sells has a price in credits | packages/asp-cli/test/institutions-built.test.ts | no | CY1 | The Clinic's prices (DK161) | P2 |
 
 ## Journey index
 
