@@ -28,6 +28,7 @@ import { assertNotDormant, checkShopsPurchase, notePerformer, projectShopsAct } 
 import { homeView, type HomeView } from "./housing.ts";
 import { resourceExtras, type ResourceExtras } from "./shops.ts";
 import { HOUSING_DID, SHOPS_DID, catalogueProblem, type CatalogueItem } from "./shops.ts";
+import { cityIndicators, type CityIndicators } from "./society-indicators.ts";
 import { buildPage, namesAt, isLive, skeleton, verifyPage, lapsedIdentities, identityLevelAt, type RecordPage } from "./registry.ts";
 import { classWeight, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
@@ -2390,6 +2391,17 @@ export class EventLog {
       institutions.push({ did, budgeted: led.budgets.filter((b) => b.institution === did).reduce((n, b) => n + b.amount, 0), paidByTreasury: led.payments.filter((x) => x.to === did && inPeriod(x.at)).reduce((n, x) => n + x.amount, 0), earnedFromPurchases: earned.get(did) ?? 0, balance: (await this.store.getAccount(did))?.balance ?? 0 });
     }
     return { since: since ?? null, treasury: { balance: total, in: { issuance, jobTax, purchaseShare }, out: { budgetPayments, allowances }, unexplained, reconciles: unexplained === null ? null : unexplained === 0 }, institutions };
+  }
+
+  /** The city's indicators (register row GV1): population, work, disputes, credit supply, inequality and newcomer survival, from the log's records and ledger only, each with its published method. */
+  async cityIndicators(at?: string): Promise<CityIndicators> {
+    const when = at ?? this.now().toISOString();
+    const records = await this.recordsWhere(() => true);
+    const rows = await this.store.ledgerRows();
+    const audit = auditLedger(rows);
+    const tiers = new Map<string, number>();
+    for (const r of records) if (r.type === "asp.passport/v0.2") { const b = r.body as { did: string; kind: string }; if (b.kind === "agent" && !tiers.has(b.did)) { const rep = await this.reputationOf(b.did); if (rep) tiers.set(b.did, rep.tier); } }
+    return cityIndicators({ records, accounts: rows.accounts, minted: audit.minted, locked: audit.locked.total, tiers }, when);
   }
 
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */

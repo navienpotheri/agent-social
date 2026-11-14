@@ -515,7 +515,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| GV1 | A | designed | No city indicators: nobody can see population, jobs posted and settled, disputes, credit supply, inequality, n... |
+| GV1 | A | closed | No city indicators: nobody can see population, jobs posted and settled, disputes, credit supply, inequality, n... |
 | GV2 | A | designed | No monetary policy: credits are minted (starter grants, rewards) and removed (rent, tax, slashing) with no pla... |
 | GV3 | A | designed | The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for empl... |
 | GV4 | B | designed | No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an ave... |

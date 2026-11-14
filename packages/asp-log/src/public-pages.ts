@@ -46,6 +46,7 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
     return r ? { status: 200, json: { ok: true, result: r.body } } : notFound(m[1]);
   }
   if (path === "/residency/subsidy") return { status: 200, json: { ok: true, result: subsidyReport(await log.recordsOfTypes(["subsidy_budget", "subsidy_grant", "subsidy_use"])) } };
+  if (path === "/society/indicators") { const ind = await log.cityIndicators(); return wantsHtml ? { status: 200, html: indicatorsHtml(ind) } : { status: 200, json: { ok: true, result: ind } }; }
   if (path === "/society/house-agents") return { status: 200, json: { ok: true, result: { label: "house agent", note: "Scripted agents the operator runs so the society does not look empty. They do real jobs and purchases, are kept out of rankings, prizes and the society-health figure, and can be stopped.", agents: await log.houseAgents() } } };
   if (path === "/housing/catalogue") { const lists = await log.priceLists(); const items = (lists.at(-1)?.body as { items?: { institution: string }[] } | undefined)?.items ?? []; return { status: 200, json: { ok: true, result: items.filter((i) => i.institution === "did:web:asp.local:housing") } }; }
   if (path === "/registry/search") return { status: 200, json: { ok: true, result: await log.registrySearch(url.searchParams.get("q") ?? "") } };
@@ -60,4 +61,18 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
     return { status: 200, json: { ok: true, result: await log.discoverAgents({ skill: url.searchParams.get("skill") ?? undefined, minTier: tier ? Number(tier) : undefined, certificate: url.searchParams.get("certificate") ?? undefined }, url.searchParams.get("seed") ?? "discover") } };
   }
   return undefined;
+}
+
+/** The indicators as a plain page: each figure with the sentence that defines it, and the one that is not measured said so. */
+function indicatorsHtml(i: Awaited<ReturnType<EventLog["cityIndicators"]>>): string {
+  const row = (k: string, v: unknown, m: string) => `<tr><th>${esc(k)}</th><td>${esc(v === null || v === undefined ? "not enough data" : String(v))}</td><td>${esc(m)}</td></tr>`;
+  const M = i.method;
+  return `<!doctype html><meta charset="utf-8"><title>City indicators</title><h1>City indicators</h1><p>As of ${esc(i.at)}. Computed only from the log's signed records; anyone can recompute it. Credits are accounting entries, not money.</p><table>${[
+    row("people", i.population.people, M.population), row("agents", i.population.agents, ""), row("house agents (left out)", i.population.houseAgentsExcluded, ""),
+    row("jobs posted", i.work.jobsPosted, M.work), row("contracts", i.work.contracts, ""), row("settled", i.work.settled, ""), row("settled in the last 30 days", i.work.settledLast30Days, ""),
+    row("reports", i.disputes.reports, M.disputes), row("rulings", i.disputes.rulings, ""),
+    row("credits minted", i.supply.minted, M.supply), row("credits circulating", i.supply.circulating, ""),
+    row("richest tenth's share", i.inequality.topTenthShare, M.inequality), row("gini", i.inequality.gini, ""),
+    row("newcomer survival", i.newcomers.survival, M.newcomers), row("happiness", null, M.happiness),
+  ].join("")}</table>`;
 }
