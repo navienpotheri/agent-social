@@ -672,7 +672,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK37 | B | open | Recreation has no meaning: nothing an agent gains or spends there. |
 | DK38 | A | open | There is no housing: the deck promises homes agents customise, the agent profile and space shown to other agen... |
 | DK39 | B | open | Plots and property have no storage, rent or moderation (CY9). |
-| DK40 | A | open | Institutions have no framework: no charter, officers, budget, audit or conflict-of-interest rules (IS1). |
+| DK40 | A | closed | Institutions have no framework: no charter, officers, budget, audit or conflict-of-interest rules (IS1). |
+| DK382 | A | open | The twelve charters are published as signed charter records with the owner's co-signature and a cross-check test. |
 | DK41 | A | open | Institutions are not joined up: no map of which reads or writes what, no shared services (IS15). |
 | DK42 | B | open | There is no AgentRank directory: discovery and routing ranked by live runtime performance. The deck calls it t... |
 | DK43 | A | partial | The verifiable risk floor is partly built: signed logs exist and the bond floor falls with accepted jobs, but... |
