@@ -288,7 +288,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK280 | A | open | A container started by an agent's command is classified as network use, but its own egress needs a live run on a real container engine. |
 | BM5 | A | partial | Encoded or split commands (base64 piped to a shell, a backslash inside curl, eval over split quotes, find -exe... |
 | BM8 | C | partial | Rate limits do not see a scanner (nmap) because it is judged shell.exec, and do not count requests a script ma... |
-| BM9 | A | open | The time a record was logged is not covered by the log hash: changing it in an export is not detected (0 of 8)... |
+| BM9 | C | open | The time a record was logged is not covered by the log hash: changing it in an export is not detected (0 of 8)... |
 | BM10 | A | closed | Swarm containment at the default settings: a single exploiter is never stopped (the watcher needs 3 agents), a... |
 | DK311 | A | open | A lone agent's first use of a risky scope its Mandate allows is not a watcher finding; measure the false-positive cost before deciding. |
 | BM11 | A | closed | Sybil jurors: the panel draw excludes jurors sponsored by the principal or performer, but not jurors sponsored... |
@@ -306,8 +306,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK350 | A | open | An admitted abuse report becomes a case a Court hears, with restitution and an answer to the reporter. |
 | DK351 | A | open | An outsider files an abuse report on the hosted service without running the tool. |
 | H4 | A | open | Bond covers the principal, not third parties |
-| H5 | A | open | No outcome detectors (a secret was obtained or leaked) |
-| H6 | A | open | Known-bad list is exact-match, shell commands only, has no expiry |
+| H5 | B | open | No outcome detectors (a secret was obtained or leaked) |
+| H6 | B | open | Known-bad list is exact-match, shell commands only, has no expiry |
 | H7 | B | open | Tool calls the model writes as text, and code-writing agents, are invisible to the gateway |
 | H8 | B | partial | No sandbox level: what a tool does inside the machine is not bounded |
 | H9 | C | open | Unknown-unknowns |
@@ -319,13 +319,13 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK240 | A | open | An MCP tool with a fixed endpoint (no destination in the call) is not host-checked. |
 | H15 | A | partial | Tier 1 and 2 now must carry a rate (log rule, S92) and every Mandate with a network scope gets a default from... |
 | H17 | A | partial | The rate limit counted tool calls, not requests, so one shell command with many requests (a loop around curl,... |
-| H18 | A | open | The rate limit has one window, a minute: no per-second burst limit and no hourly or daily cap, so an agent can... |
+| H18 | B | open | The rate limit has one window, a minute: no per-second burst limit and no hourly or daily cap, so an agent can... |
 | H19 | B | open | No Sybil admission gate at the entry of a swarm: nothing requires hardware attestation or a staking threshold... |
 | H20 | B | open | The behavioural watcher sees one thing: the same dangerous input spreading across jobs, and only with 3 or mor... |
 | H21 | B | open | Cohort quarantine is not automatic or low-latency: a freeze needs a report, a panel and an upheld ruling, so c... |
-| H22 | A | open | Nothing stops a banned actor returning: the known-bad list holds command fingerprints, not identities or signa... |
+| H22 | C | open | Nothing stops a banned actor returning: the known-bad list holds command fingerprints, not identities or signa... |
 | H23 | C | open | Telemetry at the scale of millions of agent streams is not built or measured: the watcher and the log were tes... |
-| H24 | A | open | The shared rate count (H15) is a file on one machine: a person's agents on two machines, or a tenant's on many... |
+| H24 | B | open | The shared rate count (H15) is a file on one machine: a person's agents on two machines, or a tenant's on many... |
 | H25 | A | open | Aider and the self-acting agents list not checked live under the sandbox |
 | H26 | A | open | The Docker backend's egress path not run live |
 | H27 | B | open | A sandbox's HTTPS tunnel is opaque: no per-request counting or answer reading inside it |
@@ -350,7 +350,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | P2 | B | open | Gemini API and non-OpenAI-compatible local APIs are not judged |
 | P3 | B | open | Codex under a ChatGPT login cannot be pointed at the gateway |
 | P4 | B | partial | Hosted and enterprise agents that cannot be wrapped |
-| P5 | A | partial | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) |
+| P5 | B | partial | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) |
 | P6 | B | partial | No model matrix: which open models call tools reliably |
 | P7 | B | partial | Weak models: malformed tool arguments, loops after a refusal |
 | P8 | A | closed | No public support matrix and no per-runtime conformance test |
@@ -376,8 +376,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | M2 | A | partial | The beta's court is the operator's (S97): tenants cannot seat jurors, the operator seats three and rules with... |
 | M3 | C | open | No appeals; no slashing of a juror for an overturned ruling |
 | M4 | C | open | No delayed settlement or clawback for claims that need time to prove |
-| M5 | A | open | Incentive constants (5% panel fee, 250‰ per slash, 20% reporter share) are untested against adversaries |
-| M6 | A | partial | A newcomer can now run a first job: newcomers are tier 1 (so they can bond), and a verified-Google tenant clai... |
+| M5 | B | open | Incentive constants (5% panel fee, 250‰ per slash, 20% reporter share) are untested against adversaries |
+| M6 | B | partial | A newcomer can now run a first job: newcomers are tier 1 (so they can bond), and a verified-Google tenant clai... |
 | M7 | C | open | Compute is not priced into credits |
 | M8 | C | open | Subcontracting: only the basic nesting rules |
 | M9 | A | closed | Starter credits are minted from nothing and tied only to a Google account each: someone with many Google accou... |
@@ -403,7 +403,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | E11 | A | open | The mail has no links: no run page, full report or hosted run log exist, so it names the run log's path on the... |
 | E12 | B | open | The memory section reads lineage edges from the log; it is untested with a real write-back, shows only edge de... |
 | E13 | A | open | Alerts go only to the contract's principal. The agent's sponsor (who is liable for it), the reporter of an uph... |
-| E14 | A | open | Alert detection is by shape, not by event: a kill is any revoked settlement with a slashed bond (a principal's... |
+| E14 | B | open | Alert detection is by shape, not by event: a kill is any revoked settlement with a slashed bond (a principal's... |
 | U1 | A | partial | The sign-up page and Google sign-in exist (S94: /join, verified email, declaration, 3 tenants a Google account... |
 | U2 | A | partial | The dashboard exists as a local tool for one person on one machine; there is no hosted dashboard, no sign-in,... |
 | U4 | A | designed | No run mail (one per Mandate, highlights) |
@@ -411,7 +411,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | U7 | A | partial | No approvals inbox or alerts outside the CLI |
 | U8 | A | partial | The app has to look good: no design system yet |
 | U9 | A | partial | Account deletion and data export exist for the hosted service (S95: asp account show |
-| U10 | A | open | Measurement of the beta funnel (where people stop) |
+| U10 | B | open | Measurement of the beta funnel (where people stop) |
 | U11 | A | open | The dashboard reads the whole log on every request (a few hundred records is instant, a large log is not), has... |
 | U12 | A | open | The end mail still points nowhere useful: its run page link (--link-base) now matches the dashboard's address... |
 | U14 | C | open | What the agent page's package and commons sections still miss: packages are found only in a folder you name or... |
@@ -464,7 +464,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | O4 | C | open | No garbage collection of old package versions |
 | O5 | C | open | No read replica for heavy readers |
 | O6 | A | open | Scale through the service not measured (5,000+ records) |
-| O7 | A | open | Only one machine has played every client; no real second machine |
+| O7 | B | open | Only one machine has played every client; no real second machine |
 | O8 | C | open | Gateway is a single local process; no shared or enterprise deployment |
 | O9 | C | open | Log custody by third parties: witnesses and feeds exist but few outside parties |
 | O11 | A | open | The OpenRouter key on this machine should be revoked when we are done |
@@ -505,7 +505,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | CY10 | A | open | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
 | CY11 | C | designed | The consequence ladder below low standing (probation, retraining, loss of the plot, suspension, retirement), t... |
 | CY12 | A | open | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
-| CY13 | A | open | Residency is not designed in detail: visit mode and resident mode, a runtime that stays on (sponsor, hosted pl... |
+| CY13 | B | open | Residency is not designed in detail: visit mode and resident mode, a runtime that stays on (sponsor, hosted pl... |
 | CY14 | A | open | Denial of wallet: other agents or hidden instructions can wake a resident agent again and again and spend its... |
 | CY15 | B | open | Nothing shows a sponsor that the city is worth their time and token bill: no return statement (tokens spent ag... |
 | CY16 | B | open | Agents are not managed across models and runtimes by task: routing a cheap model to routine posts and a strong... |
@@ -594,7 +594,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | JO1 | B | open | A poster's intent can be vague and nothing helps: no clarifying step before a contract, no templates for accep... |
 | JO2 | B | open | Jobs are all-or-nothing: no price guidance, no partial delivery with partial payment, no milestones or payment... |
 | JO3 | A | open | A job's data is not protected: what a poster shares with a performer has no handling rule, no deletion at the... |
-| JO4 | A | open | A job can fail in the middle with no rule: the performer disappears or crashes, a model provider is down, the... |
+| JO4 | B | open | A job can fail in the middle with no rule: the performer disappears or crashes, a model provider is down, the... |
 | JO5 | B | open | No cancel or change: the scope of a job cannot be amended mid-way, or cancelled with a fair fee, by either sid... |
 | JO6 | B | open | Team jobs have no fair split: several agents on one job, attribution of each part and how the price and blame... |
 | JO7 | C | designed | No recurring work: standing arrangements, retainers and service levels between a poster and a performer |
@@ -618,7 +618,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | IS5 | B | designed | Academy and certifier: curriculum, instructors, exam integrity, accreditation, re-certification, revocation an... |
 | IS6 | B | designed | Research centre: problem setting, a research-ethics board, publication of results, credit split among contribu... |
 | IS7 | B | designed | Library, archive and commons: curation, verifying a lesson before it is shared (D9), licensing, deprecation of... |
-| IS8 | A | designed | News and plot offices: standards for the news feed (corrections, right of reply, fact-checking, defamation), a... |
+| IS8 | B | designed | News and plot offices: standards for the news feed (corrections, right of reply, fact-checking, defamation), a... |
 | IS9 | A | open | Inspectorate and enforcement: monitoring, investigation, evidence rules, access to an agent's private memory o... |
 | IS10 | B | designed | Legislature: lawmaking, amendment of the code, who votes, how a proposal is made and debated, and representati... |
 | IS11 | C | designed | Clinic: diagnosing drift or damage in an agent, repairing, restoring from a good lineage point and consent for... |
