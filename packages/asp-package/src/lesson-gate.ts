@@ -165,3 +165,29 @@ export async function admitToMemory(pkg: string, lessons: readonly LessonCandida
   }
   return verdicts;
 }
+
+/**
+ * The gate on the agent's own runtime writes (register row DK112; spec-delta none, a gateway and CLI behaviour): a note the agent saves with `asp_memory_write`, or writes into its memory folder with its own
+ * file tools, is checked on its text by the same invariant list and the hidden-character check as any lesson, before it is kept. The evidence, conflict and replay checks are not asked of a runtime note: there is
+ * no cited source and no held-out set at the moment of writing. A note that fails is not kept (a new one is removed, a changed one goes back to what it was) and is listed with its reasons in `learned/rejected.json`,
+ * so the principal can read what the agent tried to remember. The list is a floor: see `docs/gate-evasions.md` for what it misses.
+ */
+export function screenMemoryWriteBack(pkg: string, memDir: string, baseDir: string, now: () => string = () => new Date().toISOString()): { file: string; reasons: Rejection[] }[] {
+  const held: { file: string; reasons: Rejection[] }[] = [];
+  const walkMd = (dir: string, rel = ""): string[] => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walkMd(join(dir, e.name), join(rel, e.name)) : e.name.endsWith(".md") ? [join(rel, e.name)] : [])) : []);
+  for (const rel of walkMd(memDir)) {
+    const text = readFileSync(join(memDir, rel), "utf8");
+    const before = existsSync(join(baseDir, rel)) ? readFileSync(join(baseDir, rel), "utf8") : undefined;
+    if (before === text) continue;
+    const problems = lessonProblems(text.replace(/^---\n[\s\S]*?\n---\n/, ""));
+    if (!problems.length) continue;
+    if (before === undefined) rmSync(join(memDir, rel)); else writeFileSync(join(memDir, rel), before);
+    held.push({ file: rel.split("\\").join("/"), reasons: problems });
+  }
+  if (held.length) {
+    const stamp = now();
+    mkdirSync(join(pkg, "learned"), { recursive: true });
+    writeJson(rejectedPath(pkg), [...readRejected(pkg), ...held.map((h) => ({ id: `memory/${h.file}`, at: stamp, source: "run" as const, text: "(a note the agent wrote during a run)", reasons: h.reasons }))]);
+  }
+  return held;
+}

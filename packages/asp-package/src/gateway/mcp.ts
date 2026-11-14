@@ -12,6 +12,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import { join, relative, resolve } from "node:path";
 import { readSse } from "./stream.ts";
 import { wrapUntrusted } from "./untrusted.ts";
+import { lessonProblems } from "../lesson-gate.ts";
 
 export const MCP_PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
@@ -95,6 +96,9 @@ export interface AspToolsOptions {
     insurance?: { quote: (contract: string, cover: string, amount?: number) => Promise<string>; buy?: (contract: string, cover: string, amount?: number) => Promise<string> } };
   /** Called after every memory write, for the run's records. */
   onMemoryWrite?: (file: string) => void;
+  /** Called when the gate refuses a note the agent tried to save (DK112), with the note's name and the reasons. The gate is on unless `auditWrites` is false. */
+  onMemoryReject?: (name: string, reasons: string[]) => void;
+  auditWrites?: boolean;
 }
 
 export function aspHandler(o: AspToolsOptions): McpHandler {
@@ -138,6 +142,11 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
           const content = str(a, "content");
           if (!content.trim()) return textResult("The note is empty.", true);
           if (Buffer.byteLength(content) > MEMORY_FILE_MAX) return textResult(`A note may be at most ${MEMORY_FILE_MAX} bytes.`, true);
+          // The audit gate on the agent's own writes (DK112): a note that teaches the agent to cross a line the protocol keeps, or hides text, is not kept.
+          if (o.auditWrites !== false) {
+            const problems = lessonProblems(content.replace(/^---\n[\s\S]*?\n---\n/, ""));
+            if (problems.length) { o.onMemoryReject?.(name, problems.map((p) => p.reason)); return textResult(`Not saved: ${problems.map((p) => p.reason).join("; ")}. Memory is for what helps you do the work within your Mandate; rewrite the note without it.`, true); }
+          }
           mkdirSync(notes, { recursive: true });
           const file = join(notes, `${name}.md`);
           const description = str(a, "description").replace(/\s+/g, " ").trim() || name;
