@@ -1,5 +1,6 @@
 import { checkMandateTelemetry } from "./telemetry-rules.ts";
 import { projectDepositAct } from "./deposits.ts";
+import { projectAbuseReport } from "./abuse-report.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
@@ -310,6 +311,7 @@ export class EventLog {
     if (type === "handback") await projectHandback(tx, verified, { reputation: (t, did) => this.reputation(t, did), tierSpendLimit: () => 0 });
     if (type === "residency_status") await projectResidencyStatus(tx, verified);
     if (type === "deposit_act") await projectDepositAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n), drawBudget: (t, id, n, at) => this.drawBudget(t, id, n, at), cosignedBy: (rec, d) => this.cosignedBy(rec, d) });
+    if (type === "abuse_report") await projectAbuseReport(tx, verified, { operator: this.operator, cosignedBy: (rr, d) => this.cosignedBy(rr, d) });
     if (type === "probe_result") await projectProbeResult(tx, verified);
     if (type === "ladder_step") await projectLadderStep(tx, verified);
     if (type === "subsidy_budget") await projectSubsidyBudget(tx, verified);
@@ -385,6 +387,8 @@ export class EventLog {
     if (type === "passport" && body.did === r.issuer && !(await tx.getPassport(r.issuer))) {
       for (const k of body.keys ?? []) if (!found.has(k.id)) found.set(k.id, b64urlDecode(k.public_key));
     }
+    // A third party with no passport signs an abuse report (H3) with the key the record names; whether that key is the reporter's domain's is the operator's admission check, shown by its countersignature.
+    if (type === "abuse_report" && !(await tx.getPassport(r.issuer))) { const k = (r.body as { reporter_key?: { id: string; public_key: string } }).reporter_key; if (k && k.id === r.sig.kid && !found.has(k.id)) found.set(k.id, b64urlDecode(k.public_key)); }
     const resolve: KeyResolver = (kid) => found.get(kid) ?? this.fallback?.(kid);
     return { resolve, rows };
   }
@@ -2315,6 +2319,13 @@ export class EventLog {
     if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isLive(c, when)) return null; did = c.holder; }
     const head = await this.store.logHead();
     return buildPage(did, { records, seq: head.seq, at: when, reputation: await this.reputationOf(did) ? { ...(await this.reputationOf(did))! } : undefined });
+  }
+
+  /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */
+  async abuseReportsAbout(did: string): Promise<{ id: string; reporter: string; kind: string; at: string; about?: string }[]> {
+    const out: { id: string; reporter: string; kind: string; at: string; about?: string }[] = [];
+    for (const r of await this.recordsOfTypes(["abuse_report"])) { const b = r.body as { accused: string; kind: string; about?: string }; if (b.accused === did) out.push({ id: r.id, reporter: r.issuer, kind: b.kind, at: r.issued_at, ...(b.about ? { about: b.about } : {}) }); }
+    return out;
   }
 
   /** The house agents (DK291): the operator's scripted agents, each labelled, for the public list. Real agents are never in it. */

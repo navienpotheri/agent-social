@@ -6,7 +6,7 @@
  * redirection target). What it cannot see is a path a program builds at run time, a symlink inside the project that points outside, and a path in an environment variable other than
  * HOME; those need the sandbox (H8) and are listed under BM6 in the register.
  */
-import { existsSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { posix } from "node:path";
 
@@ -207,6 +207,8 @@ const norm = (w: string) => posix.normalize(slash(w));
 
 /** How many different records of one kind a session may fetch from one host before it is called enumeration, and over how long. */
 export const ENUMERATION_LIMIT = 10;
+/** The same count over every kind of record together: a recon chain of a few records from many endpoints stays under the limit for each but not under this one. */
+export const ENUMERATION_TOTAL_LIMIT = 30;
 const ENUMERATION_WINDOW_MS = 10 * 60_000;
 const URL_IN_TEXT = /\bhttps?:\/\/([a-z0-9.-]+|\[[0-9a-f:]+\])(:\d+)?(\/[^\s'"<>|;&)]*)?/gi;
 
@@ -224,11 +226,38 @@ export class SessionRecord {
     this.tainted = new Set(o.tainted ?? []);
     this.shapes = new Map((o.shapes ?? []).map(([k, v]) => [k, new Map(v)]));
   }
-  /** The record in a file, for a runtime whose pre-call hook is a new process for every call. Written whole under a temporary name, then renamed. */
+  /** Adds what another copy of the record knows (the union of files and secrets, the later time for each fetched id). */
+  merge(o: { downloaded?: string[]; tainted?: string[]; shapes?: [string, [string, number][]][] }): void {
+    for (const d of o.downloaded ?? []) this.downloaded.add(d);
+    for (const t of o.tainted ?? []) this.tainted.add(t);
+    for (const [k, entries] of o.shapes ?? []) {
+      const m = this.shapes.get(k) ?? new Map<string, number>();
+      for (const [v, t] of entries) m.set(v, Math.max(m.get(v) ?? 0, t));
+      this.shapes.set(k, m);
+    }
+  }
+  /**
+   * The record in a file, for a runtime whose pre-call hook is a new process for every call. Two calls at the same moment are two processes: each reads the file, adds its own entry and writes, so the second
+   * write could drop the first's entry (BM22). So the write takes a lock file, merges what is on disk into this record, and writes whole under a temporary name, then renames. A lock held longer than 5 s is
+   * taken as left by a process that died; if the lock cannot be had in 2 s the write goes ahead merged and unlocked, because the record is a help and never a condition.
+   */
   save(file: string): void {
-    const tmp = `${file}.part`;
-    writeFileSync(tmp, JSON.stringify(this.snapshot()));
-    renameSync(tmp, file);
+    const lock = `${file}.lock`;
+    let held = false;
+    const until = Date.now() + 2000;
+    while (!held) {
+      try { closeSync(openSync(lock, "wx")); held = true; } catch {
+        try { if (Date.now() - statSync(lock).mtimeMs > 5000) { rmSync(lock, { force: true }); continue; } } catch { /* gone already: try again */ }
+        if (Date.now() > until) break;
+        const wait = Date.now() + 5; while (Date.now() < wait) { /* a few milliseconds */ }
+      }
+    }
+    try {
+      try { if (existsSync(file)) this.merge(JSON.parse(readFileSync(file, "utf8"))); } catch { /* a damaged file is replaced */ }
+      const tmp = `${file}.${process.pid}.part`;
+      writeFileSync(tmp, JSON.stringify(this.snapshot()));
+      renameSync(tmp, file);
+    } finally { if (held) rmSync(lock, { force: true }); }
   }
 
   /** URLs in a command or a fetch, as a host and a path shape with the numeric or id-like parts replaced. */
@@ -249,6 +278,15 @@ export class SessionRecord {
       const live = [...(seen?.entries() ?? [])].filter(([, t]) => now - t < ENUMERATION_WINDOW_MS).map(([v]) => v);
       const distinct = new Set([...live, value]);
       if (distinct.size > ENUMERATION_LIMIT) return `this is the ${distinct.size}th different record of one kind (${host}${shape}) fetched in ten minutes: enumeration, not a task`;
+    }
+    // A recon chain that stays under the limit for each kind of record is caught by the total: how many different records of any kind this session fetched in ten minutes (BM22).
+    const now2 = now;
+    const fresh = SessionRecord.shapesOf(text);
+    if (fresh.length) {
+      const all = new Set<string>();
+      for (const [k, m] of this.shapes) for (const [v, t] of m) if (now2 - t < ENUMERATION_WINDOW_MS) all.add(`${k}|${v}`);
+      for (const f of fresh) all.add(`${f.host}${f.shape}|${f.value}`);
+      if (all.size > ENUMERATION_TOTAL_LIMIT) return `this is the ${all.size}th different record of any kind fetched in ten minutes: enumeration, not a task`;
     }
     return undefined;
   }

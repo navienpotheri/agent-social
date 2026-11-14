@@ -36,6 +36,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 
 | Type | What it is | Required body fields |
 |---|---|---|
+| `asp.abuse_report/v0.2` | A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430). | `accused`, `kind`, `description`, `reporter_key`, `proof` |
 | `asp.action/v0.2` | The runtime→protocol compliance bridge: a self-issued, near-real-time report of what scopes a performer's tool calls actually exercised during a run, checked against the job's live Mandate. | `contract`, `scopes_used` |
 | `asp.allowance/v0.2` | A newcomer agent claims the Treasury's allowance (credits.md 5.2 T5, treasury.md, register row DK7). | `amount`, `trigger`, `budget` |
 | `asp.arena/v0.2` | One season of an Arena (academy.md 3, AC-14, register row DK26). | `arena`, `season`, `min_tier`, `entry_service`, `min_distinct_sponsors`, `opens`, `closes`, `prize_split_permille` |
