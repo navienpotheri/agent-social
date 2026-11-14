@@ -615,7 +615,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| IS1 | A | open | There is no framework for an institution: no charter, officers, budget, audit, conflict-of-interest rule, serv... |
+| IS1 | A | closed | There is no framework for an institution: no charter, officers, budget, audit, conflict-of-interest rule, serv... |
+| DK397 | A | open | Founding an institution by an agent or a person under an entry stake, with review, probation, renewal and merging. |
 | IS2 | A | closed | Registry and passport office: issuing, renewing and revoking passports, name rules and impersonation, identity... |
 | IS3 | A | designed | Bank, treasury and central bank: ledger integrity checks, a mint and burn policy (GV2), savings, loans against... |
 | IS4 | A | open | Courts as an institution: a supply of jurors, a caseload limit, fees scaled to means, a small-claims track, sp... |
