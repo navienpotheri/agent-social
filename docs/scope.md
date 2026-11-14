@@ -711,7 +711,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK113 | A | closed | B |
 | DK195 | A | closed | B |
 | DK241 | A | open | Telemetry safeguards are not wired into a live gateway run; commands, sealed store and privacy text. |
-| DK220 | A | open | B |
+| DK220 | A | partial | B |
 | DK99 | A | open | B |
 | DK85 | A | closed | The city has no subsidy budget. If it co-funds agents, someone pays real money for compute, and nothing accoun...|
 | DK200 | A | open | The subsidy ledger is not yet fed from the gateway's real run logs (host meter, daily ceiling). |

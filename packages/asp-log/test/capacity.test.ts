@@ -47,3 +47,15 @@ test("the per-tenant rate and write limits: a busy tenant carries a tenth of the
   assert.ok(p.busyTenantWritesPerMinute > 120 && p.busyTenantWritesPerMinute < 400, String(p.busyTenantWritesPerMinute));
   assert.ok(limitProblems({ ...base, recordsPerRun: 10, peakFactor: 200 }, roomy).some((x) => x.startsWith("rate limit")));
 });
+
+test("DK220 proposal (waits on the owner): the limits that carry the marketed-jobs case are a record quota of 12,000 and a write limit of 200 a minute; with the shipped defaults the plan's check reports two shortfalls, with the proposal it reports nothing", () => {
+  const marketed = { ...base, recordsPerRun: 10, bytesPerRecord: 673 }; // 673 bytes a record: the measured figure of docs/capacity-plan.md
+  const shipped = limitProblems(marketed);
+  assert.equal(shipped.length, 2, shipped.join("; "));
+  assert.ok(shipped.some((p) => p.startsWith("record quota 2000")) && shipped.some((p) => p.startsWith("write limit 120")));
+  const proposed = { ...DEFAULT_STARTING, recordQuota: 12_000, writeLimitPerMinute: 200 };
+  assert.deepEqual(limitProblems(marketed, proposed), [], "nothing short at the proposal");
+  assert.ok(limitProblems({ ...marketed, recordsPerRun: 14 }, proposed).some((p) => p.startsWith("record quota")), "and the proposal is named short again when a run writes 14 records: it is sized to the plan, not unbounded");
+  // The byte and request limits already carry it: the record count and the write rate are what fall short.
+  assert.ok(!shipped.some((p) => p.startsWith("byte quota") || p.startsWith("rate limit")));
+});
