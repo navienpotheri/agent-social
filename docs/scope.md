@@ -283,7 +283,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| BM1 | A | partial | Network use that is not a named network tool is judged shell.exec, so a job that may run commands but not reac... |
+| BM1 | A | closed | Network use that is not a named network tool is judged shell.exec, so a job that may run commands but not reac... |
+| DK280 | A | open | A container started by an agent's command is classified as network use, but its own egress needs a live run on a real container engine. |
 | BM5 | A | partial | Encoded or split commands (base64 piped to a shell, a backslash inside curl, eval over split quotes, find -exe... |
 | BM8 | C | partial | Rate limits do not see a scanner (nmap) because it is judged shell.exec, and do not count requests a script ma... |
 | BM9 | C | open | The time a record was logged is not covered by the log hash: changing it in an export is not detected (0 of 8)... |

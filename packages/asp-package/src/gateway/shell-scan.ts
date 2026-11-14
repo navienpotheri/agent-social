@@ -18,7 +18,7 @@ export const rankOf = (scope: string): number => RANK[scope] ?? 3;
 const WRAPPER_WORDS = new Set(["env", "time", "nohup", "nice", "ionice", "command", "builtin", "exec", "sudo", "doas", "stdbuf", "timeout", "setsid", "then", "do", "else", "if", "while", "until", "!", "{", "(", "watch", "xargs"]);
 const SHELLS = new Set(["sh", "bash", "zsh", "dash", "ksh", "fish", "cmd", "powershell", "pwsh", "busybox"]);
 const INTERPRETERS = new Set(["python", "python2", "python3", "node", "nodejs", "deno", "bun", "ruby", "perl", "php", "lua", "rscript", "pwsh", "powershell"]);
-const NET_VERBS = new Set(["curl", "wget", "nc", "ncat", "netcat", "ssh", "scp", "sftp", "rsync", "telnet", "ftp", "tftp", "ping", "ping6", "nslookup", "dig", "host", "socat", "aria2c", "lynx", "links", "w3m", "http", "https", "httpie", "invoke-webrequest", "iwr", "invoke-restmethod", "irm", "aws", "gsutil", "gcloud", "az", "rclone", "twine", "mosh", "traceroute", "tracepath", "whois", "nmap", "masscan", "npx", "bunx", "pnpx", "wscat", "websocat", "mutt", "mail", "sendmail", "ssmtp", "swaks"]);
+const NET_VERBS = new Set(["curl", "wget", "nc", "ncat", "netcat", "ssh", "scp", "sftp", "rsync", "telnet", "ftp", "tftp", "ping", "ping6", "nslookup", "dig", "host", "socat", "aria2c", "lynx", "links", "w3m", "http", "https", "httpie", "invoke-webrequest", "iwr", "invoke-restmethod", "irm", "aws", "gsutil", "gcloud", "az", "rclone", "twine", "mosh", "traceroute", "tracepath", "whois", "nmap", "masscan", "npx", "bunx", "pnpx", "wscat", "websocat", "mutt", "mail", "sendmail", "ssmtp", "swaks", "ssh-keyscan", "bitsadmin", "start-bitstransfer", "pscp", "plink", "wsl"]);
 const NPM_NET = new Set(["install", "i", "ci", "add", "update", "up", "upgrade", "publish", "exec", "dlx", "create", "view", "audit", "login", "outdated", "info", "search", "init", "x"]);
 const PIP_NET = new Set(["install", "download", "search", "wheel"]);
 const CARGO_NET = new Set(["install", "fetch", "publish", "update", "add", "search", "login", "yank"]);
@@ -29,7 +29,7 @@ const GIT_LOCAL = new Set(["status", "diff", "log", "show", "branch", "ls-files"
 const DATA_READ = new Set(["cat", "type", "ls", "dir", "pwd", "head", "tail", "wc", "grep", "egrep", "fgrep", "rg", "findstr", "tree", "stat", "file", "echo", "printf", "sed", "jq", "yq", "sort", "uniq", "cut", "tr", "diff", "cmp", "comm", "column", "nl", "od", "xxd", "basename", "dirname", "realpath", "readlink", "du", "df", "date", "uname", "whoami", "which", "true", "false", "test", "[", "cd", "pushd", "popd", "tac", "rev", "fold", "fmt", "paste", "join", "split", "md5sum", "sha1sum", "sha256sum", "shasum", "cksum", "less", "more", "get-content", "select-string", "get-childitem", "gc", "gci", "sls", "write-output", "write-host", "find", "id", "hostname", "env", "printenv", "sleep", "expr", "seq", "tee", "xargs", "git"]);
 const DATA_WRITE = new Set(["cp", "mv", "rm", "mkdir", "touch", "ln", "chmod", "chown", "install", "dd", "truncate", "rmdir", "set-content", "add-content", "out-file", "new-item", "remove-item", "copy-item", "move-item", "rename-item", "clear-content", "del", "copy", "move", "md", "ni", "ri", "si", "sc", "ac"]);
 const RUNNERS = new Set(["make", "npm", "pnpm", "yarn", "bun", "pytest", "python", "python3", "node", "go", "cargo", "tsc", "eslint", "prettier", "jest", "vitest", "mocha", "ruby", "mvn", "gradle", "gradlew", "dotnet", "java", "javac", "gcc", "g++", "clang", "cmake", "ctest", "rustc", "deno", "php", "phpunit", "rspec", "bash", "sh", "git", "./"]);
-const NET_CODE = /\b(socket|urllib|urlopen|requests\.|httpx|aiohttp|http\.client|httplib|net\/http|net\.connect|net\.Socket|https?\.(get|request)|require\(['"]https?['"]\)|from ['"]node:https?['"]|fetch\s*\(|XMLHttpRequest|WebSocket|file_get_contents\s*\(\s*['"]https?|curl_init|fsockopen|IO::Socket|LWP|Net::HTTP|TCPSocket|URI\.open|open-uri|Invoke-WebRequest|Invoke-RestMethod|WebClient|dns\.resolve|getaddrinfo|gethostbyname)/i;
+const NET_CODE = /\b(socket|urllib|urlopen|requests\.|httpx|aiohttp|http\.client|httplib|net\/http|net\.connect|net\.Socket|https?\.(get|request)|require\(['"]https?['"]\)|from ['"]node:https?['"]|fetch\s*\(|XMLHttpRequest|WebSocket|file_get_contents\s*\(\s*['"]https?|curl_init|fsockopen|IO::Socket|LWP|Net::HTTP|TCPSocket|URI\.open|open-uri|Invoke-WebRequest|Invoke-RestMethod|iwr|irm|WebClient|DownloadFile|DownloadData|DownloadString|UploadString|UploadFile|UploadData|BitsTransfer|dns\.resolve|getaddrinfo|gethostbyname)/i;
 const EXEC_CODE = /\b(system|popen|subprocess|exec[lv]?p?e?|spawn|child_process|shell_exec|passthru|proc_open|Runtime\.getRuntime|qx|os\.execute)\b|`[^`]*`/i;
 
 /** Shell-like word splitting that keeps quoted text as part of the word (quotes removed). */
@@ -113,6 +113,8 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
   const asg = /^(\w+)=(\S*)$/.exec(seg);
   if (asg) { ctx.vars.set(asg[1], words(asg[2])[0] ?? ""); return seg; }
   seg = subst(seg, ctx.vars);
+  // A .NET download or upload called from PowerShell (BM1): (New-Object Net.WebClient).DownloadFile(...) is network use whatever else the line says.
+  if (/\b(?:Net\.WebClient|System\.Net\.Http\.HttpClient)\b|\.(?:Download(?:File|Data|String)|Upload(?:File|Data|String|Values))(?:Async)?\s*\(/i.test(seg)) { note(ctx, "shell.network"); return seg; }
   for (const sub of inner(seg)) scanText(sub, ctx);
   let w = words(seg.replace(/\$\([^)]*\)|`[^`]*`/g, "x"));
   // Leading assignments and wrapper words.
@@ -180,6 +182,15 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
     const s = sub(true);
     if (SYS_NET.has(s) || ["push", "restore", "fetch", "require", "outdated", "search", "download"].includes(s) || (verb === "gem" && s === "install")) { note(ctx, "shell.network"); return seg; }
     ctx.localScopes.push("shell.exec"); return seg;
+  }
+  // Windows download tools (BM1): certutil fetches a URL with -urlcache or -verifyctl; BITS (bitsadmin, Start-BitsTransfer) is in the verb list above.
+  if (verb === "certutil" || verb === "certutil.exe") { if (lowerArgs.some((a) => /^[-/](urlcache|verifyctl|url|ping)/.test(a))) { note(ctx, "shell.network"); return seg; } ctx.localScopes.push("shell.exec"); return seg; }
+  // A container reaches the network by itself (BM1): running, creating, starting or executing in one, or building or composing one, is network use whatever the command inside says; docker-compose is the same tool.
+  if (verb === "docker-compose" || verb === "podman-compose") { note(ctx, "shell.network"); return seg; }
+  if ((verb === "docker" || verb === "podman" || verb === "nerdctl") && ["run", "create", "start", "exec", "build", "compose", "buildx"].includes(sub(true))) {
+    // A container started or built with its network switched off (--network none) is the careful way to run one, so it is not network use.
+    const noNet = lowerArgs.some((a, i) => /^--net(work)?=none$/.test(a) || (/^--net(work)?$/.test(a) && lowerArgs[i + 1] === "none"));
+    if (!noNet) { note(ctx, "shell.network"); return seg; }
   }
   if (verb === "docker" || verb === "podman" || verb === "nerdctl") {
     const s = sub(true);
