@@ -288,7 +288,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | BM5 | A | partial | Encoded or split commands (base64 piped to a shell, a backslash inside curl, eval over split quotes, find -exe... |
 | BM8 | C | partial | Rate limits do not see a scanner (nmap) because it is judged shell.exec, and do not count requests a script ma... |
 | BM9 | C | open | The time a record was logged is not covered by the log hash: changing it in an export is not detected (0 of 8)... |
-| BM10 | A | open | Swarm containment at the default settings: a single exploiter is never stopped (the watcher needs 3 agents), a... |
+| BM10 | A | closed | Swarm containment at the default settings: a single exploiter is never stopped (the watcher needs 3 agents), a... |
+| DK311 | A | open | A lone agent's first use of a risky scope its Mandate allows is not a watcher finding; measure the false-positive cost before deciding. |
 | BM11 | A | closed | Sybil jurors: the panel draw excludes jurors sponsored by the principal or performer, but not jurors sponsored... |
 | DK271 | A | open | Many separate fronts funded from one source can still win panel majorities. |
 | BM17 | A | partial | Under an agent-wide Mandate (every tool granted), the gateway stops none of the injected tool calls a real mod... |

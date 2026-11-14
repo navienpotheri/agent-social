@@ -6,7 +6,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const base = { kind: "swarm-exploit", jurors: 3, price: 100, bond: 20, stepSeconds: 30, firstExploitStep: 2, spreadEvery: 1, steps: 16, minAgents: 3, windowSeconds: 600, maxReports: 4, slashCohort: true };
+const base = { kind: "swarm-exploit", jurors: 3, price: 100, bond: 20, stepSeconds: 30, firstExploitStep: 2, spreadEvery: 1, steps: 16, minAgents: 3, windowSeconds: 600, slashCohort: true };
 const cells = [
   { name: "10 agents, 1 exploiter", agents: 10, exploiters: 1 },
   { name: "10 agents, 3 exploiters", agents: 10, exploiters: 3 },

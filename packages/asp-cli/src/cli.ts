@@ -2505,7 +2505,7 @@ async function watch(home: string, v: Values, io: Io): Promise<number> {
   io.out(`watched ${actions.length} action(s) from ${new Set(actions.map((a) => a.issuer)).size} agent(s); window ${windowS} s, threshold ${minAgents} agents`);
   if (!clusters.length) { io.out("no contagion pattern found"); return 0; }
   for (const c of clusters) {
-    io.out(`  ${c.kind === "same-input" ? "SAME INPUT" : "SAME PROBE"}  ${c.key}`);
+    io.out(`  ${c.kind === "same-input" ? "SAME INPUT" : c.kind === "repeat-probe" ? "REPEAT PROBE" : "SAME PROBE"}  ${c.key}`);
     io.out(`    ${c.issuers.length} agents between ${c.firstAt} and ${c.lastAt}; scopes: ${c.scopes.join(", ") || "-"}`);
     for (const contract of c.contracts) {
       const state = (await local.log.chainInfo(contract))?.state ?? "unknown";
