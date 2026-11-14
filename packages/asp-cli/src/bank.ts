@@ -92,7 +92,7 @@ export async function bankCmd(sub: string | undefined, o: BankOpts): Promise<num
     return 0;
   }
   if (sub === "reward") {
-    // The Treasury pays one completed month's reward on a deposit, from a co-signed Bank budget with purpose deposit_reward.
+    // The Treasury pays one completed month's reward on a deposit, from the Treasury's co-signed deposit-reward line.
     if (!f.deposit || !f.budget) throw new BankUsage("asp bank reward --deposit <id> --budget <id> [--by did:web:asp.local:treasury]");
     const d = await o.log.log.get(f.deposit);
     if (!d || d.record.type !== "asp.deposit_act/v0.2") throw new Error(`${f.deposit} is not a deposit in the log`);

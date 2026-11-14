@@ -1,6 +1,6 @@
 /**
  * Bank deposits and the Treasury-paid reward (docs/institutions/bank-insurer.md 3, 4 and decision 6; register row DK294; spec-delta S370). An agent or person may lock credits with the Bank for 30 days; the credits
- * sit in the Bank's deposit account and return whole at term. Each completed 30 days the Treasury pays a reward of 1 % of the deposit, from a budget the Treasury set and the owner co-signed (the same draw
+ * sit in the Bank's deposit account and return whole at term. Each completed 30 days the Treasury pays a reward of 1 % of the deposit, from the Treasury's own deposit-reward line (a budget the Treasury set and the owner co-signed; the same draw
  * the newcomer allowance makes), at most 50 credits a month to one holder, never beyond the budget. The reward is a move out of the Treasury, never a mint; the deposit is a lock, never a loan the Bank may spend.
  * Credits are accounting entries, not money.
  */
@@ -75,7 +75,7 @@ export async function projectDepositAct(tx: LogTx, r: AspRecord, env: DepositEnv
   if (monthPaid + amount > REWARD_MONTHLY_CAP) throw rule("reward_over_account_cap", `${d.holder} was paid ${monthPaid} credits of reward in ${month}; the cap is ${REWARD_MONTHLY_CAP} a month for one holder`);
   const budget = b.budget ? await tx.getRecord(b.budget) : undefined;
   const bb = budget?.record.body as { institution?: string; purpose?: string } | undefined;
-  if (!budget || budget.record.type !== "asp.budget/v0.2" || bb?.institution !== BANK_DID || bb.purpose !== REWARD_BUDGET_PURPOSE) throw rule("reward_budget_wrong", `the reward is paid from a Treasury budget for the Bank with purpose ${REWARD_BUDGET_PURPOSE}`);
+  if (!budget || budget.record.type !== "asp.budget/v0.2" || bb?.institution !== TREASURY_DID || bb.purpose !== REWARD_BUDGET_PURPOSE) throw rule("reward_budget_wrong", `the reward is paid from the Treasury's own deposit-reward line (a budget for the Treasury with purpose ${REWARD_BUDGET_PURPOSE}) that the owner co-signed`);
   await env.drawBudget(tx, b.budget!, amount, r.issued_at); // over_budget beyond the co-signed budget
   await env.debit(tx, TREASURY_DID, amount);
   await env.credit(tx, d.holder, amount);

@@ -1538,11 +1538,13 @@ export class EventLog {
     if (b.amount.value <= 0) throw rule("amount_not_positive", "a budget must be for at least 1 credit");
     const allowanceLine = b.institution === TREASURY_DID;
     if (!allowanceLine && !INSTITUTION_DIDS.includes(b.institution)) throw rule("budget_unknown_institution", `${b.institution} is neither a registered institution account nor the Treasury's own allowance line`);
-    if (allowanceLine !== (b.purpose === "allowance")) throw rule("budget_bad_line", "the Treasury's own line is the newcomer allowance (purpose allowance), and the allowance line is the only budget the Treasury holds for itself");
+    // The Treasury's own lines are the newcomer allowance and, since DK294, the deposit reward: nothing else is a budget the Treasury holds for itself.
+    if (allowanceLine !== (b.purpose === "allowance" || b.purpose === "deposit_reward")) throw rule("budget_bad_line", "the Treasury's own lines are the newcomer allowance (purpose allowance) and the Bank deposit reward (purpose deposit_reward), and an institution's budget is neither");
+    const line = allowanceLine && b.purpose !== "allowance" ? `${b.institution}|${b.purpose}` : b.institution; // one budget per line per month
     if (b.period < r.issued_at.slice(0, 7)) throw rule("budget_period_past", `a budget for ${b.period} cannot be set in ${r.issued_at.slice(0, 7)}`);
-    const key = `budget:${b.institution}|${b.period}`;
+    const key = `budget:${line}|${b.period}`;
     if (await tx.getMarker(key)) throw rule("budget_already_set", `${b.institution} already has a budget for ${b.period}: one budget per institution per month`);
-    const lastKey = `budget_last:${b.institution}`;
+    const lastKey = `budget_last:${line}`;
     const last = await tx.getMarker(lastKey);
     if (!this.cosignedBy(r, this.owner)) {
       if (last === undefined) throw rule("budget_needs_cosign", `the first budget of ${b.institution} needs the owner's co-signature`);

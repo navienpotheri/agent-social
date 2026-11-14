@@ -330,6 +330,7 @@ import { RegistryUsage, registryCmd } from "./registry.ts";
 import { ClinicUsage, clinicCmd, narrowForQuarantine } from "./clinic.ts";
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
+import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
 import { InsureUsage, insureCmd } from "./insure.ts";
 import { ShopsUsage, shopsCmd } from "./shops.ts";
@@ -452,6 +453,7 @@ const OPTIONS = {
   "probe-task": { type: "string" },
   violations: { type: "string" },
   passed: { type: "string" },
+  draft: { type: "string" },
   period: { type: "string" },
   units: { type: "string" },
   total: { type: "string" },
@@ -1000,6 +1002,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io);
     if (cmd === "house") return await houseCommand(home, sub, v, io);
+    if (cmd === "treasury") return await treasuryCommand(home, sub, v, io);
     if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
     if (cmd === "clinic" && sub === "restore") return await clinicRestore(home, v, io);
@@ -4347,6 +4350,17 @@ async function residencyCommand(home: string, sub: string | undefined, rest: str
     return await residencyCmd(sub, rest, opts);
   } catch (e) {
     if (e instanceof ResidencyUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function treasuryCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount } });
+  } catch (e) {
+    if (e instanceof TreasuryUsage) throw new UsageError(e.message);
     throw e;
   }
 }

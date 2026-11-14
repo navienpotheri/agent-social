@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:asp:v0.2:deposit_act",
   "title": "Deposit act body",
-  "description": "Bank deposits and the Treasury-paid reward (bank-insurer.md 3, 4 and decision 6; register row DK294; spec-delta S370). `deposit`: the holder signs, the Bank countersigns; the credits move from the holder to the Bank's deposit account (did:web:asp.local:bank-deposits) and are locked for 30 days. `withdraw`: the holder, from day 30; the credits return whole. `reward`: the Treasury, for each completed 30 days of a deposit still held, 1 % of it, at most 50 credits a month to one holder, from a Treasury budget for the Bank with purpose deposit_reward that the owner co-signed, never beyond that budget. A move, never a mint. Credits are accounting entries, not money. Chain: none (prev is null).",
+  "description": "Bank deposits and the Treasury-paid reward (bank-insurer.md 3, 4 and decision 6; register row DK294; spec-delta S370). `deposit`: the holder signs, the Bank countersigns; the credits move from the holder to the Bank's deposit account (did:web:asp.local:bank-deposits) and are locked for 30 days. `withdraw`: the holder, from day 30; the credits return whole. `reward`: the Treasury, for each completed 30 days of a deposit still held, 1 % of it, at most 50 credits a month to one holder, from the Treasury's own deposit-reward line (a budget for the Treasury with purpose deposit_reward) that the owner co-signed, never beyond that budget. A move, never a mint. Credits are accounting entries, not money. Chain: none (prev is null).",
   "oneOf": [
     {
       "type": "object",

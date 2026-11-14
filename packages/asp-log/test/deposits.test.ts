@@ -2,14 +2,14 @@
 // within a co-signed budget and a cap for one holder, and the supply audit still balances. Fake keys only.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BANK_DEPOSIT_DID, BANK_DID, TREASURY_DID, rewardFor } from "../src/index.ts";
+import { BANK_DEPOSIT_DID, TREASURY_DID, rewardFor } from "../src/index.ts";
 import { Kit, bankP, credit, owner, refused, treasury, type Party } from "./academy-kit.ts";
 
 async function world(budget = 100) {
   const kit = new Kit();
   await kit.mint(TREASURY_DID, 5000);
   const at = kit.tick();
-  const budgetId = await kit.put(kit.mk("budget", treasury, { institution: BANK_DID, period: "2026-12", amount: credit(budget), purpose: "deposit_reward" }, null, { at, cosigners: [owner] }));
+  const budgetId = await kit.put(kit.mk("budget", treasury, { institution: TREASURY_DID, period: "2026-12", amount: credit(budget), purpose: "deposit_reward" }, null, { at, cosigners: [owner] }));
   const holder = await kit.person("dp-holder");
   await kit.mint(holder.did, 20_000);
   const bal = (d: string) => kit.log.balance(d);
