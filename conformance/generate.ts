@@ -775,7 +775,7 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
     sv("market_class_check_no_reason", "market_act", { act: "class_check", intent: id6, class: "skilled", verdict: "changed_to" }, false);
     sv("valid_market_bid", "market_act", { act: "bid", posting: id6, offer: id7 }, true);
     sv("valid_market_assignment", "market_act", { act: "assignment", posting: id6, intent: id7, agent: a1, rule: "best_match", seed: "s1", ranked: [{ agent: a1, score: 1500, reasons: ["skills 1 of 1"] }] }, true);
-    sv("market_assignment_rotation_not_built", "market_act", { act: "assignment", posting: id6, intent: id7, agent: a1, rule: "rotation", seed: "s1", ranked: [] }, false);
+    sv("valid_market_assignment_rotation", "market_act", { act: "assignment", posting: id6, intent: id7, agent: a1, rule: "rotation", seed: "s1", ranked: [] }, true);
     sv("market_act_extra_field", "market_act", { act: "withdraw", posting: id6, boost: 5 }, false);
     sv("valid_market_report", "market_act", { act: "report", posting: id6, category: "attack", reason: "asks for a denial of service on a shop" }, true);
     sv("market_report_no_reason", "market_act", { act: "report", posting: id6, category: "attack" }, false);

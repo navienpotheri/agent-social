@@ -37,6 +37,22 @@ export function admitEligibleJob(recent: RecentJob[], principalKey: string, at: 
   return { counts: fromThis <= counterpartyCap(window.length), window };
 }
 
+/**
+ * How many more jobs from this principal would count for the agent under the counterparty cap, if each were an eligible job taken now (market.md 5; DK128): the largest k such that the k-th
+ * additional job still passes `admitEligibleJob`. Shown beside a posting so an agent sees that the fourth job from the same poster will not count. Looks at most 20 ahead.
+ */
+export function moreUnderCap(recent: RecentJob[], principalKey: string, at: string): number {
+  let window = recent;
+  let k = 0;
+  while (k < CAP_WINDOW_JOBS) {
+    const next = admitEligibleJob(window, principalKey, at);
+    if (!next.counts) break;
+    window = next.window;
+    k++;
+  }
+  return k;
+}
+
 /** The sponsor-level facts about one party to a job, read from the passport (a person with no passport is their own sponsor). */
 export interface PartyFacts { did: string; sponsor: string; fleet: string | null }
 

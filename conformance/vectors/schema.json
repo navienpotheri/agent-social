@@ -4875,7 +4875,7 @@
       "valid": true
     },
     {
-      "name": "market_assignment_rotation_not_built",
+      "name": "valid_market_assignment_rotation",
       "schema": "market_act",
       "instance": {
         "act": "assignment",
@@ -4886,7 +4886,7 @@
         "seed": "s1",
         "ranked": []
       },
-      "valid": false
+      "valid": true
     },
     {
       "name": "market_act_extra_field",

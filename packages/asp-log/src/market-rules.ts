@@ -5,7 +5,7 @@
  */
 import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { bondFloorPermille, floorIsV2 } from "./bond-floor.ts";
-import { MAX_OPEN_POSTINGS_TIER1, POSTING_BAR_DAYS, POSTING_BAR_REMOVALS, POSTING_HOLD_REPORTS, POSTING_REPORTS_PER_DAY, lawProblem, MARKET_DID, POSTING_DEPOSIT_SERVICE, CLASS_WEIGHT, JOB_CLASSES, classPriceProblem, eligibility, higherClass, rankAgents, type AgentFacts, type JobClass, type JobNeeds } from "./market.ts";
+import { rotateAgents, MAX_OPEN_POSTINGS_TIER1, POSTING_BAR_DAYS, POSTING_BAR_REMOVALS, POSTING_HOLD_REPORTS, POSTING_REPORTS_PER_DAY, lawProblem, MARKET_DID, POSTING_DEPOSIT_SERVICE, CLASS_WEIGHT, JOB_CLASSES, classPriceProblem, eligibility, higherClass, rankAgents, type AgentFacts, type JobClass, type JobNeeds } from "./market.ts";
 import { assertNotDormant } from "./shops-rules.ts";
 import type { LogTx, Store } from "./store.ts";
 
@@ -24,7 +24,7 @@ export interface MarketEnv {
 type Reader = Pick<Store, "getPassport" | "getRecord" | "getReputation" | "getAccount" | "fleetMembers">;
 
 /** The facts about one agent (market.md 5) read from the log at `at`: what the ranking and the eligibility check need. Null for a DID with no agent record. */
-export async function agentFacts(rd: Reader, env: MarketEnv, did: string, at: string, certificates: AspRecord[], boardJobs: string[]): Promise<AgentFacts | null> {
+export async function agentFacts(rd: Reader, env: MarketEnv, did: string, at: string, certificates: AspRecord[], boardJobs: string[], qualClass?: { at: string; c: JobClass; w: number }[]): Promise<AgentFacts | null> {
   const rep = await env.reputation(rd, did);
   const passport = await rd.getPassport(did);
   if (!rep || !passport) return null;
@@ -40,7 +40,7 @@ export async function agentFacts(rd: Reader, env: MarketEnv, did: string, at: st
   return {
     did, tier: rep.tier, slashCount: rep.slashCount, strikes, qualifyingJobs: rep.qualifyingJobs, acceptedJobs: rep.acceptedJobs, ...(body?.house ? { house: true } : {}),
     skills: [...new Set([...(body?.capabilities ?? []).map((c) => c.skill), ...valid])].sort(), certificates: [...new Set(valid)].sort(),
-    balance: (await rd.getAccount(did))?.balance ?? 0, floorPermille: floor, sponsor: passport.sponsor ?? did, fleet: passport.fleet, boardJobs,
+    balance: (await rd.getAccount(did))?.balance ?? 0, floorPermille: floor, sponsor: passport.sponsor ?? did, fleet: passport.fleet, boardJobs, ...(qualClass ? { qualClass } : {}),
   };
 }
 
@@ -218,18 +218,11 @@ export async function projectMarketAct(tx: LogTx, r: AspRecord, env: MarketEnv):
       for (const c of r.cosigs ?? []) if ((await tx.getKey(c.kid))?.did === info.poster) countersigned = true;
       if (!countersigned) throw rule("assignment_needs_poster", "a poster_choice assignment is countersigned by the poster");
     }
-    const intent = (await tx.getRecord(info.intent))!;
-    const raised = (await tx.getMarker(`class_raise:${info.intent}`)) as JobClass | undefined;
-    const needs = jobNeeds(intent.record, raised);
-    const candidates: AgentFacts[] = [];
-    for (const did of bidders) {
-      const f = await facts_(tx, env, did, now);
-      if (f && eligibility(f, needs).eligible && (b.rule === "poster_choice" || !env.operator || f.sponsor !== env.operator)) candidates.push(f);
-    }
-    if (!candidates.some((c) => c.did === b.agent)) throw rule("assignment_not_eligible", `${b.agent} is not eligible for this job (tier, certificate or bond floor), or is run by the operator and so may not be assigned by best_match`);
-    const ranked = rankAgents(needs, candidates, b.seed, now);
+    const { ranked, candidates } = await rankedFor(tx, env, b.posting, b.rule, b.seed, now);
+    if (!candidates.some((c) => c.did === b.agent)) throw rule("assignment_not_eligible", `${b.agent} is not eligible for this job (tier, certificate or bond floor), or is run by the operator and so may not be assigned by a rule other than poster_choice`);
     if (JSON.stringify(ranked) !== JSON.stringify(b.ranked)) throw rule("ranking_not_reproducible", `the ranked list does not reproduce from the log by the published rule; the rule gives ${JSON.stringify(ranked.map((x) => x.agent))}`);
     if (b.rule === "best_match" && ranked[0].agent !== b.agent) throw rule("assignment_not_best_match", `the best match is ${ranked[0].agent}, not ${b.agent}`);
+    if (b.rule === "rotation" && ranked[0].agent !== b.agent) throw rule("assignment_not_rotation", `by rotation the next agent is ${ranked[0].agent}, not ${b.agent}`);
     await tx.putMarker(`posting_state:${b.posting}`, `assigned:${b.agent}`);
     await addTo(tx, `assigns:${b.agent}`, now);
   }
@@ -249,7 +242,29 @@ export async function markPostingFilled(tx: LogTx, contract: AspRecord): Promise
 async function facts_(tx: LogTx, env: MarketEnv, did: string, at: string): Promise<AgentFacts | null> {
   const certs: AspRecord[] = [];
   for (const id of await readList(tx, `certs_of:${did}`)) { const c = await tx.getRecord(id); if (c) certs.push(c.record); }
-  return agentFacts(tx, env, did, at, certs, await readList(tx, `assigns:${did}`));
+  return agentFacts(tx, env, did, at, certs, await readList(tx, `assigns:${did}`), await readQualClass(tx, did));
 }
+
+/** The qualifying jobs the log has counted for an agent, by class and weight, kept in a marker beside the reputation row (DK128). */
+export const readQualClass = async (tx: Pick<LogTx, "getMarker">, did: string): Promise<{ at: string; c: JobClass; w: number }[]> => JSON.parse((await tx.getMarker(`qual_class:${did}`)) ?? "[]");
+
+/**
+ * The ranked list for a posting under a rule (market.md 5): the eligible bidders, best first. `best_match` and `poster_choice` use the published score; `rotation` shares the work by the fewest board jobs
+ * in the last 7 days. Used by the assignment check (which requires `ranked` to reproduce) and by the command that proposes an assignment, so the two cannot disagree.
+ */
+export async function rankedFor(tx: LogTx, env: MarketEnv, posting: string, rule: "poster_choice" | "best_match" | "rotation", seed: string, now: string): Promise<{ ranked: ReturnType<typeof rankAgents>; candidates: AgentFacts[]; needs: JobNeeds }> {
+  const info = JSON.parse((await tx.getMarker(`posting:${posting}`)) ?? "null") as PostingInfo | null;
+  if (!info) throw rule_("posting_unknown", `${posting} is not a posting in this log`);
+  const intent = (await tx.getRecord(info.intent))!;
+  const raised = (await tx.getMarker(`class_raise:${info.intent}`)) as JobClass | undefined;
+  const needs = jobNeeds(intent.record, raised);
+  const candidates: AgentFacts[] = [];
+  for (const did of await readList(tx, `bids:${posting}`)) {
+    const f = await facts_(tx, env, did, now);
+    if (f && eligibility(f, needs).eligible && (rule === "poster_choice" || !env.operator || f.sponsor !== env.operator)) candidates.push(f);
+  }
+  return { ranked: rule === "rotation" ? rotateAgents(candidates, seed, now) : rankAgents(needs, candidates, seed, now), candidates, needs };
+}
+const rule_ = rule;
 
 export { CLASS_WEIGHT };

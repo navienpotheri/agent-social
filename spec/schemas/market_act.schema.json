@@ -65,7 +65,8 @@
     "rule": {
       "enum": [
         "poster_choice",
-        "best_match"
+        "best_match",
+        "rotation"
       ]
     },
     "seed": {

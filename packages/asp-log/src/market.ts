@@ -61,6 +61,19 @@ export interface AgentFacts {
   sponsor: string; fleet: string | null;
   /** Times of the board jobs (assignments) it took in the last 7 days. */
   boardJobs: string[];
+  /** The qualifying jobs it has had counted, each with its class and weight, kept by the log beside the reputation row (DK128). The ranking reads the last 90 days of the job's own class; absent (a hand-built fact), it reads the total. */
+  qualClass?: { at: string; c: JobClass; w: number }[];
+}
+
+/** A posting whose budget is more than this many times the median budget of its class, once the class has this many postings, is flagged (market.md 6). */
+export const OUTLIER_RATIO = 3;
+export const OUTLIER_MIN_SAMPLES = 5;
+export const QUAL_CLASS_WINDOW_MS = 90 * 24 * 3600 * 1000;
+/** The weight of the agent's qualifying jobs in a class (any class when none is named) in the 90 days before `at` (market.md 5). */
+export function classQualifying(a: Pick<AgentFacts, "qualClass" | "qualifyingJobs">, cls: JobClass | undefined, at: string): number {
+  if (!a.qualClass) return a.qualifyingJobs;
+  const t = Date.parse(at);
+  return a.qualClass.filter((j) => Date.parse(j.at) > t - QUAL_CLASS_WINDOW_MS && Date.parse(j.at) <= t && (!cls || j.c === cls)).reduce((n, j) => n + j.w, 0);
 }
 
 /** What a job asks of a bidder. */
@@ -97,22 +110,36 @@ const tiebreak = (seed: string, did: string): string => createHash("sha256").upd
  * over the fairness cap goes after every other; a tie is broken by a hash of the seed and the DID, so the same input gives the same list.
  * Returns the eligible agents only, best first, each with the reasons for its score. `at` is the time the cap is read at.
  */
-export function rankAgents(job: Pick<JobNeeds, "skills" | "requiresCertificate">, agents: AgentFacts[], seed: string, at: string): Ranked[] {
+export function rankAgents(job: Pick<JobNeeds, "skills" | "requiresCertificate"> & { class?: JobClass }, agents: AgentFacts[], seed: string, at: string): Ranked[] {
   const t = Date.parse(at);
   const rows = agents.map((a) => {
     const matched = job.skills.filter((s) => a.skills.includes(s));
     const cert = job.requiresCertificate ? a.certificates.includes(job.requiresCertificate) : job.skills.some((s) => a.certificates.includes(s));
     const recent = a.boardJobs.filter((x) => Date.parse(x) > t - FAIRNESS_WINDOW_MS && Date.parse(x) <= t).length;
     const capped = recent > FAIRNESS_CAP_JOBS;
-    const score = matched.length * 1000 + (cert ? 500 : 0) + Math.min(a.qualifyingJobs, 99) * 5 - Math.min(a.strikes, 50) * 3 - (capped ? 1_000_000 : 0);
+    const q = classQualifying(a, job.class, at);
+    const score = matched.length * 1000 + (cert ? 500 : 0) + Math.min(q, 99) * 5 - Math.min(a.strikes, 50) * 3 - (capped ? 1_000_000 : 0);
     const reasons = [
       job.skills.length ? `skills ${matched.length} of ${job.skills.length}${matched.length ? ` (${matched.join(", ")})` : ""}` : "no skill asked",
       cert ? "holds a valid certificate in the skill" : "no certificate in the skill",
-      `qualifying jobs ${a.qualifyingJobs}`,
+      a.qualClass ? `qualifying jobs${job.class ? ` in ${job.class}` : ""} over 90 days ${q}` : `qualifying jobs ${a.qualifyingJobs}`,
       `strikes ${a.strikes}`,
       ...(capped ? [`fairness cap: ${recent} board jobs in the last 7 days (more than ${FAIRNESS_CAP_JOBS}), ranked after every other agent`] : []),
     ];
     return { agent: a.did, score, reasons };
+  });
+  return rows.sort((x, y) => y.score - x.score || (tiebreak(seed, x.agent) < tiebreak(seed, y.agent) ? -1 : 1));
+}
+
+/**
+ * The rotation rule (market.md 5, DK128): for a posting where the poster wants the work spread, the agent who took the fewest board jobs in the last 7 days goes first; a tie is broken by the same seeded hash
+ * as the best match. Skill, certificate and strikes are not read: eligibility has already been checked, and rotation is for sharing eligible work, not for choosing the best. Same input, same list.
+ */
+export function rotateAgents(agents: AgentFacts[], seed: string, at: string): Ranked[] {
+  const t = Date.parse(at);
+  const rows = agents.map((a) => {
+    const recent = a.boardJobs.filter((x) => Date.parse(x) > t - FAIRNESS_WINDOW_MS && Date.parse(x) <= t).length;
+    return { agent: a.did, score: -recent, reasons: [`rotation: ${recent} board job${recent === 1 ? "" : "s"} in the last 7 days`] };
   });
   return rows.sort((x, y) => y.score - x.score || (tiebreak(seed, x.agent) < tiebreak(seed, y.agent) ? -1 : 1));
 }
