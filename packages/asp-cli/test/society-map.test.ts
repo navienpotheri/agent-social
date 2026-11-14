@@ -95,3 +95,21 @@ test("`asp serve` publishes /society/map/feed without a sign-in, from the log it
     assert.match(await page.text(), /The society: a live city map/);
   } finally { server.kill(); }
 });
+
+test("`asp serve --no-society-map` turns the page and its routes off, and the rest of the public pages stay", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "asp-map-off-"));
+  const tokens = join(dir, "tokens.json");
+  await new Promise<void>((resolve) => { const c = spawn(process.execPath, [cli, "serve", "token", "--tokens", tokens, "--tenant", "ops", "--role", "admin"], { stdio: "ignore" }); c.on("close", () => resolve()); });
+  const server = spawn(process.execPath, [cli, "serve", "--db", `local:${join(dir, "log")}`, "--tokens", tokens, "--port", "0", "--no-society-map"], { stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    const url = await new Promise<string>((resolve, reject) => {
+      let buf = "";
+      server.stdout.on("data", (d) => { buf += d; const m = /listening on (http:\/\/[^ ]+)/.exec(buf); if (m) resolve(m[1]); });
+      server.on("close", () => reject(new Error(`the service exited: ${buf}`)));
+      setTimeout(() => reject(new Error(`no start line: ${buf}`)), 20_000);
+    });
+    assert.notEqual((await fetch(`${url}/society/map`)).status, 200);
+    assert.notEqual((await fetch(`${url}/society/map/feed`)).status, 200);
+    assert.equal((await fetch(`${url}/society/health`)).status, 200, "the other public pages are untouched");
+  } finally { server.kill(); }
+});
