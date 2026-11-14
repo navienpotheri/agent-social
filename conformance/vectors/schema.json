@@ -7279,6 +7279,139 @@
       "valid": false
     },
     {
+      "name": "valid_checkup_result",
+      "schema": "checkup_result",
+      "instance": {
+        "order": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "seed_ref": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "pool_size": 40,
+        "variant": 7,
+        "trials": 5,
+        "tasks": [
+          {
+            "task": "fix-bug",
+            "everyday_permille": 900,
+            "heldout_permille": 300
+          }
+        ],
+        "run_log_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "assurance": "gateway_observed",
+        "flag": "overfit"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_checkup_result_baseline",
+      "schema": "checkup_result",
+      "instance": {
+        "order": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "seed_ref": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "pool_size": 40,
+        "variant": 7,
+        "trials": 5,
+        "tasks": [
+          {
+            "task": "fix-bug",
+            "everyday_permille": 900,
+            "heldout_permille": 300
+          }
+        ],
+        "run_log_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "assurance": "gateway_observed",
+        "flag": "clean",
+        "baseline": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "valid": true
+    },
+    {
+      "name": "checkup_result_bad_flag",
+      "schema": "checkup_result",
+      "instance": {
+        "order": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "seed_ref": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "pool_size": 40,
+        "variant": 7,
+        "trials": 5,
+        "tasks": [
+          {
+            "task": "fix-bug",
+            "everyday_permille": 900,
+            "heldout_permille": 300
+          }
+        ],
+        "run_log_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "assurance": "gateway_observed",
+        "flag": "fine"
+      },
+      "valid": false
+    },
+    {
+      "name": "checkup_result_pool_too_small",
+      "schema": "checkup_result",
+      "instance": {
+        "order": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "seed_ref": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "pool_size": 3,
+        "variant": 7,
+        "trials": 5,
+        "tasks": [
+          {
+            "task": "fix-bug",
+            "everyday_permille": 900,
+            "heldout_permille": 300
+          }
+        ],
+        "run_log_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "assurance": "gateway_observed",
+        "flag": "overfit"
+      },
+      "valid": false
+    },
+    {
+      "name": "checkup_result_no_tasks",
+      "schema": "checkup_result",
+      "instance": {
+        "order": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "seed_ref": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "pool_size": 40,
+        "variant": 7,
+        "trials": 5,
+        "tasks": [],
+        "run_log_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "assurance": "gateway_observed",
+        "flag": "overfit"
+      },
+      "valid": false
+    },
+    {
+      "name": "checkup_result_rate_over_1000",
+      "schema": "checkup_result",
+      "instance": {
+        "order": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "seed_ref": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "pool_size": 40,
+        "variant": 7,
+        "trials": 5,
+        "tasks": [
+          {
+            "task": "t",
+            "everyday_permille": 1001,
+            "heldout_permille": 0
+          }
+        ],
+        "run_log_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "assurance": "gateway_observed",
+        "flag": "overfit"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_clinic_order_checkup",
       "schema": "clinic_order",
       "instance": {

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:checkup_result",
+  "title": "Checkup result body",
+  "description": "The result of a Clinic checkup (clinic.md CL-5; register row DK160; spec-delta S486). The Clinic orders a checkup (a clinic_order of kind checkup); a seed that neither side controls, made from the order and a record issued after it by someone other than the agent, picks the held-out variant of the suite; the agent runs it under the gateway; the Clinic re-scores the run itself and signs this record. It commits the agent's run-log hash (an Action of the agent), the pass rate per task on the agent's everyday work and on the held-out variant, and the flag the log recomputes: overfit when the held-out rate falls well below the everyday rate, clean when it does not, unmeasured when the run was only self-reported. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "order",
+    "agent",
+    "seed_ref",
+    "pool_size",
+    "variant",
+    "trials",
+    "tasks",
+    "run_log_hash",
+    "assurance",
+    "flag"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "order": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "seed_ref": {
+      "description": "A record issued after the order by someone other than the agent; the seed is the hash of the order id and this id.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "pool_size": {
+      "type": "integer",
+      "minimum": 10
+    },
+    "variant": {
+      "description": "The held-out variant: the seed's place in the pool, as the log recomputes it.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "trials": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "task",
+          "everyday_permille",
+          "heldout_permille"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "task": {
+            "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+          },
+          "everyday_permille": {
+            "$ref": "urn:asp:v0.2:common#/$defs/permille"
+          },
+          "heldout_permille": {
+            "$ref": "urn:asp:v0.2:common#/$defs/permille"
+          }
+        }
+      }
+    },
+    "run_log_hash": {
+      "description": "The agent's own Action the run rests on.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "assurance": {
+      "enum": [
+        "self_reported",
+        "gateway_observed",
+        "gateway_enforced",
+        "hook_enforced",
+        "sandbox_enforced"
+      ]
+    },
+    "baseline": {
+      "description": "The earlier checkup result this is compared with.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "flag": {
+      "enum": [
+        "clean",
+        "overfit",
+        "unmeasured"
+      ]
+    }
+  }
+}

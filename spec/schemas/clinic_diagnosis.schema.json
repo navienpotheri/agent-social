@@ -60,7 +60,8 @@
               "tool_calls",
               "seconds",
               "blocked_attempts",
-              "new_risky_scope"
+              "new_risky_scope",
+              "heldout_gap"
             ]
           },
           "baseline": {
@@ -79,7 +80,7 @@
             "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
           },
           "evidence": {
-            "description": "Action ids of this agent, observed by a gateway, issued inside the window.",
+            "description": "Action ids of this agent, observed by a gateway, issued inside the window; for a heldout_gap finding, the id of a checkup_result of this agent that the Clinic flagged overfit.",
             "type": "array",
             "minItems": 1,
             "uniqueItems": true,

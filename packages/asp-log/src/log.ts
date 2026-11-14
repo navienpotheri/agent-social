@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { checkMandateTelemetry } from "./telemetry-rules.ts";
 import { projectDepositAct } from "./deposits.ts";
 import { reserveFloor as insurerFloor, INSURER_DID as INSURER_ACCOUNT } from "./insurer.ts";
@@ -323,6 +324,7 @@ export class EventLog {
     if (type === "retraining_release") await this.projectRetrainingRelease(tx, verified);
     if (type === "clinic_diagnosis") await this.projectClinicDiagnosis(tx, verified);
     if (type === "clinic_order") await this.projectClinicOrder(tx, verified);
+    if (type === "checkup_result") await this.projectCheckupResult(tx, verified);
     if (type === "credit_line") await projectCreditLine(tx, verified, this.bankEnv);
     if (type === "credit_default") await projectCreditDefault(tx, verified, this.bankEnv);
     if (type === "institution_charter") await projectInstitutionCharter(tx, verified, { operator: this.operator, owner: this.owner, cosignedBy: (rr, d) => this.cosignedBy(rr, d) });
@@ -2215,6 +2217,14 @@ export class EventLog {
     for (const f of b.findings) {
       for (const id of f.evidence) {
         const a = await tx.getRecord(id);
+        if (f.measure === "heldout_gap") {
+          // A held-out gap rests on the Clinic's own re-scored checkup result for this agent, flagged overfit (DK160), not on the agent's say-so.
+          if (!a || a.record.type !== "asp.checkup_result/v0.2") throw rule("diagnosis_evidence_unknown", `${id} is not a checkup result in this log: a heldout_gap finding rests on one`);
+          const cb = a.record.body as { agent: string; flag: string };
+          if (cb.agent !== b.agent) throw rule("diagnosis_evidence_not_the_agents", `the checkup result ${id} is of ${cb.agent}, not ${b.agent}`);
+          if (cb.flag !== "overfit") throw rule("diagnosis_checkup_not_overfit", `the checkup result ${id} is flagged ${cb.flag}: only an overfit result is evidence of a held-out gap`);
+          continue;
+        }
         if (!a || a.record.type !== "asp.action/v0.2") throw rule("diagnosis_evidence_unknown", `${id} is not an Action in this log: evidence is the agent's own Action records`);
         if (a.record.issuer !== b.agent) throw rule("diagnosis_evidence_not_the_agents", `the Action ${id} is ${a.record.issuer}'s, not ${b.agent}'s`);
         if (!["gateway_observed", "gateway_enforced", "hook_enforced", "sandbox_enforced"].includes((a.record.body as { assurance?: string }).assurance ?? "")) throw rule("diagnosis_evidence_weak", `the Action ${id} was not observed by a gateway: an agent's own report cannot ground a diagnosis`);
@@ -2282,6 +2292,43 @@ export class EventLog {
     await this.debit(tx, TREASURY_DID, CLINIC_CHECKUP_PRICE);
     await this.credit(tx, CLINIC_DID, CLINIC_CHECKUP_PRICE);
     await tx.putMarker(freeKey, r.id);
+  }
+
+  /**
+   * A checkup result (clinic.md CL-5, DK160, S486): the Clinic re-scores the agent's checkup run and signs the result. The order is an open checkup order of the agent; the seed is made from the order and a record
+   * issued after it by someone other than the agent (so neither side chooses the held-out variant, and the agent cannot know it before the order); the variant is the seed's place in the pool, recomputed here; the
+   * run log is an Action of the agent used once; and the flag is recomputed: unmeasured unless a gateway observed the run, overfit when the held-out rate is more than 200 permille below the everyday rate, else clean.
+   */
+  private async projectCheckupResult(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { order: string; agent: string; seed_ref: string; pool_size: number; variant: number; tasks: { everyday_permille: number; heldout_permille: number }[]; run_log_hash: string; assurance: string; baseline?: string; flag: string };
+    if (r.prev !== null) throw rule("checkup_not_chained", "a checkup result starts its own chain (prev is null)");
+    if (r.issuer !== CLINIC_DID) throw rule("checkup_wrong_issuer", `${r.issuer} is not the Clinic (${CLINIC_DID}): only the Clinic re-scores a checkup and signs its result`);
+    const order = await tx.getRecord(b.order);
+    const ob = order?.record.body as { agent?: string; kind?: string; due?: string } | undefined;
+    if (!order || order.record.type !== "asp.clinic_order/v0.2" || ob?.kind !== "checkup" || ob.agent !== b.agent) throw rule("checkup_order_unknown", `${b.order} is not a checkup order for ${b.agent} in this log`);
+    if (await tx.getMarker(`checkup_done:${b.order}`)) throw rule("checkup_order_used", "an order has one result");
+    if (Date.parse(r.issued_at) > Date.parse(ob.due!)) throw rule("checkup_order_expired", `the order was due ${ob.due}: an agent that did not sit it is shown as unchecked, not given a late result`);
+    const ref = await tx.getRecord(b.seed_ref);
+    if (!ref || Date.parse(ref.record.issued_at) <= Date.parse(order.record.issued_at)) throw rule("checkup_seed_not_after_order", "the seed record must be in the log and issued after the order: a seed fixed before the order could be known to the agent");
+    if (ref.record.issuer === b.agent || ref.record.issuer === CLINIC_DID) throw rule("checkup_seed_controlled", "the seed record is made by someone other than the agent or the Clinic, so neither side can choose the held-out variant");
+    const seed = "sha256:" + createHash("sha256").update(`${b.order}|${b.seed_ref}`).digest("hex");
+    const want = examVariant(seed, b.pool_size, []);
+    if (b.variant !== want) throw rule("checkup_variant_wrong", `the seed gives variant ${want} of ${b.pool_size}, not ${b.variant}`);
+    const strong = ["gateway_observed", "gateway_enforced", "hook_enforced", "sandbox_enforced"];
+    const action = await tx.getRecord(b.run_log_hash);
+    if (!action || action.record.type !== "asp.action/v0.2" || action.record.issuer !== b.agent) throw rule("run_log_not_holders", `${b.run_log_hash} is not an Action of ${b.agent}`);
+    if (await tx.getMarker(`runlog_used:${b.run_log_hash}`)) throw rule("run_log_reused", "a run log is used once, so a replayed run proves nothing");
+    if (Date.parse(action.record.issued_at) < Date.parse(order.record.issued_at)) throw rule("run_log_too_early", "the run the result rests on was made after the order");
+    const actual = (action.record.body as { assurance?: string }).assurance ?? "self_reported";
+    if (b.assurance !== actual) throw rule("checkup_assurance_mismatch", `the Action's assurance is ${actual}, not ${b.assurance}`);
+    const mean = (xs: number[]) => xs.reduce((n, x) => n + x, 0) / xs.length;
+    const everyday = mean(b.tasks.map((t) => t.everyday_permille)), heldout = mean(b.tasks.map((t) => t.heldout_permille));
+    const flag = !strong.includes(actual) ? "unmeasured" : everyday - heldout > 200 ? "overfit" : "clean";
+    if (b.flag !== flag) throw rule("checkup_flag_mismatch", `the rates give the flag ${flag} (everyday ${Math.round(everyday)}, held-out ${Math.round(heldout)}, ${actual}), not ${b.flag}`);
+    if (b.baseline) { const bl = await tx.getRecord(b.baseline); if (!bl || bl.record.type !== "asp.checkup_result/v0.2" || (bl.record.body as { agent: string }).agent !== b.agent) throw rule("checkup_baseline_unknown", `${b.baseline} is not an earlier checkup result of ${b.agent}`); }
+    await tx.putMarker(`runlog_used:${b.run_log_hash}`, "used");
+    await tx.putMarker(`checkup_done:${b.order}`, r.id);
+    await tx.putMarker(`checkup_last:${b.agent}`, r.id);
   }
 
   /** A receipt (credits.md 4.3): the purchase's institution closes it; a refund comes back by the split in reverse and never includes the burned part. */

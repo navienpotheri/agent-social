@@ -548,7 +548,7 @@ asp eval run [&lt;scenario&gt;]
     Run a swarm scenario against the system to test it
 asp signup --service &lt;url&gt; --name &lt;name&gt; --accept-terms
     The command-line sign-up route (closed when Google sign-up is required)</pre></details>
-<details><summary>The records the protocol defines (78)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (79)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report            A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                  The runtime→protocol compliance bridge
@@ -565,6 +565,7 @@ call                    An open problem
 certificate             The Academy's certificate (academy.md section 3, register rows DK25 and DK27)
 certificate_revocation  A certificate withdrawn (academy.md 3, AC-17, register row DK25)
 checkpoint              A pause asking the principal to approve, pick or correct
+checkup_result          The result of a Clinic checkup (clinic.md CL-5; register row DK160; spec-delta S486)
 claim                   A claim on a policy (bank-insurer.md 3, register row DK20; spec-delta S281)
 claim_decision          The Insurer's decision on a claim (bank-insurer.md 3 and 5, register row DK20; spec-delta S281)
 clinic_diagnosis        The Clinic's signed finding that an agent's behaviour has drifted from its own baseline (clinic.md CL-4, register row DK28; spec-delta S261)

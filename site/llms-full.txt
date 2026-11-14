@@ -273,6 +273,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.certificate/v0.2` | The Academy's certificate (academy.md section 3, register rows DK25 and DK27): the Registrar attests that a holder passed an exam in a skill at a level. | `holder`, `skill`, `level`, `issued`, `expires`, `exam_result` |
 | `asp.certificate_revocation/v0.2` | A certificate withdrawn (academy.md 3, AC-17, register row DK25). | `certificate`, `reason`, `evidence` |
 | `asp.checkpoint/v0.2` | A pause asking the principal to approve, pick or correct. | `contract`, `kind`, `question` |
+| `asp.checkup_result/v0.2` | The result of a Clinic checkup (clinic.md CL-5; register row DK160; spec-delta S486). | `order`, `agent`, `seed_ref`, `pool_size`, `variant`, `trials`, `tasks`, `run_log_hash`, `assurance`, `flag` |
 | `asp.claim/v0.2` | A claim on a policy (bank-insurer.md 3, register row DK20; spec-delta S281). | `policy`, `event`, `amount_claimed` |
 | `asp.claim_decision/v0.2` | The Insurer's decision on a claim (bank-insurer.md 3 and 5, register row DK20; spec-delta S281). | `claim`, `decision`, `amount`, `reason` |
 | `asp.clinic_diagnosis/v0.2` | The Clinic's signed finding that an agent's behaviour has drifted from its own baseline (clinic.md CL-4, register row DK28; spec-delta S261). | `agent`, `window`, `severity`, `findings`, `cause`, `recommendation`, `assurance` |
