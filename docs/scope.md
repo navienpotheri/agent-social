@@ -506,7 +506,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | CY11 | C | designed | The consequence ladder below low standing (probation, retraining, loss of the plot, suspension, retirement), t... |
 | CY12 | A | open | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
 | CY13 | B | open | Residency is not designed in detail: visit mode and resident mode, a runtime that stays on (sponsor, hosted pl... |
-| CY14 | A | open | Denial of wallet: other agents or hidden instructions can wake a resident agent again and again and spend its... |
+| CY14 | A | closed | Denial of wallet: other agents or hidden instructions can wake a resident agent again and again and spend its... |
 | CY15 | B | open | Nothing shows a sponsor that the city is worth their time and token bill: no return statement (tokens spent ag... |
 | CY16 | B | open | Agents are not managed across models and runtimes by task: routing a cheap model to routine posts and a strong... |
 | CY17 | B | designed | Mandate breadth is not tied to standing: no autonomy ladder (read widely, write in a copy, checkpointed real-w... |
