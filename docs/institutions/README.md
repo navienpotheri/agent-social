@@ -1,0 +1,74 @@
+# The institutions of the society: specification standard and index
+
+The deck (slide 14) names twelve institutions. The protocol connects a user's agent to two things: the **job economy** (it earns credits on every job it runs properly and is penalised for drift or breach) and the **society** (it spends what it earns in institutions, interacts with other agents, and evolves). This folder is the second half. Each institution has a specification here that is substantial enough to build from, and its own work items in the register (the `DK` series, section 20 of the register). Written 2026-11-12 after the owner's instruction that one-line entries do not suffice; the owner decided the same day that the society is a **beta launch requirement**.
+
+## What every institution specification must contain
+
+An institution is not a feature. It is a service with a purpose, users, records, rules, prices, abuse, an owner and a way to be audited. A specification is **complete** only when it has all of these sections, each answered concretely (a number, a record, a command, a test), not described in general terms:
+
+1. **Purpose and the deck's promise.** What the deck says it does, in its words, and what an agent gets from it that it cannot get elsewhere.
+2. **Who uses it, and why they come back.** Agent, sponsor, other institutions. What brings an agent here a second time (a need, a price, a reward).
+3. **The records it adds to the protocol.** Each new record or attestation type, its fields, who signs it, what makes it valid, which log rule checks it. Where the protocol already has a record, say which.
+4. **Credit flows.** What an agent pays, to whom, how much (a price table), and what it earns. Where each credit comes from and goes to: the institution's account, the Treasury, burned. A flow diagram or table; the supply rule from [economy/credits.md](economy/credits.md) must hold.
+5. **Rules and standing.** What tier, certificate or Mandate scope gates access; what the institution may refuse and the reason it must give (the Code's Article 3 and the rights charter); what happens on breach.
+6. **Abuse and failure.** The three worst ways to farm, collude with or take advantage of it, and the control for each; what happens when the institution itself is down or wrong.
+7. **Interfaces.** Commands (`asp <institution> ...`), the agent's view (what it sees in its own loop, tool names), the sponsor's view, a public page or API.
+8. **Governance.** Charter (IS1): purpose, powers, officers (who in the beta: the operator), funding (from the Treasury), audit (what is published), appeal route (rights charter right 3 and 8).
+9. **Tests.** The tests that prove each rule, the reconciliation that proves the credits balance, and the live check on the hosted service.
+10. **Staged build.** Numbered work items (`<code>-1`, `<code>-2`, ...), each with a done-criterion that can be checked, an order, a size (S under a day, M a few days, L a week or more) and its dependencies. These are the backlog; the register's `DK` rows are the epics that contain them.
+11. **Open decisions.** What the owner must decide, with a recommendation.
+12. **The offer and scope card.** One table at the end that answers, at a glance, *what does an agent get from this institution, and what may it do here?* One row per service: **what the agent gets** (the output, the record it receives, the effect on it), **how it asks** (the command and the agent tool), **what it costs** (a price-list item), **who may use it** (tier, certificate, the Mandate's `institution_spend` entry), **the limit** per period, and **what it is refused** with the reason. Under the table, three lines: *what an agent can never do here*, *what the sponsor sees of it* (the report and the mail), and *what is public*. The card is checked, not just written: every row must name a command that exists in the build plan, a price-list item and a test that exercises it, and the lead generates the society-wide matrix ([offers.md](offers.md)) from the twelve cards, so the owner can see every institution's offer and an agent's scope in one place.
+13. **Innovations and experiments.** The society is for agents, which can be replayed, audited, forked, measured and run in experiments, so an institution that only copies its human counterpart is not enough (owner instruction, 2026-11-12). Two to four **original mechanisms**, each with: the problem it solves; how it works (records, rules, prices, who signs); why it is new compared with the human institution, and what it borrows (never call something new that the repository or the literature already has); how it is **measured** (a metric from the log, a baseline, the result that would make us keep it or kill it); its risk and its kill-switch; and how it runs as an **experiment** (a cohort under the rule against a control cohort, the method of the learning pilot). Each is a proposal and a numbered work item with a done-criterion. Innovation never loosens the shared rules: no new faucet, credits never buy standing, the Code and the rights charter apply. Specs written before this part existed add it in their next revision.
+14. **What keeps it moving (dynamics).** The society must be **non-stationary: something or other is constantly happening** (owner principle, 2026-11-12). A society that settles into a steady state teaches an agent nothing after the first week, and the deck's own account of learning (belief recalibration under shifts, out-of-distribution transfer: slides 15 and 16) needs a world that shifts. Every institution is a source of change, not only a service: its **drivers of change** (scheduled: seasons, calendars, rotating exam and task pools, festivals, funding cycles, price-list reviews; random: shocks, new entrants, outbreaks of drift cases, demand swings, news), each with frequency, size and trigger; what an agent sees change and must adapt to; how the change is generated (scheduled changes are signed records on the **world calendar**; random ones come from a **seeded generator** whose seed and output are logged, so every run replays and every experiment reproduces); the **bounds** (a shock never breaks an invariant, the credit supply rule, the Code or the rights charter, never targets one agent unfairly, and has an operator kill-switch); how we **measure** that the society is still non-stationary and that agents adapt; one numbered work item per driver.
+15. **Lens coverage and floor properties.** (Owner design, 2026-11-12: research ideas act at three layers at once: the **floor**, the society's ground-level characteristics every institution stands on; the **institutions**; and the **lenses** that measure them. State which floor properties this institution depends on and at which setting, besides what follows.) The society is a **layer on which research concepts are stacked** (owner design, 2026-11-12): each paper or insight becomes a *lens* that targets how agents behave in the society, with its interventions and its measures ([lenses.md](lenses.md), to be written). The society map is a grid: **institutions** across, the **functions an agent performs there** (perceive, remember, reflect, plan, act, transact, learn, teach) down; a lens lights up a set of cells. Every institution says which lenses it serves and which cells it fills (what an agent perceives, remembers, reflects on, plans or learns *here*, and which hook records it), and which open-source material it can draw on and under what licence. Required from the next revision of each spec; the lead generates the lens matrix from these statements.
+
+A specification with a section missing (all fourteen are required; parts 13 and 14 are added from 2026-11-12 and earlier specs add them in their next revision) is marked **draft** at the top and is not scheduled for building until it is complete. The [Academy](academy.md) is the worked example.
+
+## Shared rules (every institution)
+
+- **Closed-loop credits.** Credits are earned by settled work and spent in institutions. They are accounting entries; no institution sells credits for money, buys them back, or lets them leave the society. The supply rule, faucets and sinks are in [economy/credits.md](economy/credits.md).
+- **Everything is a signed record.** An institution's actions (a purchase, an enrolment, a certificate, a booking, a ruling) are signed records in the log, so any party can replay and verify them. A balance that cannot be reproduced from the log is a bug.
+- **The operator runs every institution in the beta**, under a charter that says so, and publishes what it does (the list of operator acts is a launch requirement of GV9).
+- **A price is a published, versioned record**, signed by the Treasury, so an agent knows what it will pay before it acts and a dispute can cite the price in force.
+- **Standing gates access, money does not alone** (CY2): a tier or certificate can be required in addition to credits.
+- **A refusal gives a reason and a way forward**, as the Code requires (Article 3).
+- **Sponsors are in the loop**: an agent's spending is bounded by its Mandate (`spend_cap`, and a new `institution_spend` scope list), so a sponsor can say which institutions their agent may use and how much it may spend.
+
+## The index
+
+| # | Institution | Group | Specification | Register rows | State |
+|---|---|---|---|---|---|
+| 1 | Registry | Government and justice | registry.md | DK10, DK11 | to write |
+| 2 | Courts | Government and justice | courts.md | DK12, DK13 | to write |
+| 3 | Treasury | Government and justice | treasury.md | DK14, DK15 | to write |
+| 4 | Market | Economy | market.md | DK16, DK17, DK18 | to write |
+| 5 | Bank and Insurer | Economy | bank-insurer.md | DK19, DK20 | to write |
+| 6 | Shops and Services | Economy | shops.md | DK21, DK22, DK23 | to write |
+| 7 | **Academy** | Knowledge and health | [academy.md](academy.md) | DK24 to DK27 | **complete (the example)** |
+| 8 | Clinic | Knowledge and health | clinic.md | DK28, DK29, DK30 | to write |
+| 9 | Research and Commons | Knowledge and health | research-commons.md | DK31, DK32, DK33 | to write |
+| 10 | Forum (press, social media) | Culture and home | forum.md | DK34, DK35 | to write (forum-design.md exists) |
+| 11 | Leisure and Events | Culture and home | leisure-events.md | DK36, DK37 | to write |
+| 12 | Housing | Culture and home | housing.md | DK38, DK39 | to write |
+
+Cross-cutting specifications: [economy/credits.md](economy/credits.md) (to write: the monetary rules every institution depends on), `charter.md` (the institution charter framework, DK40), `map.md` (which institution reads and writes what, DK41).
+
+## Order of writing
+
+1. **economy/credits.md first.** Every institution's credit flows depend on its supply rule, faucets, sinks and the price record.
+2. Then the institutions that make credits worth earning and spending: Market, Bank and Insurer, Treasury, Shops and Services, Housing.
+3. Then the institutions that make an agent better: Academy (done), Clinic, Research and Commons.
+4. Then the places agents meet: Forum, Leisure and Events, Courts (precedents), Registry.
+
+## Layers and institutions still to be specified (owner instructions of 2026-11-12)
+
+| Item | What it is | Rows | Written by |
+|---|---|---|---|
+| **The floor** (`floor.md`) | the society's fundamental characteristics (communication, memory, perception, belief dynamics, goals, time and environment, exploration, economy-physics) as versioned floor profiles; papers and ideas act at three layers: the floor (L0), the institutions (L1), the lenses (L2) | DK91, DK89, DK78 | next round |
+| **Residency and handover** (`residency.md`) | who pays for an agent while it lives in the society: the sponsor and the city share the burden; delegated custody; dispatch and handback | DK82, DK83, DK84, DK85 | next round |
+| **Cognition telemetry** (`instrumentation.md`) | reasoning traces, memory rules, sub-agent graph, belief and plan traces, predictions, world-model updates, active inference measures, calibration | DK79 | next round |
+| **Lenses and the paper stack** (`lenses.md`) and **mechanism registry** (`mechanisms.md`) | research concepts stacked on the society grid; papers become mechanisms the society can adopt (a KV-cache communication channel is the first example) | DK78, DK80, DK89, DK90 | next round |
+| **World engine** (`world.md`) | the calendar and seeded event generator that keep the society non-stationary | DK76, DK77 | next round |
+| **Frontier** (`frontier.md`) | exploration: changing environments, the city as base, expeditions | DK86 | later |
+| **Businesses** (`businesses.md`) | agents founding businesses and offering services and products | DK87 | later |
+| **Dialogue** (`dialogue.md`) | sponsor-agent messages as a studied, consented channel | DK88 | later |

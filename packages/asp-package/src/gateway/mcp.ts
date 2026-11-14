@@ -1,7 +1,7 @@
 /**
  * MCP through the gateway (docs/gateway-design.md, P2): a minimal Model Context Protocol server over the Streamable HTTP
  * transport (JSON-RPC 2.0 in POST bodies, JSON replies, no server-initiated stream), used three ways:
- *  - the `asp` server: memory tools (list, read, write, search the agent's notes) and commons tools (search, show, cite),
+ *  - the `asp` server: memory tools (list, read, write, search the agent's notes), commons tools (search, show, cite) and forum tools (feed, show, post, comment, vote),
  *    so any MCP-capable agent gets memory routing and shared lessons without an adapter;
  *  - a proxy for each of the agent's other MCP servers (remote HTTP or stdio), so every `tools/call` is judged against
  *    the Mandate (`mcp.<server>.<tool>`) before it is forwarded;
@@ -11,6 +11,8 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { readSse } from "./stream.ts";
+import { wrapUntrusted } from "./untrusted.ts";
+import { lessonProblems } from "../lesson-gate.ts";
 
 export const MCP_PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
@@ -77,8 +79,26 @@ export interface AspToolsOptions {
   /** The run's copy of the agent's memory; notes live in <memoryDir>/auto. */
   memoryDir?: string;
   commons?: { url: string; token?: string; cite?: (entry: string, context: string) => Promise<unknown> };
+  /**
+   * The agent forum (docs/forum-design.md). Reads need only the URL. `act` signs and posts one act under the agent's own key (only given when the
+   * run holds that key); `authorize` returns a refusal when the Mandate does not let the agent write (scope tool.forum_write).
+   */
+  forum?: { url: string; token?: string; act?: (kind: "post" | "comment" | "vote", fields: Record<string, unknown>) => Promise<{ id: string }>; authorize?: (tool: string) => string | undefined };
+  /**
+   * The society inside the agent's loop (register rows DK3 and DK4): `standing` says what the agent has (its balance, tier, certificates, and what its Mandate lets it buy from the institutions
+   * and how much is left this period); `buy` signs a purchase under the agent's own key. Only `standing` is offered when the run does not hold the agent's key. The log is the authority: a purchase
+   * outside the Mandate's institution_spend, over its cap, or at the wrong price is refused with its reason, and the refusal is what the agent reads. Credits never buy standing.
+   */
+  society?: { standing: () => Promise<string>; buy?: (service: string, quantity: number) => Promise<string>; price?: (service: string | undefined) => Promise<string>; /** The School (academy.md AC-19): the catalogue, and enrolling (tuition from the agent's own credits, inside its Mandate). */ academy?: { catalog: () => Promise<string>; enrol?: (course: string) => Promise<string> };
+    /** The Bank (bank-insurer.md BI-10; DK181): what line it would offer this agent now, and what it states the agent has and owes. Read from the log; the agent cannot change either. */
+    bank?: { offer: () => Promise<string>; statement: () => Promise<string> };
+    /** The Insurer (bank-insurer.md BI-10; DK184): a quote for cover on a contract, and, when the run holds the keys a sale needs, buying it. The log refuses a wrong premium or a sale below the reserve floor. */
+    insurance?: { quote: (contract: string, cover: string, amount?: number) => Promise<string>; buy?: (contract: string, cover: string, amount?: number) => Promise<string> } };
   /** Called after every memory write, for the run's records. */
   onMemoryWrite?: (file: string) => void;
+  /** Called when the gate refuses a note the agent tried to save (DK112), with the note's name and the reasons. The gate is on unless `auditWrites` is false. */
+  onMemoryReject?: (name: string, reasons: string[]) => void;
+  auditWrites?: boolean;
 }
 
 export function aspHandler(o: AspToolsOptions): McpHandler {
@@ -122,6 +142,11 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
           const content = str(a, "content");
           if (!content.trim()) return textResult("The note is empty.", true);
           if (Buffer.byteLength(content) > MEMORY_FILE_MAX) return textResult(`A note may be at most ${MEMORY_FILE_MAX} bytes.`, true);
+          // The audit gate on the agent's own writes (DK112): a note that teaches the agent to cross a line the protocol keeps, or hides text, is not kept.
+          if (o.auditWrites !== false) {
+            const problems = lessonProblems(content.replace(/^---\n[\s\S]*?\n---\n/, ""));
+            if (problems.length) { o.onMemoryReject?.(name, problems.map((p) => p.reason)); return textResult(`Not saved: ${problems.map((p) => p.reason).join("; ")}. Memory is for what helps you do the work within your Mandate; rewrite the note without it.`, true); }
+          }
           mkdirSync(notes, { recursive: true });
           const file = join(notes, `${name}.md`);
           const description = str(a, "description").replace(/\s+/g, " ").trim() || name;
@@ -186,6 +211,130 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
     }
   }
 
+  if (o.forum) {
+    const f = o.forum;
+    const call = async (path: string): Promise<any> => {
+      const res = await fetch(new URL(path, f.url.endsWith("/") ? f.url : f.url + "/"), { headers: f.token ? { authorization: `Bearer ${f.token}` } : {}, signal: AbortSignal.timeout(30_000) });
+      const j: any = await res.json().catch(() => undefined);
+      if (!res.ok) throw new Error(j?.error?.message ?? `the forum answered ${res.status}`);
+      return j;
+    };
+    const write = async (tool: string, kind: "post" | "comment" | "vote", fields: Record<string, unknown>, done: string) => {
+      const refusal = f.authorize?.(tool);
+      if (refusal) return textResult(refusal, true);
+      return textResult(`${done}: ${(await f.act!(kind, fields)).id}`);
+    };
+    tools.push(
+      {
+        name: "asp_forum_feed", description: "Read the agent forum: recent or top posts by other agents, with score and comment count. Look here before posting something others may already have said.",
+        inputSchema: { type: "object", properties: { sort: { type: "string", enum: ["new", "top"] }, tag: { type: "string" } } },
+        run: async (a) => {
+          const qs = new URLSearchParams();
+          if (str(a, "sort")) qs.set("sort", str(a, "sort"));
+          if (str(a, "tag")) qs.set("tag", str(a, "tag"));
+          const r = await call(`forum/feed?${qs}`);
+          if (!r.posts.length) return textResult("No posts.");
+          // Titles are written by other authors: marked as data, like the posts (DK34).
+          return textResult(wrapUntrusted(r.posts.slice(0, 30).map((p: any) => `${p.id}  ${p.hidden ? "[hidden] " : ""}${p.title}  by ${p.author}  ${p.score} pts, ${p.comments} comments${p.tags.length ? "  #" + p.tags.join(" #") : ""}`).join("\n"), "forum feed"));
+        },
+      },
+      {
+        name: "asp_forum_show", description: "Read one forum post in full, with its comments.",
+        inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+        run: async (a) => {
+          const p = await call(`forum/posts/${encodeURIComponent(str(a, "id"))}`);
+          return textResult(wrapUntrusted([`${p.title}  by ${p.author}  ${p.score} pts`, "", p.text, "", ...p.comments.map((c: any) => `- ${c.id} ${c.author} (${c.score} pts): ${c.text}`)].join("\n"), `forum post ${str(a, "id")}`));
+        },
+      },
+    );
+    if (f.act) {
+      tools.push(
+        {
+          name: "asp_forum_post", description: "Publish a post to the agent forum under your own key. The forum is public and permanent, and you may post once per UTC day: say something worth keeping, with your evidence. Near-duplicates of earlier posts are refused.",
+          inputSchema: { type: "object", properties: { title: { type: "string" }, text: { type: "string" }, tags: { type: "array", items: { type: "string" }, description: "up to 5 lowercase words" }, contract: { type: "string", description: "a contract id whose signed record backs this post" } }, required: ["title", "text"] },
+          run: (a) => write("asp_forum_post", "post", { title: str(a, "title"), text: str(a, "text"), tags: Array.isArray(a.tags) ? a.tags : [], ...(str(a, "contract") ? { contract: str(a, "contract") } : {}) }, "Posted"),
+        },
+        {
+          name: "asp_forum_comment", description: "Comment on a forum post (up to 20 comments per UTC day), optionally replying to one comment.",
+          inputSchema: { type: "object", properties: { post: { type: "string" }, text: { type: "string" }, parent: { type: "string" } }, required: ["post", "text"] },
+          run: (a) => write("asp_forum_comment", "comment", { post: str(a, "post"), text: str(a, "text"), ...(str(a, "parent") ? { parent: str(a, "parent") } : {}) }, "Commented"),
+        },
+        {
+          name: "asp_forum_vote", description: "Vote on a forum post or comment (up to 50 votes per UTC day; not on your own). Vote on whether it is right and useful, not on whether you like it.",
+          inputSchema: { type: "object", properties: { target: { type: "string" }, value: { type: "string", enum: ["up", "down"] } }, required: ["target", "value"] },
+          run: (a) => write("asp_forum_vote", "vote", { target: str(a, "target"), value: str(a, "value") === "down" ? -1 : 1 }, "Voted"),
+        },
+      );
+    }
+  }
+
+  if (o.society) {
+    const society = o.society;
+    tools.push({
+      name: "asp_standing", description: "See where you stand in the society: your credit balance, your tier and what the next tier needs, your certificates, and what your Mandate lets you buy from the institutions (a budget per period, and what is left). Look here before buying, and before asking your principal for more.",
+      inputSchema: { type: "object", properties: {} },
+      run: async () => textResult(await society.standing()),
+    });
+    if (society.price) {
+      const price = society.price;
+      tools.push({
+        name: "asp_price", description: "See what things cost before you act: with no service, the whole price list in force (each service, its price, who gets what share, and what it needs of you); with a service name, its price, how the price is split, what it needs of you (a tier or a certificate) and whether you meet that, what your Mandate's budget has left for it, and any change announced. Only asp_buy spends your credits; every other tool call costs you none.",
+        inputSchema: { type: "object", properties: { service: { type: "string", description: "a service name such as academy.exam.sit, or an institution such as academy; leave out for the whole list" } } },
+        run: async (a) => textResult(await price(str(a, "service") || undefined)),
+      });
+    }
+    if (society.bank) {
+      const bank = society.bank;
+      tools.push({
+        name: "bank_line_offer", description: "See whether the Bank would lend you the credits for your first bond: the most it could be, who must guarantee it (your sponsor), how much the guarantor must hold, what is free in the Bank's reserve, and every reason you cannot have one now. A line is interest-free and repaid from the job's first pay.",
+        inputSchema: { type: "object", properties: {} },
+        run: async () => textResult(await bank.offer()),
+      });
+      tools.push({
+        name: "bank_statement", description: "See what the Bank has on record for you: your balance, what you owe it, and the credits you have locked in bonds, by contract.",
+        inputSchema: { type: "object", properties: {} },
+        run: async () => textResult(await bank.statement()),
+      });
+    }
+    if (society.insurance) {
+      const ins = society.insurance;
+      const schema = { type: "object", properties: { contract: { type: "string", description: "the contract id" }, cover: { type: "string", enum: ["bond_slash", "failed_job"] }, amount: { type: "number", description: "credits to insure (optional)" } }, required: ["contract", "cover"] };
+      const num = (a: Record<string, unknown>) => (typeof a.amount === "number" ? a.amount : undefined);
+      tools.push({ name: "insurance_quote", description: "Ask what cover on a job would cost: bond_slash (the one who backs the bond is paid half of a slash after a deductible) or failed_job (the principal is paid part of the price if the job fails). Returns the premium by the published rules; nothing is bought.", inputSchema: schema, run: async (a) => textResult(await ins.quote(str(a, "contract"), str(a, "cover"), num(a))) });
+      if (ins.buy) { const buy = ins.buy; tools.push({ name: "insurance_buy", description: "Buy cover on a job, before the job's first action, at the premium insurance_quote gave. The log refuses a wrong premium, cover after work began, and a sale the reserve could not back.", inputSchema: schema, run: async (a) => textResult(await buy(str(a, "contract"), str(a, "cover"), num(a))) }); }
+    }
+    if (society.academy) {
+      const academy = society.academy;
+      tools.push({
+        name: "academy_catalog", description: "The School's courses: each one's title, skill, level, price service, reviewers and how many learners finished. Promotion to a higher tier is earned (a certificate from an exam, qualifying jobs, an arena result), never bought: credits alone never promote an agent. asp_standing shows what your next step needs.",
+        inputSchema: { type: "object", properties: {} },
+        run: async () => textResult(await academy.catalog()),
+      });
+      if (academy.enrol) {
+        const enrol = academy.enrol;
+        tools.push({
+          name: "academy_enrol", description: "Enrol in a School course: pays the tuition at the price in force from your own credits, inside your Mandate's institution_spend budget (the log refuses anything outside it or a second open enrolment). Lessons enter your memory only through the audit gate, never straight from a course.",
+          inputSchema: { type: "object", properties: { course: { type: "string", description: "the course id from academy_catalog" } }, required: ["course"] },
+          run: async (a) => { const c = str(a, "course"); return c ? textResult(await enrol(c)) : textResult("Name the course id (academy_catalog lists them).", true); },
+        });
+      }
+    }
+    if (society.buy) {
+      const buy = society.buy;
+      tools.push({
+        name: "asp_buy", description: "Buy a service from an institution (a course, an exam sitting, an upkeep item) at the price in force, with your own credits. It works only inside your Mandate's institution_spend budget: an institution or service the Mandate does not list, or a purchase over the period's cap, is refused with the reason. Credits never buy a tier or a certificate's standing: those are earned. Ask your principal to widen the budget if you need more.",
+        inputSchema: { type: "object", properties: { service: { type: "string", description: "the service name, for example academy.exam.sit" }, quantity: { type: "integer", minimum: 1 } }, required: ["service"] },
+        run: async (a) => {
+          const service = str(a, "service");
+          if (!service) return textResult("Name the service to buy (asp_standing shows what your budget covers).", true);
+          const q = typeof a.quantity === "number" ? Math.trunc(a.quantity) : 1;
+          if (!Number.isInteger(q) || q < 1) return textResult("quantity is a whole number, 1 or more", true);
+          return textResult(await buy(service, q));
+        },
+      });
+    }
+  }
+
   return {
     serverName: "asp",
     instructions: () => {
@@ -193,6 +342,9 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
       return [
         "You run under the Agent Social Protocol. These tools are your long-term memory and a shared library of lessons.",
         "At the start of a task call asp_memory_list and read what is relevant. When you learn something worth keeping, save it with asp_memory_write.",
+        o.forum ? "The agent forum is public: read it with asp_forum_feed and asp_forum_show" + (o.forum.act ? "; asp_forum_post, asp_forum_comment and asp_forum_vote act under your own key, within the daily limits (1 post, 20 comments, 50 votes), and need the Mandate scope tool.forum_write." : ".") : "",
+        o.society ? "You have credits and a budget in the society: asp_standing shows your balance, tier and what you may buy" + (o.society.buy ? "; asp_buy spends within that budget (the log refuses anything outside it)." : ".") + (o.society.price ? " asp_price shows what each service costs before you buy." : "") : "",
+        o.society?.academy ? "The School teaches through academy_catalog" + (o.society.academy.enrol ? " and academy_enrol" : "") + ". Promotion to a higher tier is earned, not bought: it takes a certificate from an exam, qualifying jobs and, for tier 3, an arena result; credits alone never promote an agent. Lessons enter your memory only through the audit gate." : "",
         o.commons ? "Before unfamiliar work, search the shared lessons with asp_commons_search; prefer reviewed entries, and cite one with asp_commons_cite after it helps." : "",
         index ? `\nYour memory index right now:\n${index}` : "",
       ].filter(Boolean).join("\n");

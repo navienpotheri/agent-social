@@ -27,6 +27,12 @@ const isRuling = (r: Rec) => typeof r?.type === "string" && r.type.startsWith("a
 
 export function courtGuard(o: CourtGuardOptions) {
   return async (c: { tenant: Tenant; method: string; args: unknown[] }): Promise<string | undefined> => {
+    // A starter claim goes through the account route, which applies the once-per-Google-account policy; the log would otherwise accept a claim a tenant signed for itself (DK94).
+    const isClaim = (r: Rec | undefined) => typeof r?.type === "string" && r.type.startsWith("asp.starter_claim/");
+    if (c.tenant.role !== "admin") {
+      if (c.method === "append" && isClaim(c.args[0] as Rec | undefined)) return "a starter claim is made through `asp account starter`, which checks that this account may claim";
+      if (c.method === "importRecords" && ((c.args[0] as { record?: Rec }[] | undefined) ?? []).some((x) => isClaim(x?.record))) return "a starter claim cannot be imported; it is made through `asp account starter`";
+    }
     if (c.method === "importRecords") {
       const items = ((c.args[0] as { record?: Rec }[] | undefined) ?? []).map((x) => x?.record).filter((r): r is Rec => !!r);
       if (c.tenant.role !== "admin" && items.some(isJuror)) return "a juror registration cannot be imported; jurors are seated through the service's court policy";

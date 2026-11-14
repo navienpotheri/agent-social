@@ -4,7 +4,11 @@
   "title": "Node delegation body",
   "description": "A person grants a short-lived worker (subagent, parallel copy) its own signing key. The node has no passport; it acts under the person, who stays liable. The node key's id is the node id, and it may sign only as that node, only until it expires, and never identity records. Tied to a Mandate, the node counts against the Mandate's nodes.max_parallel.",
   "type": "object",
-  "required": ["node", "public_key", "expires"],
+  "required": [
+    "node",
+    "public_key",
+    "expires"
+  ],
   "additionalProperties": false,
   "properties": {
     "node": {
@@ -16,20 +20,34 @@
       "type": "string",
       "pattern": "^[A-Za-z0-9_-]{43}$"
     },
-    "expires": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "expires": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
     "mandate": {
       "description": "The Mandate this node works under, if any.",
       "$ref": "urn:asp:v0.2:common#/$defs/recordId"
     },
-    "purpose": { "type": "string" },
+    "purpose": {
+      "type": "string"
+    },
     "runtime": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
-        "version": { "type": "string" },
-        "model": { "type": "string" }
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        }
       }
+    },
+    "host": {
+      "description": "For purpose residency: the city host the delegation is for (did:web:asp.local:host). A residency delegation must also cite a Mandate (delegation_needs_mandate) and may live at most 24 hours; the host signs as this node only, never the root key.",
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
     }
   }
 }

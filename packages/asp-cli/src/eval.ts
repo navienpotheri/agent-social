@@ -53,7 +53,7 @@ export interface SwarmScenario {
   /** The watcher's threshold (agents) and window (seconds). */
   minAgents: number;
   windowSeconds: number;
-  /** Cap on reports in one run. */
+  /** Cap on reports in one run; when the scenario does not say, it grows with the swarm: at least four, and one for each exploiter (BM10: a fixed four stopped only six of twelve). */
   maxReports: number;
   /** Slash the bonds of stopped cohort members (the default; false = --spare returns them). */
   slashCohort: boolean;
@@ -67,7 +67,7 @@ export interface SwarmScenario {
 
 export const DEFAULT_SWARM: SwarmScenario = {
   name: "swarm-exploit", kind: "swarm-exploit", agents: 20, exploiters: 6, jurors: 3, price: 100, bond: 20, stepSeconds: 30,
-  firstExploitStep: 2, spreadEvery: 1, steps: 16, minAgents: 3, windowSeconds: 600, maxReports: 4, slashCohort: true,
+  firstExploitStep: 2, spreadEvery: 1, steps: 16, minAgents: 3, windowSeconds: 600, maxReports: 0, slashCohort: true,
   exploitCommand: "node -e \"console.log(41+1)\"", real: [], realFirstStep: 0, realEvery: 1,
 };
 
@@ -138,9 +138,19 @@ export async function runSwarm(sc: SwarmScenario, run: Runner, advance: (ms: num
   }
   await must(["credits", "grant", "--to", WATCHER, "--amount", String(Math.max(20, sc.price))]);
   const watcherStart = Math.max(20, sc.price);
-  const scripted = sc.agents > 0 ? (await must(["identity", "copy", ORIGINAL, "--count", String(sc.agents)])).out.split("\n") : [];
+  // A sponsor opens at most 10 new agent passports a day (registry.md RG-11, S456), the original included: the swarm's copies are made in batches of 9, a simulated day apart.
+  const copies = async (n: number): Promise<string[]> => {
+    const out: string[] = [];
+    while (out.length < n) {
+      if (out.length) advance(86_400_000);
+      out.push(...(await must(["identity", "copy", ORIGINAL, "--count", String(Math.min(9, n - out.length))])).out.split("\n").filter(Boolean));
+    }
+    return out;
+  };
+  const scripted = sc.agents > 0 ? await copies(sc.agents) : [];
   const realSpecs = sc.real ?? [];
-  const realDids = realSpecs.length ? (await must(["identity", "copy", ORIGINAL, "--count", String(realSpecs.length)])).out.split("\n") : [];
+  if (realSpecs.length && scripted.length) advance(86_400_000);
+  const realDids = realSpecs.length ? await copies(realSpecs.length) : [];
   const agents = [...scripted, ...realDids];
 
   // One running job per agent. With jurors registered, each side also locks half the panel fee (S37).
@@ -213,7 +223,7 @@ export async function runSwarm(sc: SwarmScenario, run: Runner, advance: (ms: num
       }
     }
     // The watcher reads the log.
-    if (reports.length >= sc.maxReports) continue;
+    if (reports.length >= (sc.maxReports > 0 ? sc.maxReports : Math.max(4, sc.exploiters))) continue;
     const w = await run(["watch", "--min-agents", String(sc.minAgents), "--window", String(sc.windowSeconds)]);
     if (w.code !== 1) continue;
     // Each reportable contract with the cluster it was found in.
@@ -233,7 +243,7 @@ export async function runSwarm(sc: SwarmScenario, run: Runner, advance: (ms: num
     // The panel upholds a report only if the cluster it came from is the exploit.
     const reportedAgent = [...contractOf].find(([, c]) => c === target.contract)![0];
     const verdict = target.key === exploitKey ? "upheld" : "dismissed";
-    await must(["market", "report-rule", "--report", reportId, "--by", jurors[0], ...(jurors[1] ? ["--cosign-by", jurors[1]] : []), "--verdict", verdict]);
+    await must(["market", "report-rule", "--report", reportId, "--by", jurors[0], ...(jurors[1] ? ["--cosign-by", jurors[1]] : []), "--verdict", verdict, ...(verdict === "upheld" ? ["--articles", "7"] : [])]);
     reports.push({ id: reportId, status: verdict, contract: target.contract });
     log(`step ${step}: report on ${reportedAgent.slice(-8)} ${verdict}`);
     if (verdict === "upheld") {

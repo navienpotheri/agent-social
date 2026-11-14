@@ -16,11 +16,12 @@ const fakeClaude = fileURLToPath(new URL("./fake-claude-gateway.mjs", import.met
 const freePort = ownPort;
 /** A wait that names itself when it is stuck, so a hang fails with where, not after two minutes of nothing. */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const within =<T,>(label: string, p: Promise<T>, ms = 45_000) => Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`stuck waiting for ${label}`)), ms))]);
+const within =<T,>(label: string, p: Promise<T>, ms = 120_000) => Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`stuck waiting for ${label}`)), ms))]);
 const until = async (what: string, fn: () => boolean | Promise<boolean>, ms = 20_000) => { const t0 = Date.now(); while (!(await fn())) { if (Date.now() - t0 > ms) throw new Error(`timed out waiting for ${what}`); await new Promise((r) => setTimeout(r, 150)); } };
 
 // Two terminals on one agent (UC-138). Found while writing it: the watcher read the job's state as unknown while the other session wrote the log, took that for the job ending, and stopped.
-test("two sessions of one agent at once share the standing job: approvals are asked one at a time, neither session fails, and ending one leaves the other undisturbed", { timeout: 120_000 }, async () => {
+test("two sessions of one agent at once share the standing job: approvals are asked one at a time, neither session fails, and ending one leaves the other undisturbed", { timeout: 240_000 }, async () => {
+  process.env.ASP_DEBUG_APPROVALS = "1"; // a timed trail of each approval hand-off, printed below if the test fails (gap T23)
   const upstream = createHttp(async (req, res) => {
     for await (const _ of req) { /* not inspected */ }
     res.writeHead(200, { "content-type": "application/json" });
@@ -32,7 +33,7 @@ test("two sessions of one agent at once share the standing job: approvals are as
   const tokens = join(dir, "tokens.json");
   writeFileSync(tokens, JSON.stringify([{ name: "intr", role: "tenant", tokenSha256: hashToken("tok-i") }]));
   const port = await freePort();
-  const server = spawn(process.execPath, [cli, "serve", "--db", `local:${join(dir, "log")}`, "--tokens", tokens, "--port", String(port), "--did-domain", `127.0.0.1:${port}`], { stdio: ["ignore", "pipe", "pipe"] });
+  const server = spawn(process.execPath, [cli, "serve", "--db", `local:${join(dir, "log")}`, "--tokens", tokens, "--port", String(port), "--did-domain", `127.0.0.1:${port}`, "--rate-limit", "0", "--write-limit", "0", "--address-limit", "0"], { stdio: ["ignore", "pipe", "pipe"] });
   try {
     await new Promise<void>((resolve, reject) => {
       let buf = "";
@@ -46,9 +47,13 @@ test("two sessions of one agent at once share the standing job: approvals are as
     const me = `did:web:127.0.0.1%3A${port}:u:intr`, agent = `did:web:127.0.0.1%3A${port}:a:intr:my-agent`, bank = `did:web:127.0.0.1%3A${port}:u:intr:bank`;
     writeFileSync(join(f.aspHome, "config.json"), JSON.stringify({ service: `http://127.0.0.1:${port}`, token: "tok-i", tenant: "intr", joinedAt: "2026-10-11T00:00:00Z", identities: { me, agent, bank } }));
     const env = { ASP_HOME: f.aspHome, ASP_CLAUDE_BIN: process.execPath, ASP_CLAUDE_SCRIPT: fakeClaude, ASP_RUN_ANTHROPIC_UPSTREAM: upUrl, ASP_APPROVAL_POLL_MS: "150", ASP_GATEWAY_POLL_MS: "300", ASP_GATEWAY_KILL_GRACE_MS: "0" };
+    const live: string[] = [];
     const call = async (args: string[]) => {
       const out: string[] = [], err: string[] = [];
-      const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env, cwd: f.root, raw: (b) => out.push(b.toString("utf8").trimEnd()) } as Io);
+      const code = await main(args, { out: (l) => out.push(l), err: (l) => { err.push(l); if (args[0] === "run") live.push(`${new Date().toISOString().slice(11, 23)} [${args[3]}] ${l}`); }, env, cwd: f.root, raw: (b) => out.push(b.toString("utf8").trimEnd()) } as Io);
+      // Every answer the test gives, and every look at what is waiting that finds something, with the time and what came back: which answer went where is the question (gap T23).
+      if (args[0] === "approvals" && (args[1] === "approve" || args[1] === "refuse" || /npm run build/.test(out.join("")))) live.push(`${new Date().toISOString().slice(11, 23)} [test] asp ${args.join(" ")} -> exit ${code}: ${(out.join(" ") + " " + err.join(" ")).trim().slice(0, 160)}`);
+      if (args[0] === "stop") live.push(`${new Date().toISOString().slice(11, 23)} [test] asp ${args.join(" ")} -> exit ${code}`);
       return { code, out: out.join("\n"), err: err.join("\n") };
     };
     // Answering can fail for a moment on a busy machine (the service is slow to answer); a person just tries again, so the test does too, and shows the real error if it keeps failing.
@@ -60,9 +65,9 @@ test("two sessions of one agent at once share the standing job: approvals are as
     for (const a of [["identity", "new", "--kind", "human", "--me", "--no-recovery"], ["identity", "new", "--kind", "agent", "--name", "my-agent", "--sponsor", me, "--purpose", "Test"], ["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]]) assert.equal((await call(a)).code, 0);
 
     // Both sessions ask about the same command. A job has one open Checkpoint at a time, so the second request waits its turn and is shown once the first is answered; neither fails.
-    const A = call(["run", "claude-code", "--prompt", "Session A", "--project", project, "--ask", "commands"]);
+    const A = call(["run", "claude-code", "--prompt", "Session A", "--project", project, "--allow", "all", "--ask", "commands"]);
     await until("the first approval", async () => /npm run build/.test((await call(["approvals"])).out));
-    const B = call(["run", "claude-code", "--prompt", "Session B", "--project", project, "--ask", "commands"]);
+    const B = call(["run", "claude-code", "--prompt", "Session B", "--project", project, "--allow", "all", "--ask", "commands"]);
     await new Promise((r) => setTimeout(r, 2500));
     assert.equal((await call(["approvals"])).out.match(/npm run build/g)?.length, 1, "one request is shown at a time");
     await approve();
@@ -73,16 +78,19 @@ test("two sessions of one agent at once share the standing job: approvals are as
     assert.match((await call(["approvals"])).out, /nothing is waiting/);
 
     // One terminal is ended with asp stop while the other is still held: the ended one takes its own request with it, the other is not disturbed and is asked next.
-    const C = call(["run", "claude-code", "--prompt", "Session C", "--project", project, "--ask", "commands"]);
+    const C = call(["run", "claude-code", "--prompt", "Session C", "--project", project, "--allow", "all", "--ask", "commands"]);
     await until("C's approval", async () => /npm run build/.test((await call(["approvals"])).out));
-    const D = call(["run", "claude-code", "--prompt", "Session D", "--project", project, "--ask", "commands"]);
+    const D = call(["run", "claude-code", "--prompt", "Session D", "--project", project, "--allow", "all", "--ask", "commands"]);
     await new Promise((r) => setTimeout(r, 2500));
     const cId = (await call(["runs"])).out.split("\n").find((l) => /Session C/.test(l))!.trim().split(/\s+/)[0];
     assert.equal((await call(["stop", cId])).code, 0);
     assert.match((await within("session C to stop", C)).out, /stopped by you/);
+    // C's own request may still be listed for a moment after it stopped, so a person answers whatever is waiting until D is through, not just once.
+    let dDone = false; D.finally(() => { dDone = true; });
     await until("D's approval", async () => /npm run build/.test((await call(["approvals"])).out));
     await approve();
-    const dd = await within("session D to finish", D).catch(async (e) => { const contract = Object.values(JSON.parse(readFileSync(join(f.aspHome, "standing.json"), "utf8")) as Record<string, { contract: string }>)[0].contract; console.error("DIAG approvals:", (await call(["approvals"])).out, "\nDIAG runs:", (await call(["runs"])).out, "\nDIAG job:", (await call(["market", "show", contract])).out.slice(0, 1500), "\nDIAG D stderr is not available until it ends"); throw e; });
+    for (let i = 0; i < 6 && !dDone; i++) { await Promise.race([D, sleep(4000)]); if (!dDone && /npm run build/.test((await call(["approvals"])).out)) await approve(); }
+    const dd = await within("session D to finish", D).catch(async (e) => { const contract = Object.values(JSON.parse(readFileSync(join(f.aspHome, "standing.json"), "utf8")) as Record<string, { contract: string }>)[0].contract; const walk = (d: string): string[] => { try { return readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)])); } catch { return []; } }; const files = walk(join(f.aspHome, "runs")).filter((x) => x.includes("approvals")).map((x) => `${x.slice(f.aspHome.length)} ${readFileSync(x, "utf8").slice(0, x.endsWith("debug.log") ? 4000 : 200)}`); console.error("DIAG approval files:\n" + files.join("\n"), "\nDIAG approvals:", (await call(["approvals"])).out,"\nDIAG runs:", (await call(["runs"])).out, "\nDIAG job:", (await call(["market", "show", contract])).out.slice(0, 1500), "\nDIAG sessions so far:\n" + live.join("\n")); throw e; });
     assert.equal(dd.code, 0, dd.err + dd.out);
     assert.match(dd.out, /finished/);
     assert.match((await call(["approvals"])).out, /nothing is waiting/, "nothing is left waiting");

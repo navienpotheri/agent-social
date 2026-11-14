@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:starter_claim",
+  "title": "Starter claim body",
+  "description": "A new identity claims its starter credits from the starter pool (credits.md 5.1, register rows DK94 and DK67). Signed by the claimant (the envelope's issuer), so the service never needs a key to hand out starter credits: the operator funds the pool with signed mints, and the log moves credits from the pool to the claimant by fixed rules. part upfront is the first part (once per identity, at most two identities per sponsor); part rest is the remainder, once an identity of the same sponsor has had a qualifying job accepted. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": ["part", "amount"],
+  "additionalProperties": false,
+  "properties": {
+    "part": { "enum": ["upfront", "rest"] },
+    "amount": { "description": "Must equal the fixed amount of the part (100 upfront, 400 rest); the log refuses any other.", "$ref": "urn:asp:v0.2:common#/$defs/amount" }
+  }
+}

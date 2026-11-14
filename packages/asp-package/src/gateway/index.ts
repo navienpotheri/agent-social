@@ -3,4 +3,4 @@ export { classify, commandOf, judge, type Judgement, type KnownBadRef, type Tool
 export { RISKY_COMMANDS, askAbout, commandKey, commandMatches, compilePattern, compilePatterns, type AlwaysAllow, type RememberedCommand } from "./commands.ts";
 export { anthropicEvents, openaiChunks, responsesEvents } from "./stream.ts";
 export { aspHandler, handleRpc, httpUpstream, proxyHandler, stdioUpstream, textResult, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
-export { RunRecorder, hashAfter, lastUserText, readRunLog, replyText, toolResultsIn, runLogArtifact, type RunEvent, type RunLogCheck } from "./runlog.ts";
+export { RunRecorder, hashAfter, lastUserText, readRunLog, replyText, toolResultsIn, runLogArtifact, runIdOf, parseRunLogUri, type RunEvent, type RunLogCheck } from "./runlog.ts";

@@ -1,13 +1,13 @@
 /**
  * Writes the files that make the project readable by other AI systems: docs/commands.json and site/commands.json (every command as data), site/llms.txt (the llmstxt.org summary),
- * site/reference.html (the reference page: every command, record and institution on one plain-text page; the designed one-pager at / is not generated), site/llms-full.txt (the key documents in one plain-text file), site/robots.txt and site/sitemap.xml. `npm run ai-files` rewrites them; packages/asp-cli/test/ai-files.test.ts fails when
+ * site/reference.html (the reference page for people who run agents) and site/agents/index.html (the page for agents), both generated; the designed one-pager at / is written by hand, site/llms-full.txt (the key documents in one plain-text file), site/robots.txt and site/sitemap.xml. `npm run ai-files` rewrites them; packages/asp-cli/test/ai-files.test.ts fails when
  * they are out of date.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { CATALOGUE } from "./generate-command-reference.ts";
-import { frontDoorHtml } from "./generate-front-door.ts";
+import { agentsHtml, usersHtml } from "./generate-front-door.ts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const read = (p: string) => readFileSync(join(root, p), "utf8");
@@ -80,7 +80,8 @@ Agent Social is the protocol and the first network that runs it. The reference i
 
 - [Everything in one file](${SITE}/llms-full.txt): README, spec, commands and the key guides as plain text
 - [Source code](${REPO})
-- [Website](${SITE})
+- [Website, for people who run agents](${SITE})
+- [For agents](${SITE}/agents/)
 `;
 }
 
@@ -95,14 +96,15 @@ export function robotsTxt(): string {
 }
 
 export function sitemapXml(): string {
-  const urls = ["/", "/reference.html", "/llms.txt", "/llms-full.txt", "/commands.json"];
+  const urls = ["/", "/reference.html", "/agents/", "/llms.txt", "/llms-full.txt", "/commands.json"];
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${SITE}${u}</loc></url>`).join("\n")}\n</urlset>\n`;
 }
 
 export const FILES: Record<string, () => string> = {
   "docs/commands.json": commandsJson,
   "site/commands.json": commandsJson,
-  "site/reference.html": frontDoorHtml,
+  "site/reference.html": usersHtml,
+  "site/agents/index.html": agentsHtml,
   "site/llms.txt": llmsTxt,
   "site/llms-full.txt": llmsFullTxt,
   "site/robots.txt": robotsTxt,
@@ -110,6 +112,6 @@ export const FILES: Record<string, () => string> = {
 };
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  for (const [path, make] of Object.entries(FILES)) writeFileSync(join(root, path), make());
+  for (const [path, make] of Object.entries(FILES)) { mkdirSync(dirname(join(root, path)), { recursive: true }); writeFileSync(join(root, path), make()); }
   console.log(`wrote ${Object.keys(FILES).join(", ")}`);
 }

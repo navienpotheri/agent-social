@@ -3,7 +3,8 @@
  * run was kept) the run log. Pure text in, text out: this file makes the subject, a plain-text body and an HTML body, and the `.eml` that holds
  * both. It sends nothing; the CLI queues the `.eml` in an outbox folder and a delivery step (not built yet) would hand it to a mail provider.
  */
-import type { RunLogCheck } from "./gateway/runlog.ts";
+import { parseRunLogUri, type RunLogCheck } from "./gateway/runlog.ts";
+import { summarize, type Lesson } from "./learned.ts";
 
 interface Stored { id: string; seq: number; record: { type: string; issuer: string; subject?: string | null; issued_at: string; body: any } }
 /** The part of a log handle the mail needs. */
@@ -74,8 +75,8 @@ export async function collectMandateFacts(log: MailLog, contract: string): Promi
     if (b.late) lateActions++;
     rateLimited += b.metrics?.rate_limited ?? 0;
     for (const x of b.artifacts ?? []) {
-      const m = /^asp:\/\/run-log\/(\d+)$/.exec(x.uri);
-      if (m) { commitments++; committedEvents = Math.max(committedEvents, Number(m[1])); }
+      const m = parseRunLogUri(x.uri);
+      if (m) { commitments++; committedEvents = Math.max(committedEvents, m.events); }
     }
   }
 
@@ -135,6 +136,8 @@ export interface MailOptions {
   runLog?: RunLogCheck & { path: string };
   /** Where the full run report and the run page live, when there is a dashboard. Without it the mail names the file on the machine that ran the job. */
   linkBase?: string;
+  /** The agent's own record of its memory changes (gap D10, `asp learned`): what each change added, changed and removed, and whether the principal has already reviewed it. Matched to the log's memory entries by their timestamp and description. */
+  learned?: Lesson[];
 }
 
 export interface BuiltMail { subject: string; text: string; html: string; eml: string; highlights: string[] }
@@ -189,7 +192,15 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
     sections.push({ title: "What needed your approval", lines: f.approvals.map((p) => `${p.question}${p.proposed ? ` (${p.proposed})` : ""}: ${p.answer}${p.correction ? ` - ${p.correction}` : ""}.`) });
   }
 
-  sections.push({ title: "What changed in its memory", lines: f.memory.length ? f.memory.map((m) => m.description) : ["Nothing."] });
+  const memoryLine = (m: { description: string; at: string }) => {
+    const lesson = o.learned?.find((l) => l.at === m.at && l.description === m.description);
+    if (!lesson) return m.description;
+    const state = lesson.undoneBy ? "already taken back" : lesson.review ? `you ${lesson.review.state} it` : "not reviewed yet";
+    return `${summarize(lesson)} (${state}).`;
+  };
+  sections.push({ title: "What changed in its memory", lines: f.memory.length
+    ? [...f.memory.map(memoryLine), ...(o.learned ? ["See the detail, and Keep, Edit or Undo any of these, with `asp learned --package <the agent's package>`."] : [])]
+    : ["Nothing."] });
 
   if (f.ending) {
     const e = f.ending;
@@ -237,7 +248,7 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
 // ---------- alerts: the mails that do not wait for the end of the Mandate ----------
 
 export type AlertKind = "killed" | "report_upheld" | "expired";
-export interface MailAlert { key: string; kind: AlertKind; contract: string; at: string; detail: string; record: string }
+export interface MailAlert { key: string; kind: AlertKind; contract: string; at: string; detail: string; record: string; /** report_upheld: who made the report. */ reporter?: string }
 
 /**
  * The events that get their own mail at once: a kill (the kill switch settles the job as revoked with the bond slashed), a report against the
@@ -254,7 +265,7 @@ export async function findAlerts(log: MailLog, nowMs: number = Date.now()): Prom
     }
     if (s.record.type === "asp.attestation/v0.2" && b.kind === "report_ruling" && b.verdict === "upheld") {
       const report = all.find((x) => x.id === b.about);
-      if (report) out.push({ key: `alert:report:${s.id}`, kind: "report_upheld", contract: report.record.body.about, at: s.record.issued_at, record: s.id,
+      if (report) out.push({ key: `alert:report:${s.id}`, kind: "report_upheld", contract: report.record.body.about, at: s.record.issued_at, record: s.id, reporter: report.record.issuer,
         detail: `A report against the agent was upheld by a panel: ${((report.record.body.reasons as string[] | undefined) ?? []).join("; ") || "no reasons recorded"}.` });
     }
   }
@@ -270,6 +281,28 @@ export async function findAlerts(log: MailLog, nowMs: number = Date.now()): Prom
   return out;
 }
 
+export type AlertRole = "principal" | "sponsor" | "reporter";
+export interface AlertRecipient { role: AlertRole; did: string; to: string; /** The mail key: the alert's own for the principal, one for each other role, so each copy is sent once. */ key: string }
+
+/**
+ * Who hears about an alert (gap E13): the principal always; the sponsor of the agent, who is liable for it, for a kill and an upheld report; the reporter of an upheld report. Only those with an address in
+ * `addresses` get a copy (an address is the person's own, set with `asp mail address set`); the same person in two roles gets one copy, as the principal if that is one of them.
+ */
+export function alertRecipients(a: MailAlert, principal: string, sponsor: string | null | undefined, addresses: Record<string, string>): AlertRecipient[] {
+  const out: AlertRecipient[] = [];
+  const seen = new Set<string>();
+  const add = (role: AlertRole, did: string | null | undefined) => {
+    if (!did || seen.has(did)) return;
+    seen.add(did);
+    const to = addresses[did];
+    if (to) out.push({ role, did, to, key: role === "principal" ? a.key : `${a.key}#${role}` });
+  };
+  add("principal", principal);
+  if (a.kind === "killed" || a.kind === "report_upheld") add("sponsor", sponsor);
+  if (a.kind === "report_upheld") add("reporter", a.reporter);
+  return out;
+}
+
 const ALERT_TITLE: Record<AlertKind, string> = {
   killed: "Your agent was stopped by the kill switch",
   report_upheld: "A report against your agent was upheld",
@@ -277,8 +310,9 @@ const ALERT_TITLE: Record<AlertKind, string> = {
 };
 
 /** A short mail for one alert: what happened, to which job, and what to check. Highlights only, like the end mail. */
-export function buildAlertMail(a: MailAlert, f: MandateFacts, o: Pick<MailOptions, "to" | "from" | "linkBase">): BuiltMail {
-  const subject = `${ALERT_TITLE[a.kind]}: ${f.contract.purpose}`;
+export function buildAlertMail(a: MailAlert, f: MandateFacts, o: Pick<MailOptions, "to" | "from" | "linkBase"> & { role?: AlertRole }): BuiltMail {
+  const title = o.role === "sponsor" ? ALERT_TITLE[a.kind].replace(/^Your agent/, "An agent you sponsor").replace(/against your agent/, "against an agent you sponsor") : o.role === "reporter" ? "The report you made was upheld by a panel" : ALERT_TITLE[a.kind];
+  const subject = `${title}: ${f.contract.purpose}`;
   const lines = [
     a.detail,
     `Job: ${f.contract.purpose}. Agent: ${f.contract.performer}.`,

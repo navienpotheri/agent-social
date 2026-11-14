@@ -38,6 +38,17 @@ export interface SignupOptions {
   joinUrl?: string;
   /** Tenants one Google account may hold (default 3). */
   perGoogleAccount?: number;
+  /** Gives a tenant a new token (its hash) and revokes its machine tokens, as one step on the stored tenants (gap U1: a person who lost their token signs in again). Absent means no recovery. */
+  rotate?: (name: string, tokenSha256: string, at: string) => void;
+  /** Token recoveries one Google account may make in a day (default 5). */
+  recoveriesPerDay?: number;
+  /**
+   * Runs the last checks and the add as one step that no other process can interleave (gap O19): the tokens file may be shared by several service processes, and two that both
+   * saw 199 of a day's 200 would each add one. Defaults to running the function as it is, for one process.
+   */
+  exclusive?: <T>(fn: () => T) => T;
+  /** Told when someone is turned away because the day's sign-ups are used up (a count, no one's details), so an operator can see the demand when tuning the cap. */
+  onTurnedAway?: () => void;
   /** Only for tests. */
   secret?: Buffer;
   now?: () => number;
@@ -122,7 +133,7 @@ export class Signup {
   private precheck(b: Record<string, unknown>): { error: SignupResult } | { name: string; contact?: string } {
     const c = this.o.control?.();
     if (!this.isOpen()) return { error: this.fail(503, "SIGNUP_CLOSED", `sign-up is closed${c?.reason ? `: ${c.reason}` : ""}`) };
-    if (this.today() >= this.cap()) return { error: this.fail(503, "SIGNUP_FULL", "today's sign-ups are used up; try again tomorrow", 3600) };
+    if (this.today() >= this.cap()) { this.o.onTurnedAway?.(); return { error: this.fail(503, "SIGNUP_FULL", "today's sign-ups are used up; try again tomorrow", 3600) }; }
     if (b.accept_terms !== true || b.terms_version !== this.o.termsVersion) return { error: this.fail(400, "TERMS_NOT_ACCEPTED", `accept the terms (version ${this.o.termsVersion}${this.o.termsUrl ? `, at ${this.o.termsUrl}` : ""}) with accept_terms: true and terms_version`) };
     const name = typeof b.name === "string" ? b.name : "";
     if (!NAME_RE.test(name)) return { error: this.fail(400, "BAD_NAME", "the name is 3 to 32 characters: a lower-case letter first, then lower-case letters, digits and hyphens") };
@@ -145,6 +156,33 @@ export class Signup {
     const limit = this.o.perGoogleAccount ?? 3;
     if (this.o.tenants().filter((t) => t.signup?.google?.sub === google.sub && !t.closed).length >= limit) return this.fail(429, "GOOGLE_LIMIT", `one Google account may hold at most ${limit} tenants`);
     return this.issue(address, p.name, p.contact, { google, declaration: "adult_or_guardian" });
+  }
+
+  private recoveries = new Map<string, { day: string; n: number }>();
+
+  /**
+   * A person who lost their token (or fears it leaked) signs in with the same verified Google account and gets a new one for a tenant that account signed up. The old token stops working at
+   * once, and so do the tenant's machine tokens (a leaked token may have made them): the person makes new ones. A closed tenant cannot be recovered; a suspended one is given a token and
+   * stays suspended. At most `recoveriesPerDay` a day for one Google account. With several tenants the name must be given; the names are shown only to the verified owner.
+   */
+  recover(google: { sub: string; email: string }, wanted?: string): SignupResult {
+    if (!this.o.rotate) return this.fail(404, "NO_RECOVERY", "token recovery is not available on this service");
+    const step = (): SignupResult => {
+      const mine = this.o.tenants().filter((t) => t.signup?.google?.sub === google.sub && !t.closed);
+      if (!mine.length) return this.fail(404, "NO_ACCOUNT", "no tenant was signed up with this Google account");
+      const pick = wanted ? mine.find((t) => t.name === wanted) : mine.length === 1 ? mine[0] : undefined;
+      if (!pick) return wanted ? this.fail(404, "NO_ACCOUNT", `no tenant named ${wanted} was signed up with this Google account`) : this.fail(409, "NAME_NEEDED", `this Google account holds ${mine.length} tenants (${mine.map((t) => t.name).join(", ")}): say which one`);
+      const day = new Date(this.now()).toISOString().slice(0, 10);
+      const seen = this.recoveries.get(google.sub);
+      const n = seen && seen.day === day ? seen.n : 0;
+      if (n >= (this.o.recoveriesPerDay ?? 5)) return this.fail(429, "RECOVERY_LIMIT", "too many token recoveries today for this Google account; try again tomorrow", 3600);
+      this.recoveries.set(google.sub, { day, n: n + 1 });
+      const token = randomBytes(32).toString("base64url");
+      this.o.rotate!(pick.name, hashToken(token), new Date(this.now()).toISOString().replace(/\.\d{3}Z$/, "Z"));
+      const starting = { recordQuota: pick.recordQuota ?? DEFAULT_STARTING.recordQuota, byteQuota: pick.byteQuota ?? DEFAULT_STARTING.byteQuota, quotaBytes: pick.quotaBytes ?? DEFAULT_STARTING.quotaBytes, rateLimitPerMinute: pick.rateLimitPerMinute ?? DEFAULT_STARTING.rateLimitPerMinute };
+      return { ok: true, tenant: pick.name, token, quotas: starting, termsVersion: pick.signup?.termsVersion ?? this.o.termsVersion };
+    };
+    return this.o.exclusive ? this.o.exclusive(step) : step();
   }
 
   register(address: string, body: unknown): SignupResult {
@@ -172,17 +210,22 @@ export class Signup {
   /** The last checks (this address, the name) and the tenant itself, with its token shown once. */
   private issue(address: string, name: string, contact: string | undefined, extra: { google?: { sub: string; email: string }; declaration?: "adult_or_guardian" }): SignupResult {
     const hash = addressHash(address);
-    if (this.sinceDay().filter((t) => t.signup!.addressHash === hash).length >= this.perAddress) return this.fail(429, "ADDRESS_LIMIT", `at most ${this.perAddress} sign-ups a day from one address`, 3600);
-    if (this.o.tenants().some((t) => t.name === name)) return this.fail(409, "NAME_TAKEN", `the name ${name} is not available`);
+    const step = (): SignupResult => {
+      // Checked again here, with the tenants read fresh, because another process may have signed someone up since the first checks (gap O19).
+      if (this.today() >= this.cap()) { this.o.onTurnedAway?.(); return this.fail(503, "SIGNUP_FULL", "today's sign-ups are used up; try again tomorrow", 3600); }
+      if (this.sinceDay().filter((t) => t.signup!.addressHash === hash).length >= this.perAddress) return this.fail(429, "ADDRESS_LIMIT", `at most ${this.perAddress} sign-ups a day from one address`, 3600);
+      if (this.o.tenants().some((t) => t.name === name)) return this.fail(409, "NAME_TAKEN", `the name ${name} is not available`);
 
-    const token = randomBytes(32).toString("base64url");
-    const starting = { ...DEFAULT_STARTING, ...this.o.starting };
-    const at = new Date(this.now()).toISOString().replace(/\.\d{3}Z$/, "Z");
-    this.o.add({
-      name, role: "tenant", tokenSha256: hashToken(token), quotaBytes: starting.quotaBytes, recordQuota: starting.recordQuota, byteQuota: starting.byteQuota,
-      rateLimitPerMinute: starting.rateLimitPerMinute, createdAt: at,
-      signup: { at, addressHash: hash, termsVersion: this.o.termsVersion, ...(contact ? { contact } : {}), ...(extra.google ? { google: extra.google } : {}), ...(extra.declaration ? { declaration: extra.declaration } : {}) },
-    });
-    return { ok: true, tenant: name, token, quotas: starting, termsVersion: this.o.termsVersion };
+      const token = randomBytes(32).toString("base64url");
+      const starting = { ...DEFAULT_STARTING, ...this.o.starting };
+      const at = new Date(this.now()).toISOString().replace(/\.\d{3}Z$/, "Z");
+      this.o.add({
+        name, role: "tenant", tokenSha256: hashToken(token), quotaBytes: starting.quotaBytes, recordQuota: starting.recordQuota, byteQuota: starting.byteQuota,
+        rateLimitPerMinute: starting.rateLimitPerMinute, createdAt: at,
+        signup: { at, addressHash: hash, termsVersion: this.o.termsVersion, ...(contact ? { contact } : {}), ...(extra.google ? { google: extra.google } : {}), ...(extra.declaration ? { declaration: extra.declaration } : {}) },
+      });
+      return { ok: true, tenant: name, token, quotas: starting, termsVersion: this.o.termsVersion };
+    };
+    return this.o.exclusive ? this.o.exclusive(step) : step();
   }
 }

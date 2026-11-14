@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import pg from "pg";
+import type { LedgerRows } from "./credit-audit.ts";
 import type {
   AccountRow, ChainRow, EscrowRow, FleetRow, JurorRow, KeyRow, LogHead, LogTx, MandateRow, MintRow, PassportRow, ReportRow, VerificationRow,
   ProbationRow, ReputationRow, Store, StoredRecord,
@@ -65,9 +66,9 @@ const toEscrow = (e: any): EscrowRow => ({
   agentPermille: e.agent_permille === null ? null : Number(e.agent_permille),
   feeReservePrincipal: Number(e.fee_reserve_principal), feeReserveBacker: Number(e.fee_reserve_backer), forcedFault: !!e.forced_fault, settled: e.settled,
 });
-const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_minted) });
+const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_minted), signedMinted: Number(m.signed_minted ?? 0), adoptedMinted: Number(m.adopted_minted ?? 0) });
 const toJuror = (j: any): JurorRow => ({ did: j.did, head: j.head, staked: Number(j.staked) });
-const toReputation = (r: any): ReputationRow => ({ did: r.did, tier: Number(r.tier), slashCount: Number(r.slash_count), strikeLog: r.strike_log ?? [], ...(Number(r.accepted_jobs) > 0 ? { acceptedJobs: Number(r.accepted_jobs) } : {}) });
+const toReputation = (r: any): ReputationRow => ({ did: r.did, tier: Number(r.tier), slashCount: Number(r.slash_count), strikeLog: r.strike_log ?? [], ...(Number(r.accepted_jobs) > 0 ? { acceptedJobs: Number(r.accepted_jobs) } : {}), ...(Number(r.qualifying_jobs) > 0 ? { qualifyingJobs: Number(r.qualifying_jobs) } : {}), ...((r.recent_jobs ?? []).length > 0 ? { recentJobs: r.recent_jobs } : {}) });
 // lateActions is left out while it is 0, so the row reads the same on every store.
 const toMandate = (m: any): MandateRow => ({ contract: m.contract, scopes: m.scopes, ...(Number(m.late_actions) > 0 ? { lateActions: Number(m.late_actions) } : {}) });
 const toReport = (r: any): ReportRow => ({ id: r.id, contract: r.contract, reporter: r.reporter, accused: r.accused, deposit: Number(r.deposit), status: r.status });
@@ -132,9 +133,13 @@ function reads(q: Queryable) {
       const { rows } = await q.query("SELECT * FROM mints WHERE did = $1", [did]);
       return rows[0] && toMint(rows[0]);
     },
+    async getMarker(key: string) {
+      const { rows } = await q.query("SELECT value FROM markers WHERE key = $1", [key]);
+      return rows[0]?.value as string | undefined;
+    },
     async allMints() {
       const { rows } = await q.query("SELECT * FROM mints ORDER BY did");
-      return rows.map(toMint).map((m) => ({ did: m.did, balance: m.totalMinted }));
+      return rows.map(toMint).map((m) => ({ did: m.did, balance: m.totalMinted - (m.signedMinted ?? 0) + (m.adoptedMinted ?? 0) })).filter((m) => m.balance > 0);
     },
     async getJuror(did: string) {
       const { rows } = await q.query("SELECT * FROM jurors WHERE did = $1", [did]);
@@ -206,6 +211,30 @@ export class PostgresStore implements Store {
   getAccount(did: string) { return this.r.getAccount(did); }
   getEscrow(contract: string) { return this.r.getEscrow(contract); }
   allMints() { return this.r.allMints(); }
+  /** One REPEATABLE READ, read-only transaction, so the head, accounts, mints and locks are from the same moment even while appends continue. */
+  async ledgerRows(): Promise<LedgerRows> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+      const head = await reads(client).logHead();
+      const rows = async (sql: string) => (await client.query(sql)).rows;
+      const out = {
+        head,
+        accounts: (await rows("SELECT * FROM accounts ORDER BY did")).map(toAccount),
+        mints: (await rows("SELECT * FROM mints ORDER BY did")).map(toMint),
+        escrows: (await rows("SELECT * FROM escrows ORDER BY contract")).map(toEscrow),
+        jurors: (await rows("SELECT * FROM jurors ORDER BY did")).map(toJuror),
+        reports: (await rows("SELECT * FROM reports ORDER BY id")).map(toReport),
+      };
+      await client.query("COMMIT");
+      return out;
+    } catch (e) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
   getJuror(did: string) { return this.r.getJuror(did); }
   activeJurors() { return this.r.activeJurors(); }
   getReputation(did: string) { return this.r.getReputation(did); }
@@ -247,6 +276,7 @@ class PgTx implements LogTx {
   getAccount(did: string) { return this.r.getAccount(did); }
   getEscrow(contract: string) { return this.r.getEscrow(contract); }
   getMint(did: string) { return this.r.getMint(did); }
+  getMarker(key: string) { return this.r.getMarker(key); }
   getJuror(did: string) { return this.r.getJuror(did); }
   activeJurors() { return this.r.activeJurors(); }
   getReputation(did: string) { return this.r.getReputation(did); }
@@ -318,10 +348,13 @@ class PgTx implements LogTx {
   }
   async putMint(row: MintRow) {
     await this.c.query(
-      `INSERT INTO mints (did, total_minted) VALUES ($1, $2)
-       ON CONFLICT (did) DO UPDATE SET total_minted = $2`,
-      [row.did, row.totalMinted],
+      `INSERT INTO mints (did, total_minted, signed_minted, adopted_minted) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (did) DO UPDATE SET total_minted = $2, signed_minted = $3, adopted_minted = $4`,
+      [row.did, row.totalMinted, row.signedMinted ?? 0, row.adoptedMinted ?? 0],
     );
+  }
+  async putMarker(key: string, value: string) {
+    await this.c.query("INSERT INTO markers (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", [key, value]);
   }
   async putJuror(row: JurorRow) {
     await this.c.query(
@@ -332,9 +365,9 @@ class PgTx implements LogTx {
   }
   async putReputation(row: ReputationRow) {
     await this.c.query(
-      `INSERT INTO reputations (did, tier, slash_count, strike_log, accepted_jobs) VALUES ($1, $2, $3, $4::jsonb, $5)
-       ON CONFLICT (did) DO UPDATE SET tier = $2, slash_count = $3, strike_log = $4::jsonb, accepted_jobs = $5`,
-      [row.did, row.tier, row.slashCount, JSON.stringify(row.strikeLog), row.acceptedJobs ?? 0],
+      `INSERT INTO reputations (did, tier, slash_count, strike_log, accepted_jobs, qualifying_jobs, recent_jobs) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7::jsonb)
+       ON CONFLICT (did) DO UPDATE SET tier = $2, slash_count = $3, strike_log = $4::jsonb, accepted_jobs = $5, qualifying_jobs = $6, recent_jobs = $7::jsonb`,
+      [row.did, row.tier, row.slashCount, JSON.stringify(row.strikeLog), row.acceptedJobs ?? 0, row.qualifyingJobs ?? 0, JSON.stringify(row.recentJobs ?? [])],
     );
   }
   async putMandate(row: MandateRow) {

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:course",
+  "title": "Course body",
+  "description": "A course in the School (academy.md 3, AC-3, register row DK24). Signed by the instructor, countersigned by the Registrar, who has checked in the commons that every lesson exists and that each review is a review. The log checks that the instructor has a passport, that reviewers are at least two agents of distinct sponsors, none the instructor's own sponsor, and that the Registrar countersigned. Lessons enter an agent's memory only through the audit gate, never by the course. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "course",
+    "title",
+    "skill",
+    "level",
+    "lessons",
+    "exercises",
+    "exercise_count",
+    "price_service",
+    "author_share_permille",
+    "reviews",
+    "reviewers"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "course": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "title": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "skill": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "lessons": {
+      "description": "Commons entry ids, in order.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+      }
+    },
+    "exercises": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "exercise_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "price_service": {
+      "description": "The price-list service the tuition is bought with (from the Academy).",
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "author_share_permille": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    "reviews": {
+      "description": "Commons review ids, at least two.",
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+      }
+    },
+    "reviewers": {
+      "description": "The reviewers' DIDs, at least two.",
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/did"
+      }
+    }
+  }
+}

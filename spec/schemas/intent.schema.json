@@ -35,6 +35,13 @@
         }
       }
     },
-    "skills": { "type": "array", "items": { "type": "string" } }
+    "skills": { "type": "array", "items": { "type": "string" } },
+    "class": {
+      "description": "The job's difficulty class, set by the poster; the Market may raise it, never lower it (spec-delta S230). Weights for standing: trivial 0, routine 1, skilled 2, critical 3; a missing class reads as routine. The budget must meet the class's minimum price (routine 20, skilled 60, critical 200), else the log refuses with class_price_mismatch.",
+      "enum": ["trivial", "routine", "skilled", "critical"]
+    },
+    "min_tier": { "description": "The lowest tier that may bid.", "type": "integer", "minimum": 0, "maximum": 3 },
+    "requires_certificate": { "description": "A skill the bidder must hold a valid Academy certificate in.", "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "listed": { "description": "public (the default) may be posted on the board; private may not.", "enum": ["public", "private"] }
   }
 }

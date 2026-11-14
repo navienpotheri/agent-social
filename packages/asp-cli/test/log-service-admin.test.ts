@@ -107,7 +107,7 @@ test("asp serve: suspend, block and usage take effect on a running service witho
       server.on("close", () => reject(new Error(`the service exited: ${buf}`)));
       setTimeout(() => reject(new Error(`no start line: ${buf}`)), 20_000);
     });
-    const c = client(url, token);
+    let c = client(url, token);
     assert.equal((await newIdentity(c, 1)).code, 0);
 
     // Suspend: the next request is refused, with the reason; resume: it works again. No restart.
@@ -120,6 +120,24 @@ test("asp serve: suspend, block and usage take effect on a running service witho
     assert.match((await run(["serve", "usage", "--tokens", tokens])).out, /team-a .*SUSPENDED: abusive traffic/);
     await run(["serve", "resume", "--tokens", tokens, "--tenant", "team-a"]);
     assert.equal((await c(["identity", "show", did(1)])).code, 0);
+
+    // reset-token (gap P20): a tenant with no way back in gets a fresh token from the operator; the
+    // old one, and any machine token made under it, stop working at once, no restart.
+    const machineToken = (await (async () => {
+      const home = mkdtempSync(join(tmpdir(), "asp-admin-machine-"));
+      const io: Io = { out: () => {}, err: () => {}, env: { ASP_HOME: home, ASP_LOG_URL: url, ASP_LOG_TOKEN: token }, cwd: home };
+      const out: string[] = [];
+      await main(["token", "create", "ci"], { ...io, out: (l) => out.push(l) });
+      return out[1]!; // line 0 is the name/expiry sentence, line 1 is the token itself, line 2 is the "use it as" note
+    })());
+    assert.equal((await client(url, machineToken)(["identity", "show", did(1)])).code, 0, "the machine token works before the reset");
+    const reset = await run(["serve", "reset-token", "--tokens", tokens, "--tenant", "team-a"]);
+    const newToken = reset.out.trim().split("\n").at(-1)!;
+    assert.match(reset.out, /new token for team-a, shown once/);
+    assert.equal((await c(["identity", "show", did(1)])).code, 1, "the old token no longer works");
+    assert.equal((await client(url, machineToken)(["identity", "show", did(1)])).code, 1, "neither does the machine token made under it");
+    c = client(url, newToken); // every later assertion in this test uses the tenant's new token
+    assert.equal((await c(["identity", "show", did(1)])).code, 0, "the new token works");
 
     // Block this machine's address, then lift it.
     const blk = await run(["serve", "block", "--tokens", tokens, "--address", "127.0.0.1", "--minutes", "5", "--reason", "test"]);

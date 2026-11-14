@@ -35,6 +35,11 @@ export class AgentReporter {
   private artifacts: { uri: string; sha256: string }[] = [];
   /** When the agent last did or noted something, for a late report (S80). */
   private lastActivity = Date.now();
+  /** What the run cost since the last flush (gap E3): sent as the Action's structured `metrics`. */
+  private cost = { requests: 0, tool_calls: 0, tokens_in: 0, tokens_out: 0 };
+  private models: { name: string; provider?: string; digest?: string }[] = [];
+  private costNoted = false;
+  private windowStart: number | undefined;
 
   constructor(o: ReporterOptions) { this.o = o; }
 
@@ -64,22 +69,34 @@ export class AgentReporter {
       throw new MandateRefusal(scope, `the scope ${scope} is not granted by this job's Mandate`);
     }
     const out = await fn();
-    this.lastActivity = Date.now();
+    this.touch();
     this.used.add(scope);
     if (opts.artifact) this.artifacts.push(opts.artifact);
     return out;
   }
 
+  private touch(): void { this.lastActivity = Date.now(); this.windowStart ??= this.lastActivity; }
+
+  /** Adds what a stretch of the run cost: model requests, tool calls, tokens, and the model that answered. Sent with the next flush as `metrics`. */
+  usage(u: { model?: { name: string; provider?: string; digest?: string }; requests?: number; toolCalls?: number; tokensIn?: number; tokensOut?: number }): void {
+    const add: [keyof AgentReporter["cost"], number | undefined][] = [["requests", u.requests], ["tool_calls", u.toolCalls], ["tokens_in", u.tokensIn], ["tokens_out", u.tokensOut]];
+    for (const [k, n] of add) if (n !== undefined && (!Number.isInteger(n) || n < 0)) throw new RangeError(`usage: ${k} must be a whole number, 0 or more`);
+    for (const [k, n] of add) this.cost[k] += n ?? 0;
+    if (u.model?.name && !this.models.some((m) => m.name === u.model!.name && m.provider === u.model!.provider && m.digest === u.model!.digest)) this.models.push({ name: u.model.name, ...(u.model.provider ? { provider: u.model.provider } : {}), ...(u.model.digest ? { digest: u.model.digest } : {}) });
+    this.costNoted = true;
+    this.touch();
+  }
+
   /** Records something that was done without asking first (for example what a tool library did on the agent's behalf). */
   note(scope: string, artifact?: { uri: string; sha256: string }): void {
-    this.lastActivity = Date.now();
+    this.touch();
     this.used.add(scope);
     if (artifact) this.artifacts.push(artifact);
   }
 
   /** Signs and appends one Action with what has been recorded since the last flush. Returns undefined when there is nothing to say. */
   async flush(summary?: string): Promise<{ id: string; seq: number } | undefined> {
-    if (!this.used.size && !this.blocked.size) return undefined;
+    if (!this.used.size && !this.blocked.size && !this.costNoted) return undefined;
     const body: Record<string, unknown> = {
       contract: this.o.contract,
       scopes_used: [...this.used].sort(),
@@ -87,6 +104,7 @@ export class AgentReporter {
       ...(summary ? { summary } : {}),
       ...(this.blocked.size ? { blocked_attempts: [...this.blocked].map(([scope, count]) => ({ scope, count })) } : {}),
       ...(this.artifacts.length ? { artifacts: this.artifacts } : {}),
+      ...(this.costNoted ? { metrics: { ...(this.models.length ? { models: this.models } : {}), ...this.cost, seconds: Math.max(0, Math.round((Date.now() - (this.windowStart ?? this.lastActivity)) / 1000)) } } : {}),
     };
     const sign = (b: Record<string, unknown>): AspRecord => createRecord({ type: "action", issuer: this.o.agent, subject: this.o.contract, prev: null, body: b, issued_at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z") }, this.o.signer);
     let res: { id: string; seq: number };
@@ -98,6 +116,7 @@ export class AgentReporter {
       res = await this.o.log.append(sign({ ...body, late: { activity_ended: new Date(this.lastActivity).toISOString().replace(/\.\d{3}Z$/, "Z") } }));
     }
     this.used = new Set(); this.blocked = new Map(); this.artifacts = [];
+    this.cost = { requests: 0, tool_calls: 0, tokens_in: 0, tokens_out: 0 }; this.models = []; this.costNoted = false; this.windowStart = undefined;
     return { id: res.id, seq: res.seq };
   }
 }

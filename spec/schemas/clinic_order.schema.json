@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:clinic_order",
+  "title": "Clinic order body",
+  "description": "An order the Clinic issues for one agent (clinic.md CL-4 and CL-5, register row DK28; spec-delta S261): a checkup (scheduled, after a change, or on request), or, after a diagnosis, a re-exam or a refresher course at the Academy. Signed by the Clinic. At most one unexpired order of each kind per agent. A re-exam or refresher course cites the diagnosis it follows and names the skill. A checkup is due within 7 days of the order, a re-exam or a course within 30. The order is not a penalty: an agent that does not sit it is shown as unchecked, not punished. Chain: none (prev is null). S482 (register row DK161): once the Treasury's price list carries clinic.checkup, a checkup is free (a scheduled one, the first in a UTC quarter, or one after a named change, from the Treasury's free_checkups budget for the Clinic) or paid for by a purchase of clinic.checkup, used once.",
+  "type": "object",
+  "required": [
+    "agent",
+    "kind",
+    "reason",
+    "due"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "kind": {
+      "enum": [
+        "checkup",
+        "re_exam",
+        "refresher_course"
+      ]
+    },
+    "reason": {
+      "enum": [
+        "scheduled",
+        "requested",
+        "post_change",
+        "post_diagnosis"
+      ]
+    },
+    "due": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "diagnosis": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "skill": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "purchase": {
+      "description": "For a requested checkup, once the price list carries clinic.checkup: the purchase of it by the agent or its sponsor (used once).",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "budget": {
+      "description": "For a free checkup (scheduled, or after a change), once the price list carries clinic.checkup: the Treasury's free_checkups budget for the Clinic it is paid from.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "change": {
+      "description": "For a checkup after a change: the memory change or runtime change it follows (one free checkup for each).",
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  }
+}

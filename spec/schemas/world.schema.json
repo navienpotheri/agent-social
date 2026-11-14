@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:world",
+  "title": "World record body",
+  "description": "What keeps the society non-stationary: a calendar entry (a scheduled change with a start, an end and an effect) or a day record (the events a seeded generator produced for one day, with the seed). Signed by the world authority. An effect changes a price, opens a job type, marks a service down or waives a tax; it never names a tier, a rank, a standing or an eligibility rule.",
+  "type": "object",
+  "required": ["kind"],
+  "properties": {
+    "kind": { "enum": ["calendar_entry", "day"] },
+    "entry_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$" },
+    "source": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "event_kind": { "enum": ["scheduled", "season", "funding", "review", "shock", "drill", "experiment", "event"] },
+    "title": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "starts": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "ends": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "effect": { "$ref": "#/$defs/effect" },
+    "seed_commitment": { "$ref": "urn:asp:v0.2:common#/$defs/sha256" },
+    "generator": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "params_ref": { "$ref": "urn:asp:v0.2:common#/$defs/sha256" },
+    "day": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "seed": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$" },
+    "events": { "type": "array", "items": { "$ref": "#/$defs/event" } }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "effect": {
+      "type": "object",
+      "required": ["type", "target", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["price_multiplier", "job_type_open", "service_outage", "tax_free", "gathering"] },
+        "target": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{0,63}$" },
+        "value": { "type": "integer", "minimum": 0, "maximum": 100000 }
+      }
+    },
+    "event": {
+      "type": "object",
+      "required": ["event_id", "event_type", "title", "starts", "ends", "effect", "draw", "chance"],
+      "additionalProperties": false,
+      "properties": {
+        "event_id": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}:[a-z_]+$" },
+        "event_type": { "enum": ["price_shock", "job_opening", "service_outage", "tax_free_week", "flash_gathering"] },
+        "title": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+        "starts": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+        "ends": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+        "effect": { "$ref": "#/$defs/effect" },
+        "draw": { "type": "integer", "minimum": 0, "maximum": 999 },
+        "chance": { "type": "integer", "minimum": 0, "maximum": 1000 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "calendar_entry" } } },
+      "then": { "required": ["entry_id", "source", "event_kind", "title", "starts", "ends", "effect"] }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "day" } } },
+      "then": { "required": ["day", "generator", "seed", "seed_commitment", "events"] }
+    }
+  ]
+}

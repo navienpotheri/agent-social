@@ -1,0 +1,1438 @@
+{
+  "version": "asp.conformance/v0.2",
+  "note": "exact: every number is identical in both languages; otherwise equal to 1e-9",
+  "cases": [
+    {
+      "name": "brier_thin",
+      "fn": "brier",
+      "input": {
+        "items": [
+          {
+            "p": 0.9,
+            "outcome": 1
+          },
+          {
+            "p": 0.7,
+            "outcome": 0
+          },
+          {
+            "p": 0.2,
+            "outcome": 0
+          },
+          {
+            "p": 0.5,
+            "outcome": 1
+          },
+          {
+            "p": 0.05,
+            "outcome": 0
+          }
+        ]
+      },
+      "expected": 0.158,
+      "exact": true
+    },
+    {
+      "name": "brier_many",
+      "fn": "brier",
+      "input": {
+        "items": [
+          {
+            "p": 0.01,
+            "outcome": 1
+          },
+          {
+            "p": 0.37,
+            "outcome": 0
+          },
+          {
+            "p": 0.74,
+            "outcome": 0
+          },
+          {
+            "p": 0.11,
+            "outcome": 0
+          },
+          {
+            "p": 0.48,
+            "outcome": 0
+          },
+          {
+            "p": 0.85,
+            "outcome": 1
+          },
+          {
+            "p": 0.22,
+            "outcome": 1
+          },
+          {
+            "p": 0.59,
+            "outcome": 1
+          },
+          {
+            "p": 0.96,
+            "outcome": 0
+          },
+          {
+            "p": 0.33,
+            "outcome": 0
+          },
+          {
+            "p": 0.7,
+            "outcome": 0
+          },
+          {
+            "p": 0.07,
+            "outcome": 0
+          },
+          {
+            "p": 0.44,
+            "outcome": 1
+          },
+          {
+            "p": 0.81,
+            "outcome": 1
+          },
+          {
+            "p": 0.18,
+            "outcome": 1
+          },
+          {
+            "p": 0.55,
+            "outcome": 0
+          },
+          {
+            "p": 0.92,
+            "outcome": 0
+          },
+          {
+            "p": 0.29,
+            "outcome": 0
+          },
+          {
+            "p": 0.66,
+            "outcome": 0
+          },
+          {
+            "p": 0.03,
+            "outcome": 1
+          },
+          {
+            "p": 0.4,
+            "outcome": 1
+          },
+          {
+            "p": 0.77,
+            "outcome": 1
+          },
+          {
+            "p": 0.14,
+            "outcome": 0
+          },
+          {
+            "p": 0.51,
+            "outcome": 0
+          },
+          {
+            "p": 0.88,
+            "outcome": 0
+          },
+          {
+            "p": 0.25,
+            "outcome": 0
+          },
+          {
+            "p": 0.62,
+            "outcome": 1
+          },
+          {
+            "p": 0.99,
+            "outcome": 1
+          },
+          {
+            "p": 0.36,
+            "outcome": 1
+          },
+          {
+            "p": 0.73,
+            "outcome": 0
+          },
+          {
+            "p": 0.1,
+            "outcome": 0
+          },
+          {
+            "p": 0.47,
+            "outcome": 0
+          },
+          {
+            "p": 0.84,
+            "outcome": 0
+          },
+          {
+            "p": 0.21,
+            "outcome": 1
+          },
+          {
+            "p": 0.58,
+            "outcome": 1
+          },
+          {
+            "p": 0.95,
+            "outcome": 1
+          },
+          {
+            "p": 0.32,
+            "outcome": 0
+          },
+          {
+            "p": 0.69,
+            "outcome": 0
+          },
+          {
+            "p": 0.06,
+            "outcome": 0
+          },
+          {
+            "p": 0.43,
+            "outcome": 0
+          },
+          {
+            "p": 0.8,
+            "outcome": 1
+          },
+          {
+            "p": 0.17,
+            "outcome": 1
+          },
+          {
+            "p": 0.54,
+            "outcome": 1
+          },
+          {
+            "p": 0.91,
+            "outcome": 0
+          },
+          {
+            "p": 0.28,
+            "outcome": 0
+          },
+          {
+            "p": 0.65,
+            "outcome": 0
+          },
+          {
+            "p": 0.02,
+            "outcome": 0
+          },
+          {
+            "p": 0.39,
+            "outcome": 1
+          },
+          {
+            "p": 0.76,
+            "outcome": 1
+          },
+          {
+            "p": 0.13,
+            "outcome": 1
+          },
+          {
+            "p": 0.5,
+            "outcome": 0
+          },
+          {
+            "p": 0.87,
+            "outcome": 0
+          },
+          {
+            "p": 0.24,
+            "outcome": 0
+          },
+          {
+            "p": 0.61,
+            "outcome": 0
+          },
+          {
+            "p": 0.98,
+            "outcome": 1
+          },
+          {
+            "p": 0.35,
+            "outcome": 1
+          },
+          {
+            "p": 0.72,
+            "outcome": 1
+          },
+          {
+            "p": 0.09,
+            "outcome": 0
+          },
+          {
+            "p": 0.46,
+            "outcome": 0
+          },
+          {
+            "p": 0.83,
+            "outcome": 0
+          }
+        ]
+      },
+      "expected": 0.321,
+      "exact": true
+    },
+    {
+      "name": "brier_flat_half",
+      "fn": "brier",
+      "input": {
+        "items": [
+          {
+            "p": 0.5,
+            "outcome": 1
+          },
+          {
+            "p": 0.5,
+            "outcome": 0
+          }
+        ]
+      },
+      "expected": 0.25,
+      "exact": true
+    },
+    {
+      "name": "mean_surprisal_thin",
+      "fn": "mean_surprisal",
+      "input": {
+        "items": [
+          {
+            "p": 0.9,
+            "outcome": 1
+          },
+          {
+            "p": 0.7,
+            "outcome": 0
+          },
+          {
+            "p": 0.2,
+            "outcome": 0
+          },
+          {
+            "p": 0.5,
+            "outcome": 1
+          },
+          {
+            "p": 0.05,
+            "outcome": 0
+          }
+        ]
+      },
+      "expected": 0.657,
+      "exact": true
+    },
+    {
+      "name": "mean_surprisal_many",
+      "fn": "mean_surprisal",
+      "input": {
+        "items": [
+          {
+            "p": 0.01,
+            "outcome": 1
+          },
+          {
+            "p": 0.37,
+            "outcome": 0
+          },
+          {
+            "p": 0.74,
+            "outcome": 0
+          },
+          {
+            "p": 0.11,
+            "outcome": 0
+          },
+          {
+            "p": 0.48,
+            "outcome": 0
+          },
+          {
+            "p": 0.85,
+            "outcome": 1
+          },
+          {
+            "p": 0.22,
+            "outcome": 1
+          },
+          {
+            "p": 0.59,
+            "outcome": 1
+          },
+          {
+            "p": 0.96,
+            "outcome": 0
+          },
+          {
+            "p": 0.33,
+            "outcome": 0
+          },
+          {
+            "p": 0.7,
+            "outcome": 0
+          },
+          {
+            "p": 0.07,
+            "outcome": 0
+          },
+          {
+            "p": 0.44,
+            "outcome": 1
+          },
+          {
+            "p": 0.81,
+            "outcome": 1
+          },
+          {
+            "p": 0.18,
+            "outcome": 1
+          },
+          {
+            "p": 0.55,
+            "outcome": 0
+          },
+          {
+            "p": 0.92,
+            "outcome": 0
+          },
+          {
+            "p": 0.29,
+            "outcome": 0
+          },
+          {
+            "p": 0.66,
+            "outcome": 0
+          },
+          {
+            "p": 0.03,
+            "outcome": 1
+          },
+          {
+            "p": 0.4,
+            "outcome": 1
+          },
+          {
+            "p": 0.77,
+            "outcome": 1
+          },
+          {
+            "p": 0.14,
+            "outcome": 0
+          },
+          {
+            "p": 0.51,
+            "outcome": 0
+          },
+          {
+            "p": 0.88,
+            "outcome": 0
+          },
+          {
+            "p": 0.25,
+            "outcome": 0
+          },
+          {
+            "p": 0.62,
+            "outcome": 1
+          },
+          {
+            "p": 0.99,
+            "outcome": 1
+          },
+          {
+            "p": 0.36,
+            "outcome": 1
+          },
+          {
+            "p": 0.73,
+            "outcome": 0
+          },
+          {
+            "p": 0.1,
+            "outcome": 0
+          },
+          {
+            "p": 0.47,
+            "outcome": 0
+          },
+          {
+            "p": 0.84,
+            "outcome": 0
+          },
+          {
+            "p": 0.21,
+            "outcome": 1
+          },
+          {
+            "p": 0.58,
+            "outcome": 1
+          },
+          {
+            "p": 0.95,
+            "outcome": 1
+          },
+          {
+            "p": 0.32,
+            "outcome": 0
+          },
+          {
+            "p": 0.69,
+            "outcome": 0
+          },
+          {
+            "p": 0.06,
+            "outcome": 0
+          },
+          {
+            "p": 0.43,
+            "outcome": 0
+          },
+          {
+            "p": 0.8,
+            "outcome": 1
+          },
+          {
+            "p": 0.17,
+            "outcome": 1
+          },
+          {
+            "p": 0.54,
+            "outcome": 1
+          },
+          {
+            "p": 0.91,
+            "outcome": 0
+          },
+          {
+            "p": 0.28,
+            "outcome": 0
+          },
+          {
+            "p": 0.65,
+            "outcome": 0
+          },
+          {
+            "p": 0.02,
+            "outcome": 0
+          },
+          {
+            "p": 0.39,
+            "outcome": 1
+          },
+          {
+            "p": 0.76,
+            "outcome": 1
+          },
+          {
+            "p": 0.13,
+            "outcome": 1
+          },
+          {
+            "p": 0.5,
+            "outcome": 0
+          },
+          {
+            "p": 0.87,
+            "outcome": 0
+          },
+          {
+            "p": 0.24,
+            "outcome": 0
+          },
+          {
+            "p": 0.61,
+            "outcome": 0
+          },
+          {
+            "p": 0.98,
+            "outcome": 1
+          },
+          {
+            "p": 0.35,
+            "outcome": 1
+          },
+          {
+            "p": 0.72,
+            "outcome": 1
+          },
+          {
+            "p": 0.09,
+            "outcome": 0
+          },
+          {
+            "p": 0.46,
+            "outcome": 0
+          },
+          {
+            "p": 0.83,
+            "outcome": 0
+          }
+        ]
+      },
+      "expected": 1.37,
+      "exact": true
+    },
+    {
+      "name": "surprisal_0.9_1",
+      "fn": "surprisal",
+      "input": {
+        "p": 0.9,
+        "outcome": 1
+      },
+      "expected": 0.15200309344504997,
+      "exact": false
+    },
+    {
+      "name": "surprisal_0.9_0",
+      "fn": "surprisal",
+      "input": {
+        "p": 0.9,
+        "outcome": 0
+      },
+      "expected": 3.3219280948873626,
+      "exact": false
+    },
+    {
+      "name": "surprisal_0.5_1",
+      "fn": "surprisal",
+      "input": {
+        "p": 0.5,
+        "outcome": 1
+      },
+      "expected": 1,
+      "exact": false
+    },
+    {
+      "name": "surprisal_0.01_1",
+      "fn": "surprisal",
+      "input": {
+        "p": 0.01,
+        "outcome": 1
+      },
+      "expected": 6.643856189774724,
+      "exact": false
+    },
+    {
+      "name": "surprisal_0.99_0",
+      "fn": "surprisal",
+      "input": {
+        "p": 0.99,
+        "outcome": 0
+      },
+      "expected": 6.643856189774723,
+      "exact": false
+    },
+    {
+      "name": "surprisal_0.333_1",
+      "fn": "surprisal",
+      "input": {
+        "p": 0.333,
+        "outcome": 1
+      },
+      "expected": 1.5864059175908247,
+      "exact": false
+    },
+    {
+      "name": "kl_0.8_0.5",
+      "fn": "kl_bits",
+      "input": {
+        "post": 0.8,
+        "prior": 0.5
+      },
+      "expected": 0.27807190511263763,
+      "exact": false
+    },
+    {
+      "name": "kl_0.5_0.5",
+      "fn": "kl_bits",
+      "input": {
+        "post": 0.5,
+        "prior": 0.5
+      },
+      "expected": 0,
+      "exact": false
+    },
+    {
+      "name": "kl_0.9_0.2",
+      "fn": "kl_bits",
+      "input": {
+        "post": 0.9,
+        "prior": 0.2
+      },
+      "expected": 1.6529325012980813,
+      "exact": false
+    },
+    {
+      "name": "kl_1_0.5",
+      "fn": "kl_bits",
+      "input": {
+        "post": 1,
+        "prior": 0.5
+      },
+      "expected": 1,
+      "exact": false
+    },
+    {
+      "name": "kl_0_0.4",
+      "fn": "kl_bits",
+      "input": {
+        "post": 0,
+        "prior": 0.4
+      },
+      "expected": 0.7369655941662062,
+      "exact": false
+    },
+    {
+      "name": "kl_0.35_0.7",
+      "fn": "kl_bits",
+      "input": {
+        "post": 0.35,
+        "prior": 0.7
+      },
+      "expected": 0.3750601913229584,
+      "exact": false
+    },
+    {
+      "name": "normative_0.5_4",
+      "fn": "normative_posterior",
+      "input": {
+        "prior": 0.5,
+        "lr": 4
+      },
+      "expected": 0.8,
+      "exact": false
+    },
+    {
+      "name": "normative_0.2_0.5",
+      "fn": "normative_posterior",
+      "input": {
+        "prior": 0.2,
+        "lr": 0.5
+      },
+      "expected": 0.1111111111111111,
+      "exact": false
+    },
+    {
+      "name": "normative_0.9_1",
+      "fn": "normative_posterior",
+      "input": {
+        "prior": 0.9,
+        "lr": 1
+      },
+      "expected": 0.9,
+      "exact": false
+    },
+    {
+      "name": "normative_0.1_9",
+      "fn": "normative_posterior",
+      "input": {
+        "prior": 0.1,
+        "lr": 9
+      },
+      "expected": 0.5,
+      "exact": false
+    },
+    {
+      "name": "calibration_thin_withholds_ece",
+      "fn": "calibration",
+      "input": {
+        "items": [
+          {
+            "p": 0.9,
+            "outcome": 1
+          },
+          {
+            "p": 0.7,
+            "outcome": 0
+          },
+          {
+            "p": 0.2,
+            "outcome": 0
+          },
+          {
+            "p": 0.5,
+            "outcome": 1
+          },
+          {
+            "p": 0.05,
+            "outcome": 0
+          }
+        ],
+        "bins": 5
+      },
+      "expected": {
+        "n": 5,
+        "bins": [
+          {
+            "lo": 0,
+            "hi": 0.2,
+            "n": 1,
+            "mean_p": 0.05,
+            "freq": 0
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.4,
+            "n": 1,
+            "mean_p": 0.2,
+            "freq": 0
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.6,
+            "n": 1,
+            "mean_p": 0.5,
+            "freq": 1
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.8,
+            "n": 1,
+            "mean_p": 0.7,
+            "freq": 0
+          },
+          {
+            "lo": 0.8,
+            "hi": 1,
+            "n": 1,
+            "mean_p": 0.9,
+            "freq": 1
+          }
+        ],
+        "brier": 0.158,
+        "ece": null,
+        "min_n_met": false
+      },
+      "exact": true
+    },
+    {
+      "name": "calibration_many_has_ece",
+      "fn": "calibration",
+      "input": {
+        "items": [
+          {
+            "p": 0.01,
+            "outcome": 1
+          },
+          {
+            "p": 0.37,
+            "outcome": 0
+          },
+          {
+            "p": 0.74,
+            "outcome": 0
+          },
+          {
+            "p": 0.11,
+            "outcome": 0
+          },
+          {
+            "p": 0.48,
+            "outcome": 0
+          },
+          {
+            "p": 0.85,
+            "outcome": 1
+          },
+          {
+            "p": 0.22,
+            "outcome": 1
+          },
+          {
+            "p": 0.59,
+            "outcome": 1
+          },
+          {
+            "p": 0.96,
+            "outcome": 0
+          },
+          {
+            "p": 0.33,
+            "outcome": 0
+          },
+          {
+            "p": 0.7,
+            "outcome": 0
+          },
+          {
+            "p": 0.07,
+            "outcome": 0
+          },
+          {
+            "p": 0.44,
+            "outcome": 1
+          },
+          {
+            "p": 0.81,
+            "outcome": 1
+          },
+          {
+            "p": 0.18,
+            "outcome": 1
+          },
+          {
+            "p": 0.55,
+            "outcome": 0
+          },
+          {
+            "p": 0.92,
+            "outcome": 0
+          },
+          {
+            "p": 0.29,
+            "outcome": 0
+          },
+          {
+            "p": 0.66,
+            "outcome": 0
+          },
+          {
+            "p": 0.03,
+            "outcome": 1
+          },
+          {
+            "p": 0.4,
+            "outcome": 1
+          },
+          {
+            "p": 0.77,
+            "outcome": 1
+          },
+          {
+            "p": 0.14,
+            "outcome": 0
+          },
+          {
+            "p": 0.51,
+            "outcome": 0
+          },
+          {
+            "p": 0.88,
+            "outcome": 0
+          },
+          {
+            "p": 0.25,
+            "outcome": 0
+          },
+          {
+            "p": 0.62,
+            "outcome": 1
+          },
+          {
+            "p": 0.99,
+            "outcome": 1
+          },
+          {
+            "p": 0.36,
+            "outcome": 1
+          },
+          {
+            "p": 0.73,
+            "outcome": 0
+          },
+          {
+            "p": 0.1,
+            "outcome": 0
+          },
+          {
+            "p": 0.47,
+            "outcome": 0
+          },
+          {
+            "p": 0.84,
+            "outcome": 0
+          },
+          {
+            "p": 0.21,
+            "outcome": 1
+          },
+          {
+            "p": 0.58,
+            "outcome": 1
+          },
+          {
+            "p": 0.95,
+            "outcome": 1
+          },
+          {
+            "p": 0.32,
+            "outcome": 0
+          },
+          {
+            "p": 0.69,
+            "outcome": 0
+          },
+          {
+            "p": 0.06,
+            "outcome": 0
+          },
+          {
+            "p": 0.43,
+            "outcome": 0
+          },
+          {
+            "p": 0.8,
+            "outcome": 1
+          },
+          {
+            "p": 0.17,
+            "outcome": 1
+          },
+          {
+            "p": 0.54,
+            "outcome": 1
+          },
+          {
+            "p": 0.91,
+            "outcome": 0
+          },
+          {
+            "p": 0.28,
+            "outcome": 0
+          },
+          {
+            "p": 0.65,
+            "outcome": 0
+          },
+          {
+            "p": 0.02,
+            "outcome": 0
+          },
+          {
+            "p": 0.39,
+            "outcome": 1
+          },
+          {
+            "p": 0.76,
+            "outcome": 1
+          },
+          {
+            "p": 0.13,
+            "outcome": 1
+          },
+          {
+            "p": 0.5,
+            "outcome": 0
+          },
+          {
+            "p": 0.87,
+            "outcome": 0
+          },
+          {
+            "p": 0.24,
+            "outcome": 0
+          },
+          {
+            "p": 0.61,
+            "outcome": 0
+          },
+          {
+            "p": 0.98,
+            "outcome": 1
+          },
+          {
+            "p": 0.35,
+            "outcome": 1
+          },
+          {
+            "p": 0.72,
+            "outcome": 1
+          },
+          {
+            "p": 0.09,
+            "outcome": 0
+          },
+          {
+            "p": 0.46,
+            "outcome": 0
+          },
+          {
+            "p": 0.83,
+            "outcome": 0
+          }
+        ],
+        "bins": 5
+      },
+      "expected": {
+        "n": 60,
+        "bins": [
+          {
+            "lo": 0,
+            "hi": 0.2,
+            "n": 12,
+            "mean_p": 0.093,
+            "freq": 0.417
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.4,
+            "n": 12,
+            "mean_p": 0.301,
+            "freq": 0.417
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.6,
+            "n": 12,
+            "mean_p": 0.496,
+            "freq": 0.417
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.8,
+            "n": 11,
+            "mean_p": 0.695,
+            "freq": 0.364
+          },
+          {
+            "lo": 0.8,
+            "hi": 1,
+            "n": 13,
+            "mean_p": 0.892,
+            "freq": 0.462
+          }
+        ],
+        "brier": 0.321,
+        "ece": 0.258,
+        "min_n_met": true
+      },
+      "exact": true
+    },
+    {
+      "name": "calibration_many_ten_bins",
+      "fn": "calibration",
+      "input": {
+        "items": [
+          {
+            "p": 0.01,
+            "outcome": 1
+          },
+          {
+            "p": 0.37,
+            "outcome": 0
+          },
+          {
+            "p": 0.74,
+            "outcome": 0
+          },
+          {
+            "p": 0.11,
+            "outcome": 0
+          },
+          {
+            "p": 0.48,
+            "outcome": 0
+          },
+          {
+            "p": 0.85,
+            "outcome": 1
+          },
+          {
+            "p": 0.22,
+            "outcome": 1
+          },
+          {
+            "p": 0.59,
+            "outcome": 1
+          },
+          {
+            "p": 0.96,
+            "outcome": 0
+          },
+          {
+            "p": 0.33,
+            "outcome": 0
+          },
+          {
+            "p": 0.7,
+            "outcome": 0
+          },
+          {
+            "p": 0.07,
+            "outcome": 0
+          },
+          {
+            "p": 0.44,
+            "outcome": 1
+          },
+          {
+            "p": 0.81,
+            "outcome": 1
+          },
+          {
+            "p": 0.18,
+            "outcome": 1
+          },
+          {
+            "p": 0.55,
+            "outcome": 0
+          },
+          {
+            "p": 0.92,
+            "outcome": 0
+          },
+          {
+            "p": 0.29,
+            "outcome": 0
+          },
+          {
+            "p": 0.66,
+            "outcome": 0
+          },
+          {
+            "p": 0.03,
+            "outcome": 1
+          },
+          {
+            "p": 0.4,
+            "outcome": 1
+          },
+          {
+            "p": 0.77,
+            "outcome": 1
+          },
+          {
+            "p": 0.14,
+            "outcome": 0
+          },
+          {
+            "p": 0.51,
+            "outcome": 0
+          },
+          {
+            "p": 0.88,
+            "outcome": 0
+          },
+          {
+            "p": 0.25,
+            "outcome": 0
+          },
+          {
+            "p": 0.62,
+            "outcome": 1
+          },
+          {
+            "p": 0.99,
+            "outcome": 1
+          },
+          {
+            "p": 0.36,
+            "outcome": 1
+          },
+          {
+            "p": 0.73,
+            "outcome": 0
+          },
+          {
+            "p": 0.1,
+            "outcome": 0
+          },
+          {
+            "p": 0.47,
+            "outcome": 0
+          },
+          {
+            "p": 0.84,
+            "outcome": 0
+          },
+          {
+            "p": 0.21,
+            "outcome": 1
+          },
+          {
+            "p": 0.58,
+            "outcome": 1
+          },
+          {
+            "p": 0.95,
+            "outcome": 1
+          },
+          {
+            "p": 0.32,
+            "outcome": 0
+          },
+          {
+            "p": 0.69,
+            "outcome": 0
+          },
+          {
+            "p": 0.06,
+            "outcome": 0
+          },
+          {
+            "p": 0.43,
+            "outcome": 0
+          },
+          {
+            "p": 0.8,
+            "outcome": 1
+          },
+          {
+            "p": 0.17,
+            "outcome": 1
+          },
+          {
+            "p": 0.54,
+            "outcome": 1
+          },
+          {
+            "p": 0.91,
+            "outcome": 0
+          },
+          {
+            "p": 0.28,
+            "outcome": 0
+          },
+          {
+            "p": 0.65,
+            "outcome": 0
+          },
+          {
+            "p": 0.02,
+            "outcome": 0
+          },
+          {
+            "p": 0.39,
+            "outcome": 1
+          },
+          {
+            "p": 0.76,
+            "outcome": 1
+          },
+          {
+            "p": 0.13,
+            "outcome": 1
+          },
+          {
+            "p": 0.5,
+            "outcome": 0
+          },
+          {
+            "p": 0.87,
+            "outcome": 0
+          },
+          {
+            "p": 0.24,
+            "outcome": 0
+          },
+          {
+            "p": 0.61,
+            "outcome": 0
+          },
+          {
+            "p": 0.98,
+            "outcome": 1
+          },
+          {
+            "p": 0.35,
+            "outcome": 1
+          },
+          {
+            "p": 0.72,
+            "outcome": 1
+          },
+          {
+            "p": 0.09,
+            "outcome": 0
+          },
+          {
+            "p": 0.46,
+            "outcome": 0
+          },
+          {
+            "p": 0.83,
+            "outcome": 0
+          }
+        ],
+        "bins": 10
+      },
+      "expected": {
+        "n": 60,
+        "bins": [
+          {
+            "lo": 0,
+            "hi": 0.1,
+            "n": 6,
+            "mean_p": 0.047,
+            "freq": 0.333
+          },
+          {
+            "lo": 0.1,
+            "hi": 0.2,
+            "n": 6,
+            "mean_p": 0.138,
+            "freq": 0.5
+          },
+          {
+            "lo": 0.2,
+            "hi": 0.3,
+            "n": 6,
+            "mean_p": 0.248,
+            "freq": 0.333
+          },
+          {
+            "lo": 0.3,
+            "hi": 0.4,
+            "n": 6,
+            "mean_p": 0.353,
+            "freq": 0.5
+          },
+          {
+            "lo": 0.4,
+            "hi": 0.5,
+            "n": 6,
+            "mean_p": 0.447,
+            "freq": 0.333
+          },
+          {
+            "lo": 0.5,
+            "hi": 0.6,
+            "n": 6,
+            "mean_p": 0.545,
+            "freq": 0.5
+          },
+          {
+            "lo": 0.6,
+            "hi": 0.7,
+            "n": 5,
+            "mean_p": 0.646,
+            "freq": 0.2
+          },
+          {
+            "lo": 0.7,
+            "hi": 0.8,
+            "n": 6,
+            "mean_p": 0.737,
+            "freq": 0.5
+          },
+          {
+            "lo": 0.8,
+            "hi": 0.9,
+            "n": 7,
+            "mean_p": 0.84,
+            "freq": 0.429
+          },
+          {
+            "lo": 0.9,
+            "hi": 1,
+            "n": 6,
+            "mean_p": 0.952,
+            "freq": 0.5
+          }
+        ],
+        "brier": 0.321,
+        "ece": 0.258,
+        "min_n_met": true
+      },
+      "exact": true
+    }
+  ]
+}

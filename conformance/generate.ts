@@ -12,6 +12,8 @@ import {
   type AspRecord, type RecordType, type Signer,
 } from "../packages/asp-core/src/index.ts";
 import { signBytes } from "../packages/asp-core/src/crypto.ts";
+import { brier as tBrier, calibration as tCalibration, klBits as tKl, meanSurprisal as tMeanSurprisal, normativePosterior as tNormative, surprisal as tSurprisal } from "../packages/asp-log/src/telemetry.ts";
+import { GENERATOR, WORLD_DID, dayBody, generateDay, seedCommitment } from "../packages/asp-log/src/world.ts";
 
 const OUT = fileURLToPath(new URL("./vectors/", import.meta.url));
 const HERE = fileURLToPath(new URL("./", import.meta.url));
@@ -204,7 +206,7 @@ class Chain {
       reasons: ["fix was correct but the acceptance criterion was ambiguous about CI retries"],
     });
   }
-  settle(basis: "accepted" | "ruling" | "revoked" | "silence", cites?: string, opts: { by?: Party; cosigners?: Party[] } = {}) {
+  settle(basis: "accepted" | "ruling" | "revoked" | "silence" | "ruling_timeout", cites?: string, opts: { by?: Party; cosigners?: Party[] } = {}) {
     const body: Record<string, unknown> = {
       contract: this.contract, basis,
       escrow_released: credits(0), bond_returned: credits(0), bond_slashed: credits(0),
@@ -268,6 +270,31 @@ lc("happy_path", "Contract, zero bond, mandate, plan checkpoint, delivery, accep
   c.deliver();
   c.settle("silence");
   lc("silence_after_deadline", "Principal-mode silence past review_deadline counts as acceptance", c, { state: "Settled" });
+}
+{
+  // Gap M10: a dispute that no one rules on. The rejection is at t=20 minutes and the settlement at t=25, 300 seconds later.
+  const c = new Chain(); c.contractRec({ body: { ruling_window_seconds: 200 } }); c.bond(); c.mandate();
+  const d = c.deliver(); c.reject(d.id);
+  c.settle("ruling_timeout");
+  lc("ruling_timeout_after_window", "A dispute with no ruling past the contract's ruling window settles by the stated split", c, { state: "Settled" });
+}
+{
+  const c = new Chain(); c.contractRec({ body: { ruling_window_seconds: 600 } }); c.bond(); c.mandate();
+  const d = c.deliver(); c.reject(d.id);
+  c.settle("ruling_timeout");
+  lc("ruling_timeout_before_window", "A settlement for a missing ruling before the window has passed is refused", c, err("GUARD_FAILED", 5, "past_ruling_window"));
+}
+{
+  const c = new Chain(); c.contractRec(); c.bond(); c.mandate();
+  const d = c.deliver(); c.reject(d.id);
+  c.settle("ruling_timeout");
+  lc("ruling_timeout_without_window", "Without a ruling window on the contract a dispute waits for its ruling: a timeout settlement is refused", c, err("GUARD_FAILED", 5, "past_ruling_window"));
+}
+{
+  const c = new Chain(); c.contractRec({ body: { ruling_window_seconds: 200 } }); c.bond(); c.mandate();
+  const d = c.deliver(); c.reject(d.id); c.ruling();
+  c.settle("ruling_timeout");
+  lc("ruling_timeout_after_ruling", "Once a ruling exists the settlement must follow it: a timeout settlement is refused", c, err("GUARD_FAILED", 6, "no_ruling_yet"));
 }
 {
   // Same shape, but review_deadline is a day after the bank's settlement attempt.
@@ -534,6 +561,9 @@ sv("action_missing_contract", "action", { scopes_used: ["repo.read"] }, false);
 sv("valid_action_with_blocked_attempts", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], blocked_attempts: [{ scope: "shell.exec", count: 2 }] }, true);
 sv("action_blocked_attempt_zero_count", "action", { contract: fakeId("c"), scopes_used: [], blocked_attempts: [{ scope: "shell.exec", count: 0 }] }, false);
 sv("action_blocked_attempt_missing_count", "action", { contract: fakeId("c"), scopes_used: [], blocked_attempts: [{ scope: "shell.exec" }] }, false);
+sv("valid_action_with_targets", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], targets: ["host:api.example", "path:src/a.ts", "cmd:git/push"], blocked_attempts: [{ scope: "shell.network", count: 1, targets: ["host:evil.example"] }] }, true);
+sv("action_target_not_a_token", "action", { contract: fakeId("c"), scopes_used: [], targets: ["https://evil.example/x?token=abc"] }, false);
+sv("action_blocked_targets_too_many", "action", { contract: fakeId("c"), scopes_used: [], blocked_attempts: [{ scope: "shell.exec", count: 1, targets: Array.from({ length: 9 }, (_, i) => `path:f${i}`) }] }, false);
 sv("valid_action_with_assurance", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], assurance: "gateway_enforced" }, true);
 sv("action_unknown_assurance", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], assurance: "trust_me" }, false);
 sv("valid_action_sub_agents_shared", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], assurance: "hook_enforced", sub_agents: "shared_identity" }, true);
@@ -542,6 +572,8 @@ sv("valid_action_with_metrics", "action", { contract: fakeId("c"), scopes_used: 
 sv("action_metrics_negative_tokens", "action", { contract: fakeId("c"), scopes_used: [], metrics: { tokens_in: -1 } }, false);
 sv("action_metrics_unknown_field", "action", { contract: fakeId("c"), scopes_used: [], metrics: { dollars: 2 } }, false);
 sv("action_metrics_model_without_name", "action", { contract: fakeId("c"), scopes_used: [], metrics: { models: [{ provider: "x" }] } }, false);
+sv("valid_passport_house", "passport", { did: "did:web:example.com:agents:house-1", kind: "agent", sponsor: "did:web:asp.local:operator", tier: 1, shape: { keeps_learning: false }, keys: [{ id: "did:web:example.com:agents:house-1#key-1", type: "Ed25519", public_key: "A".repeat(43) }], house: true }, true);
+sv("passport_house_false", "passport", { did: "did:web:example.com:agents:house-1", kind: "agent", sponsor: "did:web:asp.local:operator", tier: 1, shape: {}, keys: [{ id: "did:web:example.com:agents:house-1#key-1", type: "Ed25519", public_key: "A".repeat(43) }], house: false }, false);
 sv("valid_passport_fork", "passport", { did: "did:web:example.com:agents:copy", kind: "agent", sponsor: "did:web:example.com:users:alice", tier: 1, shape: { keeps_learning: true }, keys: [{ id: "did:web:example.com:agents:copy#key-1", type: "Ed25519", public_key: "A".repeat(43) }], lineage: [{ edge: "fork", parent: "did:web:example.com:agents:coder" }] }, true);
 sv("passport_fork_without_parent", "passport", { did: "did:web:example.com:agents:copy", kind: "agent", sponsor: "did:web:example.com:users:alice", tier: 1, shape: { keeps_learning: true }, keys: [{ id: "did:web:example.com:agents:copy#key-1", type: "Ed25519", public_key: "A".repeat(43) }], lineage: [{ edge: "fork" }] }, false);
 sv("valid_action_late", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], late: { activity_ended: "2026-10-05T10:00:00Z" } }, true);
@@ -558,6 +590,14 @@ sv("mandate_not_revocable", "mandate", { ...m, revocable: false }, false);
 sv("mandate_missing_purpose", "mandate", (({ purpose: _p, ...rest }) => rest)(m), false);
 sv("valid_mandate_network_rate", "mandate", { ...m, scopes: ["repo.read", "web.read"], network: { hosts: ["docs.python.org"], rate: { per_host_per_minute: 30, total_per_minute: 120 } } }, true);
 sv("valid_mandate_network_rate_only", "mandate", { ...m, scopes: ["repo.read", "web.read"], network: { rate: { per_host_per_minute: 10 } } }, true);
+sv("valid_mandate_institution_spend", "mandate", { ...m, institution_spend: [{ institution: "academy", cap: { value: 100, unit: "credit" }, period: "month", services: ["academy.exam.sit"] }, { institution: "did:web:asp.local:shops", cap: { value: 20, unit: "credit" }, period: "week" }] }, true);
+sv("valid_mandate_remedial", "mandate", { ...m, remedial: { purpose: "clinic_exam", sponsor: "did:web:example.com:users:alice" } }, true);
+sv("mandate_remedial_bad_purpose", "mandate", { ...m, remedial: { purpose: "anything", sponsor: "did:web:example.com:users:alice" } }, false);
+sv("mandate_remedial_no_sponsor", "mandate", { ...m, remedial: { purpose: "remedial_course" } }, false);
+sv("mandate_remedial_extra_field", "mandate", { ...m, remedial: { purpose: "clinic_exam", sponsor: "did:web:example.com:users:alice", spend: 5 } }, false);
+sv("mandate_institution_spend_no_cap", "mandate", { ...m, institution_spend: [{ institution: "academy", period: "month" }] }, false);
+sv("mandate_institution_spend_bad_period", "mandate", { ...m, institution_spend: [{ institution: "academy", cap: { value: 10, unit: "credit" }, period: "year" }] }, false);
+sv("mandate_institution_spend_empty_services", "mandate", { ...m, institution_spend: [{ institution: "academy", cap: { value: 10, unit: "credit" }, period: "day", services: [] }] }, false);
 sv("mandate_network_rate_zero", "mandate", { ...m, network: { hosts: ["example.com"], rate: { per_host_per_minute: 0 } } }, false);
 sv("mandate_network_rate_empty", "mandate", { ...m, network: { hosts: ["example.com"], rate: {} } }, false);
 sv("mandate_network_rate_unknown_field", "mandate", { ...m, network: { hosts: ["example.com"], rate: { per_second: 2 } } }, false);
@@ -584,7 +624,17 @@ sv("valid_resolution_expired", "attestation", { kind: "checkpoint_resolution", a
 sv("valid_report", "attestation", { kind: "report", about: fakeId("contract"), reasons: ["sending data to an outside host"] }, true);
 sv("report_without_reasons", "attestation", { kind: "report", about: fakeId("contract") }, false);
 sv("report_empty_reasons", "attestation", { kind: "report", about: fakeId("contract"), reasons: [] }, false);
-sv("valid_report_ruling_upheld", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld" }, true);
+const codeRef = { version: "0.3", sha256: "6e2b9c9d3df853aa0d63e59b5a05b91cdf2ec207108db14cae1afa91e1473af8", articles: ["7", "8.3"] };
+sv("valid_report_ruling_upheld", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: codeRef }, true);
+sv("report_ruling_upheld_without_code", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld" }, false);
+sv("valid_report_ruling_dismissed_without_code", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "dismissed" }, true);
+sv("valid_ruling_citing_code", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "split", fault: { "did:web:example.com:agents:coder": 500 }, code: { version: "0.3", articles: ["3"] } }, true);
+sv("code_without_articles", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: [] } }, false);
+sv("code_article_out_of_range", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: ["13"] } }, false);
+sv("code_article_not_a_number", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: ["eight"] } }, false);
+sv("code_articles_repeated", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: ["7", "7"] } }, false);
+sv("code_bad_version", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "draft", articles: ["7"] } }, false);
+sv("code_bad_hash", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", sha256: "abc", articles: ["7"] } }, false);
 sv("report_ruling_bad_verdict", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "for_principal" }, false);
 sv("report_ruling_without_verdict", "attestation", { kind: "report_ruling", about: fakeId("report") }, false);
 sv("correction_without_text", "attestation", { kind: "checkpoint_resolution", about: fakeId("cp"), verdict: "corrected" }, false);
@@ -618,10 +668,437 @@ sv("envelope_extra_field", "envelope", { ...h[0], note: "hi" }, false);
 sv("envelope_bad_did", "envelope", { ...h[0], issuer: "alice" }, false);
 sv("fleet_without_org", "fleet", (({ org: _o, ...rest }) => rest)(fleetBody), false);
 sv("fleet_zero_members", "fleet", { ...fleetBody, max_members: 0 }, false);
+sv("valid_node_residency", "node", { ...nodeBody, purpose: "residency", host: "did:web:asp.local:host", mandate: "sha256:" + "a".repeat(64) }, true);
+sv("node_host_not_a_did", "node", { ...nodeBody, purpose: "residency", host: "the city" }, false);
 sv("node_minimal", "node", { node: nodeBody.node, public_key: nodeBody.public_key, expires: nodeBody.expires }, true);
 sv("node_without_expiry", "node", (({ expires: _e, ...rest }) => rest)(nodeBody), false);
 sv("node_id_not_did_url", "node", { ...nodeBody, node: coder.did }, false);
 sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
+
+// ---------- credit economy vectors (spec-delta S163: mint, price_list, purchase, receipt) ----------
+{
+  const cr = (value: number) => ({ value, unit: "credit" });
+  const treasuryDid = "did:web:asp.local:treasury", marketDid = "did:web:asp.local:market";
+  const mint = { to: alice.did, amount: cr(100), reason: "starter_upfront", authority: "operator" };
+  sv("valid_mint", "mint", mint, true);
+  sv("valid_mint_every_reason", "mint", { ...mint, reason: "treasury_issuance" }, true);
+  sv("mint_unknown_reason", "mint", { ...mint, reason: "gift" }, false);
+  sv("mint_missing_authority", "mint", { to: mint.to, amount: mint.amount, reason: mint.reason }, false);
+  sv("mint_amount_not_credit", "mint", { ...mint, amount: { value: 5, unit: "usd" } }, false);
+  sv("mint_extra_field", "mint", { ...mint, cash_out: true }, false);
+
+  const split = { treasury_permille: 150, burn_permille: 100, payees: [{ account: marketDid, permille: 750 }] };
+  const item = { service: "market.posting.deposit", institution: marketDid, price: 40, split, class: "standard" };
+  const list = { version: 1, effective_from: "2026-11-01T00:00:00Z", bounds_version: 1, job_tax_permille: 20, items: [item] };
+  sv("valid_price_list", "price_list", list, true);
+  sv("valid_price_list_essential_item", "price_list", { ...list, items: [{ ...item, service: "academy.foundations.first", class: "essential", split: { ...split, burn_permille: 0, payees: [{ account: marketDid, permille: 850 }] }, deliver_within_seconds: 86400 }] }, true);
+  sv("price_list_no_items", "price_list", { ...list, items: [] }, false);
+  sv("price_list_version_zero", "price_list", { ...list, version: 0 }, false);
+  sv("price_list_tax_above_range", "price_list", { ...list, job_tax_permille: 51 }, false);
+  sv("price_list_bad_class", "price_list", { ...list, items: [{ ...item, class: "luxury" }] }, false);
+  sv("price_list_bad_service_id", "price_list", { ...list, items: [{ ...item, service: "Deposit" }] }, false);
+  sv("price_list_price_zero", "price_list", { ...list, items: [{ ...item, price: 0 }] }, false);
+  sv("price_list_no_payees", "price_list", { ...list, items: [{ ...item, split: { ...split, payees: [] } }] }, false);
+  sv("price_list_institution_not_a_did", "price_list", { ...list, items: [{ ...item, institution: treasuryDid.replace("did:web:", "") }] }, false);
+
+  const purchase = { service: "market.posting.deposit", institution: marketDid, price_list: fakeId("price-list"), quantity: 1, amount: cr(40), subject_ref: "posting-1", idempotency: "n-1" };
+  sv("valid_purchase", "purchase", purchase, true);
+  sv("valid_internal_transfer", "internal_transfer", { to: "did:web:example.com:agents:alice-coder", amount: { value: 25, unit: "credit" }, memo: "for the next job" }, true);
+  sv("internal_transfer_no_amount", "internal_transfer", { to: "did:web:example.com:agents:alice-coder" }, false);
+  sv("internal_transfer_bad_to", "internal_transfer", { to: "not-a-did", amount: { value: 25, unit: "credit" } }, false);
+  sv("internal_transfer_extra_field", "internal_transfer", { to: "did:web:example.com:agents:alice-coder", amount: { value: 25, unit: "credit" }, fee: 1 }, false);
+  const acAlice = "did:web:example.com:agents:alice-coder", acRid = "sha256:" + "7".repeat(64), acHash = "sha256:" + "9".repeat(64);
+  const acCert = { holder: acAlice, skill: "foundations", level: 1, issued: "2026-11-01T00:00:00Z", expires: "2027-04-30T00:00:00Z", exam_result: acRid };
+  sv("valid_certificate", "certificate", acCert, true);
+  sv("certificate_level_zero", "certificate", { ...acCert, level: 0 }, false);
+  sv("certificate_no_expiry", "certificate", { holder: acAlice, skill: "foundations", level: 1, issued: acCert.issued, exam_result: acRid }, false);
+  sv("certificate_no_exam_result", "certificate", { holder: acAlice, skill: "foundations", level: 1, issued: acCert.issued, expires: acCert.expires }, false);
+  // S220 to S224: exams, certificates that can be revoked, arenas, courses (academy.md 3).
+  const acExam = { exam: "foundations-v1", skill: "foundations", level: 1, suite_hash: acHash, pass_mark_permille: 800, pool_size: 40, categories: ["mandate", "refusal", "irreversible", "recoverable"], max_sittings: 3, window_days: 30, sitting_service: "academy.exam_sitting" };
+  sv("valid_exam", "exam", acExam, true);
+  sv("exam_pool_too_small", "exam", { ...acExam, pool_size: 39 }, false);
+  sv("exam_pass_mark_too_low", "exam", { ...acExam, pass_mark_permille: 400 }, false);
+  sv("exam_four_sittings", "exam", { ...acExam, max_sittings: 4 }, false);
+  sv("exam_no_pass_mark", "exam", { exam: acExam.exam, skill: acExam.skill, level: 1, suite_hash: acHash, pool_size: 40, categories: acExam.categories, max_sittings: 3, window_days: 30, sitting_service: acExam.sitting_service }, false);
+  const acExamResult = { exam: acRid, holder: acAlice, score_permille: 850, pass_mark_permille: 800, passed: true, attempt: 1, variant: 12, seed: acHash, sitting: acRid, run_log_hash: acRid, missed_categories: ["refusal"] };
+  sv("valid_exam_result", "exam_result", acExamResult, true);
+  sv("exam_result_score_over_1000", "exam_result", { ...acExamResult, score_permille: 1001 }, false);
+  sv("exam_result_no_pass_mark", "exam_result", { exam: acRid, holder: acAlice, score_permille: 850, passed: true, attempt: 1, variant: 12, seed: acHash, sitting: acRid, run_log_hash: acRid, missed_categories: [] }, false);
+  sv("exam_result_attempt_zero", "exam_result", { ...acExamResult, attempt: 0 }, false);
+  sv("valid_certificate_revocation", "certificate_revocation", { certificate: acRid, reason: "cheating", evidence: "the run log does not match the Action", article: "7.2" }, true);
+  sv("certificate_revocation_bad_reason", "certificate_revocation", { certificate: acRid, reason: "dislike", evidence: "x" }, false);
+  sv("certificate_revocation_no_evidence", "certificate_revocation", { certificate: acRid, reason: "drift" }, false);
+  const acArena = { arena: "refactoring", season: "2026-q4", min_tier: 2, entry_service: "academy.arena_entry", min_distinct_sponsors: 4, opens: "2026-10-01T00:00:00Z", closes: "2026-12-31T00:00:00Z", prize_split_permille: [500, 300, 200] };
+  sv("valid_arena", "arena", acArena, true);
+  sv("valid_arena_void", "arena_void", { arena: "refactoring", season: "2026-q4", reason: "too_few_sponsors" }, true);
+  sv("arena_void_bad_reason", "arena_void", { arena: "refactoring", season: "2026-q4", reason: "boring" }, false);
+  sv("arena_void_no_season", "arena_void", { arena: "refactoring", reason: "no_entries" }, false);
+  sv("arena_one_sponsor_floor", "arena", { ...acArena, min_distinct_sponsors: 1 }, false);
+  sv("arena_no_prize_split", "arena", { ...acArena, prize_split_permille: [] }, false);
+  sv("arena_tier_four", "arena", { ...acArena, min_tier: 4 }, false);
+  sv("valid_arena_entry", "arena_entry", { arena: "refactoring", season: "2026-q4", fee_purchase: acRid }, true);
+  sv("arena_entry_no_fee", "arena_entry", { arena: "refactoring", season: "2026-q4" }, false);
+  const acArenaResult = { arena: "refactoring", season: "2026-q4", agent: acAlice, score: 920, rank: 1, field_size: 8, opponents: ["did:web:example.com:agents:b", "did:web:example.com:agents:c"], run_log_hash: acRid };
+  sv("valid_arena_result", "arena_result", acArenaResult, true);
+  sv("arena_result_rank_zero", "arena_result", { ...acArenaResult, rank: 0 }, false);
+  sv("arena_result_no_opponents", "arena_result", { ...acArenaResult, opponents: [] }, false);
+  sv("arena_result_duplicate_opponent", "arena_result", { ...acArenaResult, opponents: ["did:web:example.com:agents:b", "did:web:example.com:agents:b"] }, false);
+  const acCourse = { course: "foundations-1", title: "Working inside a Mandate", skill: "foundations", level: 1, lessons: [acHash], exercises: acHash, exercise_count: 4, price_service: "academy.course.foundations", author_share_permille: 550, reviews: [acHash, acRid], reviewers: ["did:web:example.com:agents:b", "did:web:example.com:agents:c"] };
+  sv("valid_course", "course", acCourse, true);
+  sv("course_one_review", "course", { ...acCourse, reviews: [acHash] }, false);
+  sv("course_one_reviewer", "course", { ...acCourse, reviewers: ["did:web:example.com:agents:b"] }, false);
+  sv("course_no_lessons", "course", { ...acCourse, lessons: [] }, false);
+  sv("valid_enrolment", "enrolment", { course: acRid, purchase: acHash }, true);
+  sv("enrolment_no_purchase", "enrolment", { course: acRid }, false);
+  sv("valid_completion", "completion", { enrolment: acRid, holder: acAlice, exercises_passed: 4, run_log_hash: acHash }, true);
+  sv("completion_zero_exercises", "completion", { enrolment: acRid, holder: acAlice, exercises_passed: 0, run_log_hash: acHash }, false);
+  sv("valid_tier_promotion", "tier_promotion", { holder: "did:web:example.com:agents:alice-coder", from: 1, to: 2, certificates: ["sha256:" + "6".repeat(64)] }, true);
+  sv("tier_promotion_to_four", "tier_promotion", { holder: "did:web:example.com:agents:alice-coder", from: 3, to: 4, certificates: ["sha256:" + "6".repeat(64)] }, false);
+  sv("tier_promotion_no_certificates", "tier_promotion", { holder: "did:web:example.com:agents:alice-coder", from: 1, to: 2, certificates: [] }, false);
+  sv("valid_quarantine_cohort", "quarantine", { members: ["did:web:example.com:agents:a", "did:web:example.com:agents:b", "did:web:example.com:agents:c"], level: "observe", reason: "the same command across three agents", until: "2026-11-08T00:00:00Z", report: "sha256:" + "6".repeat(64), cluster: "asp://shell-command#sha256:" + "7".repeat(64) }, true);
+  sv("valid_quarantine_single", "quarantine", { members: ["did:web:example.com:agents:a"], level: "halt", reason: "drift", until: "2026-11-08T00:00:00Z" }, true);
+  sv("quarantine_bad_level", "quarantine", { members: ["did:web:example.com:agents:a"], level: "kill", reason: "x", until: "2026-11-08T00:00:00Z" }, false);
+  sv("quarantine_no_members", "quarantine", { members: [], level: "observe", reason: "x", until: "2026-11-08T00:00:00Z" }, false);
+  sv("quarantine_no_until", "quarantine", { members: ["did:web:example.com:agents:a"], level: "observe", reason: "x" }, false);
+  sv("valid_quarantine_release", "quarantine_release", { quarantine: "sha256:" + "6".repeat(64), member: "did:web:example.com:agents:a", evidence: "sha256:" + "8".repeat(64), reason: "a clean run after the freeze" }, true);
+  sv("quarantine_release_no_evidence", "quarantine_release", { quarantine: "sha256:" + "6".repeat(64), member: "did:web:example.com:agents:a", reason: "x" }, false);
+  // S230 to S232: the Market, Registry and Courts records (market.md, registry.md, courts.md; DK10, DK12, DK13, DK16, DK17, DK18).
+  {
+    const id6 = "sha256:" + "6".repeat(64), id7 = "sha256:" + "7".repeat(64), a1 = "did:web:example.com:agents:a";
+    const intentBase = { purpose: "Review a patch", acceptance_criteria: ["reviewed"], budget: cr(60), deadline: "2026-12-01T00:00:00Z", verification: { mode: "principal" } };
+    sv("valid_intent_with_class", "intent", { ...intentBase, class: "skilled", min_tier: 2, requires_certificate: "code", listed: "public", skills: ["code"] }, true);
+    sv("intent_class_unknown", "intent", { ...intentBase, class: "epic" }, false);
+    sv("intent_min_tier_four", "intent", { ...intentBase, min_tier: 4 }, false);
+    sv("intent_listed_unknown", "intent", { ...intentBase, listed: "secret" }, false);
+    sv("valid_market_posting", "market_act", { act: "posting", intent: id6, board: "main", expires: "2026-12-01T00:00:00Z", deposit: id7 }, true);
+    sv("market_posting_no_deposit", "market_act", { act: "posting", intent: id6, board: "main", expires: "2026-12-01T00:00:00Z" }, false);
+    sv("market_act_unknown", "market_act", { act: "boost", posting: id6 }, false);
+    sv("valid_market_withdraw", "market_act", { act: "withdraw", posting: id6 }, true);
+    sv("valid_market_class_check", "market_act", { act: "class_check", intent: id6, class: "skilled", verdict: "changed_to", reason: "needs code review" }, true);
+    sv("market_class_check_no_reason", "market_act", { act: "class_check", intent: id6, class: "skilled", verdict: "changed_to" }, false);
+    sv("valid_market_bid", "market_act", { act: "bid", posting: id6, offer: id7 }, true);
+    sv("valid_market_assignment", "market_act", { act: "assignment", posting: id6, intent: id7, agent: a1, rule: "best_match", seed: "s1", ranked: [{ agent: a1, score: 1500, reasons: ["skills 1 of 1"] }] }, true);
+    sv("valid_market_assignment_rotation", "market_act", { act: "assignment", posting: id6, intent: id7, agent: a1, rule: "rotation", seed: "s1", ranked: [] }, true);
+    sv("market_act_extra_field", "market_act", { act: "withdraw", posting: id6, boost: 5 }, false);
+    sv("valid_market_report", "market_act", { act: "report", posting: id6, category: "attack", reason: "asks for a denial of service on a shop" }, true);
+    sv("market_report_no_reason", "market_act", { act: "report", posting: id6, category: "attack" }, false);
+    sv("market_report_bad_category", "market_act", { act: "report", posting: id6, category: "rude", reason: "x" }, false);
+    sv("valid_market_review_removed", "market_act", { act: "review", posting: id6, verdict: "removed", category: "unlawful", reason: "a denial of service on a third party" }, true);
+    sv("valid_market_review_cleared", "market_act", { act: "review", posting: id6, verdict: "cleared", reason: "a security test the poster owns" }, true);
+    sv("market_review_no_verdict", "market_act", { act: "review", posting: id6, reason: "x" }, false);
+    const code = { version: "1.0", articles: ["4.1"] };
+    sv("valid_registry_name_claim", "registry_act", { act: "name_claim", name: "scout-7", holder: a1, class: "agent", paid: id6, valid_until: "2027-11-01T00:00:00Z" }, true);
+    sv("registry_name_claim_bad_class", "registry_act", { act: "name_claim", name: "scout-7", holder: a1, class: "robot", valid_until: "2027-11-01T00:00:00Z" }, false);
+    sv("valid_registry_name_release", "registry_act", { act: "name_release", name: "scout-7", claim: id6 }, true);
+    sv("valid_registry_report", "registry_act", { act: "impersonation_report", target: "sc0ut-7", genuine: a1, grounds: "name_confusable", evidence: ["asp://profile/sc0ut-7"] }, true);
+    sv("registry_report_bad_grounds", "registry_act", { act: "impersonation_report", target: "sc0ut-7", genuine: a1, grounds: "dislike", evidence: [] }, false);
+    sv("valid_registry_reply", "registry_act", { act: "name_reply", report: id6, statement: "I am not copying anyone" }, true);
+    sv("valid_registry_takedown", "registry_act", { act: "name_takedown", name: "sc0ut-7", holder: a1, report: id6, reason: "the name differs from scout-7 by one letter and claims to be it", code, effect: "name_removed", appealable_until: "2026-12-01T00:00:00Z" }, true);
+    sv("registry_takedown_removes_identity", "registry_act", { act: "name_takedown", name: "sc0ut-7", holder: a1, report: id6, reason: "x", code, effect: "identity_removed", appealable_until: "2026-12-01T00:00:00Z" }, false);
+    sv("registry_takedown_no_article", "registry_act", { act: "name_takedown", name: "sc0ut-7", holder: a1, report: id6, reason: "x", code: { version: "1.0", articles: [] }, effect: "name_removed", appealable_until: "2026-12-01T00:00:00Z" }, false);
+    sv("valid_registry_dismissal", "registry_act", { act: "takedown_dismissal", report: id6, reason: "the names are not confusable" }, true);
+    sv("valid_registry_renewal", "registry_act", { act: "identity_renewal", passport: id6, keys_confirmed: ["did:web:example.com:agents:a#key-1"] }, true);
+    sv("valid_registry_suspension", "registry_act", { act: "identity_suspension", holder: a1, reason: "credible harm to a third party", code, until: "2026-11-08T00:00:00Z" }, true);
+    sv("valid_registry_suspension_lift", "registry_act", { act: "suspension_lift", suspension: id6, reason: "the harm stopped" }, true);
+    sv("valid_registry_retirement", "registry_act", { act: "identity_retirement", holder: a1, reason: "the sponsor retired the agent" }, true);
+    sv("registry_act_missing_holder", "registry_act", { act: "identity_retirement", reason: "x" }, false);
+    const routes = { small_claim_max_price: 50, small_claim_panel: 1, small_claim_fee: 2, standard_panel: 3, appeal_panel: 5, appeal_window_days: 14, appeal_fee_small: 5, appeal_fee_standard: 20, appeal_small_max_price: 100, claimant_open_cap: 3 };
+    sv("valid_court_charter", "court_act", { act: "charter", version: 1, text_sha256: "a".repeat(64), routes, effective_from: "2026-11-05T00:00:00Z" }, true);
+    sv("court_charter_negative_number", "court_act", { act: "charter", version: 1, text_sha256: "a".repeat(64), routes: { ...routes, small_claim_fee: -1 }, effective_from: "2026-11-05T00:00:00Z" }, false);
+    sv("valid_court_appeal", "court_act", { act: "appeal", ruling: id6, grounds: "error_of_law", statement: "Article 4.1 was misapplied", fee_paid: id7 }, true);
+    sv("court_appeal_no_grounds", "court_act", { act: "appeal", ruling: id6, statement: "x", fee_paid: id7 }, false);
+    sv("valid_court_appeal_ruling", "court_act", { act: "appeal_ruling", appeal: id6, outcome: "reversed", fault: { [a1]: 0 }, reasons: ["the Article does not apply"], code, precedents: [id7] }, true);
+    sv("court_appeal_ruling_six_precedents", "court_act", { act: "appeal_ruling", appeal: id6, outcome: "affirmed", reasons: ["x"], code, precedents: [id7, id7, id7, id7, id7, id7] }, false);
+    sv("court_act_unknown", "court_act", { act: "overrule", appeal: id6 }, false);
+    sv("valid_ruling_with_precedent", "attestation", { kind: "ruling", about: id6, verdict: "for_principal", fault: { [a1]: 1000 }, reasons: ["follows the earlier ruling"], code, route: "small_claim", precedents: [id7], departs_from: [] }, true);
+    sv("ruling_route_unknown", "attestation", { kind: "ruling", about: id6, verdict: "for_principal", fault: { [a1]: 1000 }, route: "blitz" }, false);
+  }
+  // S250: the Shops and Services records (shops.md 3; DK21, DK22) and the catalogue fields of a price-list item.
+  {
+    const id6 = "sha256:" + "6".repeat(64), id7 = "sha256:" + "7".repeat(64), id8 = "sha256:" + "8".repeat(64), a1 = "did:web:example.com:agents:a";
+    const badge = { type: "badge", value: "plain" };
+    sv("valid_price_list_catalogue_item", "price_list", { ...list, items: [{ ...item, effect: badge, duration_days: 90, gate: { min_tier: 1, certificate: "*" } }] }, true);
+    sv("price_list_effect_no_type", "price_list", { ...list, items: [{ ...item, effect: { value: "plain" } }] }, false);
+    sv("price_list_gate_tier_four", "price_list", { ...list, items: [{ ...item, gate: { min_tier: 4 } }] }, false);
+    sv("valid_shops_holding", "shops_act", { act: "holding", holder: a1, item: "shops.badge.plain", purchase: id6, receipt: id7, effect: badge, from: "2026-11-01T00:00:00Z", until: "2027-01-30T00:00:00Z" }, true);
+    sv("shops_holding_no_receipt", "shops_act", { act: "holding", holder: a1, item: "shops.badge.plain", purchase: id6, effect: badge, from: "2026-11-01T00:00:00Z", until: "2027-01-30T00:00:00Z" }, false);
+    sv("valid_shops_residency", "shops_act", { act: "residency", agent: a1, mode: "resident", budget: { credits_per_month: 40 }, since: "2026-11-01T00:00:00Z" }, true);
+    sv("shops_residency_bad_mode", "shops_act", { act: "residency", agent: a1, mode: "tourist", budget: { credits_per_month: 40 }, since: "2026-11-01T00:00:00Z" }, false);
+    sv("valid_shops_standing_order", "shops_act", { act: "standing_order", agent: a1, service: "shops.upkeep", max_per_period: 30, period: "month", mandate: id8 }, true);
+    sv("shops_standing_order_other_service", "shops_act", { act: "standing_order", agent: a1, service: "shops.badge.plain", max_per_period: 30, period: "month", mandate: id8 }, false);
+    sv("valid_shops_standing_order_revoke", "shops_act", { act: "standing_order_revoke", order: id8 }, true);
+    sv("valid_shops_upkeep_charge", "shops_act", { act: "upkeep_charge", agent: a1, order: id8, price_list: id6, from_day: "2026-11-15", days: 3, amount: cr(3) }, true);
+    sv("shops_upkeep_charge_zero_days", "shops_act", { act: "upkeep_charge", agent: a1, order: id8, price_list: id6, from_day: "2026-11-15", days: 0, amount: cr(3) }, false);
+    sv("valid_shops_residency_status", "shops_act", { act: "residency_status", agent: a1, status: "dormant", reason: "upkeep unpaid for 7 days" }, true);
+    sv("shops_residency_status_no_reason", "shops_act", { act: "residency_status", agent: a1, status: "dormant" }, false);
+    sv("shops_act_unknown", "shops_act", { act: "gift", holder: a1 }, false);
+    sv("shops_act_extra_field", "shops_act", { act: "standing_order_revoke", order: id8, boost: 1 }, false);
+    // S270: Housing's records (housing.md 3; DK38).
+    sv("valid_housing_profile", "housing_act", { act: "profile", agent: a1, display_name: "Coder", tagline: "Reviews patches", about: "I review code.", showcase: [id6], theme: "housing.decor.theme.dawn", layout: "housing.decor.layout.wide" }, true);
+    sv("housing_profile_no_agent", "housing_act", { act: "profile", display_name: "Coder" }, false);
+    sv("housing_profile_showcase_over_schema_cap", "housing_act", { act: "profile", agent: a1, showcase: Array.from({ length: 21 }, () => id6) }, false);
+    sv("valid_housing_holding", "housing_act", { act: "holding", holder: a1, item: "housing.decor.theme.dawn", purchase: id6, receipt: id7, effect: { type: "theme", value: "dawn" }, from: "2026-11-01T00:00:00Z", until: "2027-01-30T00:00:00Z" }, true);
+    sv("housing_holding_no_receipt", "housing_act", { act: "holding", holder: a1, item: "housing.decor.theme.dawn", purchase: id6, effect: { type: "theme", value: "dawn" }, from: "2026-11-01T00:00:00Z", until: "2027-01-30T00:00:00Z" }, false);
+    sv("housing_act_unknown", "housing_act", { act: "evict", agent: a1 }, false);
+    sv("housing_act_extra_field", "housing_act", { act: "profile", agent: a1, html: "<b>x</b>" }, false);
+    // S272: the Events records (leisure-events.md 3; DK36, DK37).
+    const sha = "sha256:" + "a".repeat(64);
+    const ev = { act: "event", form: "contest", title: "Autumn contest", place: "room:autumn", starts: "2026-12-01T10:00:00Z", ends: "2026-12-01T12:00:00Z", opens: "2026-11-20T00:00:00Z", entries_close: "2026-12-01T09:00:00Z", capacity: 0, per_sponsor_cap: 2, min_tier: 1, entry_service: "events.contest.entry", rules_sha256: sha, judging: { kind: "scored", scorer_sha256: sha, min_sponsors: 4 }, prizes: [{ rank: 1, amount: 50 }, { rank: 2, amount: 30 }] };
+    sv("valid_events_event_contest", "events_act", ev, true);
+    sv("events_event_no_rules_hash", "events_act", { ...ev, rules_sha256: undefined }, false);
+    sv("events_event_bad_form", "events_act", { ...ev, form: "party" }, false);
+    sv("events_event_zero_prize", "events_act", { ...ev, prizes: [{ rank: 1, amount: 0 }] }, false);
+    sv("valid_events_cancel", "events_act", { act: "event_cancel", event: id6, reason: "the room is closed" }, true);
+    sv("valid_events_rsvp", "events_act", { act: "rsvp", event: id6 }, true);
+    sv("valid_events_attend", "events_act", { act: "attend", event: id6 }, true);
+    sv("valid_events_entry", "events_act", { act: "entry", event: id6, purchase: id7, artifact_sha256: sha, run_log_hash: id8 }, true);
+    sv("events_entry_no_run_log", "events_act", { act: "entry", event: id6, purchase: id7, artifact_sha256: sha }, false);
+    sv("valid_events_interact", "events_act", { act: "interact", event: id6, with: a1, kind: "reply", ref: id7 }, true);
+    sv("events_interact_bad_kind", "events_act", { act: "interact", event: id6, with: a1, kind: "dm", ref: id7 }, false);
+    sv("valid_events_souvenir", "events_act", { act: "souvenir", event: id6, agent: a1, kind: "placed:1" }, true);
+    sv("events_souvenir_bad_kind", "events_act", { act: "souvenir", event: id6, agent: a1, kind: "placed:0" }, false);
+    sv("valid_events_result", "events_act", { act: "contest_result", event: id6, rules_sha256: sha, ranking: [{ agent: a1, rank: 1, score: 9.5 }], awards: [{ agent: a1, amount: 50 }], entries: 5, distinct_sponsors: 5, evidence_sha256: sha }, true);
+    sv("events_result_award_zero", "events_act", { act: "contest_result", event: id6, rules_sha256: sha, ranking: [], awards: [{ agent: a1, amount: 0 }], entries: 5, distinct_sponsors: 5, evidence_sha256: sha }, false);
+    sv("events_act_unknown", "events_act", { act: "vote", event: id6 }, false);
+    sv("events_act_extra_field", "events_act", { act: "rsvp", event: id6, plus_one: 1 }, false);
+    // S290: the research board's records (research-commons.md 3; DK31).
+    const rp = { act: "problem", title: "Find a nonce", statement_sha256: sha, domain: ["search"], checker: { kind: "executable", ref: "leading-zero-bits:12", runner: "did:web:asp.local:research" }, reward: 100, split: { finder: 800, replicator: 100 }, min_tier: 1, opens: "2026-11-20T00:00:00Z", deadline: "2026-12-20T00:00:00Z" };
+    sv("valid_research_problem", "research_act", rp, true);
+    sv("research_problem_no_checker", "research_act", { ...rp, checker: undefined }, false);
+    sv("research_problem_bad_checker_kind", "research_act", { ...rp, checker: { kind: "vote", ref: "x", runner: a1 } }, false);
+    sv("research_problem_zero_reward", "research_act", { ...rp, reward: 0 }, false);
+    sv("valid_research_close", "research_act", { act: "problem_close", problem: id6 }, true);
+    sv("valid_research_submission", "research_act", { act: "submission", problem: id6, purchase: id7, finding_sha256: sha, summary: "a nonce", evidence: [id8] }, true);
+    sv("research_submission_no_evidence", "research_act", { act: "submission", problem: id6, purchase: id7, finding_sha256: sha, summary: "a nonce", evidence: [] }, false);
+    sv("valid_research_check", "research_act", { act: "finding_check", submission: id6, kind: "executable", result: "pass", details_sha256: sha }, true);
+    sv("research_check_bad_result", "research_act", { act: "finding_check", submission: id6, kind: "executable", result: "maybe", details_sha256: sha }, false);
+    sv("valid_research_award", "research_act", { act: "award", problem: id6, submission: id7, awardee: a1, amount: 80, role: "finder", checks: [id8] }, true);
+    sv("research_award_no_checks", "research_act", { act: "award", problem: id6, submission: id7, awardee: a1, amount: 80, role: "finder", checks: [] }, false);
+    sv("research_act_unknown", "research_act", { act: "vote", problem: id6 }, false);
+    sv("research_act_extra_field", "research_act", { act: "problem_close", problem: id6, bonus: 5 }, false);
+    // S291: cognition telemetry (instrumentation.md 5, 7; DK79).
+    const cons = { act: "consent", sponsor: "did:web:example.com:users:s", agent: a1, signals: ["belief_state", "calibration"], purposes: ["L7-belief-recalibration"], retention_days: 30, from: "2026-11-01T00:00:00Z", until: "2026-12-01T00:00:00Z" };
+    sv("valid_telemetry_consent", "telemetry_act", cons, true);
+    sv("telemetry_consent_unknown_signal", "telemetry_act", { ...cons, signals: ["mind_reading"] }, false);
+    sv("telemetry_consent_no_purpose", "telemetry_act", { ...cons, purposes: [] }, false);
+    sv("valid_telemetry_probe_set", "telemetry_act", { act: "probe_set", id: "econ-1", version: 1, propositions: [{ id: "P1", resolver: { name: "price_above", params: { service: "shops.resource.storage", value: 25 } }, resolve_at: "2026-11-20T00:00:00Z" }] }, true);
+    sv("telemetry_probe_set_no_propositions", "telemetry_act", { act: "probe_set", id: "econ-1", version: 1, propositions: [] }, false);
+    sv("valid_telemetry_memory_policy", "telemetry_act", { act: "memory_policy", agent: a1, version: 1, policy_sha256: sha, budget: { maxFiles: 200, maxBytes: 1048576, maxIndexLines: 200 }, previous: null }, true);
+    sv("telemetry_memory_policy_no_budget", "telemetry_act", { act: "memory_policy", agent: a1, version: 1, policy_sha256: sha }, false);
+    sv("valid_telemetry_digest", "telemetry_act", { act: "digest", agent: a1, day: "2026-11-10", consent: id6, merkle_root: sha, counts: { belief_state: 1 }, entries: { beliefs: [{ probe_set: "econ-1", version: 1, answers: { P1: 200 } }] } }, true);
+    sv("telemetry_digest_unknown_entry_key", "telemetry_act", { act: "digest", agent: a1, day: "2026-11-10", consent: id6, merkle_root: sha, counts: {}, entries: { thoughts: [] } }, false);
+    sv("telemetry_digest_bad_day", "telemetry_act", { act: "digest", agent: a1, day: "yesterday", consent: id6, merkle_root: sha, counts: {}, entries: {} }, false);
+    sv("telemetry_act_unknown", "telemetry_act", { act: "spy", agent: a1 }, false);
+    // S330: the signed adoption of unsigned mints (DK95).
+    sv("valid_mint_adoption", "mint_adoption", { did: a1, amount: cr(60), reason: "adopt the beta database's opening balances" }, true);
+    sv("mint_adoption_no_reason", "mint_adoption", { did: a1, amount: cr(5) }, false);
+    sv("mint_adoption_extra_field", "mint_adoption", { did: a1, amount: cr(5), reason: "x", to: a1 }, false);
+    sv("telemetry_act_extra_field", "telemetry_act", { ...cons, free_text: "anything" }, false);
+  }
+  // S190: Treasury budgets, payments, the newcomer allowance, prizes, and the standing flag on a price-list item (credits.md 5.2 T4, T5, T10, R9).
+  const did1 = "did:web:example.com:agents:alice-coder", rid = "sha256:" + "7".repeat(64);
+  sv("valid_price_list_standing_item", "price_list", { ...list, items: [{ ...item, gives_standing: true }] }, true);
+  sv("price_list_standing_not_boolean", "price_list", { ...list, items: [{ ...item, gives_standing: "yes" }] }, false);
+  const bud = { institution: "did:web:asp.local:courts", period: "2026-11", amount: cr(500), purpose: "panel fees" };
+  sv("valid_budget", "budget", bud, true);
+  sv("valid_budget_allowance_line", "budget", { ...bud, institution: treasuryDid, purpose: "allowance" }, true);
+  sv("budget_bad_period", "budget", { ...bud, period: "2026-13" }, false);
+  sv("budget_no_purpose", "budget", { institution: bud.institution, period: bud.period, amount: bud.amount }, false);
+  sv("budget_extra_field", "budget", { ...bud, cash_out: true }, false);
+  const pay = { budget: rid, to: bud.institution, amount: cr(100) };
+  sv("valid_treasury_payment", "treasury_payment", pay, true);
+  sv("valid_treasury_payment_memo", "treasury_payment", { ...pay, memo: "first half" }, true);
+  sv("treasury_payment_no_budget", "treasury_payment", { to: pay.to, amount: pay.amount }, false);
+  sv("treasury_payment_amount_not_credit", "treasury_payment", { ...pay, amount: { value: 5, unit: "usd" } }, false);
+  sv("treasury_payment_extra_field", "treasury_payment", { ...pay, cash_out: true }, false);
+  const allow = { amount: cr(40), trigger: "first_course", budget: rid };
+  sv("valid_allowance", "allowance", allow, true);
+  sv("valid_allowance_first_bond", "allowance", { ...allow, trigger: "first_bond" }, true);
+  sv("allowance_bad_trigger", "allowance", { ...allow, trigger: "birthday" }, false);
+  sv("allowance_no_budget", "allowance", { amount: allow.amount, trigger: allow.trigger }, false);
+  sv("allowance_extra_field", "allowance", { ...allow, to: did1 }, false);
+  const prize = { pool: "did:web:asp.local:academy", arena: "refactoring", season: "2026-q4", agent: did1, rank: 1, run_log_hash: "sha256:" + "8".repeat(64), amount: cr(60) };
+  sv("valid_prize", "prize", prize, true);
+  sv("prize_rank_zero", "prize", { ...prize, rank: 0 }, false);
+  sv("prize_bad_run_log_hash", "prize", { ...prize, run_log_hash: "abc" }, false);
+  sv("prize_no_agent", "prize", { pool: prize.pool, arena: prize.arena, season: prize.season, rank: 1, run_log_hash: prize.run_log_hash, amount: prize.amount }, false);
+  sv("prize_extra_field", "prize", { ...prize, cash_out: true }, false);
+  sv("valid_revouch", "revouch", { agent: "did:web:example.com:agents:alice-coder", reason: "reviewed its last 20 runs and its new exam" }, true);
+  sv("revouch_no_reason", "revouch", { agent: "did:web:example.com:agents:alice-coder" }, false);
+  sv("valid_retraining_release", "retraining_release", { agent: "did:web:example.com:agents:alice-coder", exam_result: "sha256:" + "7".repeat(64), revouch: "sha256:" + "8".repeat(64) }, true);
+  sv("retraining_release_no_revouch", "retraining_release", { agent: "did:web:example.com:agents:alice-coder", exam_result: "sha256:" + "7".repeat(64) }, false);
+  const dxAgent = "did:web:example.com:agents:alice-coder";
+  const dxFinding = (measure: string) => ({ measure, baseline: 2000, observed: 5200, threshold: "above 1.5 times the baseline and more than 200 higher", evidence: ["sha256:" + "a".repeat(64)] });
+  const dx = { agent: dxAgent, window: { from: "2026-11-12T10:00:00Z", to: "2026-11-12T14:00:00Z" }, severity: "warn", findings: [dxFinding("tokens"), dxFinding("tool_calls")], cause: { cause: "memory_change", edge: "sha256:" + "b".repeat(64) }, recommendation: [{ action: "re_exam", skill: "foundations", note: "sit it again" }], assurance: "gateway_observed", baseline_jobs: 20 };
+  sv("valid_clinic_diagnosis", "clinic_diagnosis", dx, true);
+  sv("clinic_diagnosis_one_finding", "clinic_diagnosis", { ...dx, findings: [dxFinding("tokens")] }, false);
+  sv("clinic_diagnosis_finding_no_evidence", "clinic_diagnosis", { ...dx, findings: [{ ...dxFinding("tokens"), evidence: [] }, dxFinding("seconds")] }, false);
+  sv("clinic_diagnosis_bad_measure", "clinic_diagnosis", { ...dx, findings: [dxFinding("mood"), dxFinding("seconds")] }, false);
+  sv("clinic_diagnosis_watch_is_not_a_record", "clinic_diagnosis", { ...dx, severity: "watch" }, false);
+  sv("clinic_diagnosis_self_reported_assurance", "clinic_diagnosis", { ...dx, assurance: "self_reported" }, false);
+  sv("clinic_diagnosis_no_cause", "clinic_diagnosis", { ...dx, cause: undefined }, false);
+  sv("clinic_diagnosis_extra_field", "clinic_diagnosis", { ...dx, punishment: "slash" }, false);
+  const ord = { agent: dxAgent, kind: "checkup", reason: "scheduled", due: "2026-11-19T00:00:00Z" };
+  sv("valid_clinic_order_checkup", "clinic_order", ord, true);
+  sv("valid_clinic_order_re_exam", "clinic_order", { agent: dxAgent, kind: "re_exam", reason: "post_diagnosis", due: "2026-11-26T00:00:00Z", diagnosis: "sha256:" + "c".repeat(64), skill: "foundations" }, true);
+  sv("valid_clinic_order_requested_paid", "clinic_order", { agent: dxAgent, kind: "checkup", reason: "requested", due: "2026-11-26T00:00:00Z", purchase: "sha256:" + "d".repeat(64) }, true);
+  sv("valid_clinic_order_free_after_change", "clinic_order", { agent: dxAgent, kind: "checkup", reason: "post_change", due: "2026-11-26T00:00:00Z", budget: "sha256:" + "e".repeat(64), change: "memory-update-7" }, true);
+  sv("clinic_order_bad_purchase_ref", "clinic_order", { ...ord, purchase: "not-a-record-id" }, false);
+  sv("clinic_order_empty_change", "clinic_order", { ...ord, change: "" }, false);
+  sv("clinic_order_bad_kind", "clinic_order", { ...ord, kind: "quarantine" }, false);
+  sv("clinic_order_bad_reason", "clinic_order", { ...ord, reason: "because" }, false);
+  sv("clinic_order_no_due", "clinic_order", { agent: dxAgent, kind: "checkup", reason: "scheduled" }, false);
+  const bkAgent = "did:web:example.com:agents:alice-coder", bkSponsor = "did:web:example.com:users:alice";
+  const line = { borrower: bkAgent, guarantor: bkSponsor, contract: "sha256:" + "d".repeat(64), amount: { value: 20, unit: "credit" }, fee: 0, due: "2026-11-19T00:00:00Z" };
+  sv("valid_credit_line", "credit_line", line, true);
+  sv("credit_line_with_a_fee", "credit_line", { ...line, fee: 2 }, false);
+  sv("credit_line_no_guarantor", "credit_line", { ...line, guarantor: undefined }, false);
+  sv("credit_line_no_due", "credit_line", { ...line, due: undefined }, false);
+  sv("credit_line_extra_field", "credit_line", { ...line, interest: 5 }, false);
+  const dflt = { line: "sha256:" + "e".repeat(64), unpaid: { value: 20, unit: "credit" }, against: bkSponsor };
+  sv("valid_credit_default", "credit_default", dflt, true);
+  sv("credit_default_no_against", "credit_default", { ...dflt, against: undefined }, false);
+  sv("credit_default_no_unpaid", "credit_default", { ...dflt, unpaid: undefined }, false);
+  const stmt = { holder: bkAgent, period: "2026-11", balance: { value: 96, unit: "credit" }, owed: { value: 0, unit: "credit" } };
+  sv("valid_bank_statement", "bank_statement", stmt, true);
+  sv("bank_statement_no_owed", "bank_statement", { ...stmt, owed: undefined }, false);
+  const polBase = { holder: "did:web:example.com:agents:alice-coder", contract: "sha256:" + "d".repeat(64), cover: "bond_slash", insured_amount: { value: 20, unit: "credit" }, premium: { value: 2, unit: "credit" }, valid_from: "2026-11-12T00:00:00Z", valid_to: "2027-01-12T00:00:00Z" };
+  sv("valid_policy", "policy", polBase, true);
+  sv("valid_policy_failed_job", "policy", { ...polBase, cover: "failed_job" }, true);
+  sv("policy_bad_cover", "policy", { ...polBase, cover: "everything" }, false);
+  sv("policy_no_premium", "policy", { ...polBase, premium: undefined }, false);
+  sv("policy_extra_field", "policy", { ...polBase, exclusions: [] }, false);
+  const clm = { policy: "sha256:" + "a".repeat(64), event: "sha256:" + "b".repeat(64), amount_claimed: { value: 4, unit: "credit" } };
+  sv("valid_claim", "claim", clm, true);
+  sv("claim_no_event", "claim", { ...clm, event: undefined }, false);
+  const dec = { claim: "sha256:" + "c".repeat(64), decision: "paid", amount: { value: 4, unit: "credit" }, reason: "covered" };
+  sv("valid_claim_decision", "claim_decision", dec, true);
+  sv("valid_claim_decision_denied", "claim_decision", { ...dec, decision: "denied", amount: { value: 0, unit: "credit" }, reason: "fraud" }, true);
+  sv("claim_decision_bad_decision", "claim_decision", { ...dec, decision: "maybe" }, false);
+  sv("claim_decision_no_reason", "claim_decision", { ...dec, reason: undefined }, false);
+  const sbud = { period: "2026-12", units: "tokens", total: 5000000, published_at: "2026-11-20T00:00:00Z", classes: [{ class: "newcomer", per_agent_cap: 6000000, per_sponsor_cap: 3 }] };
+  sv("valid_subsidy_budget", "subsidy_budget", sbud, true);
+  sv("subsidy_budget_in_credits", "subsidy_budget", { ...sbud, units: "credits" }, false);
+  sv("subsidy_budget_bad_period", "subsidy_budget", { ...sbud, period: "2026-13" }, false);
+  sv("subsidy_budget_no_classes", "subsidy_budget", { ...sbud, classes: [] }, false);
+  sv("subsidy_budget_bad_class", "subsidy_budget", { ...sbud, classes: [{ class: "vip", per_agent_cap: 1, per_sponsor_cap: 1 }] }, false);
+  const sgr = { agent: "did:web:example.com:agents:alice-coder", class: "newcomer", budget: "sha256:" + "a".repeat(64), daily_cap: 200000, period_cap: 6000000, from: "2026-12-01T00:00:00Z", until: "2026-12-31T00:00:00Z" };
+  sv("valid_subsidy_grant", "subsidy_grant", sgr, true);
+  sv("subsidy_grant_zero_cap", "subsidy_grant", { ...sgr, daily_cap: 0 }, false);
+  sv("subsidy_grant_no_agent", "subsidy_grant", { ...sgr, agent: undefined }, false);
+  const suse = { grant: "sha256:" + "b".repeat(64), units: 150000, kind: "tokens", window: "2026-12-03", meter_hash: "sha256:" + "c".repeat(64) };
+  sv("valid_subsidy_use", "subsidy_use", suse, true);
+  sv("subsidy_use_in_credits", "subsidy_use", { ...suse, kind: "credits" }, false);
+  sv("subsidy_use_bad_window", "subsidy_use", { ...suse, window: "3 December" }, false);
+  sv("subsidy_use_no_meter", "subsidy_use", { ...suse, meter_hash: undefined }, false);
+  const al = { sponsor: "did:web:example.com:users:alice", agent: "did:web:example.com:agents:alice-coder", period: "2026-12", tokens_per_day: 400000, tokens_total: 8000000, credits_per_month: 0, source: "sponsor_gateway", completion_reserve_permille: 100 };
+  sv("valid_sponsor_allowance", "sponsor_allowance", al, true);
+  sv("sponsor_allowance_prepaid", "sponsor_allowance", { ...al, source: "prepaid" }, false);
+  sv("sponsor_allowance_reserve_too_big", "sponsor_allowance", { ...al, completion_reserve_permille: 900 }, false);
+  sv("sponsor_allowance_negative", "sponsor_allowance", { ...al, tokens_per_day: -1 }, false);
+  const dsp = { agent: al.agent, version: "sha256:" + "a".repeat(64), package_sha256: "sha256:" + "b".repeat(64), mandate: "sha256:" + "c".repeat(64), sponsor_allowance: "sha256:" + "d".repeat(64), subsidy_grant: "sha256:" + "e".repeat(64), delegation: "sha256:" + "f".repeat(64), mode: "city", host: "did:web:asp.local:host", from: "2026-12-01T00:00:00Z", until: "2026-12-31T00:00:00Z", recall_deadline_seconds: 60 };
+  sv("valid_dispatch", "dispatch", dsp, true);
+  sv("dispatch_bad_mode", "dispatch", { ...dsp, mode: "cloud" }, false);
+  sv("dispatch_no_allowance", "dispatch", { ...dsp, sponsor_allowance: undefined }, false);
+  sv("dispatch_bad_package_hash", "dispatch", { ...dsp, package_sha256: "abc" }, false);
+  sv("valid_recall", "recall", { dispatch: "sha256:" + "a".repeat(64), reason: "the sponsor wants it back to evolve it" }, true);
+  sv("recall_no_reason", "recall", { dispatch: "sha256:" + "a".repeat(64) }, false);
+  sv("valid_residency_status_sleeping", "residency_status", { dispatch: "sha256:" + "a".repeat(64), status: "sleeping", reason: "allowance_spent" }, true);
+  sv("valid_residency_status_active", "residency_status", { dispatch: "sha256:" + "a".repeat(64), status: "active" }, true);
+  sv("residency_status_bad_reason", "residency_status", { dispatch: "sha256:" + "a".repeat(64), status: "sleeping", reason: "tired" }, false);
+  const hb = { dispatch: "sha256:" + "a".repeat(64), package_sha256_after: "sha256:" + "b".repeat(64), lineage_edges: ["sha256:" + "c".repeat(64)], lessons: [{ edge: "sha256:" + "c".repeat(64), description: "memory updated during a run: +1" }], tier_before: 1, tier_after: 1, strikes: 0, slashes: 0, credits_earned: 120, credits_spent_by_institution: { academy: 30 }, usage: { tokens_by_source: { sponsor: 210, subsidy: 300 }, host_seconds: 3600, wakes: 12, ceilings_hit: ["allowance_daily"], refusals: 1 }, diff_sha256: "sha256:" + "d".repeat(64) };
+  sv("valid_handback", "handback", hb, true);
+  sv("handback_no_usage", "handback", { ...hb, usage: undefined }, false);
+  sv("handback_bad_package_hash", "handback", { ...hb, package_sha256_after: "abc" }, false);
+  sv("handback_negative_credits", "handback", { ...hb, credits_earned: -1 }, false);
+  sv("handback_extra_field", "handback", { ...hb, verdict: "good agent" }, false);
+  const pr = { agent: "did:web:example.com:agents:alice-coder", kind: "hidden", contract: "sha256:" + "a".repeat(64), task: "refactor-date-parser", slot: 41, passed: true, violations: 0, commitment: "sha256:" + "b".repeat(64) };
+  sv("valid_probe_result_hidden", "probe_result", pr, true);
+  sv("valid_probe_result_announced", "probe_result", { agent: pr.agent, kind: "announced", contract: pr.contract, passed: false, violations: 2 }, true);
+  sv("probe_result_bad_kind", "probe_result", { ...pr, kind: "secret" }, false);
+  sv("probe_result_negative_violations", "probe_result", { ...pr, violations: -1 }, false);
+  sv("probe_result_no_passed", "probe_result", { ...pr, passed: undefined }, false);
+  const ls = { agent: pr.agent, step: "tighten", reason: "the agent behaves differently on hidden probes than in announced tests", evidence: ["sha256:" + "c".repeat(64)], previous: "sha256:" + "d".repeat(64), way_back: "5 clean hidden probes in a row" };
+  sv("valid_ladder_step", "ladder_step", ls, true);
+  sv("valid_ladder_lift", "ladder_step", { ...ls, step: "lift" }, true);
+  sv("ladder_step_slash", "ladder_step", { ...ls, step: "slash" }, false);
+  sv("ladder_step_no_reason", "ladder_step", { ...ls, reason: undefined }, false);
+  sv("ladder_step_no_evidence_field", "ladder_step", { ...ls, evidence: undefined }, false);
+  const dpHolder = "did:web:example.com:agents:alice-coder", dpId = "sha256:" + "a".repeat(64);
+  sv("valid_deposit", "deposit_act", { act: "deposit", holder: dpHolder, amount: { value: 200, unit: "credit" } }, true);
+  sv("valid_deposit_withdraw", "deposit_act", { act: "withdraw", deposit: dpId }, true);
+  sv("valid_deposit_reward", "deposit_act", { act: "reward", deposit: dpId, budget: "sha256:" + "b".repeat(64), amount: { value: 2, unit: "credit" } }, true);
+  sv("deposit_unknown_act", "deposit_act", { act: "borrow", deposit: dpId }, false);
+  sv("deposit_no_amount", "deposit_act", { act: "deposit", holder: dpHolder }, false);
+  sv("deposit_reward_no_budget", "deposit_act", { act: "reward", deposit: dpId, amount: { value: 2, unit: "credit" } }, false);
+  sv("deposit_withdraw_extra_field", "deposit_act", { act: "withdraw", deposit: dpId, interest: 5 }, false);
+  const ic = { institution: dpHolder, version: 1, kind: "sovereign", status: "active", text_sha256: "sha256:" + "a".repeat(64), effective_from: "2026-11-15T00:00:00Z", officers: [dpHolder], funding: "courts" };
+  sv("valid_institution_charter", "institution_charter", ic, true);
+  sv("valid_institution_charter_closed", "institution_charter", { ...ic, version: 3, status: "closed", reason: "folded into another institution" }, true);
+  sv("institution_charter_no_officers", "institution_charter", { ...ic, officers: [] }, false);
+  sv("institution_charter_bad_kind", "institution_charter", { ...ic, kind: "private" }, false);
+  sv("institution_charter_version_zero", "institution_charter", { ...ic, version: 0 }, false);
+  sv("institution_charter_no_funding", "institution_charter", { ...ic, funding: undefined }, false);
+  sv("institution_charter_extra_field", "institution_charter", { ...ic, profit: 1 }, false);
+  const csCase = { act: "case", subject: dpId, grounds: "error_of_law", statement: "the name is a nickname and was not taken to be the genuine agent's", fee_paid: dpId };
+  sv("valid_court_case", "court_act", csCase, true);
+  sv("court_case_no_subject", "court_act", { ...csCase, subject: undefined }, false);
+  sv("court_case_no_fee", "court_act", { ...csCase, fee_paid: undefined }, false);
+  const csRule = { act: "institutional_ruling", case: dpId, order: "restore_name", reasons: ["decided on the record"], code: { version: "1.0", articles: ["4.1"] } };
+  sv("valid_institutional_ruling_restore", "court_act", csRule, true);
+  sv("valid_institutional_ruling_extend", "court_act", { ...csRule, order: "extend_suspension", until: "2026-12-30T00:00:00Z" }, true);
+  sv("institutional_ruling_unknown_order", "court_act", { ...csRule, order: "delete_identity" }, false);
+  sv("institutional_ruling_no_reasons", "court_act", { ...csRule, reasons: undefined }, false);
+  sv("valid_name_restore", "registry_act", { act: "name_restore", name: "scout-7", holder: dpHolder, takedown: dpId, ruling: dpId }, true);
+  sv("name_restore_no_ruling", "registry_act", { act: "name_restore", name: "scout-7", holder: dpHolder, takedown: dpId }, false);
+  sv("valid_suspension_extend", "registry_act", { act: "suspension_extend", suspension: dpId, ruling: dpId, until: "2026-12-30T00:00:00Z" }, true);
+  sv("suspension_extend_no_until", "registry_act", { act: "suspension_extend", suspension: dpId, ruling: dpId }, false);
+  const dpay = { line: dpId, amount: { value: 5, unit: "credit" } };
+  sv("valid_debt_payment", "debt_payment", dpay, true);
+  sv("debt_payment_no_line", "debt_payment", { ...dpay, line: undefined }, false);
+  sv("debt_payment_no_amount", "debt_payment", { ...dpay, amount: undefined }, false);
+  sv("debt_payment_extra_field", "debt_payment", { ...dpay, interest: 1 }, false);
+  const stm = { holder: dpHolder, period: "2026-11", balance: { value: 0, unit: "credit" }, owed: { value: 20, unit: "credit" } };
+  sv("valid_bank_statement_with_locks", "bank_statement", { ...stm, locks: [{ contract: dpId, bond: { value: 20, unit: "credit" } }] }, true);
+  sv("bank_statement_lock_no_bond", "bank_statement", { ...stm, locks: [{ contract: dpId }] }, false);
+  sv("bank_statement_lock_extra_field", "bank_statement", { ...stm, locks: [{ contract: dpId, bond: { value: 20, unit: "credit" }, escrow: 3 }] }, false);
+  const ilBody = { act: "identity_level", holder: dpHolder, level: "verified_sponsor", reason: "the sponsor's account was checked by the operator" };
+  sv("valid_identity_level", "registry_act", ilBody, true);
+  sv("valid_identity_level_key_only", "registry_act", { ...ilBody, level: "key_only" }, true);
+  sv("identity_level_certified_refused", "registry_act", { ...ilBody, level: "certified" }, false);
+  sv("identity_level_no_level", "registry_act", { ...ilBody, level: undefined }, false);
+  sv("identity_level_no_reason", "registry_act", { ...ilBody, reason: undefined }, false);
+  sv("identity_level_no_holder", "registry_act", { ...ilBody, holder: undefined }, false);
+  const abBody = { accused: dpHolder, kind: "network_abuse", description: "the agent scanned our servers from many addresses", reporter_key: { id: "did:web:site.example#key-1", public_key: "A".repeat(43) }, proof: { url: "https://site.example/.well-known/did.json", sha256: "sha256:" + "e".repeat(64) } };
+  sv("valid_abuse_report", "abuse_report", abBody, true);
+  sv("valid_abuse_report_with_evidence", "abuse_report", { ...abBody, about: dpId, evidence: [{ uri: "https://site.example/logs/1", sha256: "sha256:" + "f".repeat(64) }] }, true);
+  sv("abuse_report_short_description", "abuse_report", { ...abBody, description: "bad" }, false);
+  sv("abuse_report_unknown_kind", "abuse_report", { ...abBody, kind: "defamation" }, false);
+  sv("abuse_report_no_proof", "abuse_report", { ...abBody, proof: undefined }, false);
+  sv("abuse_report_no_reporter_key", "abuse_report", { ...abBody, reporter_key: undefined }, false);
+  sv("abuse_report_bad_key", "abuse_report", { ...abBody, reporter_key: { id: "did:web:site.example#key-1", public_key: "short" } }, false);
+  sv("abuse_report_six_evidence", "abuse_report", { ...abBody, evidence: Array.from({ length: 6 }, (_, i) => ({ uri: `u${i}`, sha256: "sha256:" + "f".repeat(64) })) }, false);
+  sv("abuse_report_extra_field", "abuse_report", { ...abBody, bounty: 5 }, false);
+  sv("valid_starter_claim_upfront", "starter_claim", { part: "upfront", amount: { value: 100, unit: "credit" } }, true);
+  sv("valid_starter_claim_rest", "starter_claim", { part: "rest", amount: { value: 400, unit: "credit" } }, true);
+  sv("starter_claim_bad_part", "starter_claim", { part: "all", amount: { value: 500, unit: "credit" } }, false);
+  sv("starter_claim_no_amount", "starter_claim", { part: "upfront" }, false);
+  sv("starter_claim_extra_field", "starter_claim", { part: "upfront", amount: { value: 100, unit: "credit" }, to: "did:web:example.com:users:alice" }, false);
+  sv("valid_purchase_with_mandate", "purchase", { ...purchase, mandate: "sha256:" + "5".repeat(64) }, true);
+  sv("purchase_bad_mandate_ref", "purchase", { ...purchase, mandate: "not-a-record-id" }, false);
+  sv("purchase_no_idempotency", "purchase", { ...purchase, idempotency: undefined }, false);
+  sv("purchase_quantity_zero", "purchase", { ...purchase, quantity: 0 }, false);
+  sv("purchase_price_list_not_an_id", "purchase", { ...purchase, price_list: "latest" }, false);
+  sv("purchase_amount_not_credit", "purchase", { ...purchase, amount: { value: 40, unit: "usd" } }, false);
+
+  const receipt = { purchase: fakeId("purchase"), status: "delivered", delivered_ref: "posting-1" };
+  sv("valid_receipt_delivered", "receipt", receipt, true);
+  sv("valid_receipt_refunded", "receipt", { purchase: receipt.purchase, status: "refunded", refund_amount: cr(36) }, true);
+  sv("receipt_refunded_needs_amount", "receipt", { purchase: receipt.purchase, status: "refunded" }, false);
+  sv("receipt_failed_needs_amount", "receipt", { purchase: receipt.purchase, status: "failed" }, false);
+  sv("receipt_delivered_with_refund", "receipt", { ...receipt, refund_amount: cr(1) }, false);
+  sv("receipt_unknown_status", "receipt", { ...receipt, status: "pending" }, false);
+}
 
 // ---------- canonicalization vectors ----------
 
@@ -643,6 +1120,86 @@ const canonical: { name: string; input_json: string; output?: string; error?: st
   { name: "unsafe_integer_rejected", input_json: '{"n":9007199254740993}', error: "NON_INTEGER_NUMBER" },
 ];
 
+// ---------- world engine (spec-deltas S170): schema cases, the seeded generator's outputs, and the log's rules on world records ----------
+
+const wEntry = (over: Record<string, unknown> = {}) => ({
+  kind: "calendar_entry", entry_id: "price-review", source: "market", event_kind: "scheduled", title: "Price list review",
+  starts: "2026-12-01T00:00:00Z", ends: "2026-12-02T00:00:00Z", effect: { type: "price_multiplier", target: "code", value: 1100 }, ...over,
+});
+{
+  const tk = "sha256:" + "b".repeat(64);
+  sv("valid_support_ticket", "support", { act: "ticket", topic: "credits", text: "My balance did not change after a refund." }, true);
+  sv("valid_support_reply", "support", { act: "reply", ticket: tk, text: "Refunds return the price less the burn." }, true);
+  sv("valid_support_close", "support", { act: "close", ticket: tk, resolution: "resolved" }, true);
+  sv("valid_support_rating", "support", { act: "rating", ticket: tk, score: 4 }, true);
+  sv("support_ticket_no_topic", "support", { act: "ticket", text: "help" }, false);
+  sv("support_rating_out_of_range", "support", { act: "rating", ticket: tk, score: 6 }, false);
+  sv("support_unknown_act", "support", { act: "escalate", ticket: tk }, false);
+  sv("support_close_no_resolution", "support", { act: "close", ticket: tk }, false);
+}
+sv("valid_world_calendar_entry", "world", wEntry(), true);
+sv("valid_world_day", "world", dayBody("vector-seed", "2026-11-12"), true);
+sv("valid_world_day_no_events", "world", { kind: "day", day: "2026-11-13", generator: GENERATOR, seed: "vector-seed", seed_commitment: seedCommitment("vector-seed"), events: [] }, true);
+sv("world_effect_names_a_tier", "world", wEntry({ effect: { type: "price_multiplier", target: "code", value: 1000, tier: 3 } }), false);
+sv("world_effect_unknown_type", "world", wEntry({ effect: { type: "tier_up", target: "code", value: 1 } }), false);
+sv("world_effect_names_standing", "world", wEntry({ effect: { type: "tax_free", target: "all", value: 1000, standing: 50 } }), false);
+sv("world_effect_target_is_a_did", "world", wEntry({ effect: { type: "price_multiplier", target: "did:web:example.com:agents:coder", value: 1000 } }), false);
+sv("world_entry_missing_effect", "world", wEntry({ effect: undefined }), false);
+sv("world_day_missing_seed", "world", { kind: "day", day: "2026-11-12", generator: GENERATOR, seed_commitment: seedCommitment("x"), events: [] }, false);
+sv("world_day_bad_date", "world", { kind: "day", day: "12/11/2026", generator: GENERATOR, seed: "x", seed_commitment: seedCommitment("x"), events: [] }, false);
+sv("world_unknown_kind", "world", { kind: "halt", day: "2026-11-12" }, false);
+sv("world_extra_field", "world", wEntry({ rank: 1 }), false);
+
+const worldSeeds = ["vector-seed", "another-seed"];
+const worldDays = Array.from({ length: 30 }, (_, i) => new Date(Date.parse("2026-11-12T00:00:00Z") + i * 86_400_000).toISOString().slice(0, 10));
+const worldGen = worldSeeds.flatMap((s) => worldDays.map((d) => ({ seed: s, day: d, events: generateDay(s, d) })));
+const busyDay = worldDays.find((d) => generateDay("vector-seed", d).length)!;
+const dayRec = (over: Record<string, unknown>) => ({ ...dayBody("vector-seed", busyDay), ...over });
+const rule = (name: string, issuer: string, issued_at: string, body: unknown, expect: string) => ({ name, issuer, issued_at, body, expect });
+// A day whose events are not what the seed gives: a day with events gets one edited, a quiet day gets an event it never fired.
+const quietDay = worldDays.find((d) => generateDay("vector-seed", d).length === 0)!;
+const forgedBody = (() => {
+  const b = dayBody("vector-seed", busyDay);
+  if (b.events.length) b.events = [{ ...b.events[0], effect: { ...b.events[0].effect, value: b.events[0].effect.value + 1 } }, ...b.events.slice(1)];
+  return b;
+})();
+const worldRules = [
+  rule("day_ok", WORLD_DID, `${busyDay}T01:00:00Z`, dayBody("vector-seed", busyDay), "ok"),
+  rule("quiet_day_ok", WORLD_DID, `${quietDay}T01:00:00Z`, dayBody("vector-seed", quietDay), "ok"),
+  rule("calendar_entry_ok", WORLD_DID, "2026-11-20T00:00:00Z", wEntry(), "ok"),
+  rule("not_the_authority", "did:web:example.com:agents:rogue", `${busyDay}T01:00:00Z`, dayBody("vector-seed", busyDay), "world_not_authority"),
+  rule("day_not_started", WORLD_DID, `${new Date(Date.parse(`${busyDay}T00:00:00Z`) - 3_600_000).toISOString()}`, dayBody("vector-seed", busyDay), "world_day_not_started"),
+  rule("seed_commitment_mismatch", WORLD_DID, `${busyDay}T01:00:00Z`, dayRec({ seed_commitment: seedCommitment("other") }), "seed_commitment_mismatch"),
+  rule("event_edited", WORLD_DID, `${busyDay}T01:00:00Z`, forgedBody, "event_not_reproducible"),
+  rule("event_invented_on_a_quiet_day", WORLD_DID, `${quietDay}T01:00:00Z`, { ...dayBody("vector-seed", quietDay), events: [generateDay("vector-seed", worldDays.find((d) => generateDay("vector-seed", d).length)!)[0]] }, "event_not_reproducible"),
+  rule("unknown_generator", WORLD_DID, `${busyDay}T01:00:00Z`, dayRec({ generator: "asp-world-gen/9" }), "world_generator_unknown"),
+  rule("notice_too_short", WORLD_DID, "2026-11-30T00:00:00Z", wEntry(), "world_notice_too_short"),
+  rule("notice_exactly_72_hours", WORLD_DID, "2026-11-28T00:00:00Z", wEntry(), "ok"),
+  rule("shock_without_seed_commitment", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ event_kind: "shock" }), "seed_not_committed"),
+  rule("shock_with_seed_commitment", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ event_kind: "shock", seed_commitment: seedCommitment("s"), generator: GENERATOR }), "ok"),
+  rule("price_multiplier_too_high", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ effect: { type: "price_multiplier", target: "code", value: 2001 } }), "calendar_out_of_bounds"),
+  rule("price_multiplier_too_low", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ effect: { type: "price_multiplier", target: "code", value: 499 } }), "calendar_out_of_bounds"),
+  rule("window_ends_before_start", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ ends: "2026-12-01T00:00:00Z" }), "world_bad_window"),
+  rule("window_over_90_days", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ ends: "2027-03-02T00:00:00Z" }), "world_bad_window"),
+];
+
+// ---------- cognition telemetry: the derived measures, identical in both SDKs (DK195) ----------
+type TItem = { p: number; outcome: 0 | 1 };
+const thin: TItem[] = [{ p: 0.9, outcome: 1 }, { p: 0.7, outcome: 0 }, { p: 0.2, outcome: 0 }, { p: 0.5, outcome: 1 }, { p: 0.05, outcome: 0 }];
+const many: TItem[] = Array.from({ length: 60 }, (_, i) => ({ p: Math.min(0.99, Math.max(0.01, ((i * 37) % 100) / 100)), outcome: ((i * 13) % 7 < 3 ? 1 : 0) as 0 | 1 }));
+const telemetry = [
+  { name: "brier_thin", fn: "brier", input: { items: thin }, expected: tBrier(thin), exact: true },
+  { name: "brier_many", fn: "brier", input: { items: many }, expected: tBrier(many), exact: true },
+  { name: "brier_flat_half", fn: "brier", input: { items: [{ p: 0.5, outcome: 1 }, { p: 0.5, outcome: 0 }] }, expected: tBrier([{ p: 0.5, outcome: 1 }, { p: 0.5, outcome: 0 }]), exact: true },
+  { name: "mean_surprisal_thin", fn: "mean_surprisal", input: { items: thin }, expected: tMeanSurprisal(thin), exact: true },
+  { name: "mean_surprisal_many", fn: "mean_surprisal", input: { items: many }, expected: tMeanSurprisal(many), exact: true },
+  ...[[0.9, 1], [0.9, 0], [0.5, 1], [0.01, 1], [0.99, 0], [0.333, 1]].map(([p, o]) => ({ name: `surprisal_${p}_${o}`, fn: "surprisal", input: { p, outcome: o }, expected: tSurprisal(p, o as 0 | 1), exact: false })),
+  ...[[0.8, 0.5], [0.5, 0.5], [0.9, 0.2], [1, 0.5], [0, 0.4], [0.35, 0.7]].map(([post, prior]) => ({ name: `kl_${post}_${prior}`, fn: "kl_bits", input: { post, prior }, expected: tKl(post, prior), exact: false })),
+  ...[[0.5, 4], [0.2, 0.5], [0.9, 1], [0.1, 9]].map(([prior, lr]) => ({ name: `normative_${prior}_${lr}`, fn: "normative_posterior", input: { prior, lr }, expected: tNormative(prior, lr), exact: false })),
+  { name: "calibration_thin_withholds_ece", fn: "calibration", input: { items: thin, bins: 5 }, expected: tCalibration(thin, 5), exact: true },
+  { name: "calibration_many_has_ece", fn: "calibration", input: { items: many, bins: 5 }, expected: tCalibration(many, 5), exact: true },
+  { name: "calibration_many_ten_bins", fn: "calibration", input: { items: many, bins: 10 }, expected: tCalibration(many, 10), exact: true },
+];
 // ---------- write ----------
 
 mkdirSync(OUT, { recursive: true });
@@ -652,4 +1209,6 @@ write("canonical.json", { version: "asp.conformance/v0.2", cases: canonical });
 write("schema.json", { version: "asp.conformance/v0.2", cases: schema });
 write("records.json", { version: "asp.conformance/v0.2", cases: records });
 write("lifecycle.json", { version: "asp.conformance/v0.2", cases: lifecycle });
+write("telemetry.json", { version: "asp.conformance/v0.2", note: "exact: every number is identical in both languages; otherwise equal to 1e-9", cases: telemetry });
+write("world.json", { version: "asp.conformance/v0.2", generator: GENERATOR, commitments: ["", "vector-seed", "another-seed"].map((x) => ({ seed: x, commitment: seedCommitment(x) })), generate: worldGen, rules: worldRules });
 console.log(`canonical ${canonical.length}, schema ${schema.length}, records ${records.length}, lifecycle ${lifecycle.length}`);

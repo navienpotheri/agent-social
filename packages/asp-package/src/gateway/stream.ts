@@ -9,7 +9,7 @@ import type { ToolCall } from "./judge.ts";
 /** Returns a refusal reason, or undefined to allow. May take a long time (an approval hold). */
 export type Decide = (call: ToolCall) => Promise<string | undefined>;
 /** Token counts, and (for the run log) the reply text collected from a stream. */
-export interface Counters { input: number; output: number; text?: string }
+export interface Counters { input: number; output: number; text?: string; /** What the provider says ran: the resolved model and its backend fingerprint, read from the reply (D4). */ model?: string; fingerprint?: string }
 
 export interface SseEvent { event?: string; data: string }
 
@@ -105,6 +105,8 @@ export async function relayOpenaiStream(body: ReadableStream<Uint8Array>, res: S
     let chunk: any;
     try { chunk = JSON.parse(ev.data); } catch { write(res, `data: ${ev.data}\n\n`); continue; }
     base = { id: chunk.id, object: chunk.object, created: chunk.created, model: chunk.model };
+    if (typeof chunk.model === "string" && chunk.model) count.model = chunk.model;
+    if (typeof chunk.system_fingerprint === "string" && chunk.system_fingerprint) count.fingerprint = chunk.system_fingerprint;
     if (chunk.usage) { count.input += chunk.usage.prompt_tokens ?? 0; count.output += chunk.usage.completion_tokens ?? 0; }
     const choice = chunk.choices?.[0];
     if (typeof choice?.delta?.content === "string" && count.text !== undefined) count.text += choice.delta.content;
@@ -155,6 +157,7 @@ export async function relayAnthropicStream(body: ReadableStream<Uint8Array>, res
     switch (d.type) {
       case "message_start":
         count.input += d.message?.usage?.input_tokens ?? 0;
+        if (typeof d.message?.model === "string" && d.message.model) count.model = d.message.model;
         write(res, ev("message_start", d));
         break;
       case "content_block_start":

@@ -15,7 +15,7 @@ SPEC_DIR = Path(__file__).resolve().parents[3] / "spec"
 
 RECORD_TYPES = (
     "intent", "call", "proposal", "offer", "contract", "mandate", "bond",
-    "checkpoint", "delivery", "attestation", "settlement", "passport", "lineage", "package", "fleet", "node", "juror", "action",
+    "checkpoint", "delivery", "attestation", "settlement", "passport", "lineage", "package", "fleet", "node", "juror", "action", "mint", "mint_adoption", "price_list", "purchase", "receipt", "starter_claim", "internal_transfer", "support", "budget", "treasury_payment", "allowance", "prize", "certificate", "tier_promotion", "revouch", "retraining_release", "exam", "exam_result", "certificate_revocation", "arena", "arena_entry", "arena_result", "arena_void", "course", "enrolment", "completion", "quarantine", "quarantine_release", "world", "market_act", "registry_act", "court_act", "shops_act", "housing_act", "events_act", "research_act", "telemetry_act", "clinic_diagnosis", "clinic_order", "credit_line", "credit_default", "debt_payment", "bank_statement", "policy", "claim", "claim_decision", "subsidy_budget", "subsidy_grant", "subsidy_use", "sponsor_allowance", "dispatch", "recall", "residency_status", "handback", "abuse_report", "probe_result", "ladder_step", "deposit_act", "institution_charter",
 )
 TYPE_VERSION = "v0.2"
 _TYPE_RE = re.compile(r"^asp\.([a-z_]+)/v0\.2$")

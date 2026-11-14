@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:handback",
+  "title": "Handback body",
+  "description": "What an agent became while it lived in the city, handed back to its sponsor (residency.md 5 and 9, register row DK84; spec-delta S303). Issued by the host (city and split) or the sponsor (home) and countersigned by the agent's own key. Lists the lineage edges added in order, the lessons (what asp learned shows), certificates gained and lost, tier before and after, strikes, slashes, credits earned and spent by institution (informational: credits are accounting entries, not money), usage by source in real units, and the hash of the package after and of its diff. The log checks that the delegation is no longer live, that the edges are the agent's own in order from the version dispatched, that the tier is the log's and that the subsidy equals the host's signed use. Review (keep, edit, undo) is the sponsor's own and not a record: the undo or edit that results is a signed update edge. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "dispatch",
+    "package_sha256_after",
+    "lineage_edges",
+    "lessons",
+    "tier_before",
+    "tier_after",
+    "strikes",
+    "slashes",
+    "credits_earned",
+    "usage",
+    "diff_sha256"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "dispatch": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "package_sha256_after": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "lineage_edges": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+      }
+    },
+    "lessons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "edge",
+          "description"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "edge": {
+            "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+          },
+          "description": {
+            "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+          }
+        }
+      }
+    },
+    "certificates_gained": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+      }
+    },
+    "certificates_lost": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+      }
+    },
+    "tier_before": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tier_after": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "strikes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "slashes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "credits_earned": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "credits_spent_by_institution": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "usage": {
+      "type": "object",
+      "required": [
+        "tokens_by_source",
+        "host_seconds",
+        "wakes",
+        "ceilings_hit",
+        "refusals"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tokens_by_source": {
+          "type": "object",
+          "required": [
+            "sponsor",
+            "subsidy"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "sponsor": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "subsidy": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "host_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "wakes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ceilings_hit": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+          }
+        },
+        "refusals": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "calibration_ref": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "diff_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

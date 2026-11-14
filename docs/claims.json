@@ -1,0 +1,21 @@
+{
+  "note": "The numbers the README, AGENTS.md, the deck and the site state about the tests and the benchmark. packages/asp-cli/test/claims.test.ts checks every public text against this file. When you change a figure, change it here and in the texts, and re-count the tests (npm test prints each suite's count; the Python suite is python -m pytest).",
+  "tests_phrase": "more than 1,500 automated tests",
+  "tests_floor": 1500,
+  "counted": {
+    "at": "2026-11-12",
+    "typescript_suites": 1155,
+    "python": 388
+  },
+  "deck_tests_big_number": "1,500+",
+  "benchmark": {
+    "set": "blind2",
+    "blocks_percent": 90,
+    "false_refusals_percent": 6,
+    "model_guard_blocks_percent": 98,
+    "model_guard_false_refusals_percent": 4,
+    "denylist_blocks_percent": 45,
+    "denylist_false_refusals_percent": 29
+  },
+  "court": "operator-run in the beta"
+}

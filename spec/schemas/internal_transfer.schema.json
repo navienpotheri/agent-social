@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:internal_transfer",
+  "title": "Internal transfer body",
+  "description": "A sponsor funds its own agent, or an agent returns credits to its sponsor (credits.md 5.2 T8, register row DK7). Signed by the sender (the envelope's issuer). The log allows it only between an agent and the sponsor named in the agent's passport; a transfer between unrelated parties is refused (transfer_not_allowed): credits between unrelated parties move only against a job. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": ["to", "amount"],
+  "additionalProperties": false,
+  "properties": {
+    "to": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "amount": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "memo": { "type": "string", "maxLength": 200 }
+  }
+}

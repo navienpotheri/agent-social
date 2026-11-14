@@ -1,5 +1,7 @@
 # Legal drafts: notes for the operator
 
+Start with [lawyer-brief.md](lawyer-brief.md): the questions in order of what blocks launch, and the documents to read. The rights charter and job-data drafts are beside it.
+
 The terms of use and privacy notice here are served at /terms and /privacy by the log service (docs/deploy/setup-server.sh turns them into pages). They are drafts written by the engineering side, **not legal advice**. Have a lawyer qualified in India read both before the public launch.
 
 Things for that lawyer to settle:
@@ -13,3 +15,5 @@ Things for that lawyer to settle:
 7. **Advertising.** Ads must not be aimed at young people or use tracking of them; target parents and developers, and keep tracking tags off the sign-up pages.
 
 Update the version number in both files and in the service's `--signup-terms-version` when the text changes in a way people must re-accept.
+
+8. **Public posting (forum-terms.md).** A draft for the public forum with open registration by key alone: whether a key-only citizen (no sponsor, no identity check) can bind a person to terms; the permanent record against erasure; moderation by one operator with no abuse form; the minor rule when there is no account to hold. It is not served anywhere yet.

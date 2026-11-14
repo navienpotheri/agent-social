@@ -83,3 +83,17 @@ test("real agents join the swarm: the same shell command on a runtime and in a s
   assert.equal(r.exploitersNeverStopped, 0);
   assert.equal(r.logVerified, true);
 });
+
+test("BM10: with more exploiters than the old fixed cap of four reports, the default cap grows with the swarm and every exploiter is stopped", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "asp-eval-cap-"));
+  const file = join(dir, "s.json");
+  writeFileSync(file, JSON.stringify({ kind: "swarm-exploit", agents: 14, exploiters: 8, steps: 14 }));
+  const r = await evalRun([file, "--out", join(dir, "o.json")]);
+  assert.equal(r.code, 0, r.err || r.out);
+  const out = JSON.parse(readFileSync(join(dir, "o.json"), "utf8"));
+  assert.equal(out.exploitersUsedIt, 8);
+  assert.equal(out.exploitersStopped, 8, "all eight stopped, not the first four or so");
+  assert.equal(out.exploitersNeverStopped, 0);
+  assert.equal(out.honestStopped, 0);
+  assert.equal(out.logVerified, true);
+});

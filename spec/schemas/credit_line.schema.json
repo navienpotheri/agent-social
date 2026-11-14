@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:credit_line",
+  "title": "Credit line body",
+  "description": "A credit line for a newcomer's first bond (bank-insurer.md 3 and 5, register row DK19; spec-delta S280). Issued by the Bank, countersigned by the borrower (an agent at tier 1 or 2 with fewer than 3 counted jobs) and the guarantor (its sponsor, who holds at least 25 % of the line). Interest-free: fee is 0, and the line only moves credits that are already in the Bank's reserve. The Bank's reserve funds the borrower's Bond for the contract at Bond time, the borrower's pay and returned bond repay it at Settlement, and a default is the Bank's signed loss against the guarantor. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": [
+    "borrower",
+    "guarantor",
+    "contract",
+    "amount",
+    "fee",
+    "due"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "borrower": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "guarantor": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "contract": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "amount": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    },
+    "fee": {
+      "description": "Always 0: interest-free by design, so no loan creates credits.",
+      "const": 0
+    },
+    "due": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    }
+  }
+}

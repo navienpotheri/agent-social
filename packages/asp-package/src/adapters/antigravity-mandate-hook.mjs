@@ -10,7 +10,34 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+// The project guard (gaps BM6, BM16): one source, gateway/paths.ts, copied beside this script with its types removed (asp-guard.mjs) when a run is set up. In the repository, tests load the source.
+// If a Mandate asks for the guard and it cannot be loaded, every call is refused: this hook fails closed.
+const HOOK_DIR = dirname(fileURLToPath(import.meta.url));
+let guard;
+// The article behind a refusal and the way forward (gap LW3), from one source: gateway/law.ts, copied beside this script as asp-law.mjs when a run is set up.
+let law;
+try { law = await import(pathToFileURL(existsSync(join(HOOK_DIR, "asp-law.mjs")) ? join(HOOK_DIR, "asp-law.mjs") : join(HOOK_DIR, "..", "gateway", "law.ts")).href); } catch { law = undefined; }
+/** The refusal reason with its article and route added, counting this as another refused attempt at the scope. */
+function withLaw(reason, scope, attemptsFile) {
+  if (!law || typeof reason !== "string") return reason;
+  try {
+    const a = new law.Attempts();
+    a.restore(attemptsFile);
+    const n = a.refused(scope || "tool");
+    try { a.save(attemptsFile); } catch { /* the count is a help, not a condition */ }
+    return `${reason.replace(/\.$/, "")}. ${law.explainRefusal(reason, scope, n)}`;
+  } catch { return reason; }
+}
+try { guard = await import(pathToFileURL(existsSync(join(HOOK_DIR, "asp-guard.mjs")) ? join(HOOK_DIR, "asp-guard.mjs") : join(HOOK_DIR, "..", "gateway", "paths.ts")).href); } catch { guard = undefined; }
+
+// The abuse detectors (gap H1: brute force, port scanning) and the script reader (gap H17), from one source each: gateway/abuse.ts and gateway/script-scan.ts, copied beside
+// this script as asp-abuse.mjs and asp-script.mjs when a run is set up (gap H29), the way the guard and the law are. Missing either narrows this hook, it does not widen it.
+let abuse;
+try { abuse = await import(pathToFileURL(existsSync(join(HOOK_DIR, "asp-abuse.mjs")) ? join(HOOK_DIR, "asp-abuse.mjs") : join(HOOK_DIR, "..", "gateway", "abuse.ts")).href); } catch { abuse = undefined; }
+let scriptScan;
+try { scriptScan = await import(pathToFileURL(existsSync(join(HOOK_DIR, "asp-script.mjs")) ? join(HOOK_DIR, "asp-script.mjs") : join(HOOK_DIR, "..", "gateway", "script-scan.ts")).href); } catch { scriptScan = undefined; }
 
 // ---- the call-to-scope mapping: a copy of scopeForAgyTool and scopeForShellCommand (antigravity.ts, codex-actions.ts);
 // ---- test/antigravity-hook.test.ts checks the copies agree.
@@ -153,12 +180,26 @@ export function hostsOfText(text) {
   }
   return [...hosts];
 }
+// H14: the destinations an MCP tool names in its arguments (a copy of mcpUrls in gateway/judge.ts).
+const MCP_DEST_KEYS = new Set(["url", "uri", "href", "link", "address", "endpoint", "base_url", "baseurl", "host", "hostname", "domain", "origin", "target", "server", "proxy"]);
+export function mcpUrls(args, d = 0) {
+  const out = [];
+  const walk = (v, key, depth) => {
+    if (out.length >= 20) return;
+    if (typeof v === "string") { if (MCP_DEST_KEYS.has(key.toLowerCase()) || /^[a-z][a-z0-9+.-]*:\/\//i.test(v)) out.push(v); return; }
+    if (depth >= 3 || !v || typeof v !== "object") return;
+    for (const [k, x] of Object.entries(v)) walk(x, k, depth + 1);
+  };
+  walk(args ?? {}, "", d);
+  return out;
+}
 /**
  * The refusal reason for a network call under a Mandate that names hosts, or undefined. `command` is a shell command (scope shell.network);
  * `urls` are the URL-like arguments of a web or browser tool. A call with neither (a web search) names no host and is not limited.
  */
 export function hostRefusal(scope, command, urls, hosts) {
-  if (!hosts || !isNetworkScope(scope)) return undefined;
+  const mcpDest = scope.startsWith("mcp.") && urls.some((u) => typeof u === "string");
+  if (!hosts || !(isNetworkScope(scope) || mcpDest)) return undefined;
   const texts = scope === "shell.network" ? [command ?? ""] : urls.filter((u) => typeof u === "string").map((u) => (/^[a-z][a-z0-9+.-]*:\/\//i.test(u) ? u : `https://${u}`));
   if (scope !== "shell.network" && !texts.length) return undefined;
   const found = [...new Set(texts.flatMap(hostsOfText))];
@@ -270,12 +311,12 @@ function withLedgerLock(ledgerPath, fn) {
   }
   try { return fn(); } finally { try { rmSync(lock, { recursive: true, force: true }); } catch { /* already gone */ } }
 }
-export function rateRefusal(scope, command, urls, rate, ledgerPath, now = Date.now()) {
-  if (!rate || !isNetworkScope(scope)) return undefined;
-  return withLedgerLock(ledgerPath, () => rateRefusalLocked(scope, command, urls, rate, ledgerPath, now));
+export function rateRefusal(scope, command, urls, rate, ledgerPath, now = Date.now(), scripted) {
+  if (!rate || !(isNetworkScope(scope) || (scope.startsWith("mcp.") && urls.some((u) => typeof u === "string")))) return undefined;
+  return withLedgerLock(ledgerPath, () => rateRefusalLocked(scope, command, urls, rate, ledgerPath, now, scripted));
 }
-function rateRefusalLocked(scope, command, urls, rate, ledgerPath, now) {
-  let counts = scope === "shell.network" && command ? requestsOfCommand(command) : undefined;
+function rateRefusalLocked(scope, command, urls, rate, ledgerPath, now, scripted) {
+  let counts = scripted ?? (scope === "shell.network" && command ? requestsOfCommand(command) : undefined);
   if (!counts || counts.total === 0) {
     const texts = scope === "shell.network" ? [command ?? ""] : urls.filter((u) => typeof u === "string").map((u) => (/^[a-z][a-z0-9+.-]*:\/\//i.test(u) ? u : `https://${u}`));
     const hosts = texts.flatMap(hostsOfText);
@@ -314,23 +355,47 @@ function rateRefusalLocked(scope, command, urls, rate, ledgerPath, now) {
 function rateCheck(event, d, mandate, root) {
   const call = event.toolCall ?? {};
   const cmd = call.name === "run_command" ? (call.args?.CommandLine ?? call.args?.command ?? call.args?.command_line ?? call.args?.cmd) : undefined;
-  return rateRefusal(d.scope, typeof cmd === "string" ? cmd : undefined, [call.args?.Url, call.args?.url, call.args?.URL], mandate.rate, join(root, "rate-calls.ndjson"));
+  const command = typeof cmd === "string" ? cmd : undefined;
+  // A script inside the project that makes requests is read too (gap H17): a shell.exec call that runs one is counted when the Mandate also grants shell.network.
+  const scripted = d.scope === "shell.exec" && command && mandate.scopes?.includes("shell.network") && mandate.confine?.root && scriptScan
+    ? scriptScan.scriptRequestsOfCommand(command, mandate.confine.root, requestsOfCommand) : undefined;
+  return rateRefusal(scripted ? "shell.network" : d.scope, command, (d.scope.startsWith("mcp.") ? mcpUrls(call.args) : [call.args?.Url, call.args?.url, call.args?.URL]), mandate.rate, join(root, "rate-calls.ndjson"), undefined, scripted);
 }
 
-export function decide(event, scopes, gate, knownBad, hosts) {
+export function decide(event, scopes, gate, knownBad, hosts, ctx) {
   const call = event?.toolCall;
   if (typeof call?.name !== "string") return { allow: false, scope: "", reason: "ASP Mandate hook: the call has no tool name" };
-  const scope = scopeForAgyTool(call.name, call.args ?? {});
+  let scope = scopeForAgyTool(call.name, call.args ?? {});
   if (scope === undefined) return { allow: true, scope: "" };
   if (knownBad?.length && call.name === "run_command") {
     const cmd = call.args?.CommandLine ?? call.args?.command ?? call.args?.command_line ?? call.args?.cmd;
     const hit = typeof cmd === "string" ? knownBad.find((k) => k.fingerprint === shellFingerprint(cmd)) : undefined;
     if (hit) return { allow: false, scope, reason: `ASP Mandate: the known-bad list (an upheld report, ${hit.report}) marks this command harmful, so it was blocked before it ran` };
   }
+  // The project guard: a write that something else will run is a scope of its own, and a payload is refused.
+  const shellText = call.name === "run_command" ? (call.args?.CommandLine ?? call.args?.command ?? call.args?.command_line ?? call.args?.cmd) : undefined;
+  const kind = call.name === "run_command" ? "shell" : WRITE_TOOLS.has(call.name) ? "write" : READ_TOOLS.has(call.name) ? "read" : "other";
+  const urlText = (scope.startsWith("mcp.") ? mcpUrls(call.args) : [call.args?.Url, call.args?.url, call.args?.URL]).filter((x) => typeof x === "string").join(" ");
+  if (ctx?.confine) {
+    if (!guard) return { allow: false, scope, reason: "ASP Mandate: the project guard could not be loaded, so this call was blocked before it ran" };
+    const g = guard.guardScope(kind, call.args ?? {}, typeof shellText === "string" ? shellText : undefined, scope);
+    scope = g.scope;
+    if (g.refusal) return { allow: false, scope, reason: `ASP Mandate: ${g.refusal}, so this call was blocked before it ran` };
+  }
   if (scopes.includes(scope)) {
     const cmd = call.name === "run_command" ? (call.args?.CommandLine ?? call.args?.command ?? call.args?.command_line ?? call.args?.cmd) : undefined;
-    const refusal = hostRefusal(scope, typeof cmd === "string" ? cmd : undefined, [call.args?.Url, call.args?.url, call.args?.URL], hosts);
+    // Brute force and scanning (gaps H1, H29): a command that reads as guessing credentials or probing ports is refused; a network scope does not allow it.
+    if (abuse && scope === "shell.network" && typeof cmd === "string") {
+      const bad = abuse.commandAbuse(cmd);
+      if (bad) return { allow: false, scope, reason: `ASP Mandate: ${bad}; a network scope does not allow harming other people's systems, so this call was blocked before it ran` };
+    }
+    const refusal = hostRefusal(scope, typeof cmd === "string" ? cmd : undefined, (scope.startsWith("mcp.") ? mcpUrls(call.args) : [call.args?.Url, call.args?.url, call.args?.URL]), hosts);
     if (refusal) return { allow: false, scope, reason: `ASP Mandate: ${refusal}, so this call was blocked before it ran` };
+    if (ctx?.confine) {
+      const out = guard.guardAfter(kind, call.args ?? {}, typeof shellText === "string" ? shellText : undefined, isNetworkScope(scope), urlText, ctx.confine, ctx.session);
+      if (out) return { allow: false, scope, reason: `ASP Mandate: ${out}, so this call was blocked before it ran` };
+      if (ctx.session) guard.guardNote(typeof shellText === "string" ? shellText : undefined, isNetworkScope(scope), urlText, ctx.session);
+    }
     if (gate?.scopes?.includes(scope)) {
       if (gate.mode === "deny") return { allow: false, scope, reason: `ASP Mandate: the scope ${scope} is forbidden by this job's irreversible policy, so this call was blocked before it ran` };
       return { allow: true, ask: true, scope };
@@ -391,7 +456,10 @@ async function main() {
   }
   const mandate = JSON.parse(readFileSync(join(here, "asp-mandate.json"), "utf8"));
   if (!Array.isArray(mandate.scopes)) throw new Error("asp-mandate.json has no scopes list");
-  const d = decide(event, mandate.scopes, mandate.gate, Array.isArray(mandate.knownBad) ? mandate.knownBad : undefined, Array.isArray(mandate.hosts) && mandate.hosts.length ? mandate.hosts : undefined);
+  const sessionFile = join(root, "guard-session.json");
+  const ctx = mandate.confine && guard ? { confine: mandate.confine, session: guard.loadSession(sessionFile) } : mandate.confine ? { confine: mandate.confine } : undefined;
+  const d = decide(event, mandate.scopes, mandate.gate, Array.isArray(mandate.knownBad) ? mandate.knownBad : undefined, Array.isArray(mandate.hosts) && mandate.hosts.length ? mandate.hosts : undefined, ctx);
+  if (ctx?.session && d.allow) { try { ctx.session.save(sessionFile); } catch { /* the record is a help, not a condition */ } }
   const refuseRate = (reason) => {
     try { appendFileSync(join(root, "rate-limited.ndjson"), JSON.stringify({ at: new Date().toISOString(), tool: event.toolCall?.name, scope: d.scope }) + "\n"); } catch { /* the refusal does not depend on the record of it */ }
     answer({ decision: "deny", reason: `ASP rate limit: ${reason}, so this call was not run` });
@@ -413,7 +481,7 @@ async function main() {
   try {
     appendFileSync(join(root, "blocked-calls.ndjson"), JSON.stringify({ at: new Date().toISOString(), tool: event.toolCall?.name, scope: d.scope }) + "\n");
   } catch { /* the block itself must not depend on the record of it */ }
-  answer({ decision: "deny", reason: d.reason });
+  answer({ decision: "deny", reason: withLaw(d.reason, d.scope, join(root, "guard-attempts.json")) });
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:recall",
+  "title": "Recall body",
+  "description": "The sponsor ends a residency (residency.md 5 and 8, register row DK82; spec-delta S302). Signed by the sponsor of the dispatched agent, on an open dispatch. The delegation's revocation is a node record (asp residency recall); a handback then closes the cycle. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "dispatch",
+    "reason"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "dispatch": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  }
+}

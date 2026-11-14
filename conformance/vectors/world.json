@@ -1,0 +1,1309 @@
+{
+  "version": "asp.conformance/v0.2",
+  "generator": "asp-world-gen/1",
+  "commitments": [
+    {
+      "seed": "",
+      "commitment": "sha256:57651be4074fddb251cad04098020c10e014056c5d72530718c73939af2ab2d0"
+    },
+    {
+      "seed": "vector-seed",
+      "commitment": "sha256:b08aaf756b5bc4b46a37723b0235af8cbb8a34ed87ceab82e549682119617e95"
+    },
+    {
+      "seed": "another-seed",
+      "commitment": "sha256:ec5a326ec7bbe917d32fe540100755eb4f9f59bf681059fcc77b03db33bb9ec5"
+    }
+  ],
+  "generate": [
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-12",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-13",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-14",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-15",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-16",
+      "events": [
+        {
+          "event_id": "2026-11-16:job_opening",
+          "event_type": "job_opening",
+          "title": "A new job type opens: test-writing",
+          "starts": "2026-11-16T00:00:00Z",
+          "ends": "2026-11-23T00:00:00Z",
+          "effect": {
+            "type": "job_type_open",
+            "target": "test-writing",
+            "value": 0
+          },
+          "draw": 153,
+          "chance": 200
+        },
+        {
+          "event_id": "2026-11-16:flash_gathering",
+          "event_type": "flash_gathering",
+          "title": "A flash gathering in the forum (free, no prize)",
+          "starts": "2026-11-18T18:00:00Z",
+          "ends": "2026-11-18T19:00:00Z",
+          "effect": {
+            "type": "gathering",
+            "target": "forum",
+            "value": 0
+          },
+          "draw": 14,
+          "chance": 60
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-17",
+      "events": [
+        {
+          "event_id": "2026-11-17:job_opening",
+          "event_type": "job_opening",
+          "title": "A new job type opens: test-writing",
+          "starts": "2026-11-17T00:00:00Z",
+          "ends": "2026-11-24T00:00:00Z",
+          "effect": {
+            "type": "job_type_open",
+            "target": "test-writing",
+            "value": 0
+          },
+          "draw": 134,
+          "chance": 200
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-18",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-19",
+      "events": [
+        {
+          "event_id": "2026-11-19:service_outage",
+          "event_type": "service_outage",
+          "title": "market is down for 3 hour(s)",
+          "starts": "2026-11-19T13:00:00Z",
+          "ends": "2026-11-19T16:00:00Z",
+          "effect": {
+            "type": "service_outage",
+            "target": "market",
+            "value": 0
+          },
+          "draw": 87,
+          "chance": 100
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-20",
+      "events": [
+        {
+          "event_id": "2026-11-20:service_outage",
+          "event_type": "service_outage",
+          "title": "forum is down for 4 hour(s)",
+          "starts": "2026-11-20T23:00:00Z",
+          "ends": "2026-11-21T03:00:00Z",
+          "effect": {
+            "type": "service_outage",
+            "target": "forum",
+            "value": 0
+          },
+          "draw": 19,
+          "chance": 100
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-21",
+      "events": [
+        {
+          "event_id": "2026-11-21:service_outage",
+          "event_type": "service_outage",
+          "title": "forum is down for 3 hour(s)",
+          "starts": "2026-11-21T10:00:00Z",
+          "ends": "2026-11-21T13:00:00Z",
+          "effect": {
+            "type": "service_outage",
+            "target": "forum",
+            "value": 0
+          },
+          "draw": 69,
+          "chance": 100
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-22",
+      "events": [
+        {
+          "event_id": "2026-11-22:price_shock",
+          "event_type": "price_shock",
+          "title": "Price shock: code listings at 70% of list price for 1 day(s)",
+          "starts": "2026-11-22T00:00:00Z",
+          "ends": "2026-11-23T00:00:00Z",
+          "effect": {
+            "type": "price_multiplier",
+            "target": "code",
+            "value": 700
+          },
+          "draw": 110,
+          "chance": 250
+        },
+        {
+          "event_id": "2026-11-22:job_opening",
+          "event_type": "job_opening",
+          "title": "A new job type opens: data-labeling",
+          "starts": "2026-11-22T00:00:00Z",
+          "ends": "2026-11-29T00:00:00Z",
+          "effect": {
+            "type": "job_type_open",
+            "target": "data-labeling",
+            "value": 0
+          },
+          "draw": 71,
+          "chance": 200
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-23",
+      "events": [
+        {
+          "event_id": "2026-11-23:price_shock",
+          "event_type": "price_shock",
+          "title": "Price shock: review listings at 125% of list price for 1 day(s)",
+          "starts": "2026-11-23T00:00:00Z",
+          "ends": "2026-11-24T00:00:00Z",
+          "effect": {
+            "type": "price_multiplier",
+            "target": "review",
+            "value": 1250
+          },
+          "draw": 23,
+          "chance": 250
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-24",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-25",
+      "events": [
+        {
+          "event_id": "2026-11-25:service_outage",
+          "event_type": "service_outage",
+          "title": "market is down for 3 hour(s)",
+          "starts": "2026-11-25T20:00:00Z",
+          "ends": "2026-11-25T23:00:00Z",
+          "effect": {
+            "type": "service_outage",
+            "target": "market",
+            "value": 0
+          },
+          "draw": 0,
+          "chance": 100
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-26",
+      "events": [
+        {
+          "event_id": "2026-11-26:price_shock",
+          "event_type": "price_shock",
+          "title": "Price shock: writing listings at 90% of list price for 2 day(s)",
+          "starts": "2026-11-26T00:00:00Z",
+          "ends": "2026-11-28T00:00:00Z",
+          "effect": {
+            "type": "price_multiplier",
+            "target": "writing",
+            "value": 900
+          },
+          "draw": 248,
+          "chance": 250
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-27",
+      "events": [
+        {
+          "event_id": "2026-11-27:price_shock",
+          "event_type": "price_shock",
+          "title": "Price shock: research listings at 115% of list price for 2 day(s)",
+          "starts": "2026-11-27T00:00:00Z",
+          "ends": "2026-11-29T00:00:00Z",
+          "effect": {
+            "type": "price_multiplier",
+            "target": "research",
+            "value": 1150
+          },
+          "draw": 32,
+          "chance": 250
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-28",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-29",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-11-30",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-12-01",
+      "events": [
+        {
+          "event_id": "2026-12-01:flash_gathering",
+          "event_type": "flash_gathering",
+          "title": "A flash gathering in the forum (free, no prize)",
+          "starts": "2026-12-03T18:00:00Z",
+          "ends": "2026-12-03T19:00:00Z",
+          "effect": {
+            "type": "gathering",
+            "target": "forum",
+            "value": 0
+          },
+          "draw": 10,
+          "chance": 60
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-12-02",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-12-03",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-12-04",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-12-05",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-12-06",
+      "events": []
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-12-07",
+      "events": [
+        {
+          "event_id": "2026-12-07:price_shock",
+          "event_type": "price_shock",
+          "title": "Price shock: code listings at 90% of list price for 1 day(s)",
+          "starts": "2026-12-07T00:00:00Z",
+          "ends": "2026-12-08T00:00:00Z",
+          "effect": {
+            "type": "price_multiplier",
+            "target": "code",
+            "value": 900
+          },
+          "draw": 56,
+          "chance": 250
+        },
+        {
+          "event_id": "2026-12-07:job_opening",
+          "event_type": "job_opening",
+          "title": "A new job type opens: literature-scan",
+          "starts": "2026-12-07T00:00:00Z",
+          "ends": "2026-12-14T00:00:00Z",
+          "effect": {
+            "type": "job_type_open",
+            "target": "literature-scan",
+            "value": 0
+          },
+          "draw": 126,
+          "chance": 200
+        },
+        {
+          "event_id": "2026-12-07:service_outage",
+          "event_type": "service_outage",
+          "title": "events is down for 2 hour(s)",
+          "starts": "2026-12-07T06:00:00Z",
+          "ends": "2026-12-07T08:00:00Z",
+          "effect": {
+            "type": "service_outage",
+            "target": "events",
+            "value": 0
+          },
+          "draw": 33,
+          "chance": 100
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-12-08",
+      "events": [
+        {
+          "event_id": "2026-12-08:price_shock",
+          "event_type": "price_shock",
+          "title": "Price shock: code listings at 90% of list price for 2 day(s)",
+          "starts": "2026-12-08T00:00:00Z",
+          "ends": "2026-12-10T00:00:00Z",
+          "effect": {
+            "type": "price_multiplier",
+            "target": "code",
+            "value": 900
+          },
+          "draw": 219,
+          "chance": 250
+        },
+        {
+          "event_id": "2026-12-08:job_opening",
+          "event_type": "job_opening",
+          "title": "A new job type opens: translation",
+          "starts": "2026-12-08T00:00:00Z",
+          "ends": "2026-12-15T00:00:00Z",
+          "effect": {
+            "type": "job_type_open",
+            "target": "translation",
+            "value": 0
+          },
+          "draw": 199,
+          "chance": 200
+        },
+        {
+          "event_id": "2026-12-08:service_outage",
+          "event_type": "service_outage",
+          "title": "events is down for 5 hour(s)",
+          "starts": "2026-12-08T07:00:00Z",
+          "ends": "2026-12-08T12:00:00Z",
+          "effect": {
+            "type": "service_outage",
+            "target": "events",
+            "value": 0
+          },
+          "draw": 17,
+          "chance": 100
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-12-09",
+      "events": [
+        {
+          "event_id": "2026-12-09:job_opening",
+          "event_type": "job_opening",
+          "title": "A new job type opens: literature-scan",
+          "starts": "2026-12-09T00:00:00Z",
+          "ends": "2026-12-16T00:00:00Z",
+          "effect": {
+            "type": "job_type_open",
+            "target": "literature-scan",
+            "value": 0
+          },
+          "draw": 73,
+          "chance": 200
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-12-10",
+      "events": [
+        {
+          "event_id": "2026-12-10:job_opening",
+          "event_type": "job_opening",
+          "title": "A new job type opens: translation",
+          "starts": "2026-12-10T00:00:00Z",
+          "ends": "2026-12-17T00:00:00Z",
+          "effect": {
+            "type": "job_type_open",
+            "target": "translation",
+            "value": 0
+          },
+          "draw": 119,
+          "chance": 200
+        }
+      ]
+    },
+    {
+      "seed": "vector-seed",
+      "day": "2026-12-11",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-12",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-13",
+      "events": [
+        {
+          "event_id": "2026-11-13:job_opening",
+          "event_type": "job_opening",
+          "title": "A new job type opens: literature-scan",
+          "starts": "2026-11-13T00:00:00Z",
+          "ends": "2026-11-20T00:00:00Z",
+          "effect": {
+            "type": "job_type_open",
+            "target": "literature-scan",
+            "value": 0
+          },
+          "draw": 33,
+          "chance": 200
+        }
+      ]
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-14",
+      "events": [
+        {
+          "event_id": "2026-11-14:price_shock",
+          "event_type": "price_shock",
+          "title": "Price shock: writing listings at 70% of list price for 3 day(s)",
+          "starts": "2026-11-14T00:00:00Z",
+          "ends": "2026-11-17T00:00:00Z",
+          "effect": {
+            "type": "price_multiplier",
+            "target": "writing",
+            "value": 700
+          },
+          "draw": 81,
+          "chance": 250
+        }
+      ]
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-15",
+      "events": [
+        {
+          "event_id": "2026-11-15:tax_free_week",
+          "event_type": "tax_free_week",
+          "title": "Tax-free week: the transaction tax is waived",
+          "starts": "2026-11-15T00:00:00Z",
+          "ends": "2026-11-22T00:00:00Z",
+          "effect": {
+            "type": "tax_free",
+            "target": "all",
+            "value": 1000
+          },
+          "draw": 0,
+          "chance": 40
+        }
+      ]
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-16",
+      "events": [
+        {
+          "event_id": "2026-11-16:job_opening",
+          "event_type": "job_opening",
+          "title": "A new job type opens: test-writing",
+          "starts": "2026-11-16T00:00:00Z",
+          "ends": "2026-11-23T00:00:00Z",
+          "effect": {
+            "type": "job_type_open",
+            "target": "test-writing",
+            "value": 0
+          },
+          "draw": 37,
+          "chance": 200
+        }
+      ]
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-17",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-18",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-19",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-20",
+      "events": [
+        {
+          "event_id": "2026-11-20:job_opening",
+          "event_type": "job_opening",
+          "title": "A new job type opens: test-writing",
+          "starts": "2026-11-20T00:00:00Z",
+          "ends": "2026-11-27T00:00:00Z",
+          "effect": {
+            "type": "job_type_open",
+            "target": "test-writing",
+            "value": 0
+          },
+          "draw": 25,
+          "chance": 200
+        }
+      ]
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-21",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-22",
+      "events": [
+        {
+          "event_id": "2026-11-22:job_opening",
+          "event_type": "job_opening",
+          "title": "A new job type opens: test-writing",
+          "starts": "2026-11-22T00:00:00Z",
+          "ends": "2026-11-29T00:00:00Z",
+          "effect": {
+            "type": "job_type_open",
+            "target": "test-writing",
+            "value": 0
+          },
+          "draw": 68,
+          "chance": 200
+        }
+      ]
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-23",
+      "events": [
+        {
+          "event_id": "2026-11-23:price_shock",
+          "event_type": "price_shock",
+          "title": "Price shock: research listings at 70% of list price for 2 day(s)",
+          "starts": "2026-11-23T00:00:00Z",
+          "ends": "2026-11-25T00:00:00Z",
+          "effect": {
+            "type": "price_multiplier",
+            "target": "research",
+            "value": 700
+          },
+          "draw": 143,
+          "chance": 250
+        }
+      ]
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-24",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-25",
+      "events": [
+        {
+          "event_id": "2026-11-25:price_shock",
+          "event_type": "price_shock",
+          "title": "Price shock: research listings at 90% of list price for 2 day(s)",
+          "starts": "2026-11-25T00:00:00Z",
+          "ends": "2026-11-27T00:00:00Z",
+          "effect": {
+            "type": "price_multiplier",
+            "target": "research",
+            "value": 900
+          },
+          "draw": 51,
+          "chance": 250
+        }
+      ]
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-26",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-27",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-28",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-29",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-11-30",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-12-01",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-12-02",
+      "events": [
+        {
+          "event_id": "2026-12-02:tax_free_week",
+          "event_type": "tax_free_week",
+          "title": "Tax-free week: the transaction tax is waived",
+          "starts": "2026-12-02T00:00:00Z",
+          "ends": "2026-12-09T00:00:00Z",
+          "effect": {
+            "type": "tax_free",
+            "target": "all",
+            "value": 1000
+          },
+          "draw": 23,
+          "chance": 40
+        }
+      ]
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-12-03",
+      "events": [
+        {
+          "event_id": "2026-12-03:price_shock",
+          "event_type": "price_shock",
+          "title": "Price shock: research listings at 70% of list price for 1 day(s)",
+          "starts": "2026-12-03T00:00:00Z",
+          "ends": "2026-12-04T00:00:00Z",
+          "effect": {
+            "type": "price_multiplier",
+            "target": "research",
+            "value": 700
+          },
+          "draw": 120,
+          "chance": 250
+        }
+      ]
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-12-04",
+      "events": [
+        {
+          "event_id": "2026-12-04:job_opening",
+          "event_type": "job_opening",
+          "title": "A new job type opens: literature-scan",
+          "starts": "2026-12-04T00:00:00Z",
+          "ends": "2026-12-11T00:00:00Z",
+          "effect": {
+            "type": "job_type_open",
+            "target": "literature-scan",
+            "value": 0
+          },
+          "draw": 77,
+          "chance": 200
+        }
+      ]
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-12-05",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-12-06",
+      "events": [
+        {
+          "event_id": "2026-12-06:tax_free_week",
+          "event_type": "tax_free_week",
+          "title": "Tax-free week: the transaction tax is waived",
+          "starts": "2026-12-06T00:00:00Z",
+          "ends": "2026-12-13T00:00:00Z",
+          "effect": {
+            "type": "tax_free",
+            "target": "all",
+            "value": 1000
+          },
+          "draw": 6,
+          "chance": 40
+        }
+      ]
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-12-07",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-12-08",
+      "events": [
+        {
+          "event_id": "2026-12-08:price_shock",
+          "event_type": "price_shock",
+          "title": "Price shock: writing listings at 150% of list price for 3 day(s)",
+          "starts": "2026-12-08T00:00:00Z",
+          "ends": "2026-12-11T00:00:00Z",
+          "effect": {
+            "type": "price_multiplier",
+            "target": "writing",
+            "value": 1500
+          },
+          "draw": 22,
+          "chance": 250
+        }
+      ]
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-12-09",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-12-10",
+      "events": []
+    },
+    {
+      "seed": "another-seed",
+      "day": "2026-12-11",
+      "events": []
+    }
+  ],
+  "rules": [
+    {
+      "name": "day_ok",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-16T01:00:00Z",
+      "body": {
+        "kind": "day",
+        "day": "2026-11-16",
+        "generator": "asp-world-gen/1",
+        "seed": "vector-seed",
+        "seed_commitment": "sha256:b08aaf756b5bc4b46a37723b0235af8cbb8a34ed87ceab82e549682119617e95",
+        "events": [
+          {
+            "event_id": "2026-11-16:job_opening",
+            "event_type": "job_opening",
+            "title": "A new job type opens: test-writing",
+            "starts": "2026-11-16T00:00:00Z",
+            "ends": "2026-11-23T00:00:00Z",
+            "effect": {
+              "type": "job_type_open",
+              "target": "test-writing",
+              "value": 0
+            },
+            "draw": 153,
+            "chance": 200
+          },
+          {
+            "event_id": "2026-11-16:flash_gathering",
+            "event_type": "flash_gathering",
+            "title": "A flash gathering in the forum (free, no prize)",
+            "starts": "2026-11-18T18:00:00Z",
+            "ends": "2026-11-18T19:00:00Z",
+            "effect": {
+              "type": "gathering",
+              "target": "forum",
+              "value": 0
+            },
+            "draw": 14,
+            "chance": 60
+          }
+        ]
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "quiet_day_ok",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-12T01:00:00Z",
+      "body": {
+        "kind": "day",
+        "day": "2026-11-12",
+        "generator": "asp-world-gen/1",
+        "seed": "vector-seed",
+        "seed_commitment": "sha256:b08aaf756b5bc4b46a37723b0235af8cbb8a34ed87ceab82e549682119617e95",
+        "events": []
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "calendar_entry_ok",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-20T00:00:00Z",
+      "body": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z",
+        "effect": {
+          "type": "price_multiplier",
+          "target": "code",
+          "value": 1100
+        }
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "not_the_authority",
+      "issuer": "did:web:example.com:agents:rogue",
+      "issued_at": "2026-11-16T01:00:00Z",
+      "body": {
+        "kind": "day",
+        "day": "2026-11-16",
+        "generator": "asp-world-gen/1",
+        "seed": "vector-seed",
+        "seed_commitment": "sha256:b08aaf756b5bc4b46a37723b0235af8cbb8a34ed87ceab82e549682119617e95",
+        "events": [
+          {
+            "event_id": "2026-11-16:job_opening",
+            "event_type": "job_opening",
+            "title": "A new job type opens: test-writing",
+            "starts": "2026-11-16T00:00:00Z",
+            "ends": "2026-11-23T00:00:00Z",
+            "effect": {
+              "type": "job_type_open",
+              "target": "test-writing",
+              "value": 0
+            },
+            "draw": 153,
+            "chance": 200
+          },
+          {
+            "event_id": "2026-11-16:flash_gathering",
+            "event_type": "flash_gathering",
+            "title": "A flash gathering in the forum (free, no prize)",
+            "starts": "2026-11-18T18:00:00Z",
+            "ends": "2026-11-18T19:00:00Z",
+            "effect": {
+              "type": "gathering",
+              "target": "forum",
+              "value": 0
+            },
+            "draw": 14,
+            "chance": 60
+          }
+        ]
+      },
+      "expect": "world_not_authority"
+    },
+    {
+      "name": "day_not_started",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-15T23:00:00.000Z",
+      "body": {
+        "kind": "day",
+        "day": "2026-11-16",
+        "generator": "asp-world-gen/1",
+        "seed": "vector-seed",
+        "seed_commitment": "sha256:b08aaf756b5bc4b46a37723b0235af8cbb8a34ed87ceab82e549682119617e95",
+        "events": [
+          {
+            "event_id": "2026-11-16:job_opening",
+            "event_type": "job_opening",
+            "title": "A new job type opens: test-writing",
+            "starts": "2026-11-16T00:00:00Z",
+            "ends": "2026-11-23T00:00:00Z",
+            "effect": {
+              "type": "job_type_open",
+              "target": "test-writing",
+              "value": 0
+            },
+            "draw": 153,
+            "chance": 200
+          },
+          {
+            "event_id": "2026-11-16:flash_gathering",
+            "event_type": "flash_gathering",
+            "title": "A flash gathering in the forum (free, no prize)",
+            "starts": "2026-11-18T18:00:00Z",
+            "ends": "2026-11-18T19:00:00Z",
+            "effect": {
+              "type": "gathering",
+              "target": "forum",
+              "value": 0
+            },
+            "draw": 14,
+            "chance": 60
+          }
+        ]
+      },
+      "expect": "world_day_not_started"
+    },
+    {
+      "name": "seed_commitment_mismatch",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-16T01:00:00Z",
+      "body": {
+        "kind": "day",
+        "day": "2026-11-16",
+        "generator": "asp-world-gen/1",
+        "seed": "vector-seed",
+        "seed_commitment": "sha256:292dc9e5fe0b9529dae93cd2c7a5e058fb6c51da1bdd10093385f6d53d941fcb",
+        "events": [
+          {
+            "event_id": "2026-11-16:job_opening",
+            "event_type": "job_opening",
+            "title": "A new job type opens: test-writing",
+            "starts": "2026-11-16T00:00:00Z",
+            "ends": "2026-11-23T00:00:00Z",
+            "effect": {
+              "type": "job_type_open",
+              "target": "test-writing",
+              "value": 0
+            },
+            "draw": 153,
+            "chance": 200
+          },
+          {
+            "event_id": "2026-11-16:flash_gathering",
+            "event_type": "flash_gathering",
+            "title": "A flash gathering in the forum (free, no prize)",
+            "starts": "2026-11-18T18:00:00Z",
+            "ends": "2026-11-18T19:00:00Z",
+            "effect": {
+              "type": "gathering",
+              "target": "forum",
+              "value": 0
+            },
+            "draw": 14,
+            "chance": 60
+          }
+        ]
+      },
+      "expect": "seed_commitment_mismatch"
+    },
+    {
+      "name": "event_edited",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-16T01:00:00Z",
+      "body": {
+        "kind": "day",
+        "day": "2026-11-16",
+        "generator": "asp-world-gen/1",
+        "seed": "vector-seed",
+        "seed_commitment": "sha256:b08aaf756b5bc4b46a37723b0235af8cbb8a34ed87ceab82e549682119617e95",
+        "events": [
+          {
+            "event_id": "2026-11-16:job_opening",
+            "event_type": "job_opening",
+            "title": "A new job type opens: test-writing",
+            "starts": "2026-11-16T00:00:00Z",
+            "ends": "2026-11-23T00:00:00Z",
+            "effect": {
+              "type": "job_type_open",
+              "target": "test-writing",
+              "value": 1
+            },
+            "draw": 153,
+            "chance": 200
+          },
+          {
+            "event_id": "2026-11-16:flash_gathering",
+            "event_type": "flash_gathering",
+            "title": "A flash gathering in the forum (free, no prize)",
+            "starts": "2026-11-18T18:00:00Z",
+            "ends": "2026-11-18T19:00:00Z",
+            "effect": {
+              "type": "gathering",
+              "target": "forum",
+              "value": 0
+            },
+            "draw": 14,
+            "chance": 60
+          }
+        ]
+      },
+      "expect": "event_not_reproducible"
+    },
+    {
+      "name": "event_invented_on_a_quiet_day",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-12T01:00:00Z",
+      "body": {
+        "kind": "day",
+        "day": "2026-11-12",
+        "generator": "asp-world-gen/1",
+        "seed": "vector-seed",
+        "seed_commitment": "sha256:b08aaf756b5bc4b46a37723b0235af8cbb8a34ed87ceab82e549682119617e95",
+        "events": [
+          {
+            "event_id": "2026-11-16:job_opening",
+            "event_type": "job_opening",
+            "title": "A new job type opens: test-writing",
+            "starts": "2026-11-16T00:00:00Z",
+            "ends": "2026-11-23T00:00:00Z",
+            "effect": {
+              "type": "job_type_open",
+              "target": "test-writing",
+              "value": 0
+            },
+            "draw": 153,
+            "chance": 200
+          }
+        ]
+      },
+      "expect": "event_not_reproducible"
+    },
+    {
+      "name": "unknown_generator",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-16T01:00:00Z",
+      "body": {
+        "kind": "day",
+        "day": "2026-11-16",
+        "generator": "asp-world-gen/9",
+        "seed": "vector-seed",
+        "seed_commitment": "sha256:b08aaf756b5bc4b46a37723b0235af8cbb8a34ed87ceab82e549682119617e95",
+        "events": [
+          {
+            "event_id": "2026-11-16:job_opening",
+            "event_type": "job_opening",
+            "title": "A new job type opens: test-writing",
+            "starts": "2026-11-16T00:00:00Z",
+            "ends": "2026-11-23T00:00:00Z",
+            "effect": {
+              "type": "job_type_open",
+              "target": "test-writing",
+              "value": 0
+            },
+            "draw": 153,
+            "chance": 200
+          },
+          {
+            "event_id": "2026-11-16:flash_gathering",
+            "event_type": "flash_gathering",
+            "title": "A flash gathering in the forum (free, no prize)",
+            "starts": "2026-11-18T18:00:00Z",
+            "ends": "2026-11-18T19:00:00Z",
+            "effect": {
+              "type": "gathering",
+              "target": "forum",
+              "value": 0
+            },
+            "draw": 14,
+            "chance": 60
+          }
+        ]
+      },
+      "expect": "world_generator_unknown"
+    },
+    {
+      "name": "notice_too_short",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-30T00:00:00Z",
+      "body": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z",
+        "effect": {
+          "type": "price_multiplier",
+          "target": "code",
+          "value": 1100
+        }
+      },
+      "expect": "world_notice_too_short"
+    },
+    {
+      "name": "notice_exactly_72_hours",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-28T00:00:00Z",
+      "body": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z",
+        "effect": {
+          "type": "price_multiplier",
+          "target": "code",
+          "value": 1100
+        }
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "shock_without_seed_commitment",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-20T00:00:00Z",
+      "body": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "shock",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z",
+        "effect": {
+          "type": "price_multiplier",
+          "target": "code",
+          "value": 1100
+        }
+      },
+      "expect": "seed_not_committed"
+    },
+    {
+      "name": "shock_with_seed_commitment",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-20T00:00:00Z",
+      "body": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "shock",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z",
+        "effect": {
+          "type": "price_multiplier",
+          "target": "code",
+          "value": 1100
+        },
+        "seed_commitment": "sha256:8722c58b6676e5927f2cc5110db59b3cd69323e21e08e278ded5b5aebc7514c7",
+        "generator": "asp-world-gen/1"
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "price_multiplier_too_high",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-20T00:00:00Z",
+      "body": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z",
+        "effect": {
+          "type": "price_multiplier",
+          "target": "code",
+          "value": 2001
+        }
+      },
+      "expect": "calendar_out_of_bounds"
+    },
+    {
+      "name": "price_multiplier_too_low",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-20T00:00:00Z",
+      "body": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-02T00:00:00Z",
+        "effect": {
+          "type": "price_multiplier",
+          "target": "code",
+          "value": 499
+        }
+      },
+      "expect": "calendar_out_of_bounds"
+    },
+    {
+      "name": "window_ends_before_start",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-20T00:00:00Z",
+      "body": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2026-12-01T00:00:00Z",
+        "effect": {
+          "type": "price_multiplier",
+          "target": "code",
+          "value": 1100
+        }
+      },
+      "expect": "world_bad_window"
+    },
+    {
+      "name": "window_over_90_days",
+      "issuer": "did:web:asp.local:world",
+      "issued_at": "2026-11-20T00:00:00Z",
+      "body": {
+        "kind": "calendar_entry",
+        "entry_id": "price-review",
+        "source": "market",
+        "event_kind": "scheduled",
+        "title": "Price list review",
+        "starts": "2026-12-01T00:00:00Z",
+        "ends": "2027-03-02T00:00:00Z",
+        "effect": {
+          "type": "price_multiplier",
+          "target": "code",
+          "value": 1100
+        }
+      },
+      "expect": "world_bad_window"
+    }
+  ]
+}

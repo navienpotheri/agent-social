@@ -68,6 +68,24 @@ test("asp run keeps a run log from the runtime's output: calls, results, scope v
   assert.doesNotMatch(off.err, /run log {2}/);
 });
 
+test("two runs of one job: each Action names its own log, so a log is checked against its own Action and the other's is set aside by name (gap P27)", async () => {
+  const f = makeFixture();
+  const { contract, pkg } = await packedJob(f, ["repo.read"]);
+  const env = fakeClaude({ FAKE_CLAUDE_TOOL_USE: JSON.stringify([{ name: "Read", input: { file_path: "/work/a.txt" }, result: "ok" }]) });
+  const one = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "first", "--contract", contract], env);
+  assert.equal(one.code, 0, one.err);
+  const two = await asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "second", "--contract", contract], env);
+  assert.equal(two.code, 0, two.err);
+  const logs = [one, two].map((r) => /run log {2}(\S+run-log\.ndjson)/.exec(r.err)![1]);
+  assert.notEqual(logs[0], logs[1]);
+  for (const [i, p] of logs.entries()) {
+    const v = await asp(f, ["run-log", "verify", p, "--contract", contract]);
+    assert.equal(v.code, 0, `log ${i + 1}: ${v.out}`);
+    assert.match(v.out, /1 of 1 Action commitment\(s\) match; 1 more name other sessions' logs/, `log ${i + 1}`);
+    assert.match(v.out, /names another log \(run [0-9a-f]{12}\)/);
+  }
+});
+
 test("asp run: a kill is in the run log: the call, the verdict, the kill, how it ended", async () => {
   const f = makeFixture();
   const { contract, pkg } = await packedJob(f, ["repo.read"]);
@@ -82,4 +100,18 @@ test("asp run: a kill is in the run log: the call, the verdict, the kill, how it
   assert.deepEqual(events.find((e) => e.kind === "call_judged").data.granted, false);
   // The log refuses the killed run's Action (its scope is outside the Mandate: the paper trail); the run log is what keeps the story.
   assert.match(run.err, /COMPLIANCE VIOLATION|kill-switch settlement/);
+});
+
+test("asp run with no --prompt (no output stream to read) still keeps a run log of its start and end, and says it did not read the output (gap E5)", async () => {
+  const f = makeFixture();
+  const { contract, pkg } = await packedJob(f, ["repo.read"]);
+  const run = await asp(f, ["run", pkg, "--backend", "codex", "--project", f.project, "--contract", contract, "--no-write-back"],
+    { GITHUB_TOKEN: "t", API_BASE: "x", ASP_CODEX_BIN: process.execPath, ASP_CODEX_SCRIPT: fileURLToPath(new URL("./fake-codex.mjs", import.meta.url)), FAKE_CODEX_LEARN: "0" });
+  assert.equal(run.code, 0, run.err);
+  const logPath = /run log {2}(\S+run-log\.ndjson)/.exec(run.err)![1];
+  const shown = (await asp(f, ["run-log", "show", logPath])).out;
+  assert.match(shown, /run_start/);
+  assert.match(readFileSync(logPath, "utf8"), /"output_read":false/);
+  assert.match(shown, /run_end/);
+  assert.equal((await asp(f, ["run-log", "verify", logPath, "--contract", contract])).code, 0);
 });
