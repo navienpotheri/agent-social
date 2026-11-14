@@ -42,7 +42,7 @@ export { RUNTIMES, runtimeByName, supportMatrix, type RuntimeDescriptor, type Ru
 export { AgentReporter, MandateRefusal, type Assurance, type ReporterOptions } from "./sdk/reporter.ts";
 export { NETWORK_SCOPES, RELAY_JS, RELAY_PY, bwrapArgs, policyNeedsNetwork, sandboxAvailable, sandboxNetwork, type SandboxPolicy } from "./sandbox.ts";
 export { RELAY_TCP_PY, dockerPlan, type DockerPlan, type DockerPolicy } from "./sandbox.ts";
-export { buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type AlertKind, type BuiltMail, type MailAlert, type MailLog, type MailOptions, type MandateFacts } from "./mail.ts";
+export { alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type AlertKind, type AlertRecipient, type AlertRole, type BuiltMail, type MailAlert, type MailLog, type MailOptions, type MandateFacts } from "./mail.ts";
 export { claudeCodeRunLogEvents, codexRunLogEvents, type LineEvent } from "./adapters/run-log-lines.ts";
 export { fetchRetry } from "./http-retry.ts";
 export { dashboardAgent, type AgentView, dashboardAlerts, dashboardHome, dashboardInbox, dashboardJob, dashboardMoney, type AlertsView, type DashboardLog, type FlowEntry, type HomeView, type InboxView, type JobView, type MoneyView } from "./dashboard.ts";

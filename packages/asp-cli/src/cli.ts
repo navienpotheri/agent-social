@@ -368,7 +368,7 @@ import { allowScopes, inferScopes, isPreset, presetScopes, scopesFromSizing, siz
 import { NEEDS_PASSPHRASE, isSealed, open as openSealed, passphraseFrom, seal } from "@agent-social/asp-package";
 import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
-import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
+import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   societyMapRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
@@ -3409,7 +3409,24 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
         io.out(`queued ${done} to ${to}: ${mail.subject}`);
         queued++;
       };
-      for (const a of alerts) await send(a.key, `alert-${a.kind}`, a.contract, (f, to) => buildAlertMail(a, f, { to, ...linkBase }));
+      // Alerts go to the principal, and (E13) to the agent's sponsor for a kill or an upheld report, and to the reporter of an upheld report, each who has an address and once each.
+      for (const a of await findAlerts(local.log)) {
+        const f = await collectMandateFacts(local.log, a.contract);
+        if (!f) continue;
+        const sponsor = (await local.log.passport(f.contract.performer))?.sponsor;
+        const recips = v.to ? [{ role: "principal" as const, did: f.contract.principal, to: v.to, key: a.key }] : alertRecipients(a, f.contract.principal, sponsor, addresses);
+        if (!recips.some((r) => r.role === "principal") && !state[a.key] && sub !== "pending") io.err(`  skipped  alert-${a.kind} for ${a.contract.slice(0, 19)}: no address for ${f.contract.principal} (asp mail address set <did> <address>)`);
+        for (const r of recips) {
+          if (state[r.key]) continue;
+          const label = r.role === "principal" ? `alert-${a.kind}` : `alert-${a.kind}-${r.role}`;
+          if (sub === "pending") { io.out(`  ${label.padEnd(13)} ${f.contract.purpose}  (${a.contract.slice(0, 19)}, ${r.role} ${r.did} -> ${r.to})`); continue; }
+          const mail = buildAlertMail(a, f, { to: r.to, role: r.role, ...linkBase });
+          const done = await queueFiles(r.key, label, mail, r.to);
+          if (!done) continue;
+          io.out(`queued ${done} to ${r.to}: ${mail.subject}`);
+          queued++;
+        }
+      }
       for (const c of finals) await send(c, "end", c, (f, to) => buildMandateMail(f, { to, ...(runLogFor(c) ? { runLog: runLogFor(c)! } : {}), ...linkBase, ...learned }));
       if (sub === "pending") io.out(`${finals.length} ended Mandate(s) and ${alerts.length} alert(s) not mailed yet`);
       return queued;

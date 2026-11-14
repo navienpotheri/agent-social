@@ -248,7 +248,7 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
 // ---------- alerts: the mails that do not wait for the end of the Mandate ----------
 
 export type AlertKind = "killed" | "report_upheld" | "expired";
-export interface MailAlert { key: string; kind: AlertKind; contract: string; at: string; detail: string; record: string }
+export interface MailAlert { key: string; kind: AlertKind; contract: string; at: string; detail: string; record: string; /** report_upheld: who made the report. */ reporter?: string }
 
 /**
  * The events that get their own mail at once: a kill (the kill switch settles the job as revoked with the bond slashed), a report against the
@@ -265,7 +265,7 @@ export async function findAlerts(log: MailLog, nowMs: number = Date.now()): Prom
     }
     if (s.record.type === "asp.attestation/v0.2" && b.kind === "report_ruling" && b.verdict === "upheld") {
       const report = all.find((x) => x.id === b.about);
-      if (report) out.push({ key: `alert:report:${s.id}`, kind: "report_upheld", contract: report.record.body.about, at: s.record.issued_at, record: s.id,
+      if (report) out.push({ key: `alert:report:${s.id}`, kind: "report_upheld", contract: report.record.body.about, at: s.record.issued_at, record: s.id, reporter: report.record.issuer,
         detail: `A report against the agent was upheld by a panel: ${((report.record.body.reasons as string[] | undefined) ?? []).join("; ") || "no reasons recorded"}.` });
     }
   }
@@ -281,6 +281,28 @@ export async function findAlerts(log: MailLog, nowMs: number = Date.now()): Prom
   return out;
 }
 
+export type AlertRole = "principal" | "sponsor" | "reporter";
+export interface AlertRecipient { role: AlertRole; did: string; to: string; /** The mail key: the alert's own for the principal, one for each other role, so each copy is sent once. */ key: string }
+
+/**
+ * Who hears about an alert (gap E13): the principal always; the sponsor of the agent, who is liable for it, for a kill and an upheld report; the reporter of an upheld report. Only those with an address in
+ * `addresses` get a copy (an address is the person's own, set with `asp mail address set`); the same person in two roles gets one copy, as the principal if that is one of them.
+ */
+export function alertRecipients(a: MailAlert, principal: string, sponsor: string | null | undefined, addresses: Record<string, string>): AlertRecipient[] {
+  const out: AlertRecipient[] = [];
+  const seen = new Set<string>();
+  const add = (role: AlertRole, did: string | null | undefined) => {
+    if (!did || seen.has(did)) return;
+    seen.add(did);
+    const to = addresses[did];
+    if (to) out.push({ role, did, to, key: role === "principal" ? a.key : `${a.key}#${role}` });
+  };
+  add("principal", principal);
+  if (a.kind === "killed" || a.kind === "report_upheld") add("sponsor", sponsor);
+  if (a.kind === "report_upheld") add("reporter", a.reporter);
+  return out;
+}
+
 const ALERT_TITLE: Record<AlertKind, string> = {
   killed: "Your agent was stopped by the kill switch",
   report_upheld: "A report against your agent was upheld",
@@ -288,8 +310,9 @@ const ALERT_TITLE: Record<AlertKind, string> = {
 };
 
 /** A short mail for one alert: what happened, to which job, and what to check. Highlights only, like the end mail. */
-export function buildAlertMail(a: MailAlert, f: MandateFacts, o: Pick<MailOptions, "to" | "from" | "linkBase">): BuiltMail {
-  const subject = `${ALERT_TITLE[a.kind]}: ${f.contract.purpose}`;
+export function buildAlertMail(a: MailAlert, f: MandateFacts, o: Pick<MailOptions, "to" | "from" | "linkBase"> & { role?: AlertRole }): BuiltMail {
+  const title = o.role === "sponsor" ? ALERT_TITLE[a.kind].replace(/^Your agent/, "An agent you sponsor").replace(/against your agent/, "against an agent you sponsor") : o.role === "reporter" ? "The report you made was upheld by a panel" : ALERT_TITLE[a.kind];
+  const subject = `${title}: ${f.contract.purpose}`;
   const lines = [
     a.detail,
     `Job: ${f.contract.purpose}. Agent: ${f.contract.performer}.`,
