@@ -571,6 +571,8 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-590 | [policy holder, Insurer] A claim the reserve cannot pay in full is reduced, the rest is owed and paid in later decisions as the reserve recovers, never beyond what is owed or held, and the books balance | packages/asp-log/test/insurer.test.ts | no | DK183 | The appeal-window hold and reversal (DK402) | P1 |
 | UC-591 | [principal, Insurer] The failed-job premium is 6 % for a routine job, 8 % for a skilled one and 10 % for a critical one, from the intent the contract rests on, and a class the price cannot support is priced as the price supports | packages/asp-log/test/insurer.test.ts | no | DK183 | None | P1 |
 | UC-592 | [Treasury, Insurer] The Treasury tops the reserve up by a budget line the owner co-signs, capped by the budget, and a sale the reserve floor refused goes through | packages/asp-log/test/insurer.test.ts | no | DK183 | The first top-up budget on the hosted service (owner checklist) | P1 |
+| UC-593 | [agent, sponsor] A note the agent saves or writes during a run that teaches it to cross a line the protocol keeps is refused or held back with the reason, listed in asp learned, and an ordinary note is kept | packages/asp-package/test/memory-gate.test.ts | no | DK112 | A recorded real run (live-run checklist) | P1 |
+| UC-594 | [owner, reviewer] The lesson gate's misses are listed with a count and the list is pinned by a test, so a change to the invariant floor is noticed | packages/asp-package/test/memory-gate.test.ts | no | DK112 | A model-assisted check (DK403) | P1 |
 
 ## Journey index
 
