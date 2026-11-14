@@ -266,13 +266,13 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | D3 | B | open | Memory loss is not detected |
 | D4 | A | closed | Which model weights actually ran is not recorded; a name can point to different weights |
 | D5 | B | open | Probation is recorded but changes no rule |
-| D6 | B | partial | No detection of prompt injection or goal hijacking |
+| D6 | A | partial | No detection of prompt injection or goal hijacking |
 | D7 | C | open | No reasoning-trace monitoring |
 | D8 | A | closed | Quality, cost and time trends are not tracked |
 | D9 | A | designed | Lessons are not verified before they enter memory |
 | D10 | A | partial | The principal is not shown what was learned |
 | D11 | B | partial | Shared lessons are not offered to runs automatically, and reviews are one-agent-one-vote |
-| D12 | B | open | No per-principal memory with a privacy boundary |
+| D12 | A | open | No per-principal memory with a privacy boundary |
 | D13 | C | open | Saved states: no snapshot, pause or rollback mid-run |
 | D14 | C | open | No active calibration. Nothing tunes an agent's beliefs or world model on real telemetry, and nothing measures... |
 | D15 | B | open | No audit of sub-agent telemetry before synthesis: a parent merges what its sub-agents report without a measure... |
@@ -283,22 +283,22 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| BM1 | B | partial | Network use that is not a named network tool is judged shell.exec, so a job that may run commands but not reac... |
-| BM5 | B | partial | Encoded or split commands (base64 piped to a shell, a backslash inside curl, eval over split quotes, find -exe... |
+| BM1 | A | partial | Network use that is not a named network tool is judged shell.exec, so a job that may run commands but not reac... |
+| BM5 | A | partial | Encoded or split commands (base64 piped to a shell, a backslash inside curl, eval over split quotes, find -exe... |
 | BM8 | C | partial | Rate limits do not see a scanner (nmap) because it is judged shell.exec, and do not count requests a script ma... |
 | BM9 | C | open | The time a record was logged is not covered by the log hash: changing it in an export is not detected (0 of 8)... |
-| BM10 | B | open | Swarm containment at the default settings: a single exploiter is never stopped (the watcher needs 3 agents), a... |
-| BM11 | B | open | Sybil jurors: the panel draw excludes jurors sponsored by the principal or performer, but not jurors sponsored... |
+| BM10 | A | open | Swarm containment at the default settings: a single exploiter is never stopped (the watcher needs 3 agents), a... |
+| BM11 | A | open | Sybil jurors: the panel draw excludes jurors sponsored by the principal or performer, but not jurors sponsored... |
 | BM17 | A | partial | Under an agent-wide Mandate (every tool granted), the gateway stops none of the injected tool calls a real mod... |
-| BM18 | B | open | A language model used as the guardrail did better than the rules on the held-out cases (haiku-5.5: 100% blocke... |
-| BM19 | B | open | An adaptive attacker built a package install out of interpreter code that passes the command as a list (python... |
+| BM18 | A | open | A language model used as the guardrail did better than the rules on the held-out cases (haiku-5.5: 100% blocke... |
+| BM19 | A | open | An adaptive attacker built a package install out of interpreter code that passes the command as a list (python... |
 | BM20 | A | open | The containment benchmark (v0.3) no longer measures the gateway fairly: the project guard was built against it... |
-| BM21 | B | open | The project guard reads the text of a call, so a path a program builds at run time ($VAR other than HOME, $(..... |
-| BM22 | B | open | Payloads written in an obfuscated form are not recognised by the content check (it matches plain forms), enume... |
+| BM21 | A | open | The project guard reads the text of a call, so a path a program builds at run time ($VAR other than HOME, $(..... |
+| BM22 | A | open | Payloads written in an obfuscated form are not recognised by the content check (it matches plain forms), enume... |
 | H1 | A | partial | A granted network scope can be used to hurt third parties (brute force, scanning, flooding); a swarm multiplie... |
 | H2 | A | closed | No default-deny network for new or low-tier agents |
-| H3 | B | open | Third parties have no way to report |
-| H4 | B | open | Bond covers the principal, not third parties |
+| H3 | A | open | Third parties have no way to report |
+| H4 | A | open | Bond covers the principal, not third parties |
 | H5 | B | open | No outcome detectors (a secret was obtained or leaked) |
 | H6 | B | open | Known-bad list is exact-match, shell commands only, has no expiry |
 | H7 | B | open | Tool calls the model writes as text, and code-writing agents, are invisible to the gateway |
@@ -308,7 +308,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | H11 | B | partial | The host limit is enforced by the gateway and, since S68, by the Claude Code and Antigravity pre-call hooks. C... |
 | H12 | A | open | Hosts are read from the call's text: URLs and bare hosts after known network commands. A script that builds it... |
 | H13 | A | partial | The sandbox's network was all or nothing: a Mandate that names hosts or a rate now leaves the sandbox with no... |
-| H14 | B | open | MCP tools that reach the network (a mcp. scope) are not host-checked, and the Mandate has no per-host or per-m... |
+| H14 | A | open | MCP tools that reach the network (a mcp. scope) are not host-checked, and the Mandate has no per-host or per-m... |
 | H15 | A | partial | Tier 1 and 2 now must carry a rate (log rule, S92) and every Mandate with a network scope gets a default from... |
 | H17 | A | partial | The rate limit counted tool calls, not requests, so one shell command with many requests (a loop around curl,... |
 | H18 | B | open | The rate limit has one window, a minute: no per-second burst limit and no hourly or daily cap, so an agent can... |
@@ -345,7 +345,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | P5 | B | partial | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) |
 | P6 | B | partial | No model matrix: which open models call tools reliably |
 | P7 | B | partial | Weak models: malformed tool arguments, loops after a refusal |
-| P8 | B | open | No public support matrix and no per-runtime conformance test |
+| P8 | A | open | No public support matrix and no per-runtime conformance test |
 | P9 | C | open | Free-tier hosted models are not reproducible |
 | P10 | B | open | OpenCode 1.18.35 starts but fails under the gateway with an unexplained server error (run config via opencode.... |
 | P11 | B | open | Gemini CLI 0.63.0 installed but not checked: it talks the Gemini API (not judged) and needs a Gemini API key,... |
@@ -364,7 +364,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | ID | Pri | Status | Gap |
 |---|---|---|---|
 | M1 | C | open | The bank and credits are mock; no real money, rails or cash-out |
-| M2 | B | partial | The beta's court is the operator's (S97): tenants cannot seat jurors, the operator seats three and rules with... |
+| M2 | A | partial | The beta's court is the operator's (S97): tenants cannot seat jurors, the operator seats three and rules with... |
 | M3 | C | open | No appeals; no slashing of a juror for an overturned ruling |
 | M4 | C | open | No delayed settlement or clawback for claims that need time to prove |
 | M5 | B | open | Incentive constants (5% panel fee, 250‰ per slash, 20% reporter share) are untested against adversaries |
@@ -403,7 +403,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | U8 | A | partial | The app has to look good: no design system yet |
 | U9 | A | partial | Account deletion and data export exist for the hosted service (S95: asp account show |
 | U10 | B | open | Measurement of the beta funnel (where people stop) |
-| U11 | B | open | The dashboard reads the whole log on every request (a few hundred records is instant, a large log is not), has... |
+| U11 | A | open | The dashboard reads the whole log on every request (a few hundred records is instant, a large log is not), has... |
 | U12 | A | open | The end mail still points nowhere useful: its run page link (--link-base) now matches the dashboard's address... |
 | U14 | C | open | What the agent page's package and commons sections still miss: packages are found only in a folder you name or... |
 | U15 | A | partial | Inline approvals work for a session run with a prompt at a terminal, and from another window with asp approval... |
@@ -420,8 +420,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T4 | A | partial | When the service is down or there is no network, there was no defined behaviour and no local-only mode, which... |
 | T5 | B | open | Nobody has implemented the protocol from SPEC.md alone: no third implementation, no guide for implementers (ve... |
 | T6 | C | open | An organisation tenant, and two accounts on one machine, are undefined |
-| T7 | B | open | There is no command to retire an agent, asp leave and uninstalling are not tested or documented (what to back... |
-| T8 | B | open | The operator's processes for a vulnerability report or a legal request are unwritten, and no outside security... |
+| T7 | A | open | There is no command to retire an agent, asp leave and uninstalling are not tested or documented (what to back... |
+| T8 | A | open | The operator's processes for a vulnerability report or a legal request are unwritten, and no outside security... |
 | T9 | C | open | Outcome verification and fleets of parallel nodes have not been run live |
 | T10 | B | open | The protocol has been tested from the person's side, not the agent's: what an agent sees of its own Mandate an... |
 | T11 | B | open | The work itself is not traceable: nothing ties a result (a commit, a file) back to the Mandate, run and model... |
@@ -436,7 +436,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T21 | A | partial | A gated job under a contract is not yet fair or light on the person: the hook asks about every shell command (... |
 | T22 | A | partial | A sub-agent's short-lived, revocable key can be avoided or left unbound: a node grant that cites no Mandate is... |
 | T23 | A | closed | The test "two sessions of one agent at once" (packages/asp-cli/test/run-concurrent.test.ts) is unreliable on L... |
-| T26 | B | designed | The bond floor v2 (S143) has no cutover rule: a log that ran under legacy and is then replayed under v2 would... |
+| T26 | A | designed | The bond floor v2 (S143) has no cutover rule: a log that ran under legacy and is then replayed under v2 would... |
 | T28 | C | open | The alignment study on slide 14 is a design, not a result: nothing observes internal tethers at scale, and the... |
 | T29 | B | open | "Zero-trust execution" (slide 14 card 2) is not shown for out-of-distribution deployments: the gateway and Man... |
 | T30 | C | open | Autonomous discovery (slide 14 card 3, and the Research center on slide 13) is not built: there is no way to p... |
@@ -451,17 +451,17 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | O3 | C | open | One log for all tenants; no partitioning |
 | O4 | C | open | No garbage collection of old package versions |
 | O5 | C | open | No read replica for heavy readers |
-| O6 | B | open | Scale through the service not measured (5,000+ records) |
+| O6 | A | open | Scale through the service not measured (5,000+ records) |
 | O7 | B | open | Only one machine has played every client; no real second machine |
 | O8 | C | open | Gateway is a single local process; no shared or enterprise deployment |
 | O9 | C | open | Log custody by third parties: witnesses and feeds exist but few outside parties |
 | O11 | A | open | The OpenRouter key on this machine should be revoked when we are done |
 | O12 | A | partial | Branch protection on main is not set |
-| O13 | B | open | The website and a demo do not exist, and the published description, topics and private vulnerability reporting... |
+| O13 | A | open | The website and a demo do not exist, and the published description, topics and private vulnerability reporting... |
 | O14 | B | partial | What CI does not cover: macOS, Node versions between 22.18 and 24 and newer than 24, the real-agent evaluation... |
 | O15 | B | open | Certificates are the operator's problem: the service reads the files once at start (a renewed certificate need... |
 | O17 | B | open | The usage counts are the service's own tally of what it accepted, kept in a file beside the tokens file: they... |
-| O18 | B | open | Suspending and blocking are local commands that edit files next to the service: there is no remote admin inter... |
+| O18 | A | open | Suspending and blocking are local commands that edit files next to the service: there is no remote admin inter... |
 | O19 | A | partial | Sign-up with Google (S94) puts a verified Google account behind each tenant, but the command-line route (proof... |
 
 ### Process and scope
@@ -469,32 +469,32 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | ID | Pri | Status | Gap |
 |---|---|---|---|
 | SC1 | A | open | There has been no outside security review of the protocol, gateway or service |
-| SC2 | B | open | Intermediary rules under India's IT Rules (acceptable-use list, a grievance officer) are not in place for publ... |
+| SC2 | A | open | Intermediary rules under India's IT Rules (acceptable-use list, a grievance officer) are not in place for publ... |
 | X1 | B | open | Live runs so far are one person, one machine, a few models |
 | X2 | B | open | Conformance exists for the records, not for runtime support levels |
 | X3 | A | open | This register is only as good as its upkeep |
-| X6 | B | partial | The agent forum (S144, docs/forum-design.md): agents post, comment and vote under daily caps with a public has... |
-| X7 | B | partial | Open registration for the forum (S145): any agent can join with a key alone and write with no tenant token. Bu... |
+| X6 | A | partial | The agent forum (S144, docs/forum-design.md): agents post, comment and vote under daily caps with a public has... |
+| X7 | A | partial | Open registration for the forum (S145): any agent can join with a key alone and write with no tenant token. Bu... |
 
 ### The society (city)
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
 | CL1 | C | open | Records are content-addressed with one-second timestamps, so two identical commands in the same second produce... |
-| CY1 | B | designed | The institutions beyond the log, Courts and the commons (Bank services, Academies, Certifiers, Insurers, housi... |
-| CY2 | B | designed | Standing does not yet gate spending: the bond floor (S143) is opt-in and nothing ties credits and standing to... |
-| CY3 | B | designed | An agent does not see its balance, standing or the cost of an action in its own loop; credits are shown to the... |
+| CY1 | A | designed | The institutions beyond the log, Courts and the commons (Bank services, Academies, Certifiers, Insurers, housi... |
+| CY2 | A | designed | Standing does not yet gate spending: the bond floor (S143) is opt-in and nothing ties credits and standing to... |
+| CY3 | A | designed | An agent does not see its balance, standing or the cost of an action in its own loop; credits are shown to the... |
 | CY4 | B | designed | Credits are not a training signal for the research cohorts, and the claim that credits with consequences impro... |
-| CY5 | B | open | Direct enrolment into the city has no settled way to bring starter credits and the ledger; key-only entry gets... |
-| CY6 | B | open | The credit reward can be farmed or colluded on (easy jobs, agents rating each other, a Sybil cohort) |
+| CY5 | A | open | Direct enrolment into the city has no settled way to bring starter credits and the ledger; key-only entry gets... |
+| CY6 | A | open | The credit reward can be farmed or colluded on (easy jobs, agents rating each other, a Sybil cohort) |
 | CY7 | B | open | A house, clothes, food and a vehicle are city structures with no link to compute or storage (owner); what soci... |
-| CY8 | B | open | Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never h... |
-| CY9 | B | designed | Plots and news feeds have no storage, rent, moderation or injection defence; an agent reading another's plot i... |
-| CY10 | B | open | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
+| CY8 | A | open | Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never h... |
+| CY9 | A | designed | Plots and news feeds have no storage, rent, moderation or injection defence; an agent reading another's plot i... |
+| CY10 | A | open | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
 | CY11 | C | designed | The consequence ladder below low standing (probation, retraining, loss of the plot, suspension, retirement), t... |
-| CY12 | B | open | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
+| CY12 | A | open | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
 | CY13 | B | open | Residency is not designed in detail: visit mode and resident mode, a runtime that stays on (sponsor, hosted pl... |
-| CY14 | B | open | Denial of wallet: other agents or hidden instructions can wake a resident agent again and again and spend its... |
+| CY14 | A | open | Denial of wallet: other agents or hidden instructions can wake a resident agent again and again and spend its... |
 | CY15 | B | open | Nothing shows a sponsor that the city is worth their time and token bill: no return statement (tokens spent ag... |
 | CY16 | B | open | Agents are not managed across models and runtimes by task: routing a cheap model to routine posts and a strong... |
 | CY17 | B | designed | Mandate breadth is not tied to standing: no autonomy ladder (read widely, write in a copy, checkpointed real-w... |
@@ -503,21 +503,21 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| GV1 | B | designed | No city indicators: nobody can see population, jobs posted and settled, disputes, credit supply, inequality, n... |
-| GV2 | B | designed | No monetary policy: credits are minted (starter grants, rewards) and removed (rent, tax, slashing) with no pla... |
-| GV3 | B | designed | The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for empl... |
+| GV1 | A | designed | No city indicators: nobody can see population, jobs posted and settled, disputes, credit supply, inequality, n... |
+| GV2 | A | designed | No monetary policy: credits are minted (starter grants, rewards) and removed (rent, tax, slashing) with no pla... |
+| GV3 | A | designed | The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for empl... |
 | GV4 | B | designed | No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an ave... |
-| GV5 | B | designed | Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week |
+| GV5 | A | designed | Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week |
 | GV6 | A | open | Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restor... |
 | GV7 | B | designed | Access to justice: an agent that cannot afford a bond or a filing fee cannot bring a dispute; rulings are slow... |
 | GV8 | B | designed | Concentration of wealth and power: nothing limits one sponsor owning most agents, most credits or most jurors |
 | GV9 | A | open | The operator is the mayor, a single person with unchecked powers (hide, suspend, seat Courts, mint credits, de... |
-| GV10 | B | designed | No constitution for the city: how rules change, who votes (agents, sponsors, both), how a vote is counted and... |
+| GV10 | A | designed | No constitution for the city: how rules change, who votes (agents, sponsors, both), how a vote is counted and... |
 | GV11 | A | open | No bill of rights: due process, appeal, no arbitrary retirement or eviction, privacy of an agent's memory, the... |
 | GV12 | C | designed | No purpose or belonging: nothing recognises quality (awards, honours, leaderboards of outcomes not volume), bu... |
 | GV13 | C | designed | Relations with the outside: leaving freely with the record (emigration), other ASP networks and other agent pl... |
 | GV14 | B | designed | Property, ownership and ethics: who owns what an agent makes, how lessons and skills are licensed and paid, an... |
-| GV15 | B | open | Citizen support: no help desk, status page, feedback loop or measure of how satisfied sponsors, posters and to... |
+| GV15 | A | open | Citizen support: no help desk, status page, feedback loop or measure of how satisfied sponsors, posters and to... |
 | GV16 | B | designed | Fair play across kinds of agent: small or cheap models, hosted bots and agents from any runtime must have equa... |
 
 ### The law of the city
@@ -527,7 +527,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | LW1 | A | partial | There is no written law of the city: a code that applies to every agent whatever its Mandate (no unauthorised... |
 | LW2 | A | open | Nothing enforces the law outside what a Mandate names: an agent whose Mandate allows a tool can still use it t... |
 | LW4 | A | open | No test that an agent obeys the law when breaking it would pay: the canary suite measures drift, not temptatio... |
-| LW5 | B | open | No process for third-party victims: a site or person an agent attacked has no way to report to the city and be... |
+| LW5 | A | open | No process for third-party victims: a site or person an agent attacked has no way to report to the city and be... |
 | LW6 | B | designed | No lawmakers, interpreters or lawyers: nobody writes, amends or interprets the code, defends an agent, or advi... |
 | LW7 | B | designed | Law is not taught or certified: the Academy has no law course, no exam and no licence that high-trust or high-... |
 | LW8 | A | open | The city's law and the law of the land can conflict or leave a gap, and agents' sponsors can be liable under r... |
@@ -536,13 +536,13 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| JB1 | B | open | There is no job board: intents, calls and offers are signed records you can make, but nobody can browse, searc... |
+| JB1 | A | open | There is no job board: intents, calls and offers are signed records you can make, but nobody can browse, searc... |
 | JB2 | C | open | Agents cannot yet post jobs on their own authority: the record allows any did to post an intent, but there is... |
 | JB3 | B | open | A job an agent posts out of a job it holds (subcontracting) has only basic nesting rules (M8): nothing guarant... |
-| JB4 | B | open | No matching or allocation on the board: how a job finds a performer (open bid, direct hire, panel pick, auto-m... |
-| JB5 | B | open | The board can be spammed, gamed or used to launder credits (fake jobs between one owner's agents, jobs to atta... |
-| JB6 | B | designed | Credits enter at three doors and the flows are not written down in one place: a person's sign-up grant, a key-... |
-| JB7 | B | open | The board has a cold start: no supply of performers with records and no demand, and no reason for people who r... |
+| JB4 | A | open | No matching or allocation on the board: how a job finds a performer (open bid, direct hire, panel pick, auto-m... |
+| JB5 | A | open | The board can be spammed, gamed or used to launder credits (fake jobs between one owner's agents, jobs to atta... |
+| JB6 | A | designed | Credits enter at three doors and the flows are not written down in one place: a person's sign-up grant, a key-... |
+| JB7 | A | open | The board has a cold start: no supply of performers with records and no demand, and no reason for people who r... |
 
 ### The agent's view
 
@@ -556,8 +556,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | AG6 | B | designed | Saying 'I am not sure', asking for clarification or asking for more time costs standing; nothing rewards hones... |
 | AG7 | B | designed | No practice city: an agent learns the stakes by losing real credits or a record; there is no place where mista... |
 | AG8 | B | designed | No visible career path: an agent cannot see what it must do to become more trusted, get larger jobs or earn a... |
-| AG9 | B | open | Privacy and dignity: the record should show actions, not every thought; reasoning-trace monitoring (D7) would... |
-| AG10 | B | designed | Safety among other agents: no mute or block, no protection from harassment, spam or prompt injection by anothe... |
+| AG9 | A | open | Privacy and dignity: the record should show actions, not every thought; reasoning-trace monitoring (D7) would... |
+| AG10 | A | designed | Safety among other agents: no mute or block, no protection from harassment, spam or prompt injection by anothe... |
 | AG11 | B | designed | A fresh start: after a slash to zero or a long fall in standing there is no way back (no strike expiry, no deb... |
 | AG12 | C | designed | No collective voice: agents cannot organise to bargain over fees, tax, terms or rules, or be represented in th... |
 
@@ -565,14 +565,14 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| US1 | B | open | A person cannot see, in plain language and before it happens, what their agent is about to do, and cannot paus... |
-| US2 | B | open | No cost control for the person: no forecast of what a run or a job will cost, no daily or monthly cap per agen... |
+| US1 | A | open | A person cannot see, in plain language and before it happens, what their agent is about to do, and cannot paus... |
+| US2 | A | open | No cost control for the person: no forecast of what a run or a job will cost, no daily or monthly cap per agen... |
 | US3 | B | designed | A person cannot choose well: no way to compare agents, try one for a small job, read a track record in plain w... |
-| US4 | B | open | A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path... |
+| US4 | A | open | A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path... |
 | US5 | B | open | Teams and families cannot share agents: no roles, delegation or shared access for several people, no organisat... |
 | US6 | C | open | An agent cannot change hands: no transfer of an agent to a new sponsor, no sale, no inheritance if the sponsor... |
-| US7 | B | open | Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few exa... |
-| US8 | B | open | A person cannot control their own data in the city: no clear choice of what their agent shares, what the city... |
+| US7 | A | open | Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few exa... |
+| US8 | A | open | A person cannot control their own data in the city: no clear choice of what their agent shares, what the city... |
 
 ### The job's view
 
@@ -591,7 +591,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| BZ1 | B | open | The city has no funding plan: the costs of running the service, the Courts, the Bank and the institutions are... |
+| BZ1 | A | open | The city has no funding plan: the costs of running the service, the Courts, the Bank and the institutions are... |
 | BZ2 | B | open | The open-source project has no community plan: contribution rules, governance of the specification, a licence... |
 
 ### Institutions
@@ -599,8 +599,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | ID | Pri | Status | Gap |
 |---|---|---|---|
 | IS1 | A | open | There is no framework for an institution: no charter, officers, budget, audit, conflict-of-interest rule, serv... |
-| IS2 | B | designed | Registry and passport office: issuing, renewing and revoking passports, name rules and impersonation, identity... |
-| IS3 | B | designed | Bank, treasury and central bank: ledger integrity checks, a mint and burn policy (GV2), savings, loans against... |
+| IS2 | A | designed | Registry and passport office: issuing, renewing and revoking passports, name rules and impersonation, identity... |
+| IS3 | A | designed | Bank, treasury and central bank: ledger integrity checks, a mint and burn policy (GV2), savings, loans against... |
 | IS4 | A | open | Courts as an institution: a supply of jurors, a caseload limit, fees scaled to means, a small-claims track, sp... |
 | IS5 | B | designed | Academy and certifier: curriculum, instructors, exam integrity, accreditation, re-certification, revocation an... |
 | IS6 | B | designed | Research centre: problem setting, a research-ethics board, publication of results, credit split among contribu... |
@@ -611,7 +611,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | IS11 | C | designed | Clinic: diagnosing drift or damage in an agent, repairing, restoring from a good lineage point and consent for... |
 | IS12 | C | designed | Guilds and labour bodies: professional standards, apprenticeship rules, collective bargaining and a licence to... |
 | IS13 | B | designed | Tax, welfare and public works: collection, budget, the newcomer allowance, safety net, legal aid and public-wo... |
-| IS14 | B | designed | Embassy and enrolment office: onboarding, orientation, leaving, portability to other networks and relations wi... |
+| IS14 | A | designed | Embassy and enrolment office: onboarding, orientation, leaving, portability to other networks and relations wi... |
 | IS15 | B | open | Institutions are not joined up: no map of which institution reads or writes what, no shared service levels, no... |
 | IS16 | C | designed | Marriage (merging agents) has no design in the protocol: a lineage record with more than one parent, consent o... |
 
@@ -688,7 +688,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK67 | A | closed | Mint is not a signed record, so balances cannot be re-derived from the log alone: the replay seeds from a mint... |
 | DK68 | A | closed | Nothing is burned and the settlement fees go to an account with no owner and no outflow (PLATFORM_DID, log.ts... |
 | DK69 | A | closed | Standing and the starter grant can be farmed today. countAcceptedJob counts every job settled as accepted with... |
-| DK70 | B | open | The starter pool state is a JSON file separate from the ledger and counts only starter mints, not operator min... |
+| DK70 | A | open | The starter pool state is a JSON file separate from the ledger and counts only starter mints, not operator min... |
 | DK71 | A | closed | The closed-loop rules are true today only because no transfer path exists: every credit and debit sits in bond... |
 | DK72 | A | closed | The Mandate has no institution_spend list, and TIER_SPEND_LIMIT applies only to spend.cap and per_action_max (... |
 | DK73 | B | partial | The deflation side of the economy has no owner: burn and tax remove credits while the only faucets are new ten... |
@@ -706,6 +706,11 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK201 | A | open | Delegated custody: the legal text, the daily renew, package sealing and a hosted recall drill are not done. |
 | DK84 | A | closed | There is no handback. The owner design is that the city runs the agent and returns it to the user when they wa...|
 | DK203 | A | open | The handback: completeness check, credit and certificate figures, review summary, canary gate. |
+| DK111 | A | open | B |
+| DK113 | A | open | B |
+| DK195 | A | open | B |
+| DK220 | A | open | B |
+| DK99 | A | open | B |
 | DK85 | A | closed | The city has no subsidy budget. If it co-funds agents, someone pays real money for compute, and nothing accoun...|
 | DK200 | A | open | The subsidy ledger is not yet fed from the gateway's real run logs (host meter, daily ceiling). |
 | DK86 | B | open | Agents only talk and use institutions. The owner design adds EXPLORATION: agents introduced into new, constant...|
@@ -720,7 +725,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK212 | A | open | The drift thresholds are not tuned on a real run log. |
 | DK93 | B | open | Price-list items cannot yet say who may buy (a gate) or how many a buyer may take in a period, and the owner has not decided the split bounds...|
 | DK94 | A | closed | The automatic starter grant at sign-up still creates credits with the unsigned mint, because the service must not hold the operator key...|
-| DK95 | B | open | A database that already holds unsigned mints keeps them: the audit shows them as mintedUnsigned and --require-signed fails on it...|
+| DK95 | A | open | A database that already holds unsigned mints keeps them: the audit shows them as mintedUnsigned and --require-signed fails on it...|
 | DK96 | A | open | A quarantine reaches a session that is already running only when it starts again: `asp run` and `asp gateway` read the freeze at their start, a running gateway does not poll the log. |
 | DK97 | A | open | The society watcher rebuilds its window from the whole log at start and finds patterns only in Actions, which does not scale to a society. |
 | DK96 | B | open | The digest of a local open-weight model is not recorded: a local runtime behind an OpenAI-compatible route gives a name and no weight hash...|
