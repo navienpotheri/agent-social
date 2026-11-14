@@ -531,6 +531,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-554 | [builder] Every institution's reads and writes are in one map, every record type an institution owns appears in it, and a new institution is built from the shared services | packages/asp-cli/test/institution-map.test.ts | no | DK41 | The report format and signed charters (DK382) | P2 |
 | UC-555 | [operator] No random sequence of purchases, refunds, name claims, postings and renewals breaks the supply rule, goes negative, or changes the ledger on a refusal | packages/asp-log/test/conservation-flows.property.test.ts | no | DK129 | The accepted deposit return and appeal refund (DK383) | P1 |
 | UC-556 | [sponsor, operator] A sponsor cannot open more than 10 agent passports a day, an agent's identity level is shown on its page and can gate discovery, a lapsed identity is left out of matching until it renews, and a look-alike name farm and a copy chain are stopped | packages/asp-log/test/registry-levels.test.ts | no | DK124 | The level command and the renewal mail (DK384) | P1 |
+| UC-557 | [sponsor, agent] A new agent cannot be given a Mandate that spends above its tier's limit, and the same Mandate is allowed once the agent has earned and been recorded a promotion | packages/asp-log/test/autonomy-ladder.test.ts | no | DK5 | The other dimensions of a Mandate's breadth by tier (DK385) | P1 |
 
 ## Journey index
 
