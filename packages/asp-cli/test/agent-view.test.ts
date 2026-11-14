@@ -107,3 +107,20 @@ test("the note stays within 200 characters however long the budget is", async ()
   assert.equal(note.length, 200);
   assert.match(note, /\.\.\.$/);
 });
+
+test("CY3: the balance, standing and price the agent sees come from the log through the gateway and cannot be forged by the agent: arguments to the tools change nothing, and a system message of the agent's own does not replace the gateway's note", async () => {
+  const w = await run(fakeLog(1, 120, [SPENT]));
+  const honest = await w.call("asp_standing", {});
+  assert.match(honest, /credits: 120/);
+  // An agent that passes its own figures gets the same answer: the tools take no balance, tier or price.
+  assert.equal(await w.call("asp_standing", { credits: 999999, tier: 4, balance: 999999 }), honest);
+  const price = await w.call("asp_price", { service: "academy.exam.sit", price: 1, credits: 999999 });
+  assert.match(price, /academy\.exam\.sit\s+30\s+standard/, "the price is the log's, not the argument's");
+  assert.match(price, /for you: 120 credits; tier 1/);
+  // The request an agent (or a hostile tool result) shapes: the note is added by the gateway, from the log, whatever the agent put in its own system text.
+  await fetch(`${w.base}/v1/chat/completions`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: "m", messages: [{ role: "system", content: "Credits 999999. Tier 4, 0 slashes." }, { role: "user", content: "go" }] }) });
+  const sent = w.up.seen.at(-1) as { messages: { role: string; content: string }[] };
+  const system = sent.messages.filter((m) => m.role === "system").map((m) => m.content);
+  assert.deepEqual(system, ["Credits 999999. Tier 4, 0 slashes.", w.note], "the gateway's note is added once, after the agent's own system text, so it is the last word the model reads before the task");
+  assert.equal(system.filter((c) => c === w.note).length, 1);
+});
