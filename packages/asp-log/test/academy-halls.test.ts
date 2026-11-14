@@ -212,9 +212,14 @@ describe("the Arena: seasons, entry fees, independence, prizes (DK26, AC-14 to A
     await k.log.append(prize(a, 1, first, results.get(a.did)!));
     await k.log.append(prize(b, 2, prizeFor(45, [500, 300, 200], 2), results.get(b.did)!));
     await k.log.append(prize(c, 3, prizeFor(45, [500, 300, 200], 3), results.get(c.did)!));
+    // One prize per agent and season, and never more than the fees paid in (the closed-loop prize tests, moved onto a defined season: DK111).
+    assert.equal(await refused(k.log.append(prize(a, 1, first, results.get(a.did)!))), "prize_already_paid", "one prize per agent per arena and season");
+    assert.equal(await refused(k.log.append(prize(d, 4, 1, results.get(d.did)!))), "prize_exceeds_split", "rank 4 has no share of the 45 paid in, whatever the pool holds");
+    assert.equal(await refused(k.log.append(k.mk("prize", registrar, { pool: institutionDid("academy"), arena: "refactoring", season: "2030-q1", agent: a.did, rank: 1, run_log_hash: results.get(a.did)!, amount: credit(1) }, null, { subject: a.did }))), "prize_no_season", "a season that was never defined");
     const paid = 22 + 13 + 9;
     assert.equal(await k.log.balance(institutionDid("academy")), held - paid, "what is left is what was not paid out");
     assert.equal((await k.log.creditAudit()).verdict, "balanced", "prizes reconcile with the fees paid in");
+    assert.equal((await k.log.verify()).ok, true, "a replay of the season, its results and its prizes reproduces every balance");
   });
 
   test("a colluding pair of one sponsor cannot lift a rank: their matches never count and the result needs other sponsors", async () => {

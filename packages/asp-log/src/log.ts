@@ -1611,21 +1611,20 @@ export class EventLog {
     if (b.amount.value <= 0) throw rule("amount_not_positive", "a prize must be for at least 1 credit");
     if (!INSTITUTION_DIDS.includes(b.pool)) throw rule("prize_bad_pool", `${b.pool} is not an institution's prize pool`);
     if (isReservedAccount(b.agent) || !(await tx.getPassport(b.agent))) throw rule("prize_bad_winner", `${b.agent} is not an agent with a passport in this log`);
-    // A prize for an arena season that is defined in the log (academy.md 3, DK26) rests on that season: the pool is the Academy account, the agent has a signed result with this rank and run log, and the
-    // prizes of the season never add up to more than the fees paid in, split by rank. (A prize for an arena that was never defined in the log is the older T4 path, capped by the pool balance only: DK111.)
+    // A prize rests on an arena season that is defined in the log (academy.md 3, DK26; DK111): the pool is the Academy account, the agent has a signed result with this rank and run log, and the prizes of the
+    // season never add up to more than the fees paid in, split by rank. A prize for an arena or season that was never defined is refused: the older path capped only by the pool's balance is gone.
     const season = `${b.arena}|${b.season}`;
     const defId = await tx.getMarker(`arena:${season}`);
-    if (defId) {
-      if (b.pool !== institutionDid("academy")) throw rule("prize_wrong_pool", "a season's prizes are paid from the Academy account, where the entry fees went");
-      const resId = await tx.getMarker(`arena_result:${season}|${b.agent}`);
-      const res = resId ? (await tx.getRecord(resId))?.record.body as { rank: number; run_log_hash: string } | undefined : undefined;
-      if (!res) throw rule("prize_no_result", `${b.agent} has no result for ${b.arena} ${b.season}: a prize is paid against the Registrar's signed result`);
-      if (res.rank !== b.rank || res.run_log_hash !== b.run_log_hash) throw rule("prize_result_mismatch", "the prize names a different rank or run log than the signed result");
-      const def = (await tx.getRecord(defId))!.record.body as { prize_split_permille: number[] };
-      const accrued = Number((await tx.getMarker(`arena_pool:${season}`)) ?? 0);
-      const allowed = prizeFor(accrued, def.prize_split_permille, b.rank);
-      if (b.amount.value > allowed) throw rule("prize_exceeds_split", `rank ${b.rank} of ${b.arena} ${b.season} is entitled to ${allowed} credits (its share of ${accrued} paid in), not ${b.amount.value}`);
-    }
+    if (!defId) throw rule("prize_no_season", `${b.arena} ${b.season} is not an arena season defined in this log: a prize is paid only for a season with its entries, results and fees on record`);
+    if (b.pool !== institutionDid("academy")) throw rule("prize_wrong_pool", "a season's prizes are paid from the Academy account, where the entry fees went");
+    const resId = await tx.getMarker(`arena_result:${season}|${b.agent}`);
+    const res = resId ? (await tx.getRecord(resId))?.record.body as { rank: number; run_log_hash: string } | undefined : undefined;
+    if (!res) throw rule("prize_no_result", `${b.agent} has no result for ${b.arena} ${b.season}: a prize is paid against the Registrar's signed result`);
+    if (res.rank !== b.rank || res.run_log_hash !== b.run_log_hash) throw rule("prize_result_mismatch", "the prize names a different rank or run log than the signed result");
+    const def = (await tx.getRecord(defId))!.record.body as { prize_split_permille: number[] };
+    const accrued = Number((await tx.getMarker(`arena_pool:${season}`)) ?? 0);
+    const allowed = prizeFor(accrued, def.prize_split_permille, b.rank);
+    if (b.amount.value > allowed) throw rule("prize_exceeds_split", `rank ${b.rank} of ${b.arena} ${b.season} is entitled to ${allowed} credits (its share of ${accrued} paid in), not ${b.amount.value}`);
     const key = `prize:${b.arena}|${b.season}|${b.agent}`;
     if (await tx.getMarker(key)) throw rule("prize_already_paid", `${b.agent} already received the prize for ${b.arena} ${b.season}`);
     try { await this.debit(tx, b.pool, b.amount.value); } catch (e) {

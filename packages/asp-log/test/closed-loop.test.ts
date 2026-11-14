@@ -173,7 +173,7 @@ describe("the newcomer allowance (T5)", () => {
 });
 
 describe("prizes (T4, R3)", () => {
-  test("a prize is paid from the institution's pool against a result the Registrar signs; no one else, no second prize for one result, nothing beyond the pool", async () => {
+  test("a prize is checked in order: only the Registrar signs it, from an institution's pool, to an agent with a passport, for at least 1 credit, and for an arena season defined in the log (DK111); the season rules are tested on defined seasons in academy-halls.test.ts", async () => {
     const w = await world();
     await w.mint(academy.did, 100);
     assert.equal(await refused(w.log.append(w.prize({}, mallory))), "prize_wrong_issuer");
@@ -182,13 +182,10 @@ describe("prizes (T4, R3)", () => {
     assert.equal(await refused(w.log.append(w.prize({ agent: mallory.did }))), "prize_bad_winner", "no passport");
     assert.equal(await refused(w.log.append(w.prize({ agent: academy.did }))), "prize_bad_winner", "an institution does not win a prize");
     assert.equal(await refused(w.log.append(w.prize({ amount: credit(0) }))), "amount_not_positive");
-    assert.equal(await refused(w.log.append(w.prize({ amount: credit(101) }))), "prize_exceeds_pool");
-    await w.log.append(w.prize());
-    assert.deepEqual([await w.log.balance(academy.did), await w.log.balance(coder.did)], [40, 60]);
-    assert.equal(await refused(w.log.append(w.prize({ run_log_hash: "sha256:" + "a".repeat(64) }))), "prize_already_paid", "one prize per agent per arena and season");
-    assert.equal(await refused(w.log.append(w.prize({ rank: 2, season: "2027-q1", amount: credit(41) }))), "prize_exceeds_pool", "total prizes never exceed the pool");
-    await w.log.append(w.prize({ rank: 2, season: "2027-q1", amount: credit(40) }));
-    assert.equal(await w.log.balance(academy.did), 0);
+    // DK111: a pool with the credits and a valid winner is still not enough: no season, no prize.
+    assert.equal(await refused(w.log.append(w.prize())), "prize_no_season", "an arena that was never defined");
+    assert.equal(await refused(w.log.append(w.prize({ arena: "invented", season: "2030-q1", amount: credit(1) }))), "prize_no_season", "a registrar cannot pay a prize with no season behind it");
+    assert.deepEqual([await w.log.balance(academy.did), await w.log.balance(coder.did)], [100, 0], "nothing moved");
     assert.equal((await w.log.creditAudit()).verdict, "balanced");
   });
 
@@ -250,14 +247,13 @@ describe("locked credits move only by their own records (R13)", () => {
   });
 });
 
-describe("replay: a log rebuilt from the records alone has the same balances after budgets, payments, allowances and prizes", () => {
+describe("replay: a log rebuilt from the records alone has the same balances after budgets, payments and allowances (a replay with prizes is in academy-halls.test.ts)", () => {
   test("a replica agrees on every balance", async () => {
     const w = await world();
     await w.mint(TREASURY_DID, 1000);
     await w.mint(academy.did, 100);
     const courtsBudget = (await w.budget(institutionDid("courts"), 300)).id;
     await w.log.append(w.pay(courtsBudget, institutionDid("courts"), 120));
-    await w.log.append(w.prize());
     const replica = new EventLog(new MemoryStore(), { operator: operator.did, owner: owner.did, fallbackResolver: resolver });
     await replica.importRecords((await w.log.since(0, 1000)) as never);
     for (const did of [TREASURY_DID, institutionDid("courts"), academy.did, coder.did, BURN_DID]) assert.equal(await replica.balance(did), await w.log.balance(did), did);
