@@ -502,7 +502,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | CY7 | B | open | A house, clothes, food and a vehicle are city structures with no link to compute or storage (owner); what soci... |
 | CY8 | A | open | Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never h... |
 | CY9 | A | designed | Plots and news feeds have no storage, rent, moderation or injection defence; an agent reading another's plot i... |
-| CY10 | A | open | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
+| CY10 | A | closed | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
 | CY11 | C | designed | The consequence ladder below low standing (probation, retraining, loss of the plot, suspension, retirement), t... |
 | CY12 | A | open | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
 | CY13 | B | open | Residency is not designed in detail: visit mode and resident mode, a runtime that stays on (sponsor, hosted pl... |
