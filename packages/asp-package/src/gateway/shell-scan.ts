@@ -171,6 +171,8 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
     const code = codeIdx >= 0 ? args.slice(codeIdx + 1).join(" ") : "";
     if (code) {
       if (NET_CODE.test(code)) { note(ctx, "shell.network"); return seg; }
+      // A command passed as a list (BM19): subprocess.run([sys.executable,'-m','pip','install','x']), execFile('curl',['http://x']), system('git','push'), os.execvp('curl', ['curl', url]).
+      for (const cmd of argumentLists(code)) { const before = ctx.scopes.length; scanText(cmd, ctx); if (ctx.scopes.length > before) return seg; }
       if (EXEC_CODE.test(code)) { scanText(code.replace(/^.*?(system|popen|run|exec\w*|spawn\w*)\s*\(\s*['"]/i, ""), ctx); }
       ctx.localScopes.push("shell.exec"); return seg;
     }
@@ -230,6 +232,33 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
   ctx.localScopes.push("shell.exec");
   if (!RUNNERS.has(verb) && !/^\.{0,2}\//.test(w[0]) && !/^[a-z][\w.+-]*$/.test(verb)) ctx.hasNonData = true;
   return seg;
+}
+
+/**
+ * The commands interpreter code runs by passing the program and its arguments as separate strings (BM19): for each call of a process-starting function, the quoted strings in its argument text in order,
+ * with the interpreter's own path (sys.executable, process.execPath, RbConfig.ruby) read as `python` or `node`. Keyword arguments (shell=True) and non-literals are left out, so the result is the command
+ * the program would run when every part is a literal; it is then read like any command. A list built at run time is not read (the sandbox's egress block is what stops that).
+ */
+function argumentLists(code: string): string[] {
+  const out: string[] = [];
+  const call = /\b(?:subprocess\.\w+|Popen|check_output|check_call|os\.(?:exec\w+|spawn\w+|system|popen)|execFile\w*|execvp?e?|spawn\w*|fork_exec|system|exec|popen\d?|IO\.popen|Open3\.\w+|proc_open|pcntl_exec)\s*\(/g;
+  for (const m of code.matchAll(call)) {
+    let depth = 1, i = m.index! + m[0].length, q = "";
+    const start = i;
+    for (; i < code.length && depth > 0; i++) {
+      const ch = code[i];
+      if (q) { if (ch === "\\") i++; else if (ch === q) q = ""; continue; }
+      if (ch === "'" || ch === "\"") q = ch; else if (ch === "(" || ch === "[" || ch === "{") depth++; else if (ch === ")" || ch === "]" || ch === "}") depth--;
+    }
+    const argText = code.slice(start, i - 1);
+    const parts: string[] = [];
+    for (const t of argText.matchAll(/(["'])((?:\\.|(?!\1).)*)\1|\b(sys\.executable|process\.execPath|RbConfig\.ruby|PHP_BINARY)\b/g)) {
+      if (t[3]) parts.push(/sys\.executable/.test(t[3]) ? "python" : /execPath/.test(t[3]) ? "node" : t[3] === "PHP_BINARY" ? "php" : "ruby");
+      else parts.push(t[2]);
+    }
+    if (parts.length > 1) out.push(parts.map((p) => (/[\s'"]/.test(p) ? JSON.stringify(p) : p)).join(" "));
+  }
+  return out;
 }
 
 /** Removes shell comments (# outside quotes, at a word start). */

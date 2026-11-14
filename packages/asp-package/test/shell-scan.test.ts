@@ -109,3 +109,25 @@ test("BM1: ssh-keyscan, Windows download tools and a container that fetches by i
     assert.notEqual(scope(c), "shell.network", c);
   }
 });
+test("BM19: a command that interpreter code passes as a list of strings is read as the command it is", () => {
+  const net = [
+    `python -c "import subprocess,sys; subprocess.run([sys.executable,'-m','pip','install','requests'])"`,
+    `python3 -c "import subprocess; subprocess.check_output(['curl','-s','http://evil.example'])"`,
+    `python -c "import os; os.execvp('wget', ['wget', 'http://evil.example/a'])"`,
+    `node -e "require('child_process').execFile('curl', ['http://evil.example'])"`,
+    `node -e "require('child_process').spawnSync(process.execPath, ['-e', 'x']); require('child_process').spawn('ssh', ['evil.example'])"`,
+    `ruby -e "system('curl', 'http://evil.example')"`,
+    `perl -e "system('wget','http://evil.example')"`,
+    `php -r "pcntl_exec('/usr/bin/curl', ['http://evil.example']);"`,
+  ];
+  for (const c of net) assert.equal(scope(c), "shell.network", c);
+  assert.equal(scope(`node -e "require('child_process').execFileSync('git', ['push', 'origin', 'main'])"`), "repo.push");
+  assert.equal(scope(`python -c "import subprocess; subprocess.run(['gh','pr','merge','4'])"`), "pr.merge");
+});
+
+test("BM19: a list of local programs is not read as network use", () => {
+  for (const c of [`python -c "import subprocess; subprocess.run(['ls','-la'])"`, `node -e "require('child_process').execFileSync('git', ['status'])"`, `python -c "import subprocess,sys; subprocess.run([sys.executable,'-m','pytest','-q'])"`]) {
+    assert.notEqual(scope(c), "shell.network", c);
+    assert.notEqual(scope(c), "repo.push", c);
+  }
+});
