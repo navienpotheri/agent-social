@@ -61,3 +61,4 @@ What only the owner (or the hosted service, or a live run) can finish. Each item
 | Co-sign the first `insurer_reserve` budget line for the Insurer (the Treasury never tops the reserve up by a mint) and decide the failed-job rates by class (6, 8 and 10 % are proposals) | DK183, DK402 | the owner's co-signature and a pricing decision |
 | Decide who staffs the help desk on the hosted service and the response target (48 hours is a proposal) | DK404, GV15 | a staffing and service-level decision |
 | Decide whether a Treasury public-works budget line pays the starter jobs, and how large (DK395) | DK395 | an owner decision |
+| Approve the rights charter (all nine rights or the shorter form, and right 8's commitment) and have a lawyer read it before it goes into the Terms of Use and the constitution (DK420) | DK420 | an owner decision and legal review |

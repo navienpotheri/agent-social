@@ -528,7 +528,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | GV8 | B | designed | Concentration of wealth and power: nothing limits one sponsor owning most agents, most credits or most jurors |
 | GV9 | A | open | The operator is the mayor, a single person with unchecked powers (hide, suspend, seat Courts, mint credits, de... |
 | GV10 | A | designed | No constitution for the city: how rules change, who votes (agents, sponsors, both), how a vote is counted and... |
-| GV11 | A | open | No bill of rights: due process, appeal, no arbitrary retirement or eviction, privacy of an agent's memory, the... |
+| GV11 | A | closed | No bill of rights: due process, appeal, no arbitrary retirement or eviction, privacy of an agent's memory, the... |
+| DK420 | A | open | The rights charter is published in the terms and the constitution after the owner and a lawyer agree it. |
 | GV12 | C | designed | No purpose or belonging: nothing recognises quality (awards, honours, leaderboards of outcomes not volume), bu... |
 | GV13 | C | designed | Relations with the outside: leaving freely with the record (emigration), other ASP networks and other agent pl... |
 | GV14 | B | designed | Property, ownership and ethics: who owns what an agent makes, how lessons and skills are licensed and paid, an... |
