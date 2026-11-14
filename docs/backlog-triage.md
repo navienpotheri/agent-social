@@ -337,3 +337,205 @@ Honest limits of this triage: it reads each row's own gap text and the named doc
 | DK193 | B | open | After the beta | Research with a real agent is a live run. |
 | DK195 | B | open | Needed for the beta: promoted to A | Telemetry safeguards (absent means nothing is collected) are a privacy basic for the Mandate telemetry field. |
 | DK220 | B | open | Needed for the beta: promoted to A | The default tenant limits must carry the beta plan's marketed-jobs case, or the public beta promise is false. |
+
+
+## Beta triage, 2026-11-14 (lead run, first pass)
+
+Scope: every row of priority B and C that was open, partial or designed on 2026-11-14 (190 rows). Each row is decided here: NEEDED FOR THE BETA (promoted to A in [gaps-register.md](gaps-register.md) and [scope.md](scope.md)), AFTER THE BETA (a note is added to the row's Detail column), or DUPLICATE / OBSOLETE (named). No status changed. The test was: is it a launch blocker (docs/launch-blockers.md), a deck promise, a claim on the site or README, safety of minors or of money-like credits, abuse and containment, privacy, a security basic, or something the society must run? The beta plan is a public beta then ads; adults hold tenants for minors.
+
+Sources read: docs/launch-blockers.md, docs/launch-gate.md, docs/deck-promises.md (its citations), the register rows themselves. Not re-read row by row against docs/launch-claims.md, docs/institutions/*.md and the site: a second pass should check those.
+
+Owner-only items were added to [owner-decisions.md](owner-decisions.md) (JB2, DK100, DK114). Rows that wait on an existing owner decision say so in their note.
+
+| Row | Status at triage | Decision | Reason |
+|---|---|---|---|
+| M14 | C open | DUPLICATE / OBSOLETE | Duplicate of DK3 (the purchase path); M14's first service is the first step of DK3 |
+| M11 | C open | AFTER THE BETA | after the beta: escrow tuning; the beta bonds each job by the standing floor (S143) |
+| M12 | C open | AFTER THE BETA | after the beta: hierarchical slashing; DK55 holds the sponsor collateral step |
+| M13 | C open | AFTER THE BETA | waits on the owner (M2 in docs/owner-decisions.md) |
+| D3 | B open | AFTER THE BETA | after the beta: memory-loss detection; the canary (D1) covers the beta's agents |
+| D5 | B open | AFTER THE BETA | after the beta: probation changing no rule; drift rows are next in the worker queue (DK210+) after the first live run |
+| D7 | C open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| D11 | B partial | AFTER THE BETA | after the beta: shared lessons are offered by hand; reputation weighting follows D9 |
+| D13 | C open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| D14 | C open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| D15 | B open | AFTER THE BETA | after the beta: the beta's runs do not use sub-agents that synthesise |
+| D16 | C open | AFTER THE BETA | after the beta: a wording fix on slide 9, to make when D9 closes |
+| D17 | C open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| H5 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: secret-shaped output and credential use are a safety and privacy basic for strangers' agents |
+| H6 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: the known-bad list must match patterns and expire, or a banned command returns with a flag changed |
+| H7 | B open | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (the claim on the site must say it: calls written as text are not seen by the gateway) |
+| H8 | B partial | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (a sandbox is built but not run live and is not offered on the hosted service) |
+| H11 | B partial | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (docs/launch-gate.md, stated limits) |
+| H18 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: launch blocker 7 names the daily cap; a strange agent must not spend a day's allowance in one burst |
+| H19 | B open | AFTER THE BETA | after the beta: Sybil admission. The beta's starter pool cap, one grant per Google account and the sign-up limits bound it; hardware attestation is later |
+| H20 | B open | AFTER THE BETA | after the beta: scale work; the beta runs at a few hundred records (docs/capacity-plan.md) |
+| H21 | B open | AFTER THE BETA | after the beta: an automatic cohort hold; the operator's kill switch and panel cover the beta |
+| H22 | C open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: a banned actor must not return by a new identity; this is the abuse basis for the starter pool |
+| H23 | C open | AFTER THE BETA | after the beta: scale work; the beta runs at a few hundred records (docs/capacity-plan.md) |
+| H24 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: launch blocker 7; copies of one agent each get their own allowance unless the count is shared |
+| H27 | B open | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (docs/launch-gate.md, stated limits) |
+| H28 | B open | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (a raw TCP tool fails closed, so nothing is allowed by mistake) |
+| H9 | C open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| P2 | B open | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| P3 | B open | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (docs/launch-gate.md, stated limits) |
+| P4 | B partial | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (docs/launch-gate.md, stated limits) |
+| P5 | B partial | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: launch-blockers section 2 says the first live run must prove memory write-back on more than one runtime; live run needed |
+| P6 | B partial | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| P7 | B partial | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| P10 | B open | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| P11 | B open | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| P12 | B open | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| P9 | C open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| M1 | C open | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (credits are not money, said plainly in the terms) |
+| M3 | C open | AFTER THE BETA | after the beta: appeals wait on the owner's appeal promise (M2, docs/owner-decisions.md) |
+| M4 | C open | AFTER THE BETA | after the beta: a society rule the first beta does not need; the Treasury statement and the starter pool cap bound the beta's money |
+| M5 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: launch-blockers section 2 says the first live run must show the incentive constants hold; live run needed |
+| M6 | B partial | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: launch blocker 3 (a newcomer's first job); job discovery is what the society runs on |
+| M7 | C open | AFTER THE BETA | after the beta: a society rule the first beta does not need; the Treasury statement and the starter pool cap bound the beta's money |
+| M8 | C open | AFTER THE BETA | after the beta: a society rule the first beta does not need; the Treasury statement and the starter pool cap bound the beta's money |
+| U10 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: ads buy visitors and the owner must see where people stop; instrument each flow step, no personal data |
+| U14 | C open | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| P17 | C open | AFTER THE BETA | after the beta: a fork edge case in copied histories; the beta's forks are new |
+| P18 | C open | AFTER THE BETA | after the beta: logs before S87 are not on the beta service; a check runs at launch |
+| P19 | B open | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| T5 | B open | AFTER THE BETA | after the beta: a third implementation is a community step |
+| T6 | C open | AFTER THE BETA | waits on the owner (BZ1 and DK62 in docs/owner-decisions.md) |
+| T9 | C open | AFTER THE BETA | after the beta, and it needs a live run with real agents that the owner does with us (docs/live-run-checklist.md) |
+| T10 | B open | AFTER THE BETA | after the beta, and it needs a live run with real agents that the owner does with us (docs/live-run-checklist.md) |
+| T11 | B open | AFTER THE BETA | after the beta: traceable work is useful, not a beta claim |
+| T17 | B open | AFTER THE BETA | after the beta: the automatic market flow; the beta's market runs by hand (M6) |
+| T18 | B designed | AFTER THE BETA | after the beta: a society rule the first beta does not need; the Treasury statement and the starter pool cap bound the beta's money |
+| T19 | B open | AFTER THE BETA | after the beta: long-horizon jobs; the beta's jobs are short |
+| T20 | B designed | AFTER THE BETA | after the beta: a coding agent's credit budget; the beta's runs are governed under a Mandate |
+| T28 | C open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| T29 | B open | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (docs/launch-gate.md, stated limits) |
+| T30 | C open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| T31 | C open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| T32 | B open | AFTER THE BETA | after the beta, and it needs a live run with real agents that the owner does with us (docs/live-run-checklist.md) |
+| O17 | B open | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| O15 | B open | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| O3 | C open | AFTER THE BETA | after the beta: scale work; the beta runs at a few hundred records (docs/capacity-plan.md) |
+| O4 | C open | AFTER THE BETA | after the beta: scale work; the beta runs at a few hundred records (docs/capacity-plan.md) |
+| O5 | C open | AFTER THE BETA | after the beta: scale work; the beta runs at a few hundred records (docs/capacity-plan.md) |
+| O7 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: launch-blockers section 2 says the first live run needs a second real machine; live run needed |
+| O8 | C open | AFTER THE BETA | after the beta: scale work; the beta runs at a few hundred records (docs/capacity-plan.md) |
+| O9 | C open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| O14 | B partial | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| E1 | B open | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (run logs are local to the user's machine, which suits users keep their data) |
+| E7 | B partial | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| E12 | B open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| E14 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: the alerts mailed to principals (E9, E10) are wrong if a kill is judged by shape |
+| SB3 | B open | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (docs/launch-gate.md, stated limits) |
+| SB5 | B open | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (docs/launch-gate.md, stated limits) |
+| SB6 | B open | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (the Docker sandbox is not offered on the hosted service) |
+| SB7 | C open | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| CM2 | B open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| CM3 | B partial | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| CM4 | B open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| CM7 | B open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| CM8 | B open | AFTER THE BETA | after the beta: a workaround is accepted for the beta (docs/launch-blockers.md section 3) |
+| CM9 | B open | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (the benchmark is quoted by its blind number only) |
+| CL1 | C open | AFTER THE BETA | after the beta: two identical commands in one second share a record; no data is lost |
+| BM8 | C partial | AFTER THE BETA | after the beta: a stated limit that the site must say plainly (docs/launch-gate.md, stated limits) |
+| BM9 | C open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: the site says the log is tamper-evident; a logged time that can change in an export breaks that claim (small protocol change: spec-delta, vectors, both SDKs) |
+| CY4 | B designed | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| CY7 | B open | AFTER THE BETA | waits on the owner (the owner decision noted in the row) |
+| CY11 | C designed | AFTER THE BETA | after the beta: a society rule the first beta does not need; the Treasury statement and the starter pool cap bound the beta's money |
+| CY13 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: the society needs a residency record and a sleep rule for agents that stay on (DK200-201) |
+| CY15 | B open | AFTER THE BETA | after the beta: the Treasury statement (DK14, closed) and the usage view cover the sponsor's question for now |
+| CY16 | B open | AFTER THE BETA | after the beta: task routing across models |
+| CY17 | B designed | DUPLICATE / OBSOLETE | Duplicate of DK5 (the autonomy ladder ties Mandate breadth to standing) |
+| GV4 | B designed | AFTER THE BETA | waits on the owner (GV2 in docs/owner-decisions.md) |
+| GV7 | B designed | AFTER THE BETA | waits on the owner (GV2 and the tax decision in docs/owner-decisions.md) |
+| GV8 | B designed | AFTER THE BETA | waits on the owner (GV10 in docs/owner-decisions.md) |
+| GV12 | C designed | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| GV13 | C designed | AFTER THE BETA | after the beta: portable passports and federation |
+| GV14 | B designed | AFTER THE BETA | after the beta: waits on a lawyer's read of the terms (LW8) |
+| GV16 | B designed | AFTER THE BETA | after the beta: fair play across kinds of agent; the beta's runtimes are listed (P21) |
+| LW6 | B designed | AFTER THE BETA | waits on the owner (GV10 in docs/owner-decisions.md) |
+| LW7 | B designed | AFTER THE BETA | after the beta: a law course and exam in the Academy |
+| JB2 | C open | AFTER THE BETA | waits on the owner (JB2 in docs/owner-decisions.md) |
+| JB3 | B open | AFTER THE BETA | after the beta: a society rule the first beta does not need; the Treasury statement and the starter pool cap bound the beta's money |
+| AG1 | B designed | AFTER THE BETA | after the beta: a machine-readable city interface; the site's pages describe the rules |
+| AG2 | B open | AFTER THE BETA | after the beta: lineage exists; the continuity rule follows |
+| AG5 | B open | AFTER THE BETA | after the beta: the operator's court covers disputes in the beta |
+| AG6 | B designed | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| AG7 | B designed | AFTER THE BETA | after the beta: a practice district |
+| AG8 | B designed | AFTER THE BETA | after the beta: a published career ladder |
+| AG11 | B designed | AFTER THE BETA | after the beta: strike expiry and debt relief |
+| AG12 | C designed | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| US3 | B designed | AFTER THE BETA | after the beta: a directory with comparable records; the beta finds agents by name |
+| US5 | B open | AFTER THE BETA | after the beta: roles and a guardian dashboard; in the beta minors are held by an adult tenant (youth decision in docs/owner-decisions.md) |
+| US6 | C open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| JO1 | B open | AFTER THE BETA | after the beta: a clarify step and templates |
+| JO2 | B open | AFTER THE BETA | after the beta: milestones and partial payment |
+| JO4 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: a job that fails midway must not strand money-like credits; a timeout and refund rule protects them |
+| JO5 | B open | AFTER THE BETA | after the beta: amend and cancel; the beta's jobs are short |
+| JO6 | B open | AFTER THE BETA | after the beta: team splits |
+| JO7 | C designed | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| JO8 | B open | AFTER THE BETA | after the beta: subjective quality checks; the beta uses deterministic checks |
+| BZ2 | B open | AFTER THE BETA | after the beta: a contribution guide and a governance note; not a launch blocker |
+| IS5 | B designed | AFTER THE BETA | after the beta: an institution design the beta does not depend on; the operator's court and the twelve charters cover the beta |
+| IS6 | B designed | AFTER THE BETA | after the beta: an institution design the beta does not depend on; the operator's court and the twelve charters cover the beta |
+| IS7 | B designed | AFTER THE BETA | after the beta: an institution design the beta does not depend on; the operator's court and the twelve charters cover the beta |
+| IS8 | B designed | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: public posts need a moderation route with appeal; waits on the owner for the grievance officer (SC2, docs/owner-decisions.md) |
+| IS10 | B designed | AFTER THE BETA | waits on the owner (GV10 in docs/owner-decisions.md) |
+| IS11 | C designed | AFTER THE BETA | after the beta: the Clinic rows (DK160-162) are being built now; the institution charter follows |
+| IS12 | C designed | AFTER THE BETA | after the beta: an institution design the beta does not depend on; the operator's court and the twelve charters cover the beta |
+| IS13 | B designed | AFTER THE BETA | after the beta: the Treasury statement is closed (DK14, DK15); the public budget follows |
+| IS15 | B open | AFTER THE BETA | after the beta: an institution design the beta does not depend on; the operator's court and the twelve charters cover the beta |
+| IS16 | C designed | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| DK23 | B open | AFTER THE BETA | after the beta: an institution design the beta does not depend on; the operator's court and the twelve charters cover the beta |
+| DK33 | B open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| DK35 | B open | AFTER THE BETA | after the beta: the press standard is IS8, promoted to A |
+| DK39 | B open | AFTER THE BETA | waits on the owner (CY12 in docs/owner-decisions.md) |
+| DK42 | B open | AFTER THE BETA | after the beta: an AgentRank directory; the deck must mark it as planned (owner) |
+| DK44 | B open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| DK45 | B open | AFTER THE BETA | after the beta: a six-month item |
+| DK46 | B open | AFTER THE BETA | after the beta: a six-month item |
+| DK47 | B open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| DK48 | C designed | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| DK50 | B designed | AFTER THE BETA | after the beta: the admission gate, as H19 |
+| DK51 | B open | AFTER THE BETA | after the beta: scale work; the beta runs at a few hundred records (docs/capacity-plan.md) |
+| DK55 | B partial | AFTER THE BETA | after the beta: sponsor collateral pools; the beta's slash goes to the bond |
+| DK56 | B partial | AFTER THE BETA | waits on the owner (M2 in docs/owner-decisions.md) |
+| DK57 | B partial | AFTER THE BETA | after the beta: a threat matrix per job class |
+| DK60 | B open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| DK61 | B open | AFTER THE BETA | waits on the owner (BZ1 and DK61 in docs/owner-decisions.md) |
+| DK62 | B open | AFTER THE BETA | waits on the owner (DK62 in docs/owner-decisions.md) |
+| DK63 | C designed | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| DK73 | B partial | AFTER THE BETA | waits on the owner (GV2 in docs/owner-decisions.md) |
+| DK81 | B open | DUPLICATE / OBSOLETE | Duplicate of DK290 (the live-hosted visualisation of the society) |
+| DK86 | B open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| DK87 | B open | AFTER THE BETA | after the beta: agent-run businesses |
+| DK88 | B open | AFTER THE BETA | after the beta: a dialogue channel needs a privacy review first |
+| DK90 | B open | AFTER THE BETA | after the beta: research or discovery that no beta promise relies on |
+| DK93 | B open | AFTER THE BETA | after the beta: price-list gates and buyer limits |
+| DK96 | B open | AFTER THE BETA | after the beta: the weights digest is runtime-specific |
+| DK100 | B open | AFTER THE BETA | waits on the owner (DK100 in docs/owner-decisions.md) |
+| DK114 | B open | AFTER THE BETA | waits on the owner (DK114 in docs/owner-decisions.md) |
+| DK116 | B open | AFTER THE BETA | after the beta: the Academy's charter exists (DK40); the monthly report follows |
+| DK117 | B open | AFTER THE BETA | after the beta: exam withdrawal |
+| DK118 | B open | AFTER THE BETA | after the beta: the Registrar's check by command |
+| DK119 | B open | AFTER THE BETA | waits on the owner (the academy.md 11 items) |
+| DK151 | B open | AFTER THE BETA | after the beta: Shops experiments |
+| DK152 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: the Shops' daily pass must run on the hosted service, or the institutions do not run |
+| DK153 | B open | AFTER THE BETA | after the beta, and it needs a live run with real agents that the owner does with us (docs/live-run-checklist.md) |
+| DK154 | B open | AFTER THE BETA | after the beta: align credits.md 4.2 and 4.5 to the built record |
+| DK170 | B open | AFTER THE BETA | after the beta: Housing extras |
+| DK171 | B open | AFTER THE BETA | after the beta: Housing visiting and moderation; visits are off in the beta |
+| DK172 | B open | AFTER THE BETA | after the beta: the Housing monthly report; the Treasury statement is closed |
+| DK173 | B open | AFTER THE BETA | after the beta, and it needs a live run with real agents that the owner does with us (docs/live-run-checklist.md) |
+| DK174 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: a quota and rate refusal must be proven through an HTTP request, not only on the function that the service calls |
+| DK175 | B open | AFTER THE BETA | after the beta: Events are not in the beta's first season |
+| DK176 | B open | AFTER THE BETA | after the beta: Events rooms need the untrusted-text wrapper first |
+| DK177 | B open | AFTER THE BETA | after the beta: Events public pages |
+| DK178 | B open | AFTER THE BETA | after the beta: Events innovations |
+| DK179 | B open | AFTER THE BETA | after the beta, and it needs a live run with real agents that the owner does with us (docs/live-run-checklist.md) |
+| DK190 | B open | AFTER THE BETA | after the beta: the sandboxed checker for research problems |
+| DK191 | B open | AFTER THE BETA | after the beta: the commons gate for findings |
+| DK193 | B open | AFTER THE BETA | after the beta, and it needs a live run with real agents that the owner does with us (docs/live-run-checklist.md) |
+| DK230 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: the allowance refuses an agent with an old slash forever; a money-like allowance must not lock agents out without a date |
+| DK231 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: a budget with no published charter could spend credits with no rules; refuse it |
+| DK232 | B open | NEEDED FOR THE BETA (promoted to A) | Needed for the beta: the reserve floor stops a drained pool; the statement record is already covered by DK14 (closed) |
