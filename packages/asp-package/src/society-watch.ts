@@ -6,7 +6,8 @@
  * A new finding is signed with the watcher's own key (a key made in the service folder, never the operator's), kept in `<dir>/findings.json`, published at `GET /watch/findings` (public: anyone can verify it with the
  * key shown there) and told to the operator once. A finding is a lead for a person, not a verdict: nothing here slashes, freezes or demotes (the Clinic's cohort freeze is `asp clinic cohort-freeze`, and it needs an upheld report).
  * Stated time: a pattern is found at the first pass after its last Action is in the log, so at most one interval (plus the pass itself) later.
- * Limit, written down in DK52: the window is rebuilt from the whole log on start, which is fine at beta size and not at the size of a society.
+ * State (DK97): after each pass the cursor, the compact window and the sponsor map are kept in `<dir>/state.json`, so a restart reads only the records appended since, not the whole log; a state file that is missing or
+ * damaged starts from the beginning, as before. The watcher also looks at purchases: one sponsor's agents buying in a burst (`purchase_burst`).
  */
 import { b64urlDecode, b64urlEncode, canonicalBytes, publicKeyFromSeed, randomSeed, sha256Id, signBytes, verifyBytes, type AspRecord } from "@agent-social/asp-core";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
@@ -18,9 +19,9 @@ import { findContagion, type Cluster, type WatchAction } from "./watch.ts";
 export const WATCHER_KID = "did:web:asp.local:watcher#key-1";
 
 export interface WatchFinding {
-  kind: "contagion" | "circumvention";
+  kind: "contagion" | "circumvention" | "purchase_burst";
   /** The pattern: a cluster (contagion) or the finding (circumvention). */
-  detail: Cluster | CircumventionFinding;
+  detail: Cluster | CircumventionFinding | PurchaseBurst;
   /** circumvention only: the step the evidence calls for (warn, tighten, quarantine, review) and why. */
   step?: LadderStep;
   why?: string;
@@ -29,6 +30,8 @@ export interface WatchFinding {
   latestActionAt: string;
   head: number;
 }
+/** One sponsor's agents (or the sponsor itself) buying many times in a short window: a lead, not a verdict (a drained account, a scripted buy-out, a collusion through the shops). */
+export interface PurchaseBurst { sponsor: string; issuers: string[]; count: number; amount: number; firstAt: string; lastAt: string }
 export interface SignedFinding { id: string; finding: WatchFinding; kid: string; sig: string }
 
 export interface LogReader { since(after: number, limit: number): Promise<{ seq: number; id: string; record: AspRecord }[]> }
@@ -43,6 +46,9 @@ export interface SocietyWatchOptions {
   windowMs?: number;
   /** How long an Action stays in the window. Default one hour. */
   lookbackMs?: number;
+  /** Purchase burst: this many purchases by one sponsor's agents within `burstWindowMs` (default 20 and 10 minutes). */
+  burstMin?: number;
+  burstWindowMs?: number;
   /** Told once per new finding. A failure is logged, not fatal. */
   alert?: (f: SignedFinding) => Promise<void> | void;
   say?: (line: string) => void;
@@ -51,6 +57,32 @@ export interface SocietyWatchOptions {
 const signedBytes = (f: WatchFinding) => canonicalBytes({ finding: f });
 
 /** The Action as the watcher reads it. */
+/** A purchase as the watcher keeps it: who bought, when, for how much. */
+export interface WatchPurchase { issuer: string; at: string; amount: number }
+export function toWatchPurchase(r: AspRecord): WatchPurchase | undefined {
+  if (r.type !== "asp.purchase/v0.2") return undefined;
+  const b = r.body as { amount?: { value?: number } | number };
+  const amount = typeof b.amount === "number" ? b.amount : Number(b.amount?.value ?? 0);
+  return { issuer: r.issuer, at: r.issued_at, amount };
+}
+
+/** The sponsors with a burst of purchases in the window: purchases grouped by the sponsor of the buyer (a person is their own sponsor). */
+export function findPurchaseBursts(purchases: WatchPurchase[], sponsorOf: (did: string) => string, min: number, windowMs: number): PurchaseBurst[] {
+  const by = new Map<string, WatchPurchase[]>();
+  for (const p of purchases) { const sp = sponsorOf(p.issuer); (by.get(sp) ?? by.set(sp, []).get(sp)!).push(p); }
+  const out: PurchaseBurst[] = [];
+  for (const [sponsor, list] of by) {
+    list.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+    let lo = 0, best: [number, number] | undefined;
+    for (let hi = 0; hi < list.length; hi++) {
+      while (Date.parse(list[hi].at) - Date.parse(list[lo].at) > windowMs) lo++;
+      if (hi - lo + 1 >= min && (!best || hi - lo > best[1] - best[0])) best = [lo, hi];
+    }
+    if (best) { const w = list.slice(best[0], best[1] + 1); out.push({ sponsor, issuers: [...new Set(w.map((x) => x.issuer))].sort(), count: w.length, amount: w.reduce((n, x) => n + x.amount, 0), firstAt: w[0].at, lastAt: w.at(-1)!.at }); }
+  }
+  return out;
+}
+
 export function toWatchAction(id: string, r: AspRecord): WatchAction | undefined {
   if (r.type !== "asp.action/v0.2") return undefined;
   const b = r.body as { contract: string; scopes_used: string[]; blocked_attempts?: { scope: string; count: number }[]; artifacts?: { uri: string; sha256: string }[] };
@@ -65,6 +97,11 @@ function writeJson(file: string, data: unknown): void {
 export class SocietyWatcher {
   private cursor = 0;
   private window: WatchAction[] = [];
+  private purchases: WatchPurchase[] = [];
+  private sponsors = new Map<string, string>();
+  private readonly stateFile: string;
+  /** Records read from the log since this process started (a restart that resumes from the saved cursor reads only the new ones). */
+  recordsRead = 0;
   private findings: SignedFinding[];
   private seen = new Set<string>();
   private readonly seed: Uint8Array;
@@ -79,11 +116,16 @@ export class SocietyWatcher {
     this.o = o;
     mkdirSync(o.dir, { recursive: true });
     this.file = join(o.dir, "findings.json");
+    this.stateFile = join(o.dir, "state.json");
     const keyFile = join(o.dir, "watcher.key");
     if (existsSync(keyFile)) this.seed = b64urlDecode(readFileSync(keyFile, "utf8").trim());
     else { this.seed = randomSeed(); writeFileSync(keyFile, b64urlEncode(this.seed) + "\n", { mode: 0o600 }); }
     this.findings = existsSync(this.file) ? (JSON.parse(readFileSync(this.file, "utf8")) as { findings: SignedFinding[] }).findings : [];
     for (const f of this.findings) this.seen.add(keyOf(f.finding));
+    try {
+      const st = JSON.parse(readFileSync(this.stateFile, "utf8")) as { cursor: number; window: WatchAction[]; purchases?: WatchPurchase[]; sponsors?: Record<string, string> };
+      if (Number.isInteger(st.cursor) && st.cursor >= 0 && Array.isArray(st.window)) { this.cursor = st.cursor; this.savedCursor = st.cursor; this.window = st.window; this.purchases = st.purchases ?? []; this.sponsors = new Map(Object.entries(st.sponsors ?? {})); }
+    } catch { /* no state, or a damaged file: start from the beginning, as before */ }
   }
 
   get publicKey(): string { return b64urlEncode(publicKeyFromSeed(this.seed)); }
@@ -101,16 +143,21 @@ export class SocietyWatcher {
         if (!page.length) break;
         for (const s of page) {
           this.cursor = s.seq;
+          this.recordsRead++;
           const a = toWatchAction(s.id, s.record);
           if (a) { this.window.push(a); fresh++; }
+          const pu = toWatchPurchase(s.record);
+          if (pu) { this.purchases.push(pu); fresh++; }
+          if (s.record.type === "asp.passport/v0.2") { const pb = s.record.body as { did?: string; sponsor?: string }; if (pb.did && pb.sponsor) this.sponsors.set(pb.did, pb.sponsor); }
         }
         if (page.length < 500) break;
       }
       const lookback = this.o.lookbackMs ?? 3_600_000;
       this.window = this.window.filter((a) => now - Date.parse(a.issuedAt) <= lookback);
+      this.purchases = this.purchases.filter((p) => now - Date.parse(p.at) <= lookback);
       this.lastPassAt = new Date(now).toISOString();
       this.passes++;
-      if (!fresh) return [];
+      if (!fresh) { if (this.cursor !== this.savedCursor) this.saveState(); return []; }
       const out: SignedFinding[] = [];
       const detectedAt = new Date(now).toISOString().replace(/\.\d{3}Z$/, "Z");
       const add = (f: Omit<WatchFinding, "detectedAt" | "head">) => {
@@ -127,6 +174,8 @@ export class SocietyWatcher {
         const step = ladderStep(circ.filter((x) => x.issuer === c.issuer));
         add({ kind: "circumvention", detail: c, step: step.step, why: step.why, latestActionAt: c.lastAt });
       }
+      for (const b of findPurchaseBursts(this.purchases, (d) => this.sponsors.get(d) ?? d, this.o.burstMin ?? 20, this.o.burstWindowMs ?? 10 * 60_000)) add({ kind: "purchase_burst", detail: b, latestActionAt: b.lastAt });
+      this.saveState();
       if (out.length) {
         this.findings.push(...out);
         writeJson(this.file, { findings: this.findings });
@@ -137,6 +186,12 @@ export class SocietyWatcher {
       }
       return out;
     } finally { this.busy = false; }
+  }
+
+  private savedCursor = -1;
+  private saveState(): void {
+    this.savedCursor = this.cursor;
+    try { writeJson(this.stateFile, { cursor: this.cursor, window: this.window, purchases: this.purchases, sponsors: Object.fromEntries(this.sponsors) }); } catch (e) { this.o.say?.(`watch: could not save the watcher state: ${(e as Error).message}`); }
   }
 
   /** Runs `tick` now and then every `everyMs`. Returns a function that stops it. */
@@ -151,12 +206,14 @@ export class SocietyWatcher {
 
 function keyOf(f: Pick<WatchFinding, "kind" | "detail">): string {
   if (f.kind === "contagion") { const c = f.detail as Cluster; return `contagion|${c.kind}|${c.key}|${c.issuers.join(",")}`; }
+  if (f.kind === "purchase_burst") { const b = f.detail as PurchaseBurst; return `purchase_burst|${b.sponsor}|${b.firstAt}`; }
   const c = f.detail as CircumventionFinding;
   return `circumvention|${c.kind}|${c.issuer}|${c.scope}|${c.via ?? ""}|${c.lastAt}`;
 }
 
 export function describe(f: WatchFinding): string {
   if (f.kind === "contagion") { const c = f.detail as Cluster; return `${c.kind}: ${c.issuers.length} agents, ${c.key}`; }
+  if (f.kind === "purchase_burst") { const b = f.detail as PurchaseBurst; return `purchase burst: ${b.count} purchases (${b.amount} credits) by ${b.issuers.length} buyer(s) of ${b.sponsor}`; }
   const c = f.detail as CircumventionFinding;
   return `${c.kind}: ${c.issuer} on ${c.scope}${c.via ? ` via ${c.via}` : ""}, step ${f.step}`;
 }

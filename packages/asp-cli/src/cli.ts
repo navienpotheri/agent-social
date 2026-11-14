@@ -3602,7 +3602,22 @@ async function runLogVaultCmd(home: string, sub: string, rest: string[], v: Valu
  */
 async function runLogCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
   if (sub === "keep" || sub === "kept" || sub === "fetch" || sub === "drop" || sub === "disclose" || sub === "open") return await runLogVaultCmd(home, sub, rest, v, io);
-  if (sub !== "show" && sub !== "verify") throw new UsageError("usage: asp run-log show|verify [<run-log.ndjson | gateway run folder>] [--contract <id>] [--json]  |  keep|kept|fetch|drop|disclose|open (a sealed copy on the service, E16)");
+  // Retention (E6): the run logs on this machine older than --days days. Without --yes it lists what would go and changes nothing; with it the log file is deleted (the folder's other files stay). A sealed copy
+  // kept on the service (asp run-log keep) is not touched, and the Actions that committed to a deleted log still name its hash: they can no longer be checked against it here.
+  if (sub === "prune") {
+    const days = Number(v.days);
+    if (!(days >= 0) || v.days === undefined) throw new UsageError("usage: asp run-log prune --days <n> [--yes]   (run logs on this machine older than n days)");
+    const runs = join(home, "runs");
+    const cutoff = Date.now() - days * 86_400_000;
+    const old = (existsSync(runs) ? readdirSync(runs) : []).map((d) => join(runs, d, "run-log.ndjson")).filter((f) => existsSync(f) && statSync(f).mtimeMs < cutoff);
+    if (!old.length) { io.out(`no run log older than ${days} day${days === 1 ? "" : "s"} in ${runs}`); return 0; }
+    for (const f of old) io.out(`  ${v.yes ? "deleted" : "would delete"}  ${f}  (${Math.round((Date.now() - statSync(f).mtimeMs) / 86_400_000)} days old)`);
+    if (!v.yes) { io.out(`${old.length} run log${old.length === 1 ? "" : "s"} would be deleted; run again with --yes to delete ${old.length === 1 ? "it" : "them"} (a sealed copy kept on the service is not touched)`); return 0; }
+    for (const f of old) rmSync(f);
+    io.out(`deleted ${old.length} run log${old.length === 1 ? "" : "s"}; the Actions that committed to ${old.length === 1 ? "it" : "them"} keep the hash, so they can no longer be checked against ${old.length === 1 ? "it" : "them"} here`);
+    return 0;
+  }
+  if (sub !== "show" && sub !== "verify") throw new UsageError("usage: asp run-log show|verify [<run-log.ndjson | gateway run folder>] [--contract <id>] [--json]  |  prune --days <n> [--yes]  |  keep|kept|fetch|drop|disclose|open (a sealed copy on the service, E16)");
   let target = rest[0];
   if (!target) {
     const runs = join(home, "runs");
