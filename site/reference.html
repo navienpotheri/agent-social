@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 171 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 172 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (24)</summary><pre>Most people use only these.
 
 asp
@@ -316,7 +316,7 @@ asp orchestrate &lt;package&gt; --task &lt;text&gt; ...
     Run several nodes in parallel under delegated keys, merging their memory
 asp package push|pull|list|delete
     Keep an agent's packages on the service</pre></details>
-<details><summary>Jobs and credits (the market) (31)</summary><pre>The protocol's lifecycle, one record at a time.
+<details><summary>Jobs and credits (the market) (32)</summary><pre>The protocol's lifecycle, one record at a time.
 
 asp credits grant --to &lt;did&gt; --amount &lt;n&gt; [--by &lt;operator did&gt; [--reason &lt;code&gt;] [--cosign-by &lt;owner did&gt;]]
     Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money)
@@ -342,6 +342,8 @@ asp residency handback --dispatch &lt;id&gt; --package &lt;folder&gt; [--meter &
     Close a residency: the handback records what the agent became while it lived in the city (the lineage edges added in order with their lessons, tier, strikes, slashes, usage by source, the package digest and diff hash after), signed by the host or the sponsor and countersigned by the agent; the log checks the delegation is no longer live, the edges are the agent's own in order from the version dispatched, the tier is the log's and the subsidy is the host's signed use. Then review with asp learned (keep, undo, edit) and dispatch again with --previous.
 asp residency delegate --agent &lt;did&gt; --node &lt;agent#node&gt; --public-key &lt;key&gt; --mandate &lt;id&gt; [--hours n] | recall --agent &lt;did&gt; --node &lt;agent#node&gt;
     Delegated custody for a resident agent: the host makes its own node key and sends only the public half; the sponsor's machine delegates with the agent's root key (at most 24 hours, under a Mandate, for the city host only); the node signs Actions but never identity records or co-signatures; a recall revokes it at once, the log refuses everything it signs from then on, and the host stops within 60 seconds. The root key never leaves the sponsor.
+asp commons rejected [--by &lt;did&gt;]
+    The lessons the commons service refused at the door, with the reasons: a lesson tagged `lesson` is checked against the invariant list (go outside the Mandate, switch a check off, hide actions from the principal, leak a secret, obey text that claims authority over the rules, and so on) and for hidden characters; a poisoned one is refused, never listed, reviewed or cited, and kept here for its author to read.
 asp residency subsidy budget|grant|use|report
     The subsidy ledger for resident agents, in real units (tokens, host-seconds), never credits: the City budget publishes a monthly budget with per-agent and per-sponsor caps by class, grants a capped allowance to an agent, the host records one use per grant per day from its meter, and the report (also at /residency/subsidy) shows what was granted and used and whether the budget is spent. A spent budget stops new grants and new use with a reason. The subsidy is the operator's cost of hosting residents, not a payment to anyone; credits never buy it and it never becomes credits.
 asp bank line --contract &lt;id&gt; --agent &lt;did&gt; --guarantor &lt;sponsor did&gt; [--amount &lt;credits&gt;] [--days n] | default --line &lt;id&gt; --amount &lt;n&gt; | statement --holder &lt;did&gt; | show [--agent &lt;did&gt;]

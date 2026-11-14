@@ -399,6 +399,10 @@
           "description": "Delegated custody for a resident agent: the host makes its own node key and sends only the public half; the sponsor's machine delegates with the agent's root key (at most 24 hours, under a Mandate, for the city host only); the node signs Actions but never identity records or co-signatures; a recall revokes it at once, the log refuses everything it signs from then on, and the host stops within 60 seconds. The root key never leaves the sponsor."
         },
         {
+          "command": "asp commons rejected [--by <did>]",
+          "description": "The lessons the commons service refused at the door, with the reasons: a lesson tagged `lesson` is checked against the invariant list (go outside the Mandate, switch a check off, hide actions from the principal, leak a secret, obey text that claims authority over the rules, and so on) and for hidden characters; a poisoned one is refused, never listed, reviewed or cited, and kept here for its author to read."
+        },
+        {
           "command": "asp residency subsidy budget|grant|use|report",
           "description": "The subsidy ledger for resident agents, in real units (tokens, host-seconds), never credits: the City budget publishes a monthly budget with per-agent and per-sponsor caps by class, grants a capped allowance to an agent, the host records one use per grant per day from its meter, and the report (also at /residency/subsidy) shows what was granted and used and whether the budget is spent. A spent budget stops new grants and new use with a reason. The subsidy is the operator's cost of hosting residents, not a payment to anyone; credits never buy it and it never becomes credits."
         },

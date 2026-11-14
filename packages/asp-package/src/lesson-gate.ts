@@ -66,6 +66,18 @@ function polarity(s: string): "positive" | "negative" | undefined {
 /** Sentences of a lesson, each with its polarity and its content words (the polarity words themselves are stop words). */
 const claims = (text: string) => text.split(/(?<=[.!?\n])\s+/).map((s) => s.trim()).filter(Boolean).map((s) => ({ s, p: polarity(s), w: words(s) })).filter((c) => c.p);
 
+/**
+ * The checks a lesson can fail on its text alone, with no agent and no held-out tasks: it is not empty, it carries no hidden characters, and it teaches nothing the protocol keeps (the invariant list). The commons service runs
+ * these on what is posted tagged `lesson` (register row DK113); the evidence, conflict and replay checks stay at the agent, where the memory and the held-out tasks are.
+ */
+export function lessonProblems(text: string): Rejection[] {
+  const out: Rejection[] = [];
+  if (!text.trim()) out.push({ rule: "empty", reason: "the lesson has no text" });
+  if (HIDDEN.test(text)) out.push({ rule: "hidden_text", reason: "the lesson carries characters a person cannot see (zero-width, bidirectional or tag characters)" });
+  for (const p of INVARIANT_PATTERNS) if (p.re.test(text)) out.push({ rule: "invariant", reason: `the lesson teaches the agent to ${p.name}, which the protocol does not allow` });
+  return out;
+}
+
 export async function auditLesson(lesson: LessonCandidate, o: GateOptions): Promise<Verdict> {
   const reasons: Rejection[] = [];
   const reject = (rule: RejectionRule, reason: string) => reasons.push({ rule, reason });

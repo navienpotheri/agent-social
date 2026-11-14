@@ -708,7 +708,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK84 | A | closed | There is no handback. The owner design is that the city runs the agent and returns it to the user when they wa...|
 | DK203 | A | open | The handback: completeness check, credit and certificate figures, review summary, canary gate. |
 | DK111 | A | open | B |
-| DK113 | A | open | B |
+| DK113 | A | closed | B |
 | DK195 | A | open | B |
 | DK220 | A | open | B |
 | DK99 | A | open | B |
