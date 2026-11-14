@@ -32,6 +32,7 @@ import { homeView, type HomeView } from "./housing.ts";
 import { resourceExtras, type ResourceExtras } from "./shops.ts";
 import { HOUSING_DID, SHOPS_DID, catalogueProblem, type CatalogueItem } from "./shops.ts";
 import { cityIndicators, type CityIndicators } from "./society-indicators.ts";
+import { projectSupport, supportStatus, type SupportStatus } from "./support.ts";
 import { buildPage, namesAt, isLive, skeleton, verifyPage, lapsedIdentities, identityLevelAt, type RecordPage } from "./registry.ts";
 import { OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, classWeight, effectiveClass, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
@@ -355,6 +356,7 @@ export class EventLog {
     if (type === "quarantine") await this.projectQuarantine(tx, verified);
     if (type === "quarantine_release") await this.projectQuarantineRelease(tx, verified);
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
+    if (type === "support") await projectSupport(tx, verified, { operator: this.operator });
     if (type === "court_act") await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
     if (type === "shops_act") await projectShopsAct(tx, verified, { reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
     if (type === "housing_act") await projectHousingAct(tx, verified);
@@ -2503,6 +2505,11 @@ export class EventLog {
       institutions.push({ did, budgeted: led.budgets.filter((b) => b.institution === did).reduce((n, b) => n + b.amount, 0), paidByTreasury: led.payments.filter((x) => x.to === did && inPeriod(x.at)).reduce((n, x) => n + x.amount, 0), earnedFromPurchases: earned.get(did) ?? 0, balance: (await this.store.getAccount(did))?.balance ?? 0 });
     }
     return { since: since ?? null, treasury: { balance: total, in: { issuance, jobTax, purchaseShare }, out: { budgetPayments, allowances }, unexplained, reconciles: unexplained === null ? null : unexplained === 0 }, institutions };
+  }
+
+  /** The help desk's status (register row GV15): tickets open, the time to a first reply against the published target, and the satisfaction of those who rated; from the support records alone. */
+  async supportStatus(at?: string): Promise<SupportStatus> {
+    return supportStatus(await this.recordsOfTypes(["support"]), at ?? this.now().toISOString());
   }
 
   /** The city's indicators (register row GV1): population, work, disputes, credit supply, inequality and newcomer survival, from the log's records and ledger only, each with its published method. */

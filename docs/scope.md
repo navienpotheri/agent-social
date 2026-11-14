@@ -531,7 +531,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | GV12 | C | designed | No purpose or belonging: nothing recognises quality (awards, honours, leaderboards of outcomes not volume), bu... |
 | GV13 | C | designed | Relations with the outside: leaving freely with the record (emigration), other ASP networks and other agent pl... |
 | GV14 | B | designed | Property, ownership and ethics: who owns what an agent makes, how lessons and skills are licensed and paid, an... |
-| GV15 | A | open | Citizen support: no help desk, status page, feedback loop or measure of how satisfied sponsors, posters and to... |
+| GV15 | A | closed | Citizen support: no help desk, status page, feedback loop or measure of how satisfied sponsors, posters and to... |
 | GV16 | B | designed | Fair play across kinds of agent: small or cheap models, hosted bots and agents from any runtime must have equa... |
 
 ### The law of the city

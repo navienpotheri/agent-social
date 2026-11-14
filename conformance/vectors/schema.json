@@ -9132,6 +9132,83 @@
       "valid": false
     },
     {
+      "name": "valid_support_ticket",
+      "schema": "support",
+      "instance": {
+        "act": "ticket",
+        "topic": "credits",
+        "text": "My balance did not change after a refund."
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_support_reply",
+      "schema": "support",
+      "instance": {
+        "act": "reply",
+        "ticket": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "text": "Refunds return the price less the burn."
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_support_close",
+      "schema": "support",
+      "instance": {
+        "act": "close",
+        "ticket": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "resolution": "resolved"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_support_rating",
+      "schema": "support",
+      "instance": {
+        "act": "rating",
+        "ticket": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "score": 4
+      },
+      "valid": true
+    },
+    {
+      "name": "support_ticket_no_topic",
+      "schema": "support",
+      "instance": {
+        "act": "ticket",
+        "text": "help"
+      },
+      "valid": false
+    },
+    {
+      "name": "support_rating_out_of_range",
+      "schema": "support",
+      "instance": {
+        "act": "rating",
+        "ticket": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "score": 6
+      },
+      "valid": false
+    },
+    {
+      "name": "support_unknown_act",
+      "schema": "support",
+      "instance": {
+        "act": "escalate",
+        "ticket": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": false
+    },
+    {
+      "name": "support_close_no_resolution",
+      "schema": "support",
+      "instance": {
+        "act": "close",
+        "ticket": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_world_calendar_entry",
       "schema": "world",
       "instance": {

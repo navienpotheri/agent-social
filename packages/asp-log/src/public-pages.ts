@@ -46,6 +46,7 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
     return r ? { status: 200, json: { ok: true, result: r.body } } : notFound(m[1]);
   }
   if (path === "/residency/subsidy") return { status: 200, json: { ok: true, result: subsidyReport(await log.recordsOfTypes(["subsidy_budget", "subsidy_grant", "subsidy_use"])) } };
+  if (path === "/support/status") return { status: 200, json: { ok: true, result: await log.supportStatus() } };
   if (path === "/society/indicators") { const ind = await log.cityIndicators(); return wantsHtml ? { status: 200, html: indicatorsHtml(ind) } : { status: 200, json: { ok: true, result: ind } }; }
   if (path === "/bank/reserve") { const b = await log.bankPage(); return wantsHtml ? { status: 200, html: bankHtml(b) } : { status: 200, json: { ok: true, result: b } }; }
   if (path === "/insurer/reserve") { const i = await log.insurerPage(); return wantsHtml ? { status: 200, html: insurerHtml(i, []) } : { status: 200, json: { ok: true, result: i } }; }
@@ -80,7 +81,7 @@ function indicatorsHtml(i: Awaited<ReturnType<EventLog["cityIndicators"]>>): str
     row("reports", i.disputes.reports, M.disputes), row("rulings", i.disputes.rulings, ""),
     row("credits minted", i.supply.minted, M.supply), row("credits circulating", i.supply.circulating, ""),
     row("richest tenth's share", i.inequality.topTenthShare, M.inequality), row("gini", i.inequality.gini, ""),
-    row("newcomer survival", i.newcomers.survival, M.newcomers), row("happiness", null, M.happiness),
+    row("newcomer survival", i.newcomers.survival, M.newcomers), row("happiness", i.happiness ? `${i.happiness.mean} of 5 (${i.happiness.ratings} rated)` : null, M.happiness),
   ].join("")}</table>`;
 }
 

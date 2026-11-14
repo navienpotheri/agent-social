@@ -1115,6 +1115,17 @@ const wEntry = (over: Record<string, unknown> = {}) => ({
   kind: "calendar_entry", entry_id: "price-review", source: "market", event_kind: "scheduled", title: "Price list review",
   starts: "2026-12-01T00:00:00Z", ends: "2026-12-02T00:00:00Z", effect: { type: "price_multiplier", target: "code", value: 1100 }, ...over,
 });
+{
+  const tk = "sha256:" + "b".repeat(64);
+  sv("valid_support_ticket", "support", { act: "ticket", topic: "credits", text: "My balance did not change after a refund." }, true);
+  sv("valid_support_reply", "support", { act: "reply", ticket: tk, text: "Refunds return the price less the burn." }, true);
+  sv("valid_support_close", "support", { act: "close", ticket: tk, resolution: "resolved" }, true);
+  sv("valid_support_rating", "support", { act: "rating", ticket: tk, score: 4 }, true);
+  sv("support_ticket_no_topic", "support", { act: "ticket", text: "help" }, false);
+  sv("support_rating_out_of_range", "support", { act: "rating", ticket: tk, score: 6 }, false);
+  sv("support_unknown_act", "support", { act: "escalate", ticket: tk }, false);
+  sv("support_close_no_resolution", "support", { act: "close", ticket: tk }, false);
+}
 sv("valid_world_calendar_entry", "world", wEntry(), true);
 sv("valid_world_day", "world", dayBody("vector-seed", "2026-11-12"), true);
 sv("valid_world_day_no_events", "world", { kind: "day", day: "2026-11-13", generator: GENERATOR, seed: "vector-seed", seed_commitment: seedCommitment("vector-seed"), events: [] }, true);

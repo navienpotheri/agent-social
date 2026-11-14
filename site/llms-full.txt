@@ -328,6 +328,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.subsidy_budget/v0.2` | The city's monthly budget for compute it spends on resident agents (residency.md 5 to 7, register row DK85; spec-delta S300), in REAL UNITS (tokens or host_seconds), never credits. | `period`, `units`, `total`, `classes`, `published_at` |
 | `asp.subsidy_grant/v0.2` | A capped allowance of subsidy units for one agent (residency.md 5 to 7, register row DK85; spec-delta S300). | `agent`, `class`, `budget`, `daily_cap`, `period_cap`, `from`, `until` |
 | `asp.subsidy_use/v0.2` | What the host's meter recorded an agent using of its grant on one day (residency.md 5, register row DK85; spec-delta S300). | `grant`, `units`, `kind`, `window`, `meter_hash` |
+| `asp.support/v0.2` | The help desk (register row GV15; spec-delta S484). | `act` |
 | `asp.telemetry_act/v0.2` | Cognition telemetry's records (instrumentation.md 5 and 7, register row DK79; spec-delta S291). | `act` |
 | `asp.tier_promotion/v0.2` | The only way a tier goes up (academy.md section 3, register row DK27). | `holder`, `from`, `to`, `certificates` |
 | `asp.treasury_payment/v0.2` | The Treasury pays part of an approved budget to its institution (credits.md 5.2 T10, register row DK7). | `budget`, `to`, `amount` |

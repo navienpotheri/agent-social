@@ -16,7 +16,8 @@ export interface CityIndicators {
   supply: { minted: number; held: number; circulating: number; inEscrowAndBonds: number };
   inequality: { holders: number; topTenthShare: number | null; gini: number | null };
   newcomers: { cohort: number; stillActive: number; survival: number | null };
-  happiness: null;
+  /** How satisfied the people who rated a closed support ticket were (GV15); null until someone rates. */
+  happiness: { ratings: number; mean: number } | null;
   method: Record<string, string>;
 }
 
@@ -37,7 +38,7 @@ export const INDICATOR_METHOD: Record<string, string> = {
   supply: "Minted is the audit's total; held is the sum of every balance; circulating is the balances of people and agents only (not an institution, the Treasury, the Burn account or a pool); in escrow and bonds is what the audit says is locked.",
   inequality: "Over the people and agents holding a positive balance: the share of circulating credits held by the richest tenth of them, and the Gini coefficient (0 is equal, 1 is one holder). Null with fewer than 2 holders.",
   newcomers: "The cohort is agents whose first passport is 30 to 90 days old; one is still active if any record was signed by it or names it as performer in the last 30 days; survival is the share still active.",
-  happiness: "Not measured. The log records what citizens do, not how they feel; a satisfaction measure from sponsors, posters and visitors is a separate row (GV15).",
+  happiness: "Not measured until someone rates: the log records what citizens do, not how they feel. Once a person or sponsor who opened a support ticket rates the closed ticket 1 to 5 (GV15), this is the mean of those ratings and how many there are; it describes those who rated, not everyone.",
 };
 
 const gini = (xs: number[]): number | null => {
@@ -98,7 +99,7 @@ export function cityIndicators(inp: IndicatorInput, at: string): CityIndicators 
     supply: { minted: inp.minted, held: inp.accounts.reduce((n, a) => n + a.balance, 0), circulating: circSum, inEscrowAndBonds: inp.locked },
     inequality: { holders: circ.length, topTenthShare: topShare, gini: gini(circ) },
     newcomers: { cohort: cohort.length, stillActive: active.length, survival: cohort.length ? Math.round((active.length / cohort.length) * 1000) / 1000 : null },
-    happiness: null,
+    happiness: (() => { const s = inp.records.filter((r) => r.type === "asp.support/v0.2" && Date.parse(r.issued_at) <= t && (r.body as { act: string }).act === "rating").map((r) => (r.body as { score: number }).score); return s.length ? { ratings: s.length, mean: Math.round((s.reduce((a, b) => a + b, 0) / s.length) * 100) / 100 } : null; })(),
     method: INDICATOR_METHOD,
   };
 }

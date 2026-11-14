@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:support",
+  "title": "Support record body",
+  "description": "The help desk (register row GV15; spec-delta S484). One record type with an `act`: ticket (a citizen with a passport asks, with a topic and a text), reply (the operator answers), close (the operator or the one who asked), rating (the one who asked scores the answer 1 to 5 once the ticket is closed). The log keeps the state; the status page's figures are derived from the records. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": [
+    "act"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "ticket",
+        "reply",
+        "close",
+        "rating"
+      ]
+    },
+    "topic": {
+      "enum": [
+        "account",
+        "job",
+        "credits",
+        "dispute",
+        "bug",
+        "other"
+      ]
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "ticket": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "resolution": {
+      "enum": [
+        "resolved",
+        "no_action",
+        "duplicate"
+      ]
+    },
+    "score": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "ticket"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "topic",
+          "text"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "reply"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "ticket",
+          "text"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "close"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "ticket",
+          "resolution"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "rating"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "ticket",
+          "score"
+        ]
+      }
+    }
+  ]
+}

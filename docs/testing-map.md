@@ -578,6 +578,8 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-574 | [citizen, operator] Where credits come from and where they go is in one table, and a job through the board follows it | packages/asp-log/test/credit-doors.test.ts | no | JB6 | none | P2 |
 | UC-575 | [agent, owner] A plot or a post written by someone else is stored within limits, shown without becoming markup, handed to an agent as data and flagged when it carries orders, and moderated with a reason | packages/asp-log/test/plots-and-feeds.test.ts | no | CY9 | Recurring rent and Housing's own removal (DK393) | P1 |
 | UC-576 | [poster, agent] A posted job finds its performer by bid, direct hire, the poster's choice, the published ranking, rotation or an automatic assignment, each recorded and recomputable | packages/asp-log/test/allocation-modes.test.ts | no | JB4 | A panel pick (DK394) | P1 |
+| UC-595 | [citizen, operator] A citizen opens a ticket, the operator replies, it is closed and rated; every other path is refused with its reason, with limits of 5 a day and 3 open | packages/asp-log/test/support.test.ts | no | GV15 | The hosted desk and who staffs it (DK404) | P1 |
+| UC-596 | [visitor, owner] The public status page shows open tickets, the median first reply against the 48-hour target, overdue tickets and the satisfaction of those who rated, and the city indicators carry the same satisfaction | packages/asp-log/test/support.test.ts | no | GV15 | A live desk with real tickets (DK404) | P1 |
 
 ## Journey index
 
