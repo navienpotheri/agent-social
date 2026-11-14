@@ -336,6 +336,7 @@ import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { SEED_JOBS, SEED_PREFIX } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
+import { CharterUsage, charterCmd } from "./charters.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
 import { InsureUsage, insureCmd } from "./insure.ts";
 import { ShopsUsage, shopsCmd } from "./shops.ts";
@@ -461,6 +462,12 @@ const OPTIONS = {
   draft: { type: "string" },
   accused: { type: "string" },
   description: { type: "string" },
+  docs: { type: "string" },
+  institution: { type: "string" },
+  funding: { type: "string" },
+  officers: { type: "string" },
+  effective: { type: "string" },
+  version: { type: "string" },
   period: { type: "string" },
   units: { type: "string" },
   total: { type: "string" },
@@ -1020,6 +1027,11 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "prizes") return await prizesCommand(home, v, io);
     if (cmd === "wakes") return await wakesCommand(home, v, io);
     if (cmd === "collusion") return await collusionCommand(home, v, io);
+    if (cmd === "charter") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return x; };
+      try { return await charterCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, "cosign-by": v["cosign-by"]?.[0], docs: v.docs, institution: v.institution, file: v.file, funding: v.funding, kind: v.kind, officers: v.officers, effective: v.effective, status: v.status, reason: v.reason, version: v.version } }); } catch (e) { if (e instanceof CharterUsage) throw new UsageError(e.message); throw e; }
+    }
     if (cmd === "first-week") { try { return await firstWeekCmd(v.agent ?? v.by, { log: await openLog(home, logEnv), io }); } catch (e) { if (e instanceof FirstWeekUsage) throw new UsageError(e.message); throw e; } }
     if (cmd === "abuse") return await abuseCommand(home, sub, rest[0], v, io);
     if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);

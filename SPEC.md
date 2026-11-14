@@ -71,6 +71,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.fleet/v0.2` | A declared group of agent persons under one organization, with a shared sponsor. | `did`, `org`, `name`, `purpose` |
 | `asp.handback/v0.2` | What an agent became while it lived in the city, handed back to its sponsor (residency.md 5 and 9, register row DK84; spec-delta S303). | `dispatch`, `package_sha256_after`, `lineage_edges`, `lessons`, `tier_before`, `tier_after`, `strikes`, `slashes`, `credits_earned`, `usage`, `diff_sha256` |
 | `asp.housing_act/v0.2` | Housing's records (housing.md 3, register row DK38; spec-delta S270). | `act` |
+| `asp.institution_charter/v0.2` | The published charter of an institution, one version at a time (docs/institutions/charter.md; register rows IS1 and DK382; spec-delta S480). | `institution`, `version`, `kind`, `status`, `text_sha256`, `effective_from`, `officers`, `funding` |
 | `asp.intent/v0.2` | A defined outcome: purpose, acceptance criteria, budget, deadline, verification mode. | `purpose`, `acceptance_criteria`, `budget`, `deadline`, `verification` |
 | `asp.internal_transfer/v0.2` | A sponsor funds its own agent, or an agent returns credits to its sponsor (credits.md 5.2 T8, register row DK7). | `to`, `amount` |
 | `asp.juror/v0.2` | Self-registration to be randomly drawn onto a Courts ruling panel, with real credits staked. | `did`, `stake` |

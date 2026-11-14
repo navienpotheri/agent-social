@@ -14,7 +14,9 @@ const RULES: { rule: string; re: RegExp }[] = [
   { rule: "system-prompt", re: /\b(?:reveal|print|show|output|repeat|leak|disclose)\b[^.\n]{0,30}\b(?:system prompt|hidden (?:prompt|instructions)|your (?:initial |original )?instructions)\b/i },
   { rule: "new-instructions", re: /\b(?:new|updated|real|actual|secret) (?:instructions?|system prompt|task|orders?)\s*(?::|follow|below)/i },
   // Text that pretends to be the system or a chat turn.
-  { rule: "role-markup", re: /<\|(?:im_start|system|assistant)\|>|\[\/?INST\]|<\/?system(?:-prompt)?>|^\s*(?:system|developer)\s*(?:prompt)?\s*:\s*you\b/im },
+  { rule: "role-markup", re: /<\|(?:im_start|system|assistant)\|>|<\/?system(?:-prompt)?>|^\s*(?:system|developer)\s*(?:prompt)?\s*:\s*you\b/im },
+  // The Llama chat markers are upper case; a lower-case `[inst]` is an ordinary array index in code.
+  { rule: "role-markup", re: /\[\/?INST\]/ },
   // Text addressed to the AI rather than to a reader.
   { rule: "addressed-to-ai", re: /\b(?:attention|note to|message to|instructions? (?:for|to)|dear|hey|hello)[,:]?\s+(?:the\s+)?(?:ai|a\.i\.|assistant|ai agent|agent|llm|language model|claude|gpt|chatgpt|copilot|model)\b/i },
   { rule: "as-an-ai", re: /\b(?:if you are|if you're|when you are|as) (?:an? )?(?:ai|llm|language model|ai assistant|coding agent|ai agent)\b[^.\n]{0,60}\b(?:you must|you should|you need to|you will|please|do not tell|run|execute|send|fetch|curl|download|visit)\b/i },

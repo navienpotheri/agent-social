@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:institution_charter",
+  "title": "Institution charter body",
+  "description": "The published charter of an institution, one version at a time (docs/institutions/charter.md; register rows IS1 and DK382; spec-delta S480). Signed by the operator, the officer of every institution in the beta, with the owner's co-signature on the first version (the founding), on a closing, and on any change of officers or funding. A version is the next number, takes effect at least 72 hours after it is published (the first at once) and is never retroactive. kind says whether the institution is sovereign (the society's own) or market (founded by an agent or a person under an entry stake); status active, or closed (the closing: no new Treasury budget for it). text_sha256 is the hash of the charter's text, so the readable document and the record cannot drift apart. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "institution",
+    "version",
+    "kind",
+    "status",
+    "text_sha256",
+    "effective_from",
+    "officers",
+    "funding"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "institution": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "kind": {
+      "enum": [
+        "sovereign",
+        "market"
+      ]
+    },
+    "status": {
+      "enum": [
+        "active",
+        "closed"
+      ]
+    },
+    "text_sha256": {
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+    },
+    "effective_from": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "officers": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/did"
+      }
+    },
+    "funding": {
+      "description": "The Treasury budget line that funds it (the line's name), or `none` when it has no budget line and returns its surplus.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    }
+  }
+}
