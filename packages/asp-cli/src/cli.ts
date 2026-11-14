@@ -321,6 +321,7 @@
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { fileDiff, findLesson, listLessons, markReviewed, memoryAfterEdit, memoryAfterUndo, planUndo, summarize, type Lesson } from "@agent-social/asp-package";
+import { claimStanding, readStanding, standingPath, writeStanding, type StandingJob } from "./standing.ts";
 import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
@@ -5610,13 +5611,13 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     created = true;
   }
   if (v.prepare) {
-    standing[key] = job; writeStanding(home, standing);
+    if (!headless) job = claimStanding(home, key, job, created, false).job;
     io.out(`standing job ${job.contract} for ${ids.agent.split(":").slice(-1)[0]} (${created ? "made" : "already running"}), until ${job.expiresAt.slice(0, 10)}; scopes ${scopes.join(", ")}${hosts.length ? `; network ${hosts.join(", ")}` : "; no network"}`);
     io.out("for a CI job or a scheduled task: asp token create <name>, asp identity backup <agent did> --out <file>, then asp run claude-code --headless --contract <this id> --prompt-file <task>");
     return 0;
   }
-  job.sessions += 1;
-  if (!headless) { standing[key] = job; writeStanding(home, standing); }
+  // Two sessions started at once must not lose each other's count or each make a standing job (gap T3): the claim reads again under the lock and adopts a job another session made meanwhile.
+  if (headless) job.sessions += 1; else job = claimStanding(home, key, job, created).job;
   const sid = randomBytes(4).toString("hex");
   const stopFile = join(home, `stop-${sid}`);
   // Reports an earlier session could not send (a full account, a dropped connection) are sent now, by themselves; a service that does not answer is not waited for (T16).
@@ -6056,10 +6057,6 @@ function shimCmd(shell: string | undefined, io: Io): number {
 }
 
 // ---- standing jobs and the history of governed sessions, kept on this machine (prompts stay private) ----
-interface StandingJob { contract: string; agent: string; key: string; createdAt: string; expiresAt: string; scopes: string[]; hosts: string[]; gate?: string[]; sessions: number }
-const standingPath = (home: string) => join(home, "standing.json");
-function readStanding(home: string): Record<string, StandingJob> { try { return JSON.parse(readFileSync(standingPath(home), "utf8")); } catch { return {}; } }
-function writeStanding(home: string, s: Record<string, StandingJob>): void { mkdirSync(home, { recursive: true }); writeFileSync(standingPath(home), JSON.stringify(s, null, 2) + "\n"); }
 const standingKey = (agent: string, scopes: string[], hosts: string[], gate: string[] = []) => createHash("sha256").update(JSON.stringify(gate.length ? [agent, [...scopes].sort(), [...hosts].sort(), [...gate].sort()] : [agent, [...scopes].sort(), [...hosts].sort()])).digest("hex").slice(0, 16);
 
 interface SessionStart { t: "start"; /** The process of `asp run`, so a session whose process has gone without an end record can be called interrupted. */ pid?: number; sid: string; contract: string; at: string; runtime: string; agent: string; me: string; bank: string; purpose: string; scopes: string[]; hosts: string[] }
