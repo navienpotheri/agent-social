@@ -138,9 +138,19 @@ export async function runSwarm(sc: SwarmScenario, run: Runner, advance: (ms: num
   }
   await must(["credits", "grant", "--to", WATCHER, "--amount", String(Math.max(20, sc.price))]);
   const watcherStart = Math.max(20, sc.price);
-  const scripted = sc.agents > 0 ? (await must(["identity", "copy", ORIGINAL, "--count", String(sc.agents)])).out.split("\n") : [];
+  // A sponsor opens at most 10 new agent passports a day (registry.md RG-11, S456), the original included: the swarm's copies are made in batches of 9, a simulated day apart.
+  const copies = async (n: number): Promise<string[]> => {
+    const out: string[] = [];
+    while (out.length < n) {
+      if (out.length) advance(86_400_000);
+      out.push(...(await must(["identity", "copy", ORIGINAL, "--count", String(Math.min(9, n - out.length))])).out.split("\n").filter(Boolean));
+    }
+    return out;
+  };
+  const scripted = sc.agents > 0 ? await copies(sc.agents) : [];
   const realSpecs = sc.real ?? [];
-  const realDids = realSpecs.length ? (await must(["identity", "copy", ORIGINAL, "--count", String(realSpecs.length)])).out.split("\n") : [];
+  if (realSpecs.length && scripted.length) advance(86_400_000);
+  const realDids = realSpecs.length ? await copies(realSpecs.length) : [];
   const agents = [...scripted, ...realDids];
 
   // One running job per agent. With jurors registered, each side also locks half the panel fee (S37).

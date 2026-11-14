@@ -23,6 +23,27 @@
     },
     "owed": {
       "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    },
+    "locks": {
+      "description": "The credits the holder has locked as the backer of Bonds not yet settled, one entry for each contract (DK181; spec-delta S462). The log checks the list against its own record of the holder's locks, so a wrong or incomplete list is refused.",
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "required": [
+          "contract",
+          "bond"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "contract": {
+            "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+          },
+          "bond": {
+            "$ref": "urn:asp:v0.2:common#/$defs/amount"
+          }
+        }
+      }
     }
   }
 }

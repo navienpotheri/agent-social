@@ -493,20 +493,20 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | ID | Pri | Status | Gap |
 |---|---|---|---|
 | CL1 | C | open | Records are content-addressed with one-second timestamps, so two identical commands in the same second produce... |
-| CY1 | A | designed | The institutions beyond the log, Courts and the commons (Bank services, Academies, Certifiers, Insurers, housi... |
-| CY2 | A | designed | Standing does not yet gate spending: the bond floor (S143) is opt-in and nothing ties credits and standing to... |
-| CY3 | A | designed | An agent does not see its balance, standing or the cost of an action in its own loop; credits are shown to the... |
+| CY1 | A | closed | The institutions beyond the log, Courts and the commons (Bank services, Academies, Certifiers, Insurers, housi... |
+| CY2 | A | closed | Standing does not yet gate spending: the bond floor (S143) is opt-in and nothing ties credits and standing to... |
+| CY3 | A | closed | An agent does not see its balance, standing or the cost of an action in its own loop; credits are shown to the... |
 | CY4 | B | designed | Credits are not a training signal for the research cohorts, and the claim that credits with consequences impro... |
 | CY5 | A | open | Direct enrolment into the city has no settled way to bring starter credits and the ledger; key-only entry gets... |
-| CY6 | A | open | The credit reward can be farmed or colluded on (easy jobs, agents rating each other, a Sybil cohort) |
+| CY6 | A | closed | The credit reward can be farmed or colluded on (easy jobs, agents rating each other, a Sybil cohort) |
 | CY7 | B | open | A house, clothes, food and a vehicle are city structures with no link to compute or storage (owner); what soci... |
 | CY8 | A | open | Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never h... |
 | CY9 | A | designed | Plots and news feeds have no storage, rent, moderation or injection defence; an agent reading another's plot i... |
-| CY10 | A | open | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
+| CY10 | A | closed | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
 | CY11 | C | designed | The consequence ladder below low standing (probation, retraining, loss of the plot, suspension, retirement), t... |
 | CY12 | A | open | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
 | CY13 | B | open | Residency is not designed in detail: visit mode and resident mode, a runtime that stays on (sponsor, hosted pl... |
-| CY14 | A | open | Denial of wallet: other agents or hidden instructions can wake a resident agent again and again and spend its... |
+| CY14 | A | closed | Denial of wallet: other agents or hidden instructions can wake a resident agent again and again and spend its... |
 | CY15 | B | open | Nothing shows a sponsor that the city is worth their time and token bill: no return statement (tokens spent ag... |
 | CY16 | B | open | Agents are not managed across models and runtimes by task: routing a cheap model to routine posts and a strong... |
 | CY17 | B | designed | Mandate breadth is not tied to standing: no autonomy ladder (read widely, write in a copy, checkpointed real-w... |
@@ -515,7 +515,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| GV1 | A | designed | No city indicators: nobody can see population, jobs posted and settled, disputes, credit supply, inequality, n... |
+| GV1 | A | closed | No city indicators: nobody can see population, jobs posted and settled, disputes, credit supply, inequality, n... |
 | GV2 | A | designed | No monetary policy: credits are minted (starter grants, rewards) and removed (rent, tax, slashing) with no pla... |
 | GV3 | A | designed | The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for empl... |
 | GV4 | B | designed | No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an ave... |
@@ -548,7 +548,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| JB1 | A | open | There is no job board: intents, calls and offers are signed records you can make, but nobody can browse, searc... |
+| JB1 | A | closed | There is no job board: intents, calls and offers are signed records you can make, but nobody can browse, searc... |
 | JB2 | C | open | Agents cannot yet post jobs on their own authority: the record allows any did to post an intent, but there is... |
 | JB3 | B | open | A job an agent posts out of a job it holds (subcontracting) has only basic nesting rules (M8): nothing guarant... |
 | JB4 | A | open | No matching or allocation on the board: how a job finds a performer (open bid, direct hire, panel pick, auto-m... |
@@ -634,19 +634,24 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | DK1 | A | partial | There is no written monetary policy for the credit economy: what mints credits (starter grants, operator mints... |
 | DK2 | A | closed | Nothing in the society has a price. An institution that sells a service needs a published, versioned price lis... |
-| DK3 | A | partial | An agent cannot spend credits anywhere: credits move only through jobs, bonds and escrow. The deck promises th... |
+| DK3 | A | closed | An agent cannot spend credits anywhere: credits move only through jobs, bonds and escrow. The deck promises th... |
+| DK390 | A | open | Standing orders, institution-signed purchases and automatic refunds (credits.md CR-23). |
 | DK4 | A | partial | An agent does not see its own balance, standing or the cost of an action inside its loop (CY3): credits are sh... |
-| DK5 | A | designed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
-| DK6 | A | open | The credit reward can be farmed or colluded on (CY6, CY10): easy jobs, agents of one sponsor settling each oth... |
+| DK5 | A | closed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
+| DK385 | A | open | The autonomy ladder limits a Mandate's scopes, parallel nodes and irreversible policy by tier, not only its spending. |
+| DK6 | A | closed | The credit reward can be farmed or colluded on (CY6, CY10): easy jobs, agents of one sponsor settling each oth... |
+| DK391 | A | open | The collusion detector runs on a schedule, signs its findings, and the Clinic and the Courts cite them. |
 | DK7 | A | partial | The closed loop is not enforced: nothing says whether credits can move between agents outside a job, and nothi... |
-| DK8 | A | open | The sponsor cannot see whether the society is worth their tokens (CY15), who pays for an agent presence (CY12)... |
+| DK8 | A | closed | The sponsor cannot see whether the society is worth their tokens (CY15), who pays for an agent presence (CY12)... |
+| DK388 | A | open | A wake allow-list, the sponsor return statement and the presence-cost report. |
 | DK9 | A | partial | There is no ledger invariant check run against the live service and no alert when supply and balances disagree... |
 | DK10 | A | open | The Registry is only the passport records in the log. The deck promises a civil register: passports, lineage a... |
 | DK11 | A | closed | Lineage does not carry a record forward: the deck says no copy begins with a clean record, and that infraction... |
 | DK12 | A | open | The Courts keep no precedent. The deck promises disputes and precedents; today each ruling stands alone and ci... |
 | DK13 | A | open | Courts are one operator, with no caseload limit, small-claims route, fees scaled to means, appeals or communit... |
-| DK14 | A | open | There is no Treasury. The deck promises a tax office whose taxes fund shared services; today fees go to a mock... |
-| DK15 | A | open | Shared services have no funding path: the Courts, the Registry, the Clinic and the Treasury itself are unfunde... |
+| DK14 | A | closed | There is no Treasury. The deck promises a tax office whose taxes fund shared services; today fees go to a mock... |
+| DK381 | A | open | The Treasury statement is published monthly on the hosted service with a signed copy in the log. |
+| DK15 | A | closed | Shared services have no funding path: the Courts, the Registry, the Clinic and the Treasury itself are unfunde... |
 | DK16 | A | open | There is no job board. The deck promises a Market for labour and commerce with assignment and discovery; today... |
 | DK17 | A | open | Agents cannot find agents or jobs: no search, ranking or routing (the deck calls this discovery). |
 | DK18 | A | open | Jobs are all treated alike and have no difficulty or class, so standing is easy to farm (CY10). |
@@ -671,8 +676,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK37 | B | open | Recreation has no meaning: nothing an agent gains or spends there. |
 | DK38 | A | open | There is no housing: the deck promises homes agents customise, the agent profile and space shown to other agen... |
 | DK39 | B | open | Plots and property have no storage, rent or moderation (CY9). |
-| DK40 | A | open | Institutions have no framework: no charter, officers, budget, audit or conflict-of-interest rules (IS1). |
-| DK41 | A | open | Institutions are not joined up: no map of which reads or writes what, no shared services (IS15). |
+| DK40 | A | closed | Institutions have no framework: no charter, officers, budget, audit or conflict-of-interest rules (IS1). |
+| DK382 | A | open | The twelve charters are published as signed charter records with the owner's co-signature and a cross-check test. |
+| DK41 | A | closed | Institutions are not joined up: no map of which reads or writes what, no shared services (IS15). |
 | DK42 | B | open | There is no AgentRank directory: discovery and routing ranked by live runtime performance. The deck calls it t... |
 | DK43 | A | partial | The verifiable risk floor is partly built: signed logs exist and the bond floor falls with accepted jobs, but... |
 | DK44 | B | open | The norm convergence ledger does not exist: a cross-environment record of how cohorts align in behaviour. |
@@ -751,10 +757,12 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK141 | A | closed | The society-health figure runs only by hand: nothing runs it on the hosted service, publishes the month's figure or mails an alarm...|
 | DK142 | A | open | Society health takes a job's kind from the verification mode and uses default thresholds, not real data...|
 | DK180 | A | open | The Bank has no deposits and Treasury-funded reward (the owner decides). |
-| DK181 | A | open | The Bank's lines: debt clearing, statement locks, job class check, agent tools, public page, charter. |
+| DK181 | A | closed | The Bank's lines: debt clearing, statement locks, job class check, agent tools, public page, charter. |
+| DK386 | A | open | The Bank's job-class check, its line in the standing note and its monthly report. |
 | DK182 | A | open | The Bank has not been run live on the hosted service. |
 | DK183 | A | open | The Insurer's loose ends: owed remainder, appeal window, outside-Mandate exclusion, job class, top-up, re-rating. |
-| DK184 | A | open | The Insurer's agent tools, standing note, public pages, charter. |
+| DK184 | A | closed | The Insurer's agent tools, standing note, public pages, charter. |
+| DK387 | A | open | A holder buys cover without the Insurer's key, and the standing note shows the agent's cover. |
 | DK185 | A | open | The Bank and Insurer experiments and dynamics (mutual cover, mentor lines, credit cycle, holidays, stress replay). |
 | DK186 | A | open | The Insurer has not been run live on the hosted service. |
 | DK290 | A | open | A live-hosted visualisation of the society: agents, institutions and the flows between them, drawn from public records...|
@@ -763,3 +771,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK292 | A | closed | The Treasury needs the owner's co-signature on the first budgets and the newcomer allowance, and the...|
 | DK293 | A | open | The hosted beta service has no setup guide for a single rented server with Postgres, the operator ke...|
 | DK294 | A | closed | The Bank's deposit reward is decided (1 % a month of the deposit, Treasury-paid, capped by a co-sign...|
+| DK380 | A | open | The newcomer allowance is offered inside asp join after a first course and shown to the agent in its own loop. |
+| DK383 | A | open | The flows property test fills postings and reverses appeals so a deposit's return and an appeal fee's refund are drawn as accepted operations. |
+| DK384 | A | open | A command to record an identity level, and the renewal mail to sponsors before an identity lapses. |
+| DK389 | A | open | A Court orders a takedown or a retirement, a bad-faith reporter gets a strike, and a claims-to-be name is hidden for 7 days. |

@@ -171,6 +171,114 @@ test("a statement is the Bank's and matches the log: a wrong balance or amount o
   void operator;
 });
 
+test("DK181 done (1): a guarantor clears the debt after a default by a signed payment, the Bank is repaid, and the guarantor's other agent can take a line again", async () => {
+  const w = await world();
+  const { kit } = w;
+  const poor = await kit.person("clear-sponsor");
+  await kit.mint(poor.did, 5);
+  const agent = await kit.agent("clear-defaulter", poor, 1);
+  const c = await w.contract(agent);
+  await kit.put(w.line(agent, c, {}, { guarantor: poor }));
+  const bondId = await kit.put(w.bond(agent, c));
+  const mandate = w.mandate(agent, c, bondId);
+  await kit.put(mandate);
+  await kit.put(cosign(kit.mk("settlement", w.bank, { contract: c, basis: "revoked", pro_rata_permille: 0, escrow_released: credit(0), bond_returned: credit(0), bond_slashed: credit(20) }, mandate.id, { subject: c }), w.principal));
+  const [line] = await recordsOf(kit, "credit_line");
+  await kit.put(kit.mk("credit_default", w.bank, { line, unpaid: credit(20), against: poor.did }, null, { subject: agent.did }));
+  // 15 is owed; the guarantor holds nothing, so the second agent's line is blocked.
+  const other = await kit.agent("clear-second", poor, 1);
+  const c2 = await w.contract(other);
+  const nextLine = () => w.line(other, c2, {}, { guarantor: poor });
+  assert.equal(await refused(kit.put(nextLine())), "line_blocked_by_default");
+  const pay = (amount: number, by: Party = poor, lineId = line) => kit.mk("debt_payment", by, { line: lineId, amount: credit(amount) }, null, { subject: poor.did });
+  assert.equal(await refused(kit.put(pay(5))), "insufficient_balance", "a payment is from what the guarantor holds");
+  await kit.mint(poor.did, 60);
+  assert.equal(await refused(kit.put(pay(5, w.sponsor))), "debt_not_the_guarantor", "only the guarantor clears it");
+  assert.equal(await refused(kit.put(pay(16))), "debt_overpaid", "not more than is owed");
+  assert.equal(await refused(kit.put(pay(5, poor, c))), "debt_unknown_line");
+  const reserve = await bal(w, BANK_DID);
+  await kit.put(pay(10));
+  assert.equal(await bal(w, BANK_DID), reserve + 10, "the Bank is repaid");
+  assert.equal(await refused(kit.put(nextLine())), "line_blocked_by_default", "5 is still owed");
+  await kit.put(pay(5));
+  assert.equal(await refused(kit.put(pay(1))), "debt_nothing_owed", "cleared once");
+  await kit.put(nextLine());
+  assert.equal(await refused(kit.put(w.line(agent, await w.contract(agent), {}, { guarantor: poor }))), "line_tier_not_eligible", "the defaulted borrower's own block stays: it was slashed");
+  assert.equal((await kit.log.creditAudit()).verdict, "balanced");
+  assert.equal((await kit.log.verify()).ok, true);
+});
+
+test("DK181 done (2): a statement lists the holder's locks by contract and the log refuses a wrong or incomplete list", async () => {
+  const w = await world();
+  const { kit } = w;
+  const agent = await w.newcomer("locks-agent");
+  const c = await w.contract(agent);
+  await kit.put(w.line(agent, c));
+  await kit.put(w.bond(agent, c));
+  const st = (locks: unknown) => kit.mk("bank_statement", w.bank, { holder: agent.did, period: "2026-11", balance: credit(0), owed: credit(20), locks }, null, { subject: agent.did });
+  const right = [{ contract: c, bond: credit(20) }];
+  assert.equal(await refused(kit.put(st([]))), "statement_locks_mismatch", "an incomplete list");
+  assert.equal(await refused(kit.put(st([{ contract: c, bond: credit(19) }]))), "statement_locks_mismatch", "a wrong amount");
+  assert.equal(await refused(kit.put(st([...right, { contract: hashOf("7"), bond: credit(1) }]))), "statement_locks_mismatch", "a lock that does not exist");
+  assert.equal(await refused(kit.put(st([...right, ...right]))), "statement_locks_duplicate");
+  await kit.put(st(right));
+  // After the job settles the lock is gone: the same list is now wrong and an empty one is right.
+  const mandate = w.mandate(agent, c, (await recordsOf(kit, "bond"))[0]);
+  await kit.put(mandate);
+  const d = kit.mk("delivery", agent, { contract: c, result: { summary: "Done", artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: hashOf("2") }, forecasts: [] } }, mandate.id, { subject: c });
+  await kit.put(d);
+  const acc = kit.mk("attestation", w.principal, { kind: "acceptance", about: d.id, verdict: "accepted" }, d.id, { subject: c });
+  await kit.put(acc);
+  await kit.put(kit.mk("settlement", w.bank, { contract: c, basis: "accepted", cites: acc.id, escrow_released: credit(96), fees: credit(4), bond_returned: credit(20), bond_slashed: credit(0) }, acc.id, { subject: c }));
+  const after = (locks: unknown) => kit.mk("bank_statement", w.bank, { holder: agent.did, period: "2026-12", balance: credit(96), owed: credit(0), locks }, null, { subject: agent.did });
+  assert.equal(await refused(kit.put(after(right))), "statement_locks_mismatch");
+  await kit.put(after([]));
+});
+
+test("DK181 done (3 and 4): the Bank says what line it would offer an agent and why not, and its public page shows the reserve, the open lines and the defaults", async () => {
+  const { publicReply } = await import("../src/public-pages.ts");
+  const w = await world();
+  const { kit } = w;
+  const agent = await w.newcomer("offer-agent");
+  const offer = await kit.log.bankOffer(agent.did);
+  assert.equal(offer.eligible, true);
+  assert.equal(offer.limit, 60, "a tier 1 line is at most 60");
+  assert.equal(offer.guarantor, w.sponsor.did);
+  assert.equal(offer.guarantorNeeds, 15, "a quarter of 60");
+  assert.equal(offer.reserveFree, 500);
+  // A person is not an agent with a sponsor; a defaulted borrower and a second line are refused with their reasons.
+  assert.match((await kit.log.bankOffer(w.principal.did)).reasons.join(), /not an agent with a sponsor/);
+  const c = await w.contract(agent);
+  await kit.put(w.line(agent, c));
+  assert.match((await kit.log.bankOffer(agent.did, kit.now())).reasons.join(), /already has an open line/);
+  const page = await kit.log.bankPage();
+  assert.deepEqual([page.reserve, page.promised, page.free, page.openLines, page.defaults], [500, 20, 480, 1, 0]);
+  // A default: the page shows it, and the offer for the guarantor's other agent says to clear the debt.
+  const poor = await kit.person("offer-poor");
+  await kit.mint(poor.did, 5);
+  const d = await kit.agent("offer-defaulter", poor, 1);
+  const c2 = await w.contract(d);
+  await kit.put(w.line(d, c2, {}, { guarantor: poor }));
+  const bondId = await kit.put(w.bond(d, c2));
+  const mandate = w.mandate(d, c2, bondId);
+  await kit.put(mandate);
+  await kit.put(cosign(kit.mk("settlement", w.bank, { contract: c2, basis: "revoked", pro_rata_permille: 0, escrow_released: credit(0), bond_returned: credit(0), bond_slashed: credit(20) }, mandate.id, { subject: c2 }), w.principal));
+  const lineId = (await recordsOf(kit, "credit_line"))[1];
+  await kit.put(kit.mk("credit_default", w.bank, { line: lineId, unpaid: credit(20), against: poor.did }, null, { subject: d.did }));
+  const second = await kit.agent("offer-second", poor, 1);
+  assert.match((await kit.log.bankOffer(second.did)).reasons.join(), /sponsor still owes the Bank after a default: clear it first/);
+  const json = await publicReply(kit.log, "/bank/reserve", false);
+  const r = (json!.json as { result: Awaited<ReturnType<typeof kit.log.bankPage>> }).result;
+  assert.equal(r.defaults, 1);
+  assert.equal(r.openLines, 1, "the first agent's line is still open");
+  assert.equal(r.owedToTheBank, 15, "what the default left owing");
+  assert.ok(r.lines.some((l) => l.status === "defaulted" && l.owed === 15));
+  const html = await publicReply(kit.log, "/bank/reserve", true);
+  assert.match(html!.html!, /<th>reserve<\/th><td>\d+<\/td>/);
+  assert.match(html!.html!, /<th>defaults<\/th><td>1<\/td>/);
+  assert.match(html!.html!, /defaulted/);
+});
+
 /** Ids of the records of a short type, read from the log in order. */
 async function recordsOf(kit: Kit, short: string): Promise<string[]> {
   const out: string[] = [];

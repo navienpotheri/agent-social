@@ -53,6 +53,7 @@ export function namesAt(acts: AspRecord[], at: string): Map<string, NameClaim> {
     if (b.act === "name_claim") names.set(b.name, { name: b.name, holder: b.holder, claim: r.id, from: r.issued_at, until: b.valid_until });
     else if (b.act === "name_release") { const c = names.get(b.name); if (c && c.claim === b.claim) names.set(b.name, { ...c, released: true }); }
     else if (b.act === "name_takedown") { const c = names.get(b.name); if (c) names.set(b.name, { ...c, removedBy: r.id }); }
+    else if (b.act === "name_restore") { const c = names.get(b.name); if (c && c.removedBy === b.takedown) { const { removedBy: _x, ...rest } = c; names.set(b.name, rest); } }
   }
   return names;
 }
@@ -63,6 +64,8 @@ export interface RecordPage {
   purpose: string | null; temperament: string | null;
   /** A house agent (the operator's scripted agent, DK291): true and labelled on every page that shows it. */
   house: boolean; label: string | null;
+  /** The identity level (RG-12): key_only, sponsored or verified_sponsor; `certified` is not available in the beta. */
+  level: IdentityLevel;
   tier: number | null; slashCount: number; strikes: number; acceptedJobs: number; qualifyingJobs: number;
   certificates: { skill: string; level: number; expires: string }[];
   renewal: { due: string; lapsed: boolean } | null;
@@ -107,7 +110,9 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
   const due = new Date(Date.parse(lastRenewed) + RENEWAL_TERM_MS).toISOString().replace(/\.\d+Z$/, "Z");
   const suspensions = acts.filter((r) => { const b = r.body as { act: string; holder?: string }; return b.act === "identity_suspension" && b.holder === did && Date.parse(r.issued_at) <= t; });
   const lifted = new Set(acts.filter((r) => (r.body as { act: string }).act === "suspension_lift" && Date.parse(r.issued_at) <= t).map((r) => (r.body as { suspension: string }).suspension));
-  const live = suspensions.filter((s) => !lifted.has(s.id) && Date.parse((s.body as { until: string }).until) > t).at(-1);
+  // A Court's extension (DK120) moves the end of a suspension to the date its ruling set.
+  const untilOf = (sid: string, own: string): number => acts.filter((r) => { const x = r.body as { act: string; suspension?: string }; return x.act === "suspension_extend" && x.suspension === sid && Date.parse(r.issued_at) <= t; }).reduce((m, r) => Math.max(m, Date.parse((r.body as { until: string }).until)), Date.parse(own));
+  const live = suspensions.filter((s) => !lifted.has(s.id) && untilOf(s.id, (s.body as { until: string }).until) > t).at(-1);
   const takedowns = acts.filter((r) => { const b = r.body as { act: string; holder?: string }; return b.act === "name_takedown" && b.holder === did && Date.parse(r.issued_at) <= t; })
     .map((r) => { const b = r.body as { name: string; reason: string; code: { articles: string[] }; appealable_until: string }; return { name: b.name, reason: b.reason, articles: b.code.articles, record: r.id, appealable_until: b.appealable_until }; });
   const holdings = holdingsAt(records, did, at);
@@ -115,9 +120,10 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
   return {
     did, names, kind: pb.kind, sponsor: pb.sponsor ?? null, fleet: typeof pb.fleet === "string" ? pb.fleet : pb.fleet?.name ?? null, lineage: pb.lineage ?? [],
     purpose: cap(pb.purpose, 500), temperament: cap(pb.temperament, 300), house: pb.house === true, label: pb.house ? "house agent" : null,
+    level: identityLevelAt(acts, did, t, pb.sponsor),
     tier: inp.reputation?.tier ?? null, slashCount: inp.reputation?.slashCount ?? 0, strikes: inp.reputation?.strikes ?? 0, acceptedJobs: inp.reputation?.acceptedJobs ?? 0, qualifyingJobs: inp.reputation?.qualifyingJobs ?? 0,
     certificates, renewal: pb.kind === "agent" ? { due, lapsed: t > Date.parse(due) + LAPSE_AFTER_MS } : null,
-    suspended: live ? { until: (live.body as { until: string }).until, reason: (live.body as { reason: string }).reason, record: live.id } : null,
+    suspended: live ? { until: new Date(untilOf(live.id, (live.body as { until: string }).until)).toISOString().replace(/\.\d+Z$/, "Z"), reason: (live.body as { reason: string }).reason, record: live.id } : null,
     retired: acts.some((r) => (r.body as { act: string; holder?: string }).act === "identity_retirement" && (r.body as { holder: string }).holder === did && Date.parse(r.issued_at) <= t),
     takedowns, holdings: holdings.active.map((h) => ({ item: h.item, effect: h.effect, from: h.from, until: h.until })), removed_holdings: holdings.removed.map((h) => ({ item: h.item, reason: h.reason })),
     residency: resident ? { mode: resident.mode, status: resident.status, since: resident.since, paid_through: resident.paidThrough, reason: resident.statusReason } : null,
@@ -134,3 +140,30 @@ export function verifyPage(held: RecordPage, fresh: RecordPage | null): string[]
 }
 
 export { REGISTRAR_DID };
+
+/** The agent identities whose renewal has lapsed at `at`: the first passport or the last renewal is more than a term and the lapse period ago (the page's `renewal.lapsed`, computed for every agent at once from the passports and renewal acts). */
+export function lapsedIdentities(records: AspRecord[], at: string): Set<string> {
+  const t = Date.parse(at);
+  const born = new Map<string, string>();
+  const passportOf = new Map<string, string>();
+  for (const r of records) if (r.type === "asp.passport/v0.2") { const b = r.body as { did: string; kind: string }; if (b.kind !== "agent") continue; if (!born.has(b.did)) born.set(b.did, r.issued_at); passportOf.set(r.id, b.did); }
+  const last = new Map(born);
+  for (const r of records) {
+    if (r.type !== "asp.registry_act/v0.2") continue;
+    const b = r.body as { act: string; passport?: string };
+    const did = b.act === "identity_renewal" && b.passport ? passportOf.get(b.passport) : undefined;
+    if (did && Date.parse(r.issued_at) <= t) last.set(did, r.issued_at);
+  }
+  const out = new Set<string>();
+  for (const [did, from] of last) if (t > Date.parse(from) + RENEWAL_TERM_MS + LAPSE_AFTER_MS) out.add(did);
+  return out;
+}
+
+/** The identity levels in order, weakest first. `certified` is not available in the beta. */
+export const IDENTITY_LEVELS = ["key_only", "sponsored", "verified_sponsor"] as const;
+export type IdentityLevel = (typeof IDENTITY_LEVELS)[number];
+/** The level of a holder at a time: the Registrar's last `identity_level` act up to then, else `sponsored` for an identity with a sponsor and `key_only` for one without. */
+export function identityLevelAt(acts: AspRecord[], did: string, t: number, sponsor?: string | null): IdentityLevel {
+  const last = acts.filter((r) => { const b = r.body as { act: string; holder?: string }; return b.act === "identity_level" && b.holder === did && Date.parse(r.issued_at) <= t; }).at(-1);
+  return last ? ((last.body as { level: IdentityLevel }).level) : sponsor ? "sponsored" : "key_only";
+}

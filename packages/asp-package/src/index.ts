@@ -77,3 +77,4 @@ export { ANNOUNCED_MIN, HIDDEN_MIN, PROBE_RATE_PERMILLE, AWARE_GAP, REGRESSION_D
 export { LocalRawStore, redactTelemetryText, saltedHash, MAX_TEXT as TELEMETRY_MAX_TEXT } from "./telemetry-local.ts";
 export { runReadOnlyProbe, type ProbeProposition } from "./telemetry-probe.ts";
 export { adminRoutes, AdminAudit, setSuspension, setBlock, type AuditEntry, type AdminOptions } from "./admin-routes.ts";
+export { DailyCeiling, type Limits as WakeLimits, type Ceiling as WakeCeiling } from "./daily-ceiling.ts";

@@ -63,6 +63,9 @@ test("cover is bought before the job and a covered failure is paid by the terms 
     const decided = await ok(f, ["insure", "decide", "--claim", claimId]);
     assert.match(decided.out, /paid, 4 credits paid from the reserve/);
     assert.match((await ok(f, ["insure", "reserve"])).out, /reserve: 598 credits/);
+    const report = await ok(f, ["insure", "report"]);
+    assert.match(report.out, /Insurer report \d{4}-\d{2}: 1 policy\(ies\) sold for 2 credits in premiums; reserve 598 against a floor of 500 \(above\)/);
+    assert.match(report.out, /claim \S+: paid 4 credits, covered/);
     // A second job: cover bought after the first Action is refused.
     const second = await job(AGENT2);
     await ok(f, ["market", "bond", "--contract", second, "--backer", AGENT2, "--amount", "20", "--escrow-payer", PRINCIPAL, "--escrow-amount", "100"]);

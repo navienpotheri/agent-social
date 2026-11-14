@@ -3,7 +3,7 @@
  * (precedents, departures, route), and the caseload cap. State is kept in markers written inside the append, so a refused record leaves none.
  */
 import { AspError, didOf, type AspRecord } from "@agent-social/asp-core";
-import { institutionDid } from "./economy.ts";
+import { REGISTRAR_DID, institutionDid } from "./economy.ts";
 import { drawPanel } from "./panel.ts";
 import { APPEAL_SERVICE_SMALL, APPEAL_SERVICE_STANDARD, CHARTER_NOTICE_MS, DEFAULT_ROUTES, ROUTE_KEYS, routeFor, type CourtRoutes } from "./courts.ts";
 import type { LogTx } from "./store.ts";
@@ -67,6 +67,53 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     await tx.putMarker(`appeal:${r.id}`, JSON.stringify({ ruling: b.ruling, appellant: r.issuer, contract: contract.id, state: "open", fee: b.fee_paid }));
     await tx.putMarker(`appealed:${b.ruling}`, r.id);
     await tx.putMarker(`appeal_fee:${b.fee_paid}`, r.id);
+    return;
+  }
+
+  // The institutional route (courts.md 3; DK120; spec-delta S466): a holder takes a Registry takedown or suspension to a panel; the institution acts only on the ruling that names the order.
+  if (b.act === "case") {
+    const subject = await tx.getRecord(b.subject);
+    const sb = subject?.record.body as { act?: string; holder?: string; appealable_until?: string; until?: string } | undefined;
+    if (!subject || subject.record.type !== "asp.registry_act/v0.2" || (sb?.act !== "name_takedown" && sb?.act !== "identity_suspension")) throw rule("case_subject", `${b.subject} is not a Registry takedown or suspension: a case is about one of them`);
+    if (r.issuer !== sb.holder) throw rule("case_not_the_holder", `only the holder (${sb.holder}) takes its takedown or suspension to the Courts`);
+    if (await tx.getMarker(`case_for:${b.subject}`)) throw rule("case_once", `${b.subject} already has a case: one case for each act`);
+    const closes = sb.act === "name_takedown" ? Date.parse(sb.appealable_until!) : Date.parse(sb.until!);
+    if (Date.parse(now) > closes) throw rule("case_window_closed", sb.act === "name_takedown" ? `a takedown is appealed within 14 days: until ${sb.appealable_until}` : `a suspension is taken to the Courts while it lasts: it ended ${sb.until}`);
+    const fee = await tx.getRecord(b.fee_paid);
+    const pb = fee?.record.body as { service?: string; institution?: string } | undefined;
+    if (!fee || fee.record.type !== "asp.purchase/v0.2" || fee.record.issuer !== r.issuer || pb?.service !== APPEAL_SERVICE_SMALL || pb.institution !== COURTS_DID) throw rule("case_fee_unpaid", `a case against an institution costs a purchase of ${APPEAL_SERVICE_SMALL} by the holder`);
+    if (await tx.getMarker(`appeal_fee:${b.fee_paid}`)) throw rule("case_fee_used", "this fee already paid for another appeal or case");
+    await tx.putMarker(`case:${r.id}`, JSON.stringify({ subject: b.subject, holder: r.issuer, kind: sb.act, state: "open", fee: b.fee_paid }));
+    await tx.putMarker(`case_for:${b.subject}`, r.id);
+    await tx.putMarker(`appeal_fee:${b.fee_paid}`, r.id);
+    return;
+  }
+
+  if (b.act === "institutional_ruling") {
+    const raw = await tx.getMarker(`case:${b.case}`);
+    if (!raw) throw rule("case_unknown", `${b.case} is not a case in this log`);
+    const info = JSON.parse(raw) as { subject: string; holder: string; kind: string; state: string; fee: string };
+    if (info.state !== "open") throw rule("case_decided", `the case ${b.case} was already ruled on`);
+    if (b.order === "restore_name" && info.kind !== "name_takedown") throw rule("order_not_for_this_case", "a name is restored only by a case about a takedown");
+    if (b.order === "extend_suspension") {
+      if (info.kind !== "identity_suspension") throw rule("order_not_for_this_case", "a suspension is extended only by a case about a suspension");
+      const sus = (await tx.getRecord(info.subject))!.record.body as { until: string };
+      if (!b.until || Date.parse(b.until) <= Date.parse(sus.until)) throw rule("extension_not_later", `an extension runs past the suspension's own end (${sus.until})`);
+      if (Date.parse(b.until) > Date.parse(now) + 90 * DAY) throw rule("extension_too_long", "a Court extends a suspension by at most 90 days at a time");
+    }
+    const signers = new Set([r.sig.kid, ...(r.cosigs ?? []).map((c) => c.kid)].map(didOf));
+    const conflicted = [...signers].filter((x) => x === info.holder || x === REGISTRAR_DID);
+    if (conflicted.length) throw rule("case_panel_conflict", `${conflicted.join(", ")} is the holder or the Registrar: the panel is jurors who are neither`);
+    const routes = await routesOrDefault(tx, now);
+    const panel = await drawPanel(tx, { principal: info.holder, performer: REGISTRAR_DID, seed: b.case, size: routes.standard_panel });
+    if (panel.length > 0) {
+      const onPanel = panel.filter((p) => signers.has(p));
+      const quorum = Math.ceil(panel.length / 2);
+      if (onPanel.length < quorum) throw rule("panel_quorum", `a ruling on a case needs ${quorum} of the drawn panel (${panel.join(", ")}) to sign; only ${onPanel.length} did`);
+    }
+    await tx.putMarker(`case:${b.case}`, JSON.stringify({ ...info, state: b.order }));
+    await tx.putMarker(`order:${r.id}`, JSON.stringify({ case: b.case, order: b.order, subject: info.subject, holder: info.holder, ...(b.until ? { until: b.until } : {}) }));
+    if (b.order === "restore_name") await tx.putMarker(`appeal_refundable:${info.fee}`, r.id);
     return;
   }
 

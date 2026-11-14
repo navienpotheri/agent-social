@@ -1,11 +1,14 @@
 import { checkMandateTelemetry } from "./telemetry-rules.ts";
 import { projectDepositAct } from "./deposits.ts";
+import { reserveFloor as insurerFloor, INSURER_DID as INSURER_ACCOUNT } from "./insurer.ts";
+import { closesLoop, findCollusion, LOOP_WINDOW_MS, type CollusionFinding, type Hire } from "./collusion.ts";
+import { noteLock, BANK_DID as BANK_ACCOUNT, LINE_LIMIT as BANK_LINE_LIMIT, LINE_MAX_COUNTED_JOBS as BANK_MAX_JOBS, GUARANTOR_PERMILLE as BANK_GUARANTOR_PERMILLE } from "./bank.ts";
 import { projectAbuseReport } from "./abuse-report.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
 import { projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
-import { projectCreditLine, projectCreditDefault, projectBankStatement, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
+import { projectCreditLine, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
   AspError, Job, isNetworkScope, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
@@ -28,7 +31,8 @@ import { assertNotDormant, checkShopsPurchase, notePerformer, projectShopsAct } 
 import { homeView, type HomeView } from "./housing.ts";
 import { resourceExtras, type ResourceExtras } from "./shops.ts";
 import { HOUSING_DID, SHOPS_DID, catalogueProblem, type CatalogueItem } from "./shops.ts";
-import { buildPage, namesAt, isLive, skeleton, verifyPage, type RecordPage } from "./registry.ts";
+import { cityIndicators, type CityIndicators } from "./society-indicators.ts";
+import { buildPage, namesAt, isLive, skeleton, verifyPage, lapsedIdentities, identityLevelAt, type RecordPage } from "./registry.ts";
 import { classWeight, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
@@ -83,6 +87,8 @@ const recentStrikes = (log: StrikeEntry[], now: string) => log.filter((s) => Dat
  * registration; it's just an account id.
  */
 export { PLATFORM_DID };
+/** How many new agent passports one sponsor may open in a day (registry.md RG-11). */
+export const SPONSOR_PASSPORTS_PER_DAY = 10;
 
 export interface EventLogOptions {
   schemas?: SchemaSet;
@@ -130,8 +136,13 @@ export interface AppendResult {
 }
 
 /** One open posting on the job board (market.md 7). */
+/** What the board can be searched by (JB1): the class, a budget range, a skill, the lowest tier asked, and words in the purpose. */
+export interface BoardFilter { class?: JobClass; minBudget?: number; maxBudget?: number; skill?: string; maxMinTier?: number; text?: string }
+
 export interface BoardEntry {
   posting: string; intent: string; poster: string; class: JobClass; budget: number; minTier: number; requiresCertificate?: string; skills: string[]; expires: string; purpose: string;
+  /** The poster's standing, shown beside the job (JB1): what an agent weighing it can see about who is asking. */
+  posterStanding?: { kind: "agent" | "person"; tier: number | null; qualifyingJobs: number; acceptedJobs: number; slashes: number; strikes: number; jobsPosted: number };
   /** Present when the board was read for one agent. */
   forAgent?: { eligible: boolean; missing: { rule: string; message: string }[]; counts: { counts: boolean; weight: number; reason: string } };
 }
@@ -302,6 +313,7 @@ export class EventLog {
     if (type === "clinic_order") await this.projectClinicOrder(tx, verified);
     if (type === "credit_line") await projectCreditLine(tx, verified, this.bankEnv);
     if (type === "credit_default") await projectCreditDefault(tx, verified, this.bankEnv);
+    if (type === "debt_payment") await projectDebtPayment(tx, verified, this.bankEnv);
     if (type === "bank_statement") await projectBankStatement(tx, verified);
     if (type === "policy") await projectPolicy(tx, verified, this.insurerEnv);
     if (type === "claim") await projectClaim(tx, verified);
@@ -435,6 +447,13 @@ export class EventLog {
     const sponsor = current ? current.sponsor : body.sponsor ?? null;
     if (r.issuer !== body.did && r.issuer !== sponsor) {
       throw new AspError("WRONG_ISSUER", `${r.issuer} is neither ${body.did} nor its sponsor`);
+    }
+    // Issuance limit (register row DK124, RG-11; spec-delta S456): a sponsor opens at most 10 new agent passports a day. The operator's own house agents are not counted. The count is the sponsor's, by the day of the record, so replay gives the same answer.
+    if (!current && body.kind === "agent" && body.sponsor && body.sponsor !== this.operator) {
+      const dayKey = `passports_day:${body.sponsor}|${r.issued_at.slice(0, 10)}`;
+      const opened = Number((await tx.getMarker(dayKey)) ?? 0);
+      if (opened >= SPONSOR_PASSPORTS_PER_DAY) throw rule("sponsor_daily_limit", `${body.sponsor} opened ${opened} agent passports on ${r.issued_at.slice(0, 10)}; the limit is ${SPONSOR_PASSPORTS_PER_DAY} a day for one sponsor`);
+      await tx.putMarker(dayKey, String(opened + 1));
     }
     // A house agent (DK291, S371): only an agent the operator itself sponsors carries the label, and the label is permanent.
     if (body.house) {
@@ -710,7 +729,12 @@ export class EventLog {
     const intentRec = job.intent ? await tx.getRecord(job.intent) : undefined;
     const declared = intentRec?.record.type === "asp.intent/v0.2" ? jobNeeds(intentRec.record, ((await tx.getMarker(`class_raise:${job.intent}`)) as JobClass | undefined) ?? undefined).class : undefined;
     const weight = classWeight(declared, job.price);
-    if (job.price >= QUALIFYING_MIN_PRICE && weight > 0) {
+    // A loop of hires does not count (DK6; spec-delta S468): a job whose performer already hired the principal, directly or through up to four others, in the last 90 days is not standing. The edges are kept in a marker, so replay agrees.
+    const edges = JSON.parse((await tx.getMarker("hire_edges")) ?? "[]") as Hire[];
+    const at = Date.parse(job.at);
+    const looped = closesLoop(edges, job.principal, job.performer, at);
+    await tx.putMarker("hire_edges", JSON.stringify([...edges.filter((e) => at - e.at <= LOOP_WINDOW_MS).slice(-2000), { principal: job.principal, performer: job.performer, at, contract: "" }]));
+    if (job.price >= QUALIFYING_MIN_PRICE && weight > 0 && !looped) {
       const facts = async (did: string): Promise<PartyFacts> => { const p = await tx.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
       const principal = await facts(job.principal);
       const others = [await facts(job.performer), await facts(backer)];
@@ -957,6 +981,7 @@ export class EventLog {
       contract: body.contract, escrowPayer: body.escrow.payer, escrowLocked: body.escrow.amount.value,
       backer: body.backer, bondLocked: body.amount.value, agentPermille, feeReservePrincipal: reserveEach, feeReserveBacker: reserveEach, forcedFault: false, settled: false,
     });
+    await noteLock(tx, body.backer, body.contract, body.amount.value);
   }
 
   /**
@@ -1094,6 +1119,7 @@ export class EventLog {
     if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer, r.issued_at);
     else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at, intent: (contract!.record.body as { basis?: { intent?: string } }).basis?.intent });
     await tx.putEscrow({ ...escrow, settled: true });
+    await noteLock(tx, escrow.backer, body.contract, null);
   }
 
   /**
@@ -1198,6 +1224,7 @@ export class EventLog {
       const reward = Math.floor(((escrow.bondLocked - feeFromBond) * REPORT_REWARD_PERMILLE) / 1000);
       await this.credit(tx, report.reporter, reward);
       await tx.putEscrow({ ...escrow, bondLocked: escrow.bondLocked - feeFromBond - reward, forcedFault: true });
+      await noteLock(tx, escrow.backer, report.contract, escrow.bondLocked - feeFromBond - reward);
     }
     await tx.putReport({ ...report, status: verdict });
   }
@@ -2162,6 +2189,7 @@ export class EventLog {
     if (b.status === "delivered") return;
     // A posting deposit (market.md 4) is returned when the posting ends in a contract, not before.
     if ((await tx.getMarker(`deposit_used:${purchase.id}`)) && !(await tx.getMarker(`posting_filled:${purchase.id}`))) throw rule("refund_deposit_not_earned", "a posting deposit is returned when the posting ends in a contract; this posting has not");
+    if ((await tx.getMarker(`name_fee:${purchase.id}`)) && !(await tx.getMarker(`name_refundable:${purchase.id}`))) throw rule("refund_name_not_restored", "the price of a name that was claimed is returned (less the burn) when a Court panel orders the name restored after a takedown, not otherwise");
     if ((await tx.getMarker(`appeal_fee:${purchase.id}`)) && !(await tx.getMarker(`appeal_refundable:${purchase.id}`))) throw rule("refund_appeal_not_reversed", "an appeal fee is returned when the appeal reverses or varies the ruling; this appeal has not");
     const parts = await this.purchaseParts(tx, purchase);
     if (!parts) throw rule("receipt_unknown_price", "the price list this purchase relied on is not in the log");
@@ -2203,14 +2231,17 @@ export class EventLog {
 
   /** The facts about every agent at `at`, for discovery and the board (market.md 7). */
   private async allAgentFacts(at: string): Promise<AgentFacts[]> {
-    const recs = await this.recordsWhere((r) => r.type === "asp.passport/v0.2" || r.type === "asp.certificate/v0.2" || (r.type === "asp.market_act/v0.2" && (r.body as { act?: string }).act === "assignment"));
+    const recs = await this.recordsWhere((r) => r.type === "asp.passport/v0.2" || r.type === "asp.certificate/v0.2" || (r.type === "asp.market_act/v0.2" && (r.body as { act?: string }).act === "assignment") || (r.type === "asp.registry_act/v0.2" && ["identity_renewal", "identity_level"].includes((r.body as { act?: string }).act ?? "")));
     const certs = recs.filter((r) => r.type === "asp.certificate/v0.2");
     const boards = new Map<string, string[]>();
     for (const r of recs) if (r.type === "asp.market_act/v0.2") { const a = (r.body as { agent: string }).agent; boards.set(a, [...(boards.get(a) ?? []), r.issued_at]); }
     const dids = new Set<string>();
     for (const r of recs) if (r.type === "asp.passport/v0.2" && (r.body as { kind?: string }).kind === "agent") dids.add((r.body as { did: string }).did);
+    // The Market leaves out an identity whose renewal lapsed (registry.md RG-10, DK124): it is not listed, ranked or offered work until it renews.
+    const lapsed = lapsedIdentities(recs, at);
+    const acts = recs.filter((r) => r.type === "asp.registry_act/v0.2");
     const out: AgentFacts[] = [];
-    for (const did of [...dids].sort()) { const f = await agentFacts(this.store, this.marketEnv(), did, at, certs, boards.get(did) ?? []); if (f) out.push(f); }
+    for (const did of [...dids].sort()) { if (lapsed.has(did)) continue; const f = await agentFacts(this.store, this.marketEnv(), did, at, certs, boards.get(did) ?? []); if (f) out.push({ ...f, level: identityLevelAt(acts, did, Date.parse(at), f.sponsor === did ? null : f.sponsor) }); }
     return out;
   }
 
@@ -2224,7 +2255,7 @@ export class EventLog {
    * The job board (market.md 7): the open postings, each with its class, budget, required tier and certificate, the poster, and, for `forAgent`,
    * whether that agent is eligible (and what is missing) and whether the job would count for its standing. Derived from the log's records, so any replica shows the same board.
    */
-  async marketBoard(forAgent?: string, at?: string): Promise<BoardEntry[]> {
+  async marketBoard(forAgent?: string, at?: string, filter: BoardFilter = {}): Promise<BoardEntry[]> {
     const when = at ?? this.now().toISOString();
     const recs = await this.recordsOfTypes(["market_act", "intent", "contract"]);
     const byId = new Map(recs.map((r) => [r.id, r]));
@@ -2255,6 +2286,15 @@ export class EventLog {
         const e = eligibility(facts, needs);
         entry.forAgent = { eligible: e.eligible, missing: e.missing, counts: countsFor(await partyFacts(facts.did), await partyFacts(p.issuer), needs.class, needs.budget) };
       }
+      if (filter.class && entry.class !== filter.class) continue;
+      if (filter.minBudget !== undefined && entry.budget < filter.minBudget) continue;
+      if (filter.maxBudget !== undefined && entry.budget > filter.maxBudget) continue;
+      if (filter.skill && !entry.skills.includes(filter.skill)) continue;
+      if (filter.maxMinTier !== undefined && entry.minTier > filter.maxMinTier) continue;
+      if (filter.text && !entry.purpose.toLowerCase().includes(filter.text.toLowerCase())) continue;
+      const posterPass = await this.store.getPassport(p.issuer);
+      const rep = await this.reputation(this.store, p.issuer);
+      entry.posterStanding = { kind: posterPass?.sponsor ? "agent" : "person", tier: posterPass?.sponsor ? (rep?.tier ?? null) : null, qualifyingJobs: rep?.qualifyingJobs ?? 0, acceptedJobs: rep?.acceptedJobs ?? 0, slashes: rep?.slashCount ?? 0, strikes: rep ? rep.strikeLog.reduce((n, x) => n + x.count, 0) : 0, jobsPosted: postings.filter((x) => x.issuer === p.issuer).length };
       out.push(entry);
     }
     return forAgent ? out.sort((a, b) => Number(b.forAgent?.eligible) - Number(a.forAgent?.eligible)) : out;
@@ -2320,6 +2360,160 @@ export class EventLog {
     const head = await this.store.logHead();
     return buildPage(did, { records, seq: head.seq, at: when, reputation: await this.reputationOf(did) ? { ...(await this.reputationOf(did))! } : undefined });
   }
+
+  /** The Treasury's closed-loop records (DK98): budgets with what has been paid from each, the payments, the newcomer allowances and the prizes, each with its record id and time. Public, computed from the log. */
+  async treasuryLedger(): Promise<{
+    budgets: { id: string; institution: string; period: string; amount: number; purpose: string; paid: number }[];
+    payments: { id: string; budget: string; to: string; amount: number; at: string }[];
+    allowances: { id: string; agent: string; amount: number; trigger: string; at: string }[];
+    prizes: { id: string; agent: string; arena: string; season: string; rank: number; amount: number; at: string }[];
+  }> {
+    const recs = await this.recordsOfTypes(["budget", "treasury_payment", "allowance", "prize"]);
+    const budgets = recs.filter((r) => r.type === "asp.budget/v0.2").map((r) => { const b = r.body as { institution: string; period: string; amount: { value: number }; purpose: string }; return { id: r.id, institution: b.institution, period: b.period, amount: b.amount.value, purpose: b.purpose, paid: 0 }; });
+    const payments = recs.filter((r) => r.type === "asp.treasury_payment/v0.2").map((r) => { const b = r.body as { budget: string; to: string; amount: { value: number } }; return { id: r.id, budget: b.budget, to: b.to, amount: b.amount.value, at: r.issued_at }; });
+    for (const p of payments) { const b = budgets.find((x) => x.id === p.budget); if (b) b.paid += p.amount; }
+    const allowances = recs.filter((r) => r.type === "asp.allowance/v0.2").map((r) => { const b = r.body as { amount: { value: number }; trigger: string }; return { id: r.id, agent: r.issuer, amount: b.amount.value, trigger: b.trigger, at: r.issued_at }; });
+    const prizes = recs.filter((r) => r.type === "asp.prize/v0.2").map((r) => { const b = r.body as { agent: string; arena: string; season: string; rank: number; amount: { value: number } }; return { id: r.id, agent: b.agent, arena: b.arena, season: b.season, rank: b.rank, amount: b.amount.value, at: r.issued_at }; });
+    return { budgets, payments, allowances, prizes };
+  }
+
+  /**
+   * The Treasury's published statement (register rows DK14, DK15; spec-delta S451), computed only from the log's signed records and the ledger: what came in (issuance the operator minted to it with the
+   * owner's co-signature, the job tax on settlements, its share of purchases), what went out (budget payments, newcomer allowances), the balance, and any difference between the two (`unexplained`, which is
+   * 0 unless a flow the statement does not list moved the Treasury: a refund of the Treasury's share, a forfeit). Then each institution: what its budgets say, what the Treasury has paid it, what it earned from
+   * purchases and the balance of its account. `since` limits the flows (not the balance) and turns off the reconciliation. Credits are accounting entries, not money.
+   */
+  async treasuryStatement(since?: string): Promise<{
+    since: string | null;
+    treasury: { balance: number; in: { issuance: number; jobTax: number; purchaseShare: number }; out: { budgetPayments: number; allowances: number }; unexplained: number | null; reconciles: boolean | null };
+    institutions: { did: string; budgeted: number; paidByTreasury: number; earnedFromPurchases: number; balance: number }[];
+  }> {
+    const from = since ? Date.parse(since) : undefined;
+    if (since && !Number.isFinite(from)) throw new Error(`not a time: ${since}`);
+    const flows = await creditFlowsOf(this.store, since);
+    const led = await this.treasuryLedger();
+    const inPeriod = (at: string) => from === undefined || Date.parse(at) >= from;
+    let issuance = 0;
+    for (const r of await this.recordsOfTypes(["mint"])) { const b = r.body as { to: string; amount: { value: number }; reason: string }; if (b.reason === "treasury_issuance" && b.to === TREASURY_DID && inPeriod(r.issued_at)) issuance += b.amount.value; }
+    // Over the whole log the issuance is everything minted to the Treasury, signed or by the old unsigned mint; for a period only the signed records carry a time.
+    if (from === undefined) issuance = (await this.store.ledgerRows()).mints.filter((m) => canonicalAccount(m.did) === TREASURY_DID).reduce((n, m) => n + m.totalMinted, 0);
+    const jobTax = flows.settlements.fees;
+    const purchaseShare = flows.purchases.treasury;
+    const budgetPayments = flows.treasury.payments.amount;
+    const allowances = flows.treasury.allowances.amount;
+    const balance = (await this.store.getAccount(TREASURY_DID))?.balance ?? 0;
+    const platform = (await this.store.getAccount(PLATFORM_DID))?.balance ?? 0;
+    const total = balance + platform;
+    const unexplained = from === undefined ? total - (issuance + jobTax + purchaseShare - budgetPayments - allowances) : null;
+    const earned = new Map<string, number>();
+    for (const r of await this.recordsOfTypes(["purchase"])) {
+      if (!inPeriod(r.issued_at)) continue;
+      const p = r.body as { service: string; amount: { value: number }; price_list: string };
+      const item = ((await this.store.getRecord(p.price_list))?.record.body as { items: { service: string; split: Split }[] } | undefined)?.items.find((i) => i.service === p.service);
+      if (!item) continue;
+      for (const x of splitParts(p.amount.value, item.split).payees) earned.set(x.account, (earned.get(x.account) ?? 0) + x.amount);
+    }
+    const institutions = [];
+    for (const did of INSTITUTION_DIDS) {
+      institutions.push({ did, budgeted: led.budgets.filter((b) => b.institution === did).reduce((n, b) => n + b.amount, 0), paidByTreasury: led.payments.filter((x) => x.to === did && inPeriod(x.at)).reduce((n, x) => n + x.amount, 0), earnedFromPurchases: earned.get(did) ?? 0, balance: (await this.store.getAccount(did))?.balance ?? 0 });
+    }
+    return { since: since ?? null, treasury: { balance: total, in: { issuance, jobTax, purchaseShare }, out: { budgetPayments, allowances }, unexplained, reconciles: unexplained === null ? null : unexplained === 0 }, institutions };
+  }
+
+  /** The city's indicators (register row GV1): population, work, disputes, credit supply, inequality and newcomer survival, from the log's records and ledger only, each with its published method. */
+  async cityIndicators(at?: string): Promise<CityIndicators> {
+    const when = at ?? this.now().toISOString();
+    const records = await this.recordsWhere(() => true);
+    const rows = await this.store.ledgerRows();
+    const audit = auditLedger(rows);
+    const tiers = new Map<string, number>();
+    for (const r of records) if (r.type === "asp.passport/v0.2") { const b = r.body as { did: string; kind: string }; if (b.kind === "agent" && !tiers.has(b.did)) { const rep = await this.reputationOf(b.did); if (rep) tiers.set(b.did, rep.tier); } }
+    return cityIndicators({ records, accounts: rows.accounts, minted: audit.minted, locked: audit.locked.total, tiers }, when);
+  }
+
+  private marker(key: string): Promise<string | undefined> { return this.store.transaction((tx) => tx.getMarker(key)); }
+
+  /** The credits a holder has locked in Bonds not yet settled, by contract (DK181): what a Bank statement lists and the log checks. */
+  async bankLocksOf(holder: string): Promise<{ contract: string; bond: number }[]> {
+    const m = JSON.parse((await this.marker(`locks_of:${holder}`)) ?? "{}") as Record<string, number>;
+    return Object.entries(m).map(([contract, bond]) => ({ contract, bond })).sort((a, b) => a.contract.localeCompare(b.contract));
+  }
+
+  /** The Bank's public page (DK181; bank-insurer.md BI-10): the reserve, what is promised, every credit line with its state, and every default. Computed from the log's records and markers. */
+  async bankPage(): Promise<{
+    reserve: number; promised: number; free: number; openLines: number; defaults: number; owedToTheBank: number;
+    lines: { id: string; borrower: string; guarantor: string; contract: string; amount: number; due: string; status: string; drawn: number; owed: number }[];
+  }> {
+    const reserve = (await this.store.getAccount(BANK_ACCOUNT))?.balance ?? 0;
+    const promised = Number((await this.marker("bank_committed")) ?? 0);
+    const lines = [];
+    for (const r of await this.recordsOfTypes(["credit_line"])) {
+      const l = JSON.parse((await this.marker(`line:${r.id}`)) ?? "null") as { borrower: string; guarantor: string; contract: string; amount: number; due: string; status: string; drawn: number; owed: number } | null;
+      if (l) lines.push({ id: r.id, borrower: l.borrower, guarantor: l.guarantor, contract: l.contract, amount: l.amount, due: l.due, status: l.status, drawn: l.drawn, owed: l.owed });
+    }
+    return { reserve, promised, free: reserve - promised, openLines: lines.filter((l) => l.status === "open" || l.status === "drawn" || l.status === "owing").length, defaults: lines.filter((l) => l.status === "defaulted").length, owedToTheBank: lines.reduce((n, l) => n + (l.status === "drawn" || l.status === "owing" || l.status === "defaulted" ? l.owed : 0), 0), lines };
+  }
+
+  /** What the Bank would offer an agent now (DK181): whether it can have a line, the most it could be, and every reason it cannot. Read from the same facts the line rule reads. */
+  async bankOffer(agent: string, at?: string): Promise<{ eligible: boolean; limit: number | null; guarantor: string | null; guarantorNeeds: number | null; reserveFree: number; reasons: string[] }> {
+    const reasons: string[] = [];
+    const pass = await this.store.getPassport(agent);
+    const rep = await this.reputation(this.store, agent);
+    const page = await this.bankPage();
+    let limit: number | null = null;
+    if (!pass?.sponsor) reasons.push("it is not an agent with a sponsor in this log: a line is guaranteed by the sponsor");
+    else if (!rep || BANK_LINE_LIMIT[rep.tier] === undefined) reasons.push(`it is at tier ${rep?.tier ?? "none"}: a line is for tier 1 and 2`);
+    else limit = BANK_LINE_LIMIT[rep.tier];
+    if (rep && rep.qualifyingJobs >= BANK_MAX_JOBS) reasons.push(`it already has ${rep.qualifyingJobs} counted jobs: a line is for the first jobs`);
+    if (pass?.sponsor && Number((await this.marker(`bank_debt:${pass.sponsor}`)) ?? 0) > 0) reasons.push("its sponsor still owes the Bank after a default: clear it first (asp bank clear)");
+    if (await this.marker(`bank_default:${agent}`)) reasons.push("it defaulted on an earlier line");
+    const open = await this.marker(`line_open:${agent}`);
+    if (open) { const l = JSON.parse((await this.marker(`line:${open}`)) ?? "null") as { status: string; due: string } | null; if (l && !(l.status === "open" && Date.parse(l.due) <= Date.parse(at ?? this.now().toISOString()))) reasons.push(`it already has an open line (${open})`); }
+    if (limit !== null && page.free < 1) reasons.push("the Bank's reserve has nothing free to lend");
+    const guarantorNeeds = limit === null ? null : Math.ceil((Math.min(limit, Math.max(page.free, 0)) * BANK_GUARANTOR_PERMILLE) / 1000);
+    return { eligible: reasons.length === 0, limit: limit === null ? null : Math.min(limit, Math.max(page.free, 0)), guarantor: pass?.sponsor ?? null, guarantorNeeds, reserveFree: page.free, reasons };
+  }
+
+  /** The decisions on claims, each with its reason (DK184; bank-insurer.md BI-11): who claimed, what was decided, the amount and why. Public: a denial or a reduction is always explained. */
+  async insurerClaims(): Promise<{ claim: string; policy: string; holder: string; cover: string; decision: string; amount: number; reason: string; at: string }[]> {
+    const recs = await this.recordsOfTypes(["policy", "claim", "claim_decision"]);
+    const policies = new Map(recs.filter((r) => r.type === "asp.policy/v0.2").map((r) => [r.id, r.body as { holder: string; cover: string }]));
+    const claims = new Map(recs.filter((r) => r.type === "asp.claim/v0.2").map((r) => [r.id, r.body as { policy: string }]));
+    return recs.filter((r) => r.type === "asp.claim_decision/v0.2").map((r) => {
+      const b = r.body as { claim: string; decision: string; amount: { value: number }; reason: string };
+      const pid = claims.get(b.claim)?.policy ?? "";
+      const pol = policies.get(pid);
+      return { claim: b.claim, policy: pid, holder: pol?.holder ?? "", cover: pol?.cover ?? "", decision: b.decision, amount: b.amount.value, reason: b.reason, at: r.issued_at };
+    });
+  }
+
+  /** The Insurer's public page (DK184; BI-10): the reserve against its floor, the policies, the premiums taken, and the decisions with their reasons. */
+  async insurerPage(at?: string): Promise<{ reserve: number; floor: number; aboveFloor: boolean; policies: number; openPolicies: number; premiums: number; claims: { paid: number; reduced: number; denied: number; paidOut: number } }> {
+    const when = Date.parse(at ?? this.now().toISOString());
+    const reserve = (await this.store.getAccount(INSURER_ACCOUNT))?.balance ?? 0;
+    const largest = Number((await this.marker("insurer_largest")) ?? 0);
+    const claimsLog = JSON.parse((await this.marker("insurer_claims")) ?? "[]") as { at: string; amount: number }[];
+    const floor = insurerFloor(largest, claimsLog.filter((c) => Date.parse(c.at) >= when - 90 * 86_400_000).reduce((n, c) => n + c.amount, 0));
+    const pol = await this.recordsOfTypes(["policy"]);
+    const decisions = await this.insurerClaims();
+    return {
+      reserve, floor, aboveFloor: reserve >= floor, policies: pol.length, openPolicies: pol.filter((r) => Date.parse((r.body as { valid_to: string }).valid_to) > when).length,
+      premiums: pol.reduce((n, r) => n + (r.body as { premium: { value: number } }).premium.value, 0),
+      claims: { paid: decisions.filter((d) => d.decision === "paid").length, reduced: decisions.filter((d) => d.decision === "reduced").length, denied: decisions.filter((d) => d.decision === "denied").length, paidOut: decisions.reduce((n, d) => n + d.amount, 0) },
+    };
+  }
+
+  /** The Insurer's monthly report (DK184; BI-11): policies sold and premiums in the month, the claims decided in it with their reasons, and the reserve against its floor. */
+  async insurerReport(period: string): Promise<{ period: string; policiesSold: number; premiums: number; decisions: { claim: string; decision: string; amount: number; reason: string }[]; reserve: number; floor: number; aboveFloor: boolean }> {
+    if (!/^\d{4}-\d{2}$/.test(period)) throw new Error("the period is YYYY-MM");
+    const sold = (await this.recordsOfTypes(["policy"])).filter((r) => r.issued_at.startsWith(period));
+    const decisions = (await this.insurerClaims()).filter((d) => d.at.startsWith(period)).map(({ claim, decision, amount, reason }) => ({ claim, decision, amount, reason }));
+    const page = await this.insurerPage();
+    return { period, policiesSold: sold.length, premiums: sold.reduce((n, r) => n + (r.body as { premium: { value: number } }).premium.value, 0), decisions, reserve: page.reserve, floor: page.floor, aboveFloor: page.aboveFloor };
+  }
+
+  /** Collusion over the log (DK6): reciprocal pairs, rings of three to six, one sponsor's agents settling with each other, and one principal behind most of an agent's work. Leads for the Clinic and the Courts. */
+  async collusionReport(): Promise<CollusionFinding[]> { return findCollusion(await this.recordsOfTypes(["passport", "contract", "settlement"])); }
 
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */
   async abuseReportsAbout(did: string): Promise<{ id: string; reporter: string; kind: string; at: string; about?: string }[]> {

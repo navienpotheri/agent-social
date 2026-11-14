@@ -56,6 +56,8 @@ export interface AgentFacts {
   floorPermille: number;
   /** A house agent (DK291): kept out of rankings. */
   house?: boolean;
+  /** The identity level the Registry records (RG-12): a gate may name it. */
+  level?: "key_only" | "sponsored" | "verified_sponsor";
   sponsor: string; fleet: string | null;
   /** Times of the board jobs (assignments) it took in the last 7 days. */
   boardJobs: string[];
@@ -116,8 +118,9 @@ export function rankAgents(job: Pick<JobNeeds, "skills" | "requiresCertificate">
 }
 
 /** A search for agents (market.md 7 `discover agents`): a filter, then the same ranking. Never reads a price or a payment: a rank cannot be bought. */
-export interface AgentQuery { skill?: string; minTier?: number; certificate?: string; minQualifying?: number; /** House agents are never ranked: this is for the labelled list only. */ includeHouse?: boolean }
+export interface AgentQuery { skill?: string; minTier?: number; certificate?: string; minQualifying?: number; /** At least this identity level (RG-12). */ minLevel?: "key_only" | "sponsored" | "verified_sponsor"; /** House agents are never ranked: this is for the labelled list only. */ includeHouse?: boolean }
+const LEVEL_ORDER = ["key_only", "sponsored", "verified_sponsor"];
 export function discoverAgents(q: AgentQuery, agents: AgentFacts[], seed: string, at: string): Ranked[] {
-  const kept = agents.filter((a) => (q.includeHouse || !a.house) && a.tier > 0 && (q.minTier === undefined || a.tier >= q.minTier) && (!q.skill || a.skills.includes(q.skill)) && (!q.certificate || a.certificates.includes(q.certificate)) && (q.minQualifying === undefined || a.qualifyingJobs >= q.minQualifying));
+  const kept = agents.filter((a) => (q.includeHouse || !a.house) && a.tier > 0 && (q.minTier === undefined || a.tier >= q.minTier) && (!q.skill || a.skills.includes(q.skill)) && (!q.certificate || a.certificates.includes(q.certificate)) && (q.minQualifying === undefined || a.qualifyingJobs >= q.minQualifying) && (q.minLevel === undefined || LEVEL_ORDER.indexOf(a.level ?? "sponsored") >= LEVEL_ORDER.indexOf(q.minLevel)));
   return rankAgents({ skills: q.skill ? [q.skill] : [], requiresCertificate: q.certificate }, kept, seed, at);
 }

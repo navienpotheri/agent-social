@@ -119,9 +119,33 @@ export async function projectCreditDefault(tx: LogTx, r: AspRecord, env: BankEnv
   await writeLine(tx, { ...line, status: "defaulted", owed: debt });
 }
 
+/** The credits a backer has locked in Bonds not yet settled, one entry for each contract, kept beside the escrow rows so a statement can be checked against them (DK181). A null bond removes the entry. */
+export async function noteLock(tx: LogTx, backer: string, contract: string, bond: number | null): Promise<void> {
+  const key = `locks_of:${backer}`;
+  const m = JSON.parse((await tx.getMarker(key)) ?? "{}") as Record<string, number>;
+  if (bond === null || bond <= 0) delete m[contract]; else m[contract] = bond;
+  await tx.putMarker(key, JSON.stringify(m));
+}
+
+/** A guarantor clears what it still owes after a default (DK181; spec-delta S462): the credits move from the guarantor to the Bank, the debt falls, and at zero the block on the guarantor's agents is lifted. */
+export async function projectDebtPayment(tx: LogTx, r: AspRecord, env: BankEnv): Promise<void> {
+  const b = r.body as { line: string; amount: { value: number } };
+  if (r.prev !== null) throw rule("debt_payment_not_chained", "a debt payment starts its own chain (prev is null)");
+  const line = await readLine(tx, b.line);
+  if (!line) throw rule("debt_unknown_line", `${b.line} is not a credit line in this log`);
+  if (line.status !== "defaulted" || line.owed <= 0) throw rule("debt_nothing_owed", `the line ${b.line} is ${line.status} and owes nothing to clear`);
+  if (r.issuer !== line.guarantor) throw rule("debt_not_the_guarantor", `only the guarantor (${line.guarantor}) clears its debt`);
+  if (b.amount.value < 1) throw rule("amount_not_positive", "a payment is at least 1 credit");
+  if (b.amount.value > line.owed) throw rule("debt_overpaid", `the debt on this line is ${line.owed}, not ${b.amount.value}`);
+  await env.debit(tx, line.guarantor, b.amount.value); // refused with insufficient_balance when the guarantor cannot cover it
+  await env.credit(tx, BANK_DID, b.amount.value);
+  await writeLine(tx, { ...line, owed: line.owed - b.amount.value });
+  await tx.putMarker(`bank_debt:${line.guarantor}`, String(Math.max(0, (await num(tx, `bank_debt:${line.guarantor}`)) - b.amount.value)));
+}
+
 /** A statement (bank-insurer.md 3): the Bank states what a holder has and owes; the log checks it against its own ledger, so a wrong statement is refused, not corrected later. */
 export async function projectBankStatement(tx: LogTx, r: AspRecord): Promise<void> {
-  const b = r.body as { holder: string; balance: { value: number }; owed: { value: number } };
+  const b = r.body as { holder: string; balance: { value: number }; owed: { value: number }; locks?: { contract: string; bond: { value: number } }[] };
   if (r.prev !== null) throw rule("statement_not_chained", "a statement starts its own chain (prev is null)");
   if (r.issuer !== BANK_DID) throw rule("statement_wrong_issuer", `${r.issuer} is not the Bank (${BANK_DID}): only the Bank issues a statement`);
   const balance = await balanceOf(tx, b.holder);
@@ -130,4 +154,11 @@ export async function projectBankStatement(tx: LogTx, r: AspRecord): Promise<voi
   const line = id ? await readLine(tx, id) : undefined;
   const owed = line && (line.status === "drawn" || line.status === "owing") ? line.owed : 0;
   if (b.owed.value !== owed) throw rule("statement_owed_mismatch", `${b.holder} owes the Bank ${owed} credits in the log, not ${b.owed.value}`);
+  if (b.locks) {
+    const held = JSON.parse((await tx.getMarker(`locks_of:${b.holder}`)) ?? "{}") as Record<string, number>;
+    const stated = Object.fromEntries(b.locks.map((l) => [l.contract, l.bond.value]));
+    if (b.locks.length !== Object.keys(stated).length) throw rule("statement_locks_duplicate", "a contract is listed twice in the locks");
+    const keys = new Set([...Object.keys(held), ...Object.keys(stated)]);
+    for (const k of keys) if (held[k] !== stated[k]) throw rule("statement_locks_mismatch", `the locks of ${b.holder} in the log are ${JSON.stringify(held)}, not ${JSON.stringify(stated)}`);
+  }
 }

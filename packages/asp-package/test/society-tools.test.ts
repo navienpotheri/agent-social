@@ -64,3 +64,25 @@ test("the School's tools (AC-19): academy_catalog passes the CLI's catalogue thr
   assert.match(String(full.instructions?.()), /Promotion to a higher tier is earned, not bought/);
   assert.doesNotMatch(String(aspHandler({ society: { standing: async () => "x" } }).instructions?.()), /The School teaches/);
 });
+
+test("the Bank's tools (DK181): bank_line_offer and bank_statement are offered only when the CLI supplies them, and a call shows what the CLI read from the log", async () => {
+  const none = aspHandler({ society: { standing: async () => "x" } });
+  assert.ok(!(await none.listTools()).some((t) => t.name.startsWith("bank_")));
+  const h = aspHandler({ society: { standing: async () => "x", bank: { offer: async () => "The Bank would lend you up to 60 credits for your first bond", statement: async () => "balance 0; owed to the Bank 20; locked in bonds 20" } } });
+  const names = (await h.listTools()).map((t) => t.name);
+  assert.ok(names.includes("bank_line_offer") && names.includes("bank_statement"));
+  assert.match(((await h.callTool("bank_line_offer", {})).content[0] as { text: string }).text, /would lend you up to 60 credits/);
+  assert.match(((await h.callTool("bank_statement", { balance: 999 })).content[0] as { text: string }).text, /balance 0; owed to the Bank 20/, "arguments change nothing");
+});
+
+test("the Insurer's tools (DK184): insurance_quote is offered when the CLI supplies a quote, insurance_buy only when the run holds the keys a sale needs, and a call passes the contract, cover and amount through", async () => {
+  const seen: unknown[] = [];
+  const quote = async (contract: string, cover: string, amount?: number) => { seen.push(["quote", contract, cover, amount]); return "bond_slash cover: insured 20, premium 2"; };
+  const readOnly = aspHandler({ society: { standing: async () => "x", insurance: { quote } } });
+  assert.deepEqual((await readOnly.listTools()).map((t) => t.name).filter((n) => n.startsWith("insurance_")), ["insurance_quote"]);
+  const full = aspHandler({ society: { standing: async () => "x", insurance: { quote, buy: async (c, k, a) => { seen.push(["buy", c, k, a]); return "policy sha256:ab: bond_slash cover, 20 insured, premium 2 paid"; } } } });
+  assert.deepEqual((await full.listTools()).map((t) => t.name).filter((n) => n.startsWith("insurance_")), ["insurance_quote", "insurance_buy"]);
+  assert.match(((await full.callTool("insurance_quote", { contract: "sha256:c", cover: "bond_slash" })).content[0] as { text: string }).text, /premium 2/);
+  assert.match(((await full.callTool("insurance_buy", { contract: "sha256:c", cover: "failed_job", amount: 30 })).content[0] as { text: string }).text, /premium 2 paid/);
+  assert.deepEqual(seen, [["quote", "sha256:c", "bond_slash", undefined], ["buy", "sha256:c", "failed_job", 30]]);
+});

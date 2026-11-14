@@ -1,5 +1,5 @@
 export { PLATFORM_DID } from "./economy.ts";
-export { EventLog, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
+export { EventLog, SPONSOR_PASSPORTS_PER_DAY, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
 export { auditLedger, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type LedgerRows, type StarterPoolState } from "./credit-audit.ts";
 export { computeGuardReport, type GuardMeasure, type GuardReport, type GuardUnavailable } from "./guard-monitor.ts";
@@ -48,3 +48,4 @@ export { PLACES, flowsOf, societyMap, dayReplay, simulatedFeed, type Flow, type 
 export { ABUSE_PER_DAY, ABUSE_PER_ACCUSED_DAYS } from "./abuse-report.ts";
 export { DEPOSIT_TERM_DAYS, REWARD_PERMILLE, REWARD_MONTHLY_CAP, REWARD_BUDGET_PURPOSE, rewardFor } from "./deposits.ts";
 export { BANK_DEPOSIT_DID } from "./economy.ts";
+export { findCollusion, closesLoop, type CollusionFinding } from "./collusion.ts";

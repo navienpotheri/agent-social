@@ -65,6 +65,7 @@ export async function projectRegistryAct(tx: LogTx, r: AspRecord, env: RegistryE
       await tx.putMarker(`paid_used:${b.paid}`, r.id);
     }
     await tx.putMarker(`name:${b.name}`, JSON.stringify({ holder: b.holder, until: b.valid_until, claim: r.id, state: "live" } satisfies Held));
+    if (b.paid) await tx.putMarker(`name_fee:${b.paid}`, r.id);
     await tx.putMarker(`skel:${skel}`, b.name);
     await push(tx, `names_of:${sponsor}`, b.name);
     return;
@@ -148,6 +149,36 @@ export async function projectRegistryAct(tx: LogTx, r: AspRecord, env: RegistryE
     return;
   }
 
+  // A Court's order (DK120; spec-delta S466): the Registry acts on it only when the act names the institutional_ruling that gives the order, once.
+  if (b.act === "name_restore" || b.act === "suspension_extend") {
+    needRegistrar(b.act === "name_restore" ? "restores a name" : "extends a suspension");
+    const raw = await tx.getMarker(`order:${b.ruling}`);
+    if (!raw) throw rule("order_no_ruling", `${b.ruling} is not a ruling of a Court panel in this log: the Registry carries out an order only when a ruling names it`);
+    const order = JSON.parse(raw) as { case: string; order: string; subject: string; holder: string; until?: string };
+    if (await tx.getMarker(`order_used:${b.ruling}`)) throw rule("order_used", "a ruling's order is carried out once");
+    if (b.act === "name_restore") {
+      if (order.order !== "restore_name") throw rule("order_not_this_act", `the ruling orders ${order.order}, not a restored name`);
+      if (order.subject !== b.takedown || order.holder !== b.holder) throw rule("order_not_this_takedown", `the ruling is about ${order.subject} for ${order.holder}`);
+      const td = (await tx.getRecord(b.takedown))?.record.body as { name?: string } | undefined;
+      if (td?.name !== b.name) throw rule("order_not_this_name", `the takedown was of ${td?.name}`);
+      const held = await readHeld(tx, b.name);
+      if (!held || held.state !== "removed" || held.holder !== b.holder) throw rule("restore_not_removed", `${b.name} is not a removed name of ${b.holder}`);
+      await tx.putMarker(`name:${b.name}`, JSON.stringify({ ...held, state: "live" }));
+      const paid = ((await tx.getRecord(held.claim))?.record.body as { paid?: string } | undefined)?.paid;
+      if (paid) await tx.putMarker(`name_refundable:${paid}`, r.id);
+    } else {
+      if (order.order !== "extend_suspension") throw rule("order_not_this_act", `the ruling orders ${order.order}, not an extended suspension`);
+      if (order.subject !== b.suspension) throw rule("order_not_this_suspension", `the ruling is about ${order.subject}`);
+      if (!order.until || Date.parse(b.until) !== Date.parse(order.until)) throw rule("extension_until_mismatch", `the ruling extends it to ${order.until}`);
+      if (Date.parse(b.until) <= Date.parse(now)) throw rule("extension_in_the_past", "an extension ends in the future");
+      const holder = await tx.getMarker(`suspension:${b.suspension}`);
+      if (!holder) throw rule("suspension_unknown", `${b.suspension} is not a suspension in this log`);
+      await tx.putMarker(`suspended:${holder}`, JSON.stringify({ id: b.suspension, until: b.until }));
+    }
+    await tx.putMarker(`order_used:${b.ruling}`, r.id);
+    return;
+  }
+
   if (b.act === "identity_suspension") {
     needRegistrar("suspends an identity (a Court's order, which can extend it, is a later build)");
     if (!(await tx.getPassport(b.holder))) throw rule("suspension_no_passport", `${b.holder} has no passport in this log`);
@@ -167,6 +198,14 @@ export async function projectRegistryAct(tx: LogTx, r: AspRecord, env: RegistryE
     return;
   }
 
+  if (b.act === "identity_level") {
+    needRegistrar("records an identity level");
+    if (!(await tx.getPassport(b.holder))) throw rule("level_no_passport", `${b.holder} has no passport in this log`);
+    if (b.level === "key_only" && (await tx.getPassport(b.holder))?.sponsor) throw rule("level_key_only_has_sponsor", `${b.holder} has a sponsor: its level is at least sponsored`);
+    await tx.putMarker(`identity_level:${b.holder}`, b.level);
+    return;
+  }
+
   if (b.act === "identity_retirement") {
     if (r.issuer !== b.holder) throw rule("retirement_not_holders", "only the holder retires an identity (a Court's order is a later build)");
     if (!(await tx.getPassport(b.holder))) throw rule("retirement_no_passport", `${b.holder} has no passport in this log`);
@@ -179,6 +218,8 @@ export async function checkSuspended(tx: LogTx, r: AspRecord): Promise<void> {
   const type = r.type.replace(/^asp\./, "").replace(/\/v0\.2$/, "");
   const b = r.body as { backer?: string; principal?: string; performer?: string };
   const who = type === "bond" ? [b.backer!] : type === "mandate" ? [r.subject as string] : type === "proposal" || type === "purchase" ? [r.issuer] : type === "contract" ? [b.principal!, b.performer!] : [];
+  // A suspended holder may still pay a Court's appeal fee: it cannot be kept from taking the suspension to a panel (DK120).
+  if (type === "purchase" && String((r.body as { service?: string }).service ?? "").startsWith("courts.appeal.")) return;
   for (const d of who) {
     const raw = d ? await tx.getMarker(`suspended:${d}`) : undefined;
     if (raw) { const s = JSON.parse(raw) as { id: string; until: string }; if (Date.parse(s.until) > Date.parse(r.issued_at)) throw rule("identity_suspended", `${d} is suspended until ${s.until} (record ${s.id}, Code 3.5): a hearing must be held within seven days or the suspension lapses`); }

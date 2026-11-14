@@ -23,10 +23,13 @@ async function world(reserve = 600) {
   void insurer;
   const bal = (d: string) => kit.log.balance(d);
   let n = 0;
+  // A sponsor opens at most 10 agent passports a day (RG-11): the first eight jobs' agents are the sponsor's, the next eight another's, and so on.
+  const sponsors = new Map<number, Awaited<ReturnType<typeof kit.person>>>([[0, sponsor]]);
+  const sponsorFor = async (k: number) => { const g = Math.floor((k - 1) / 8); if (!sponsors.has(g)) sponsors.set(g, await kit.person(`ins-sponsor-${g}`)); return sponsors.get(g)!; };
   /** A contract, optionally a policy on it, a bond (backed by the agent) and a Mandate. */
   async function job(opts: { price?: number; cover?: Cover; insured?: number; holder?: Party; actFirst?: boolean } = {}) {
     const price = opts.price ?? 100;
-    const agent = await kit.agent(`ins-agent-${++n}`, sponsor, 1);
+    const agent = await kit.agent(`ins-agent-${++n}`, await sponsorFor(n), 1);
     await kit.mint(agent.did, 100);
     const c = cosign(kit.mk("contract", principal, { principal: principal.did, performer: agent.did, bank: bankP.did, purpose: `job ${n}`, price: credit(price), verification: "deterministic", deadline: "2027-12-03T18:00:00Z", basis: { intent: hashOf("0"), offer: hashOf("1") } }, null, { subject: agent.did }), agent);
     await kit.put(c);
@@ -204,4 +207,47 @@ test("(T14) property: over 40 seeded random sales, failures and claims, no sale 
   }
   assert.ok(sold >= 5 && refusedSales >= 1, `${sold} policies were sold and ${refusedSales} refused at the floor: the floor binds and the sales before it went through`);
   assert.equal((await kit.log.verify()).ok, true);
+});
+
+test("DK184 done: the Insurer's public page lists the reserve against its floor and each claim decision with its reason, and the monthly report says the same", async () => {
+  const { publicReply } = await import("../src/public-pages.ts");
+  const w = await world();
+  const { kit } = w;
+  const j = await w.job({ cover: "bond_slash", insured: 20 });
+  const s1 = await w.fail(j, 10);
+  const c1 = await kit.put(w.claim(j, s1, j.agent));
+  await kit.put(w.decision(c1, "paid", 4, "covered"));
+  const j2 = await w.job({ cover: "bond_slash", insured: 20 });
+  const s2 = await w.fail(j2, 20);
+  const c2 = await kit.put(w.claim(j2, s2, j2.agent));
+  await kit.put(w.decision(c2, "denied", 0, "fraud"));
+
+  const page = await kit.log.insurerPage(kit.now());
+  assert.equal(page.reserve, await w.bal(INSURER_DID), "the reserve is the account's");
+  assert.equal(page.floor, 500, "the floor is at least 500");
+  assert.equal(page.aboveFloor, true);
+  assert.equal(page.policies, 2);
+  assert.equal(page.openPolicies, 2);
+  assert.deepEqual(page.claims, { paid: 1, reduced: 0, denied: 1, paidOut: 4 });
+  const decisions = await kit.log.insurerClaims();
+  assert.deepEqual(decisions.map((d) => [d.decision, d.amount, d.reason]), [["paid", 4, "covered"], ["denied", 0, "fraud"]], "each decision with its reason");
+  assert.equal(decisions[1].holder, j2.agent.did);
+
+  const json = await publicReply(kit.log, "/insurer/claims", false);
+  assert.deepEqual((json!.json as { result: { reason: string }[] }).result.map((d) => d.reason), ["covered", "fraud"]);
+  const reserve = await publicReply(kit.log, "/insurer/reserve", false);
+  assert.equal((reserve!.json as { result: { reserve: number } }).result.reserve, page.reserve);
+  const html = await publicReply(kit.log, "/insurer/claims", true);
+  assert.match(html!.html!, /<th>above its floor<\/th><td>yes<\/td>/);
+  assert.match(html!.html!, /<td>denied<\/td><td>0<\/td><td>fraud<\/td>/);
+  assert.match(html!.html!, /not insurance in a legal sense/);
+
+  const month = kit.now().slice(0, 7);
+  const rep = await kit.log.insurerReport(month);
+  assert.equal(rep.policiesSold, 2);
+  assert.equal(rep.premiums, 4, "two policies at 2 credits");
+  assert.deepEqual(rep.decisions.map((d) => d.reason), ["covered", "fraud"]);
+  assert.equal(rep.aboveFloor, true);
+  assert.equal((await kit.log.insurerReport("2020-01")).policiesSold, 0);
+  await assert.rejects(kit.log.insurerReport("next month"), /YYYY-MM/);
 });

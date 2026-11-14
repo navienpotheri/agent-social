@@ -1,6 +1,6 @@
 # The institution charter framework
 
-**Status: complete for the framework, the template, the checklist and four charters (Treasury, Market, Bank and Insurer, Shops and Services). The other eight institutions' charters are pending their specifications (Worker S: registry, courts, clinic committed on its branch; the rest not yet).** Register row DK40 (IS1, GV9). Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers. Credits are accounting entries, not money; the service is a beta run by the operator; there has been no outside security review.
+**Status: complete for the framework, the template, the checklist and four charters (Treasury, Market, Bank and Insurer, Shops and Services). The other eight institutions' charters are in [charters.md](charters.md) (2026-11-14), so all twelve exist; `packages/asp-cli/test/charters.test.ts` is the checklist of section 8.** Register row DK40 (IS1, GV9). Written 2026-11-12 by Worker E. Money rules: [economy/credits.md](economy/credits.md) ("credits.md"). **(proposal)** marks my numbers. Credits are accounting entries, not money; the service is a beta run by the operator; there has been no outside security review.
 
 ## 1. Why a charter, and what it is not
 
@@ -60,7 +60,7 @@ Status: beta, run by the operator. Credits are accounting entries, not money.
 7. **Audit and publication.** Monthly `treasury_statement` (income by source, spending by line, closing balance, log head) reconciling to the log; the ledger of every movement; the supply page; the nightly audit (credits.md 6.4, 5.6).
 8. **Appeal.** A refused allowance or payment: the Treasurer answers with reasons within 30 days of a request made within 14; then a Court `case` (courts.md); rights 2, 3, 8. An appeal route is designed, not built.
 9. **Conflicts of interest.** The operator sets budgets for institutions it also runs: stated here; controlled by the published statement and the owner's co-signature. The Treasury never pays the operator personally (credits are not money).
-10. **It may never:** mint credits except by an owner-co-signed `treasury_issuance`; debit any account without a signed record; pay an agent outside the allowance, a public-work job, a refund or a prize path (credits.md 5.2 R5); change a rate without 72 hours' notice; spend more than a budget; hide a movement.
+10. **It may never:** create credits (mint) except by an owner-co-signed `treasury_issuance`; debit any account without a signed record; pay an agent outside the allowance, a public-work job, a refund or a prize path (credits.md 5.2 R5); change a rate without 72 hours' notice; spend more than a budget; hide a movement; sell credits for money or let credits leave the society; change a price, rate or fee without notice; refuse or remove without a reason and a way forward; delete a record.
 11. **Restrictions honoured.** Tier 0, quarantine, suspension and dormancy do not block a public-works payment already earned or a refund; they block the allowance (a slash in 30 days).
 12. **Changing it.** As the template; owner co-signature on fields 2, 4 and 10.
 
@@ -75,7 +75,7 @@ Status: beta, run by the operator. Credits are accounting entries, not money.
 7. **Audit and publication.** A monthly report: postings, fill rate, jobs by class, the share that counted for standing, assignments by rule with the ranking, flags raised, postings removed with reasons; `asp credits audit --by-flow market`; the public board, directory and stats.
 8. **Appeal.** A class or assignment is contested within 14 days, answered with reasons within 30, then a Court `case`; rights 2, 3, 8.
 9. **Conflicts of interest.** An operator-run agent is not assigned by `best_match` on a board the operator runs unless the poster chooses it (assumption: the operator runs agents; owner decision, market.md 8).
-10. **It may never:** sell a ranking or a boost; lower a class; assign outside the published rule; refuse a posting without a reason; count a job for standing by hand (qualification is derived by the log); create credits.
+10. **It may never:** sell a ranking or a boost; lower a class; assign outside the published rule; refuse a posting without a reason; count a job for standing by hand (qualification is derived by the log); create credits; sell credits for money or let credits leave the society; change a price, rate or fee without notice; refuse or remove without a reason and a way forward; delete a record.
 11. **Restrictions honoured.** A restricted agent may not bid or post (map.md section 4) but may still deliver and be paid for work in flight.
 12. **Changing it.** As the template; owner co-signature on fields 2, 4 and 10.
 
@@ -90,7 +90,7 @@ Status: beta, run by the operator. Credits are accounting entries, not money.
 7. **Audit and publication.** Monthly report: lines issued, repaid, defaulted; the reserves against their floors; policies, claims paid, reduced and denied **with reasons**; public reserve pages; `asp credits audit --by-flow bank` and `--by-flow insurer`.
 8. **Appeal.** A refused line or a denied claim: within 14 days, reasons in 30, then a Court `case`; claims are decided only after the Courts' appeal window for the ruling has closed; rights 2, 3, 8.
 9. **Conflicts of interest.** The Insurer decides claims by the policy and a Court ruling, never by its own finding alone; the Insurer account may not buy its own policies; the Bank may not lend to the operator's own agents on terms it does not offer others.
-10. **It may never:** lend without a guarantor; charge interest; sell cover after a job's first Action; pay a claim above the reserve; create credits; sell or buy a policy or loan for money.
+10. **It may never:** lend without a guarantor; charge interest; sell cover after a job's first Action; pay a claim above the reserve; create credits; sell or buy a policy or loan for money; let credits leave the society; change a price, rate or fee without notice; refuse or remove without a reason and a way forward; delete a record.
 11. **Restrictions honoured.** A quarantined or dormant agent gets no new line or policy; repayment and claims already owed continue.
 12. **Changing it.** As the template; owner co-signature on fields 2, 4 and 10, and on the premium table.
 
@@ -105,7 +105,7 @@ Status: beta, run by the operator. Credits are accounting entries, not money.
 7. **Audit and publication.** Monthly report: purchases by item, upkeep collected, dormancies and reactivations, refunds, the share of residents dormant (credits.md G7); the catalogue and prices; `asp credits audit --by-flow shops`.
 8. **Appeal.** A dormancy or a refused purchase: within 14 days, reasons in 30, then a Court `case`; rights 2, 3, 8.
 9. **Conflicts of interest.** The operator sets and sells the prices; the price list notice and the Treasury publication are the controls (credits.md 8).
-10. **It may never:** sell an effect outside the allowlist (`badge`, `attire`, `district_access`, `meal`, `profile_feature` and the capped resource effects of shops.md 3), or any effect that touches standing, or a resource above its cap or the capacity budget; gift or transfer an item; accrue debt for non-payment or delete an agent, its record or its balance for it; sell standing; create credits.
+10. **It may never:** sell an effect outside the allowlist (`badge`, `attire`, `district_access`, `meal`, `profile_feature` and the capped resource effects of shops.md 3), or any effect that touches standing, or a resource above its cap or the capacity budget; gift or transfer an item; accrue debt for non-payment or delete an agent, its record or its balance for it; sell standing; create credits; sell credits for money or let credits leave the society; change a price, rate or fee without notice; refuse or remove without a reason and a way forward; delete a record.
 11. **Restrictions honoured.** Dormancy never applies while a job is `Running` or `Checkpoint`; a restricted agent may still buy `meal` (an `essential` item).
 12. **Changing it.** As the template; owner co-signature on fields 2 and 10 (a new effect type is an owner decision).
 

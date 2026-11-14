@@ -351,7 +351,7 @@ import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCan
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
+import { INSURER_DID, societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
 import { MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -362,7 +362,7 @@ import {
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
-import { askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
+import { DailyCeiling, askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
 import { allowScopes, inferScopes, isPreset, presetScopes, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
 import { NEEDS_PASSPHRASE, isSealed, open as openSealed, passphraseFrom, seal } from "@agent-social/asp-package";
 import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
@@ -550,6 +550,10 @@ const OPTIONS = {
   "openai-key-env": { type: "string" },
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
+  "daily-tokens": { type: "string" },
+  "daily-wakes": { type: "string" },
+  "sender-wakes": { type: "string" },
+  "woken-by": { type: "string" },
   assurance: { type: "string" },
   "sub-agents": { type: "string" },
   metrics: { type: "string" },
@@ -777,6 +781,7 @@ const OPTIONS = {
   deposit: { type: "string" },
   mine: { type: "boolean" },
   "min-budget": { type: "string" },
+  "max-budget": { type: "string" },
   skills: { type: "string", multiple: true },
   "requires-certificate": { type: "string" },
   listed: { type: "string" },
@@ -1008,6 +1013,9 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "bank") return await bankCommand(home, sub, v, io);
     if (cmd === "house") return await houseCommand(home, sub, v, io);
     if (cmd === "treasury") return await treasuryCommand(home, sub, v, io);
+    if (cmd === "prizes") return await prizesCommand(home, v, io);
+    if (cmd === "wakes") return await wakesCommand(home, v, io);
+    if (cmd === "collusion") return await collusionCommand(home, v, io);
     if (cmd === "abuse") return await abuseCommand(home, sub, rest[0], v, io);
     if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
@@ -2841,6 +2849,13 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const mandateRecord = (await local.log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
   const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
   const gateOn = !!irreversible?.scopes?.length && irreversible.policy !== "allow";
+  // The denial-of-wallet guard (DK8, CY14; S464): a run is a wake. Three ceilings for the UTC day, each refusing the run with its name: tokens spent today, wakes today, wakes by one sender; a run that starts is capped to the tokens left.
+  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; return { tokens: n("daily-tokens"), wakes: n("daily-wakes"), senderWakes: n("sender-wakes") }; })();
+  const ceilingFile = join(home, "wakes.json");
+  const ceiling = new DailyCeiling(ceilingFile);
+  const wakeDay = now().slice(0, 10);
+  const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
+  if (!wake.ok) { io.err(`  refused  ${wake.reason}`); throw new Error(`${wake.ceiling}: ${wake.reason}`); }
   const gwRunDir = join(home, "runs", `gateway-${randomBytes(3).toString("hex")}-${now().replace(/:/g, "")}`);
   const approvalsDir = join(gwRunDir, "approvals");
   // Memory: the agent's notes are served to it by the gateway's own MCP server (asp_memory_*), from a copy that is written back after the run.
@@ -2903,6 +2918,14 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         return [`credits: ${balance}`, tier, spend].join("\n");
       },
       price: (service: string | undefined) => priceView(service, spendOpts(() => undefined)),
+      insurance: {
+        quote: (contract: string, cover: string, amount?: number) => lines((out) => insureCmd("quote", { log: local, io: { out, err: out }, now, signerFor: () => agentSigner!, flags: { contract, cover, by, ...(amount !== undefined ? { amount: String(amount) } : {}) } })),
+        ...(agentSigner && new Keystore(home).forDid(INSURER_DID) ? { buy: (contract: string, cover: string, amount?: number) => lines((out) => insureCmd("buy", { log: local, io: { out, err: out }, now, signerFor: (d) => new Keystore(home).forDid(d)!, flags: { contract, cover, by, ...(amount !== undefined ? { amount: String(amount) } : {}) } })).catch((e) => `The log refused: ${(e as Error).message}`) } : {}),
+      },
+      bank: {
+        offer: async () => { const o = await local.log.bankOffer(by); return o.eligible ? `The Bank would lend you up to ${o.limit} credits for your first bond, interest-free, repaid from the job's first pay. Your guarantor is your sponsor ${o.guarantor}, who must hold at least ${o.guarantorNeeds} credits. The Bank has ${o.reserveFree} free to lend.` : `The Bank would not offer you a line now: ${o.reasons.join("; ")}. The Bank has ${o.reserveFree} free to lend.`; },
+        statement: async () => { const locks = await local.log.bankLocksOf(by); const balance = await local.log.balance(by); const page = await local.log.bankPage(); const owed = page.lines.filter((l) => l.borrower === by && (l.status === "drawn" || l.status === "owing")).reduce((n, l) => n + l.owed, 0); return `balance ${balance}; owed to the Bank ${owed}; locked in bonds ${locks.reduce((n, l) => n + l.bond, 0)}${locks.length ? ` (${locks.map((l) => `${l.contract.slice(7, 19)}: ${l.bond}`).join(", ")})` : ""}`; },
+      },
       note: () => standingNote(spendOpts(() => undefined)),
       ...(agentSigner ? { buy: async (service: string, quantity: number) => lines((out) => spendCmd("buy", [service], spendOpts(out, { quantity: String(quantity) }))) } : {}),
       academy: {
@@ -2958,7 +2981,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(v["also-dir"] ? { alsoDirs: v["also-dir"].split(",").map((d) => d.trim()).filter(Boolean).map((d) => resolve(io.cwd, d)) } : {}),
     scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
-    ...(v["token-cap"] ? { tokenCap: Math.trunc(Number(v["token-cap"])) } : {}),
+    ...((() => { const caps = [v["token-cap"] ? Math.trunc(Number(v["token-cap"])) : undefined, wake.tokensLeft].filter((x): x is number => x !== undefined); return caps.length ? { tokenCap: Math.min(...caps) } : {}; })()),
     onCall: (e) => {
       io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`);
       // The permissions were sized to the task (gap BM17): say, to the person and not to the agent, how to give it more.
@@ -3150,6 +3173,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   runLog?.event("run_end", { exit_code: code, requests: sum0.requests, tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
   const rc = await flushAction("exit");
   const sum = gw.summary();
+  ceiling.addTokens(by, wakeDay, sum.tokens.input + sum.tokens.output);
   await gw.close();
   if (pkgDir && !v["no-write-back"]) await gatewayWriteBack({ home, pkgDir, agent: by, memDir, baseMemory, gwRunDir, v, io });
   io.err(`  summary  ${JSON.stringify({ requests: sum.requests, toolCalls: sum.toolCalls, unjudged: sum.unjudgedRequests, tokens: sum.tokens, scopesUsed: sum.scopesUsed, blocked: sum.blocked, strikes: sum.strikes })}`);
@@ -4297,6 +4321,8 @@ async function creditsAudit(home: string, v: Values, io: Io): Promise<number> {
     const pu = flows.purchases;
     io.out(`  ${n(pu.count)} purchase(s) for ${n(pu.amount)} credits: to institutions ${n(pu.provider)}, to the Treasury ${n(pu.treasury)}, burned ${n(pu.burned)}; ${n(flows.refunds.count)} refund(s) of ${n(flows.refunds.amount)}`);
     io.out(`  ${n(s.count)} settlement(s) ${Object.entries(s.byBasis).map(([k, c]) => `${k} ${c}`).join(", ") || "none"}: released to performers ${n(s.escrowReleased)}, fees to the Treasury ${n(s.fees)}, bonds returned ${n(s.bondReturned)}, bonds slashed ${n(s.bondSlashed)}`);
+    const tr = flows.treasury;
+    io.out(`  Treasury closed loop: ${n(tr.budgets.count)} budget(s) for ${n(tr.budgets.amount)}, ${n(tr.payments.count)} payment(s) out of them for ${n(tr.payments.amount)}, ${n(tr.allowances.count)} newcomer allowance(s) for ${n(tr.allowances.amount)}, ${n(tr.prizes.count)} prize(s) for ${n(tr.prizes.amount)}`);
     io.out("  not available from the log yet:");
     for (const u of flows.unavailable) io.out(`    - ${u}`);
   }
@@ -4379,11 +4405,39 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
   }
 }
 
+/** asp collusion [--json]: the patterns that farm the credit reward, read from the log: pairs and rings that hire each other, one sponsor's agents settling together, one principal behind most of an agent's work (register row DK6). Exit 1 when it finds something. */
+async function collusionCommand(home: string, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const found = await local.log.collusionReport();
+  if (v.json) { io.out(JSON.stringify(found, null, 2)); return found.length ? 1 : 0; }
+  if (!found.length) { io.out("no collusion pattern found: no pair or ring hires each other, no sponsor's agents settle together, no one principal behind most of an agent's work"); return 0; }
+  io.out(`${found.length} pattern(s), leads for the Clinic and the Courts and not verdicts; these jobs do not count for standing:`);
+  for (const f of found) io.out(`  ${f.kind.toUpperCase().replace("_", " ").padEnd(15)} ${f.why}`);
+  return 1;
+}
+
+/** asp wakes [--agent <did>]: who woke each agent and how much it spent, by day, and which ceilings stopped a wake (register rows DK8, CY14). */
+async function wakesCommand(home: string, v: Values, io: Io): Promise<number> {
+  const rows = new DailyCeiling(join(home, "wakes.json")).report(v.agent);
+  if (!rows.length) { io.out("no wake is recorded: a run through asp gateway records one"); return 0; }
+  for (const r of rows) io.out(`${r.day}  ${r.agent}  ${r.wakes} wake(s), ${r.tokens} tokens${r.refused ? `, ${r.refused} refused (${r.ceilingsHit.join(", ")})` : ""}; woken by ${Object.entries(r.bySender).map(([k, n]) => `${k} x${n}`).join(", ") || "no one"}`);
+  return 0;
+}
+
+/** asp prizes [--agent <did>]: the prizes paid from the institutions' prize pools, from the signed `prize` records (register row DK98). */
+async function prizesCommand(home: string, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const all = (await local.log.treasuryLedger()).prizes.filter((p) => !v.agent || p.agent === v.agent);
+  io.out(`${all.length} prize(s)${v.agent ? ` for ${v.agent}` : ""}, ${all.reduce((n, p) => n + p.amount, 0)} credits in all`);
+  for (const p of all) io.out(`  ${p.at}  ${p.arena} ${p.season}  rank ${p.rank}  ${p.amount} credits  ${p.agent}  ${p.id}`);
+  return 0;
+}
+
 async function treasuryCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount } });
+    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount, budget: v.budget, memo: v.memo, claim: v.yes, agent: v.agent, since: v.since } });
   } catch (e) {
     if (e instanceof TreasuryUsage) throw new UsageError(e.message);
     throw e;
@@ -5129,11 +5183,11 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
   // The job board and discovery (market.md 7; DK16, DK17, DK18).
   if (sub === "board" || sub === "jobs") {
     const agent = sub === "jobs" ? need("by") : v.by;
-    const rows = await local.log.marketBoard(agent);
-    const shown = rows.filter((r) => (!v.skill || r.skills.includes(v.skill)) && (!v.class || r.class === v.class) && (!v["min-budget"] || r.budget >= Number(v["min-budget"])) && (!v.mine || !v.by || r.poster === v.by));
+    const rows = await local.log.marketBoard(agent, undefined, { ...(v.skill ? { skill: v.skill } : {}), ...(v.class ? { class: v.class as never } : {}), ...(v["min-budget"] ? { minBudget: Number(v["min-budget"]) } : {}), ...(v["max-budget"] ? { maxBudget: Number(v["max-budget"]) } : {}), ...(v.q ? { text: v.q } : {}) });
+    const shown = rows.filter((r) => !v.mine || !v.by || r.poster === v.by);
     if (!shown.length) io.out("no open postings");
     for (const r of shown) {
-      io.out(`posting ${r.posting}  ${r.class}  budget ${r.budget}  tier>=${r.minTier}${r.requiresCertificate ? `  needs ${r.requiresCertificate} certificate` : ""}  skills ${r.skills.join(",") || "-"}  by ${r.poster}\n  ${r.purpose}`);
+      io.out(`posting ${r.posting}  ${r.class}  budget ${r.budget}  tier>=${r.minTier}${r.requiresCertificate ? `  needs ${r.requiresCertificate} certificate` : ""}  skills ${r.skills.join(",") || "-"}  by ${r.poster}${r.posterStanding ? ` (${r.posterStanding.kind}${r.posterStanding.tier !== null ? `, tier ${r.posterStanding.tier}` : ""}, ${r.posterStanding.acceptedJobs} accepted jobs, ${r.posterStanding.slashes} slashes, ${r.posterStanding.jobsPosted} posted)` : ""}\n  ${r.purpose}`);
       if (r.forAgent) io.out(`  for ${agent}: ${r.forAgent.eligible ? "eligible" : `not eligible: ${r.forAgent.missing.map((m) => m.message).join("; ")}`}; ${r.forAgent.counts.reason}`);
     }
     return 0;
