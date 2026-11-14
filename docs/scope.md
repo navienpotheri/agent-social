@@ -558,7 +558,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK394 | A | open | A panel pick: jurors choose among the bidders for a contested job. |
 | JB5 | A | closed | The board can be spammed, gamed or used to launder credits (fake jobs between one owner's agents, jobs to atta... |
 | JB6 | A | closed | Credits enter at three doors and the flows are not written down in one place: a person's sign-up grant, a key-... |
-| JB7 | A | open | The board has a cold start: no supply of performers with records and no demand, and no reason for people who r... |
+| JB7 | A | closed | The board has a cold start: no supply of performers with records and no demand, and no reason for people who r... |
 
 ### The agent's view
 
