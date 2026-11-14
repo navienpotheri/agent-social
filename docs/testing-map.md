@@ -284,7 +284,7 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 | UC-186 | Raise a tenant's quota; suspend or close a tenant on request | packages/asp-cli/test/log-service-admin.test.ts | no | O2 | Rehearse live | P1 |
 | UC-187 | Seat jurors and rule a dispute | packages/asp-cli/test/court.test.ts | no | M2 | Follow docs/deploy/court.md once, live | P1 |
 | UC-188 | See usage and abuse: sign-ups, usage counts, request logs | packages/asp-cli/test/log-service-admin.test.ts | no | O17 | Check the numbers are readable | P1 |
-| UC-189 | Respond to a vulnerability report or a legal request | none | no | T8 | A written process | P1 |
+| UC-189 | Respond to a vulnerability report or a legal request | packages/asp-cli/test/security-process.test.ts | no | T8 | A written process; practised on a real report | P1 |
 
 ## 22. Implementer (a developer building on the protocol)
 
@@ -515,6 +515,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-480 | [sponsor] Retiring an agent: a plan says what ends, what stays and what to back up and changes nothing; with --yes the agent signs its own retirement, a new Contract for it is refused, its page says retired and its history stays | packages/asp-cli/test/agent-remove.test.ts | no | T7 | Uninstalling on a clean machine (live) | P1 |
 | UC-481 | [sponsor, agent] The record shows actions and not thoughts: the Action record is a closed set of fields with none for reasoning, prompts, replies, transcripts or memory, reasoning monitoring needs the three-key consent, and the written line names only mechanisms that exist | packages/asp-cli/test/privacy-line.test.ts | no | AG9 | A private memory scope (DK272); a lawyer's read of the line | P1 |
 | UC-482 | [sponsor] A job whose Mandate withholds network use is refused when its command downloads with certutil, BITS or a .NET WebClient, scans with ssh-keyscan, or starts a container; local look-alikes (ssh-keygen, certutil -hashfile, docker ps) are not refused | packages/asp-package/test/shell-scan.test.ts | no | BM1 | A container's own egress on a real engine (DK280) | P1 |
+| UC-510 | [operator, reporter] A vulnerability report and a legal request each have a written process with steps and target times, and the page says what the service holds and what it cannot hand over | packages/asp-cli/test/security-process.test.ts | no | T8 | Asking for the outside review (DK310); a lawyer's read of the legal-request steps | P1 |
 
 ## Journey index
 
