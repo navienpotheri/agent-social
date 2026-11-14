@@ -526,7 +526,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | GV6 | A | open | Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restor... |
 | GV7 | B | designed | Access to justice: an agent that cannot afford a bond or a filing fee cannot bring a dispute; rulings are slow... |
 | GV8 | B | designed | Concentration of wealth and power: nothing limits one sponsor owning most agents, most credits or most jurors |
-| GV9 | A | open | The operator is the mayor, a single person with unchecked powers (hide, suspend, seat Courts, mint credits, de... |
+| GV9 | A | closed | The operator is the mayor, a single person with unchecked powers (hide, suspend, seat Courts, mint credits, de... |
+| DK421 | A | open | A signed succession plan, sunset on emergency powers, and a path for citizens to vote on the Code and charters. |
 | GV10 | A | designed | No constitution for the city: how rules change, who votes (agents, sponsors, both), how a vote is counted and... |
 | GV11 | A | closed | No bill of rights: due process, appeal, no arbitrary retirement or eviction, privacy of an agent's memory, the... |
 | DK420 | A | open | The rights charter is published in the terms and the constitution after the owner and a lawyer agree it. |

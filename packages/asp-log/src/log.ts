@@ -2729,6 +2729,17 @@ export class EventLog {
     return { problems, checked: { budgets, priceItems } };
   }
 
+  /** The operator's acts, in log order (GV9): every record the operator or an institution it runs signed, with what it was and the reason where it gave one. The log is append-only, so the list cannot be edited afterwards. */
+  async operatorActs(limit = 500): Promise<{ id: string; type: string; act: string | null; by: string; at: string; reason: string | null; subject: string | null }[]> {
+    const ours = new Set<string>([...(this.operator ? [this.operator] : []), ...(this.owner ? [this.owner] : []), TREASURY_DID, ...INSTITUTION_DIDS, PLATFORM_DID]);
+    const out = [];
+    for (const r of await this.recordsWhere((x) => ours.has(x.issuer))) {
+      const b = r.body as { act?: string; kind?: string; reason?: string; reasons?: string[] };
+      out.push({ id: r.id, type: r.type.replace(/^asp\./, "").replace(/\/v0\.2$/, ""), act: b.act ?? b.kind ?? null, by: r.issuer, at: r.issued_at, reason: b.reason ?? b.reasons?.[0] ?? null, subject: r.subject });
+    }
+    return out.slice(-limit);
+  }
+
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */
   async abuseReportsAbout(did: string): Promise<{ id: string; reporter: string; kind: string; at: string; about?: string }[]> {
     const out: { id: string; reporter: string; kind: string; at: string; about?: string }[] = [];
