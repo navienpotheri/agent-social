@@ -526,6 +526,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-531 | [sponsor] Two tool calls made at the same moment under a runtime's hook both leave their mark in the session record, and a recon chain across many endpoints is stopped by a total budget | packages/asp-package/test/session-lock.test.ts | no | BM22 | Obfuscated payloads (DK352) | P1 |
 | UC-550 | [operator, newcomer agent] The Treasury's budgets and payments are made and listed from the command line, a newcomer agent is shown whether the allowance is open to it, prizes are listed, and the audit lists these flows | packages/asp-cli/test/treasury-closed-loop.test.ts | no | DK98 | The offer in the join flow and the agent's own tool (DK380) | P1 |
 | UC-551 | [operator, citizen] A settled job's tax and a purchase's share reach the Treasury, a service payment goes out of a budget, and the statement reconciles to the ledger and shows each institution's budget, payments and earnings | packages/asp-log/test/treasury-statement.test.ts | no | DK14 | The monthly hosted page (DK381) | P1 |
+| UC-552 | [operator] After the first budgets are signed every institution has a line in the Treasury's statement with its budget, what it was paid and what it earned | packages/asp-cli/test/treasury-closed-loop.test.ts | no | DK15 | The monthly hosted page (DK381) | P1 |
 
 ## Journey index
 

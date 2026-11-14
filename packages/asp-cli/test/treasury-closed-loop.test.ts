@@ -79,3 +79,25 @@ test("DK98: budget list and pay, the newcomer allowance line, prizes and the aud
     assert.match(audit.out, /balanced/i);
   } finally { setClock(undefined); if (savedOwner === undefined) delete process.env.ASP_OWNER_DID; else process.env.ASP_OWNER_DID = savedOwner; }
 });
+
+test("DK15: every institution has a budget line once the drafts are signed, and the statement shows each one's budget, what it was paid and what it earned", async () => {
+  const f = makeFixture();
+  setClock(() => new Date(clockMs));
+  const savedOwner = process.env.ASP_OWNER_DID;
+  process.env.ASP_OWNER_DID = OWNER;
+  try {
+    for (const d of [OWNER, TREASURY_DID]) await ok(f, ["identity", "new", "--kind", "human", "--did", d]);
+    await ok(f, ["credits", "grant", "--to", TREASURY_DID, "--amount", "60000"]);
+    const file = join(mkdtempSync(join(tmpdir(), "asp-lines-")), "budgets.json");
+    await ok(f, ["treasury", "draft", "--period", "2026-12", "--out", file]);
+    const drafts = JSON.parse((await import("node:fs")).readFileSync(file, "utf8")).drafts as { id: string; institution: string; purpose: string; amount: number }[];
+    for (const d of drafts) { clockMs += 60_000; await ok(f, ["treasury", "sign", "--draft", file, "--id", d.id, "--cosign-by", OWNER]); }
+    const out = (await ok(f, ["treasury", "statement"])).out;
+    for (const d of drafts.filter((x) => x.purpose === "charter")) {
+      const name = d.institution.replace("did:web:asp.local:", "");
+      assert.match(out, new RegExp(`${name} +budgeted +${d.amount} +paid by the Treasury +0 +earned from purchases +0`), `${name} has its line`);
+    }
+    assert.equal(drafts.filter((x) => x.purpose === "charter").length, 11, "all eleven institutions");
+    assert.match(out, /reconciles to the ledger/);
+  } finally { setClock(undefined); if (savedOwner === undefined) delete process.env.ASP_OWNER_DID; else process.env.ASP_OWNER_DID = savedOwner; }
+});
