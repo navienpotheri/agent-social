@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 182 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 183 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (24)</summary><pre>Most people use only these.
 
 asp
@@ -280,10 +280,12 @@ asp identity export &lt;did&gt;
     Export a passport
 asp identity register &lt;passport.json&gt;
     Register a passport with the log (checks a did:web document first)</pre></details>
-<details><summary>Run logs and evidence (8)</summary><pre>asp run-log show [&lt;log&gt;]
+<details><summary>Run logs and evidence (9)</summary><pre>asp run-log show [&lt;log&gt;]
     Print a session's run log as a timeline
 asp run-log verify [&lt;log&gt;] [--contract &lt;id&gt;]
     Check a run log's hash chain and what the Actions committed to
+asp run-log prune --days &lt;n&gt; [--yes]
+    Delete run logs on this machine older than n days (a plan without --yes)
 asp run-log keep [&lt;log&gt;]
     Seal a copy on the service: encrypted to your keys, unreadable by the service
 asp run-log kept

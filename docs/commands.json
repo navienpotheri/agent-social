@@ -271,6 +271,10 @@
           "description": "Check a run log's hash chain and what the Actions committed to"
         },
         {
+          "command": "asp run-log prune --days <n> [--yes]",
+          "description": "Delete run logs on this machine older than n days (a plan without --yes)"
+        },
+        {
           "command": "asp run-log keep [<log>]",
           "description": "Seal a copy on the service: encrypted to your keys, unreadable by the service"
         },

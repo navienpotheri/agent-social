@@ -86,6 +86,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
   { group: "Run logs and evidence", rows: [
     ["asp run-log show [<log>]", "Print a session's run log as a timeline"],
     ["asp run-log verify [<log>] [--contract <id>]", "Check a run log's hash chain and what the Actions committed to"],
+    ["asp run-log prune --days <n> [--yes]", "Delete run logs on this machine older than n days (a plan without --yes)"],
     ["asp run-log keep [<log>]", "Seal a copy on the service: encrypted to your keys, unreadable by the service"],
     ["asp run-log kept", "List your sealed run logs"],
     ["asp run-log fetch --id <id>", "Download a sealed log"],
