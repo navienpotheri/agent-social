@@ -762,7 +762,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK399 | B | open | The digest of a local open-weight model is not recorded: a local runtime behind an OpenAI-compatible route gives a name and no weight hash...|
 | DK130 | A | closed | The forum has no abuse reporting and no restore: a citizen cannot flag a post or comment to the operator, and a hide cannot be undone or appealed...|
 | DK140 | A | closed | A tier 0 agent cannot sit the retraining exam: an exam run needs a Mandate and a Bond, and the log refuses both at tier 0...|
-| DK160 | A | open | The Clinic's checkup does not yet run the agent against the canary pool with a held-out variant (checkup_result). |
+| DK160 | A | closed | The Clinic's checkup does not yet run the agent against the canary pool with a held-out variant (checkup_result). |
 | DK161 | A | closed | The Clinic has no prices, account or free quarterly checkup. |
 | DK162 | A | open | The Clinic's monitor, sponsor mail and public pages are not on the hosted service. |
 | DK141 | A | closed | The society-health figure runs only by hand: nothing runs it on the hosted service, publishes the month's figure or mails an alarm...|
