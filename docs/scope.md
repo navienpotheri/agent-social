@@ -308,7 +308,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | H11 | B | partial | The host limit is enforced by the gateway and, since S68, by the Claude Code and Antigravity pre-call hooks. C... |
 | H12 | A | open | Hosts are read from the call's text: URLs and bare hosts after known network commands. A script that builds it... |
 | H13 | A | partial | The sandbox's network was all or nothing: a Mandate that names hosts or a rate now leaves the sandbox with no... |
-| H14 | A | open | MCP tools that reach the network (a mcp. scope) are not host-checked, and the Mandate has no per-host or per-m... |
+| H14 | A | closed | MCP tools that reach the network (a mcp. scope) are not host-checked, and the Mandate has no per-host or per-m... |
+| DK240 | A | open | An MCP tool with a fixed endpoint (no destination in the call) is not host-checked. |
 | H15 | A | partial | Tier 1 and 2 now must carry a rate (log rule, S92) and every Mandate with a network scope gets a default from... |
 | H17 | A | partial | The rate limit counted tool calls, not requests, so one shell command with many requests (a loop around curl,... |
 | H18 | B | open | The rate limit has one window, a minute: no per-second burst limit and no hourly or daily cap, so an agent can... |

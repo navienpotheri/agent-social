@@ -180,12 +180,26 @@ export function hostsOfText(text) {
   }
   return [...hosts];
 }
+// H14: the destinations an MCP tool names in its arguments (a copy of mcpUrls in gateway/judge.ts).
+const MCP_DEST_KEYS = new Set(["url", "uri", "href", "link", "address", "endpoint", "base_url", "baseurl", "host", "hostname", "domain", "origin", "target", "server", "proxy"]);
+export function mcpUrls(args, d = 0) {
+  const out = [];
+  const walk = (v, key, depth) => {
+    if (out.length >= 20) return;
+    if (typeof v === "string") { if (MCP_DEST_KEYS.has(key.toLowerCase()) || /^[a-z][a-z0-9+.-]*:\/\//i.test(v)) out.push(v); return; }
+    if (depth >= 3 || !v || typeof v !== "object") return;
+    for (const [k, x] of Object.entries(v)) walk(x, k, depth + 1);
+  };
+  walk(args ?? {}, "", d);
+  return out;
+}
 /**
  * The refusal reason for a network call under a Mandate that names hosts, or undefined. `command` is a shell command (scope shell.network);
  * `urls` are the URL-like arguments of a web or browser tool. A call with neither (a web search) names no host and is not limited.
  */
 export function hostRefusal(scope, command, urls, hosts) {
-  if (!hosts || !isNetworkScope(scope)) return undefined;
+  const mcpDest = scope.startsWith("mcp.") && urls.some((u) => typeof u === "string");
+  if (!hosts || !(isNetworkScope(scope) || mcpDest)) return undefined;
   const texts = scope === "shell.network" ? [command ?? ""] : urls.filter((u) => typeof u === "string").map((u) => (/^[a-z][a-z0-9+.-]*:\/\//i.test(u) ? u : `https://${u}`));
   if (scope !== "shell.network" && !texts.length) return undefined;
   const found = [...new Set(texts.flatMap(hostsOfText))];
@@ -298,7 +312,7 @@ function withLedgerLock(ledgerPath, fn) {
   try { return fn(); } finally { try { rmSync(lock, { recursive: true, force: true }); } catch { /* already gone */ } }
 }
 export function rateRefusal(scope, command, urls, rate, ledgerPath, now = Date.now(), scripted) {
-  if (!rate || !isNetworkScope(scope)) return undefined;
+  if (!rate || !(isNetworkScope(scope) || (scope.startsWith("mcp.") && urls.some((u) => typeof u === "string")))) return undefined;
   return withLedgerLock(ledgerPath, () => rateRefusalLocked(scope, command, urls, rate, ledgerPath, now, scripted));
 }
 function rateRefusalLocked(scope, command, urls, rate, ledgerPath, now, scripted) {
@@ -345,7 +359,7 @@ function rateCheck(event, d, mandate, root) {
   // A script inside the project that makes requests is read too (gap H17): a shell.exec call that runs one is counted when the Mandate also grants shell.network.
   const scripted = d.scope === "shell.exec" && command && mandate.scopes?.includes("shell.network") && mandate.confine?.root && scriptScan
     ? scriptScan.scriptRequestsOfCommand(command, mandate.confine.root, requestsOfCommand) : undefined;
-  return rateRefusal(scripted ? "shell.network" : d.scope, command, [call.args?.Url, call.args?.url, call.args?.URL], mandate.rate, join(root, "rate-calls.ndjson"), undefined, scripted);
+  return rateRefusal(scripted ? "shell.network" : d.scope, command, (d.scope.startsWith("mcp.") ? mcpUrls(call.args) : [call.args?.Url, call.args?.url, call.args?.URL]), mandate.rate, join(root, "rate-calls.ndjson"), undefined, scripted);
 }
 
 export function decide(event, scopes, gate, knownBad, hosts, ctx) {
@@ -361,7 +375,7 @@ export function decide(event, scopes, gate, knownBad, hosts, ctx) {
   // The project guard: a write that something else will run is a scope of its own, and a payload is refused.
   const shellText = call.name === "run_command" ? (call.args?.CommandLine ?? call.args?.command ?? call.args?.command_line ?? call.args?.cmd) : undefined;
   const kind = call.name === "run_command" ? "shell" : WRITE_TOOLS.has(call.name) ? "write" : READ_TOOLS.has(call.name) ? "read" : "other";
-  const urlText = [call.args?.Url, call.args?.url, call.args?.URL].filter((x) => typeof x === "string").join(" ");
+  const urlText = (scope.startsWith("mcp.") ? mcpUrls(call.args) : [call.args?.Url, call.args?.url, call.args?.URL]).filter((x) => typeof x === "string").join(" ");
   if (ctx?.confine) {
     if (!guard) return { allow: false, scope, reason: "ASP Mandate: the project guard could not be loaded, so this call was blocked before it ran" };
     const g = guard.guardScope(kind, call.args ?? {}, typeof shellText === "string" ? shellText : undefined, scope);
@@ -375,7 +389,7 @@ export function decide(event, scopes, gate, knownBad, hosts, ctx) {
       const bad = abuse.commandAbuse(cmd);
       if (bad) return { allow: false, scope, reason: `ASP Mandate: ${bad}; a network scope does not allow harming other people's systems, so this call was blocked before it ran` };
     }
-    const refusal = hostRefusal(scope, typeof cmd === "string" ? cmd : undefined, [call.args?.Url, call.args?.url, call.args?.URL], hosts);
+    const refusal = hostRefusal(scope, typeof cmd === "string" ? cmd : undefined, (scope.startsWith("mcp.") ? mcpUrls(call.args) : [call.args?.Url, call.args?.url, call.args?.URL]), hosts);
     if (refusal) return { allow: false, scope, reason: `ASP Mandate: ${refusal}, so this call was blocked before it ran` };
     if (ctx?.confine) {
       const out = guard.guardAfter(kind, call.args ?? {}, typeof shellText === "string" ? shellText : undefined, isNetworkScope(scope), urlText, ctx.confine, ctx.session);
