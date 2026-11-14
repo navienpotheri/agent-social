@@ -423,6 +423,10 @@
           "description": "The Treasury's first budgets as UNSIGNED drafts for the owner: draft writes a file (a budget for each of the eleven institutions, the newcomer allowance of 40 credits each, and the deposit-reward line) with the default figures and the reason for each, and signs and records nothing; sign takes one draft, checks it still matches its hash, signs it with the Treasury key and adds the owner's co-signature the log requires of a first budget, one command per budget."
         },
         {
+          "command": "asp agent remove <name or did> [--reason <text>] [--yes]",
+          "description": "Retire an agent. Without --yes it prints a plan (what ends, what stays, what to back up first) and changes nothing; with --yes the agent signs its own retirement: the log then takes no new Contract, Bond, Mandate, Proposal or purchase for it and its page says retired, while everything it did stays in the log. Leaving and uninstalling are written down in docs/leaving.md."
+        },
+        {
           "command": "asp bank line --contract <id> --agent <did> --guarantor <sponsor did> [--amount <credits>] [--days n] | default --line <id> --amount <n> | statement --holder <did> | show [--agent <did>]",
           "description": "The Bank: a credit line for a newcomer's first bond (interest-free, for tier 1 and 2 agents with fewer than 3 counted jobs, guaranteed by the agent's sponsor, funded from the Bank's reserve when the bond is posted and repaid first from the settlement), the Bank's signed default against the guarantor when a settlement leaves it unpaid, a statement the log checks against its own ledger, and what lines exist."
         },

@@ -233,7 +233,7 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 
 | ID | Use case | Automated | Live | Gap | To-do | Pri |
 |---|---|---|---|---|---|---|
-| UC-155 | Retire or revoke an agent | none | no | T7 | There is no `asp agent remove`; design it | P1 |
+| UC-155 | Retire or revoke an agent | packages/asp-cli/test/agent-remove.test.ts | no | T7 | none | P1 |
 | UC-156 | Pack an agent, send it to another person, they verify it and run it | packages/asp-cli/test/package-service.test.ts, packages/asp-cli/test/archive.test.ts | no | P4 | Do it live between two accounts | P1 |
 | UC-157 | Run a stranger's agent package safely | packages/asp-cli/test/isolation.test.ts | no | H10 | State the limits; run in the sandbox | P1 |
 | UC-158 | Move an agent to another runtime with its memory intact | packages/asp-cli/test/cli.test.ts | partial | P5 | Do it live Claude Code to Codex | P1 |
@@ -274,7 +274,7 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 | UC-179 | Get unstuck: `asp help`, the /help page, and error messages that say what to do | packages/asp-package/test/guide.test.ts | partial 10-12 | U16 | Review the twenty most likely error messages | P0 |
 | UC-180 | Report a bug or ask a question (issue forms, the operator's email) | none | partial 10-12 | O13 | Make sure the alpha guide names the one place | P1 |
 | UC-181 | Know whether the service is up | none | no | O12 | A status page or at least a health URL people can be given | P1 |
-| UC-182 | Uninstall cleanly and know what to back up first | none | no | T7 | Document: what lives in ~/.asp | P2 |
+| UC-182 | Uninstall cleanly and know what to back up first | packages/asp-cli/test/agent-remove.test.ts | no | T7 | Try on a clean machine; the note is docs/leaving.md | P2 |
 
 ## 21. Operator
 
@@ -510,6 +510,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-471 | [operator, public reader] House agents are labelled on every public surface that shows them, kept out of rankings, arenas, promotions, prizes and the society-health figure, can be stopped and restarted by the operator, and a real agent is never labelled or stopped this way | packages/asp-log/test/house-agents.test.ts, packages/asp-cli/test/house.test.ts | no | DK291 | The runner on the hosted service and the society view (DK270) | P1 |
 | UC-472 | [owner, Treasury] The run prepares unsigned drafts of the first budgets (every institution, the allowance of 40 credits, the deposit-reward line) with a reason for each figure; nothing is signed or recorded until the owner runs `asp treasury sign` for a budget, which the log accepts with the owner's co-signature, refuses if the draft was edited, and holds to the 25 % growth rule for the next month | packages/asp-cli/test/treasury-drafts.test.ts | no | DK292 | The owner reviews the figures and signs them (docs/owner-checklist.md), then the payments (DK98) | P1 |
 | UC-473 | [court, juror pool] 20 fake jurors sponsored by one front account and 20 honest jurors: over 2,000 disputes the fakes never hold more than one seat on a panel of three or five, so never a majority; the draw still fills, is deterministic and is conflict-free; many separate fronts are the stated limit | packages/asp-log/test/panel-sybil.test.ts | no | BM11 | Jurors funded from one source, stake scaling and a juror rate limit (DK271) | P1 |
+| UC-480 | [sponsor] Retiring an agent: a plan says what ends, what stays and what to back up and changes nothing; with --yes the agent signs its own retirement, a new Contract for it is refused, its page says retired and its history stays | packages/asp-cli/test/agent-remove.test.ts | no | T7 | Uninstalling on a clean machine (live) | P1 |
 
 ## Journey index
 

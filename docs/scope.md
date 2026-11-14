@@ -422,7 +422,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T4 | A | partial | When the service is down or there is no network, there was no defined behaviour and no local-only mode, which... |
 | T5 | B | open | Nobody has implemented the protocol from SPEC.md alone: no third implementation, no guide for implementers (ve... |
 | T6 | C | open | An organisation tenant, and two accounts on one machine, are undefined |
-| T7 | A | open | There is no command to retire an agent, asp leave and uninstalling are not tested or documented (what to back... |
+| T7 | A | closed | There is no command to retire an agent, asp leave and uninstalling are not tested or documented (what to back... |
 | T8 | A | open | The operator's processes for a vulnerability report or a legal request are unwritten, and no outside security... |
 | T9 | C | open | Outcome verification and fleets of parallel nodes have not been run live |
 | T10 | B | open | The protocol has been tested from the person's side, not the agent's: what an agent sees of its own Mandate an... |

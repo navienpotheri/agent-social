@@ -6108,7 +6108,41 @@ async function tokenCmd(sub: string | undefined, rest: string[], v: Values, io: 
  * asp agent add <name> [--purpose <text>] | list | use <name>: your agents on the service (launch blocker 12). Each is its own identity in your namespace, sponsored by you, with its
  * own key on this machine; `asp run <runtime> --agent <name>` runs it, and `use` makes one the default. An agent whose key is lost is recovered by you, its sponsor.
  */
+/**
+ * asp agent remove <name or did> [--reason <text>] [--yes] (register row T7; spec-delta S380): retires an agent. Without --yes it only says what will happen and what to back up first and changes nothing. With --yes the agent
+ * signs its own `identity_retirement` (the Registry's record): from then on the log takes no new Contract, Bond, Mandate, Proposal or purchase for it, its page says retired, and everything it did stays in the log.
+ * Its keys, its package and its run logs stay on this machine (asp account export keeps them; asp account close deletes the whole account).
+ */
+async function agentRemove(home: string, target: string | undefined, v: Values, io: Io): Promise<number> {
+  if (!target) throw new UsageError("usage: asp agent remove <name or did> [--reason <text>] [--yes]");
+  let did = target;
+  if (!target.startsWith("did:")) {
+    const cfg = readJoinConfig(home);
+    if (!cfg) throw new UsageError("give the agent's DID, or run asp join so a name can be resolved");
+    const fetched = (await (await fetchRetry(new URL("account", cfg.service + "/"), { headers: { authorization: `Bearer ${cfg.token}` } })).json().catch(() => undefined)) as { ok?: boolean; namespace?: { domain: string } } | undefined;
+    if (!fetched?.ok || !fetched.namespace) throw new Error("could not read your account from the service to resolve the name: give the DID instead");
+    did = didFor(fetched.namespace.domain, cfg.tenant, "agent", target);
+  }
+  const signer = new Keystore(home).forDid(did);
+  if (!signer) throw new Error(`no key for ${did} on this machine: only the agent itself retires its identity (a sponsor with the agent's recovery can first issue a new key: asp identity recover)`);
+  const local = await openLog(home, logEnv);
+  const passport = await local.log.passport(did);
+  if (!passport) throw new Error(`${did} has no passport in the log this machine uses`);
+  const reason = v.reason ?? "the sponsor removed the agent";
+  io.out(`${v.yes ? "removing" : "this would remove"} the agent ${did}:`);
+  io.out("  ends:      new jobs, bonds, Mandates, proposals and purchases for it are refused by the log; its page says retired");
+  io.out("  stays:     everything it did (the log is permanent and public); its keys, package and run logs on this machine; its past certificates until they expire");
+  io.out("  back up first: asp account export (keys, packages, commons entries and sealed run logs); a package you want to keep: asp pack --agent <did> --out <folder>");
+  io.out("  to stop a job already running: asp market revoke --contract <id> (a retired agent does not finish it by itself)");
+  if (!v.yes) { io.out("nothing changed. Run it again with --yes to remove the agent."); return 0; }
+  const rec = createRecord({ type: "registry_act" as never, issuer: did, subject: null, prev: null, body: { act: "identity_retirement", holder: did, reason }, issued_at: now() }, signer);
+  const res = await local.append(rec);
+  io.out(`removed ${did} (record ${res.id}, log seq ${res.seq}); asp registry lookup ${did} shows it as retired`);
+  return 0;
+}
+
 async function agentCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  if (sub === "remove") return await agentRemove(home, rest[0], v, io);
   const cfg = readJoinConfig(home);
   if (!cfg?.identities) throw new Error("you have not joined yet: run asp join first");
   const env = { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token };
@@ -6139,7 +6173,7 @@ async function agentCmd(home: string, sub: string | undefined, rest: string[], v
     io.out(`${name} is now the agent asp run uses by default`);
     return 0;
   }
-  if (sub && sub !== "list") throw new UsageError("usage: asp agent add <name> [--purpose <text>] | list | use <name>");
+  if (sub && sub !== "list") throw new UsageError("usage: asp agent add <name> [--purpose <text>] | list | use <name> | remove <name or did> [--reason <text>] [--yes]");
   const keys = new Keystore(home);
   const sessions = sessionsOf(home);
   const standing = Object.values(readStanding(home));
