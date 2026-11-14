@@ -1,11 +1,12 @@
 import { checkMandateTelemetry } from "./telemetry-rules.ts";
 import { projectDepositAct } from "./deposits.ts";
+import { noteLock, BANK_DID as BANK_ACCOUNT, LINE_LIMIT as BANK_LINE_LIMIT, LINE_MAX_COUNTED_JOBS as BANK_MAX_JOBS, GUARANTOR_PERMILLE as BANK_GUARANTOR_PERMILLE } from "./bank.ts";
 import { projectAbuseReport } from "./abuse-report.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
 import { projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
-import { projectCreditLine, projectCreditDefault, projectBankStatement, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
+import { projectCreditLine, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
   AspError, Job, isNetworkScope, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
@@ -305,6 +306,7 @@ export class EventLog {
     if (type === "clinic_order") await this.projectClinicOrder(tx, verified);
     if (type === "credit_line") await projectCreditLine(tx, verified, this.bankEnv);
     if (type === "credit_default") await projectCreditDefault(tx, verified, this.bankEnv);
+    if (type === "debt_payment") await projectDebtPayment(tx, verified, this.bankEnv);
     if (type === "bank_statement") await projectBankStatement(tx, verified);
     if (type === "policy") await projectPolicy(tx, verified, this.insurerEnv);
     if (type === "claim") await projectClaim(tx, verified);
@@ -967,6 +969,7 @@ export class EventLog {
       contract: body.contract, escrowPayer: body.escrow.payer, escrowLocked: body.escrow.amount.value,
       backer: body.backer, bondLocked: body.amount.value, agentPermille, feeReservePrincipal: reserveEach, feeReserveBacker: reserveEach, forcedFault: false, settled: false,
     });
+    await noteLock(tx, body.backer, body.contract, body.amount.value);
   }
 
   /**
@@ -1104,6 +1107,7 @@ export class EventLog {
     if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer, r.issued_at);
     else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at, intent: (contract!.record.body as { basis?: { intent?: string } }).basis?.intent });
     await tx.putEscrow({ ...escrow, settled: true });
+    await noteLock(tx, escrow.backer, body.contract, null);
   }
 
   /**
@@ -1208,6 +1212,7 @@ export class EventLog {
       const reward = Math.floor(((escrow.bondLocked - feeFromBond) * REPORT_REWARD_PERMILLE) / 1000);
       await this.credit(tx, report.reporter, reward);
       await tx.putEscrow({ ...escrow, bondLocked: escrow.bondLocked - feeFromBond - reward, forcedFault: true });
+      await noteLock(tx, escrow.backer, report.contract, escrow.bondLocked - feeFromBond - reward);
     }
     await tx.putReport({ ...report, status: verdict });
   }
@@ -2402,6 +2407,49 @@ export class EventLog {
     const tiers = new Map<string, number>();
     for (const r of records) if (r.type === "asp.passport/v0.2") { const b = r.body as { did: string; kind: string }; if (b.kind === "agent" && !tiers.has(b.did)) { const rep = await this.reputationOf(b.did); if (rep) tiers.set(b.did, rep.tier); } }
     return cityIndicators({ records, accounts: rows.accounts, minted: audit.minted, locked: audit.locked.total, tiers }, when);
+  }
+
+  private marker(key: string): Promise<string | undefined> { return this.store.transaction((tx) => tx.getMarker(key)); }
+
+  /** The credits a holder has locked in Bonds not yet settled, by contract (DK181): what a Bank statement lists and the log checks. */
+  async bankLocksOf(holder: string): Promise<{ contract: string; bond: number }[]> {
+    const m = JSON.parse((await this.marker(`locks_of:${holder}`)) ?? "{}") as Record<string, number>;
+    return Object.entries(m).map(([contract, bond]) => ({ contract, bond })).sort((a, b) => a.contract.localeCompare(b.contract));
+  }
+
+  /** The Bank's public page (DK181; bank-insurer.md BI-10): the reserve, what is promised, every credit line with its state, and every default. Computed from the log's records and markers. */
+  async bankPage(): Promise<{
+    reserve: number; promised: number; free: number; openLines: number; defaults: number; owedToTheBank: number;
+    lines: { id: string; borrower: string; guarantor: string; contract: string; amount: number; due: string; status: string; drawn: number; owed: number }[];
+  }> {
+    const reserve = (await this.store.getAccount(BANK_ACCOUNT))?.balance ?? 0;
+    const promised = Number((await this.marker("bank_committed")) ?? 0);
+    const lines = [];
+    for (const r of await this.recordsOfTypes(["credit_line"])) {
+      const l = JSON.parse((await this.marker(`line:${r.id}`)) ?? "null") as { borrower: string; guarantor: string; contract: string; amount: number; due: string; status: string; drawn: number; owed: number } | null;
+      if (l) lines.push({ id: r.id, borrower: l.borrower, guarantor: l.guarantor, contract: l.contract, amount: l.amount, due: l.due, status: l.status, drawn: l.drawn, owed: l.owed });
+    }
+    return { reserve, promised, free: reserve - promised, openLines: lines.filter((l) => l.status === "open" || l.status === "drawn" || l.status === "owing").length, defaults: lines.filter((l) => l.status === "defaulted").length, owedToTheBank: lines.reduce((n, l) => n + (l.status === "drawn" || l.status === "owing" || l.status === "defaulted" ? l.owed : 0), 0), lines };
+  }
+
+  /** What the Bank would offer an agent now (DK181): whether it can have a line, the most it could be, and every reason it cannot. Read from the same facts the line rule reads. */
+  async bankOffer(agent: string, at?: string): Promise<{ eligible: boolean; limit: number | null; guarantor: string | null; guarantorNeeds: number | null; reserveFree: number; reasons: string[] }> {
+    const reasons: string[] = [];
+    const pass = await this.store.getPassport(agent);
+    const rep = await this.reputation(this.store, agent);
+    const page = await this.bankPage();
+    let limit: number | null = null;
+    if (!pass?.sponsor) reasons.push("it is not an agent with a sponsor in this log: a line is guaranteed by the sponsor");
+    else if (!rep || BANK_LINE_LIMIT[rep.tier] === undefined) reasons.push(`it is at tier ${rep?.tier ?? "none"}: a line is for tier 1 and 2`);
+    else limit = BANK_LINE_LIMIT[rep.tier];
+    if (rep && rep.qualifyingJobs >= BANK_MAX_JOBS) reasons.push(`it already has ${rep.qualifyingJobs} counted jobs: a line is for the first jobs`);
+    if (pass?.sponsor && Number((await this.marker(`bank_debt:${pass.sponsor}`)) ?? 0) > 0) reasons.push("its sponsor still owes the Bank after a default: clear it first (asp bank clear)");
+    if (await this.marker(`bank_default:${agent}`)) reasons.push("it defaulted on an earlier line");
+    const open = await this.marker(`line_open:${agent}`);
+    if (open) { const l = JSON.parse((await this.marker(`line:${open}`)) ?? "null") as { status: string; due: string } | null; if (l && !(l.status === "open" && Date.parse(l.due) <= Date.parse(at ?? this.now().toISOString()))) reasons.push(`it already has an open line (${open})`); }
+    if (limit !== null && page.free < 1) reasons.push("the Bank's reserve has nothing free to lend");
+    const guarantorNeeds = limit === null ? null : Math.ceil((Math.min(limit, Math.max(page.free, 0)) * BANK_GUARANTOR_PERMILLE) / 1000);
+    return { eligible: reasons.length === 0, limit: limit === null ? null : Math.min(limit, Math.max(page.free, 0)), guarantor: pass?.sponsor ?? null, guarantorNeeds, reserveFree: page.free, reasons };
   }
 
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */

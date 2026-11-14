@@ -67,9 +67,10 @@ export async function bankCmd(sub: string | undefined, o: BankOpts): Promise<num
     const balance = await o.log.log.balance(f.holder);
     const owed = f.amount === undefined ? 0 : Number(f.amount);
     const at = o.now();
-    const rec = createRecord({ type: "bank_statement", issuer: by, subject: f.holder, prev: null, body: { holder: f.holder, period: at.slice(0, 7), balance: { value: balance, unit: "credit" }, owed: { value: owed, unit: "credit" } }, issued_at: at }, o.signerFor(by));
+    const locks = (await o.log.log.bankLocksOf(f.holder)).map((l) => ({ contract: l.contract, bond: { value: l.bond, unit: "credit" as const } }));
+    const rec = createRecord({ type: "bank_statement", issuer: by, subject: f.holder, prev: null, body: { holder: f.holder, period: at.slice(0, 7), balance: { value: balance, unit: "credit" }, owed: { value: owed, unit: "credit" }, locks }, issued_at: at }, o.signerFor(by));
     const res = await o.log.append(rec);
-    o.io.out(`statement ${res.id}: ${f.holder} holds ${balance} credits and owes the Bank ${owed} (log seq ${res.seq})`);
+    o.io.out(`statement ${res.id}: ${f.holder} holds ${balance} credits and owes the Bank ${owed}; ${locks.reduce((n, l) => n + l.bond.value, 0)} locked in bonds over ${locks.length} contract(s) (log seq ${res.seq})`);
     return 0;
   }
   if (sub === "deposit") {
@@ -102,6 +103,25 @@ export async function bankCmd(sub: string | undefined, o: BankOpts): Promise<num
     o.io.out(`reward ${res.id}: ${rewardFor(b.amount.value)} credits from the Treasury to ${b.holder} (log seq ${res.seq})`);
     return 0;
   }
+  if (sub === "clear") {
+    // The guarantor pays back what it still owes after a default (DK181): a signed payment the log checks; at zero the block on its agents is lifted.
+    if (!f.line || f.amount === undefined) throw new BankUsage("asp bank clear --line <credit line id> --amount <credits> [--by <the guarantor did>]");
+    const all = await bankRecords(o.log);
+    const line = all.find((r) => r.id === f.line && r.type === "asp.credit_line/v0.2");
+    if (!line) throw new Error(`${f.line} is not a credit line in the log`);
+    const payer = f.by ?? (line.body.guarantor as string);
+    const amount = Math.trunc(Number(f.amount));
+    const rec = createRecord({ type: "debt_payment" as never, issuer: payer, subject: payer, prev: null, body: { line: f.line, amount: { value: amount, unit: "credit" } }, issued_at: o.now() }, o.signerFor(payer));
+    const res = await o.log.append(rec);
+    o.io.out(`payment ${res.id}: ${amount} credits from ${payer} to the Bank against the debt on ${f.line} (log seq ${res.seq}); new lines for its agents are open again once nothing is owed`);
+    return 0;
+  }
+  if (sub === "offer") {
+    if (!f.agent) throw new BankUsage("asp bank offer --agent <did>");
+    const off = await o.log.log.bankOffer(f.agent);
+    o.io.out(off.eligible ? `${f.agent}: the Bank would lend up to ${off.limit} credits, guaranteed by ${off.guarantor} (who must hold ${off.guarantorNeeds}); ${off.reserveFree} free in the reserve` : `${f.agent}: no line now: ${off.reasons.join("; ")}`);
+    return 0;
+  }
   if (sub === "show") {
     const all = await bankRecords(o.log);
     const lines = all.filter((r) => r.type === "asp.credit_line/v0.2" && (!f.agent || r.body.borrower === f.agent));
@@ -113,5 +133,5 @@ export async function bankCmd(sub: string | undefined, o: BankOpts): Promise<num
     if (!lines.length) o.io.out("no credit line");
     return 0;
   }
-  throw new BankUsage("asp bank line --contract <id> --agent <did> --guarantor <sponsor did> | default --line <id> --amount <n> | statement --holder <did> | deposit --holder <did> --amount <n> | withdraw --deposit <id> | reward --deposit <id> --budget <id> | show [--agent <did>]");
+  throw new BankUsage("asp bank line --contract <id> --agent <did> --guarantor <sponsor did> | default --line <id> --amount <n> | statement --holder <did> | clear --line <id> --amount <n> | offer --agent <did> | deposit --holder <did> --amount <n> | withdraw --deposit <id> | reward --deposit <id> --budget <id> | show [--agent <did>]");
 }

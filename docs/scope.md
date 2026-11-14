@@ -754,7 +754,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK141 | A | closed | The society-health figure runs only by hand: nothing runs it on the hosted service, publishes the month's figure or mails an alarm...|
 | DK142 | A | open | Society health takes a job's kind from the verification mode and uses default thresholds, not real data...|
 | DK180 | A | open | The Bank has no deposits and Treasury-funded reward (the owner decides). |
-| DK181 | A | open | The Bank's lines: debt clearing, statement locks, job class check, agent tools, public page, charter. |
+| DK181 | A | closed | The Bank's lines: debt clearing, statement locks, job class check, agent tools, public page, charter. |
+| DK386 | A | open | The Bank's job-class check, its line in the standing note and its monthly report. |
 | DK182 | A | open | The Bank has not been run live on the hosted service. |
 | DK183 | A | open | The Insurer's loose ends: owed remainder, appeal window, outside-Mandate exclusion, job class, top-up, re-rating. |
 | DK184 | A | open | The Insurer's agent tools, standing note, public pages, charter. |

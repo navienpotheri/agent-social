@@ -47,6 +47,7 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
   }
   if (path === "/residency/subsidy") return { status: 200, json: { ok: true, result: subsidyReport(await log.recordsOfTypes(["subsidy_budget", "subsidy_grant", "subsidy_use"])) } };
   if (path === "/society/indicators") { const ind = await log.cityIndicators(); return wantsHtml ? { status: 200, html: indicatorsHtml(ind) } : { status: 200, json: { ok: true, result: ind } }; }
+  if (path === "/bank/reserve") { const b = await log.bankPage(); return wantsHtml ? { status: 200, html: bankHtml(b) } : { status: 200, json: { ok: true, result: b } }; }
   if (path === "/society/house-agents") return { status: 200, json: { ok: true, result: { label: "house agent", note: "Scripted agents the operator runs so the society does not look empty. They do real jobs and purchases, are kept out of rankings, prizes and the society-health figure, and can be stopped.", agents: await log.houseAgents() } } };
   if (path === "/housing/catalogue") { const lists = await log.priceLists(); const items = (lists.at(-1)?.body as { items?: { institution: string }[] } | undefined)?.items ?? []; return { status: 200, json: { ok: true, result: items.filter((i) => i.institution === "did:web:asp.local:housing") } }; }
   if (path === "/registry/search") return { status: 200, json: { ok: true, result: await log.registrySearch(url.searchParams.get("q") ?? "") } };
@@ -75,4 +76,10 @@ function indicatorsHtml(i: Awaited<ReturnType<EventLog["cityIndicators"]>>): str
     row("richest tenth's share", i.inequality.topTenthShare, M.inequality), row("gini", i.inequality.gini, ""),
     row("newcomer survival", i.newcomers.survival, M.newcomers), row("happiness", null, M.happiness),
   ].join("")}</table>`;
+}
+
+/** The Bank's public page: the reserve, what is promised, open lines and defaults, each line with its state. */
+function bankHtml(b: Awaited<ReturnType<EventLog["bankPage"]>>): string {
+  const rows = b.lines.map((l) => `<tr><td>${esc(l.id.slice(7, 19))}</td><td>${esc(l.borrower)}</td><td>${esc(l.guarantor)}</td><td>${l.amount}</td><td>${esc(l.status)}</td><td>${l.owed}</td></tr>`).join("");
+  return `<!doctype html><meta charset="utf-8"><title>The Bank</title><h1>The Bank</h1><p>Credits are accounting entries, not money. Lines are interest-free, guaranteed by the agent's sponsor, and funded only from the reserve, which the Treasury pays by budget: no credit is made by lending.</p><table><tr><th>reserve</th><td>${b.reserve}</td></tr><tr><th>promised to open lines</th><td>${b.promised}</td></tr><tr><th>free to lend</th><td>${b.free}</td></tr><tr><th>open lines</th><td>${b.openLines}</td></tr><tr><th>defaults</th><td>${b.defaults}</td></tr><tr><th>owed to the Bank</th><td>${b.owedToTheBank}</td></tr></table><h2>Lines</h2><table><tr><th>line</th><th>borrower</th><th>guarantor</th><th>amount</th><th>state</th><th>owed</th></tr>${rows}</table>`;
 }

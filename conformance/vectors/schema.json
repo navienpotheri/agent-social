@@ -8271,6 +8271,125 @@
       "valid": false
     },
     {
+      "name": "valid_debt_payment",
+      "schema": "debt_payment",
+      "instance": {
+        "line": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "debt_payment_no_line",
+      "schema": "debt_payment",
+      "instance": {
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "debt_payment_no_amount",
+      "schema": "debt_payment",
+      "instance": {
+        "line": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": false
+    },
+    {
+      "name": "debt_payment_extra_field",
+      "schema": "debt_payment",
+      "instance": {
+        "line": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        },
+        "interest": 1
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_bank_statement_with_locks",
+      "schema": "bank_statement",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "period": "2026-11",
+        "balance": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "owed": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "locks": [
+          {
+            "contract": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bond": {
+              "value": 20,
+              "unit": "credit"
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "bank_statement_lock_no_bond",
+      "schema": "bank_statement",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "period": "2026-11",
+        "balance": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "owed": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "locks": [
+          {
+            "contract": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_statement_lock_extra_field",
+      "schema": "bank_statement",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "period": "2026-11",
+        "balance": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "owed": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "locks": [
+          {
+            "contract": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bond": {
+              "value": 20,
+              "unit": "credit"
+            },
+            "escrow": 3
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
       "name": "valid_identity_level",
       "schema": "registry_act",
       "instance": {

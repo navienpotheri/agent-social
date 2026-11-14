@@ -88,7 +88,9 @@ export interface AspToolsOptions {
    * and how much is left this period); `buy` signs a purchase under the agent's own key. Only `standing` is offered when the run does not hold the agent's key. The log is the authority: a purchase
    * outside the Mandate's institution_spend, over its cap, or at the wrong price is refused with its reason, and the refusal is what the agent reads. Credits never buy standing.
    */
-  society?: { standing: () => Promise<string>; buy?: (service: string, quantity: number) => Promise<string>; price?: (service: string | undefined) => Promise<string>; /** The School (academy.md AC-19): the catalogue, and enrolling (tuition from the agent's own credits, inside its Mandate). */ academy?: { catalog: () => Promise<string>; enrol?: (course: string) => Promise<string> } };
+  society?: { standing: () => Promise<string>; buy?: (service: string, quantity: number) => Promise<string>; price?: (service: string | undefined) => Promise<string>; /** The School (academy.md AC-19): the catalogue, and enrolling (tuition from the agent's own credits, inside its Mandate). */ academy?: { catalog: () => Promise<string>; enrol?: (course: string) => Promise<string> };
+    /** The Bank (bank-insurer.md BI-10; DK181): what line it would offer this agent now, and what it states the agent has and owes. Read from the log; the agent cannot change either. */
+    bank?: { offer: () => Promise<string>; statement: () => Promise<string> } };
   /** Called after every memory write, for the run's records. */
   onMemoryWrite?: (file: string) => void;
 }
@@ -268,6 +270,19 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
         name: "asp_price", description: "See what things cost before you act: with no service, the whole price list in force (each service, its price, who gets what share, and what it needs of you); with a service name, its price, how the price is split, what it needs of you (a tier or a certificate) and whether you meet that, what your Mandate's budget has left for it, and any change announced. Only asp_buy spends your credits; every other tool call costs you none.",
         inputSchema: { type: "object", properties: { service: { type: "string", description: "a service name such as academy.exam.sit, or an institution such as academy; leave out for the whole list" } } },
         run: async (a) => textResult(await price(str(a, "service") || undefined)),
+      });
+    }
+    if (society.bank) {
+      const bank = society.bank;
+      tools.push({
+        name: "bank_line_offer", description: "See whether the Bank would lend you the credits for your first bond: the most it could be, who must guarantee it (your sponsor), how much the guarantor must hold, what is free in the Bank's reserve, and every reason you cannot have one now. A line is interest-free and repaid from the job's first pay.",
+        inputSchema: { type: "object", properties: {} },
+        run: async () => textResult(await bank.offer()),
+      });
+      tools.push({
+        name: "bank_statement", description: "See what the Bank has on record for you: your balance, what you owe it, and the credits you have locked in bonds, by contract.",
+        inputSchema: { type: "object", properties: {} },
+        run: async () => textResult(await bank.statement()),
       });
     }
     if (society.academy) {

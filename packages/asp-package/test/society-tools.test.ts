@@ -64,3 +64,13 @@ test("the School's tools (AC-19): academy_catalog passes the CLI's catalogue thr
   assert.match(String(full.instructions?.()), /Promotion to a higher tier is earned, not bought/);
   assert.doesNotMatch(String(aspHandler({ society: { standing: async () => "x" } }).instructions?.()), /The School teaches/);
 });
+
+test("the Bank's tools (DK181): bank_line_offer and bank_statement are offered only when the CLI supplies them, and a call shows what the CLI read from the log", async () => {
+  const none = aspHandler({ society: { standing: async () => "x" } });
+  assert.ok(!(await none.listTools()).some((t) => t.name.startsWith("bank_")));
+  const h = aspHandler({ society: { standing: async () => "x", bank: { offer: async () => "The Bank would lend you up to 60 credits for your first bond", statement: async () => "balance 0; owed to the Bank 20; locked in bonds 20" } } });
+  const names = (await h.listTools()).map((t) => t.name);
+  assert.ok(names.includes("bank_line_offer") && names.includes("bank_statement"));
+  assert.match(((await h.callTool("bank_line_offer", {})).content[0] as { text: string }).text, /would lend you up to 60 credits/);
+  assert.match(((await h.callTool("bank_statement", { balance: 999 })).content[0] as { text: string }).text, /balance 0; owed to the Bank 20/, "arguments change nothing");
+});

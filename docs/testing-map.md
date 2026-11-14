@@ -536,6 +536,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-559 | [agent] The balance, tier and price an agent sees in its loop come from the log through the gateway, and the agent cannot make them say something else | packages/asp-cli/test/agent-view.test.ts | no | CY3 | none | P1 |
 | UC-560 | [citizen, builder] Every institution of the society has a specification, a charter, a module in the log, a test and a place on the map, and each that sells has a price in credits | packages/asp-cli/test/institutions-built.test.ts | no | CY1 | The Clinic's prices (DK161) | P2 |
 | UC-561 | [citizen, visitor] Anyone can see how many people and agents the city has, the work and disputes in it, the credit supply, how unequal holdings are and whether newcomers stay, with how each figure is computed | packages/asp-log/test/society-indicators.test.ts | no | GV1 | How happy citizens are (GV15); the page at hosted scale (U11, O6) | P1 |
+| UC-562 | [guarantor, agent, citizen] A guarantor can pay off its debt and free its other agents, a Bank statement lists the credits locked in bonds and cannot be wrong, an agent can ask the Bank what line it would get and why not, and anyone can see the reserve, open lines and defaults | packages/asp-log/test/bank.test.ts, packages/asp-cli/test/bank-clear.test.ts | no | DK181 | The class check, standing-note line and monthly report (DK386) | P1 |
 
 ## Journey index
 

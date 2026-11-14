@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:debt_payment",
+  "title": "Debt payment body",
+  "description": "A guarantor clears what it still owes the Bank after a default (bank-insurer.md 3, register row DK181; spec-delta S462). Signed by the guarantor named on the line: credits move from the guarantor to the Bank (never above what it holds or owes), and the debt falls by that much. When the guarantor owes nothing the block on new lines for its agents is lifted; the defaulted borrower's own block stays. A move, never a mint. Credits are accounting entries, not money. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "line",
+    "amount"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "line": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "amount": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    }
+  }
+}
