@@ -674,7 +674,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK39 | B | open | Plots and property have no storage, rent or moderation (CY9). |
 | DK40 | A | closed | Institutions have no framework: no charter, officers, budget, audit or conflict-of-interest rules (IS1). |
 | DK382 | A | open | The twelve charters are published as signed charter records with the owner's co-signature and a cross-check test. |
-| DK41 | A | open | Institutions are not joined up: no map of which reads or writes what, no shared services (IS15). |
+| DK41 | A | closed | Institutions are not joined up: no map of which reads or writes what, no shared services (IS15). |
 | DK42 | B | open | There is no AgentRank directory: discovery and routing ranked by live runtime performance. The deck calls it t... |
 | DK43 | A | partial | The verifiable risk floor is partly built: signed logs exist and the bond floor falls with accepted jobs, but... |
 | DK44 | B | open | The norm convergence ledger does not exist: a cross-environment record of how cohorts align in behaviour. |
