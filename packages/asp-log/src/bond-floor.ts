@@ -48,3 +48,6 @@ export function bondFloorPermille(r: FloorRecord, p: FloorParams = DEFAULT_FLOOR
 
 /** The smallest bond for a job of this price. */
 export const minBond = (price: number, floorPermille: number): number => Math.ceil((price * floorPermille) / 1000);
+
+/** Whether the v2 floor applies to a bond issued at this time: v2 is on, and the cutover (if there is one) has been reached by the record's own time (T26). */
+export const floorIsV2 = (mode: "legacy" | "v2", from: string | undefined, issuedAt: string): boolean => mode === "v2" && (from === undefined || Date.parse(issuedAt) >= Date.parse(from));

@@ -2,7 +2,7 @@ import { after, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { b64urlEncode, cosign, signerFromSeed, type Signer } from "@agent-social/asp-core";
 import { randomBytes } from "node:crypto";
-import { EventLog } from "../src/index.ts";
+import { EventLog, MemoryStore } from "../src/index.ts";
 import type { EventLogOptions } from "../src/index.ts";
 import { alice, at, bank, codeOf, memory, pgUrl, postgres, rec, registerParties, type Harness } from "./harness.ts";
 
@@ -179,3 +179,54 @@ for (const h of [memory, postgres] as Harness[]) {
     });
   });
 }
+
+describe("bond floor v2 cutover (register row T26, S412)", () => {
+  test("a bond issued before the cutover keeps the legacy floor and one after it the v2 floor; with no cutover v2 refuses the early bond; verify() replays the log the same way", async () => {
+    const setup = async (opts: EventLogOptions) => {
+      const log = new EventLog(await memory.make(), opts);
+      await registerParties(log);
+      const backer = freshAgent(`cut-backer-${Math.random().toString(36).slice(2, 8)}`);
+      await registerAgent(log, backer);
+      await log.mint(alice.did, 9000); await log.mint(backer.did, 3000);
+      return { log, backer };
+    };
+    const early = await setup({ bondFloor: "v2", bondFloorFrom: "2099-01-01T00:00:00Z" });
+    const performer = freshAgent("cut-perf-a"); await registerAgent(early.log, performer);
+    assert.equal((await bondOnly(early.log, performer, early.backer, 1000, 100, 1000)).bondResult, undefined, "before the cutover: the legacy floor, an unknown agent may bond 100 on a price of 1000");
+    // The same bond with no cutover is refused by v2, which is the replay failure T26 describes.
+    const none = await setup({ bondFloor: "v2" });
+    const performerB = freshAgent("cut-perf-b"); await registerAgent(none.log, performerB);
+    assert.equal((await bondOnly(none.log, performerB, none.backer, 1000, 100, 1000)).bondResult, "GUARD_FAILED");
+
+    // A cutover in the past: the v2 floor applies to every bond issued from then on.
+    const cut = await setup({ bondFloor: "v2", bondFloorFrom: "2020-01-01T00:00:00Z" });
+    const performerC = freshAgent("cut-perf-c"); await registerAgent(cut.log, performerC);
+    assert.equal((await bondOnly(cut.log, performerC, cut.backer, 1000, 399, 1000)).bondResult, "GUARD_FAILED");
+    assert.equal((await bondOnly(cut.log, performerC, cut.backer, 1000, 400, 1000)).bondResult, undefined);
+    for (const l of [early.log, cut.log]) assert.equal((await l.verify()).ok, true, "the log replays under its own cutover");
+    assert.throws(() => new EventLog(new MemoryStore(), { bondFloor: "v2", bondFloorFrom: "not a time" }), /bondFloorFrom must be an ISO time/);
+  });
+
+  test("the cutover splits one log in two by the records' own times: the first bonds are judged by legacy, the later ones by v2, and the clock is never read", async () => {
+    // The harness stamps each record a minute after the last, so a first run with no cutover tells where in time the third bond falls; the second run puts the cutover just before it.
+    const run = async (opts: EventLogOptions) => {
+      const base = Date.parse(at());
+      const log = new EventLog(await memory.make(), opts);
+      await registerParties(log);
+      const backer = freshAgent("cut-backer-split"); await registerAgent(log, backer);
+      await log.mint(alice.did, 9000); await log.mint(backer.did, 3000);
+      const results: (string | undefined)[] = [], times: number[] = [];
+      for (let i = 0; i < 5; i++) {
+        const p = freshAgent(`cut-split-${i}`); await registerAgent(log, p);
+        const r = await bondOnly(log, p, backer, 1000, 100, 1000);
+        results.push(r.bondResult); times.push(Date.parse(r.bond.issued_at) - base);
+      }
+      return { base, results, times };
+    };
+    const first = await run({});
+    assert.deepEqual(first.results, [undefined, undefined, undefined, undefined, undefined], "legacy accepts every one of them");
+    const second = await (async () => { const base = Date.parse(at()); return run({ bondFloor: "v2", bondFloorFrom: new Date(base + first.times[2] - 30_000).toISOString() }); })();
+    assert.deepEqual(second.results.slice(0, 2), [undefined, undefined], "the bonds before the cutover are under legacy");
+    assert.deepEqual(second.results.slice(2), ["GUARD_FAILED", "GUARD_FAILED", "GUARD_FAILED"], "the bonds from the cutover on are under v2 and are below its 400 floor");
+  });
+});

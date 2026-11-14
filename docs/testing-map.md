@@ -517,6 +517,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-482 | [sponsor] A job whose Mandate withholds network use is refused when its command downloads with certutil, BITS or a .NET WebClient, scans with ssh-keyscan, or starts a container; local look-alikes (ssh-keygen, certutil -hashfile, docker ps) are not refused | packages/asp-package/test/shell-scan.test.ts | no | BM1 | A container's own egress on a real engine (DK280) | P1 |
 | UC-510 | [operator, reporter] A vulnerability report and a legal request each have a written process with steps and target times, and the page says what the service holds and what it cannot hand over | packages/asp-cli/test/security-process.test.ts | no | T8 | Asking for the outside review (DK310); a lawyer's read of the legal-request steps | P1 |
 | UC-511 | [operator] A lone agent that keeps trying a scope its Mandate refuses is flagged by the watcher at the default settings, and a swarm of eight exploiters is stopped in full | packages/asp-package/test/watch.test.ts, packages/asp-cli/test/eval.test.ts | no | BM10 | A lone agent using an allowed scope once (DK311); a real swarm on a live service | P1 |
+| UC-512 | [operator] The hosted log can move to the v2 bond floor without breaking replay: bonds before the chosen time are judged by the old floor and later ones by the new, the same everywhere | packages/asp-log/test/bond-floor-log.test.ts | no | T26 | The cutover in the log itself (DK312); decay and probation (DK313) | P1 |
 
 ## Journey index
 
