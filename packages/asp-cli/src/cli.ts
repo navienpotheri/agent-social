@@ -981,6 +981,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "credits" && (!sub || sub === "show")) return await creditsShow(home, io);
     if (cmd === "history") return await historyCommand(home, sub, v, io);
     if (cmd === "credits" && sub === "grant") return await creditsGrant(home, v, need, io);
+    if (cmd === "credits" && sub === "adopt") return await creditsAdopt(home, v, need, io);
     if (cmd === "credits" && sub === "fund") return await creditsFund(home, v, need, io);
     if (cmd === "credits" && sub === "audit") return await creditsAudit(home, v, io);
     if (cmd === "credits" && sub === "guard") return await creditsGuard(home, v, io);
@@ -4125,6 +4126,27 @@ async function creditsFund(home: string, v: Values, need: Need, io: Io): Promise
   const res = await local.append(record);
   io.out(`${from} sent ${amount} credits to ${to} (record ${res.id}, log seq ${res.seq}); only an agent and its sponsor may do this, any other transfer is refused`);
   io.out(`  balances: ${from} ${await local.log.balance(from)}, ${to} ${await local.log.balance(to)}`);
+  return 0;
+}
+
+/**
+ * asp credits adopt --to <did> --amount <n> --by <operator did> --cosign-by <owner did> [--reason <text>] (register row DK95, owner decision 2026-11-13): a signed adoption of credits the old unsigned mint created.
+ * The operator signs and the owner countersigns on their own machines; the log moves the amount from the unsigned to the signed minted total without moving a balance, so `asp credits audit --require-signed` passes
+ * once every unsigned credit is adopted. The unsigned mint stays in the history.
+ */
+async function creditsAdopt(home: string, v: Values, need: Need, io: Io): Promise<number> {
+  const to = need("to"), by = need("by");
+  const amount = Math.trunc(Number(need("amount")));
+  if (!Number.isFinite(amount) || amount < 1) throw new UsageError("--amount must be a whole number of credits, 1 or more");
+  if (!v["cosign-by"]?.length) throw new UsageError("an adoption needs the owner's co-signature: --cosign-by <owner did>");
+  const signerOf = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  const local = await openLog(home, logEnv);
+  let record = createRecord({ type: "mint_adoption", issuer: by, subject: to, prev: null, body: { did: to, amount: { value: amount, unit: "credit" as const }, reason: v.reason ?? "adopt the unsigned mints of the beta database" }, issued_at: now() }, signerOf(by));
+  for (const cosigner of v["cosign-by"]) record = cosign(record, signerOf(cosigner));
+  const res = await local.append(record);
+  const audit = await local.log.creditAudit();
+  io.out(`adopted ${amount} unsigned credits of ${to} as signed (record ${res.id}, log seq ${res.seq}); no balance moved`);
+  io.out(`  still unsigned: ${audit.mintedUnsigned} credit(s)${audit.mintedUnsigned === 0 ? "; asp credits audit --require-signed now passes" : ""}`);
   return 0;
 }
 

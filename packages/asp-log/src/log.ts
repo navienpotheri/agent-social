@@ -280,6 +280,7 @@ export class EventLog {
     if (type === "settlement") { await this.checkVerifiedBeforeSilence(tx, verified); await this.projectSettlement(tx, verified); { const sc = await tx.getRecord((verified.body as { contract: string }).contract); if (sc) await closeDispute(tx, sc.record); } }
     if (type === "juror") await this.projectJuror(tx, verified);
     if (type === "mint") await this.projectMint(tx, verified);
+    if (type === "mint_adoption") await this.projectMintAdoption(tx, verified);
     if (type === "price_list") await this.projectPriceList(tx, verified);
     if (type === "purchase") await this.projectPurchase(tx, verified);
     if (type === "starter_claim") await this.projectStarterClaim(tx, verified);
@@ -1306,7 +1307,24 @@ export class EventLog {
     const to = canonicalAccount(body.to);
     await this.credit(tx, to, body.amount.value);
     const row = await tx.getMint(to);
-    await tx.putMint({ did: to, totalMinted: (row?.totalMinted ?? 0) + body.amount.value, signedMinted: (row?.signedMinted ?? 0) + body.amount.value });
+    await tx.putMint({ did: to, totalMinted: (row?.totalMinted ?? 0) + body.amount.value, signedMinted: (row?.signedMinted ?? 0) + body.amount.value, ...(row?.adoptedMinted ? { adoptedMinted: row.adoptedMinted } : {}) });
+  }
+
+  /**
+   * A signed adoption of unsigned mints (DK95, owner decision 2026-11-13): the operator signs and the owner countersigns; `amount` credits of the account's unsigned minted total become signed, no balance moves,
+   * and the adopted amount is remembered so a replay (which seeds the unsigned total as it was) finds it again. The unsigned mint itself stays in the history.
+   */
+  private async projectMintAdoption(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { did: string; amount: { value: number } };
+    if (r.prev !== null) throw rule("adoption_not_chained", "an adoption record starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("adoption_unauthorised", `${r.issuer} is not the operator${this.operator ? "" : " (this log has none configured)"}: only the operator adopts unsigned mints`);
+    if (!this.cosignedBy(r, this.owner)) throw rule("adoption_needs_cosign", "an adoption of unsigned mints needs the owner's co-signature");
+    if (b.amount.value <= 0) throw rule("amount_not_positive", "an adoption must be for at least 1 credit");
+    const did = canonicalAccount(b.did);
+    const row = await tx.getMint(did);
+    const unsigned = (row?.totalMinted ?? 0) - (row?.signedMinted ?? 0);
+    if (b.amount.value > unsigned) throw rule("adoption_exceeds_unsigned", `${did} holds ${unsigned} credits of unsigned mint, so ${b.amount.value} cannot be adopted`);
+    await tx.putMint({ did, totalMinted: row!.totalMinted, signedMinted: (row!.signedMinted ?? 0) + b.amount.value, adoptedMinted: (row?.adoptedMinted ?? 0) + b.amount.value });
   }
 
   /** The price list in force at `at` (a time in ms): the newest list whose effective_from is not later, found by walking the chain back from its head. */
@@ -2377,7 +2395,7 @@ export class EventLog {
       const row = await tx.getMint(did);
       const totalMinted = (row?.totalMinted ?? 0) + amount;
       await tx.putAccount({ did, balance });
-      await tx.putMint({ did, totalMinted, ...(row?.signedMinted ? { signedMinted: row.signedMinted } : {}) });
+      await tx.putMint({ did, totalMinted, ...(row?.signedMinted ? { signedMinted: row.signedMinted } : {}), ...(row?.adoptedMinted ? { adoptedMinted: row.adoptedMinted } : {}) });
       return balance;
     });
   }

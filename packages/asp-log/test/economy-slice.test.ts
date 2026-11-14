@@ -764,3 +764,59 @@ describe("the closed loop's movements that needed a test of their own (DK71): T9
     assert.equal(await w.log.balance(coder.did), 10, "nothing moved");
   });
 });
+
+describe("DK95: a database that holds unsigned mints is made signed-only by a signed adoption, and its history and replay stay whole", () => {
+  const adopt = (did: string, value: number, by: Party = operator, cosigners: Party[] = [owner]) => mk("mint_adoption", by, { did, amount: credit(value), reason: "adopt the opening balances of the beta database" }, null, { cosigners });
+
+  test("adopting every unsigned credit takes mintedUnsigned to 0 (so --require-signed passes), moves no balance, keeps the minted total, and the replay still verifies", async () => {
+    const w = await world({ allowUnsignedMint: true });
+    await w.log.mint(coder.did, 70);
+    await w.log.mint(alice.did, 30);
+    await w.mintSigned(coder.did, 5);
+    const before = await w.log.creditAudit();
+    assert.deepEqual([before.minted, before.mintedSigned, before.mintedUnsigned], [105, 5, 100]);
+    const balances = [await w.log.balance(coder.did), await w.log.balance(alice.did)];
+    await w.log.append(adopt(coder.did, 70));
+    await w.log.append(adopt(alice.did, 30));
+    const after = await w.log.creditAudit();
+    assert.deepEqual([after.minted, after.mintedSigned, after.mintedUnsigned], [105, 105, 0], "the same total, all of it now signed");
+    assert.equal(after.mintedUnsigned > 0, false, "asp credits audit --require-signed fails only when this is above 0");
+    assert.equal(after.verdict, "balanced");
+    assert.deepEqual([await w.log.balance(coder.did), await w.log.balance(alice.did)], balances, "no balance moved");
+    assert.equal((await w.log.verify()).ok, true, "the replay seeds the unsigned total as it was and the adoption records find it");
+  });
+
+  test("a partial adoption leaves the rest unsigned; spending before and after an adoption does not disturb it; the replay verifies at every step", async () => {
+    const w = await world({ allowUnsignedMint: true });
+    await w.log.mint(coder.did, 50);
+    await w.log.append(adopt(coder.did, 20));
+    assert.equal((await w.log.creditAudit()).mintedUnsigned, 30);
+    assert.equal((await w.log.verify()).ok, true);
+    await w.mintSigned(coder.did, 10); // a later signed mint after an adoption keeps the adopted figure
+    await w.log.append(adopt(coder.did, 30));
+    const a = await w.log.creditAudit();
+    assert.deepEqual([a.minted, a.mintedSigned, a.mintedUnsigned], [60, 60, 0]);
+    assert.equal((await w.log.verify()).ok, true);
+  });
+
+  test("only the operator adopts, with the owner's co-signature, never more than the unsigned total, never twice over, and never for an account with none", async () => {
+    const w = await world({ allowUnsignedMint: true });
+    await w.log.mint(coder.did, 40);
+    assert.equal(await refused(w.log.append(adopt(coder.did, 10, mallory))), "adoption_unauthorised");
+    assert.equal(await refused(w.log.append(adopt(coder.did, 10, operator, []))), "adoption_needs_cosign");
+    assert.equal(await refused(w.log.append(adopt(coder.did, 41))), "adoption_exceeds_unsigned");
+    assert.equal(await refused(w.log.append(adopt(alice.did, 1))), "adoption_exceeds_unsigned", "an account that holds no unsigned mint");
+    await w.log.append(adopt(coder.did, 40));
+    assert.equal(await refused(w.log.append(adopt(coder.did, 1))), "adoption_exceeds_unsigned", "everything is adopted already");
+    const log2 = new EventLog(new MemoryStore(), { fallbackResolver: resolver });
+    assert.equal(await refused(log2.append(adopt(coder.did, 1))), "adoption_unauthorised", "a log with no operator adopts nothing");
+  });
+
+  test("the adopted amount survives a snapshot of the store (what a database keeps between restarts)", async () => {
+    const w = await world({ allowUnsignedMint: true });
+    await w.log.mint(coder.did, 25);
+    await w.log.append(adopt(coder.did, 25));
+    const seed = await w.log.store.allMints();
+    assert.deepEqual(seed, [{ did: coder.did, balance: 25 }], "a replay is seeded with the unsigned total as it was before the adoption");
+  });
+});

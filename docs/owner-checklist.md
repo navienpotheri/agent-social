@@ -6,7 +6,7 @@ What only the owner (or the hosted service, or a live run) can finish. Each item
 |---|---|---|
 | Turn on branch protection on `main` (required CI, no force push) | O12 | a GitHub account setting |
 | Set up the hosted service with the operator, Registrar and Treasury keys on the operator machine; set `ASP_OPERATOR_DID` and `ASP_OWNER_DID` on the service | DK67, DK94, DK25, DK27, DK2 | keys and hosting; the service must never hold them |
-| Decide the legacy unsigned mints on the live database: re-genesis or a signed adoption | DK95 | a decision about live data |
+| Adopt the legacy unsigned mints on the live database (decided 2026-11-13: a signed adoption): after the service has applied migration 017, the operator and you each sign `asp credits adopt --to <did> --amount <n> --by <operator did> --cosign-by <owner did>` for every account that holds unsigned mint (`asp credits audit --json` gives the totals), then run `asp credits audit --require-signed` | DK95 | signatures with your keys on the live data |
 | Confirm the provider terms for hosted or unattended runs, and the wording changes | P22, DK82 | needs the owner (and, when wanted, a lawyer) |
 | Sign the Code of the City (`asp law sign`, run by the owner only) | LW1 | the owner's own signature |
 | Choose a design system for the dashboard and site | U8 | a design decision |

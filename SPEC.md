@@ -76,6 +76,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.mandate/v0.2` | What the performer may do. | `contract`, `purpose`, `floor`, `scopes`, `forbidden_means`, `spend`, `irreversible`, `subcontract`, `nodes`, `learning`, `self_modification`, `overlay`, `checkpoints`, `expires`, `revocable` |
 | `asp.market_act/v0.2` | The Market's records (market.md 3, register rows DK16, DK17, DK18; spec-delta S230). | `act` |
 | `asp.mint/v0.2` | The creation of credits, signed by the operator (credits.md 5.1, CR-2, register row DK67). | `to`, `amount`, `reason`, `authority` |
+| `asp.mint_adoption/v0.2` | A signed adoption of credits created by the old unsigned mint (register row DK95; spec-delta S330). | `did`, `amount`, `reason` |
 | `asp.node/v0.2` | A person grants a short-lived worker (subagent, parallel copy) its own signing key. | `node`, `public_key`, `expires` |
 | `asp.offer/v0.2` | A bid on an Intent: price, plan, ETA, bond offered. | `intent`, `price`, `plan`, `eta`, `bond_offered` |
 | `asp.package/v0.2` | A portable agent bundle (decision #45): manifest, signed identity, memory and experience-store reference, permissions, lineage head. | `agent`, `passport`, `memory`, `experience_store`, `permissions`, `lineage_head`, `source_runtime` |

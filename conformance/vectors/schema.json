@@ -6301,6 +6301,45 @@
       "valid": false
     },
     {
+      "name": "valid_mint_adoption",
+      "schema": "mint_adoption",
+      "instance": {
+        "did": "did:web:example.com:agents:a",
+        "amount": {
+          "value": 60,
+          "unit": "credit"
+        },
+        "reason": "adopt the beta database's opening balances"
+      },
+      "valid": true
+    },
+    {
+      "name": "mint_adoption_no_reason",
+      "schema": "mint_adoption",
+      "instance": {
+        "did": "did:web:example.com:agents:a",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mint_adoption_extra_field",
+      "schema": "mint_adoption",
+      "instance": {
+        "did": "did:web:example.com:agents:a",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        },
+        "reason": "x",
+        "to": "did:web:example.com:agents:a"
+      },
+      "valid": false
+    },
+    {
       "name": "telemetry_act_extra_field",
       "schema": "telemetry_act",
       "instance": {

@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 171 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 172 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (24)</summary><pre>Most people use only these.
 
 asp
@@ -316,10 +316,12 @@ asp orchestrate &lt;package&gt; --task &lt;text&gt; ...
     Run several nodes in parallel under delegated keys, merging their memory
 asp package push|pull|list|delete
     Keep an agent's packages on the service</pre></details>
-<details><summary>Jobs and credits (the market) (31)</summary><pre>The protocol's lifecycle, one record at a time.
+<details><summary>Jobs and credits (the market) (32)</summary><pre>The protocol's lifecycle, one record at a time.
 
 asp credits grant --to &lt;did&gt; --amount &lt;n&gt; [--by &lt;operator did&gt; [--reason &lt;code&gt;] [--cosign-by &lt;owner did&gt;]]
     Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money)
+asp credits adopt --to &lt;did&gt; --amount &lt;n&gt; --by &lt;operator did&gt; --cosign-by &lt;owner did&gt; [--reason &lt;text&gt;]
+    Adopt credits the old unsigned mint created (DK95): the operator signs and the owner countersigns, each on their own machine. The amount moves from the unsigned to the signed minted total without moving a balance, never above what the account holds unsigned; the unsigned mint stays in the history and the replay still reproduces every balance. Once every unsigned credit is adopted, asp credits audit --require-signed passes
 asp credits
     Where your credits are, when you ask: you, your agent, your bank, and what is locked in open jobs (a running session never shows credits)
 asp credits balance &lt;did&gt;
@@ -512,7 +514,7 @@ asp eval run [&lt;scenario&gt;]
     Run a swarm scenario against the system to test it
 asp signup --service &lt;url&gt; --name &lt;name&gt; --accept-terms
     The command-line sign-up route (closed when Google sign-up is required)</pre></details>
-<details><summary>The records the protocol defines (70)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (71)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 action                  The runtime→protocol compliance bridge
 allowance               A newcomer agent claims the Treasury's allowance (credits.md 5.2 T5, treasury.md, register row DK7)
@@ -554,6 +556,7 @@ lineage                 One signed edge in a person's lineage
 mandate                 What the performer may do
 market_act              The Market's records (market.md 3, register rows DK16, DK17, DK18; spec-delta S230)
 mint                    The creation of credits, signed by the operator (credits.md 5.1, CR-2, register row DK67)
+mint_adoption           A signed adoption of credits created by the old unsigned mint (register row DK95; spec-delta S330)
 node                    A person grants a short-lived worker (subagent, parallel copy) its own signing key
 offer                   A bid on an Intent
 package                 A portable agent bundle (decision #45)

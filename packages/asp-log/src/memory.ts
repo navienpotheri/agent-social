@@ -107,7 +107,7 @@ export class MemoryStore implements Store {
   async keysForDid(did: string) { return [...this.tables.keys.values()].filter((k) => k.did === did).map(copy); }
   async getAccount(did: string) { const a = this.tables.accounts.get(did); return a && copy(a); }
   async getEscrow(contract: string) { const e = this.tables.escrows.get(contract); return e && copy(e); }
-  async allMints() { return [...this.tables.mints.values()].map((m) => ({ did: m.did, balance: m.totalMinted - (m.signedMinted ?? 0) })).filter((m) => m.balance > 0); }
+  async allMints() { return [...this.tables.mints.values()].map((m) => ({ did: m.did, balance: m.totalMinted - (m.signedMinted ?? 0) + (m.adoptedMinted ?? 0) })).filter((m) => m.balance > 0); }
   async ledgerRows() {
     const t = this.tables;
     return copy({ head: this.head, accounts: [...t.accounts.values()], mints: [...t.mints.values()], escrows: [...t.escrows.values()], jurors: [...t.jurors.values()], reports: [...t.reports.values()] });

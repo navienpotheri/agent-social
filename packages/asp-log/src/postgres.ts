@@ -66,7 +66,7 @@ const toEscrow = (e: any): EscrowRow => ({
   agentPermille: e.agent_permille === null ? null : Number(e.agent_permille),
   feeReservePrincipal: Number(e.fee_reserve_principal), feeReserveBacker: Number(e.fee_reserve_backer), forcedFault: !!e.forced_fault, settled: e.settled,
 });
-const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_minted), signedMinted: Number(m.signed_minted ?? 0) });
+const toMint = (m: any): MintRow => ({ did: m.did, totalMinted: Number(m.total_minted), signedMinted: Number(m.signed_minted ?? 0), adoptedMinted: Number(m.adopted_minted ?? 0) });
 const toJuror = (j: any): JurorRow => ({ did: j.did, head: j.head, staked: Number(j.staked) });
 const toReputation = (r: any): ReputationRow => ({ did: r.did, tier: Number(r.tier), slashCount: Number(r.slash_count), strikeLog: r.strike_log ?? [], ...(Number(r.accepted_jobs) > 0 ? { acceptedJobs: Number(r.accepted_jobs) } : {}), ...(Number(r.qualifying_jobs) > 0 ? { qualifyingJobs: Number(r.qualifying_jobs) } : {}), ...((r.recent_jobs ?? []).length > 0 ? { recentJobs: r.recent_jobs } : {}) });
 // lateActions is left out while it is 0, so the row reads the same on every store.
@@ -139,7 +139,7 @@ function reads(q: Queryable) {
     },
     async allMints() {
       const { rows } = await q.query("SELECT * FROM mints ORDER BY did");
-      return rows.map(toMint).map((m) => ({ did: m.did, balance: m.totalMinted - (m.signedMinted ?? 0) })).filter((m) => m.balance > 0);
+      return rows.map(toMint).map((m) => ({ did: m.did, balance: m.totalMinted - (m.signedMinted ?? 0) + (m.adoptedMinted ?? 0) })).filter((m) => m.balance > 0);
     },
     async getJuror(did: string) {
       const { rows } = await q.query("SELECT * FROM jurors WHERE did = $1", [did]);
@@ -348,9 +348,9 @@ class PgTx implements LogTx {
   }
   async putMint(row: MintRow) {
     await this.c.query(
-      `INSERT INTO mints (did, total_minted, signed_minted) VALUES ($1, $2, $3)
-       ON CONFLICT (did) DO UPDATE SET total_minted = $2, signed_minted = $3`,
-      [row.did, row.totalMinted, row.signedMinted ?? 0],
+      `INSERT INTO mints (did, total_minted, signed_minted, adopted_minted) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (did) DO UPDATE SET total_minted = $2, signed_minted = $3, adopted_minted = $4`,
+      [row.did, row.totalMinted, row.signedMinted ?? 0, row.adoptedMinted ?? 0],
     );
   }
   async putMarker(key: string, value: string) {

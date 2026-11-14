@@ -148,3 +148,25 @@ test("asp history: the agent's record from the log, signed with its own key, ver
   assert.equal(stale.code, 1);
   assert.match(stale.out, /refused: stale/);
 });
+
+test("asp credits adopt: refused without the owner's co-signature, by a signer who is not the operator, and for credits that were never unsigned; the adoption itself is tested on the log (DK95)", async () => {
+  // A local home that names an operator cannot hold unsigned mints at all (it refuses to replay one), so the success path, on a log that does hold them, is in packages/asp-log/test/economy-slice.test.ts.
+  const home = mkdtempSync(join(tmpdir(), "asp-adopt-"));
+  const OP = "did:web:example.com:users:operator", OWNER = "did:web:example.com:users:owner";
+  for (const d of [OP, OWNER]) assert.equal((await asp(home, ["identity", "new", "--kind", "human", "--did", d])).code, 0);
+  writeFileSync(join(home, "operator.json"), JSON.stringify({ operator: OP, owner: OWNER }));
+  assert.equal((await asp(home, ["credits", "grant", "--to", A, "--amount", "300", "--by", OP, "--reason", "test"])).code, 0);
+  assert.equal((await asp(home, ["credits", "adopt", "--to", A, "--amount", "300", "--by", OP])).code, 2, "the co-signature is a usage requirement");
+  assert.equal((await asp(home, ["credits", "adopt", "--to", A, "--amount", "0", "--by", OP, "--cosign-by", OWNER])).code, 2);
+  const noOwner = await asp(home, ["credits", "adopt", "--to", A, "--amount", "10", "--by", OP, "--cosign-by", OP]);
+  assert.equal(noOwner.code, 1);
+  assert.match(noOwner.err, /owner's co-signature/);
+  const wrong = await asp(home, ["credits", "adopt", "--to", A, "--amount", "10", "--by", OWNER, "--cosign-by", OWNER]);
+  assert.equal(wrong.code, 1);
+  assert.match(wrong.err, /is not the operator/);
+  const none = await asp(home, ["credits", "adopt", "--to", A, "--amount", "10", "--by", OP, "--cosign-by", OWNER]);
+  assert.equal(none.code, 1);
+  assert.match(none.err, /cannot be adopted/, "credits a signed mint created are already signed");
+  const strict = await asp(home, ["credits", "audit", "--require-signed", "--json"]);
+  assert.equal(strict.code, 0, strict.out);
+});

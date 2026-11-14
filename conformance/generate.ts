@@ -877,6 +877,10 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
     sv("telemetry_digest_unknown_entry_key", "telemetry_act", { act: "digest", agent: a1, day: "2026-11-10", consent: id6, merkle_root: sha, counts: {}, entries: { thoughts: [] } }, false);
     sv("telemetry_digest_bad_day", "telemetry_act", { act: "digest", agent: a1, day: "yesterday", consent: id6, merkle_root: sha, counts: {}, entries: {} }, false);
     sv("telemetry_act_unknown", "telemetry_act", { act: "spy", agent: a1 }, false);
+    // S330: the signed adoption of unsigned mints (DK95).
+    sv("valid_mint_adoption", "mint_adoption", { did: a1, amount: cr(60), reason: "adopt the beta database's opening balances" }, true);
+    sv("mint_adoption_no_reason", "mint_adoption", { did: a1, amount: cr(5) }, false);
+    sv("mint_adoption_extra_field", "mint_adoption", { did: a1, amount: cr(5), reason: "x", to: a1 }, false);
     sv("telemetry_act_extra_field", "telemetry_act", { ...cons, free_text: "anything" }, false);
   }
   // S190: Treasury budgets, payments, the newcomer allowance, prizes, and the standing flag on a price-list item (credits.md 5.2 T4, T5, T10, R9).

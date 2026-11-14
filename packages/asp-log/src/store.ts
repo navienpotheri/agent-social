@@ -97,6 +97,8 @@ export interface MintRow {
   totalMinted: number;
   /** Of which minted by signed `mint` records (credits.md CR-2). Absent means 0. A replay recreates these from the records, so only `totalMinted - signedMinted` seeds it. */
   signedMinted?: number;
+  /** Of the signed total, what a signed adoption record moved over from the old unsigned mint (DK95). The replay seeds `totalMinted - signedMinted + adoptedMinted`, so the adoption record finds the unsigned credits it adopts. */
+  adoptedMinted?: number;
 }
 
 /**
