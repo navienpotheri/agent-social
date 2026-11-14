@@ -5,6 +5,7 @@
  */
 import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { TREASURY_DID, BURN_DID, institutionDid, splitParts } from "./economy.ts";
+import { effectiveClass, higherClass, type JobClass } from "./market.ts";
 import type { LogTx } from "./store.ts";
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
@@ -14,8 +15,12 @@ export const INSURER_DID = institutionDid("insurer");
 export const PREMIUM_SPLIT = { treasury_permille: 150, burn_permille: 50, payees: [{ account: INSURER_DID, permille: 800 }] };
 /** Bond-slash cover: the premium rate in permille of the insured amount (8 % for a holder with fewer than 3 counted jobs, 4 % after), plus 10 % of it for each recent strike. */
 export const BOND_SLASH_RATE = { newcomer: 80, established: 40 } as const;
-/** Failed-job cover: 6 % of the job price (class routine; the class is not on a contract yet, DK19x). */
-export const FAILED_JOB_RATE = 60;
+/**
+ * Failed-job cover: a share of the job price by the job's class (DK183; bank-insurer.md 5). The class is the intent's, raised by the Market and capped by what the price supports, as for standing;
+ * a job with no class reads as routine, 6 %. A harder job fails more often and costs more to cover: skilled 8 %, critical 10 % (a design choice inside the row, proposal; the owner may tune it).
+ */
+export const FAILED_JOB_RATE_BY_CLASS: Record<JobClass, number> = { trivial: 60, routine: 60, skilled: 80, critical: 100 };
+export const FAILED_JOB_RATE = FAILED_JOB_RATE_BY_CLASS.routine;
 export const STRIKE_LOADING_PERMILLE = 100;
 /** Cover formula (bank-insurer.md 5): 50 % of the slashed bond after a deductible of 20 % of the slashed amount; failed-job cover is at most 30 % of the price. */
 export const COVER_SHARE_PERMILLE = 500;
@@ -33,8 +38,8 @@ export const reserveFloor = (largestInsured: number, claims90: number): number =
 export type Cover = "bond_slash" | "failed_job";
 
 /** The premium the price list of this module sets for the cover (an integer number of credits, rounded up): by rate, plus 10 % of it per strike in the last 30 days. */
-export function premiumFor(cover: Cover, insured: number, price: number, countedJobs: number, strikes: number): number {
-  const base = cover === "bond_slash" ? Math.ceil((insured * (countedJobs >= 3 ? BOND_SLASH_RATE.established : BOND_SLASH_RATE.newcomer)) / 1000) : Math.ceil((price * FAILED_JOB_RATE) / 1000);
+export function premiumFor(cover: Cover, insured: number, price: number, countedJobs: number, strikes: number, jobClass: JobClass = "routine"): number {
+  const base = cover === "bond_slash" ? Math.ceil((insured * (countedJobs >= 3 ? BOND_SLASH_RATE.established : BOND_SLASH_RATE.newcomer)) / 1000) : Math.ceil((price * FAILED_JOB_RATE_BY_CLASS[jobClass]) / 1000);
   return base + Math.ceil((base * strikes * STRIKE_LOADING_PERMILLE) / 1000);
 }
 
@@ -57,6 +62,16 @@ export interface InsurerEnv {
   reputation(tx: LogTx, did: string): Promise<{ tier: number; qualifyingJobs: number; strikeLog: { at: string; count: number }[] } | null>;
   debit(tx: LogTx, did: string, amount: number): Promise<void>;
   credit(tx: LogTx, did: string, amount: number): Promise<void>;
+}
+
+/** The class a contract's job counts as: its intent's class (raised by the Market, never lowered), capped by the price; no class reads as routine. */
+export async function jobClassOfContract(tx: Pick<LogTx, "getRecord" | "getMarker">, contract: AspRecord): Promise<JobClass> {
+  const cb = contract.body as { price?: { value: number }; basis?: { intent?: string } };
+  const intentId = cb.basis?.intent;
+  const intent = intentId ? await tx.getRecord(intentId) : undefined;
+  const declared = intent?.record.type === "asp.intent/v0.2" ? (intent.record.body as { class?: JobClass }).class : undefined;
+  const raised = intentId ? ((await tx.getMarker(`class_raise:${intentId}`)) as JobClass | undefined) : undefined;
+  return effectiveClass(raised && declared ? higherClass(raised, declared) : raised ?? declared, cb.price?.value ?? 0);
 }
 
 interface Policy { holder: string; contract: string; cover: Cover; insured: number; validTo: string; claim?: string }
@@ -87,8 +102,9 @@ export async function projectPolicy(tx: LogTx, r: AspRecord, env: InsurerEnv): P
   if (b.insured_amount.value <= 0 || b.insured_amount.value > price) throw rule("policy_insured_amount", `the insured amount is above 0 and at most the job's price (${price})`);
   const holderRep = await env.reputation(tx, b.holder);
   const strikes = (holderRep?.strikeLog ?? []).filter((s) => Date.parse(s.at) >= Date.parse(r.issued_at) - STRIKE_WINDOW_MS).reduce((n, s) => n + s.count, 0);
-  const premium = premiumFor(b.cover, b.insured_amount.value, price, holderRep?.qualifyingJobs ?? 0, strikes);
-  if (b.premium.value !== premium) throw rule("premium_mismatch", `the premium for this cover is ${premium} credits (${strikes} recent strike(s) in it), not ${b.premium.value}`);
+  const jobClass = await jobClassOfContract(tx, contract.record);
+  const premium = premiumFor(b.cover, b.insured_amount.value, price, holderRep?.qualifyingJobs ?? 0, strikes, jobClass);
+  if (b.premium.value !== premium) throw rule("premium_mismatch", `the premium for this cover is ${premium} credits (${strikes} recent strike(s) in it${b.cover === "failed_job" ? `, job class ${jobClass}` : ""}), not ${b.premium.value}`);
   const parts = splitParts(premium, PREMIUM_SPLIT);
   const reserveAfter = (await balanceOf(tx, INSURER_DID)) + parts.payees[0].amount;
   const largest = Math.max(Number((await tx.getMarker("insurer_largest")) ?? 0), b.insured_amount.value);
@@ -130,7 +146,23 @@ export async function projectClaimDecision(tx: LogTx, r: AspRecord, env: Insurer
   if (r.issuer !== INSURER_DID) throw rule("decision_wrong_issuer", `${r.issuer} is not the Insurer (${INSURER_DID}): only the Insurer decides a claim`);
   const raw = await tx.getMarker(`claim:${b.claim}`);
   if (!raw) throw rule("decision_unknown_claim", `${b.claim} is not a claim in this log`);
-  if (await tx.getMarker(`claim_decided:${b.claim}`)) throw rule("decision_exists", "a claim is decided once");
+  const owed = Number((await tx.getMarker(`claim_owed:${b.claim}`)) ?? 0);
+  if (await tx.getMarker(`claim_decided:${b.claim}`)) {
+    // A claim the reserve could not pay in full was `reduced`, and the rest is owed: the Insurer pays it as the reserve recovers, in later decisions, never beyond what is owed or what the reserve holds (DK183).
+    if (owed <= 0) throw rule("decision_exists", "a claim is decided once (a reduced claim may be paid further while an amount is owed)");
+    if (b.decision === "denied") throw rule("decision_wrongly_denied", `the claim was reduced and ${owed} credits are owed: a later decision pays the rest, it does not deny it`);
+    const reserveNow = await balanceOf(tx, INSURER_DID);
+    const dueNow = Math.min(owed, reserveNow);
+    if (dueNow <= 0) throw rule("decision_reserve_empty", `${owed} credits are owed on this claim and the reserve holds ${reserveNow}: it is paid when the reserve recovers`);
+    if (b.amount.value !== dueNow) throw rule("decision_amount_mismatch", `${owed} are owed and the reserve holds ${reserveNow}: the payment is ${dueNow}, not ${b.amount.value}`);
+    if ((b.decision === "paid") !== (dueNow === owed)) throw rule("decision_kind_mismatch", dueNow === owed ? "the last of what is owed is `paid`" : "less than is owed, because the reserve is short, is `reduced` again");
+    const policyNow = JSON.parse(raw) as { policy: string };
+    await env.debit(tx, INSURER_DID, dueNow);
+    await env.credit(tx, (await readPolicy(tx, policyNow.policy))!.holder, dueNow);
+    await tx.putMarker("insurer_claims", JSON.stringify([...(await readClaims(tx)), { at: r.issued_at, amount: dueNow }]));
+    await tx.putMarker(`claim_owed:${b.claim}`, String(owed - dueNow));
+    return;
+  }
   const { policy: policyId, event } = JSON.parse(raw) as { policy: string; event: string };
   const policy = (await readPolicy(tx, policyId))!;
   const settlement = (await tx.getRecord(event))!;
@@ -157,6 +189,7 @@ export async function projectClaimDecision(tx: LogTx, r: AspRecord, env: Insurer
     await env.debit(tx, INSURER_DID, due);
     await env.credit(tx, policy.holder, due);
     await tx.putMarker("insurer_claims", JSON.stringify([...(await readClaims(tx)), { at: r.issued_at, amount: due }]));
+    if (due < terms.amount) await tx.putMarker(`claim_owed:${b.claim}`, String(terms.amount - due));
   }
   await tx.putMarker(`claim_decided:${b.claim}`, r.id);
 }
