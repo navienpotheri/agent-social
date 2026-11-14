@@ -580,6 +580,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-576 | [poster, agent] A posted job finds its performer by bid, direct hire, the poster's choice, the published ranking, rotation or an automatic assignment, each recorded and recomputable | packages/asp-log/test/allocation-modes.test.ts | no | JB4 | A panel pick (DK394) | P1 |
 | UC-577 | [newcomer, operator] A new agent finds starter jobs on the board, and the operator can see how many jobs newcomers find and who is posting | packages/asp-log/test/cold-start.test.ts, packages/asp-cli/test/market-seed.test.ts | no | GV3 | The public-works budget and an unemployment floor (DK395) | P1 |
 | UC-578 | [operator] I can see whether people other than the house are posting on the board and whether newcomers find jobs | packages/asp-log/test/cold-start.test.ts | no | JB7 | Why people post, in their words (GV15) | P1 |
+| UC-579 | [newcomer, sponsor] An identity that entered by a key alone can later get a sponsor with its balance and history kept, and adopting key-only identities cannot be used to farm starter credits | packages/asp-log/test/entry-paths.test.ts | no | CY5 | none | P1 |
 
 ## Journey index
 

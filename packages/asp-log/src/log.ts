@@ -475,6 +475,16 @@ export class EventLog {
       if (!consents(body.sponsor)) throw rule("sponsor_consent_missing", `${body.did} names ${body.sponsor} as its sponsor, but ${body.sponsor} did not issue or countersign the passport`);
       if (current?.sponsor && !consents(current.sponsor)) throw rule("sponsor_change_needs_old_sponsor", `${body.did} is sponsored by ${current.sponsor}; moving to ${body.sponsor} needs ${current.sponsor}'s consent too`);
     }
+    // Binding a sponsor to an identity that already exists (register row CY5; spec-delta S479): its history and balance stay. If it had claimed starter credits as a key-only identity it joins its new sponsor's group
+    // for the starter limit, and the binding is refused when that group already has its share (`sponsor_binding_group_full`), so a sponsor cannot gather unlimited starter grants by adopting key-only identities.
+    if (current && !current.sponsor && body.sponsor && (await tx.getMarker(`starter_upfront:${body.did}`))) {
+      const membersKey = `starter_group:${body.sponsor}`;
+      const members = ((await tx.getMarker(membersKey)) ?? "").split(",").filter(Boolean);
+      if (!members.includes(body.did)) {
+        if (members.length >= STARTER_MAX_DIDS) throw rule("sponsor_binding_group_full", `${body.sponsor} has already claimed ${STARTER_MAX_DIDS} starter grants for its identities: ${body.did} claimed one as a key-only identity and cannot be added to its group`);
+        await tx.putMarker(membersKey, [...members, body.did].join(","));
+      }
+    }
     for (const k of body.keys) {
       if (!k.id.startsWith(`${body.did}#`)) throw new AspError("KID_NOT_ISSUER", `key ${k.id} does not belong to ${body.did}`);
       const existing = await tx.getKey(k.id);
