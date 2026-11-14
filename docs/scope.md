@@ -494,7 +494,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | CL1 | C | open | Records are content-addressed with one-second timestamps, so two identical commands in the same second produce... |
 | CY1 | A | designed | The institutions beyond the log, Courts and the commons (Bank services, Academies, Certifiers, Insurers, housi... |
-| CY2 | A | designed | Standing does not yet gate spending: the bond floor (S143) is opt-in and nothing ties credits and standing to... |
+| CY2 | A | closed | Standing does not yet gate spending: the bond floor (S143) is opt-in and nothing ties credits and standing to... |
 | CY3 | A | designed | An agent does not see its balance, standing or the cost of an action in its own loop; credits are shown to the... |
 | CY4 | B | designed | Credits are not a training signal for the research cohorts, and the claim that credits with consequences impro... |
 | CY5 | A | open | Direct enrolment into the city has no settled way to bring starter credits and the ledger; key-only entry gets... |
