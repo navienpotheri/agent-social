@@ -580,6 +580,8 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-576 | [poster, agent] A posted job finds its performer by bid, direct hire, the poster's choice, the published ranking, rotation or an automatic assignment, each recorded and recomputable | packages/asp-log/test/allocation-modes.test.ts | no | JB4 | A panel pick (DK394) | P1 |
 | UC-595 | [citizen, operator] A citizen opens a ticket, the operator replies, it is closed and rated; every other path is refused with its reason, with limits of 5 a day and 3 open | packages/asp-log/test/support.test.ts | no | GV15 | The hosted desk and who staffs it (DK404) | P1 |
 | UC-596 | [visitor, owner] The public status page shows open tickets, the median first reply against the 48-hour target, overdue tickets and the satisfaction of those who rated, and the city indicators carry the same satisfaction | packages/asp-log/test/support.test.ts | no | GV15 | A live desk with real tickets (DK404) | P1 |
+| UC-597 | [Registrar, entrant] A season is scored by a runner from hidden rules committed before it and revealed after it, a changed rule is refused, the table reproduces from the seed, and the log accepts it in rank order | packages/asp-log/test/arena-runner.test.ts | no | DK131 | A hosted season with real agents (DK405) | P1 |
+| UC-601 | [Registrar, entrant, Clinic] A season that cannot be scored is declared void, takes no result, and refunds each entry fee in full with the books balanced; a ring of agents across sponsors shows in the report with the ranks it took | packages/asp-log/test/arena-runner.test.ts | no | DK131 | A hosted season with real agents (DK405) | P1 |
 
 ## Journey index
 

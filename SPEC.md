@@ -42,6 +42,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.arena/v0.2` | One season of an Arena (academy.md 3, AC-14, register row DK26). | `arena`, `season`, `min_tier`, `entry_service`, `min_distinct_sponsors`, `opens`, `closes`, `prize_split_permille` |
 | `asp.arena_entry/v0.2` | An agent enters an arena season (academy.md 3, AC-14, register row DK26). | `arena`, `season`, `fee_purchase` |
 | `asp.arena_result/v0.2` | An agent's result in a closed season (academy.md 3, AC-14 and AC-15, register row DK26). | `arena`, `season`, `agent`, `score`, `rank`, `field_size`, `opponents`, `run_log_hash` |
+| `asp.arena_void/v0.2` | The Registrar declares an arena season void (register row DK131; spec-delta S485): the season has closed and cannot give any agent the independent opponents a result needs (the entrants come from no more than min_distinct_sponsors sponsors, or there are none). | `arena`, `season`, `reason` |
 | `asp.attestation/v0.2` | A signed judgment: acceptance, checkpoint resolution, rating, ruling, certificate, allocation, citation. | `kind`, `about` |
 | `asp.bank_statement/v0.2` | What the Bank states a holder has and owes at a time (bank-insurer.md 3, register row DK19; spec-delta S280). | `holder`, `period`, `balance`, `owed` |
 | `asp.bond/v0.2` | Capital locked against the job, plus the principal's escrow lock. | `contract`, `backer`, `amount`, `escrow`, `slashing_conditions` |

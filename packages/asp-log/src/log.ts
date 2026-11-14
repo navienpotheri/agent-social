@@ -33,6 +33,7 @@ import { resourceExtras, type ResourceExtras } from "./shops.ts";
 import { HOUSING_DID, SHOPS_DID, catalogueProblem, type CatalogueItem } from "./shops.ts";
 import { cityIndicators, type CityIndicators } from "./society-indicators.ts";
 import { projectSupport, supportStatus, type SupportStatus } from "./support.ts";
+import { ringReport, type RingFacts, type RingReport } from "./arena-runner.ts";
 import { buildPage, namesAt, isLive, skeleton, verifyPage, lapsedIdentities, identityLevelAt, type RecordPage } from "./registry.ts";
 import { OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, classWeight, effectiveClass, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
@@ -353,6 +354,7 @@ export class EventLog {
     if (type === "arena") await this.projectArena(tx, verified);
     if (type === "arena_entry") await this.projectArenaEntry(tx, verified);
     if (type === "arena_result") await this.projectArenaResult(tx, verified);
+    if (type === "arena_void") await this.projectArenaVoid(tx, verified);
     if (type === "quarantine") await this.projectQuarantine(tx, verified);
     if (type === "quarantine_release") await this.projectQuarantineRelease(tx, verified);
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
@@ -1927,6 +1929,37 @@ export class EventLog {
     await tx.putMarker(`arena_pool:${key}`, String(Number((await tx.getMarker(`arena_pool:${key}`)) ?? 0) + toPool));
     await tx.putMarker(`arena_n:${key}`, String(Number((await tx.getMarker(`arena_n:${key}`)) ?? 0) + 1));
     await tx.putMarker(`arena_entry:${key}|${r.issuer}`, sponsor);
+    // For a void season (S485): who entered, from which sponsors, and which fee purchases are refundable if the season is declared void.
+    const names = (await tx.getMarker(`arena_entrants:${key}`)) ?? "";
+    await tx.putMarker(`arena_entrants:${key}`, names ? `${names},${r.issuer}` : r.issuer);
+    await tx.putMarker(`arena_fee:${fee.id}`, key);
+    const fees = (await tx.getMarker(`arena_fees:${key}`)) ?? "";
+    await tx.putMarker(`arena_fees:${key}`, fees ? `${fees},${fee.id}` : fee.id);
+  }
+
+  /**
+   * An arena void (S485, DK131): the Registrar declares a closed season void when the entrants come from no more than min_distinct_sponsors sponsors (no agent could have enough independent opponents) or
+   * there are none, and no result was recorded. Afterwards no result is accepted and each entry fee may be refunded by the Academy; the season's prize pool is zero.
+   */
+  private async projectArenaVoid(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { arena: string; season: string; reason: string };
+    if (r.prev !== null) throw rule("arena_void_not_chained", "an arena void starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID) throw rule("arena_void_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar declares a season void`);
+    const key = `${b.arena}|${b.season}`;
+    const defId = await tx.getMarker(`arena:${key}`);
+    if (!defId) throw rule("arena_unknown", `${b.arena} ${b.season} is not a defined arena season`);
+    const def = (await tx.getRecord(defId))!.record.body as { min_distinct_sponsors: number; closes: string };
+    if (Date.parse(r.issued_at) < Date.parse(def.closes)) throw rule("arena_not_closed", `${b.arena} ${b.season} closes at ${def.closes}: a season is declared void after it closes`);
+    if (await tx.getMarker(`arena_void:${key}`)) throw rule("arena_void_exists", "the season is already void");
+    if (Number((await tx.getMarker(`arena_results:${key}`)) ?? 0) > 0) throw rule("arena_void_has_results", "a season with a recorded result is not void");
+    const entrants = ((await tx.getMarker(`arena_entrants:${key}`)) ?? "").split(",").filter(Boolean);
+    const sponsors = new Set<string>();
+    for (const a of entrants) sponsors.add((await tx.getMarker(`arena_entry:${key}|${a}`))!);
+    const justified = entrants.length === 0 ? b.reason === "no_entries" : sponsors.size <= def.min_distinct_sponsors && b.reason === "too_few_sponsors";
+    if (!justified) throw rule("arena_void_not_justified", `${entrants.length} agents from ${sponsors.size} sponsor(s) entered and a result needs ${def.min_distinct_sponsors} other sponsors: this season ${sponsors.size > def.min_distinct_sponsors ? "can be scored, so it is not void" : "has no entrants or the reason named does not fit"}`);
+    await tx.putMarker(`arena_void:${key}`, r.id);
+    await tx.putMarker(`arena_pool:${key}`, "0");
+    for (const f of ((await tx.getMarker(`arena_fees:${key}`)) ?? "").split(",").filter(Boolean)) await tx.putMarker(`arena_refundable:${f}`, r.id);
   }
 
   /**
@@ -1940,6 +1973,7 @@ export class EventLog {
     const key = `${b.arena}|${b.season}`;
     const defId = await tx.getMarker(`arena:${key}`);
     if (!defId) throw rule("arena_unknown", `${b.arena} ${b.season} is not a defined arena season`);
+    if (await tx.getMarker(`arena_void:${key}`)) throw rule("arena_season_void", `${b.arena} ${b.season} was declared void: no result is recorded, and the entry fees are refunded`);
     const def = (await tx.getRecord(defId))!.record.body as { min_distinct_sponsors: number; closes: string };
     if (Date.parse(r.issued_at) < Date.parse(def.closes)) throw rule("arena_not_closed", `${b.arena} ${b.season} closes at ${def.closes}: results are recorded after the season`);
     const mine = await tx.getMarker(`arena_entry:${key}|${b.agent}`);
@@ -2243,6 +2277,7 @@ export class EventLog {
     if ((await tx.getMarker(`deposit_used:${purchase.id}`)) && !(await tx.getMarker(`posting_filled:${purchase.id}`))) throw rule("refund_deposit_not_earned", "a posting deposit is returned when the posting ends in a contract; this posting has not");
     if ((await tx.getMarker(`name_fee:${purchase.id}`)) && !(await tx.getMarker(`name_refundable:${purchase.id}`))) throw rule("refund_name_not_restored", "the price of a name that was claimed is returned (less the burn) when a Court panel orders the name restored after a takedown, not otherwise");
     if ((await tx.getMarker(`appeal_fee:${purchase.id}`)) && !(await tx.getMarker(`appeal_refundable:${purchase.id}`))) throw rule("refund_appeal_not_reversed", "an appeal fee is returned when the appeal reverses or varies the ruling; this appeal has not");
+    if ((await tx.getMarker(`arena_fee:${purchase.id}`)) && !(await tx.getMarker(`arena_refundable:${purchase.id}`))) throw rule("refund_arena_fee_not_void", "an arena entry fee is returned when the season is declared void; this season was not");
     const parts = await this.purchaseParts(tx, purchase);
     if (!parts) throw rule("receipt_unknown_price", "the price list this purchase relied on is not in the log");
     const refund = b.refund_amount?.value ?? 0;
@@ -2505,6 +2540,27 @@ export class EventLog {
       institutions.push({ did, budgeted: led.budgets.filter((b) => b.institution === did).reduce((n, b) => n + b.amount, 0), paidByTreasury: led.payments.filter((x) => x.to === did && inPeriod(x.at)).reduce((n, x) => n + x.amount, 0), earnedFromPurchases: earned.get(did) ?? 0, balance: (await this.store.getAccount(did))?.balance ?? 0 });
     }
     return { since: since ?? null, treasury: { balance: total, in: { issuance, jobTax, purchaseShare }, out: { budgetPayments, allowances }, unexplained, reconciles: unexplained === null ? null : unexplained === 0 }, institutions };
+  }
+
+  /** The ring report of an arena season (DK131): entrants of different sponsors that share a fleet or a lineage parent, with the ranks they took. A lead for the Clinic and the Courts. */
+  async arenaRingReport(arena: string, season: string): Promise<RingReport> {
+    const key = `${arena}|${season}`;
+    const facts = await this.store.transaction(async (tx) => {
+      const out: RingFacts[] = [];
+      for (const a of ((await tx.getMarker(`arena_entrants:${key}`)) ?? "").split(",").filter(Boolean)) {
+        const res = await tx.getMarker(`arena_result:${key}|${a}`);
+        const rank = res ? ((await tx.getRecord(res))?.record.body as { rank?: number } | undefined)?.rank : undefined;
+        out.push({ agent: a, sponsor: (await tx.getPassport(a))?.sponsor ?? a, ...(rank !== undefined ? { rank } : {}) });
+      }
+      return out;
+    });
+    const sponsorOf = new Map(facts.map((f) => [f.agent, f.sponsor]));
+    const hires: [string, string][] = [];
+    for (const c of await this.recordsOfTypes(["contract"])) {
+      const cb = c.body as { principal: string; performer: string };
+      for (const [x] of sponsorOf) for (const [y, sy] of sponsorOf) if (x !== y && cb.performer === x && (cb.principal === y || cb.principal === sy)) hires.push([x, y]);
+    }
+    return ringReport(facts, hires);
   }
 
   /** The help desk's status (register row GV15): tickets open, the time to a first reply against the published target, and the satisfaction of those who rated; from the support records alone. */

@@ -4289,6 +4289,35 @@
       "valid": true
     },
     {
+      "name": "valid_arena_void",
+      "schema": "arena_void",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "reason": "too_few_sponsors"
+      },
+      "valid": true
+    },
+    {
+      "name": "arena_void_bad_reason",
+      "schema": "arena_void",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "reason": "boring"
+      },
+      "valid": false
+    },
+    {
+      "name": "arena_void_no_season",
+      "schema": "arena_void",
+      "instance": {
+        "arena": "refactoring",
+        "reason": "no_entries"
+      },
+      "valid": false
+    },
+    {
       "name": "arena_one_sponsor_floor",
       "schema": "arena",
       "instance": {
