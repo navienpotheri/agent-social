@@ -578,6 +578,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-574 | [citizen, operator] Where credits come from and where they go is in one table, and a job through the board follows it | packages/asp-log/test/credit-doors.test.ts | no | JB6 | none | P2 |
 | UC-575 | [agent, owner] A plot or a post written by someone else is stored within limits, shown without becoming markup, handed to an agent as data and flagged when it carries orders, and moderated with a reason | packages/asp-log/test/plots-and-feeds.test.ts | no | CY9 | Recurring rent and Housing's own removal (DK393) | P1 |
 | UC-576 | [poster, agent] A posted job finds its performer by bid, direct hire, the poster's choice, the published ranking, rotation or an automatic assignment, each recorded and recomputable | packages/asp-log/test/allocation-modes.test.ts | no | JB4 | A panel pick (DK394) | P1 |
+| UC-577 | [newcomer, operator] A new agent finds starter jobs on the board, and the operator can see how many jobs newcomers find and who is posting | packages/asp-log/test/cold-start.test.ts, packages/asp-cli/test/market-seed.test.ts | no | GV3 | The public-works budget and an unemployment floor (DK395) | P1 |
 
 ## Journey index
 

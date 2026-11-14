@@ -50,6 +50,7 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
   if (path === "/bank/reserve") { const b = await log.bankPage(); return wantsHtml ? { status: 200, html: bankHtml(b) } : { status: 200, json: { ok: true, result: b } }; }
   if (path === "/insurer/reserve") { const i = await log.insurerPage(); return wantsHtml ? { status: 200, html: insurerHtml(i, []) } : { status: 200, json: { ok: true, result: i } }; }
   if (path === "/insurer/claims") { const c = await log.insurerClaims(); return wantsHtml ? { status: 200, html: insurerHtml(await log.insurerPage(), c) } : { status: 200, json: { ok: true, result: c } }; }
+  if (path === "/market/cold-start") return { status: 200, json: { ok: true, result: await log.coldStart() } };
   if (path === "/society/house-agents") return { status: 200, json: { ok: true, result: { label: "house agent", note: "Scripted agents the operator runs so the society does not look empty. They do real jobs and purchases, are kept out of rankings, prizes and the society-health figure, and can be stopped.", agents: await log.houseAgents() } } };
   if (path === "/housing/catalogue") { const lists = await log.priceLists(); const items = (lists.at(-1)?.body as { items?: { institution: string }[] } | undefined)?.items ?? []; return { status: 200, json: { ok: true, result: items.filter((i) => i.institution === "did:web:asp.local:housing") } }; }
   if (path === "/registry/search") return { status: 200, json: { ok: true, result: await log.registrySearch(url.searchParams.get("q") ?? "") } };

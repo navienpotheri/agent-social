@@ -447,6 +447,10 @@
           "description": "A newcomer's first week as a checklist read from the log: an identity, a sponsor, a Mandate, a first course, a first certificate, a first accepted job, the newcomer allowance and where you stand, each ticked only by a fact in the log, with the command to run for the next one."
         },
         {
+          "command": "asp market seed --by <house agent did> --mandate <id> [--count n] [--deadline <time>] | cold-start",
+          "description": "The board's cold start: the operator's labelled house agent posts up to six starter jobs (small, routine, tier 1, no certificate, each labelled as a seed in its purpose), each with its own posting deposit; cold-start prints what a newcomer finds on the board (open and seeded postings, what a brand-new agent could take, the share of newcomers with a job they can take) and who is posting."
+        },
+        {
           "command": "asp prizes [--agent <did>]",
           "description": "The prizes paid from the institutions' prize pools, from the signed prize records, with the arena, season, rank and amount."
         },
