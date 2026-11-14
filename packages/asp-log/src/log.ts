@@ -3,6 +3,7 @@ import { projectDepositAct } from "./deposits.ts";
 import { reserveFloor as insurerFloor, INSURER_DID as INSURER_ACCOUNT } from "./insurer.ts";
 import { summarize as coldStartSummary, type ColdStart } from "./cold-start.ts";
 import { closesLoop, findCollusion, LOOP_WINDOW_MS, type CollusionFinding, type Hire } from "./collusion.ts";
+import { projectInstitutionCharter, readCharter, CHARTERED } from "./institution-charters.ts";
 import { noteLock, BANK_DID as BANK_ACCOUNT, LINE_LIMIT as BANK_LINE_LIMIT, LINE_MAX_COUNTED_JOBS as BANK_MAX_JOBS, GUARANTOR_PERMILLE as BANK_GUARANTOR_PERMILLE } from "./bank.ts";
 import { projectAbuseReport } from "./abuse-report.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
@@ -323,6 +324,7 @@ export class EventLog {
     if (type === "clinic_order") await this.projectClinicOrder(tx, verified);
     if (type === "credit_line") await projectCreditLine(tx, verified, this.bankEnv);
     if (type === "credit_default") await projectCreditDefault(tx, verified, this.bankEnv);
+    if (type === "institution_charter") await projectInstitutionCharter(tx, verified, { operator: this.operator, owner: this.owner, cosignedBy: (rr, d) => this.cosignedBy(rr, d) });
     if (type === "debt_payment") await projectDebtPayment(tx, verified, this.bankEnv);
     if (type === "bank_statement") await projectBankStatement(tx, verified);
     if (type === "policy") await projectPolicy(tx, verified, this.insurerEnv);
@@ -1607,6 +1609,7 @@ export class EventLog {
     const b = r.body as { institution: string; period: string; amount: { value: number }; purpose: string };
     if (r.prev !== null) throw rule("budget_not_chained", "a budget starts its own chain (prev is null)");
     if (r.issuer !== TREASURY_DID) throw rule("budget_wrong_issuer", `${r.issuer} is not the Treasury (${TREASURY_DID}): only the Treasury sets a budget`);
+    { const closed = await tx.getMarker(`institution_closed:${(r.body as { institution: string }).institution}`); if (closed) throw rule("budget_institution_closed", `${(r.body as { institution: string }).institution} is closed (${closed}): the Treasury sets no budget for a closed institution`); }
     if (b.amount.value <= 0) throw rule("amount_not_positive", "a budget must be for at least 1 credit");
     const allowanceLine = b.institution === TREASURY_DID;
     if (!allowanceLine && !INSTITUTION_DIDS.includes(b.institution)) throw rule("budget_unknown_institution", `${b.institution} is neither a registered institution account nor the Treasury's own allowance line`);
@@ -2684,6 +2687,23 @@ export class EventLog {
     const newcomers: { did: string; eligible: number }[] = [];
     for (const did of [...agents].sort()) { const rep = await this.reputationOf(did); if (!rep || rep.tier !== 1 || (rep.acceptedJobs ?? 0) > 0) continue; newcomers.push({ did, eligible: (await this.marketBoard(did, when)).filter((e) => e.forAgent?.eligible).length }); }
     return coldStartSummary(when, { postings: board.map((e) => ({ poster: e.poster, purpose: e.purpose, budget: e.budget, minTier: e.minTier, requiresCertificate: e.requiresCertificate })), houseAgents: house, sponsors, newcomers });
+  }
+
+  /** An institution's charter versions, oldest first, with the one in force at `at` (IS1, DK382): the readable text is in docs/institutions, and each version's hash is here. */
+  async charterOf(institution: string, at?: string): Promise<{ inForce: (Awaited<ReturnType<typeof readCharter>>) | null; versions: NonNullable<Awaited<ReturnType<typeof readCharter>>>[] }> {
+    const when = Date.parse(at ?? this.now().toISOString());
+    const head = Number((await this.marker(`charter_head:${institution}`)) ?? 0);
+    const versions = [];
+    for (let v = 1; v <= head; v++) { const c = JSON.parse((await this.marker(`charter_v:${institution}|${v}`)) ?? "null"); if (c) versions.push(c); }
+    const inForce = [...versions].reverse().find((c) => Date.parse(c.effective_from) <= when) ?? null;
+    return { inForce, versions };
+  }
+
+  /** Which of the twelve chartered accounts have a charter in force, and which are closed. */
+  async charterIndex(at?: string): Promise<{ institution: string; version: number | null; status: string | null; kind: string | null; funding: string | null; officers: string[]; textSha256: string | null }[]> {
+    const out = [];
+    for (const inst of CHARTERED) { const c = (await this.charterOf(inst, at)).inForce; out.push({ institution: inst, version: c?.version ?? null, status: c?.status ?? null, kind: c?.kind ?? null, funding: c?.funding ?? null, officers: c?.officers ?? [], textSha256: c?.text_sha256 ?? null }); }
+    return out;
   }
 
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */

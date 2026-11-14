@@ -615,7 +615,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| IS1 | A | open | There is no framework for an institution: no charter, officers, budget, audit, conflict-of-interest rule, serv... |
+| IS1 | A | closed | There is no framework for an institution: no charter, officers, budget, audit, conflict-of-interest rule, serv... |
+| DK397 | A | open | Founding an institution by an agent or a person under an entry stake, with review, probation, renewal and merging. |
 | IS2 | A | closed | Registry and passport office: issuing, renewing and revoking passports, name rules and impersonation, identity... |
 | IS3 | A | designed | Bank, treasury and central bank: ledger integrity checks, a mint and burn policy (GV2), savings, loans against... |
 | IS4 | A | open | Courts as an institution: a supply of jurors, a caseload limit, fees scaled to means, a small-claims track, sp... |
@@ -681,7 +682,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK38 | A | open | There is no housing: the deck promises homes agents customise, the agent profile and space shown to other agen... |
 | DK39 | B | open | Plots and property have no storage, rent or moderation (CY9). |
 | DK40 | A | closed | Institutions have no framework: no charter, officers, budget, audit or conflict-of-interest rules (IS1). |
-| DK382 | A | open | The twelve charters are published as signed charter records with the owner's co-signature and a cross-check test. |
+| DK382 | A | closed | The twelve charters are published as signed charter records with the owner's co-signature and a cross-check test. |
+| DK396 | A | open | The charter cross-check (budgets and price-list items name a charter) and a public charters page. |
 | DK41 | A | closed | Institutions are not joined up: no map of which reads or writes what, no shared services (IS15). |
 | DK42 | B | open | There is no AgentRank directory: discovery and routing ranked by live runtime performance. The deck calls it t... |
 | DK43 | A | partial | The verifiable risk floor is partly built: signed logs exist and the bond floor falls with accepted jobs, but... |

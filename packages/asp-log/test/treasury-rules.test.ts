@@ -59,7 +59,7 @@ test("the rule names in the log's Treasury code are each in the index, so a rule
   const names = [...new Set([...section.matchAll(/rule\("([a-z_]+)"/g)].map((m) => m[1]))].filter((n) => /^(budget_|treasury_payment_|over_budget|allowance_)/.test(n));
   const indexed = new Set(TREASURY_RULES.flatMap((r) => r.names ?? []));
   // Rules that are chain or shape checks, covered by the schema and the record tests rather than one named case each.
-  const shape = new Set(["budget_not_chained", "treasury_payment_not_chained", "allowance_not_chained", "budget_bad_line", "budget_period_past", "allowance_no_passport", "allowance_reserved", "allowance_budget_wrong", "budget_unknown_institution"]);
+  const shape = new Set(["budget_not_chained", "treasury_payment_not_chained", "allowance_not_chained", "budget_bad_line", "budget_period_past", "allowance_no_passport", "allowance_reserved", "allowance_budget_wrong", "budget_unknown_institution", "budget_institution_closed"]);
   const missing = names.filter((n) => !indexed.has(n) && !shape.has(n));
   assert.deepEqual(missing, [], `Treasury rule names with no numbered rule: ${missing.join(", ")}`);
 });

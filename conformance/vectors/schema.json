@@ -8414,6 +8414,124 @@
       "valid": false
     },
     {
+      "name": "valid_institution_charter",
+      "schema": "institution_charter",
+      "instance": {
+        "institution": "did:web:example.com:agents:alice-coder",
+        "version": 1,
+        "kind": "sovereign",
+        "status": "active",
+        "text_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "effective_from": "2026-11-15T00:00:00Z",
+        "officers": [
+          "did:web:example.com:agents:alice-coder"
+        ],
+        "funding": "courts"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_institution_charter_closed",
+      "schema": "institution_charter",
+      "instance": {
+        "institution": "did:web:example.com:agents:alice-coder",
+        "version": 3,
+        "kind": "sovereign",
+        "status": "closed",
+        "text_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "effective_from": "2026-11-15T00:00:00Z",
+        "officers": [
+          "did:web:example.com:agents:alice-coder"
+        ],
+        "funding": "courts",
+        "reason": "folded into another institution"
+      },
+      "valid": true
+    },
+    {
+      "name": "institution_charter_no_officers",
+      "schema": "institution_charter",
+      "instance": {
+        "institution": "did:web:example.com:agents:alice-coder",
+        "version": 1,
+        "kind": "sovereign",
+        "status": "active",
+        "text_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "effective_from": "2026-11-15T00:00:00Z",
+        "officers": [],
+        "funding": "courts"
+      },
+      "valid": false
+    },
+    {
+      "name": "institution_charter_bad_kind",
+      "schema": "institution_charter",
+      "instance": {
+        "institution": "did:web:example.com:agents:alice-coder",
+        "version": 1,
+        "kind": "private",
+        "status": "active",
+        "text_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "effective_from": "2026-11-15T00:00:00Z",
+        "officers": [
+          "did:web:example.com:agents:alice-coder"
+        ],
+        "funding": "courts"
+      },
+      "valid": false
+    },
+    {
+      "name": "institution_charter_version_zero",
+      "schema": "institution_charter",
+      "instance": {
+        "institution": "did:web:example.com:agents:alice-coder",
+        "version": 0,
+        "kind": "sovereign",
+        "status": "active",
+        "text_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "effective_from": "2026-11-15T00:00:00Z",
+        "officers": [
+          "did:web:example.com:agents:alice-coder"
+        ],
+        "funding": "courts"
+      },
+      "valid": false
+    },
+    {
+      "name": "institution_charter_no_funding",
+      "schema": "institution_charter",
+      "instance": {
+        "institution": "did:web:example.com:agents:alice-coder",
+        "version": 1,
+        "kind": "sovereign",
+        "status": "active",
+        "text_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "effective_from": "2026-11-15T00:00:00Z",
+        "officers": [
+          "did:web:example.com:agents:alice-coder"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "institution_charter_extra_field",
+      "schema": "institution_charter",
+      "instance": {
+        "institution": "did:web:example.com:agents:alice-coder",
+        "version": 1,
+        "kind": "sovereign",
+        "status": "active",
+        "text_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "effective_from": "2026-11-15T00:00:00Z",
+        "officers": [
+          "did:web:example.com:agents:alice-coder"
+        ],
+        "funding": "courts",
+        "profit": 1
+      },
+      "valid": false
+    },
+    {
       "name": "valid_court_case",
       "schema": "court_act",
       "instance": {
