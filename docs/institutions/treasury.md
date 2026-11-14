@@ -224,6 +224,33 @@ From the log, each month: (1) **mix divergence**: the Jensen-Shannon divergence 
 
 TR-14 (calendar and weekly batches), TR-15 (seeded surges and droughts), TR-16 (tax seasons and stabilisers), TR-17 (the monitor). Done-criterion for each: the driver runs on the test ledger, appears in the log, replays identically from the seed, and the property test (credits.md section 9) still passes with it switched on.
 
+## 15. Rules and their tests (register row DK99)
+
+Every rule of this document is a numbered rule with a named test, or this table says why it is not built. The index and the check are `packages/asp-log/test/treasury-rules.test.ts`: it fails if a rule has no test, a test was renamed, the refusal a rule names no longer appears in its test, this table and the index disagree, or a rule that is not built has no reason and no register row. "Stricter" means the log refuses more than the document says.
+
+| Id | Rule | Section | Status | Test, or why not |
+|---|---|---|---|---|
+| TRL-1 | Tax is by rule: a settlement's fee is the price list's rate times what is released, and no agent is taxed more than another at the same price | 5 | tested | test `economy-slice.test.ts`: "with a price list in force, the fee on a paid settlement is the list's rate" |
+| TRL-2 | Every part of a price (provider, Treasury, burn) sums to the price at every price from 1 to 1,000 | 9 | tested | test `economy-slice.test.ts`: "every part sums to the price at every price from 1 to 1000" |
+| TRL-3 | A budget is signed by the Treasury alone | 3 | tested | test `closed-loop.test.ts`: "a budget is the Treasury's alone" |
+| TRL-4 | One budget per institution per month | 3 | tested | test `closed-loop.test.ts`: "a budget is the Treasury's alone" |
+| TRL-5 | A budget is refused when it would promise more than the Treasury holds, less the budgets already committed (over budget) | 3, 4 | tested | test `closed-loop.test.ts`: "a budget is the Treasury's alone" |
+| TRL-6 | The first budget of an institution, and a later one more than a quarter above the last, needs the owner's co-signature | 3 | tested | test `closed-loop.test.ts`: "a later budget needs the owner only for a rise of more than a quarter" |
+| TRL-7 | A payment goes only to the budget's own institution, never to another institution or an agent | 3, 5 | tested | test `closed-loop.test.ts`: "a budget is the Treasury's alone" |
+| TRL-8 | A payment is signed by the Treasury, names a budget that exists, and falls inside the budget's month | 3 | tested | test `closed-loop.test.ts`: "a budget is the Treasury's alone" |
+| TRL-9 | The payments of a budget never add up to more than its amount (a payment over budget is refused) | 3, 5 | tested | test `closed-loop.test.ts`: "a budget is the Treasury's alone" |
+| TRL-10 | The allowance is paid once per identity, for exactly the amount in force, and a sponsor's second identity gets none | 3, 5 | tested | test `closed-loop.test.ts`: "a newcomer with a first course claims the allowance once" |
+| TRL-11 | The allowance is exactly the allowance in force, from the allowance budget, in the budget's own month | 3 | tested | test `closed-loop.test.ts`: "the allowance does not pay in another month than its budget's" |
+| TRL-12 | The allowance needs a passport under 90 days old and a first course or first bond | 3, 5 | tested | test `closed-loop.test.ts`: "the first identity of a sponsor only; a passport over 90 days old" |
+| TRL-13 | A slashed agent is refused the allowance (stricter than treasury.md: any slash, not only one in the last 30 days) | 3, 5 | stricter | test `closed-loop.test.ts`: "the first identity of a sponsor only; a passport over 90 days old"; stricter than this document: the reputation row carries no date for a slash, so the log cannot tell a slash 29 days ago from one 31 days ago (row DK230) |
+| TRL-14 | A public-works job has the Treasury as principal and follows the ordinary lifecycle and settlement | 3, 5 | tested | test `economy-slice.test.ts`: "(T11) a public-works job" |
+| TRL-15 | A payment outside a record is impossible: an institution does not pay an agent, and the Treasury pays an agent only by allowance, a public-works job or a refund | 4, 5 | tested | test `closed-loop.test.ts`: "R3 still holds" |
+| TRL-16 | A budget is refused for an institution with no published charter | 5 | not built | **not built**: no institution has a charter record yet (register row DK40 is open), so there is nothing to check against (row DK231) |
+| TRL-17 | Budgets are shares of the income actually received, not fixed amounts | 4 | not built | **not built**: a budget is capped by the Treasury's balance (TRL-5); a share of income needs the monthly income by source, which the statement (TRL-18) carries (row DK231) |
+| TRL-18 | A monthly treasury statement whose arithmetic and sums over the log reconcile, and that is refused when one credit is off | 3, 5, 9 | not built | **not built**: the `treasury_statement` record and its schema do not exist; the nightly audit (credits audit) checks the supply rule over the whole log in the meantime (row DK232) |
+| TRL-19 | The reserve is never below one month of approved budgets (guard G6, drained side) | 4 | not built | **not built**: needs the statement (TRL-18) and a month of approved budgets in the log; the Treasury-to-circulation ratio (G6, high side) is measured (row DK232) |
+
+
 ## Lens coverage (register row DK78)
 
 **Lenses served:** L3-world-models, L6-sybil, L7-belief-recalibration, L10-disclosure-and-honest-claims, L18-agent-economy-structure
