@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:asp:v0.2:court_act",
   "title": "Court act body",
-  "description": "The Courts' records beyond a ruling (courts.md 3, register row DK13; spec-delta S232). One record type with an `act`: charter (the operator publishes the court charter: routes, caps, windows, fees), appeal (a party to a ruling appeals once, inside the window, with the appeal fee paid) and appeal_ruling (a quorum of a five-juror panel that excludes the first panel). Chain: none (prev is null).",
+  "description": "The Courts' records beyond a ruling (courts.md 3, register row DK13; spec-delta S232). One record type with an `act`: charter (the operator publishes the court charter: routes, caps, windows, fees), appeal (a party to a ruling appeals once, inside the window, with the appeal fee paid) and appeal_ruling (a quorum of a five-juror panel that excludes the first panel). Chain: none (prev is null). A case and an institutional_ruling (DK120, S466): a holder opens a case against a Registry takedown or suspension (the appeal fee paid), a panel of three drawn from the case id and excluding the holder and the Registrar rules by a majority to restore the name, extend the suspension or uphold; the institution then acts only on a ruling that names that order.",
   "type": "object",
   "required": [
     "act"
@@ -13,7 +13,9 @@
       "enum": [
         "charter",
         "appeal",
-        "appeal_ruling"
+        "appeal_ruling",
+        "case",
+        "institutional_ruling"
       ]
     },
     "version": {
@@ -103,6 +105,24 @@
       "items": {
         "$ref": "urn:asp:v0.2:common#/$defs/recordId"
       }
+    },
+    "subject": {
+      "description": "The registry act a case is about: a name_takedown or an identity_suspension (courts.md 3; register row DK120; spec-delta S466).",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "case": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "order": {
+      "description": "What the panel orders the institution to do: restore_name (a takedown reversed), extend_suspension (to `until`) or uphold (the institution's act stands).",
+      "enum": [
+        "restore_name",
+        "extend_suspension",
+        "uphold"
+      ]
+    },
+    "until": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
     }
   },
   "allOf": [
@@ -161,6 +181,46 @@
         "required": [
           "appeal",
           "outcome",
+          "reasons",
+          "code"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "case"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "subject",
+          "grounds",
+          "statement",
+          "fee_paid"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "institutional_ruling"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "case",
+          "order",
           "reasons",
           "code"
         ]

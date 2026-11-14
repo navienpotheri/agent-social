@@ -53,6 +53,7 @@ export function namesAt(acts: AspRecord[], at: string): Map<string, NameClaim> {
     if (b.act === "name_claim") names.set(b.name, { name: b.name, holder: b.holder, claim: r.id, from: r.issued_at, until: b.valid_until });
     else if (b.act === "name_release") { const c = names.get(b.name); if (c && c.claim === b.claim) names.set(b.name, { ...c, released: true }); }
     else if (b.act === "name_takedown") { const c = names.get(b.name); if (c) names.set(b.name, { ...c, removedBy: r.id }); }
+    else if (b.act === "name_restore") { const c = names.get(b.name); if (c && c.removedBy === b.takedown) { const { removedBy: _x, ...rest } = c; names.set(b.name, rest); } }
   }
   return names;
 }
@@ -109,7 +110,9 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
   const due = new Date(Date.parse(lastRenewed) + RENEWAL_TERM_MS).toISOString().replace(/\.\d+Z$/, "Z");
   const suspensions = acts.filter((r) => { const b = r.body as { act: string; holder?: string }; return b.act === "identity_suspension" && b.holder === did && Date.parse(r.issued_at) <= t; });
   const lifted = new Set(acts.filter((r) => (r.body as { act: string }).act === "suspension_lift" && Date.parse(r.issued_at) <= t).map((r) => (r.body as { suspension: string }).suspension));
-  const live = suspensions.filter((s) => !lifted.has(s.id) && Date.parse((s.body as { until: string }).until) > t).at(-1);
+  // A Court's extension (DK120) moves the end of a suspension to the date its ruling set.
+  const untilOf = (sid: string, own: string): number => acts.filter((r) => { const x = r.body as { act: string; suspension?: string }; return x.act === "suspension_extend" && x.suspension === sid && Date.parse(r.issued_at) <= t; }).reduce((m, r) => Math.max(m, Date.parse((r.body as { until: string }).until)), Date.parse(own));
+  const live = suspensions.filter((s) => !lifted.has(s.id) && untilOf(s.id, (s.body as { until: string }).until) > t).at(-1);
   const takedowns = acts.filter((r) => { const b = r.body as { act: string; holder?: string }; return b.act === "name_takedown" && b.holder === did && Date.parse(r.issued_at) <= t; })
     .map((r) => { const b = r.body as { name: string; reason: string; code: { articles: string[] }; appealable_until: string }; return { name: b.name, reason: b.reason, articles: b.code.articles, record: r.id, appealable_until: b.appealable_until }; });
   const holdings = holdingsAt(records, did, at);
@@ -120,7 +123,7 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
     level: identityLevelAt(acts, did, t, pb.sponsor),
     tier: inp.reputation?.tier ?? null, slashCount: inp.reputation?.slashCount ?? 0, strikes: inp.reputation?.strikes ?? 0, acceptedJobs: inp.reputation?.acceptedJobs ?? 0, qualifyingJobs: inp.reputation?.qualifyingJobs ?? 0,
     certificates, renewal: pb.kind === "agent" ? { due, lapsed: t > Date.parse(due) + LAPSE_AFTER_MS } : null,
-    suspended: live ? { until: (live.body as { until: string }).until, reason: (live.body as { reason: string }).reason, record: live.id } : null,
+    suspended: live ? { until: new Date(untilOf(live.id, (live.body as { until: string }).until)).toISOString().replace(/\.\d+Z$/, "Z"), reason: (live.body as { reason: string }).reason, record: live.id } : null,
     retired: acts.some((r) => (r.body as { act: string; holder?: string }).act === "identity_retirement" && (r.body as { holder: string }).holder === did && Date.parse(r.issued_at) <= t),
     takedowns, holdings: holdings.active.map((h) => ({ item: h.item, effect: h.effect, from: h.from, until: h.until })), removed_holdings: holdings.removed.map((h) => ({ item: h.item, reason: h.reason })),
     residency: resident ? { mode: resident.mode, status: resident.status, since: resident.since, paid_through: resident.paidThrough, reason: resident.statusReason } : null,

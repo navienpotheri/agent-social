@@ -2178,6 +2178,7 @@ export class EventLog {
     if (b.status === "delivered") return;
     // A posting deposit (market.md 4) is returned when the posting ends in a contract, not before.
     if ((await tx.getMarker(`deposit_used:${purchase.id}`)) && !(await tx.getMarker(`posting_filled:${purchase.id}`))) throw rule("refund_deposit_not_earned", "a posting deposit is returned when the posting ends in a contract; this posting has not");
+    if ((await tx.getMarker(`name_fee:${purchase.id}`)) && !(await tx.getMarker(`name_refundable:${purchase.id}`))) throw rule("refund_name_not_restored", "the price of a name that was claimed is returned (less the burn) when a Court panel orders the name restored after a takedown, not otherwise");
     if ((await tx.getMarker(`appeal_fee:${purchase.id}`)) && !(await tx.getMarker(`appeal_refundable:${purchase.id}`))) throw rule("refund_appeal_not_reversed", "an appeal fee is returned when the appeal reverses or varies the ruling; this appeal has not");
     const parts = await this.purchaseParts(tx, purchase);
     if (!parts) throw rule("receipt_unknown_price", "the price list this purchase relied on is not in the log");

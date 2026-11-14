@@ -8271,6 +8271,158 @@
       "valid": false
     },
     {
+      "name": "valid_court_case",
+      "schema": "court_act",
+      "instance": {
+        "act": "case",
+        "subject": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "grounds": "error_of_law",
+        "statement": "the name is a nickname and was not taken to be the genuine agent's",
+        "fee_paid": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
+    },
+    {
+      "name": "court_case_no_subject",
+      "schema": "court_act",
+      "instance": {
+        "act": "case",
+        "grounds": "error_of_law",
+        "statement": "the name is a nickname and was not taken to be the genuine agent's",
+        "fee_paid": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": false
+    },
+    {
+      "name": "court_case_no_fee",
+      "schema": "court_act",
+      "instance": {
+        "act": "case",
+        "subject": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "grounds": "error_of_law",
+        "statement": "the name is a nickname and was not taken to be the genuine agent's"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_institutional_ruling_restore",
+      "schema": "court_act",
+      "instance": {
+        "act": "institutional_ruling",
+        "case": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "order": "restore_name",
+        "reasons": [
+          "decided on the record"
+        ],
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "4.1"
+          ]
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_institutional_ruling_extend",
+      "schema": "court_act",
+      "instance": {
+        "act": "institutional_ruling",
+        "case": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "order": "extend_suspension",
+        "reasons": [
+          "decided on the record"
+        ],
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "4.1"
+          ]
+        },
+        "until": "2026-12-30T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "institutional_ruling_unknown_order",
+      "schema": "court_act",
+      "instance": {
+        "act": "institutional_ruling",
+        "case": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "order": "delete_identity",
+        "reasons": [
+          "decided on the record"
+        ],
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "4.1"
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "institutional_ruling_no_reasons",
+      "schema": "court_act",
+      "instance": {
+        "act": "institutional_ruling",
+        "case": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "order": "restore_name",
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "4.1"
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_name_restore",
+      "schema": "registry_act",
+      "instance": {
+        "act": "name_restore",
+        "name": "scout-7",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "takedown": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ruling": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
+    },
+    {
+      "name": "name_restore_no_ruling",
+      "schema": "registry_act",
+      "instance": {
+        "act": "name_restore",
+        "name": "scout-7",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "takedown": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_suspension_extend",
+      "schema": "registry_act",
+      "instance": {
+        "act": "suspension_extend",
+        "suspension": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ruling": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "until": "2026-12-30T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "suspension_extend_no_until",
+      "schema": "registry_act",
+      "instance": {
+        "act": "suspension_extend",
+        "suspension": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ruling": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_debt_payment",
       "schema": "debt_payment",
       "instance": {

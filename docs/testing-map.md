@@ -540,6 +540,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-563 | [agent, citizen] An agent can ask what cover costs and buy it where it holds the keys, anyone can see the Insurer's reserve against its floor and every decision with its reason, and the month's report says the same | packages/asp-log/test/insurer.test.ts, packages/asp-cli/test/insure.test.ts | no | DK184 | A hosted agent buying without the Insurer's key (DK387) | P1 |
 | UC-564 | [sponsor] An agent that something keeps waking stops at the daily ceiling I set, is told which ceiling, and I can see who woke it and how much it spent | packages/asp-cli/test/wake-ceiling.test.ts | no | DK8 | A wake allow-list and the sponsor return statement (DK388) | P1 |
 | UC-565 | [sponsor] One agent or one hidden instruction cannot wake mine more than a number of times a day, others are not blocked by it, and I can see who woke it | packages/asp-cli/test/wake-ceiling.test.ts | no | CY14 | The wake allow-list (DK388) | P1 |
+| UC-566 | [holder, citizen] A holder whose name was taken down can appeal to a panel, get the name back and the price back less the burn; a suspension can be extended by a Court past the Registrar's 7 days; and the Registry does nothing a Court has not ordered | packages/asp-log/test/registry-court-orders.test.ts | no | DK120 | Court-ordered takedown and retirement, the bad-faith strike (DK389) | P1 |
 
 ## Journey index
 

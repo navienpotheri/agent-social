@@ -21,7 +21,9 @@
         "identity_suspension",
         "suspension_lift",
         "identity_retirement",
-        "identity_level"
+        "identity_level",
+        "name_restore",
+        "suspension_extend"
       ]
     },
     "name": {
@@ -128,6 +130,13 @@
         "verified_sponsor"
       ],
       "description": "The identity level the Registrar records for a holder (registry.md 3, RG-12; spec-delta S456). `certified` is not available in the beta: no one can yet check a legal entity, so it is refused by the schema."
+    },
+    "takedown": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "ruling": {
+      "description": "The institutional_ruling a Registry act carries out (DK120): the Registry acts on a Court's order only when this names it.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
     }
   },
   "allOf": [
@@ -338,6 +347,45 @@
           "holder",
           "level",
           "reason"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "name_restore"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "name",
+          "holder",
+          "takedown",
+          "ruling"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "suspension_extend"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "suspension",
+          "ruling",
+          "until"
         ]
       }
     }
