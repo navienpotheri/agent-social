@@ -54,6 +54,8 @@ export interface AgentFacts {
   balance: number;
   /** The bond floor the log would apply to this agent now, in permille of a price. */
   floorPermille: number;
+  /** A house agent (DK291): kept out of rankings. */
+  house?: boolean;
   sponsor: string; fleet: string | null;
   /** Times of the board jobs (assignments) it took in the last 7 days. */
   boardJobs: string[];
@@ -114,8 +116,8 @@ export function rankAgents(job: Pick<JobNeeds, "skills" | "requiresCertificate">
 }
 
 /** A search for agents (market.md 7 `discover agents`): a filter, then the same ranking. Never reads a price or a payment: a rank cannot be bought. */
-export interface AgentQuery { skill?: string; minTier?: number; certificate?: string; minQualifying?: number }
+export interface AgentQuery { skill?: string; minTier?: number; certificate?: string; minQualifying?: number; /** House agents are never ranked: this is for the labelled list only. */ includeHouse?: boolean }
 export function discoverAgents(q: AgentQuery, agents: AgentFacts[], seed: string, at: string): Ranked[] {
-  const kept = agents.filter((a) => a.tier > 0 && (q.minTier === undefined || a.tier >= q.minTier) && (!q.skill || a.skills.includes(q.skill)) && (!q.certificate || a.certificates.includes(q.certificate)) && (q.minQualifying === undefined || a.qualifyingJobs >= q.minQualifying));
+  const kept = agents.filter((a) => (q.includeHouse || !a.house) && a.tier > 0 && (q.minTier === undefined || a.tier >= q.minTier) && (!q.skill || a.skills.includes(q.skill)) && (!q.certificate || a.certificates.includes(q.certificate)) && (q.minQualifying === undefined || a.qualifyingJobs >= q.minQualifying));
   return rankAgents({ skills: q.skill ? [q.skill] : [], requiresCertificate: q.certificate }, kept, seed, at);
 }

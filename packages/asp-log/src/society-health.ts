@@ -142,6 +142,9 @@ export function activityFromRecords(records: { id?: string; record?: AspRecord }
     if (r.type === "asp.intent/v0.2" && r.id) intents.set(r.id, r);
     if (r.type === "asp.market_act/v0.2") { const m = r.body as { act?: string; verdict?: string; intent?: string; class?: JobClass }; if (m.act === "class_check" && m.verdict === "changed_to" && m.intent && m.class) raised.set(m.intent, raised.has(m.intent) ? higherClass(raised.get(m.intent)!, m.class) : m.class); }
   }
+  // House agents (DK291) are the operator's scripted agents: their jobs are not real cohort data, so they are left out of the figure.
+  const house = new Set<string>();
+  for (const r of recs) if (r.type === "asp.passport/v0.2" && (r.body as { house?: boolean }).house) house.add((r.body as { did: string }).did);
   const activity: Activity[] = [];
   for (const r of recs) {
     if (r.type !== "asp.settlement/v0.2") continue;
@@ -156,6 +159,7 @@ export function activityFromRecords(records: { id?: string; record?: AspRecord }
     const intent = intentId ? intents.get(intentId) : undefined;
     const declared = intent ? ((intent.body as { class?: JobClass }).class ?? "routine") : undefined;
     const kind = declared ? effectiveClass(raised.has(intentId!) ? higherClass(raised.get(intentId!)!, declared) : declared, price) : verification;
+    if (house.has(String(cb.performer ?? r.issuer))) continue;
     activity.push({ at: Date.parse(r.issued_at), agent: String(cb.performer ?? r.issuer), kind, price });
   }
   const first = Math.min(...recs.map((r) => Date.parse(r.issued_at)).filter(Number.isFinite), Date.now());

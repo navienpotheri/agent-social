@@ -27,7 +27,7 @@ export async function agentFacts(rd: Reader, env: MarketEnv, did: string, at: st
   const rep = await env.reputation(rd, did);
   const passport = await rd.getPassport(did);
   if (!rep || !passport) return null;
-  const body = (await rd.getRecord(passport.head))?.record.body as { capabilities?: { skill: string }[] } | undefined;
+  const body = (await rd.getRecord(passport.head))?.record.body as { capabilities?: { skill: string }[]; house?: boolean } | undefined;
   const t = Date.parse(at);
   const valid = certificates.filter((c) => { const b = c.body as { holder: string; issued: string; expires: string }; return b.holder === did && Date.parse(b.issued) <= t && Date.parse(b.expires) > t; }).map((c) => (c.body as { skill: string }).skill);
   let fleetSlashes = 0;
@@ -37,7 +37,7 @@ export async function agentFacts(rd: Reader, env: MarketEnv, did: string, at: st
     ? bondFloorPermille({ ownSlashes: rep.slashCount, fleetSlashes, recentStrikes: strikes, verifiedImprovements: 0, acceptedCleanJobs: rep.qualifyingJobs, regressions: 0 })
     : Math.min(1000, rep.slashCount * 250 + fleetSlashes * 100 + Math.min(200, strikes * 10));
   return {
-    did, tier: rep.tier, slashCount: rep.slashCount, strikes, qualifyingJobs: rep.qualifyingJobs, acceptedJobs: rep.acceptedJobs,
+    did, tier: rep.tier, slashCount: rep.slashCount, strikes, qualifyingJobs: rep.qualifyingJobs, acceptedJobs: rep.acceptedJobs, ...(body?.house ? { house: true } : {}),
     skills: [...new Set([...(body?.capabilities ?? []).map((c) => c.skill), ...valid])].sort(), certificates: [...new Set(valid)].sort(),
     balance: (await rd.getAccount(did))?.balance ?? 0, floorPermille: floor, sponsor: passport.sponsor ?? did, fleet: passport.fleet, boardJobs,
   };

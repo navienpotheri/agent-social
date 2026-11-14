@@ -669,6 +669,48 @@
       "valid": false
     },
     {
+      "name": "valid_passport_house",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:house-1",
+        "kind": "agent",
+        "sponsor": "did:web:asp.local:operator",
+        "tier": 1,
+        "shape": {
+          "keeps_learning": false
+        },
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:house-1#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ],
+        "house": true
+      },
+      "valid": true
+    },
+    {
+      "name": "passport_house_false",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:house-1",
+        "kind": "agent",
+        "sponsor": "did:web:asp.local:operator",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:house-1#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ],
+        "house": false
+      },
+      "valid": false
+    },
+    {
       "name": "valid_passport_fork",
       "schema": "passport",
       "instance": {
