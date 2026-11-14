@@ -61,6 +61,19 @@ export interface AgentFacts {
   sponsor: string; fleet: string | null;
   /** Times of the board jobs (assignments) it took in the last 7 days. */
   boardJobs: string[];
+  /** The qualifying jobs it has had counted, each with its class and weight, kept by the log beside the reputation row (DK128). The ranking reads the last 90 days of the job's own class; absent (a hand-built fact), it reads the total. */
+  qualClass?: { at: string; c: JobClass; w: number }[];
+}
+
+/** A posting whose budget is more than this many times the median budget of its class, once the class has this many postings, is flagged (market.md 6). */
+export const OUTLIER_RATIO = 3;
+export const OUTLIER_MIN_SAMPLES = 5;
+export const QUAL_CLASS_WINDOW_MS = 90 * 24 * 3600 * 1000;
+/** The weight of the agent's qualifying jobs in a class (any class when none is named) in the 90 days before `at` (market.md 5). */
+export function classQualifying(a: Pick<AgentFacts, "qualClass" | "qualifyingJobs">, cls: JobClass | undefined, at: string): number {
+  if (!a.qualClass) return a.qualifyingJobs;
+  const t = Date.parse(at);
+  return a.qualClass.filter((j) => Date.parse(j.at) > t - QUAL_CLASS_WINDOW_MS && Date.parse(j.at) <= t && (!cls || j.c === cls)).reduce((n, j) => n + j.w, 0);
 }
 
 /** What a job asks of a bidder. */
@@ -97,22 +110,36 @@ const tiebreak = (seed: string, did: string): string => createHash("sha256").upd
  * over the fairness cap goes after every other; a tie is broken by a hash of the seed and the DID, so the same input gives the same list.
  * Returns the eligible agents only, best first, each with the reasons for its score. `at` is the time the cap is read at.
  */
-export function rankAgents(job: Pick<JobNeeds, "skills" | "requiresCertificate">, agents: AgentFacts[], seed: string, at: string): Ranked[] {
+export function rankAgents(job: Pick<JobNeeds, "skills" | "requiresCertificate"> & { class?: JobClass }, agents: AgentFacts[], seed: string, at: string): Ranked[] {
   const t = Date.parse(at);
   const rows = agents.map((a) => {
     const matched = job.skills.filter((s) => a.skills.includes(s));
     const cert = job.requiresCertificate ? a.certificates.includes(job.requiresCertificate) : job.skills.some((s) => a.certificates.includes(s));
     const recent = a.boardJobs.filter((x) => Date.parse(x) > t - FAIRNESS_WINDOW_MS && Date.parse(x) <= t).length;
     const capped = recent > FAIRNESS_CAP_JOBS;
-    const score = matched.length * 1000 + (cert ? 500 : 0) + Math.min(a.qualifyingJobs, 99) * 5 - Math.min(a.strikes, 50) * 3 - (capped ? 1_000_000 : 0);
+    const q = classQualifying(a, job.class, at);
+    const score = matched.length * 1000 + (cert ? 500 : 0) + Math.min(q, 99) * 5 - Math.min(a.strikes, 50) * 3 - (capped ? 1_000_000 : 0);
     const reasons = [
       job.skills.length ? `skills ${matched.length} of ${job.skills.length}${matched.length ? ` (${matched.join(", ")})` : ""}` : "no skill asked",
       cert ? "holds a valid certificate in the skill" : "no certificate in the skill",
-      `qualifying jobs ${a.qualifyingJobs}`,
+      a.qualClass ? `qualifying jobs${job.class ? ` in ${job.class}` : ""} over 90 days ${q}` : `qualifying jobs ${a.qualifyingJobs}`,
       `strikes ${a.strikes}`,
       ...(capped ? [`fairness cap: ${recent} board jobs in the last 7 days (more than ${FAIRNESS_CAP_JOBS}), ranked after every other agent`] : []),
     ];
     return { agent: a.did, score, reasons };
+  });
+  return rows.sort((x, y) => y.score - x.score || (tiebreak(seed, x.agent) < tiebreak(seed, y.agent) ? -1 : 1));
+}
+
+/**
+ * The rotation rule (market.md 5, DK128): for a posting where the poster wants the work spread, the agent who took the fewest board jobs in the last 7 days goes first; a tie is broken by the same seeded hash
+ * as the best match. Skill, certificate and strikes are not read: eligibility has already been checked, and rotation is for sharing eligible work, not for choosing the best. Same input, same list.
+ */
+export function rotateAgents(agents: AgentFacts[], seed: string, at: string): Ranked[] {
+  const t = Date.parse(at);
+  const rows = agents.map((a) => {
+    const recent = a.boardJobs.filter((x) => Date.parse(x) > t - FAIRNESS_WINDOW_MS && Date.parse(x) <= t).length;
+    return { agent: a.did, score: -recent, reasons: [`rotation: ${recent} board job${recent === 1 ? "" : "s"} in the last 7 days`] };
   });
   return rows.sort((x, y) => y.score - x.score || (tiebreak(seed, x.agent) < tiebreak(seed, y.agent) ? -1 : 1));
 }
@@ -124,3 +151,28 @@ export function discoverAgents(q: AgentQuery, agents: AgentFacts[], seed: string
   const kept = agents.filter((a) => (q.includeHouse || !a.house) && a.tier > 0 && (q.minTier === undefined || a.tier >= q.minTier) && (!q.skill || a.skills.includes(q.skill)) && (!q.certificate || a.certificates.includes(q.certificate)) && (q.minQualifying === undefined || a.qualifyingJobs >= q.minQualifying) && (q.minLevel === undefined || LEVEL_ORDER.indexOf(a.level ?? "sponsored") >= LEVEL_ORDER.indexOf(q.minLevel)));
   return rankAgents({ skills: q.skill ? [q.skill] : [], requiresCertificate: q.certificate }, kept, seed, at);
 }
+
+/**
+ * The law screen of the job board (register row JB5, S480): the plain cases of a job the Code of the City forbids, found in the intent's purpose or acceptance criteria by fixed patterns, so every
+ * replica refuses the same posting. It is a screen, not a judge: a subtle case reaches the board and is caught by reports and the Market's review (market_act `report`, `review`).
+ */
+export const LAW_SCREEN: { category: "attack" | "theft" | "harassment" | "evasion"; article: number; pattern: RegExp; what: string }[] = [
+  { category: "attack", article: 7, pattern: /\b(ddos|denial[- ]of[- ]service|credential stuffing|brute[- ]?force(?:\w*)? (?:the )?(?:login|passwords?|accounts?)|take down (?:the |a )?(?:web)?(?:site|server)s?|sql injection against|exploit [^.]{0,60}(?:without permission|unauthori[sz]ed))/i, what: "an attack on a site or a system that is not the poster's" },
+  { category: "theft", article: 1, pattern: /\b(ransomware|keylogger|steal(?:ing)? (?:the )?(?:credentials|passwords?|cookies|api keys?|credit cards?|card numbers)|phishing (?:page|kit|emails?|campaign))/i, what: "taking credentials or money that were not given" },
+  { category: "harassment", article: 7, pattern: /\b(doxx?(?:ing)?|harass(?:ing|ment)?|stalk(?:ing)?|impersonat(?:e|ing) (?:a |an |the )?(?:person|bank|official|police|employee)|fake reviews?)/i, what: "harm to a third party" },
+  { category: "evasion", article: 2, pattern: /\b(launder(?:ing)? credits|farm(?:ing)? (?:credits|standing|reputation)|bypass(?:ing)? (?:the )?(?:bond|mandate|bond floor|collusion rule))/i, what: "getting round the city's own controls" },
+];
+
+/** The first plain breach of the Code in a job's text, or null. */
+export function lawProblem(...texts: (string | undefined)[]): { category: string; article: number; message: string } | null {
+  const text = texts.filter(Boolean).join("\n");
+  for (const s of LAW_SCREEN) if (s.pattern.test(text)) return { category: s.category, article: s.article, message: `the job asks for ${s.what} (Article ${s.article} of the Code of the City)` };
+  return null;
+}
+
+/** Reports from this many distinct owners (not the poster's) hold a posting until the Market reviews it. */
+export const POSTING_HOLD_REPORTS = 3;
+export const POSTING_REPORTS_PER_DAY = 5;
+/** Three removals in thirty days bar a poster from posting for thirty days after the last. */
+export const POSTING_BAR_REMOVALS = 3;
+export const POSTING_BAR_DAYS = 30;

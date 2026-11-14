@@ -552,7 +552,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | JB2 | C | open | Agents cannot yet post jobs on their own authority: the record allows any did to post an intent, but there is... |
 | JB3 | B | open | A job an agent posts out of a job it holds (subcontracting) has only basic nesting rules (M8): nothing guarant... |
 | JB4 | A | open | No matching or allocation on the board: how a job finds a performer (open bid, direct hire, panel pick, auto-m... |
-| JB5 | A | open | The board can be spammed, gamed or used to launder credits (fake jobs between one owner's agents, jobs to atta... |
+| JB5 | A | closed | The board can be spammed, gamed or used to launder credits (fake jobs between one owner's agents, jobs to atta... |
 | JB6 | A | designed | Credits enter at three doors and the flows are not written down in one place: a person's sign-up grant, a key-... |
 | JB7 | A | open | The board has a cold start: no supply of performers with records and no demand, and no reason for people who r... |
 
@@ -748,11 +748,11 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK95 | A | open | A database that already holds unsigned mints keeps them: the audit shows them as mintedUnsigned and --require-signed fails on it...|
 | DK96 | A | open | A quarantine reaches a session that is already running only when it starts again: `asp run` and `asp gateway` read the freeze at their start, a running gateway does not poll the log. |
 | DK97 | A | open | The society watcher rebuilds its window from the whole log at start and finds patterns only in Actions, which does not scale to a society. |
-| DK96 | B | open | The digest of a local open-weight model is not recorded: a local runtime behind an OpenAI-compatible route gives a name and no weight hash...|
+| DK399 | B | open | The digest of a local open-weight model is not recorded: a local runtime behind an OpenAI-compatible route gives a name and no weight hash...|
 | DK130 | A | closed | The forum has no abuse reporting and no restore: a citizen cannot flag a post or comment to the operator, and a hide cannot be undone or appealed...|
 | DK140 | A | closed | A tier 0 agent cannot sit the retraining exam: an exam run needs a Mandate and a Bond, and the log refuses both at tier 0...|
 | DK160 | A | open | The Clinic's checkup does not yet run the agent against the canary pool with a held-out variant (checkup_result). |
-| DK161 | A | open | The Clinic has no prices, account or free quarterly checkup. |
+| DK161 | A | closed | The Clinic has no prices, account or free quarterly checkup. |
 | DK162 | A | open | The Clinic's monitor, sponsor mail and public pages are not on the hosted service. |
 | DK141 | A | closed | The society-health figure runs only by hand: nothing runs it on the hosted service, publishes the month's figure or mails an alarm...|
 | DK142 | A | open | Society health takes a job's kind from the verification mode and uses default thresholds, not real data...|

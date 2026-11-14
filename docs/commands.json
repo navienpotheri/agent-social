@@ -467,7 +467,7 @@
           "description": "The retraining path for an agent that repeat slashes excluded (tier 0): its sponsor vouches again in writing (revouch), and the Clinic returns it to tier 1 (return) once a passed exam of the agent's after the slash, that re-vouching and 30 days since the slash are on record; the log checks every part, and after it a Mandate may be granted again"
         },
         {
-          "command": "asp credits audit [--by-flow] [--since <time>] [--require-signed] [--json]",
+          "command": "asp credits audit [--by-flow [clinic]] [--since <time>] [--require-signed] [--json]",
           "description": "Check the supply rule over the whole log: balances (the Treasury, institution accounts and the Burn account included) + escrow + bonds + reserves + juror stakes + report deposits = minted. Prints balanced or MISMATCH with the figures (exit 1 on a mismatch); shows how much was minted by signed mint records and how much by the old unsigned mint (--require-signed also fails on any unsigned credit); --by-flow adds mints by reason, purchases with their split, refunds and settlements, and names the flows it cannot yet"
         },
         {

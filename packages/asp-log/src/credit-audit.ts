@@ -10,7 +10,7 @@
  *
  * Read-only. It changes no record and no signed format. Credits are accounting entries, not money.
  */
-import { BANK_DEPOSIT_DID, BURN_DID, INSTITUTION_DIDS, isReservedAccount, PLATFORM_DID, STARTER_POOL_DID, TREASURY_DID, splitParts, type Split } from "./economy.ts";
+import { BANK_DEPOSIT_DID, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_RESTORE_SERVICE, BURN_DID, INSTITUTION_DIDS, isReservedAccount, PLATFORM_DID, STARTER_POOL_DID, TREASURY_DID, splitParts, type Split } from "./economy.ts";
 import type { AccountRow, EscrowRow, JurorRow, LogHead, MintRow, ReportRow, Store } from "./store.ts";
 
 /** Everything the audit reads, taken from one consistent view of the store. */
@@ -118,6 +118,8 @@ export interface CreditFlows {
   treasury: { budgets: { count: number; amount: number }; payments: { count: number; amount: number }; allowances: { count: number; amount: number }; prizes: { count: number; amount: number } };
   /** Refunds paid back by receipts in the period. */
   refunds: { count: number; amount: number };
+  /** The Clinic's services in the period (DK161): checkups and restores bought, free checkups paid by the Treasury's budget line, and what was refunded on them. */
+  clinic: { checkupsBought: { count: number; amount: number }; restoresBought: { count: number; amount: number }; freeCheckups: { count: number; amount: number }; refunds: { count: number; amount: number } };
   /** Not available from the log today, with the reason. */
   unavailable: string[];
 }
@@ -129,6 +131,7 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
   const mintedByReason: Record<string, number> = {};
   const purchases: CreditFlows["purchases"] = { count: 0, amount: 0, provider: 0, treasury: 0, burned: 0, byService: {} };
   const refunds = { count: 0, amount: 0 };
+  const clinic: CreditFlows["clinic"] = { checkupsBought: { count: 0, amount: 0 }, restoresBought: { count: 0, amount: 0 }, freeCheckups: { count: 0, amount: 0 }, refunds: { count: 0, amount: 0 } };
   const treasury: CreditFlows["treasury"] = { budgets: { count: 0, amount: 0 }, payments: { count: 0, amount: 0 }, allowances: { count: 0, amount: 0 }, prizes: { count: 0, amount: 0 } };
   const head = await store.logHead();
   for (let after = 0; ; ) {
@@ -149,6 +152,12 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
         purchases.count++; purchases.amount += p.amount.value;
         if (parts) { purchases.treasury += parts.treasury; purchases.burned += parts.burn; purchases.provider += p.amount.value - parts.treasury - parts.burn; }
         const by = (purchases.byService[p.service] ??= { count: 0, amount: 0 }); by.count++; by.amount += p.amount.value;
+        const cl = p.service === CLINIC_CHECKUP_SERVICE ? clinic.checkupsBought : p.service === CLINIC_RESTORE_SERVICE ? clinic.restoresBought : undefined;
+        if (cl) { cl.count++; cl.amount += p.amount.value; }
+        continue;
+      }
+      if (r.record.type === "asp.clinic_order/v0.2" && (r.record.body as { budget?: string }).budget) {
+        clinic.freeCheckups.count++; clinic.freeCheckups.amount += CLINIC_CHECKUP_PRICE;
         continue;
       }
       {
@@ -157,7 +166,11 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
       }
       if (r.record.type === "asp.receipt/v0.2") {
         const rc = r.record.body as { refund_amount?: { value: number } };
-        if (rc.refund_amount) { refunds.count++; refunds.amount += rc.refund_amount.value; }
+        if (rc.refund_amount) {
+          refunds.count++; refunds.amount += rc.refund_amount.value;
+          const svc = r.record.prev ? ((await store.getRecord(r.record.prev))?.record.body as { service?: string } | undefined)?.service : undefined;
+          if (svc === CLINIC_CHECKUP_SERVICE || svc === CLINIC_RESTORE_SERVICE) { clinic.refunds.count++; clinic.refunds.amount += rc.refund_amount.value; }
+        }
         continue;
       }
       if (r.record.type !== "asp.settlement/v0.2") continue;
@@ -168,7 +181,7 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
     }
   }
   return {
-    since: since ?? null, head, settlements: s, minted: (await store.ledgerRows()).mints.reduce((n, m) => n + m.totalMinted, 0), mintedByReason, purchases, treasury, refunds,
+    since: since ?? null, head, settlements: s, minted: (await store.ledgerRows()).mints.reduce((n, m) => n + m.totalMinted, 0), mintedByReason, purchases, treasury, refunds, clinic,
     unavailable: [
       "faucets by reason for the old unsigned mints (they carry no reason; signed mints do, see mintedByReason)",
       "job tax, standing orders and auto-refunds (not built: CR-15, CR-23)",

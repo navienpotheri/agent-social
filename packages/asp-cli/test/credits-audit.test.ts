@@ -170,3 +170,15 @@ test("asp credits adopt: refused without the owner's co-signature, by a signer w
   const strict = await asp(home, ["credits", "audit", "--require-signed", "--json"]);
   assert.equal(strict.code, 0, strict.out);
 });
+
+test("asp credits audit --by-flow clinic names the Clinic's flows (checkups and restores bought, free checkups, refunds); a filter other than clinic, or no --by-flow, is a usage error (DK161)", async () => {
+  const home = mkdtempSync(join(tmpdir(), "asp-audit-clinic-"));
+  assert.equal((await asp(home, ["credits", "grant", "--to", A, "--amount", "50"])).code, 0);
+  const r = await asp(home, ["credits", "audit", "--by-flow", "clinic"]);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /Clinic \(DK161\): 0 checkup\(s\) bought for 0, 0 restore\(s\) bought for 0, 0 free checkup\(s\) paid by the Treasury's budget line \(0\), 0 refund\(s\) of 0/);
+  const json = JSON.parse((await asp(home, ["credits", "audit", "--by-flow", "--json"])).out);
+  assert.deepEqual(json.flows.clinic, { checkupsBought: { count: 0, amount: 0 }, restoresBought: { count: 0, amount: 0 }, freeCheckups: { count: 0, amount: 0 }, refunds: { count: 0, amount: 0 } });
+  assert.notEqual((await asp(home, ["credits", "audit", "--by-flow", "bank"])).code, 0);
+  assert.notEqual((await asp(home, ["credits", "audit", "clinic"])).code, 0);
+});

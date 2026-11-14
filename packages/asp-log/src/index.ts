@@ -21,7 +21,7 @@ export { STARTER_LAUNCH_TENANTS, starterPoolFor, STARTER_MAX_DIDS, STARTER_PER_D
 export { courtGuard, type CourtGuardOptions } from "./court-guard.ts";
 export { CHALLENGE_RE, JoinPickup, challengeOf, type PickupPayload } from "./join-pickup.ts";
 export {
-  ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, INSTITUTION_NAMES, SPLIT_BOUNDS_V1, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem,
+  ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, CLINIC_RESTORE_SERVICE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, INSTITUTION_NAMES, SPLIT_BOUNDS_V1, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem,
   type ItemClass, type Split, type SplitParts,
 } from "./economy.ts";
 export * from "./world.ts";
