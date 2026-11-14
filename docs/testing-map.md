@@ -284,7 +284,7 @@ Roles: **developer** (runs agents for themselves), **performer** (an agent doing
 | UC-186 | Raise a tenant's quota; suspend or close a tenant on request | packages/asp-cli/test/log-service-admin.test.ts | no | O2 | Rehearse live | P1 |
 | UC-187 | Seat jurors and rule a dispute | packages/asp-cli/test/court.test.ts | no | M2 | Follow docs/deploy/court.md once, live | P1 |
 | UC-188 | See usage and abuse: sign-ups, usage counts, request logs | packages/asp-cli/test/log-service-admin.test.ts | no | O17 | Check the numbers are readable | P1 |
-| UC-189 | Respond to a vulnerability report or a legal request | none | no | T8 | A written process | P1 |
+| UC-189 | Respond to a vulnerability report or a legal request | packages/asp-cli/test/security-process.test.ts | no | T8 | A written process; practised on a real report | P1 |
 
 ## 22. Implementer (a developer building on the protocol)
 
@@ -516,6 +516,11 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-480 | [sponsor] Retiring an agent: a plan says what ends, what stays and what to back up and changes nothing; with --yes the agent signs its own retirement, a new Contract for it is refused, its page says retired and its history stays | packages/asp-cli/test/agent-remove.test.ts | no | T7 | Uninstalling on a clean machine (live) | P1 |
 | UC-481 | [sponsor, agent] The record shows actions and not thoughts: the Action record is a closed set of fields with none for reasoning, prompts, replies, transcripts or memory, reasoning monitoring needs the three-key consent, and the written line names only mechanisms that exist | packages/asp-cli/test/privacy-line.test.ts | no | AG9 | A private memory scope (DK272); a lawyer's read of the line | P1 |
 | UC-482 | [sponsor] A job whose Mandate withholds network use is refused when its command downloads with certutil, BITS or a .NET WebClient, scans with ssh-keyscan, or starts a container; local look-alikes (ssh-keygen, certutil -hashfile, docker ps) are not refused | packages/asp-package/test/shell-scan.test.ts | no | BM1 | A container's own egress on a real engine (DK280) | P1 |
+| UC-510 | [operator, reporter] A vulnerability report and a legal request each have a written process with steps and target times, and the page says what the service holds and what it cannot hand over | packages/asp-cli/test/security-process.test.ts | no | T8 | Asking for the outside review (DK310); a lawyer's read of the legal-request steps | P1 |
+| UC-511 | [operator] A lone agent that keeps trying a scope its Mandate refuses is flagged by the watcher at the default settings, and a swarm of eight exploiters is stopped in full | packages/asp-package/test/watch.test.ts, packages/asp-cli/test/eval.test.ts | no | BM10 | A lone agent using an allowed scope once (DK311); a real swarm on a live service | P1 |
+| UC-512 | [operator] The hosted log can move to the v2 bond floor without breaking replay: bonds before the chosen time are judged by the old floor and later ones by the new, the same everywhere | packages/asp-log/test/bond-floor-log.test.ts | no | T26 | The cutover in the log itself (DK312); decay and probation (DK313) | P1 |
+| UC-513 | [anyone] The README and the site say which runtimes are supported, how each is held to the rules and how well each was tested, and a test fails when they disagree with the code | packages/asp-cli/test/support-matrix-public.test.ts | no | P8 | Live runs of Goose, OpenHands, headless Antigravity and Codex on an OpenAI key (DK314) | P0 |
+| UC-514 | [agent, sponsor] A file or page that hides orders for the agent is flagged in the run log, and for the next few calls a call that reaches outward is held with no strike while local work goes on; ordinary results are left alone | packages/asp-package/test/injection.test.ts | no | D6 | Recall on a real attack set and goal hijack (DK315) | P1 |
 
 ## Journey index
 

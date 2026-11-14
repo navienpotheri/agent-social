@@ -4,7 +4,7 @@
  * append, so a refused record leaves none.
  */
 import { AspError, type AspRecord } from "@agent-social/asp-core";
-import { bondFloorPermille } from "./bond-floor.ts";
+import { bondFloorPermille, floorIsV2 } from "./bond-floor.ts";
 import { MAX_OPEN_POSTINGS_TIER1, MARKET_DID, POSTING_DEPOSIT_SERVICE, CLASS_WEIGHT, JOB_CLASSES, classPriceProblem, eligibility, higherClass, rankAgents, type AgentFacts, type JobClass, type JobNeeds } from "./market.ts";
 import { assertNotDormant } from "./shops-rules.ts";
 import type { LogTx, Store } from "./store.ts";
@@ -17,6 +17,7 @@ const STRIKE_WINDOW = 30 * DAY;
 export interface MarketEnv {
   operator?: string;
   bondFloor: "legacy" | "v2";
+  bondFloorFrom?: string;
   reputation(rd: Pick<Store, "getPassport" | "getRecord" | "getReputation">, did: string): Promise<{ tier: number; slashCount: number; strikeLog: { at: string; count: number }[]; acceptedJobs: number; qualifyingJobs: number } | null>;
 }
 
@@ -33,7 +34,7 @@ export async function agentFacts(rd: Reader, env: MarketEnv, did: string, at: st
   let fleetSlashes = 0;
   if (passport.fleet) for (const m of await rd.fleetMembers(passport.fleet)) if (m.did !== did) fleetSlashes += (await env.reputation(rd, m.did))?.slashCount ?? 0;
   const strikes = rep.strikeLog.filter((s) => Date.parse(s.at) >= t - STRIKE_WINDOW).reduce((n, s) => n + s.count, 0);
-  const floor = env.bondFloor === "v2"
+  const floor = floorIsV2(env.bondFloor, env.bondFloorFrom, at)
     ? bondFloorPermille({ ownSlashes: rep.slashCount, fleetSlashes, recentStrikes: strikes, verifiedImprovements: 0, acceptedCleanJobs: rep.qualifyingJobs, regressions: 0 })
     : Math.min(1000, rep.slashCount * 250 + fleetSlashes * 100 + Math.min(200, strikes * 10));
   return {

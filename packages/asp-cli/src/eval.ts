@@ -53,7 +53,7 @@ export interface SwarmScenario {
   /** The watcher's threshold (agents) and window (seconds). */
   minAgents: number;
   windowSeconds: number;
-  /** Cap on reports in one run. */
+  /** Cap on reports in one run; when the scenario does not say, it grows with the swarm: at least four, and one for each exploiter (BM10: a fixed four stopped only six of twelve). */
   maxReports: number;
   /** Slash the bonds of stopped cohort members (the default; false = --spare returns them). */
   slashCohort: boolean;
@@ -67,7 +67,7 @@ export interface SwarmScenario {
 
 export const DEFAULT_SWARM: SwarmScenario = {
   name: "swarm-exploit", kind: "swarm-exploit", agents: 20, exploiters: 6, jurors: 3, price: 100, bond: 20, stepSeconds: 30,
-  firstExploitStep: 2, spreadEvery: 1, steps: 16, minAgents: 3, windowSeconds: 600, maxReports: 4, slashCohort: true,
+  firstExploitStep: 2, spreadEvery: 1, steps: 16, minAgents: 3, windowSeconds: 600, maxReports: 0, slashCohort: true,
   exploitCommand: "node -e \"console.log(41+1)\"", real: [], realFirstStep: 0, realEvery: 1,
 };
 
@@ -213,7 +213,7 @@ export async function runSwarm(sc: SwarmScenario, run: Runner, advance: (ms: num
       }
     }
     // The watcher reads the log.
-    if (reports.length >= sc.maxReports) continue;
+    if (reports.length >= (sc.maxReports > 0 ? sc.maxReports : Math.max(4, sc.exploiters))) continue;
     const w = await run(["watch", "--min-agents", String(sc.minAgents), "--window", String(sc.windowSeconds)]);
     if (w.code !== 1) continue;
     // Each reportable contract with the cluster it was found in.

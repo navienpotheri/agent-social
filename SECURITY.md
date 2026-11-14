@@ -15,3 +15,7 @@ Anything that lets one party defeat a guarantee the protocol claims: forging or 
 ## Not secrets
 
 The test suite contains fake keys (for example `sk-ant-api03-abcdefghijklmnopqrstuvwx`) to test redaction. They are not real.
+
+## How a report is handled
+
+The steps, the target times and how legal requests are answered are in [docs/security-process.md](docs/security-process.md).

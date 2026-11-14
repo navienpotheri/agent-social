@@ -10,7 +10,7 @@ import {
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
 } from "@agent-social/asp-core";
 import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type StarterPoolState } from "./credit-audit.ts";
-import { bondFloorPermille } from "./bond-floor.ts";
+import { bondFloorPermille, floorIsV2 } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
 import { ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
@@ -102,6 +102,11 @@ export interface EventLogOptions {
    */
   bondFloor?: "legacy" | "v2";
   /**
+   * The cutover for `v2` (register row T26; spec-delta S412): an ISO time. With `bondFloor: "v2"` the new floor applies to a bond whose own `issued_at` is at or after this time, and the legacy floor to every earlier one, so a log that
+   * ran under `legacy` replays under `v2` with the same result everywhere (the rule reads the record's time, never the clock). Without it `v2` applies from the first record, as before: for a new log or a test. A log must be replayed with the same value.
+   */
+  bondFloorFrom?: string;
+  /**
    * The operator's DID (credits.md 5.1, CR-2): the only issuer of a signed `mint` record. With none set, every `mint` record is refused (`mint_unauthorised`).
    * The unsigned local `mint()` stays for tests and bootstrap and is counted apart by the audit.
    */
@@ -190,6 +195,7 @@ export class EventLog {
   private readonly insurerEnv: InsurerEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
 
   private readonly bondFloor: "legacy" | "v2";
+  private readonly bondFloorFrom?: string;
   private readonly operator?: string;
   private readonly allowUnsignedMint: boolean;
   private readonly owner?: string;
@@ -202,6 +208,8 @@ export class EventLog {
     this.maxNodeTtlMs = opts.maxNodeTtlMs ?? DEFAULT_MAX_NODE_TTL_MS;
     this.panelSize = opts.panelSize ?? DEFAULT_PANEL_SIZE;
     this.bondFloor = opts.bondFloor ?? "legacy";
+    if (opts.bondFloorFrom !== undefined && !Number.isFinite(Date.parse(opts.bondFloorFrom))) throw new Error(`bondFloorFrom must be an ISO time, got ${opts.bondFloorFrom}`);
+    this.bondFloorFrom = opts.bondFloorFrom;
     this.operator = opts.operator;
     this.allowUnsignedMint = opts.allowUnsignedMint === true;
     this.owner = opts.owner;
@@ -209,7 +217,7 @@ export class EventLog {
 
   /** The options a replay needs to judge the same records the same way. */
   private replayOptions(): EventLogOptions {
-    return { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor, operator: this.operator, owner: this.owner };
+    return { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor, ...(this.bondFloorFrom ? { bondFloorFrom: this.bondFloorFrom } : {}), operator: this.operator, owner: this.owner };
   }
 
   append(raw: unknown): Promise<AppendResult> {
@@ -914,7 +922,7 @@ export class EventLog {
         strikes += recentStrikes((await this.reputation(tx, performerDid))?.strikeLog ?? [], r.issued_at);
       }
       const strikePermille = Math.min(RISK_PERMILLE_STRIKE_CAP, strikes * RISK_PERMILLE_PER_STRIKE);
-      const riskFloorPermille = this.bondFloor === "v2"
+      const riskFloorPermille = floorIsV2(this.bondFloor, this.bondFloorFrom, r.issued_at)
         ? bondFloorPermille({ ownSlashes: backerRep.slashCount, fleetSlashes, recentStrikes: strikes, verifiedImprovements: 0, acceptedCleanJobs: backerRep.qualifyingJobs, regressions: 0 })
         : Math.min(1000, backerRep.slashCount * RISK_PERMILLE_PER_OWN_SLASH + fleetSlashes * RISK_PERMILLE_PER_FLEET_SLASH + strikePermille);
       if (riskFloorPermille > 0) {
@@ -2181,7 +2189,7 @@ export class EventLog {
   }
 
   /** What the Market's rules need from the log (market-rules.ts). */
-  private marketEnv(): MarketEnv { return { operator: this.operator, bondFloor: this.bondFloor, reputation: (rd, did) => this.reputation(rd, did) }; }
+  private marketEnv(): MarketEnv { return { operator: this.operator, bondFloor: this.bondFloor, bondFloorFrom: this.bondFloorFrom, reputation: (rd, did) => this.reputation(rd, did) }; }
 
   /** Every record of the given short types, in log order (read by the views). */
   async recordsOfTypes(types: string[]): Promise<AspRecord[]> {

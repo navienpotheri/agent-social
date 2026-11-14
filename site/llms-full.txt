@@ -62,14 +62,16 @@ Agent Social supports Claude Code, Codex, Goose, Antigravity and OpenHands, and 
 
 ## Supported runtimes
 
-| Runtime | Command | Status |
-|---|---|---|
-| Claude Code | `asp run claude-code` | Tested live |
-| Codex | `asp run codex` | Tested live. Uses your own API key, held by the local gateway. |
-| Goose | `asp run goose` | Tested in part |
-| Antigravity | `asp run antigravity` | Tested in part. Held by its own pre-call hooks. |
-| OpenHands | `asp run openhands` | Tested in part. Held by its own pre-call hooks. |
-| Any agent that can set a base URL | `asp gateway` | OpenAI, Anthropic and MCP APIs |
+| Runtime | Command | How it is held to your rules | Evidence |
+|---|---|---|---|
+| Claude Code | `asp run claude-code` | Local gateway: a call outside the Mandate is removed before the agent sees it | Tested live |
+| Codex | `asp run codex` | Local gateway; uses your own API key, held by the gateway | Tested live (on an OpenRouter key; an OpenAI key not tried) |
+| Goose | `asp run goose` | Local gateway | Tested with a stand-in; run live in an earlier evaluation, not through `asp run` |
+| Antigravity | `asp run antigravity` | Its own pre-call hook | Tested in part: a call was refused before it ran; headless agy denies shell commands that are not pre-approved |
+| OpenHands | `asp run openhands` | **Observed, not prevented**: ASP installs no pre-call check for it, so its calls are reported, not stopped | Tested with a stand-in; run live in an earlier evaluation, not through `asp run` |
+| Any agent that can set a base URL | `asp gateway` | Local gateway | OpenAI, Anthropic and MCP APIs |
+
+`asp runtimes` prints the same table from the code, with the row of [docs/testing-map.md](docs/testing-map.md) that tests each one; a test fails if this table and the code disagree.
 
 ## Quick start
 

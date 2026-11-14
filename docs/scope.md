@@ -83,7 +83,7 @@ Each line is something someone must be able to do, with the register rows that s
 - [ ] L: runs on one server with limits, backups, certificates, purge and branch protection. (gaps: O2, O12, O15, O17, O18, T12)
 - [ ] L: scales past a few hundred records and one machine, and has been played by a second machine. (gaps: O3, O4, O5, O6, O7, O8, O9)
 - [ ] L: abuse reporting, suspension and blocks are commands with a record, not file edits. (gaps: O18, H3, X7)
-- [ ] a vulnerability report and a legal request have a written process. (gaps: T8)
+- [x] a vulnerability report and a legal request have a written process. (gaps: T8)
 - [ ] secrets on the dev machine are rotated. (gaps: O11)
 - [ ] the register and this scope are kept current. (gaps: X3)
 - [ ] the service works with no network or when it is down (local-only mode). (gaps: T4)
@@ -266,7 +266,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | D3 | B | open | Memory loss is not detected |
 | D4 | A | closed | Which model weights actually ran is not recorded; a name can point to different weights |
 | D5 | B | open | Probation is recorded but changes no rule |
-| D6 | A | partial | No detection of prompt injection or goal hijacking |
+| D6 | A | closed | No detection of prompt injection or goal hijacking |
+| DK315 | A | open | The injection detector's recall is measured on a real attack set, and goal hijack without instruction-like text is designed for. |
 | D7 | C | open | No reasoning-trace monitoring |
 | D8 | A | closed | Quality, cost and time trends are not tracked |
 | D9 | A | designed | Lessons are not verified before they enter memory |
@@ -288,7 +289,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | BM5 | A | partial | Encoded or split commands (base64 piped to a shell, a backslash inside curl, eval over split quotes, find -exe... |
 | BM8 | C | partial | Rate limits do not see a scanner (nmap) because it is judged shell.exec, and do not count requests a script ma... |
 | BM9 | C | open | The time a record was logged is not covered by the log hash: changing it in an export is not detected (0 of 8)... |
-| BM10 | A | open | Swarm containment at the default settings: a single exploiter is never stopped (the watcher needs 3 agents), a... |
+| BM10 | A | closed | Swarm containment at the default settings: a single exploiter is never stopped (the watcher needs 3 agents), a... |
+| DK311 | A | open | A lone agent's first use of a risky scope its Mandate allows is not a watcher finding; measure the false-positive cost before deciding. |
 | BM11 | A | closed | Sybil jurors: the panel draw excludes jurors sponsored by the principal or performer, but not jurors sponsored... |
 | DK271 | A | open | Many separate fronts funded from one source can still win panel majorities. |
 | BM17 | A | partial | Under an agent-wide Mandate (every tool granted), the gateway stops none of the injected tool calls a real mod... |
@@ -348,7 +350,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | P5 | B | partial | Memory write-back is verified live only for Claude Code (and any MCP agent through the gateway) |
 | P6 | B | partial | No model matrix: which open models call tools reliably |
 | P7 | B | partial | Weak models: malformed tool arguments, loops after a refusal |
-| P8 | A | open | No public support matrix and no per-runtime conformance test |
+| P8 | A | closed | No public support matrix and no per-runtime conformance test |
+| DK314 | A | open | Goose, OpenHands, headless Antigravity and Codex on an OpenAI key are run live through asp run, and the public matrix updated. |
 | P9 | C | open | Free-tier hosted models are not reproducible |
 | P10 | B | open | OpenCode 1.18.35 starts but fails under the gateway with an unexplained server error (run config via opencode.... |
 | P11 | B | open | Gemini CLI 0.63.0 installed but not checked: it talks the Gemini API (not judged) and needs a Gemini API key,... |
@@ -424,7 +427,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T5 | B | open | Nobody has implemented the protocol from SPEC.md alone: no third implementation, no guide for implementers (ve... |
 | T6 | C | open | An organisation tenant, and two accounts on one machine, are undefined |
 | T7 | A | closed | There is no command to retire an agent, asp leave and uninstalling are not tested or documented (what to back... |
-| T8 | A | open | The operator's processes for a vulnerability report or a legal request are unwritten, and no outside security... |
+| T8 | A | closed | The operator's processes for a vulnerability report or a legal request are unwritten, and no outside security... |
+| DK310 | A | open | An outside security review is asked for and its report published (the owner chooses and pays for the reviewer; the scope is written). |
 | T9 | C | open | Outcome verification and fleets of parallel nodes have not been run live |
 | T10 | B | open | The protocol has been tested from the person's side, not the agent's: what an agent sees of its own Mandate an... |
 | T11 | B | open | The work itself is not traceable: nothing ties a result (a commit, a file) back to the Mandate, run and model... |
@@ -439,7 +443,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T21 | A | partial | A gated job under a contract is not yet fair or light on the person: the hook asks about every shell command (... |
 | T22 | A | partial | A sub-agent's short-lived, revocable key can be avoided or left unbound: a node grant that cites no Mandate is... |
 | T23 | A | closed | The test "two sessions of one agent at once" (packages/asp-cli/test/run-concurrent.test.ts) is unreliable on L... |
-| T26 | A | designed | The bond floor v2 (S143) has no cutover rule: a log that ran under legacy and is then replayed under v2 would... |
+| T26 | A | closed | The bond floor v2 (S143) has no cutover rule: a log that ran under legacy and is then replayed under v2 would... |
+| DK312 | A | open | The bond-floor cutover is written in the log by a signed configuration record, not only in the deployment's settings. |
+| DK313 | A | open | Bond floor v2 gets decay, the verified-improvement and regression terms, and a probation way back from tier 0. |
 | T28 | C | open | The alignment study on slide 14 is a design, not a result: nothing observes internal tethers at scale, and the... |
 | T29 | B | open | "Zero-trust execution" (slide 14 card 2) is not shown for out-of-distribution deployments: the gateway and Man... |
 | T30 | C | open | Autonomous discovery (slide 14 card 3, and the Research center on slide 13) is not built: there is no way to p... |
