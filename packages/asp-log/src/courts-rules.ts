@@ -4,7 +4,7 @@
  */
 import { AspError, didOf, type AspRecord } from "@agent-social/asp-core";
 import { REGISTRAR_DID, institutionDid } from "./economy.ts";
-import { drawPanel } from "./panel.ts";
+import { drawPanel, panelDrawIsV2 } from "./panel.ts";
 import { APPEAL_SERVICE_SMALL, APPEAL_SERVICE_STANDARD, CHARTER_NOTICE_MS, DEFAULT_ROUTES, ROUTE_KEYS, routeFor, type CourtRoutes } from "./courts.ts";
 import type { LogTx } from "./store.ts";
 
@@ -25,7 +25,7 @@ export async function charterIn(tx: Pick<LogTx, "getMarker">, at: string): Promi
 }
 export const routesOrDefault = async (tx: Pick<LogTx, "getMarker">, at: string): Promise<CourtRoutes> => (await charterIn(tx, at)) ?? DEFAULT_ROUTES;
 
-export interface CourtsEnv { operator?: string; panelSize: number }
+export interface CourtsEnv { operator?: string; panelSize: number; panelV2From?: string }
 
 export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): Promise<void> {
   const b = r.body as Record<string, any>;
@@ -105,7 +105,7 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     const conflicted = [...signers].filter((x) => x === info.holder || x === REGISTRAR_DID);
     if (conflicted.length) throw rule("case_panel_conflict", `${conflicted.join(", ")} is the holder or the Registrar: the panel is jurors who are neither`);
     const routes = await routesOrDefault(tx, now);
-    const panel = await drawPanel(tx, { principal: info.holder, performer: REGISTRAR_DID, seed: b.case, size: routes.standard_panel });
+    const panel = await drawPanel(tx, { principal: info.holder, performer: REGISTRAR_DID, seed: b.case, size: routes.standard_panel, v2: panelDrawIsV2(env.panelV2From, now) });
     if (panel.length > 0) {
       const onPanel = panel.filter((p) => signers.has(p));
       const quorum = Math.ceil(panel.length / 2);
@@ -131,7 +131,7 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     const signers = new Set([r.sig.kid, ...(r.cosigs ?? []).map((c) => c.kid)].map(didOf));
     const conflicted = [...signers].filter((s) => s === cb.principal || s === cb.performer || firstSigners.includes(s));
     if (conflicted.length) throw rule("appeal_panel_conflict", `${conflicted.join(", ")} is a party or sat on the first panel: an appeal is heard by jurors who did not hear the first ruling`);
-    const panel = await drawPanel(tx, { principal: cb.principal, performer: cb.performer, seed: b.appeal, size: routes.appeal_panel, exclude: firstSigners });
+    const panel = await drawPanel(tx, { principal: cb.principal, performer: cb.performer, seed: b.appeal, size: routes.appeal_panel, exclude: firstSigners, v2: panelDrawIsV2(env.panelV2From, now) });
     if (panel.length > 0) {
       const onPanel = panel.filter((p) => signers.has(p));
       const quorum = Math.ceil(panel.length / 2);
