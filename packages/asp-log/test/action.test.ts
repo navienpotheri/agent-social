@@ -275,5 +275,18 @@ for (const h of [memory, postgres] as Harness[]) {
       await log.append(act({ name: "local-llama", provider: "localhost:11434", digest: "sha256:aaa" }, "now with a digest"));
       assert.equal(await log.probation(coder.did), undefined);
     });
+
+    test("a local runtime's weights digest (DK96) that changes between runs opens the same probation, and an unchanged one does not", async () => {
+      const log = new EventLog(await h.make());
+      await registerParties(log);
+      const contract = await running(log, ["repo.read"]);
+      const act = (digest: string, summary: string) => rec("action", coder, { contract: contract.id, scopes_used: ["repo.read"], summary, metrics: { models: [{ name: "llama3:8b", provider: "127.0.0.1:11434", digest }] } }, null, contract.id);
+      await log.append(act("sha256:aaaa", "first run"));
+      await log.append(act("sha256:aaaa", "same weights"));
+      assert.equal(await log.probation(coder.did), undefined);
+      const changed = act("sha256:bbbb", "the weights behind the name changed");
+      await log.append(changed);
+      assert.equal((await log.probation(coder.did))?.setBy, changed.id);
+    });
   });
 }

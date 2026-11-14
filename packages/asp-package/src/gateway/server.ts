@@ -33,6 +33,8 @@ import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHand
 export interface GatewayOptions {
   /** Base URL of the OpenAI-compatible API, up to and including /v1 (for example https://api.openai.com/v1). */
   openaiUpstream?: string;
+  /** Ask the OpenAI-compatible upstream, when it is on this machine, for the digest of each model it serves (DK96). On by default for Ollama's port 11434; set it for a runtime on another port. */
+  localDigest?: boolean;
   /** Origin of the Anthropic API (for example https://api.anthropic.com). */
   anthropicUpstream?: string;
   /** Replaces the client's credentials when set, so the agent never holds the provider key. */
@@ -201,10 +203,29 @@ export function createGateway(opts: GatewayOptions): Gateway {
   // Totals at the last drain, and the models seen since, so each Action carries its own interval's figures.
   const last = { requests: 0, toolCalls: 0, input: 0, output: 0, at: Date.now() };
   const modelsSeen = new Map<string, { name: string; provider?: string; digest?: string }>();
+  // The weights digest of a model on a local runtime behind an OpenAI-compatible route (DK96): a name and no weight hash comes back in the reply, so the gateway asks the runtime once per run (Ollama:
+  // GET /api/tags lists each model's digest, POST /api/show as a fallback) and records it as `sha256:...`. A runtime that does not answer leaves the digest out, as before; nothing is refused.
+  const localDigests = new Map<string, string>(), askedDigest = new Set<string>();
+  const askLocalDigest = (key: string, name: string, upstream: string) => {
+    if (askedDigest.has(key)) return; askedDigest.add(key);
+    let origin: string;
+    try { const u = new URL(upstream); if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(u.hostname)) return; if (!opts.localDigest && u.port !== "11434") return; origin = u.origin; } catch { return; }
+    const norm = (d: unknown) => (typeof d === "string" && d ? (d.startsWith("sha256:") ? d : `sha256:${d}`) : undefined);
+    void (async () => {
+      try {
+        const tags = await (await f(`${origin}/api/tags`)).json() as { models?: { name?: string; model?: string; digest?: string }[] };
+        const hit = tags.models?.find((m) => m.name === name || m.model === name || m.name === `${name}:latest`);
+        let d = norm(hit?.digest);
+        if (!d) { const show = await (await f(`${origin}/api/show`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: name }) })).json() as { digest?: string }; d = norm(show.digest); }
+        if (d) localDigests.set(key, d);
+      } catch { /* the runtime has no such route: no digest, as before */ }
+    })();
+  };
   const noteModel = (name: unknown, upstream: string | undefined, ran?: { model?: unknown; fingerprint?: unknown }) => {
     if (typeof name !== "string" || !name) return;
     let provider: string | undefined;
     try { provider = upstream ? new URL(upstream).host : undefined; } catch { /* not a URL */ }
+    if (upstream) askLocalDigest(`${provider ?? ""}|${name}`, name, upstream);
     // What was asked for is a name; what the provider says ran is the resolved model and, for providers that give one, the backend fingerprint (D4): the digest. The reply's own words win over the request's.
     const resolved = typeof ran?.model === "string" && ran.model ? ran.model : name;
     const fp = typeof ran?.fingerprint === "string" && ran.fingerprint ? ran.fingerprint : undefined;
@@ -689,7 +710,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     summary, stop,
     drain: () => {
       const now = Date.now();
-      const metrics: ActionMetrics = { models: [...modelsSeen.values()], requests: requests - last.requests, tool_calls: toolCalls - last.toolCalls, tokens_in: tokens.input - last.input, tokens_out: tokens.output - last.output, seconds: Math.round((now - last.at) / 1000) };
+      const metrics: ActionMetrics = { models: [...modelsSeen.entries()].map(([k, m]) => (m.digest || !localDigests.has(k) ? m : { ...m, digest: localDigests.get(k)! })), requests: requests - last.requests, tool_calls: toolCalls - last.toolCalls, tokens_in: tokens.input - last.input, tokens_out: tokens.output - last.output, seconds: Math.round((now - last.at) / 1000) };
       Object.assign(last, { requests, toolCalls, input: tokens.input, output: tokens.output, at: now });
       modelsSeen.clear();
       if (rateLimitedSince) { metrics.rate_limited = rateLimitedSince; rateLimitedSince = 0; }
