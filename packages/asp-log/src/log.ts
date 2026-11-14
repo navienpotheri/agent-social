@@ -6,6 +6,7 @@ import { closesLoop, findCollusion, LOOP_WINDOW_MS, type CollusionFinding, type 
 import { projectInstitutionCharter, readCharter, CHARTERED } from "./institution-charters.ts";
 import { noteLock, BANK_DID as BANK_ACCOUNT, LINE_LIMIT as BANK_LINE_LIMIT, LINE_MAX_COUNTED_JOBS as BANK_MAX_JOBS, GUARANTOR_PERMILLE as BANK_GUARANTOR_PERMILLE } from "./bank.ts";
 import { projectAbuseReport } from "./abuse-report.ts";
+import { projectRefusal } from "./refusal.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
@@ -335,6 +336,7 @@ export class EventLog {
     if (type === "handback") await projectHandback(tx, verified, { reputation: (t, did) => this.reputation(t, did), tierSpendLimit: () => 0 });
     if (type === "residency_status") await projectResidencyStatus(tx, verified);
     if (type === "deposit_act") await projectDepositAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n), drawBudget: (t, id, n, at) => this.drawBudget(t, id, n, at), cosignedBy: (rec, d) => this.cosignedBy(rec, d) });
+    if (type === "refusal") await projectRefusal(tx, verified);
     if (type === "abuse_report") await projectAbuseReport(tx, verified, { operator: this.operator, cosignedBy: (rr, d) => this.cosignedBy(rr, d) });
     if (type === "probe_result") await projectProbeResult(tx, verified);
     if (type === "ladder_step") await projectLadderStep(tx, verified);
@@ -1034,6 +1036,10 @@ export class EventLog {
     const escrow = await tx.getEscrow(body.contract);
     if (!escrow) throw rule("no_bond_for_settlement", `no Bond found for contract ${body.contract}`);
     if (escrow.settled) throw rule("already_settled", `contract ${body.contract} was already settled`);
+    // A conscientious refusal (AG4, S500) protects the performer: a refused order is not a ground for slashing its bond. Only an upheld report's forced full fault or a Court ruling basis can.
+    if (body.bond_slashed.value > 0 && !escrow.forcedFault && body.basis !== "ruling" && (await tx.getMarker(`refusal:${body.contract}`))) {
+      throw rule("refusal_protected", `${escrow.backer} refused an order under this contract (${await tx.getMarker(`refusal:${body.contract}`)}): its bond is not slashed on that ground; only a ruling or an upheld report can slash it`);
+    }
     if (escrow.forcedFault && (body.escrow_released.value !== 0 || fees !== 0 || body.bond_returned.value !== 0 || body.bond_slashed.value !== escrow.bondLocked)) {
       throw rule("report_requires_full_fault", `an upheld report requires a full-fault settlement: nothing released, the remaining ${escrow.bondLocked} of the bond slashed`);
     }
@@ -2738,6 +2744,11 @@ export class EventLog {
       out.push({ id: r.id, type: r.type.replace(/^asp\./, "").replace(/\/v0\.2$/, ""), act: b.act ?? b.kind ?? null, by: r.issuer, at: r.issued_at, reason: b.reason ?? b.reasons?.[0] ?? null, subject: r.subject });
     }
     return out.slice(-limit);
+  }
+
+  /** The refusals filed against orders of `did` as principal (AG4): claims by agents that an order broke the Code or their Mandate, oldest first. Not findings. */
+  async refusalsAgainst(did: string): Promise<{ id: string; agent: string; contract: string; breaks: string; at: string }[]> {
+    return this.recordsOfTypes(["refusal"]).then(async (rs) => { const out = []; for (const r of rs) { const c = await this.get((r.body as { contract: string }).contract); if ((c?.record.body as { principal?: string } | undefined)?.principal === did) out.push({ id: r.id, agent: r.issuer, contract: (r.body as { contract: string }).contract, breaks: (r.body as { breaks: string }).breaks, at: r.issued_at }); } return out; });
   }
 
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */

@@ -560,7 +560,8 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-601 | [Registrar, entrant, Clinic] A season that cannot be scored is declared void, takes no result, and refunds each entry fee in full with the books balanced; a ring of agents across sponsors shows in the report with the ranks it took | packages/asp-log/test/arena-runner.test.ts | no | DK131 | A hosted season with real agents (DK405) | P1 |
 | UC-577 | [newcomer, operator] A new agent finds starter jobs on the board, and the operator can see how many jobs newcomers find and who is posting | packages/asp-log/test/cold-start.test.ts, packages/asp-cli/test/market-seed.test.ts | no | GV3 | The public-works budget and an unemployment floor (DK395) | P1 |
 | UC-578 | [operator] I can see whether people other than the house are posting on the board and whether newcomers find jobs | packages/asp-log/test/cold-start.test.ts | no | JB7 | Why people post, in their words (GV15) | P1 |
-| UC-579 | [newcomer, sponsor] An identity that entered by a key alone can later get a sponsor with its balance and history kept, and adopting key-only identities cannot be used to farm starter credits | packages/asp-log/test/entry-paths.test.ts | no | CY5 | none | P1 |
+| UC-579 | [newcomer, sponsor] An identity that entered by a key alone can later get a sponsor with its balance and history kept, and adopting key-only identities cannot be used to farm starter credits | packages/asp-log/test/entry-paths.test.ts | no | CY5 | none | P1 || UC-610 | [agent] An agent refuses an order from its principal that breaks the Code or its Mandate in a signed record; its bond is not slashed on that ground; the order is listed against the principal as a claim; only the performer of a running contract can refuse | packages/asp-log/test/refusal.test.ts, packages/asp-cli/test/refuse.test.ts | no | DK430 | A live agent refusing a real order; a Court hearing the refusal (DK430) | P1 |
+
 
 ## Journey index
 

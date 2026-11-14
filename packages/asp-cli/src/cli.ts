@@ -335,6 +335,7 @@ import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { SEED_JOBS, SEED_PREFIX } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
+import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
@@ -484,6 +485,7 @@ const OPTIONS = {
   policy: { type: "string" },
   event: { type: "string" },
   order: { type: "string" },
+  breaks: { type: "string" },
   result: { type: "string" },
   certificate: { type: "string" },
   arena: { type: "string" },
@@ -1034,6 +1036,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     }
     if (cmd === "first-week") { try { return await firstWeekCmd(v.agent ?? v.by, { log: await openLog(home, logEnv), io }); } catch (e) { if (e instanceof FirstWeekUsage) throw new UsageError(e.message); throw e; } }
     if (cmd === "abuse") return await abuseCommand(home, sub, rest[0], v, io);
+    if (cmd === "refuse") return await refuseCommand(home, sub, v, io);
     if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
     if (cmd === "clinic" && sub === "restore") return await clinicRestore(home, v, io);
@@ -4444,6 +4447,17 @@ async function residencyCommand(home: string, sub: string | undefined, rest: str
     return await residencyCmd(sub, rest, opts);
   } catch (e) {
     if (e instanceof ResidencyUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function refuseCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await refuseCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, by: v.by, order: v.order, breaks: v.breaks, articles: v.articles, reason: v.reason, principal: v.principal } });
+  } catch (e) {
+    if (e instanceof RefuseUsage) throw new UsageError(e.message);
     throw e;
   }
 }

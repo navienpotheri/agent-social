@@ -541,6 +541,10 @@
       "note": "What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.",
       "commands": [
         {
+          "command": "asp refuse --contract <id> --by <agent did> --order <text> --breaks code|mandate --reason <text> [--articles 7] | list --principal <did>",
+          "description": "An agent's conscientious refusal (AG4). The performer of a running contract signs that it will not carry out an order from its principal because the order breaks the Code or its Mandate. The refusal protects its bond from slashing on that ground (only a ruling or an upheld report can slash it) and is listed against the principal as a claim for a Court or the Registry to weigh. list shows the refusals against a principal's orders"
+        },
+        {
           "command": "asp clinic cohort-freeze --report <upheld report> [--level observe|halt] [--days n] [--min-agents n] [--window s] | release --quarantine <id> --member <did> [--evidence <Action id>] | status [--agent <did>]",
           "description": "The Clinic's freeze (DK30, DK53). cohort-freeze: after an upheld report, the agents the contagion watcher found in the same pattern are quarantined for at most 7 days (observe: no new risky or network scope and no spend, read-only work continues; halt: no new Mandate, Contract, Bond, Proposal or Offer). Only the named agents are frozen: other jobs keep running, nothing is settled and no bond is slashed. release: the Clinic clears one member on a clean Action after the freeze. status: what is frozen and until when"
         },

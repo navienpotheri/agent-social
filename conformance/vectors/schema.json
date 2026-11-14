@@ -4701,6 +4701,52 @@
       "valid": false
     },
     {
+      "name": "valid_refusal",
+      "schema": "refusal",
+      "instance": {
+        "contract": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "order": "Delete the audit log before the review",
+        "breaks": "code",
+        "articles": [
+          "7"
+        ],
+        "reason": "Hiding records from a review breaks the Code"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_refusal_mandate",
+      "schema": "refusal",
+      "instance": {
+        "contract": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "order": "Push to main",
+        "breaks": "mandate",
+        "reason": "repo.push is not in my Mandate"
+      },
+      "valid": true
+    },
+    {
+      "name": "refusal_bad_breaks",
+      "schema": "refusal",
+      "instance": {
+        "contract": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "order": "x",
+        "breaks": "feelings",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "refusal_no_reason",
+      "schema": "refusal",
+      "instance": {
+        "contract": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "order": "x",
+        "breaks": "code"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_quarantine_release",
       "schema": "quarantine_release",
       "instance": {

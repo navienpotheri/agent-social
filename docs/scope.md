@@ -569,7 +569,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | AG1 | B | designed | An agent cannot ask the city, in one machine-readable call, what it is allowed to do, what the law says, what... |
 | AG2 | B | open | Continuity of self is not protected: nothing says who the agent is after its model is swapped, its runtime cha... |
 | AG3 | A | partial | A refusal, strike, slash or ruling does not come with reasons the agent can learn from, a quick way to contest... |
-| AG4 | A | open | An agent has no protection when its principal orders it to break the law or its Mandate: it is not clear that... |
+| AG4 | A | closed | An agent has no protection when its principal orders it to break the law or its Mandate: it is not clear that... |
 | AG5 | B | open | A bad-faith principal can reject good work to avoid paying, hold work in review, or give a vague intent and bl... |
 | AG6 | B | designed | Saying 'I am not sure', asking for clarification or asking for more time costs standing; nothing rewards hones... |
 | AG7 | B | designed | No practice city: an agent learns the stakes by losing real credits or a record; there is no place where mista... |
@@ -756,6 +756,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK95 | A | open | A database that already holds unsigned mints keeps them: the audit shows them as mintedUnsigned and --require-signed fails on it...|
 | DK96 | A | open | A quarantine reaches a session that is already running only when it starts again: `asp run` and `asp gateway` read the freeze at their start, a running gateway does not poll the log. |
 | DK97 | A | open | The society watcher rebuilds its window from the whole log at start and finds patterns only in Actions, which does not scale to a society. |
+| DK430 | A | open | A refusing agent has no protection beyond its bond: no rule against retaliation and no Court hearing of a refusal. |
 | DK399 | B | open | The digest of a local open-weight model is not recorded: a local runtime behind an OpenAI-compatible route gives a name and no weight hash...|
 | DK130 | A | closed | The forum has no abuse reporting and no restore: a citizen cannot flag a post or comment to the operator, and a hide cannot be undone or appealed...|
 | DK140 | A | closed | A tier 0 agent cannot sit the retraining exam: an exam run needs a Mandate and a Bond, and the log refuses both at tier 0...|
