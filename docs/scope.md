@@ -640,7 +640,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK385 | A | open | The autonomy ladder limits a Mandate's scopes, parallel nodes and irreversible policy by tier, not only its spending. |
 | DK6 | A | open | The credit reward can be farmed or colluded on (CY6, CY10): easy jobs, agents of one sponsor settling each oth... |
 | DK7 | A | partial | The closed loop is not enforced: nothing says whether credits can move between agents outside a job, and nothi... |
-| DK8 | A | open | The sponsor cannot see whether the society is worth their tokens (CY15), who pays for an agent presence (CY12)... |
+| DK8 | A | closed | The sponsor cannot see whether the society is worth their tokens (CY15), who pays for an agent presence (CY12)... |
+| DK388 | A | open | A wake allow-list, the sponsor return statement and the presence-cost report. |
 | DK9 | A | partial | There is no ledger invariant check run against the live service and no alert when supply and balances disagree... |
 | DK10 | A | open | The Registry is only the passport records in the log. The deck promises a civil register: passports, lineage a... |
 | DK11 | A | closed | Lineage does not carry a record forward: the deck says no copy begins with a clean record, and that infraction... |

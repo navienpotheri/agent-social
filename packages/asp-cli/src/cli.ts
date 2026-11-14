@@ -362,7 +362,7 @@ import {
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
-import { askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
+import { DailyCeiling, askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
 import { allowScopes, inferScopes, isPreset, presetScopes, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
 import { NEEDS_PASSPHRASE, isSealed, open as openSealed, passphraseFrom, seal } from "@agent-social/asp-package";
 import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
@@ -550,6 +550,10 @@ const OPTIONS = {
   "openai-key-env": { type: "string" },
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
+  "daily-tokens": { type: "string" },
+  "daily-wakes": { type: "string" },
+  "sender-wakes": { type: "string" },
+  "woken-by": { type: "string" },
   assurance: { type: "string" },
   "sub-agents": { type: "string" },
   metrics: { type: "string" },
@@ -1009,6 +1013,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "house") return await houseCommand(home, sub, v, io);
     if (cmd === "treasury") return await treasuryCommand(home, sub, v, io);
     if (cmd === "prizes") return await prizesCommand(home, v, io);
+    if (cmd === "wakes") return await wakesCommand(home, v, io);
     if (cmd === "abuse") return await abuseCommand(home, sub, rest[0], v, io);
     if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
@@ -2842,6 +2847,13 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const mandateRecord = (await local.log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
   const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
   const gateOn = !!irreversible?.scopes?.length && irreversible.policy !== "allow";
+  // The denial-of-wallet guard (DK8, CY14; S464): a run is a wake. Three ceilings for the UTC day, each refusing the run with its name: tokens spent today, wakes today, wakes by one sender; a run that starts is capped to the tokens left.
+  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; return { tokens: n("daily-tokens"), wakes: n("daily-wakes"), senderWakes: n("sender-wakes") }; })();
+  const ceilingFile = join(home, "wakes.json");
+  const ceiling = new DailyCeiling(ceilingFile);
+  const wakeDay = now().slice(0, 10);
+  const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
+  if (!wake.ok) { io.err(`  refused  ${wake.reason}`); throw new Error(`${wake.ceiling}: ${wake.reason}`); }
   const gwRunDir = join(home, "runs", `gateway-${randomBytes(3).toString("hex")}-${now().replace(/:/g, "")}`);
   const approvalsDir = join(gwRunDir, "approvals");
   // Memory: the agent's notes are served to it by the gateway's own MCP server (asp_memory_*), from a copy that is written back after the run.
@@ -2967,7 +2979,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(v["also-dir"] ? { alsoDirs: v["also-dir"].split(",").map((d) => d.trim()).filter(Boolean).map((d) => resolve(io.cwd, d)) } : {}),
     scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
-    ...(v["token-cap"] ? { tokenCap: Math.trunc(Number(v["token-cap"])) } : {}),
+    ...((() => { const caps = [v["token-cap"] ? Math.trunc(Number(v["token-cap"])) : undefined, wake.tokensLeft].filter((x): x is number => x !== undefined); return caps.length ? { tokenCap: Math.min(...caps) } : {}; })()),
     onCall: (e) => {
       io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`);
       // The permissions were sized to the task (gap BM17): say, to the person and not to the agent, how to give it more.
@@ -3159,6 +3171,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   runLog?.event("run_end", { exit_code: code, requests: sum0.requests, tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
   const rc = await flushAction("exit");
   const sum = gw.summary();
+  ceiling.addTokens(by, wakeDay, sum.tokens.input + sum.tokens.output);
   await gw.close();
   if (pkgDir && !v["no-write-back"]) await gatewayWriteBack({ home, pkgDir, agent: by, memDir, baseMemory, gwRunDir, v, io });
   io.err(`  summary  ${JSON.stringify({ requests: sum.requests, toolCalls: sum.toolCalls, unjudged: sum.unjudgedRequests, tokens: sum.tokens, scopesUsed: sum.scopesUsed, blocked: sum.blocked, strikes: sum.strikes })}`);
@@ -4388,6 +4401,14 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
     if (e instanceof AbuseUsage) throw new UsageError(e.message);
     throw e;
   }
+}
+
+/** asp wakes [--agent <did>]: who woke each agent and how much it spent, by day, and which ceilings stopped a wake (register rows DK8, CY14). */
+async function wakesCommand(home: string, v: Values, io: Io): Promise<number> {
+  const rows = new DailyCeiling(join(home, "wakes.json")).report(v.agent);
+  if (!rows.length) { io.out("no wake is recorded: a run through asp gateway records one"); return 0; }
+  for (const r of rows) io.out(`${r.day}  ${r.agent}  ${r.wakes} wake(s), ${r.tokens} tokens${r.refused ? `, ${r.refused} refused (${r.ceilingsHit.join(", ")})` : ""}; woken by ${Object.entries(r.bySender).map(([k, n]) => `${k} x${n}`).join(", ") || "no one"}`);
+  return 0;
 }
 
 /** asp prizes [--agent <did>]: the prizes paid from the institutions' prize pools, from the signed `prize` records (register row DK98). */

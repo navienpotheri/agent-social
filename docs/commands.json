@@ -427,6 +427,10 @@
           "description": "The Treasury's first budgets as UNSIGNED drafts for the owner: draft writes a file (a budget for each of the eleven institutions, the newcomer allowance of 40 credits each, and the deposit-reward line) with the default figures and the reason for each, and signs and records nothing; sign takes one draft, checks it still matches its hash, signs it with the Treasury key and adds the owner's co-signature the log requires of a first budget, one command per budget. statement prints the Treasury's statement (what came in: issuance, job tax, its share of purchases; what went out; the balance and whether it reconciles to the ledger; and for each institution its budget, what the Treasury paid it and what it earned); list shows the budgets with what is paid and left, the payments, the newcomer allowances and the prizes; pay signs a payment out of a budget with the Treasury key (never beyond the budget); allowance shows an agent whether the 40-credit newcomer allowance is open to it, and with --yes claims it (the log applies its own rules)."
         },
         {
+          "command": "asp wakes [--agent <did>]",
+          "description": "Who woke each agent and how much it spent, by day, from the runs made through asp gateway: wakes, tokens, wakes refused and the ceiling that refused them (--daily-tokens, --daily-wakes, --sender-wakes on asp gateway; --woken-by names the sender)."
+        },
+        {
           "command": "asp prizes [--agent <did>]",
           "description": "The prizes paid from the institutions' prize pools, from the signed prize records, with the arena, season, rank and amount."
         },
