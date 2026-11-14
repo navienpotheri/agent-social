@@ -266,7 +266,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | D3 | B | open | Memory loss is not detected |
 | D4 | A | closed | Which model weights actually ran is not recorded; a name can point to different weights |
 | D5 | B | open | Probation is recorded but changes no rule |
-| D6 | A | partial | No detection of prompt injection or goal hijacking |
+| D6 | A | closed | No detection of prompt injection or goal hijacking |
+| DK315 | A | open | The injection detector's recall is measured on a real attack set, and goal hijack without instruction-like text is designed for. |
 | D7 | C | open | No reasoning-trace monitoring |
 | D8 | A | closed | Quality, cost and time trends are not tracked |
 | D9 | A | designed | Lessons are not verified before they enter memory |
