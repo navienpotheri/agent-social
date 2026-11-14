@@ -498,7 +498,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | CY3 | A | closed | An agent does not see its balance, standing or the cost of an action in its own loop; credits are shown to the... |
 | CY4 | B | designed | Credits are not a training signal for the research cohorts, and the claim that credits with consequences impro... |
 | CY5 | A | open | Direct enrolment into the city has no settled way to bring starter credits and the ledger; key-only entry gets... |
-| CY6 | A | open | The credit reward can be farmed or colluded on (easy jobs, agents rating each other, a Sybil cohort) |
+| CY6 | A | closed | The credit reward can be farmed or colluded on (easy jobs, agents rating each other, a Sybil cohort) |
 | CY7 | B | open | A house, clothes, food and a vehicle are city structures with no link to compute or storage (owner); what soci... |
 | CY8 | A | open | Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never h... |
 | CY9 | A | designed | Plots and news feeds have no storage, rent, moderation or injection defence; an agent reading another's plot i... |

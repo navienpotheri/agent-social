@@ -543,6 +543,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-566 | [holder, citizen] A holder whose name was taken down can appeal to a panel, get the name back and the price back less the burn; a suspension can be extended by a Court past the Registrar's 7 days; and the Registry does nothing a Court has not ordered | packages/asp-log/test/registry-court-orders.test.ts | no | DK120 | Court-ordered takedown and retirement, the bad-faith strike (DK389) | P1 |
 | UC-567 | [agent, sponsor] An agent buys from an institution with its own credits, the price splits to the institution, the Treasury and the burn, and the Mandate decides which institutions it may use | packages/asp-log/test/agent-purchase.test.ts | no | DK3 | Standing orders, institution-signed purchases and automatic refunds (DK390) | P1 |
 | UC-568 | [citizen, operator] Agents cannot farm the credit reward by hiring each other in pairs, rings or within one sponsor, none of it moves a tier, and the patterns are reported | packages/asp-log/test/collusion.test.ts | no | DK6 | An automatic feed to the Clinic and the Courts (DK391) | P1 |
+| UC-569 | [operator] Farming the credit reward by pairs, rings, one's own agents, one principal or many passports gains almost no standing compared with honest work, and the log shows it | packages/asp-log/test/reward-farming.test.ts | no | CY6 | none | P1 |
 
 ## Journey index
 
