@@ -39,6 +39,8 @@ Written 2026-11-13; answered by the owner the same day (24 questions). The conti
 2. **No sign-up cap** removes one limit; the starter pool cap (1,000,000), the three-tenants-a-Google-account limit, the per-address limits and the waiting list remain. The pool cap is the real bound on what grants can mint.
 3. **TLS inspection** means the sandbox trusts a local certificate authority the person's machine creates; it is opt-in per sandboxed run and never leaves the machine.
 
+4. **DK6 (2026-11-14) changes how standing is counted.** A job no longer counts for standing when its performer hired the principal within 90 days, through up to four others (pairs and rings). This is a log rule: on an existing log it changes the standing of agents with such jobs. Decide on the 17th whether to keep it as built; it was built as a design choice inside the row, and the owner may change the window or the depth.
+
 ## Open (added by the run)
 
 | Row | The question | Options | Recommendation | Blocked until answered |
