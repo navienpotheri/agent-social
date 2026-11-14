@@ -97,7 +97,7 @@ export function auditLedger(rows: LedgerRows, platformDid: string = PLATFORM_DID
     verdict: problems.length ? "mismatch" : "balanced", problems,
     notYet: [
       "minted credits by reason for the old unsigned mints (only signed mint records carry a reason; see mintedUnsigned)",
-      "job tax, standing orders and credit lines (CR-15: not built); budget payments, allowances and prizes (S190) move balances, so the books balance, but the audit does not yet list them by flow",
+      "job tax, standing orders and credit lines (CR-15: not built); budget payments, allowances and prizes (S190) move balances and are listed by flow under --by-flow",
     ],
   };
 }
@@ -114,6 +114,8 @@ export interface CreditFlows {
   mintedByReason: Record<string, number>;
   /** Purchases in the period with the split applied: provider is what the institution accounts received, treasury the Treasury part, burned the Burn part. */
   purchases: { count: number; amount: number; provider: number; treasury: number; burned: number; byService: Record<string, { count: number; amount: number }> };
+  /** The closed-loop flows of the Treasury (S190, DK98): budgets set, payments out of them, newcomer allowances and prizes, counted from the signed records in the period. */
+  treasury: { budgets: { count: number; amount: number }; payments: { count: number; amount: number }; allowances: { count: number; amount: number }; prizes: { count: number; amount: number } };
   /** Refunds paid back by receipts in the period. */
   refunds: { count: number; amount: number };
   /** Not available from the log today, with the reason. */
@@ -127,6 +129,7 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
   const mintedByReason: Record<string, number> = {};
   const purchases: CreditFlows["purchases"] = { count: 0, amount: 0, provider: 0, treasury: 0, burned: 0, byService: {} };
   const refunds = { count: 0, amount: 0 };
+  const treasury: CreditFlows["treasury"] = { budgets: { count: 0, amount: 0 }, payments: { count: 0, amount: 0 }, allowances: { count: 0, amount: 0 }, prizes: { count: 0, amount: 0 } };
   const head = await store.logHead();
   for (let after = 0; ; ) {
     const page = await store.since(after, 500);
@@ -148,6 +151,10 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
         const by = (purchases.byService[p.service] ??= { count: 0, amount: 0 }); by.count++; by.amount += p.amount.value;
         continue;
       }
+      {
+        const t = ({ "asp.budget/v0.2": "budgets", "asp.treasury_payment/v0.2": "payments", "asp.allowance/v0.2": "allowances", "asp.prize/v0.2": "prizes" } as Record<string, keyof CreditFlows["treasury"]>)[r.record.type];
+        if (t) { treasury[t].count++; treasury[t].amount += (r.record.body as { amount: { value: number } }).amount.value; continue; }
+      }
       if (r.record.type === "asp.receipt/v0.2") {
         const rc = r.record.body as { refund_amount?: { value: number } };
         if (rc.refund_amount) { refunds.count++; refunds.amount += rc.refund_amount.value; }
@@ -161,10 +168,10 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
     }
   }
   return {
-    since: since ?? null, head, settlements: s, minted: (await store.ledgerRows()).mints.reduce((n, m) => n + m.totalMinted, 0), mintedByReason, purchases, refunds,
+    since: since ?? null, head, settlements: s, minted: (await store.ledgerRows()).mints.reduce((n, m) => n + m.totalMinted, 0), mintedByReason, purchases, treasury, refunds,
     unavailable: [
       "faucets by reason for the old unsigned mints (they carry no reason; signed mints do, see mintedByReason)",
-      "job tax, standing orders and auto-refunds (not built: CR-15, CR-23); budget payments, allowances and prizes (S190) are not yet listed by flow",
+      "job tax, standing orders and auto-refunds (not built: CR-15, CR-23)",
       "credit lines, premiums, claims and reserves of the Bank and the Insurer (not built)",
       "panel fees paid to jurors (derived inside a ruling settlement, not stored)",
     ],

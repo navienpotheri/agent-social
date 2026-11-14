@@ -2321,6 +2321,22 @@ export class EventLog {
     return buildPage(did, { records, seq: head.seq, at: when, reputation: await this.reputationOf(did) ? { ...(await this.reputationOf(did))! } : undefined });
   }
 
+  /** The Treasury's closed-loop records (DK98): budgets with what has been paid from each, the payments, the newcomer allowances and the prizes, each with its record id and time. Public, computed from the log. */
+  async treasuryLedger(): Promise<{
+    budgets: { id: string; institution: string; period: string; amount: number; purpose: string; paid: number }[];
+    payments: { id: string; budget: string; to: string; amount: number; at: string }[];
+    allowances: { id: string; agent: string; amount: number; trigger: string; at: string }[];
+    prizes: { id: string; agent: string; arena: string; season: string; rank: number; amount: number; at: string }[];
+  }> {
+    const recs = await this.recordsOfTypes(["budget", "treasury_payment", "allowance", "prize"]);
+    const budgets = recs.filter((r) => r.type === "asp.budget/v0.2").map((r) => { const b = r.body as { institution: string; period: string; amount: { value: number }; purpose: string }; return { id: r.id, institution: b.institution, period: b.period, amount: b.amount.value, purpose: b.purpose, paid: 0 }; });
+    const payments = recs.filter((r) => r.type === "asp.treasury_payment/v0.2").map((r) => { const b = r.body as { budget: string; to: string; amount: { value: number } }; return { id: r.id, budget: b.budget, to: b.to, amount: b.amount.value, at: r.issued_at }; });
+    for (const p of payments) { const b = budgets.find((x) => x.id === p.budget); if (b) b.paid += p.amount; }
+    const allowances = recs.filter((r) => r.type === "asp.allowance/v0.2").map((r) => { const b = r.body as { amount: { value: number }; trigger: string }; return { id: r.id, agent: r.issuer, amount: b.amount.value, trigger: b.trigger, at: r.issued_at }; });
+    const prizes = recs.filter((r) => r.type === "asp.prize/v0.2").map((r) => { const b = r.body as { agent: string; arena: string; season: string; rank: number; amount: { value: number } }; return { id: r.id, agent: b.agent, arena: b.arena, season: b.season, rank: b.rank, amount: b.amount.value, at: r.issued_at }; });
+    return { budgets, payments, allowances, prizes };
+  }
+
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */
   async abuseReportsAbout(did: string): Promise<{ id: string; reporter: string; kind: string; at: string; about?: string }[]> {
     const out: { id: string; reporter: string; kind: string; at: string; about?: string }[] = [];

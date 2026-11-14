@@ -1008,6 +1008,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "bank") return await bankCommand(home, sub, v, io);
     if (cmd === "house") return await houseCommand(home, sub, v, io);
     if (cmd === "treasury") return await treasuryCommand(home, sub, v, io);
+    if (cmd === "prizes") return await prizesCommand(home, v, io);
     if (cmd === "abuse") return await abuseCommand(home, sub, rest[0], v, io);
     if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
@@ -4297,6 +4298,8 @@ async function creditsAudit(home: string, v: Values, io: Io): Promise<number> {
     const pu = flows.purchases;
     io.out(`  ${n(pu.count)} purchase(s) for ${n(pu.amount)} credits: to institutions ${n(pu.provider)}, to the Treasury ${n(pu.treasury)}, burned ${n(pu.burned)}; ${n(flows.refunds.count)} refund(s) of ${n(flows.refunds.amount)}`);
     io.out(`  ${n(s.count)} settlement(s) ${Object.entries(s.byBasis).map(([k, c]) => `${k} ${c}`).join(", ") || "none"}: released to performers ${n(s.escrowReleased)}, fees to the Treasury ${n(s.fees)}, bonds returned ${n(s.bondReturned)}, bonds slashed ${n(s.bondSlashed)}`);
+    const tr = flows.treasury;
+    io.out(`  Treasury closed loop: ${n(tr.budgets.count)} budget(s) for ${n(tr.budgets.amount)}, ${n(tr.payments.count)} payment(s) out of them for ${n(tr.payments.amount)}, ${n(tr.allowances.count)} newcomer allowance(s) for ${n(tr.allowances.amount)}, ${n(tr.prizes.count)} prize(s) for ${n(tr.prizes.amount)}`);
     io.out("  not available from the log yet:");
     for (const u of flows.unavailable) io.out(`    - ${u}`);
   }
@@ -4379,11 +4382,20 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
   }
 }
 
+/** asp prizes [--agent <did>]: the prizes paid from the institutions' prize pools, from the signed `prize` records (register row DK98). */
+async function prizesCommand(home: string, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const all = (await local.log.treasuryLedger()).prizes.filter((p) => !v.agent || p.agent === v.agent);
+  io.out(`${all.length} prize(s)${v.agent ? ` for ${v.agent}` : ""}, ${all.reduce((n, p) => n + p.amount, 0)} credits in all`);
+  for (const p of all) io.out(`  ${p.at}  ${p.arena} ${p.season}  rank ${p.rank}  ${p.amount} credits  ${p.agent}  ${p.id}`);
+  return 0;
+}
+
 async function treasuryCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount } });
+    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount, budget: v.budget, memo: v.memo, claim: v.yes, agent: v.agent } });
   } catch (e) {
     if (e instanceof TreasuryUsage) throw new UsageError(e.message);
     throw e;

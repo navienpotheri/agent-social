@@ -763,3 +763,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK292 | A | closed | The Treasury needs the owner's co-signature on the first budgets and the newcomer allowance, and the...|
 | DK293 | A | open | The hosted beta service has no setup guide for a single rented server with Postgres, the operator ke...|
 | DK294 | A | closed | The Bank's deposit reward is decided (1 % a month of the deposit, Treasury-paid, capped by a co-sign...|
+| DK380 | A | open | The newcomer allowance is offered inside asp join after a first course and shown to the agent in its own loop. |
