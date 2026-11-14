@@ -3,7 +3,7 @@
  * what a holder owes. The Bank's key is the operator's during the beta; the borrower and the guarantor countersign the line with their own keys. Credits are accounting entries, not money.
  */
 import { cosign, createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
-import { BANK_DID } from "@agent-social/asp-log";
+import { BANK_DID, TREASURY_DID, rewardFor } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
 
 export class BankUsage extends Error {}
@@ -13,7 +13,7 @@ export interface BankOpts {
   io: { out: (l: string) => void; err: (l: string) => void };
   now: () => string;
   signerFor: (did: string) => Signer;
-  flags: { contract?: string; agent?: string; amount?: string; guarantor?: string; line?: string; holder?: string; by?: string; days?: string };
+  flags: { deposit?: string; budget?: string; contract?: string; agent?: string; amount?: string; guarantor?: string; line?: string; holder?: string; by?: string; days?: string };
 }
 
 const DAY = 86_400_000;
@@ -72,6 +72,36 @@ export async function bankCmd(sub: string | undefined, o: BankOpts): Promise<num
     o.io.out(`statement ${res.id}: ${f.holder} holds ${balance} credits and owes the Bank ${owed} (log seq ${res.seq})`);
     return 0;
   }
+  if (sub === "deposit") {
+    // Lock credits with the Bank for 30 days (DK294): the holder signs, the Bank countersigns; the credits sit in the deposit account and return whole at term.
+    if (!f.holder || !f.amount) throw new BankUsage("asp bank deposit --holder <did> --amount <credits>");
+    const amount = Math.trunc(Number(f.amount));
+    if (!(amount > 0)) throw new BankUsage("--amount is a whole number of credits above 0");
+    const rec = cosign(createRecord({ type: "deposit_act" as never, issuer: f.holder, subject: f.holder, prev: null, body: { act: "deposit", holder: f.holder, amount: { value: amount, unit: "credit" } }, issued_at: o.now() }, o.signerFor(f.holder)), o.signerFor(BANK_DID));
+    const res = await o.log.append(rec);
+    o.io.out(`deposit ${res.id}: ${amount} credits locked with the Bank for 30 days (log seq ${res.seq}); a reward of 1 % a completed month is paid by the Treasury within its co-signed budget, at most 50 credits a month to you; withdraw from day 30: asp bank withdraw --deposit ${res.id}`);
+    return 0;
+  }
+  if (sub === "withdraw") {
+    if (!f.deposit) throw new BankUsage("asp bank withdraw --deposit <id>");
+    const d = await o.log.log.get(f.deposit);
+    if (!d || d.record.type !== "asp.deposit_act/v0.2") throw new Error(`${f.deposit} is not a deposit in the log`);
+    const holder = (d.record.body as { holder: string }).holder;
+    const res = await o.log.append(createRecord({ type: "deposit_act" as never, issuer: holder, subject: holder, prev: null, body: { act: "withdraw", deposit: f.deposit }, issued_at: o.now() }, o.signerFor(holder)));
+    o.io.out(`withdrawn ${res.id}: the deposit returned whole (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "reward") {
+    // The Treasury pays one completed month's reward on a deposit, from the Treasury's co-signed deposit-reward line.
+    if (!f.deposit || !f.budget) throw new BankUsage("asp bank reward --deposit <id> --budget <id> [--by did:web:asp.local:treasury]");
+    const d = await o.log.log.get(f.deposit);
+    if (!d || d.record.type !== "asp.deposit_act/v0.2") throw new Error(`${f.deposit} is not a deposit in the log`);
+    const b = d.record.body as { holder: string; amount: { value: number } };
+    const by = f.by ?? TREASURY_DID;
+    const res = await o.log.append(createRecord({ type: "deposit_act" as never, issuer: by, subject: b.holder, prev: null, body: { act: "reward", deposit: f.deposit, budget: f.budget, amount: { value: rewardFor(b.amount.value), unit: "credit" } }, issued_at: o.now() }, o.signerFor(by)));
+    o.io.out(`reward ${res.id}: ${rewardFor(b.amount.value)} credits from the Treasury to ${b.holder} (log seq ${res.seq})`);
+    return 0;
+  }
   if (sub === "show") {
     const all = await bankRecords(o.log);
     const lines = all.filter((r) => r.type === "asp.credit_line/v0.2" && (!f.agent || r.body.borrower === f.agent));
@@ -83,5 +113,5 @@ export async function bankCmd(sub: string | undefined, o: BankOpts): Promise<num
     if (!lines.length) o.io.out("no credit line");
     return 0;
   }
-  throw new BankUsage("asp bank line --contract <id> --agent <did> --guarantor <sponsor did> | default --line <id> --amount <n> | statement --holder <did> | show [--agent <did>]");
+  throw new BankUsage("asp bank line --contract <id> --agent <did> --guarantor <sponsor did> | default --line <id> --amount <n> | statement --holder <did> | deposit --holder <did> --amount <n> | withdraw --deposit <id> | reward --deposit <id> --budget <id> | show [--agent <did>]");
 }

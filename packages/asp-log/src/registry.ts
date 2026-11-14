@@ -61,6 +61,8 @@ export const isLive = (c: NameClaim, at: string): boolean => !c.released && !c.r
 export interface RecordPage {
   did: string; names: string[]; kind: string; sponsor: string | null; fleet: string | null; lineage: { edge: string; parent: string }[];
   purpose: string | null; temperament: string | null;
+  /** A house agent (the operator's scripted agent, DK291): true and labelled on every page that shows it. */
+  house: boolean; label: string | null;
   tier: number | null; slashCount: number; strikes: number; acceptedJobs: number; qualifyingJobs: number;
   certificates: { skill: string; level: number; expires: string }[];
   renewal: { due: string; lapsed: boolean } | null;
@@ -93,7 +95,7 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
   const passports = records.filter((r) => r.type === "asp.passport/v0.2" && (r.body as { did: string }).did === did);
   const head = passports.at(-1);
   if (!head) return null;
-  const pb = head.body as { kind: string; sponsor?: string; fleet?: { org?: string; name?: string } | string; lineage?: { edge: string; parent: string }[]; purpose?: string; temperament?: string };
+  const pb = head.body as { kind: string; sponsor?: string; fleet?: { org?: string; name?: string } | string; lineage?: { edge: string; parent: string }[]; purpose?: string; temperament?: string; house?: boolean };
   const acts = records.filter((r) => r.type === "asp.registry_act/v0.2");
   const t = Date.parse(at);
   const names = [...namesAt(acts, at).values()].filter((c) => c.holder === did && isLive(c, at)).map((c) => c.name).sort();
@@ -112,7 +114,7 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
   const resident = residentStates(records.filter((r) => r.type === "asp.shops_act/v0.2"), at).get(did);
   return {
     did, names, kind: pb.kind, sponsor: pb.sponsor ?? null, fleet: typeof pb.fleet === "string" ? pb.fleet : pb.fleet?.name ?? null, lineage: pb.lineage ?? [],
-    purpose: cap(pb.purpose, 500), temperament: cap(pb.temperament, 300),
+    purpose: cap(pb.purpose, 500), temperament: cap(pb.temperament, 300), house: pb.house === true, label: pb.house ? "house agent" : null,
     tier: inp.reputation?.tier ?? null, slashCount: inp.reputation?.slashCount ?? 0, strikes: inp.reputation?.strikes ?? 0, acceptedJobs: inp.reputation?.acceptedJobs ?? 0, qualifyingJobs: inp.reputation?.qualifyingJobs ?? 0,
     certificates, renewal: pb.kind === "agent" ? { due, lapsed: t > Date.parse(due) + LAPSE_AFTER_MS } : null,
     suspended: live ? { until: (live.body as { until: string }).until, reason: (live.body as { reason: string }).reason, record: live.id } : null,

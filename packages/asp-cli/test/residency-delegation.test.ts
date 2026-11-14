@@ -42,13 +42,13 @@ test("the host makes its own key, the sponsor delegates with the root key, the h
     // The host makes its key; only the public half goes to the sponsor's machine.
     const node = newNodeKey(AGENT, "city-node-1");
     tick();
-    const wrongHost = await asp(f, ["residency", "delegate", "--agent", AGENT, "--node", node.kid, "--public-key", node.publicKey, "--mandate", mandateId, "--host", "did:web:evil.example"]);
+    const wrongHost = await asp(f, ["residency", "delegate", "--agent", AGENT, "--node", node.kid, `--public-key=${node.publicKey}`, "--mandate", mandateId, "--host", "did:web:evil.example"]);
     assert.notEqual(wrongHost.code, 0);
     assert.match(wrongHost.err, /city host/);
-    const tooLong = await asp(f, ["residency", "delegate", "--agent", AGENT, "--node", node.kid, "--public-key", node.publicKey, "--mandate", mandateId, "--hours", "48"]);
+    const tooLong = await asp(f, ["residency", "delegate", "--agent", AGENT, "--node", node.kid, `--public-key=${node.publicKey}`, "--mandate", mandateId, "--hours", "48"]);
     assert.notEqual(tooLong.code, 0);
     assert.match(tooLong.err, /at most 24/);
-    const granted = await ok(f, ["residency", "delegate", "--agent", AGENT, "--node", node.kid, "--public-key", node.publicKey, "--mandate", mandateId, "--hours", "12", "--host", HOST_DID]);
+    const granted = await ok(f, ["residency", "delegate", "--agent", AGENT, "--node", node.kid, `--public-key=${node.publicKey}`, "--mandate", mandateId, "--hours", "12", "--host", HOST_DID]);
     assert.match(granted.out, /the root key stays here/);
 
     // The hosted agent acts under the node key.

@@ -90,5 +90,8 @@ test("`asp serve` publishes /society/map/feed without a sign-in, from the log it
     assert.equal(j.feed.economy.verdict, "balanced");
     assert.equal(typeof j.feed.health.alarms.length, "number");
     assert.equal((await fetch(`${url}/society/map/day/2026-11-12`)).status, 200);
+    const page = await fetch(`${url}/society/map`);
+    assert.equal(page.status, 200, "the page is served by the service with no sign-in");
+    assert.match(await page.text(), /The society: a live city map/);
   } finally { server.kill(); }
 });

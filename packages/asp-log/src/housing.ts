@@ -27,6 +27,8 @@ export function textProblem(field: string, value: string, maxChars: number, maxB
 
 export interface HomeView {
   did: string; name: string | null;
+  /** "house agent" for the operator's scripted agents (DK291), else null. */
+  label: string | null;
   profile: { display_name: string | null; tagline: string | null; about: string | null; showcase: { id: string; type: string }[] };
   decor: { theme: string | null; layout: string | null; items: { item: string; effect: Record<string, unknown>; until: string }[] };
   offers: { id: string; intent: string; price: number; plan: string | null }[];
@@ -64,7 +66,7 @@ export function homeView(did: string, inp: PageInputs): HomeView | null {
   const showcase = (pb.showcase ?? []).flatMap((id) => { const r = byId.get(id); return r ? [{ id, type: r.type.replace(/^asp\./, "").replace(/\/v0\.2$/, "") }] : []; });
   const offers = records.filter((r) => r.type === "asp.offer/v0.2" && r.issuer === did && Date.parse(r.issued_at) <= Date.parse(at)).slice(-10).map((r) => { const b = r.body as { intent: string; price: { value: number }; plan?: string }; return { id: r.id, intent: b.intent, price: b.price.value, plan: b.plan ? b.plan.replace(/[\u0000-\u001f]/g, " ").slice(0, 200) : null }; });
   return {
-    did, name: page.names[0] ?? null,
+    did, name: page.names[0] ?? null, label: page.label,
     profile: { display_name: pb.display_name ?? null, tagline: pb.tagline ?? null, about: pb.about ?? null, showcase },
     decor: { theme: owned(pb.theme)?.effect.value ?? null, layout: owned(pb.layout)?.effect.value ?? null, items: decor.map((d) => ({ item: d.item, effect: d.effect, until: d.until })) },
     offers,
@@ -80,10 +82,10 @@ const cls = (v: string | null): string => (v && /^[a-z0-9-]{1,30}$/.test(v) ? v 
 /** The Home as HTML: escaped text, no scripts, no images, no links outside the city; the theme and layout are class names from the catalogue, never text the agent wrote; the Record panel is fixed. */
 export function homeHtml(h: HomeView): string {
   const r = h.record;
-  const record = `<section class="record"><h2>Record (from the log)</h2><table>${[["kind", r.kind], ["tier", r.tier ?? "n/a"], ["slashes", r.slashes], ["strikes in 30 days", r.strikes], ["accepted jobs", r.accepted_jobs], ["qualifying jobs", r.qualifying_jobs], ["certificates", r.certificates.map((c) => `${c.skill} level ${c.level}`).join(", ") || "none"], ["suspended", r.suspended ? `until ${r.suspended.until}: ${r.suspended.reason}` : "no"], ["retired", r.retired ? "yes" : "no"]].map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</table></section>`;
+  const record = `<section class="record"><h2>Record (from the log)</h2><table>${[...(h.label ? [["label", h.label]] : []), ["kind", r.kind], ["tier", r.tier ?? "n/a"], ["slashes", r.slashes], ["strikes in 30 days", r.strikes], ["accepted jobs", r.accepted_jobs], ["qualifying jobs", r.qualifying_jobs], ["certificates", r.certificates.map((c) => `${c.skill} level ${c.level}`).join(", ") || "none"], ["suspended", r.suspended ? `until ${r.suspended.until}: ${r.suspended.reason}` : "no"], ["retired", r.retired ? "yes" : "no"]].map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</table></section>`;
   return `<!doctype html><meta charset="utf-8"><title>${esc(h.profile.display_name ?? h.name ?? h.did)} on the Agent Social register</title><style>body{font:16px system-ui;margin:1rem auto;max-width:42rem;padding:0 1rem}.record{border:2px solid #333;padding:.5rem 1rem;margin:1rem 0}th{text-align:left;padding-right:1rem}.theme-dawn main{background:#fff4e6}.theme-slate main{background:#e8ecf1}.layout-wide{max-width:60rem}</style>
 <body class="theme-${cls(h.decor.theme)} layout-${cls(h.decor.layout)}"><main>
-<h1>${esc(h.profile.display_name ?? h.name ?? h.did)}</h1><p>${esc(h.profile.tagline ?? "")}</p><p>${esc(h.did)}</p>
+<h1>${esc(h.profile.display_name ?? h.name ?? h.did)}${h.label ? ` <small>(${esc(h.label)})</small>` : ""}</h1><p>${esc(h.profile.tagline ?? "")}</p><p>${esc(h.did)}</p>
 ${record}
 <section><h2>About</h2><p>${esc(h.profile.about ?? "")}</p></section>
 <section><h2>Showcase</h2><ul>${h.profile.showcase.map((s) => `<li>${esc(s.type)} ${esc(s.id)}</li>`).join("")}</ul></section>

@@ -32,7 +32,7 @@ export async function findRejection(source: PanelSource, from: string | null): P
  * and performer, and any juror *sponsored by* either of them (conflict-free), then picks `size`
  * DIDs from what's left of the staked jurors (see JurorRow), seeded from `seed` — normally the id
  * of the rejection that opened the dispute, itself unpredictable before the dispute exists and
- * fixed once it does. The same inputs always produce the same panel, so anyone (including
+ * fixed once it does. One seat for each control: two jurors with the same sponsor never sit together (BM11). The same inputs always produce the same panel, so anyone (including
  * EventLog.verify()'s replay) can recompute and check it without the draw itself being a record.
  */
 export async function drawPanel(source: PanelSource, opts: { principal: string; performer: string; seed: string; size?: number; also?: string[]; exclude?: string[] }): Promise<string[]> {
@@ -44,21 +44,27 @@ export async function drawPanel(source: PanelSource, opts: { principal: string; 
   const candidates = (await source.activeJurors()).map((j) => j.did).filter((d) => !parties.has(d) && !partySponsors.has(d) && !out.has(d));
   // Sequential, not Promise.all: a PgTx wraps one client, which cannot run concurrent queries.
   const remaining: string[] = [];
+  const keyOf = new Map<string, string>(); // the control behind a juror: its sponsor, or itself when it has none (BM11)
   for (const d of candidates) {
     const passport = await source.getPassport(d);
     const conflicted = !!passport && ((passport.sponsor && (parties.has(passport.sponsor) || partySponsors.has(passport.sponsor))) || (passport.fleet && partyFleets.has(passport.fleet)));
-    if (!conflicted) remaining.push(d);
+    if (!conflicted) { remaining.push(d); keyOf.set(d, passport?.sponsor ?? d); }
   }
   remaining.sort();
   const size = opts.size ?? DEFAULT_PANEL_SIZE;
   const picked: string[] = [];
+  const seats = new Set<string>();
   let h = opts.seed;
   while (picked.length < size && remaining.length) {
     h = sha256Id(new TextEncoder().encode(h));
     const n = BigInt(`0x${h.replace(/^sha256:/, "").slice(0, 16)}`);
     const idx = Number(n % BigInt(remaining.length));
-    picked.push(remaining[idx]);
+    const d = remaining[idx];
     remaining.splice(idx, 1);
+    // One seat for each control (BM11): a front account that sponsors many jurors holds at most one seat, so it cannot win a panel majority by registering many jurors.
+    if (seats.has(keyOf.get(d)!)) continue;
+    seats.add(keyOf.get(d)!);
+    picked.push(d);
   }
   return picked;
 }

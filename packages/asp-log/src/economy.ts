@@ -29,8 +29,10 @@ export const isQuarantineRisky = (scope: string): boolean => ["shell.exec", "she
 export const CLINIC_DID = institutionDid("clinic");
 
 export const STARTER_POOL_DID = "did:web:asp.local:starter-pool";
+/** Where deposited credits sit while locked with the Bank (bank-insurer.md; DK294): an account of the society that no one spends from; only a withdrawal returns them. */
+export const BANK_DEPOSIT_DID = "did:web:asp.local:bank-deposits";
 
-export const isReservedAccount = (did: string): boolean => did === TREASURY_DID || did === BURN_DID || did === PLATFORM_DID || did === STARTER_POOL_DID || INSTITUTION_DIDS.includes(did);
+export const isReservedAccount = (did: string): boolean => did === TREASURY_DID || did === BURN_DID || did === PLATFORM_DID || did === STARTER_POOL_DID || did === BANK_DEPOSIT_DID || INSTITUTION_DIDS.includes(did);
 
 export type ItemClass = "standard" | "essential" | "remedial";
 

@@ -10,7 +10,7 @@
  *
  * Read-only. It changes no record and no signed format. Credits are accounting entries, not money.
  */
-import { BURN_DID, INSTITUTION_DIDS, isReservedAccount, PLATFORM_DID, STARTER_POOL_DID, TREASURY_DID, splitParts, type Split } from "./economy.ts";
+import { BANK_DEPOSIT_DID, BURN_DID, INSTITUTION_DIDS, isReservedAccount, PLATFORM_DID, STARTER_POOL_DID, TREASURY_DID, splitParts, type Split } from "./economy.ts";
 import type { AccountRow, EscrowRow, JurorRow, LogHead, MintRow, ReportRow, Store } from "./store.ts";
 
 /** Everything the audit reads, taken from one consistent view of the store. */
@@ -71,7 +71,7 @@ export function auditLedger(rows: LedgerRows, platformDid: string = PLATFORM_DID
   const treasury = bal(TREASURY_DID);
   const burned = bal(BURN_DID);
   const institutions = INSTITUTION_DIDS.map((did) => ({ did, balance: bal(did) })).filter((i) => i.balance !== 0 || rows.accounts.some((a) => a.did === i.did));
-  const reserved = new Set<string>([platformDid, TREASURY_DID, BURN_DID, ...INSTITUTION_DIDS]);
+  const reserved = new Set<string>([platformDid, TREASURY_DID, BURN_DID, BANK_DEPOSIT_DID, ...INSTITUTION_DIDS]);
   const circulating = sum(rows.accounts.filter((a) => !reserved.has(a.did)).map((a) => a.balance));
   const open = rows.escrows.filter((e) => !e.settled);
   const locked = {

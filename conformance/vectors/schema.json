@@ -669,6 +669,48 @@
       "valid": false
     },
     {
+      "name": "valid_passport_house",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:house-1",
+        "kind": "agent",
+        "sponsor": "did:web:asp.local:operator",
+        "tier": 1,
+        "shape": {
+          "keeps_learning": false
+        },
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:house-1#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ],
+        "house": true
+      },
+      "valid": true
+    },
+    {
+      "name": "passport_house_false",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:house-1",
+        "kind": "agent",
+        "sponsor": "did:web:asp.local:operator",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:house-1#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ],
+        "house": false
+      },
+      "valid": false
+    },
+    {
       "name": "valid_passport_fork",
       "schema": "passport",
       "instance": {
@@ -8148,6 +8190,83 @@
         "reason": "the agent behaves differently on hidden probes than in announced tests",
         "previous": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         "way_back": "5 clean hidden probes in a row"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_deposit",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "deposit",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "amount": {
+          "value": 200,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_deposit_withdraw",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "withdraw",
+        "deposit": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_deposit_reward",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "reward",
+        "deposit": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "budget": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "amount": {
+          "value": 2,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "deposit_unknown_act",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "borrow",
+        "deposit": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": false
+    },
+    {
+      "name": "deposit_no_amount",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "deposit",
+        "holder": "did:web:example.com:agents:alice-coder"
+      },
+      "valid": false
+    },
+    {
+      "name": "deposit_reward_no_budget",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "reward",
+        "deposit": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "amount": {
+          "value": 2,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "deposit_withdraw_extra_field",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "withdraw",
+        "deposit": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "interest": 5
       },
       "valid": false
     },

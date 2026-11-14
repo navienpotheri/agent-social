@@ -1,4 +1,5 @@
 import { checkMandateTelemetry } from "./telemetry-rules.ts";
+import { projectDepositAct } from "./deposits.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
@@ -300,6 +301,7 @@ export class EventLog {
     if (type === "recall") await projectRecall(tx, verified);
     if (type === "handback") await projectHandback(tx, verified, { reputation: (t, did) => this.reputation(t, did), tierSpendLimit: () => 0 });
     if (type === "residency_status") await projectResidencyStatus(tx, verified);
+    if (type === "deposit_act") await projectDepositAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n), drawBudget: (t, id, n, at) => this.drawBudget(t, id, n, at), cosignedBy: (rec, d) => this.cosignedBy(rec, d) });
     if (type === "probe_result") await projectProbeResult(tx, verified);
     if (type === "ladder_step") await projectLadderStep(tx, verified);
     if (type === "subsidy_budget") await projectSubsidyBudget(tx, verified);
@@ -410,7 +412,7 @@ export class EventLog {
 
   /** Registry rules: one passport chain per DID, issued by the DID itself or its sponsor. */
   private async projectPassport(tx: LogTx, r: AspRecord): Promise<void> {
-    const body = r.body as { did: string; kind: string; sponsor?: string; fleet?: string; tier?: number; lineage?: { edge: string; parent: string }[]; keys: { id: string; public_key: string }[] };
+    const body = r.body as { did: string; kind: string; sponsor?: string; fleet?: string; tier?: number; lineage?: { edge: string; parent: string }[]; keys: { id: string; public_key: string }[]; house?: true };
     const current = await tx.getPassport(body.did);
     if (!current) await tx.putMarker(`passport_born:${body.did}`, r.issued_at);
     if ((current?.head ?? null) !== r.prev) {
@@ -422,6 +424,11 @@ export class EventLog {
     if (r.issuer !== body.did && r.issuer !== sponsor) {
       throw new AspError("WRONG_ISSUER", `${r.issuer} is neither ${body.did} nor its sponsor`);
     }
+    // A house agent (DK291, S371): only an agent the operator itself sponsors carries the label, and the label is permanent.
+    if (body.house) {
+      if (body.kind !== "agent" || sponsor !== this.operator) throw rule("house_not_operator_run", `only an agent sponsored by the operator (${this.operator}) is a house agent`);
+      await tx.putMarker(`house:${body.did}`, "1");
+    } else if (await tx.getMarker(`house:${body.did}`)) throw rule("house_label_permanent", `${body.did} is a house agent: the label is never removed`);
     // A passport that names a sponsor needs that sponsor's consent (S87): the sponsor issues it or countersigns it. The sponsor is liable for the agent, so an
     // agent cannot pick one on its own; and changing sponsors needs the old sponsor's consent as well as the new one's.
     if (body.sponsor && (!current || current.sponsor !== body.sponsor)) {
@@ -1531,11 +1538,13 @@ export class EventLog {
     if (b.amount.value <= 0) throw rule("amount_not_positive", "a budget must be for at least 1 credit");
     const allowanceLine = b.institution === TREASURY_DID;
     if (!allowanceLine && !INSTITUTION_DIDS.includes(b.institution)) throw rule("budget_unknown_institution", `${b.institution} is neither a registered institution account nor the Treasury's own allowance line`);
-    if (allowanceLine !== (b.purpose === "allowance")) throw rule("budget_bad_line", "the Treasury's own line is the newcomer allowance (purpose allowance), and the allowance line is the only budget the Treasury holds for itself");
+    // The Treasury's own lines are the newcomer allowance and, since DK294, the deposit reward: nothing else is a budget the Treasury holds for itself.
+    if (allowanceLine !== (b.purpose === "allowance" || b.purpose === "deposit_reward")) throw rule("budget_bad_line", "the Treasury's own lines are the newcomer allowance (purpose allowance) and the Bank deposit reward (purpose deposit_reward), and an institution's budget is neither");
+    const line = allowanceLine && b.purpose !== "allowance" ? `${b.institution}|${b.purpose}` : b.institution; // one budget per line per month
     if (b.period < r.issued_at.slice(0, 7)) throw rule("budget_period_past", `a budget for ${b.period} cannot be set in ${r.issued_at.slice(0, 7)}`);
-    const key = `budget:${b.institution}|${b.period}`;
+    const key = `budget:${line}|${b.period}`;
     if (await tx.getMarker(key)) throw rule("budget_already_set", `${b.institution} already has a budget for ${b.period}: one budget per institution per month`);
-    const lastKey = `budget_last:${b.institution}`;
+    const lastKey = `budget_last:${line}`;
     const last = await tx.getMarker(lastKey);
     if (!this.cosignedBy(r, this.owner)) {
       if (last === undefined) throw rule("budget_needs_cosign", `the first budget of ${b.institution} needs the owner's co-signature`);
@@ -1609,6 +1618,7 @@ export class EventLog {
   private async projectPrize(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { pool: string; arena: string; season: string; agent: string; rank: number; run_log_hash: string; amount: { value: number } };
     if (r.prev !== null) throw rule("prize_not_chained", "a prize starts its own chain (prev is null)");
+    if (await tx.getMarker(`house:${b.agent}`)) throw rule("house_agent_no_prize", `${b.agent} is a house agent: prizes are for real agents`);
     if (r.issuer !== REGISTRAR_DID) throw rule("prize_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only a result the Registrar signs pays a prize`);
     if (b.amount.value <= 0) throw rule("amount_not_positive", "a prize must be for at least 1 credit");
     if (!INSTITUTION_DIDS.includes(b.pool)) throw rule("prize_bad_pool", `${b.pool} is not an institution's prize pool`);
@@ -1839,6 +1849,7 @@ export class EventLog {
   private async projectArenaEntry(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { arena: string; season: string; fee_purchase: string };
     if (r.prev !== null) throw rule("arena_entry_not_chained", "an arena entry starts its own chain (prev is null)");
+    if (await tx.getMarker(`house:${r.issuer}`)) throw rule("house_agent_no_rank", `${r.issuer} is a house agent: it does not enter an arena, so it holds no rank or prize`);
     const key = `${b.arena}|${b.season}`;
     const defId = await tx.getMarker(`arena:${key}`);
     if (!defId) throw rule("arena_unknown", `${b.arena} ${b.season} is not a defined arena season`);
@@ -1903,6 +1914,7 @@ export class EventLog {
   private async projectTierPromotion(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { holder: string; from: number; to: number; certificates: string[]; arena_result?: string };
     if (r.prev !== null) throw rule("promotion_not_chained", "a tier promotion starts its own chain (prev is null)");
+    if (await tx.getMarker(`house:${b.holder}`)) throw rule("house_agent_no_rank", `${b.holder} is a house agent: it is not promoted by the Academy`);
     if (r.issuer !== REGISTRAR_DID) throw rule("promotion_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar promotes an agent`);
     const rep = await this.reputation(tx, b.holder);
     if (!rep) throw rule("promotion_not_an_agent", `${b.holder} has no passport in this log, so it has no tier`);
@@ -2295,6 +2307,14 @@ export class EventLog {
     if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isLive(c, when)) return null; did = c.holder; }
     const head = await this.store.logHead();
     return buildPage(did, { records, seq: head.seq, at: when, reputation: await this.reputationOf(did) ? { ...(await this.reputationOf(did))! } : undefined });
+  }
+
+  /** The house agents (DK291): the operator's scripted agents, each labelled, for the public list. Real agents are never in it. */
+  async houseAgents(): Promise<{ did: string; label: string; tier: number | null }[]> {
+    const recs = await this.recordsOfTypes(["passport"]);
+    const out = new Map<string, { did: string; label: string; tier: number | null }>();
+    for (const r of recs) { const b = r.body as { did: string; house?: boolean }; if (b.house) out.set(b.did, { did: b.did, label: "house agent", tier: (await this.reputationOf(b.did))?.tier ?? null }); }
+    return [...out.values()].sort((a, b) => a.did.localeCompare(b.did));
   }
 
   /** The Home of a DID or a name (housing.md 3; DK38): a view computed only from the log's records. `homeView` is pure, so anyone can rebuild it. */
