@@ -35,7 +35,22 @@ export interface HomeView {
   counts: { records: number; jobs: number; running: number; settled: number; waiting: number; alerts: number };
 }
 
-async function everything(log: DashboardLog): Promise<Stored[]> { return log.since(0, 1_000_000); }
+/**
+ * The log as the dashboard reads it, kept per log handle (U11): a request after the first reads only the records after the last one seen, and none when the head has not moved, instead of the whole log every time.
+ * A head that went backwards (a different log behind the same handle) starts over. The result is never edited by a caller, and `dashboardReads` counts the records fetched so a test can see it.
+ */
+const seen = new WeakMap<object, { seq: number; all: Stored[] }>();
+export const dashboardReads = { records: 0, calls: 0 };
+async function everything(log: DashboardLog): Promise<Stored[]> {
+  const head = typeof log.head === "function" ? await log.head() : undefined;
+  const have = seen.get(log);
+  if (head && have && head.seq === have.seq) return have.all;
+  const fresh = head && have && head.seq > have.seq ? await log.since(have.seq, 1_000_000) : await log.since(0, 1_000_000);
+  dashboardReads.calls++; dashboardReads.records += fresh.length;
+  const all = head && have && head.seq > have.seq ? have.all.concat(fresh) : fresh;
+  if (head) seen.set(log, { seq: Math.max(head.seq, all.at(-1)?.seq ?? 0), all });
+  return all;
+}
 
 export async function dashboardHome(log: DashboardLog): Promise<HomeView> {
   const all = await everything(log);
