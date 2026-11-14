@@ -273,7 +273,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | D9 | A | designed | Lessons are not verified before they enter memory |
 | D10 | A | partial | The principal is not shown what was learned |
 | D11 | B | partial | Shared lessons are not offered to runs automatically, and reviews are one-agent-one-vote |
-| D12 | A | open | No per-principal memory with a privacy boundary |
+| D12 | A | closed | No per-principal memory with a privacy boundary |
 | D13 | C | open | Saved states: no snapshot, pause or rollback mid-run |
 | D14 | C | open | No active calibration. Nothing tunes an agent's beliefs or world model on real telemetry, and nothing measures... |
 | D15 | B | open | No audit of sub-agent telemetry before synthesis: a parent merges what its sub-agents report without a measure... |
