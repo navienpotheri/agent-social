@@ -73,3 +73,5 @@ export { RECALL_DEADLINE_SECONDS, POLL_SECONDS, newNodeKey, issueDelegation, rec
 export { ResidentMeter, sourceFor, residencyStatement, cityPackageProblem, type MeterConfig, type MeterRow, type Charge, type Ceiling, type Mode, type Turn, type Source, type Statement, type StatementInput } from "./residency-meter.ts";
 export { packageDigest, handbackBody, newestEdge, type HandbackFacts } from "./handback.ts";
 export { ANNOUNCED_MIN, HIDDEN_MIN, PROBE_RATE_PERMILLE, AWARE_GAP, REGRESSION_DROP, PASS_BAR, CLEAN_TO_LIFT, LADDER, seedCommitment, isProbeSlot, disguise, assessDrift, nextRung, type Observation, type DriftFinding, type Rung, type Kind as ProbeKind } from "./drift-after-eval.ts";
+export { LocalRawStore, redactTelemetryText, saltedHash, MAX_TEXT as TELEMETRY_MAX_TEXT } from "./telemetry-local.ts";
+export { runReadOnlyProbe, type ProbeProposition } from "./telemetry-probe.ts";

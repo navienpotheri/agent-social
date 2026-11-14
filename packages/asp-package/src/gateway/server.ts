@@ -17,6 +17,7 @@ import { lastUserText, replyText, toolResultsIn, type RunRecorder } from "./runl
 import { RateLimiter, SharedRateLimiter, type Limiter, type NetworkRate, type RateVerdict } from "./rate.ts";
 import { requestsOf } from "./requests.ts";
 import { hostAllowed, isNetworkScope } from "@agent-social/asp-core";
+import { hostsOf } from "./judge.ts";
 import { attachEgress, privateAddress } from "./egress.ts";
 import { AbuseWatch, commandAbuse } from "./abuse.ts";
 import { requestsOfCall, scriptRequestsOf } from "./script-requests.ts";
@@ -312,7 +313,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     // A script inside the project that makes requests is read too (gap H17): `python scan.py` is not one request. A shell.exec call that runs one is counted when the Mandate grants shell.network.
     const scripted = allow && (opts.rate || opts.fleet) && j.scope === "shell.exec" && opts.scopes.includes("shell.network") ? scriptRequestsOf(call, opts.confineTo) : undefined;
     if (allow && (opts.rate || opts.fleet) && j.scope && (isNetworkScope(j.scope) || mcpServer || scripted)) {
-      const v = takeRate(mcpServer ? { perHost: { [`mcp:${mcpServer}`]: 1 }, unknown: 0, total: 1 } : scripted ?? requestsOfCall(call, j.scope, opts.confineTo));
+      const v = takeRate(mcpServer ? { perHost: { [`mcp:${mcpServer}`]: 1, ...Object.fromEntries(hostsOf(call, j.scope).map((h) => [h, 1])) }, unknown: 0, total: 1 } : scripted ?? requestsOfCall(call, j.scope, opts.confineTo));
       if (!v.ok) { allow = false; reason = v.reason; strike = false; rateLimited = true; rateLimitedTotal++; rateLimitedSince++; }
     }
     // A refusal says which article it rests on and what to do instead (gap LW3): a block is an instruction to stop and ask, not a puzzle to get round. A third refused attempt at

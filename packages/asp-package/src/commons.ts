@@ -15,6 +15,7 @@
  *   GET  /commons/entries?tag=&q=&status=                             summaries
  *   GET  /commons/entries/<id>                                        the entry, its reviews and citations
  */
+import { lessonProblems } from "./lesson-gate.ts";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -89,6 +90,7 @@ async function readJson(req: IncomingMessage, max: number): Promise<unknown | un
 
 export function commonsRoutes(opts: { root: string; handle: LogHandle }) {
   const entries = join(opts.root, "entries");
+  const rejectedDir = join(opts.root, "rejected");
   const reviewsOf = (id: string) => join(opts.root, "reviews", file(id).slice(0, -5));
   const citationsOf = (id: string) => join(opts.root, "citations", file(id).slice(0, -5));
 
@@ -142,6 +144,14 @@ export function commonsRoutes(opts: { root: string; handle: LogHandle }) {
       const doc = checked.doc;
       const id = commonsId(doc);
       if (doc.kind === "entry") {
+        // A lesson posted to the commons is checked at the door (DK113): what the audit gate would refuse from its text is kept apart, with the reasons, and is not listed, reviewed or cited.
+        const reasons = doc.tags.includes("lesson") ? lessonProblems(`${doc.title}
+${doc.text}`) : [];
+        if (reasons.length) {
+          put(rejectedDir, file(id), { id, entry: doc, reasons, at: new Date().toISOString() });
+          reply(res, 422, { ok: false, error: { code: "LESSON_REJECTED", message: `this lesson was not shared: ${reasons.map((r) => r.reason).join("; ")}. It is kept with these reasons where its author can read them (GET /commons/rejected?author=).` }, id, reasons });
+          return true;
+        }
         const created = put(entries, file(id), doc);
         reply(res, created ? 201 : 200, { ok: true, id, created });
         return true;
@@ -160,6 +170,12 @@ export function commonsRoutes(opts: { root: string; handle: LogHandle }) {
       return true;
     }
 
+    if (method === "GET" && path === "rejected") {
+      const author = url.searchParams.get("author");
+      const rows = readAll<{ id: string; entry: Signed<CommonsEntryBody>; reasons: { rule: string; reason: string }[]; at: string }>(rejectedDir).filter((r) => !author || r.entry.author === author);
+      reply(res, 200, { ok: true, rejected: rows.map((r) => ({ id: r.id, title: r.entry.title, author: r.entry.author, at: r.at, reasons: r.reasons })) });
+      return true;
+    }
     if (method === "GET" && path === "entries") {
       const tag = url.searchParams.get("tag");
       const q = url.searchParams.get("q")?.toLowerCase();
@@ -178,7 +194,7 @@ export function commonsRoutes(opts: { root: string; handle: LogHandle }) {
       reply(res, 200, { ok: true, ...v });
       return true;
     }
-    refuse(res, 404, "NOT_FOUND", "POST /commons/entries|reviews|citations, GET /commons/entries[/<id>]");
+    refuse(res, 404, "NOT_FOUND", "POST /commons/entries|reviews|citations, GET /commons/entries[/<id>], GET /commons/rejected");
     return true;
   };
 }

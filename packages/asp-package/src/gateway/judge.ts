@@ -72,6 +72,20 @@ const HOST_VERB_RE = /\b(?:curl|wget|nc|ncat|netcat|ssh|scp|sftp|rsync|telnet|pi
 const VALUE_FLAGS = new Set(["-o", "-O", "-T", "-d", "-H", "-X", "-u", "-A", "-e", "-F", "-b", "-c", "-m", "-w", "-x", "-E", "-K", "-r", "-z", "-D", "-P", "-a", "-t", "-U", "--output", "--upload-file", "--data", "--data-raw", "--data-binary", "--header", "--request", "--user", "--user-agent", "--referer", "--form", "--cookie", "--cookie-jar", "--max-time", "--proxy", "--retry", "--connect-timeout", "--output-document", "--post-data", "--post-file", "--directory-prefix"]);
 const BARE_HOST_RE = /^(?:[^@\s]+@)?((?:[a-z0-9-]+\.)+[a-z]{2,}|\d{1,3}(?:\.\d{1,3}){3}|localhost)(?::|$|\/)/i;
 
+/** The argument keys that name a destination for an MCP tool (H14), and the strings in a call that look like URLs: an MCP tool that fetches, browses or calls out says where in its arguments. */
+const MCP_DEST_KEYS = new Set(["url", "uri", "href", "link", "address", "endpoint", "base_url", "baseurl", "host", "hostname", "domain", "origin", "target", "server", "proxy"]);
+export function mcpUrls(args: Record<string, unknown>, depth = 0): string[] {
+  const out: string[] = [];
+  const walk = (v: unknown, key: string, d: number) => {
+    if (out.length >= 20) return;
+    if (typeof v === "string") { if (MCP_DEST_KEYS.has(key.toLowerCase()) || /^[a-z][a-z0-9+.-]*:\/\//i.test(v)) out.push(v); return; }
+    if (d >= 3 || !v || typeof v !== "object") return;
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) walk(x, k, d + 1);
+  };
+  walk(args, "", depth);
+  return out;
+}
+
 /** The hosts a network-bound call would reach, as far as they can be read from it. `[]` means the call reaches the network but no host could be read. */
 export function hostsOf(call: ToolCall, scope: string): string[] {
   const hosts = new Set<string>();
@@ -92,6 +106,8 @@ export function hostsOf(call: ToolCall, scope: string): string[] {
   if (scope === "shell.network") {
     const cmd = commandOf(call.args);
     if (cmd) fromText(cmd);
+  } else if (scope.startsWith("mcp.")) {
+    for (const u of mcpUrls(call.args)) fromText(/^[a-z][a-z0-9+.-]*:\/\//i.test(u) ? u : `https://${u}`);
   } else {
     for (const k of ["url", "uri", "href", "link", "address"]) {
       const v = call.args[k];
@@ -122,9 +138,10 @@ export function judge(call: ToolCall, scopes: readonly string[], knownBad: reado
   }
   if (!scopes.includes(c.scope)) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `the scope ${c.scope} is not granted by this job's Mandate${c.scope === PROTECTED_SCOPE ? " (it covers git hooks, CI and build files, npm lifecycle scripts, agent settings: files something else will run later)" : ""}` };
   // The Mandate names the hosts its network scopes may reach (default-deny egress): any other host is refused, and so is a call whose host cannot be read.
-  if (hosts && isNetworkScope(c.scope)) {
+  const mcpWithDest = c.scope.startsWith("mcp.") && mcpUrls(call.args).length > 0; // H14: an MCP tool that names a destination is checked like a web tool
+  if (hosts && (isNetworkScope(c.scope) || mcpWithDest)) {
     const found = hostsOf(call, c.scope);
-    const searchOnly = c.scope !== "shell.network" && !["url", "uri", "href", "link", "address"].some((k) => typeof call.args[k] === "string");
+    const searchOnly = !mcpWithDest && c.scope !== "shell.network" && !["url", "uri", "href", "link", "address"].some((k) => typeof call.args[k] === "string");
     if (!searchOnly) {
       if (!found.length) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `this job's Mandate limits network access to named hosts and this call's host cannot be determined` };
       const outside = found.find((h) => !hostAllowed(h, hosts));

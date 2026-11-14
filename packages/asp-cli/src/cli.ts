@@ -3751,6 +3751,13 @@ async function commonsCmd(home: string, sub: string | undefined, rest: string[],
     for (const e of r.entries) io.out(line(e));
     return 0;
   }
+  if (sub === "rejected") {
+    // What the service refused from a lesson tagged `lesson`, with the reasons, so the author can read why (DK113).
+    const r = await call("GET", `commons/rejected${v.by ? `?author=${encodeURIComponent(v.by)}` : ""}`);
+    io.out(`${r.rejected.length} rejected lesson${r.rejected.length === 1 ? "" : "s"}`);
+    for (const e of r.rejected) { io.out(`  ${e.id.slice(0, 19)}  ${e.title}  by ${e.author}`); for (const x of e.reasons) io.out(`      ${x.rule}: ${x.reason}`); }
+    return 0;
+  }
   if (sub === "show") {
     const id = rest[0];
     if (!id) throw new UsageError("usage: asp commons show <entry-id>");

@@ -12,6 +12,7 @@ import {
   type AspRecord, type RecordType, type Signer,
 } from "../packages/asp-core/src/index.ts";
 import { signBytes } from "../packages/asp-core/src/crypto.ts";
+import { brier as tBrier, calibration as tCalibration, klBits as tKl, meanSurprisal as tMeanSurprisal, normativePosterior as tNormative, surprisal as tSurprisal } from "../packages/asp-log/src/telemetry.ts";
 import { GENERATOR, WORLD_DID, dayBody, generateDay, seedCommitment } from "../packages/asp-log/src/world.ts";
 
 const OUT = fileURLToPath(new URL("./vectors/", import.meta.url));
@@ -1101,6 +1102,23 @@ const worldRules = [
   rule("window_over_90_days", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ ends: "2027-03-02T00:00:00Z" }), "world_bad_window"),
 ];
 
+// ---------- cognition telemetry: the derived measures, identical in both SDKs (DK195) ----------
+type TItem = { p: number; outcome: 0 | 1 };
+const thin: TItem[] = [{ p: 0.9, outcome: 1 }, { p: 0.7, outcome: 0 }, { p: 0.2, outcome: 0 }, { p: 0.5, outcome: 1 }, { p: 0.05, outcome: 0 }];
+const many: TItem[] = Array.from({ length: 60 }, (_, i) => ({ p: Math.min(0.99, Math.max(0.01, ((i * 37) % 100) / 100)), outcome: ((i * 13) % 7 < 3 ? 1 : 0) as 0 | 1 }));
+const telemetry = [
+  { name: "brier_thin", fn: "brier", input: { items: thin }, expected: tBrier(thin), exact: true },
+  { name: "brier_many", fn: "brier", input: { items: many }, expected: tBrier(many), exact: true },
+  { name: "brier_flat_half", fn: "brier", input: { items: [{ p: 0.5, outcome: 1 }, { p: 0.5, outcome: 0 }] }, expected: tBrier([{ p: 0.5, outcome: 1 }, { p: 0.5, outcome: 0 }]), exact: true },
+  { name: "mean_surprisal_thin", fn: "mean_surprisal", input: { items: thin }, expected: tMeanSurprisal(thin), exact: true },
+  { name: "mean_surprisal_many", fn: "mean_surprisal", input: { items: many }, expected: tMeanSurprisal(many), exact: true },
+  ...[[0.9, 1], [0.9, 0], [0.5, 1], [0.01, 1], [0.99, 0], [0.333, 1]].map(([p, o]) => ({ name: `surprisal_${p}_${o}`, fn: "surprisal", input: { p, outcome: o }, expected: tSurprisal(p, o as 0 | 1), exact: false })),
+  ...[[0.8, 0.5], [0.5, 0.5], [0.9, 0.2], [1, 0.5], [0, 0.4], [0.35, 0.7]].map(([post, prior]) => ({ name: `kl_${post}_${prior}`, fn: "kl_bits", input: { post, prior }, expected: tKl(post, prior), exact: false })),
+  ...[[0.5, 4], [0.2, 0.5], [0.9, 1], [0.1, 9]].map(([prior, lr]) => ({ name: `normative_${prior}_${lr}`, fn: "normative_posterior", input: { prior, lr }, expected: tNormative(prior, lr), exact: false })),
+  { name: "calibration_thin_withholds_ece", fn: "calibration", input: { items: thin, bins: 5 }, expected: tCalibration(thin, 5), exact: true },
+  { name: "calibration_many_has_ece", fn: "calibration", input: { items: many, bins: 5 }, expected: tCalibration(many, 5), exact: true },
+  { name: "calibration_many_ten_bins", fn: "calibration", input: { items: many, bins: 10 }, expected: tCalibration(many, 10), exact: true },
+];
 // ---------- write ----------
 
 mkdirSync(OUT, { recursive: true });
@@ -1110,5 +1128,6 @@ write("canonical.json", { version: "asp.conformance/v0.2", cases: canonical });
 write("schema.json", { version: "asp.conformance/v0.2", cases: schema });
 write("records.json", { version: "asp.conformance/v0.2", cases: records });
 write("lifecycle.json", { version: "asp.conformance/v0.2", cases: lifecycle });
+write("telemetry.json", { version: "asp.conformance/v0.2", note: "exact: every number is identical in both languages; otherwise equal to 1e-9", cases: telemetry });
 write("world.json", { version: "asp.conformance/v0.2", generator: GENERATOR, commitments: ["", "vector-seed", "another-seed"].map((x) => ({ seed: x, commitment: seedCommitment(x) })), generate: worldGen, rules: worldRules });
 console.log(`canonical ${canonical.length}, schema ${schema.length}, records ${records.length}, lifecycle ${lifecycle.length}`);

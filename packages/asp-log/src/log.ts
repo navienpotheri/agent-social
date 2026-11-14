@@ -1,3 +1,4 @@
+import { checkMandateTelemetry } from "./telemetry-rules.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
@@ -744,6 +745,7 @@ export class EventLog {
    */
   private async checkMandateTier(tx: LogTx, r: AspRecord): Promise<void> {
     await checkLadderOnMandate(tx, r);
+    await checkMandateTelemetry(tx, r);
     const rep = await this.reputation(tx, r.subject as string);
     const remedial = (r.body as { remedial?: { sponsor: string } }).remedial;
     if (remedial) await this.checkRemedialMandate(tx, r, rep?.tier, remedial);
