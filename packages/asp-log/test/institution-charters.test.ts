@@ -64,3 +64,37 @@ test("IS1: the index shows which institutions have a charter in force, its fundi
   assert.deepEqual(reg.officers, [operator.did]);
   assert.equal(idx.find((i) => i.institution === institutionDid("bank"))!.version, null);
 });
+
+test("DK396: the cross-check reports a budget or a price-list item for an institution with no charter, clears once the charter is founded, and the public page lists every charter with its hash", async () => {
+  const { publicReply } = await import("../src/public-pages.ts");
+  const k = new Kit();
+  await k.mint(TREASURY_DID, 1000);
+  const registry = institutionDid("registry");
+  await k.put(k.mk("budget", treasury, { institution: courts, period: "2026-11", amount: credit(100), purpose: "charter" }, null, { cosigners: [owner] }));
+  const list = await k.priceList();
+  void list;
+  const first = await k.log.charterCrossCheck(k.now());
+  assert.ok(first.checked.budgets >= 1 && first.checked.priceItems >= 1);
+  const kinds = first.problems.map((p) => `${p.kind}:${p.institution.replace("did:web:asp.local:", "")}`);
+  assert.ok(kinds.includes("budget_without_charter:courts"), kinds.join());
+  assert.ok(kinds.includes("price_item_without_charter:academy"), "the Academy's items have no charter");
+  // Found the charters the budgets and prices name: the problems clear. A charter that says it has no budget line while a budget exists is reported.
+  await k.put(charter(k, { institution: courts, funding: "none" }));
+  assert.ok((await k.log.charterCrossCheck(k.now())).problems.some((p) => p.kind === "budget_not_the_charters_line"), "the charter says none, the budget exists");
+  const k2 = new Kit();
+  await k2.mint(TREASURY_DID, 1000);
+  await k2.put(k2.mk("budget", treasury, { institution: courts, period: "2026-11", amount: credit(100), purpose: "charter" }, null, { cosigners: [owner] }));
+  await k2.priceList();
+  await k2.put(charter(k2, { institution: courts, funding: "courts" }));
+  await k2.put(charter(k2, { institution: institutionDid("academy"), funding: "academy" }));
+  const clear = await k2.log.charterCrossCheck(k2.now());
+  assert.deepEqual(clear.problems.filter((p) => p.institution === courts || p.institution === institutionDid("academy")), []);
+  void registry;
+  const json = await publicReply(k2.log, "/charters", false);
+  const r = (json!.json as { result: { charters: { institution: string; version: number | null; textSha256: string | null }[] } }).result;
+  assert.equal(r.charters.length, 13, "every chartered account is on the page");
+  assert.equal(r.charters.find((c) => c.institution === courts)?.textSha256, hashOf("a"));
+  const html = await publicReply(k2.log, "/charters", true);
+  assert.match(html!.html!, /<h1>Charters<\/h1>/);
+  assert.match(html!.html!, /no charter/);
+});

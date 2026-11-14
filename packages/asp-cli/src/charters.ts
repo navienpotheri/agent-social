@@ -85,5 +85,11 @@ export async function charterCmd(sub: string | undefined, o: CharterOpts): Promi
     for (const i of idx) o.io.out(`  ${i.institution.replace("did:web:asp.local:", "").padEnd(10)} ${i.version === null ? "no charter" : `v${i.version} ${i.status}, funding ${i.funding}`}`);
     return 0;
   }
-  throw new CharterUsage("asp charter publish-all | publish | show --institution <did> | index");
+  if (sub === "check") {
+    const c = await o.log.log.charterCrossCheck(o.now());
+    o.io.out(`charter cross-check: ${c.checked.budgets} budget(s) and ${c.checked.priceItems} price-list item(s) read; ${c.problems.length === 0 ? "every one names an institution with a charter in force" : `${c.problems.length} problem(s)`}`);
+    for (const p of c.problems) o.io.out(`  ${p.kind}: ${p.detail}`);
+    return c.problems.length ? 1 : 0;
+  }
+  throw new CharterUsage("asp charter publish-all | publish | show --institution <did> | index | check");
 }

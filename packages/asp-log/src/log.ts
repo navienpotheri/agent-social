@@ -2706,6 +2706,29 @@ export class EventLog {
     return out;
   }
 
+  /** The charter cross-check (DK396; charter.md CH-5): every institution with a budget or a price-list item has a charter in force, and every budget names the funding line its charter states. Returns what does not hold. */
+  async charterCrossCheck(at?: string): Promise<{ problems: { institution: string; kind: "budget_without_charter" | "price_item_without_charter" | "budget_not_the_charters_line"; record: string; detail: string }[]; checked: { budgets: number; priceItems: number } }> {
+    const when = at ?? this.now().toISOString();
+    const problems: { institution: string; kind: "budget_without_charter" | "price_item_without_charter" | "budget_not_the_charters_line"; record: string; detail: string }[] = [];
+    const inForce = new Map<string, Awaited<ReturnType<typeof this.charterOf>>["inForce"]>();
+    const charter = async (inst: string) => { if (!inForce.has(inst)) inForce.set(inst, (await this.charterOf(inst, when)).inForce); return inForce.get(inst) ?? null; };
+    let budgets = 0, priceItems = 0;
+    for (const r of await this.recordsOfTypes(["budget"])) {
+      const b = r.body as { institution: string; purpose: string };
+      if (b.institution === TREASURY_DID) continue; // the Treasury's own lines (the allowance, the deposit reward) are not an institution's budget
+      budgets++;
+      const c = await charter(b.institution);
+      if (!c) problems.push({ institution: b.institution, kind: "budget_without_charter", record: r.id, detail: `a budget for ${b.institution} with no charter in force` });
+      else if (c.funding === "none") problems.push({ institution: b.institution, kind: "budget_not_the_charters_line", record: r.id, detail: `${b.institution}'s charter says it has no budget line` });
+    }
+    const seen = new Set<string>();
+    for (const list of await this.recordsOfTypes(["price_list"])) for (const item of (list.body as { items: { institution: string; service: string }[] }).items) {
+      priceItems++;
+      if (!(await charter(item.institution)) && !seen.has(`${item.institution}|${list.id}`)) { seen.add(`${item.institution}|${list.id}`); problems.push({ institution: item.institution, kind: "price_item_without_charter", record: list.id, detail: `${item.service} is priced by ${item.institution}, which has no charter in force` }); }
+    }
+    return { problems, checked: { budgets, priceItems } };
+  }
+
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */
   async abuseReportsAbout(did: string): Promise<{ id: string; reporter: string; kind: string; at: string; about?: string }[]> {
     const out: { id: string; reporter: string; kind: string; at: string; about?: string }[] = [];
