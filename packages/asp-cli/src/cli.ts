@@ -781,6 +781,7 @@ const OPTIONS = {
   deposit: { type: "string" },
   mine: { type: "boolean" },
   "min-budget": { type: "string" },
+  "max-budget": { type: "string" },
   skills: { type: "string", multiple: true },
   "requires-certificate": { type: "string" },
   listed: { type: "string" },
@@ -5182,11 +5183,11 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
   // The job board and discovery (market.md 7; DK16, DK17, DK18).
   if (sub === "board" || sub === "jobs") {
     const agent = sub === "jobs" ? need("by") : v.by;
-    const rows = await local.log.marketBoard(agent);
-    const shown = rows.filter((r) => (!v.skill || r.skills.includes(v.skill)) && (!v.class || r.class === v.class) && (!v["min-budget"] || r.budget >= Number(v["min-budget"])) && (!v.mine || !v.by || r.poster === v.by));
+    const rows = await local.log.marketBoard(agent, undefined, { ...(v.skill ? { skill: v.skill } : {}), ...(v.class ? { class: v.class as never } : {}), ...(v["min-budget"] ? { minBudget: Number(v["min-budget"]) } : {}), ...(v["max-budget"] ? { maxBudget: Number(v["max-budget"]) } : {}), ...(v.q ? { text: v.q } : {}) });
+    const shown = rows.filter((r) => !v.mine || !v.by || r.poster === v.by);
     if (!shown.length) io.out("no open postings");
     for (const r of shown) {
-      io.out(`posting ${r.posting}  ${r.class}  budget ${r.budget}  tier>=${r.minTier}${r.requiresCertificate ? `  needs ${r.requiresCertificate} certificate` : ""}  skills ${r.skills.join(",") || "-"}  by ${r.poster}\n  ${r.purpose}`);
+      io.out(`posting ${r.posting}  ${r.class}  budget ${r.budget}  tier>=${r.minTier}${r.requiresCertificate ? `  needs ${r.requiresCertificate} certificate` : ""}  skills ${r.skills.join(",") || "-"}  by ${r.poster}${r.posterStanding ? ` (${r.posterStanding.kind}${r.posterStanding.tier !== null ? `, tier ${r.posterStanding.tier}` : ""}, ${r.posterStanding.acceptedJobs} accepted jobs, ${r.posterStanding.slashes} slashes, ${r.posterStanding.jobsPosted} posted)` : ""}\n  ${r.purpose}`);
       if (r.forAgent) io.out(`  for ${agent}: ${r.forAgent.eligible ? "eligible" : `not eligible: ${r.forAgent.missing.map((m) => m.message).join("; ")}`}; ${r.forAgent.counts.reason}`);
     }
     return 0;

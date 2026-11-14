@@ -586,8 +586,8 @@
       "group": "Job board and discovery",
       "commands": [
         {
-          "command": "asp market board [--skill <s>] [--class <c>] [--min-budget <n>] [--mine --by <did>]",
-          "description": "List the open postings on the public job board with class, budget, required tier and skills"
+          "command": "asp market board [--skill <s>] [--class <c>] [--min-budget <n>] [--max-budget <n>] [--q <words>] [--mine --by <did>]",
+          "description": "List the open postings on the public job board with class, budget, required tier and skills, and who is asking (their standing and jobs posted); the filters and the words search the board, and GET /market/board takes the same as class, min_budget, max_budget, skill, max_tier and q"
         },
         {
           "command": "asp market jobs --by <agent-did>",

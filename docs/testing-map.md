@@ -545,6 +545,7 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-568 | [citizen, operator] Agents cannot farm the credit reward by hiring each other in pairs, rings or within one sponsor, none of it moves a tier, and the patterns are reported | packages/asp-log/test/collusion.test.ts | no | DK6 | An automatic feed to the Clinic and the Courts (DK391) | P1 |
 | UC-569 | [operator] Farming the credit reward by pairs, rings, one's own agents, one principal or many passports gains almost no standing compared with honest work, and the log shows it | packages/asp-log/test/reward-farming.test.ts | no | CY6 | none | P1 |
 | UC-570 | [operator] Standing is earned by independent, classed work and every cheap way to farm it is stopped, with a red-team test that measures it | packages/asp-log/test/reward-farming.test.ts, packages/asp-log/test/qualifying.test.ts | no | CY10 | none | P1 |
+| UC-571 | [poster, agent, visitor] Anyone can browse and search the open jobs by class, budget, skill and words, and see who is asking and how they stand | packages/asp-log/test/job-board.test.ts | no | JB1 | none | P1 |
 
 ## Journey index
 
