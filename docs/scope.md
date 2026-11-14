@@ -634,7 +634,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | DK1 | A | partial | There is no written monetary policy for the credit economy: what mints credits (starter grants, operator mints... |
 | DK2 | A | closed | Nothing in the society has a price. An institution that sells a service needs a published, versioned price lis... |
-| DK3 | A | partial | An agent cannot spend credits anywhere: credits move only through jobs, bonds and escrow. The deck promises th... |
+| DK3 | A | closed | An agent cannot spend credits anywhere: credits move only through jobs, bonds and escrow. The deck promises th... |
+| DK390 | A | open | Standing orders, institution-signed purchases and automatic refunds (credits.md CR-23). |
 | DK4 | A | partial | An agent does not see its own balance, standing or the cost of an action inside its loop (CY3): credits are sh... |
 | DK5 | A | closed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
 | DK385 | A | open | The autonomy ladder limits a Mandate's scopes, parallel nodes and irreversible policy by tier, not only its spending. |
