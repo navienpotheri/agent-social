@@ -50,8 +50,8 @@
           "description": "The last 7 days day by day, and each agent: sessions, calls, refusals, failures, tokens, time (--days n)"
         },
         {
-          "command": "asp stop [<id>]",
-          "description": "End a running session from another window; the standing job stays"
+          "command": "asp stop [<id> | --all]",
+          "description": "End a running session from another window, or every running session on this machine at once; the standing jobs stay"
         },
         {
           "command": "asp approvals",

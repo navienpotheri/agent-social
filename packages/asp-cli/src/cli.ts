@@ -6137,7 +6137,16 @@ async function stopCmd(home: string, id: string | undefined, v: Values, io: Io):
   const running = sessionsOf(home).filter((s) => !s.end);
   const pick = id ? running.filter((s) => s.start.sid.startsWith(id)) : running;
   if (!pick.length) { io.out(id ? `no running session starts with ${id}` : "nothing is running (asp runs lists sessions)"); return id ? 1 : 0; }
-  if (pick.length > 1) { for (const s of pick) io.out(`  ${s.start.sid}  ${ago(s.start.at)}  ${s.start.purpose.slice(0, 50)}`); throw new Error("more than one session is running; asp stop <id>"); }
+  // Stop everything at once (US1): one stop file per running session on this machine, whichever agent it is for; each gateway ends its own tool within seconds. The standing jobs stay.
+  if (v.all) {
+    if (id) throw new UsageError("asp stop --all stops every running session; give no id with it");
+    mkdirSync(home, { recursive: true });
+    for (const { start } of pick) writeFileSync(join(home, `stop-${start.sid}`), `${new Date().toISOString()}
+`);
+    io.out(`stopping ${pick.length} session${pick.length === 1 ? "" : "s"}: ${pick.map((s) => `${s.start.sid} (${s.start.agent})`).join(", ")}; each tool ends within a few seconds (the standing jobs stay; asp standing end ends those too)`);
+    return 0;
+  }
+  if (pick.length > 1) { for (const s of pick) io.out(`  ${s.start.sid}  ${ago(s.start.at)}  ${s.start.purpose.slice(0, 50)}`); throw new Error("more than one session is running; asp stop <id>, or asp stop --all"); }
   const { start } = pick[0];
   mkdirSync(home, { recursive: true });
   writeFileSync(join(home, `stop-${start.sid}`), `${new Date().toISOString()}\n`);
