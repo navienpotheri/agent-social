@@ -85,6 +85,7 @@ Around the institutions:
 - **The rights charter (GV11 closed):** nine rights, each backed by a named mechanism, kept real by a test; publishing it in the terms is DK420.
 - **Per-principal memory (D12 closed):** a sealed private scope for one principal-agent pair with its boundary tested; opening it inside a run is DK272.
 - **Operator powers made public (GV9 closed):** each power with its limit, and a public ordered list of every act the operator signed; succession and citizen votes are DK421.
+- **Lessons verified before memory (D9 closed):** evidence, conflict and held-out replay checks at the one door a lesson takes into memory.
 - **Drift and circumvention checks:** first stage built (DK92: retry and reroute, one agent at a time). Left: split-into-pieces (needs the gateway to record the refused call's target), post-evaluation drift, signed steps, real-time use.
 - **The closed loop (DK7) and the agent's view of costs (DK4):** closed. Treasury budgets and payments, the newcomer allowance, prizes against a Registrar-signed result, self-dealing for standing items and locked credits are log rules with tests (S190); the agent reads the price list, the price of a service with what its budget has left, and a standing note in its loop. Left, in their own rows: commands and hosted wiring (DK98), Treasury rules not yet checked (DK99), priced actions other than a purchase (DK100), the Arena (DK26).
 - **A copy of an agent inherits its original's record (DK11) and each governed run gives the agent its own verified history (DK59):** built.

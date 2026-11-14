@@ -270,7 +270,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK315 | A | open | The injection detector's recall is measured on a real attack set, and goal hijack without instruction-like text is designed for. |
 | D7 | C | open | No reasoning-trace monitoring |
 | D8 | A | closed | Quality, cost and time trends are not tracked |
-| D9 | A | designed | Lessons are not verified before they enter memory |
+| D9 | A | closed | Lessons are not verified before they enter memory |
 | D10 | A | partial | The principal is not shown what was learned |
 | D11 | B | partial | Shared lessons are not offered to runs automatically, and reviews are one-agent-one-vote |
 | D12 | A | closed | No per-principal memory with a privacy boundary |
