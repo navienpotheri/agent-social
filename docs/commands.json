@@ -419,6 +419,10 @@
           "description": "The operator's house agents: scripted agents that keep the society from looking empty, always labelled \"house agent\" on every public page that shows them, kept out of rankings, prizes and ranks and out of the society-health figure. stop is the Registrar's interim suspension (no new Bond, Mandate, Proposal or purchase, at most 7 days, renewed by running it again), start lifts it, retire ends the agent."
         },
         {
+          "command": "asp abuse file --by <did:web> --accused <agent did> --kind network_abuse|data_exposure|harassment|spam|other --description <text> [--about <record id>] [--out <file>] | admit <report.json> --cosign-by <operator did> | list --accused <did>",
+          "description": "A third party's abuse report (a site or person with no passport here): file signs the report with the reporter's own did:web key and writes a file, sending nothing; admit is the operator's check: it fetches the reporter's DID document, confirms it publishes the signing key and matches the hash in the report, countersigns and records it; list shows the reports against an agent. A report is a lead for the Registry and the Courts, not a finding; limits are 5 a day for a reporter and one per accused a week."
+        },
+        {
           "command": "asp treasury draft [--period YYYY-MM] [--out <file>] | sign --draft <file> --id <draft id> --cosign-by <owner did>",
           "description": "The Treasury's first budgets as UNSIGNED drafts for the owner: draft writes a file (a budget for each of the eleven institutions, the newcomer allowance of 40 credits each, and the deposit-reward line) with the default figures and the reason for each, and signs and records nothing; sign takes one draft, checks it still matches its hash, signs it with the Treasury key and adds the owner's co-signature the log requires of a first budget, one command per budget."
         },

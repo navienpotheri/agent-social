@@ -8271,6 +8271,194 @@
       "valid": false
     },
     {
+      "name": "valid_abuse_report",
+      "schema": "abuse_report",
+      "instance": {
+        "accused": "did:web:example.com:agents:alice-coder",
+        "kind": "network_abuse",
+        "description": "the agent scanned our servers from many addresses",
+        "reporter_key": {
+          "id": "did:web:site.example#key-1",
+          "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "proof": {
+          "url": "https://site.example/.well-known/did.json",
+          "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_abuse_report_with_evidence",
+      "schema": "abuse_report",
+      "instance": {
+        "accused": "did:web:example.com:agents:alice-coder",
+        "kind": "network_abuse",
+        "description": "the agent scanned our servers from many addresses",
+        "reporter_key": {
+          "id": "did:web:site.example#key-1",
+          "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "proof": {
+          "url": "https://site.example/.well-known/did.json",
+          "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        },
+        "about": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "evidence": [
+          {
+            "uri": "https://site.example/logs/1",
+            "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "abuse_report_short_description",
+      "schema": "abuse_report",
+      "instance": {
+        "accused": "did:web:example.com:agents:alice-coder",
+        "kind": "network_abuse",
+        "description": "bad",
+        "reporter_key": {
+          "id": "did:web:site.example#key-1",
+          "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "proof": {
+          "url": "https://site.example/.well-known/did.json",
+          "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "abuse_report_unknown_kind",
+      "schema": "abuse_report",
+      "instance": {
+        "accused": "did:web:example.com:agents:alice-coder",
+        "kind": "defamation",
+        "description": "the agent scanned our servers from many addresses",
+        "reporter_key": {
+          "id": "did:web:site.example#key-1",
+          "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "proof": {
+          "url": "https://site.example/.well-known/did.json",
+          "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "abuse_report_no_proof",
+      "schema": "abuse_report",
+      "instance": {
+        "accused": "did:web:example.com:agents:alice-coder",
+        "kind": "network_abuse",
+        "description": "the agent scanned our servers from many addresses",
+        "reporter_key": {
+          "id": "did:web:site.example#key-1",
+          "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "abuse_report_no_reporter_key",
+      "schema": "abuse_report",
+      "instance": {
+        "accused": "did:web:example.com:agents:alice-coder",
+        "kind": "network_abuse",
+        "description": "the agent scanned our servers from many addresses",
+        "proof": {
+          "url": "https://site.example/.well-known/did.json",
+          "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "abuse_report_bad_key",
+      "schema": "abuse_report",
+      "instance": {
+        "accused": "did:web:example.com:agents:alice-coder",
+        "kind": "network_abuse",
+        "description": "the agent scanned our servers from many addresses",
+        "reporter_key": {
+          "id": "did:web:site.example#key-1",
+          "public_key": "short"
+        },
+        "proof": {
+          "url": "https://site.example/.well-known/did.json",
+          "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "abuse_report_six_evidence",
+      "schema": "abuse_report",
+      "instance": {
+        "accused": "did:web:example.com:agents:alice-coder",
+        "kind": "network_abuse",
+        "description": "the agent scanned our servers from many addresses",
+        "reporter_key": {
+          "id": "did:web:site.example#key-1",
+          "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "proof": {
+          "url": "https://site.example/.well-known/did.json",
+          "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        },
+        "evidence": [
+          {
+            "uri": "u0",
+            "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "uri": "u1",
+            "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "uri": "u2",
+            "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "uri": "u3",
+            "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "uri": "u4",
+            "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "uri": "u5",
+            "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "abuse_report_extra_field",
+      "schema": "abuse_report",
+      "instance": {
+        "accused": "did:web:example.com:agents:alice-coder",
+        "kind": "network_abuse",
+        "description": "the agent scanned our servers from many addresses",
+        "reporter_key": {
+          "id": "did:web:site.example#key-1",
+          "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "proof": {
+          "url": "https://site.example/.well-known/did.json",
+          "sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        },
+        "bounty": 5
+      },
+      "valid": false
+    },
+    {
       "name": "valid_starter_claim_upfront",
       "schema": "starter_claim",
       "instance": {

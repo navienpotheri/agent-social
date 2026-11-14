@@ -301,7 +301,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | BM22 | A | open | Payloads written in an obfuscated form are not recognised by the content check (it matches plain forms), enume... |
 | H1 | A | partial | A granted network scope can be used to hurt third parties (brute force, scanning, flooding); a swarm multiplie... |
 | H2 | A | closed | No default-deny network for new or low-tier agents |
-| H3 | A | open | Third parties have no way to report |
+| H3 | A | closed | Third parties have no way to report |
+| DK350 | A | open | An admitted abuse report becomes a case a Court hears, with restitution and an answer to the reporter. |
+| DK351 | A | open | An outsider files an abuse report on the hosted service without running the tool. |
 | H4 | A | open | Bond covers the principal, not third parties |
 | H5 | B | open | No outcome detectors (a secret was obtained or leaked) |
 | H6 | B | open | Known-bad list is exact-match, shell commands only, has no expiry |

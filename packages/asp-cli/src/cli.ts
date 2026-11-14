@@ -332,6 +332,7 @@ import { ClinicUsage, clinicCmd, narrowForQuarantine } from "./clinic.ts";
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
+import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
 import { InsureUsage, insureCmd } from "./insure.ts";
 import { ShopsUsage, shopsCmd } from "./shops.ts";
@@ -455,6 +456,8 @@ const OPTIONS = {
   violations: { type: "string" },
   passed: { type: "string" },
   draft: { type: "string" },
+  accused: { type: "string" },
+  description: { type: "string" },
   period: { type: "string" },
   units: { type: "string" },
   total: { type: "string" },
@@ -1005,6 +1008,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "bank") return await bankCommand(home, sub, v, io);
     if (cmd === "house") return await houseCommand(home, sub, v, io);
     if (cmd === "treasury") return await treasuryCommand(home, sub, v, io);
+    if (cmd === "abuse") return await abuseCommand(home, sub, rest[0], v, io);
     if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
     if (cmd === "clinic" && sub === "restore") return await clinicRestore(home, v, io);
@@ -4360,6 +4364,17 @@ async function residencyCommand(home: string, sub: string | undefined, rest: str
     return await residencyCmd(sub, rest, opts);
   } catch (e) {
     if (e instanceof ResidencyUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function abuseCommand(home: string, sub: string | undefined, file: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await abuseCmd(sub, file, { log: local, io, now, signerFor, flags: { by: v.by, accused: v.accused, kind: v.kind, description: v.description, about: v.about, out: v.out, "cosign-by": v["cosign-by"]?.[0] } });
+  } catch (e) {
+    if (e instanceof AbuseUsage) throw new UsageError(e.message);
     throw e;
   }
 }
