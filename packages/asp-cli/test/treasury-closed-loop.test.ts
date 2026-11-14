@@ -101,3 +101,10 @@ test("DK15: every institution has a budget line once the drafts are signed, and 
     assert.match(out, /reconciles to the ledger/);
   } finally { setClock(undefined); if (savedOwner === undefined) delete process.env.ASP_OWNER_DID; else process.env.ASP_OWNER_DID = savedOwner; }
 });
+
+test("DK6: asp collusion reports nothing on a log with no pattern, and exits 0", async () => {
+  const f = makeFixture();
+  const out = await ok(f, ["collusion"]);
+  assert.match(out.out, /no collusion pattern found/);
+  assert.equal((await ok(f, ["collusion", "--json"])).out.trim(), "[]");
+});

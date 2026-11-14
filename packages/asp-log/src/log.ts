@@ -1,6 +1,7 @@
 import { checkMandateTelemetry } from "./telemetry-rules.ts";
 import { projectDepositAct } from "./deposits.ts";
 import { reserveFloor as insurerFloor, INSURER_DID as INSURER_ACCOUNT } from "./insurer.ts";
+import { closesLoop, findCollusion, LOOP_WINDOW_MS, type CollusionFinding, type Hire } from "./collusion.ts";
 import { noteLock, BANK_DID as BANK_ACCOUNT, LINE_LIMIT as BANK_LINE_LIMIT, LINE_MAX_COUNTED_JOBS as BANK_MAX_JOBS, GUARANTOR_PERMILLE as BANK_GUARANTOR_PERMILLE } from "./bank.ts";
 import { projectAbuseReport } from "./abuse-report.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
@@ -723,7 +724,12 @@ export class EventLog {
     const intentRec = job.intent ? await tx.getRecord(job.intent) : undefined;
     const declared = intentRec?.record.type === "asp.intent/v0.2" ? jobNeeds(intentRec.record, ((await tx.getMarker(`class_raise:${job.intent}`)) as JobClass | undefined) ?? undefined).class : undefined;
     const weight = classWeight(declared, job.price);
-    if (job.price >= QUALIFYING_MIN_PRICE && weight > 0) {
+    // A loop of hires does not count (DK6; spec-delta S468): a job whose performer already hired the principal, directly or through up to four others, in the last 90 days is not standing. The edges are kept in a marker, so replay agrees.
+    const edges = JSON.parse((await tx.getMarker("hire_edges")) ?? "[]") as Hire[];
+    const at = Date.parse(job.at);
+    const looped = closesLoop(edges, job.principal, job.performer, at);
+    await tx.putMarker("hire_edges", JSON.stringify([...edges.filter((e) => at - e.at <= LOOP_WINDOW_MS).slice(-2000), { principal: job.principal, performer: job.performer, at, contract: "" }]));
+    if (job.price >= QUALIFYING_MIN_PRICE && weight > 0 && !looped) {
       const facts = async (did: string): Promise<PartyFacts> => { const p = await tx.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
       const principal = await facts(job.principal);
       const others = [await facts(job.performer), await facts(backer)];
@@ -2491,6 +2497,9 @@ export class EventLog {
     const page = await this.insurerPage();
     return { period, policiesSold: sold.length, premiums: sold.reduce((n, r) => n + (r.body as { premium: { value: number } }).premium.value, 0), decisions, reserve: page.reserve, floor: page.floor, aboveFloor: page.aboveFloor };
   }
+
+  /** Collusion over the log (DK6): reciprocal pairs, rings of three to six, one sponsor's agents settling with each other, and one principal behind most of an agent's work. Leads for the Clinic and the Courts. */
+  async collusionReport(): Promise<CollusionFinding[]> { return findCollusion(await this.recordsOfTypes(["passport", "contract", "settlement"])); }
 
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */
   async abuseReportsAbout(did: string): Promise<{ id: string; reporter: string; kind: string; at: string; about?: string }[]> {

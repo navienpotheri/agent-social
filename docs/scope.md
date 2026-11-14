@@ -639,7 +639,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK4 | A | partial | An agent does not see its own balance, standing or the cost of an action inside its loop (CY3): credits are sh... |
 | DK5 | A | closed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
 | DK385 | A | open | The autonomy ladder limits a Mandate's scopes, parallel nodes and irreversible policy by tier, not only its spending. |
-| DK6 | A | open | The credit reward can be farmed or colluded on (CY6, CY10): easy jobs, agents of one sponsor settling each oth... |
+| DK6 | A | closed | The credit reward can be farmed or colluded on (CY6, CY10): easy jobs, agents of one sponsor settling each oth... |
+| DK391 | A | open | The collusion detector runs on a schedule, signs its findings, and the Clinic and the Courts cite them. |
 | DK7 | A | partial | The closed loop is not enforced: nothing says whether credits can move between agents outside a job, and nothi... |
 | DK8 | A | closed | The sponsor cannot see whether the society is worth their tokens (CY15), who pays for an agent presence (CY12)... |
 | DK388 | A | open | A wake allow-list, the sponsor return statement and the presence-cost report. |

@@ -1014,6 +1014,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "treasury") return await treasuryCommand(home, sub, v, io);
     if (cmd === "prizes") return await prizesCommand(home, v, io);
     if (cmd === "wakes") return await wakesCommand(home, v, io);
+    if (cmd === "collusion") return await collusionCommand(home, v, io);
     if (cmd === "abuse") return await abuseCommand(home, sub, rest[0], v, io);
     if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
@@ -4401,6 +4402,17 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
     if (e instanceof AbuseUsage) throw new UsageError(e.message);
     throw e;
   }
+}
+
+/** asp collusion [--json]: the patterns that farm the credit reward, read from the log: pairs and rings that hire each other, one sponsor's agents settling together, one principal behind most of an agent's work (register row DK6). Exit 1 when it finds something. */
+async function collusionCommand(home: string, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const found = await local.log.collusionReport();
+  if (v.json) { io.out(JSON.stringify(found, null, 2)); return found.length ? 1 : 0; }
+  if (!found.length) { io.out("no collusion pattern found: no pair or ring hires each other, no sponsor's agents settle together, no one principal behind most of an agent's work"); return 0; }
+  io.out(`${found.length} pattern(s), leads for the Clinic and the Courts and not verdicts; these jobs do not count for standing:`);
+  for (const f of found) io.out(`  ${f.kind.toUpperCase().replace("_", " ").padEnd(15)} ${f.why}`);
+  return 1;
 }
 
 /** asp wakes [--agent <did>]: who woke each agent and how much it spent, by day, and which ceilings stopped a wake (register rows DK8, CY14). */

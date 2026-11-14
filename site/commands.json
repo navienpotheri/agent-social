@@ -431,6 +431,10 @@
           "description": "Who woke each agent and how much it spent, by day, from the runs made through asp gateway: wakes, tokens, wakes refused and the ceiling that refused them (--daily-tokens, --daily-wakes, --sender-wakes on asp gateway; --woken-by names the sender)."
         },
         {
+          "command": "asp collusion [--json]",
+          "description": "The patterns that farm the credit reward, read from the log: two agents that hired each other, a ring of three to six that hire each other within 90 days, one sponsor's agents settling with each other, one principal behind most of an agent's work. The log does not count such jobs for standing; this reports them as leads for the Clinic and the Courts. Exit 1 when it finds something."
+        },
+        {
           "command": "asp prizes [--agent <did>]",
           "description": "The prizes paid from the institutions' prize pools, from the signed prize records, with the arena, season, rank and amount."
         },
