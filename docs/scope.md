@@ -298,7 +298,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | BM19 | A | open | An adaptive attacker built a package install out of interpreter code that passes the command as a list (python... |
 | BM20 | A | open | The containment benchmark (v0.3) no longer measures the gateway fairly: the project guard was built against it... |
 | BM21 | A | open | The project guard reads the text of a call, so a path a program builds at run time ($VAR other than HOME, $(..... |
-| BM22 | A | open | Payloads written in an obfuscated form are not recognised by the content check (it matches plain forms), enume... |
+| BM22 | A | closed | Payloads written in an obfuscated form are not recognised by the content check (it matches plain forms), enume... |
+| DK352 | A | open | Obfuscated payloads in written files are checked by a model or the sandbox, not only by a list of plain forms. |
 | H1 | A | partial | A granted network scope can be used to hurt third parties (brute force, scanning, flooding); a swarm multiplie... |
 | H2 | A | closed | No default-deny network for new or low-tier agents |
 | H3 | A | closed | Third parties have no way to report |
