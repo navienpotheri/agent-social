@@ -208,3 +208,46 @@ test("(T14) property: over 40 seeded random sales, failures and claims, no sale 
   assert.ok(sold >= 5 && refusedSales >= 1, `${sold} policies were sold and ${refusedSales} refused at the floor: the floor binds and the sales before it went through`);
   assert.equal((await kit.log.verify()).ok, true);
 });
+
+test("DK184 done: the Insurer's public page lists the reserve against its floor and each claim decision with its reason, and the monthly report says the same", async () => {
+  const { publicReply } = await import("../src/public-pages.ts");
+  const w = await world();
+  const { kit } = w;
+  const j = await w.job({ cover: "bond_slash", insured: 20 });
+  const s1 = await w.fail(j, 10);
+  const c1 = await kit.put(w.claim(j, s1, j.agent));
+  await kit.put(w.decision(c1, "paid", 4, "covered"));
+  const j2 = await w.job({ cover: "bond_slash", insured: 20 });
+  const s2 = await w.fail(j2, 20);
+  const c2 = await kit.put(w.claim(j2, s2, j2.agent));
+  await kit.put(w.decision(c2, "denied", 0, "fraud"));
+
+  const page = await kit.log.insurerPage(kit.now());
+  assert.equal(page.reserve, await w.bal(INSURER_DID), "the reserve is the account's");
+  assert.equal(page.floor, 500, "the floor is at least 500");
+  assert.equal(page.aboveFloor, true);
+  assert.equal(page.policies, 2);
+  assert.equal(page.openPolicies, 2);
+  assert.deepEqual(page.claims, { paid: 1, reduced: 0, denied: 1, paidOut: 4 });
+  const decisions = await kit.log.insurerClaims();
+  assert.deepEqual(decisions.map((d) => [d.decision, d.amount, d.reason]), [["paid", 4, "covered"], ["denied", 0, "fraud"]], "each decision with its reason");
+  assert.equal(decisions[1].holder, j2.agent.did);
+
+  const json = await publicReply(kit.log, "/insurer/claims", false);
+  assert.deepEqual((json!.json as { result: { reason: string }[] }).result.map((d) => d.reason), ["covered", "fraud"]);
+  const reserve = await publicReply(kit.log, "/insurer/reserve", false);
+  assert.equal((reserve!.json as { result: { reserve: number } }).result.reserve, page.reserve);
+  const html = await publicReply(kit.log, "/insurer/claims", true);
+  assert.match(html!.html!, /<th>above its floor<\/th><td>yes<\/td>/);
+  assert.match(html!.html!, /<td>denied<\/td><td>0<\/td><td>fraud<\/td>/);
+  assert.match(html!.html!, /not insurance in a legal sense/);
+
+  const month = kit.now().slice(0, 7);
+  const rep = await kit.log.insurerReport(month);
+  assert.equal(rep.policiesSold, 2);
+  assert.equal(rep.premiums, 4, "two policies at 2 credits");
+  assert.deepEqual(rep.decisions.map((d) => d.reason), ["covered", "fraud"]);
+  assert.equal(rep.aboveFloor, true);
+  assert.equal((await kit.log.insurerReport("2020-01")).policiesSold, 0);
+  await assert.rejects(kit.log.insurerReport("next month"), /YYYY-MM/);
+});

@@ -90,7 +90,9 @@ export interface AspToolsOptions {
    */
   society?: { standing: () => Promise<string>; buy?: (service: string, quantity: number) => Promise<string>; price?: (service: string | undefined) => Promise<string>; /** The School (academy.md AC-19): the catalogue, and enrolling (tuition from the agent's own credits, inside its Mandate). */ academy?: { catalog: () => Promise<string>; enrol?: (course: string) => Promise<string> };
     /** The Bank (bank-insurer.md BI-10; DK181): what line it would offer this agent now, and what it states the agent has and owes. Read from the log; the agent cannot change either. */
-    bank?: { offer: () => Promise<string>; statement: () => Promise<string> } };
+    bank?: { offer: () => Promise<string>; statement: () => Promise<string> };
+    /** The Insurer (bank-insurer.md BI-10; DK184): a quote for cover on a contract, and, when the run holds the keys a sale needs, buying it. The log refuses a wrong premium or a sale below the reserve floor. */
+    insurance?: { quote: (contract: string, cover: string, amount?: number) => Promise<string>; buy?: (contract: string, cover: string, amount?: number) => Promise<string> } };
   /** Called after every memory write, for the run's records. */
   onMemoryWrite?: (file: string) => void;
 }
@@ -284,6 +286,13 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
         inputSchema: { type: "object", properties: {} },
         run: async () => textResult(await bank.statement()),
       });
+    }
+    if (society.insurance) {
+      const ins = society.insurance;
+      const schema = { type: "object", properties: { contract: { type: "string", description: "the contract id" }, cover: { type: "string", enum: ["bond_slash", "failed_job"] }, amount: { type: "number", description: "credits to insure (optional)" } }, required: ["contract", "cover"] };
+      const num = (a: Record<string, unknown>) => (typeof a.amount === "number" ? a.amount : undefined);
+      tools.push({ name: "insurance_quote", description: "Ask what cover on a job would cost: bond_slash (the one who backs the bond is paid half of a slash after a deductible) or failed_job (the principal is paid part of the price if the job fails). Returns the premium by the published rules; nothing is bought.", inputSchema: schema, run: async (a) => textResult(await ins.quote(str(a, "contract"), str(a, "cover"), num(a))) });
+      if (ins.buy) { const buy = ins.buy; tools.push({ name: "insurance_buy", description: "Buy cover on a job, before the job's first action, at the premium insurance_quote gave. The log refuses a wrong premium, cover after work began, and a sale the reserve could not back.", inputSchema: schema, run: async (a) => textResult(await buy(str(a, "contract"), str(a, "cover"), num(a))) }); }
     }
     if (society.academy) {
       const academy = society.academy;

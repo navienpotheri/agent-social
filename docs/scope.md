@@ -758,7 +758,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK386 | A | open | The Bank's job-class check, its line in the standing note and its monthly report. |
 | DK182 | A | open | The Bank has not been run live on the hosted service. |
 | DK183 | A | open | The Insurer's loose ends: owed remainder, appeal window, outside-Mandate exclusion, job class, top-up, re-rating. |
-| DK184 | A | open | The Insurer's agent tools, standing note, public pages, charter. |
+| DK184 | A | closed | The Insurer's agent tools, standing note, public pages, charter. |
+| DK387 | A | open | A holder buys cover without the Insurer's key, and the standing note shows the agent's cover. |
 | DK185 | A | open | The Bank and Insurer experiments and dynamics (mutual cover, mentor lines, credit cycle, holidays, stress replay). |
 | DK186 | A | open | The Insurer has not been run live on the hosted service. |
 | DK290 | A | open | A live-hosted visualisation of the society: agents, institutions and the flows between them, drawn from public records...|

@@ -76,10 +76,18 @@ export async function insureCmd(sub: string | undefined, o: InsureOpts): Promise
     o.io.out(`decision ${res.id}: ${decision}${decision === "denied" ? ` (${terms.reason})` : `, ${due} credits paid from the reserve${decision === "reduced" ? " (the reserve was short)" : ""}`} (log seq ${res.seq})`);
     return 0;
   }
+  if (sub === "report") {
+    const period = f.days ?? o.now().slice(0, 7);
+    const r = await o.log.log.insurerReport(period);
+    o.io.out(`Insurer report ${r.period}: ${r.policiesSold} policy(ies) sold for ${r.premiums} credits in premiums; reserve ${r.reserve} against a floor of ${r.floor} (${r.aboveFloor ? "above" : "BELOW: no new policy is sold"})`);
+    for (const d of r.decisions) o.io.out(`  claim ${d.claim.slice(7, 19)}: ${d.decision}${d.decision === "denied" ? "" : ` ${d.amount} credits`}, ${d.reason}`);
+    if (!r.decisions.length) o.io.out("  no claim was decided in the period");
+    return 0;
+  }
   if (sub === "reserve") {
     const reserve = await o.log.log.balance(INSURER_DID);
     o.io.out(`the Insurer's reserve: ${reserve} credits; the floor for a new sale is at least ${reserveFloor(0, 0)} (10 times the largest insured amount, or 1.5 times the expected 30-day claims, if more)`);
     return 0;
   }
-  throw new InsureUsage("asp insure quote|buy --contract <id> --cover bond_slash|failed_job --by <holder> [--amount n] | claim --policy <id> --event <settlement id> --by <holder> | decide --claim <id> | reserve");
+  throw new InsureUsage("asp insure quote|buy --contract <id> --cover bond_slash|failed_job --by <holder> [--amount n] | claim --policy <id> --event <settlement id> --by <holder> | decide --claim <id> | reserve | report [--days YYYY-MM]");
 }

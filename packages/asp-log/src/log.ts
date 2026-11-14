@@ -1,5 +1,6 @@
 import { checkMandateTelemetry } from "./telemetry-rules.ts";
 import { projectDepositAct } from "./deposits.ts";
+import { reserveFloor as insurerFloor, INSURER_DID as INSURER_ACCOUNT } from "./insurer.ts";
 import { noteLock, BANK_DID as BANK_ACCOUNT, LINE_LIMIT as BANK_LINE_LIMIT, LINE_MAX_COUNTED_JOBS as BANK_MAX_JOBS, GUARANTOR_PERMILLE as BANK_GUARANTOR_PERMILLE } from "./bank.ts";
 import { projectAbuseReport } from "./abuse-report.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
@@ -2450,6 +2451,44 @@ export class EventLog {
     if (limit !== null && page.free < 1) reasons.push("the Bank's reserve has nothing free to lend");
     const guarantorNeeds = limit === null ? null : Math.ceil((Math.min(limit, Math.max(page.free, 0)) * BANK_GUARANTOR_PERMILLE) / 1000);
     return { eligible: reasons.length === 0, limit: limit === null ? null : Math.min(limit, Math.max(page.free, 0)), guarantor: pass?.sponsor ?? null, guarantorNeeds, reserveFree: page.free, reasons };
+  }
+
+  /** The decisions on claims, each with its reason (DK184; bank-insurer.md BI-11): who claimed, what was decided, the amount and why. Public: a denial or a reduction is always explained. */
+  async insurerClaims(): Promise<{ claim: string; policy: string; holder: string; cover: string; decision: string; amount: number; reason: string; at: string }[]> {
+    const recs = await this.recordsOfTypes(["policy", "claim", "claim_decision"]);
+    const policies = new Map(recs.filter((r) => r.type === "asp.policy/v0.2").map((r) => [r.id, r.body as { holder: string; cover: string }]));
+    const claims = new Map(recs.filter((r) => r.type === "asp.claim/v0.2").map((r) => [r.id, r.body as { policy: string }]));
+    return recs.filter((r) => r.type === "asp.claim_decision/v0.2").map((r) => {
+      const b = r.body as { claim: string; decision: string; amount: { value: number }; reason: string };
+      const pid = claims.get(b.claim)?.policy ?? "";
+      const pol = policies.get(pid);
+      return { claim: b.claim, policy: pid, holder: pol?.holder ?? "", cover: pol?.cover ?? "", decision: b.decision, amount: b.amount.value, reason: b.reason, at: r.issued_at };
+    });
+  }
+
+  /** The Insurer's public page (DK184; BI-10): the reserve against its floor, the policies, the premiums taken, and the decisions with their reasons. */
+  async insurerPage(at?: string): Promise<{ reserve: number; floor: number; aboveFloor: boolean; policies: number; openPolicies: number; premiums: number; claims: { paid: number; reduced: number; denied: number; paidOut: number } }> {
+    const when = Date.parse(at ?? this.now().toISOString());
+    const reserve = (await this.store.getAccount(INSURER_ACCOUNT))?.balance ?? 0;
+    const largest = Number((await this.marker("insurer_largest")) ?? 0);
+    const claimsLog = JSON.parse((await this.marker("insurer_claims")) ?? "[]") as { at: string; amount: number }[];
+    const floor = insurerFloor(largest, claimsLog.filter((c) => Date.parse(c.at) >= when - 90 * 86_400_000).reduce((n, c) => n + c.amount, 0));
+    const pol = await this.recordsOfTypes(["policy"]);
+    const decisions = await this.insurerClaims();
+    return {
+      reserve, floor, aboveFloor: reserve >= floor, policies: pol.length, openPolicies: pol.filter((r) => Date.parse((r.body as { valid_to: string }).valid_to) > when).length,
+      premiums: pol.reduce((n, r) => n + (r.body as { premium: { value: number } }).premium.value, 0),
+      claims: { paid: decisions.filter((d) => d.decision === "paid").length, reduced: decisions.filter((d) => d.decision === "reduced").length, denied: decisions.filter((d) => d.decision === "denied").length, paidOut: decisions.reduce((n, d) => n + d.amount, 0) },
+    };
+  }
+
+  /** The Insurer's monthly report (DK184; BI-11): policies sold and premiums in the month, the claims decided in it with their reasons, and the reserve against its floor. */
+  async insurerReport(period: string): Promise<{ period: string; policiesSold: number; premiums: number; decisions: { claim: string; decision: string; amount: number; reason: string }[]; reserve: number; floor: number; aboveFloor: boolean }> {
+    if (!/^\d{4}-\d{2}$/.test(period)) throw new Error("the period is YYYY-MM");
+    const sold = (await this.recordsOfTypes(["policy"])).filter((r) => r.issued_at.startsWith(period));
+    const decisions = (await this.insurerClaims()).filter((d) => d.at.startsWith(period)).map(({ claim, decision, amount, reason }) => ({ claim, decision, amount, reason }));
+    const page = await this.insurerPage();
+    return { period, policiesSold: sold.length, premiums: sold.reduce((n, r) => n + (r.body as { premium: { value: number } }).premium.value, 0), decisions, reserve: page.reserve, floor: page.floor, aboveFloor: page.aboveFloor };
   }
 
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */
