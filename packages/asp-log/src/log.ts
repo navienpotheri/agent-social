@@ -195,6 +195,8 @@ export function periodKey(period: "day" | "week" | "month", at: string): string 
   return d.toISOString().slice(0, 10);
 }
 
+/** What became of an abuse report: referred to a panel, or ruled on (finding, credits ordered, credits paid and from whom). */
+export interface AbuseOutcome { state: "referred" | "ruled"; case: string; ruling?: string; finding?: "upheld" | "dismissed"; requested?: number; paid?: number; shortfall?: number; from?: { account: string; amount: number }[]; at?: string }
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
 /** How well established a claim is, for comparing a verifier's grade with the performer's declared one. */
 const GRADE_RANK: Record<string, number> = { measured: 3, simulated: 2, predicted: 1, unverified: 0 };
@@ -2500,7 +2502,10 @@ export class EventLog {
     let did = idOrName;
     if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isLive(c, when)) return null; did = c.holder; }
     const head = await this.store.logHead();
-    return buildPage(did, { records, seq: head.seq, at: when, reputation: await this.reputationOf(did) ? { ...(await this.reputationOf(did))! } : undefined });
+    const page = buildPage(did, { records, seq: head.seq, at: when, reputation: await this.reputationOf(did) ? { ...(await this.reputationOf(did))! } : undefined });
+    if (!page) return null;
+    const abuse = await this.abuseReportsAbout(did);
+    return abuse.length ? { ...page, abuse: abuse.map((a) => ({ id: a.id, kind: a.kind, at: a.at, ...(a.outcome ? { outcome: a.outcome } : {}) })) } : page;
   }
 
   /** The Treasury's closed-loop records (DK98): budgets with what has been paid from each, the payments, the newcomer allowances and the prizes, each with its record id and time. Public, computed from the log. */
@@ -2752,9 +2757,16 @@ export class EventLog {
   }
 
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */
-  async abuseReportsAbout(did: string): Promise<{ id: string; reporter: string; kind: string; at: string; about?: string }[]> {
-    const out: { id: string; reporter: string; kind: string; at: string; about?: string }[] = [];
-    for (const r of await this.recordsOfTypes(["abuse_report"])) { const b = r.body as { accused: string; kind: string; about?: string }; if (b.accused === did) out.push({ id: r.id, reporter: r.issuer, kind: b.kind, at: r.issued_at, ...(b.about ? { about: b.about } : {}) }); }
+  async abuseReportsAbout(did: string): Promise<{ id: string; reporter: string; kind: string; at: string; about?: string; outcome?: AbuseOutcome }[]> {
+    const out: { id: string; reporter: string; kind: string; at: string; about?: string; outcome?: AbuseOutcome }[] = [];
+    for (const r of await this.recordsOfTypes(["abuse_report"])) {
+      const b = r.body as { accused: string; kind: string; about?: string };
+      if (b.accused !== did) continue;
+      // What became of it (DK350, S502): referred to a panel, and the panel's finding with what was paid. Read from the markers the rules wrote, so the page says what the ledger did.
+      const [caseId, raw] = await this.store.transaction(async (tx) => [await tx.getMarker(`abuse_case_for:${r.id}`), await tx.getMarker(`abuse_outcome:${r.id}`)] as const);
+      const outcome: AbuseOutcome | undefined = raw ? { state: "ruled", ...(JSON.parse(raw) as Omit<AbuseOutcome, "state">) } : caseId ? { state: "referred", case: caseId } : undefined;
+      out.push({ id: r.id, reporter: r.issuer, kind: b.kind, at: r.issued_at, ...(b.about ? { about: b.about } : {}), ...(outcome ? { outcome } : {}) });
+    }
     return out;
   }
 

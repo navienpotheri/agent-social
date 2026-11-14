@@ -755,6 +755,8 @@ const OPTIONS = {
   "institution-spend": { type: "string", multiple: true },
   mode: { type: "string" },
   finding: { type: "string" },
+  case: { type: "string" },
+  restitution: { type: "string" },
   with: { type: "string" },
   ref: { type: "string" },
   entry: { type: "string" },
@@ -4479,7 +4481,7 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await abuseCmd(sub, file, { log: local, io, now, signerFor, flags: { by: v.by, accused: v.accused, kind: v.kind, description: v.description, about: v.about, out: v.out, "cosign-by": v["cosign-by"]?.[0] } });
+    return await abuseCmd(sub, file, { log: local, io, now, signerFor, flags: { by: v.by, accused: v.accused, kind: v.kind, description: v.description, about: v.about, out: v.out, "cosign-by": v["cosign-by"]?.[0], "cosign-all": v["cosign-by"], report: v.report, case: v.case, finding: v.finding, restitution: v.restitution, reasons: v.reasons, ...(v.articles ? { code: codeCitation(v.articles, v["code-version"], false).code } : {}) } });
   } catch (e) {
     if (e instanceof AbuseUsage) throw new UsageError(e.message);
     throw e;
