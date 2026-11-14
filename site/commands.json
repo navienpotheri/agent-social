@@ -50,6 +50,10 @@
           "description": "The last 7 days day by day, and each agent: sessions, calls, refusals, failures, tokens, time (--days n)"
         },
         {
+          "command": "asp forecast [--days n] [--json]",
+          "description": "What the next runs will likely use, from the sessions that finished: tokens and time per agent (median, a bad one), a day, the next 7 days"
+        },
+        {
           "command": "asp stop [<id> | --all]",
           "description": "End a running session from another window, or every running session on this machine at once; the standing jobs stay"
         },
