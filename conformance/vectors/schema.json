@@ -8152,6 +8152,83 @@
       "valid": false
     },
     {
+      "name": "valid_deposit",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "deposit",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "amount": {
+          "value": 200,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_deposit_withdraw",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "withdraw",
+        "deposit": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_deposit_reward",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "reward",
+        "deposit": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "budget": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "amount": {
+          "value": 2,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "deposit_unknown_act",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "borrow",
+        "deposit": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": false
+    },
+    {
+      "name": "deposit_no_amount",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "deposit",
+        "holder": "did:web:example.com:agents:alice-coder"
+      },
+      "valid": false
+    },
+    {
+      "name": "deposit_reward_no_budget",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "reward",
+        "deposit": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "amount": {
+          "value": 2,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "deposit_withdraw_extra_field",
+      "schema": "deposit_act",
+      "instance": {
+        "act": "withdraw",
+        "deposit": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "interest": 5
+      },
+      "valid": false
+    },
+    {
       "name": "valid_starter_claim_upfront",
       "schema": "starter_claim",
       "instance": {

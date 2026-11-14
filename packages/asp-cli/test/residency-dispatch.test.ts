@@ -51,7 +51,7 @@ test("dispatch a city-hosted agent under an allowance and a subsidy, refuse a pa
     const grant = id(/^subsidy grant (\S+)/, (await ok(f, ["residency", "subsidy", "grant", "--agent", AGENT, "--class", "newcomer", "--budget", budget, "--daily", "150", "--cap", "300", "--from", first, "--until", last])).out);
     tick();
     const node = newNodeKey(AGENT, "dd-node");
-    const delegation = id(/^delegation (\S+):/, (await ok(f, ["residency", "delegate", "--agent", AGENT, "--node", node.kid, "--public-key", node.publicKey, "--mandate", mandate, "--hours", "12"])).out);
+    const delegation = id(/^delegation (\S+):/, (await ok(f, ["residency", "delegate", "--agent", AGENT, "--node", node.kid, `--public-key=${node.publicKey}`, "--mandate", mandate, "--hours", "12"])).out);
     tick();
     const allowance = id(/^allowance (\S+):/, (await ok(f, ["residency", "allowance", "--agent", AGENT, "--per-day", "100", "--total", "250", "--period", period])).out);
     assert.notEqual((await asp(f, ["residency", "allowance", "--agent", AGENT, "--per-day", "500001", "--total", "9000000"])).code, 0, "over the tier's daily ceiling");

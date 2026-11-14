@@ -1,4 +1,5 @@
 import { checkMandateTelemetry } from "./telemetry-rules.ts";
+import { projectDepositAct } from "./deposits.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
@@ -300,6 +301,7 @@ export class EventLog {
     if (type === "recall") await projectRecall(tx, verified);
     if (type === "handback") await projectHandback(tx, verified, { reputation: (t, did) => this.reputation(t, did), tierSpendLimit: () => 0 });
     if (type === "residency_status") await projectResidencyStatus(tx, verified);
+    if (type === "deposit_act") await projectDepositAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n), drawBudget: (t, id, n, at) => this.drawBudget(t, id, n, at), cosignedBy: (rec, d) => this.cosignedBy(rec, d) });
     if (type === "probe_result") await projectProbeResult(tx, verified);
     if (type === "ladder_step") await projectLadderStep(tx, verified);
     if (type === "subsidy_budget") await projectSubsidyBudget(tx, verified);

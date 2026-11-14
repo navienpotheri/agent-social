@@ -4353,7 +4353,7 @@ async function bankCommand(home: string, sub: string | undefined, v: Values, io:
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await bankCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, agent: v.agent, amount: v.amount, guarantor: v.guarantor, line: v.line, holder: v.holder, by: v.by, days: v.days } });
+    return await bankCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, agent: v.agent, amount: v.amount, guarantor: v.guarantor, line: v.line, holder: v.holder, by: v.by, days: v.days, deposit: v.deposit, budget: v.budget } });
   } catch (e) {
     if (e instanceof BankUsage) throw new UsageError(e.message);
     throw e;

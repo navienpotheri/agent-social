@@ -44,3 +44,5 @@ export { CITY_BUDGET_DID, HOST_DID, BUDGET_NOTICE_MS, SUBSIDY_CLASSES, RESIDENT_
 export { TOKEN_CEILING_PER_DAY, SLEEP_REASONS, type Dispatch } from "./residency.ts";
 export { seedCommitment, isProbeSlot, PROBE_RATE_PERMILLE, CLEAN_TO_LIFT, LADDER, type Rung as LadderRung } from "./drift.ts";
 export { plan as capacityPlan, limitProblems, type CapacityInput, type CapacityPlan } from "./capacity.ts";
+export { DEPOSIT_TERM_DAYS, REWARD_PERMILLE, REWARD_MONTHLY_CAP, REWARD_BUDGET_PURPOSE, rewardFor } from "./deposits.ts";
+export { BANK_DEPOSIT_DID } from "./economy.ts";

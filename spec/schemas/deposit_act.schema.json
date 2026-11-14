@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:deposit_act",
+  "title": "Deposit act body",
+  "description": "Bank deposits and the Treasury-paid reward (bank-insurer.md 3, 4 and decision 6; register row DK294; spec-delta S370). `deposit`: the holder signs, the Bank countersigns; the credits move from the holder to the Bank's deposit account (did:web:asp.local:bank-deposits) and are locked for 30 days. `withdraw`: the holder, from day 30; the credits return whole. `reward`: the Treasury, for each completed 30 days of a deposit still held, 1 % of it, at most 50 credits a month to one holder, from a Treasury budget for the Bank with purpose deposit_reward that the owner co-signed, never beyond that budget. A move, never a mint. Credits are accounting entries, not money. Chain: none (prev is null).",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "act",
+        "holder",
+        "amount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "act": {
+          "const": "deposit"
+        },
+        "holder": {
+          "$ref": "urn:asp:v0.2:common#/$defs/did"
+        },
+        "amount": {
+          "$ref": "urn:asp:v0.2:common#/$defs/amount"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "act",
+        "deposit"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "act": {
+          "const": "withdraw"
+        },
+        "deposit": {
+          "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "act",
+        "deposit",
+        "budget",
+        "amount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "act": {
+          "const": "reward"
+        },
+        "deposit": {
+          "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+        },
+        "budget": {
+          "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+        },
+        "amount": {
+          "$ref": "urn:asp:v0.2:common#/$defs/amount"
+        }
+      }
+    }
+  ]
+}
