@@ -2515,7 +2515,20 @@ export class EventLog {
   async creditConcentration(topFraction = 0.01): Promise<BalanceConcentration> { return topBalanceShare(await this.store.ledgerRows(), topFraction); }
 
   /** The starter pool as the log holds it: funded by signed mints, what is left and used (credits.md 5.6, G2). */
-  async starterPoolState(): Promise<StarterPoolState> { return starterPoolOf(await this.store.ledgerRows()); }
+  /**
+   * The starter pool, derived from the signed records (DK70): `funded` is the sum of signed mint records to the pool with a starter reason, `used` the sum of starter claims, `balance` what the ledger holds;
+   * `consistent` says the ledger agrees with the records (every signed mint to the pool less every claim). There is no second count to keep in step: the supply page's starter figure is this.
+   */
+  async starterPoolState(): Promise<StarterPoolState> {
+    const recs = await this.recordsOfTypes(["mint", "starter_claim"]);
+    let funded = 0, allMints = 0, claimed = 0;
+    for (const r of recs) {
+      if (r.type === "asp.mint/v0.2") { const b = r.body as { to: string; amount: { value: number }; reason: string }; if (canonicalAccount(b.to) === STARTER_POOL_DID) { allMints += b.amount.value; if (b.reason.startsWith("starter_")) funded += b.amount.value; } }
+      else claimed += (r.body as { amount: { value: number } }).amount.value;
+    }
+    const ledger = starterPoolOf(await this.store.ledgerRows());
+    return { funded, balance: ledger.balance, used: claimed, consistent: ledger.balance === allMints - claimed };
+  }
 
   /** Credits ever minted per DID (not records; a replica needs them to replay Bonds). Local bootstrap, MOCKS.md #13. */
   async mints() { return (await this.store.allMints()).map((m) => ({ did: m.did, amount: m.balance })); }

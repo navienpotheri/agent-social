@@ -187,8 +187,12 @@ export function topBalanceShare(rows: LedgerRows, topFraction: number): BalanceC
   return { accountsConsidered: balances.length, topCount, topShare: top / total };
 }
 
-/** The starter pool as the log holds it (credits.md 5.6, G2): what the operator funded with signed mints and what is left. Zero funded means no signed pool yet. */
-export interface StarterPoolState { funded: number; balance: number; used: number }
+/** The starter pool as the ledger rows hold it (credits.md 5.6, G2): what the operator funded with signed mints and what is left. Zero funded means no signed pool yet. The log itself derives the figures from its mint and claim records (`EventLog.starterPoolState`, DK70) and uses this as the cross-check. */
+export interface StarterPoolState {
+  funded: number; balance: number; used: number;
+  /** From the records (DK70): true when the ledger's balance of the pool equals every signed mint to it less every starter claim; false means the ledger and the records disagree (an unsigned mint, a stray transfer). */
+  consistent?: boolean;
+}
 
 export function starterPoolOf(rows: LedgerRows): StarterPoolState {
   const funded = rows.mints.find((m) => m.did === STARTER_POOL_DID)?.signedMinted ?? 0;

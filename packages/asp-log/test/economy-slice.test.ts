@@ -668,9 +668,9 @@ describe("the guard monitor on a real log (DK1, credits.md 5.6)", () => {
   test("the starter pool state and the concentration are read from the ledger, and the report moves when a claim is made", async () => {
     const w = await world();
     await w.mintSigned(STARTER_POOL_DID, 250, "starter_upfront");
-    assert.deepEqual(await w.log.starterPoolState(), { funded: 250, balance: 250, used: 0 });
+    assert.deepEqual(await w.log.starterPoolState(), { funded: 250, balance: 250, used: 0, consistent: true });
     await w.log.append(mk("starter_claim", coder, { part: "upfront", amount: credit(100) }, null, { subject: coder.did }));
-    assert.deepEqual(await w.log.starterPoolState(), { funded: 250, balance: 150, used: 100 });
+    assert.deepEqual(await w.log.starterPoolState(), { funded: 250, balance: 150, used: 100, consistent: true });
     const c = await w.log.creditConcentration(0.01);
     assert.deepEqual([c.accountsConsidered, c.topCount, c.topShare], [1, 1, 1], "one holder has all the circulation");
     const report = await computeGuardReport({ handle: { log: w.log } as never });
@@ -818,5 +818,42 @@ describe("DK95: a database that holds unsigned mints is made signed-only by a si
     await w.log.append(adopt(coder.did, 25));
     const seed = await w.log.store.allMints();
     assert.deepEqual(seed, [{ did: coder.did, balance: 25 }], "a replay is seeded with the unsigned total as it was before the adoption");
+  });
+});
+
+describe("DK70: the starter figure on the supply page is the sum of the starter mint records, not a second count", () => {
+  test("funded is the sum of signed mints to the pool with a starter reason, used is the sum of claims, and the guard report's G2 and its label say exactly those; a mint with another reason is not a starter mint", async () => {
+    const w = await world();
+    await w.mintSigned(STARTER_POOL_DID, 600, "starter_upfront");
+    await w.mintSigned(STARTER_POOL_DID, 400, "starter_rest");
+    await w.mintSigned(STARTER_POOL_DID, 50, "bootstrap"); // credits in the pool that are not starter mints
+    await w.log.append(mk("starter_claim", coder, { part: "upfront", amount: credit(100) }, null, { subject: coder.did }));
+    const state = await w.log.starterPoolState();
+    assert.deepEqual(state, { funded: 1000, balance: 950, used: 100, consistent: true }, "funded = 600 + 400, the bootstrap 50 is not a starter mint; balance = 1050 - 100");
+    const records = await w.log.recordsOfTypes(["mint"]);
+    const starterMints = records.filter((r) => (r.body as { to: string; reason: string }).to === STARTER_POOL_DID && (r.body as { reason: string }).reason.startsWith("starter_")).reduce((n, r) => n + (r.body as { amount: { value: number } }).amount.value, 0);
+    assert.equal(state.funded, starterMints, "the figure equals the sum of the starter mint records");
+    const report = await computeGuardReport({ handle: { log: w.log } as never });
+    const g2 = report.measures.find((m) => m.id === "G2")!;
+    assert.equal(g2.value, 100 / 1000, "G2 = claimed / funded, both read from records");
+    assert.match(g2.label, /100 of the 1000 credits/);
+  });
+
+  test("the figure survives a replay and a restart: a replica built from the records alone reports the same pool, and the ledger agrees with the records", async () => {
+    const w = await world();
+    await w.mintSigned(STARTER_POOL_DID, 300, "starter_upfront");
+    await w.log.append(mk("starter_claim", coder, { part: "upfront", amount: credit(100) }, null, { subject: coder.did }));
+    const replica = new EventLog(new MemoryStore(), { operator: operator.did, owner: owner.did, fallbackResolver: resolver });
+    await replica.importRecords((await w.log.since(0, 1000)) as never);
+    assert.deepEqual(await replica.starterPoolState(), await w.log.starterPoolState());
+    assert.equal((await replica.starterPoolState()).consistent, true);
+  });
+
+  test("an unsigned credit put into the pool is a disagreement between the ledger and the records, and the state says so", async () => {
+    const w = await world({ allowUnsignedMint: true });
+    await w.mintSigned(STARTER_POOL_DID, 200, "starter_upfront");
+    await w.log.mint(STARTER_POOL_DID, 40); // the old unsigned mint into the pool: no record says so
+    const s = await w.log.starterPoolState();
+    assert.deepEqual([s.funded, s.balance, s.used, s.consistent], [200, 240, 0, false]);
   });
 });
