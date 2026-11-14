@@ -54,6 +54,7 @@ export { claimStarter, releaseStarter, starterStatus } from "./account.ts";
 export { FileTransport, MemoryTransport, ResendTransport, RetryableMailError, newMailSecret, unsubscribeOk, unsubscribeToken, verifySvix, type MailTransport, type OutMail } from "./mail-send.ts";
 export { ServiceMailer, mailPublicRoutes, type MailerOptions } from "./service-mailer.ts";
 export { societyHealthRoutes, mailHealthAlarms } from "./health-routes.ts";
+export { societyMapRoutes, buildFeed, type SocietyMapSource } from "./society-map-routes.ts";
 export { economySupplyRoutes, type SupplyAudit, type SupplyGuard } from "./economy-supply.ts";
 export { buildHistory, historyText, signHistory, verifyHistory, type HistorySummary, type SignedHistory } from "./history.ts";
 export { MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, type KeyBackup, type KeyEntry } from "./recovery.ts";
