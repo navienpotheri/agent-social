@@ -10,7 +10,7 @@ import { ALLOWANCE_AMOUNT, INSTITUTION_NAMES, TREASURY_DID, institutionDid } fro
 import type { LogHandle } from "@agent-social/asp-package";
 
 export class TreasuryUsage extends Error {}
-export interface TreasuryOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; flags: { period?: string; out?: string; draft?: string; id?: string; by?: string; "cosign-by"?: string; amount?: string; budget?: string; memo?: string; claim?: boolean; agent?: string } }
+export interface TreasuryOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; flags: { period?: string; out?: string; draft?: string; id?: string; by?: string; "cosign-by"?: string; amount?: string; budget?: string; memo?: string; claim?: boolean; agent?: string; since?: string } }
 
 export interface Draft { id: string; institution: string; period: string; amount: number; purpose: string; why: string; sha256: string }
 export interface DraftFile { version: "asp.budget-drafts/v1"; status: string; period: string; drafts: Draft[]; growth: string }
@@ -83,6 +83,16 @@ export async function treasuryCmd(sub: string | undefined, o: TreasuryOpts): Pro
     for (const p of led.payments) o.io.out(`  payment ${p.id.slice(7, 19)}  ${p.amount} credits to ${p.to} out of budget ${p.budget.slice(7, 19)}  ${p.at}`);
     return 0;
   }
+  if (sub === "statement") {
+    const st = await o.log.log.treasuryStatement(f.since);
+    const t = st.treasury;
+    o.io.out(`Treasury statement${st.since ? ` since ${st.since}` : " (whole log)"}  (credits are accounting entries, not money)`);
+    o.io.out(`  came in: issuance ${t.in.issuance}, job tax ${t.in.jobTax}, its share of purchases ${t.in.purchaseShare}`);
+    o.io.out(`  went out: budget payments ${t.out.budgetPayments}, newcomer allowances ${t.out.allowances}`);
+    o.io.out(`  balance ${t.balance}; ${t.reconciles === null ? "reconciliation needs the whole log" : t.reconciles ? "reconciles to the ledger" : `DOES NOT RECONCILE: ${t.unexplained} unexplained`}`);
+    for (const i of st.institutions) o.io.out(`  ${i.did.replace("did:web:asp.local:", "").padEnd(10)} budgeted ${String(i.budgeted).padStart(6)}  paid by the Treasury ${String(i.paidByTreasury).padStart(6)}  earned from purchases ${String(i.earnedFromPurchases).padStart(6)}  balance ${i.balance}`);
+    return t.reconciles === false ? 1 : 0;
+  }
   if (sub === "pay") {
     if (!f.budget || f.amount === undefined) throw new TreasuryUsage("asp treasury pay --budget <budget id> --amount <credits> [--memo <text>] [--by did:web:asp.local:treasury]");
     const led = await o.log.log.treasuryLedger();
@@ -127,5 +137,5 @@ export async function treasuryCmd(sub: string | undefined, o: TreasuryOpts): Pro
     }
     throw new Error(`the log refused the claim: ${lastError}`);
   }
-  throw new TreasuryUsage("asp treasury draft [--period YYYY-MM] [--out <file>] | sign --draft <file> --id <draft id> --cosign-by <owner did> | list | pay --budget <id> --amount <n> | allowance --agent <did> [--yes]");
+  throw new TreasuryUsage("asp treasury draft [--period YYYY-MM] [--out <file>] | sign --draft <file> --id <draft id> --cosign-by <owner did> | list | statement [--since <time>] | pay --budget <id> --amount <n> | allowance --agent <did> [--yes]");
 }

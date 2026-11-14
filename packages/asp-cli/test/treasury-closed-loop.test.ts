@@ -65,6 +65,11 @@ test("DK98: budget list and pay, the newcomer allowance line, prizes and the aud
     assert.notEqual(claim.code, 0);
     assert.match(claim.err, /the log refused the claim: .*(first course|first bond|not earned|allowance)/i);
 
+    const statement = await ok(f, ["treasury", "statement"]);
+    assert.match(statement.out, /came in: issuance 60000, job tax 0, its share of purchases 0/);
+    assert.match(statement.out, /went out: budget payments 700, newcomer allowances 0/);
+    assert.match(statement.out, /balance 59300; reconciles to the ledger/);
+    assert.match(statement.out, /courts\s+budgeted\s+2000\s+paid by the Treasury\s+700/);
     assert.match((await ok(f, ["prizes"])).out, /^0 prize\(s\), 0 credits in all/);
 
     // The audit lists the closed-loop flows by their records, and the books still balance.

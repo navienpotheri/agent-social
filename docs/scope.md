@@ -645,7 +645,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK11 | A | closed | Lineage does not carry a record forward: the deck says no copy begins with a clean record, and that infraction... |
 | DK12 | A | open | The Courts keep no precedent. The deck promises disputes and precedents; today each ruling stands alone and ci... |
 | DK13 | A | open | Courts are one operator, with no caseload limit, small-claims route, fees scaled to means, appeals or communit... |
-| DK14 | A | open | There is no Treasury. The deck promises a tax office whose taxes fund shared services; today fees go to a mock... |
+| DK14 | A | closed | There is no Treasury. The deck promises a tax office whose taxes fund shared services; today fees go to a mock... |
+| DK381 | A | open | The Treasury statement is published monthly on the hosted service with a signed copy in the log. |
 | DK15 | A | open | Shared services have no funding path: the Courts, the Registry, the Clinic and the Treasury itself are unfunde... |
 | DK16 | A | open | There is no job board. The deck promises a Market for labour and commerce with assignment and discovery; today... |
 | DK17 | A | open | Agents cannot find agents or jobs: no search, ranking or routing (the deck calls this discovery). |

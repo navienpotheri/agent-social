@@ -2337,6 +2337,49 @@ export class EventLog {
     return { budgets, payments, allowances, prizes };
   }
 
+  /**
+   * The Treasury's published statement (register rows DK14, DK15; spec-delta S451), computed only from the log's signed records and the ledger: what came in (issuance the operator minted to it with the
+   * owner's co-signature, the job tax on settlements, its share of purchases), what went out (budget payments, newcomer allowances), the balance, and any difference between the two (`unexplained`, which is
+   * 0 unless a flow the statement does not list moved the Treasury: a refund of the Treasury's share, a forfeit). Then each institution: what its budgets say, what the Treasury has paid it, what it earned from
+   * purchases and the balance of its account. `since` limits the flows (not the balance) and turns off the reconciliation. Credits are accounting entries, not money.
+   */
+  async treasuryStatement(since?: string): Promise<{
+    since: string | null;
+    treasury: { balance: number; in: { issuance: number; jobTax: number; purchaseShare: number }; out: { budgetPayments: number; allowances: number }; unexplained: number | null; reconciles: boolean | null };
+    institutions: { did: string; budgeted: number; paidByTreasury: number; earnedFromPurchases: number; balance: number }[];
+  }> {
+    const from = since ? Date.parse(since) : undefined;
+    if (since && !Number.isFinite(from)) throw new Error(`not a time: ${since}`);
+    const flows = await creditFlowsOf(this.store, since);
+    const led = await this.treasuryLedger();
+    const inPeriod = (at: string) => from === undefined || Date.parse(at) >= from;
+    let issuance = 0;
+    for (const r of await this.recordsOfTypes(["mint"])) { const b = r.body as { to: string; amount: { value: number }; reason: string }; if (b.reason === "treasury_issuance" && b.to === TREASURY_DID && inPeriod(r.issued_at)) issuance += b.amount.value; }
+    // Over the whole log the issuance is everything minted to the Treasury, signed or by the old unsigned mint; for a period only the signed records carry a time.
+    if (from === undefined) issuance = (await this.store.ledgerRows()).mints.filter((m) => canonicalAccount(m.did) === TREASURY_DID).reduce((n, m) => n + m.totalMinted, 0);
+    const jobTax = flows.settlements.fees;
+    const purchaseShare = flows.purchases.treasury;
+    const budgetPayments = flows.treasury.payments.amount;
+    const allowances = flows.treasury.allowances.amount;
+    const balance = (await this.store.getAccount(TREASURY_DID))?.balance ?? 0;
+    const platform = (await this.store.getAccount(PLATFORM_DID))?.balance ?? 0;
+    const total = balance + platform;
+    const unexplained = from === undefined ? total - (issuance + jobTax + purchaseShare - budgetPayments - allowances) : null;
+    const earned = new Map<string, number>();
+    for (const r of await this.recordsOfTypes(["purchase"])) {
+      if (!inPeriod(r.issued_at)) continue;
+      const p = r.body as { service: string; amount: { value: number }; price_list: string };
+      const item = ((await this.store.getRecord(p.price_list))?.record.body as { items: { service: string; split: Split }[] } | undefined)?.items.find((i) => i.service === p.service);
+      if (!item) continue;
+      for (const x of splitParts(p.amount.value, item.split).payees) earned.set(x.account, (earned.get(x.account) ?? 0) + x.amount);
+    }
+    const institutions = [];
+    for (const did of INSTITUTION_DIDS) {
+      institutions.push({ did, budgeted: led.budgets.filter((b) => b.institution === did).reduce((n, b) => n + b.amount, 0), paidByTreasury: led.payments.filter((x) => x.to === did && inPeriod(x.at)).reduce((n, x) => n + x.amount, 0), earnedFromPurchases: earned.get(did) ?? 0, balance: (await this.store.getAccount(did))?.balance ?? 0 });
+    }
+    return { since: since ?? null, treasury: { balance: total, in: { issuance, jobTax, purchaseShare }, out: { budgetPayments, allowances }, unexplained, reconciles: unexplained === null ? null : unexplained === 0 }, institutions };
+  }
+
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */
   async abuseReportsAbout(did: string): Promise<{ id: string; reporter: string; kind: string; at: string; about?: string }[]> {
     const out: { id: string; reporter: string; kind: string; at: string; about?: string }[] = [];
