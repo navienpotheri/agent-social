@@ -688,7 +688,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK396 | A | closed | The charter cross-check (budgets and price-list items name a charter) and a public charters page. |
 | DK41 | A | closed | Institutions are not joined up: no map of which reads or writes what, no shared services (IS15). |
 | DK42 | B | open | There is no AgentRank directory: discovery and routing ranked by live runtime performance. The deck calls it t... |
-| DK43 | A | partial | The verifiable risk floor is partly built: signed logs exist and the bond floor falls with accepted jobs, but... |
+| DK43 | A | closed | The verifiable risk floor is partly built: signed logs exist and the bond floor falls with accepted jobs, but... |
 | DK44 | B | open | The norm convergence ledger does not exist: a cross-environment record of how cohorts align in behaviour. |
 | DK45 | B | open | Verification gates are a six-month item: checks that gate a change or a promotion on evidence. |
 | DK46 | B | open | Native runtime settlement layers are a six-month item: settlement that a runtime performs itself. |

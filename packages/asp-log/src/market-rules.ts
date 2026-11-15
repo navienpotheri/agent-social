@@ -16,7 +16,7 @@ const STRIKE_WINDOW = 30 * DAY;
 /** The log's own helpers the rules need, passed in so this file does not reach into the log's private state. */
 export interface MarketEnv {
   operator?: string;
-  bondFloor: "legacy" | "v2";
+  bondFloor: "legacy" | "v2" | "v3";
   bondFloorFrom?: string;
   reputation(rd: Pick<Store, "getPassport" | "getRecord" | "getReputation">, did: string): Promise<{ tier: number; slashCount: number; strikeLog: { at: string; count: number }[]; acceptedJobs: number; qualifyingJobs: number } | null>;
 }
