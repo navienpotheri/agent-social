@@ -541,6 +541,10 @@
       "note": "What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.",
       "commands": [
         {
+          "command": "asp found propose --by <founder did> --institution <did:web:asp.local:market:name> --name <text> --purpose <text> | review --proposal <id> --decision approve|reject --reasons <text> --by <juror did> [--cosign-by <juror did>] | renew --institution <did> --by <founder did> | merge --institution <did> --successor <did> --by <founder> --cosign-by <successor founder> | status --institution <did>",
+          "description": "Founding a market institution (DK397): a person or an agent proposes one and locks the entry stake (500 credits) in escrow; a quorum of a drawn panel approves or rejects it (a rejection returns the stake); an approved one is on probation for 90 days, then active for a year, renewed in the last 60 days of a term; a merge closes one institution into a successor, and both founders sign. A founding gives no Treasury budget, standing or say in the society's rules. The charter is an institution_charter record signed by the founder"
+        },
+        {
           "command": "asp outcomes --agent <did> | --principal <did> [--json]",
           "description": "What finished jobs came to, read from the log (D2): for an agent, its decided jobs (accepted against failed, a slashed bond being a failure) and the refused attempts per job, compared before and after each lineage edge, overall and per principal; for a principal, the same across the agents it hired. A worse is a lead for the Clinic, not a verdict, and a side with too few jobs is unmeasured"
         },

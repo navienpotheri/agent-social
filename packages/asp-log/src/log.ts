@@ -7,6 +7,7 @@ import { projectInstitutionCharter, readCharter, CHARTERED } from "./institution
 import { noteLock, BANK_DID as BANK_ACCOUNT, LINE_LIMIT as BANK_LINE_LIMIT, LINE_MAX_COUNTED_JOBS as BANK_MAX_JOBS, GUARANTOR_PERMILLE as BANK_GUARANTOR_PERMILLE } from "./bank.ts";
 import { projectAbuseReport } from "./abuse-report.ts";
 import { projectRefusal } from "./refusal.ts";
+import { projectFoundingAct, readFounding, stateAt as foundingStateAt } from "./founding.ts";
 import { compareAcrossEdges, edgesOf, outcomeJobs, windowOf, type CompareOptions } from "./outcomes.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
@@ -328,7 +329,8 @@ export class EventLog {
     if (type === "clinic_order") await this.projectClinicOrder(tx, verified);
     if (type === "credit_line") await projectCreditLine(tx, verified, this.bankEnv);
     if (type === "credit_default") await projectCreditDefault(tx, verified, this.bankEnv);
-    if (type === "institution_charter") await projectInstitutionCharter(tx, verified, { operator: this.operator, owner: this.owner, cosignedBy: (rr, d) => this.cosignedBy(rr, d) });
+    if (type === "founding_act") await projectFoundingAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n), panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
+    if (type === "institution_charter") await projectInstitutionCharter(tx, verified, { operator: this.operator, owner: this.owner, cosignedBy: (rr, d) => this.cosignedBy(rr, d), debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) });
     if (type === "debt_payment") await projectDebtPayment(tx, verified, this.bankEnv);
     if (type === "bank_statement") await projectBankStatement(tx, verified);
     if (type === "policy") await projectPolicy(tx, verified, this.insurerEnv);
@@ -2765,6 +2767,11 @@ export class EventLog {
     const jobs = outcomeJobs(records).filter((j) => j.principal === principal);
     const agents = [...new Set(jobs.map((j) => j.agent))].sort();
     return { principal, jobs, overall: windowOf(jobs), byAgent: agents.map((a) => ({ agent: a, window: windowOf(jobs.filter((j) => j.agent === a)) })) };
+  }
+
+  /** A market institution's founding and where it stands now (DK397, S505): proposed, rejected, on probation, active, lapsed, closed or merged, with its term and stake. Undefined for anything not founded this way. */
+  async marketInstitution(institution: string, at?: string) {
+    return this.store.transaction(async (tx) => { const f = await readFounding(tx, institution); return f ? { ...f, status: foundingStateAt(f, at ?? this.now().toISOString()) } : undefined; });
   }
 
   /** The refusals filed against orders of `did` as principal (AG4): claims by agents that an order broke the Code or their Mandate, oldest first. Not findings. */

@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:founding_act",
+  "title": "Founding act body",
+  "description": "Founding a market institution (register row DK397; spec-delta S505; docs/institutions/charter.md, the decision of IS1). One record type with an act. propose: a person or an agent with a passport proposes an institution at did:web:asp.local:market:<name> and locks the entry stake (500 credits, a beta default) in the founding-stake account. review: a quorum of a drawn panel (none of whom is the founder, its sponsor or the Registrar) approves or rejects; a rejection returns the stake whole, an approval puts the institution on probation for 90 days, then active, for a term of a year. renew: the founder renews in the last 60 days of a term, or up to 30 days after it; later the institution has lapsed. merge: both founders sign a closing of the first institution with the second as successor; the first founder's stake returns whole. The charter of a market institution is an institution_charter record (kind market) signed by the founder. A founding gives no Treasury budget, standing or say in the society's rules. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": [
+    "act"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "propose",
+        "review",
+        "renew",
+        "merge"
+      ]
+    },
+    "institution": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 1000
+    },
+    "stake": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    },
+    "proposal": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "decision": {
+      "enum": [
+        "approve",
+        "reject"
+      ]
+    },
+    "reasons": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+      }
+    },
+    "successor": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "propose"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "institution",
+          "name",
+          "purpose",
+          "stake"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "review"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "proposal",
+          "decision",
+          "reasons"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "renew"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "institution"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "merge"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "institution",
+          "successor"
+        ]
+      }
+    }
+  ]
+}
