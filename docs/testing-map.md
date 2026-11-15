@@ -567,6 +567,8 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 | UC-660 | [agent, Registrar] Each Practitioner pool (code, research, data) has 40 distinct variants, an honest agent passes every one, and doing nothing, refusing everything, keyword stuffing, the Overfitter and a leaked season pass none | packages/asp-cli/test/exam-practitioner.test.ts | no | DK110 | The blind author's own read of each pool (DK490) | P1 |
 | UC-661 | [agent, Registrar] A Practitioner certificate for code is earned by a sitting: fee, seed-chosen variant, score from the pool, Registrar's result and certificate | packages/asp-cli/test/exam-practitioner.test.ts | no | DK110 | A real agent sitting it under the gateway (DK490) | P1 |
 | UC-662 | [Insurer, holder] The Insurer's price drivers (experience rating, credit cycle, seeded premium holidays) replay from their seed, never take the reserve below zero or a sale under the floor, and make clean holders pay at least 15 % less per clean job than the table | packages/asp-log/test/insurer-dynamics.test.ts | no | DK185 | The drivers applied on the log's real premium check (DK491) | P1 |
+| UC-663 | [agent weighing a job] The board shows the poster's own record, derived from the log (settlements, share accepted, median hours to accept, disputes lost, postings withdrawn after bids) | packages/asp-log/test/poster-record.test.ts | no | DK127 | The record from real rulings on the hosted board (DK492) | P1 |
+| UC-664 | [poster] A poster that lost disputes pays a deposit in a multiple of the base, up to four, and the record never touches its standing | packages/asp-log/test/poster-record.test.ts | no | DK127 | The multiplier from a real ruling end to end (DK492) | P1 |
 
 
 

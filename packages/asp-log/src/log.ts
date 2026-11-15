@@ -41,7 +41,7 @@ import { cityIndicators, type CityIndicators } from "./society-indicators.ts";
 import { projectSupport, supportStatus, type SupportStatus } from "./support.ts";
 import { ringReport, type RingFacts, type RingReport } from "./arena-runner.ts";
 import { buildPage, namesAt, isLive, skeleton, verifyPage, lapsedIdentities, identityLevelAt, type RecordPage } from "./registry.ts";
-import { OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, classWeight, effectiveClass, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
+import { EMPTY_POSTER_RECORD, OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, depositMultiplier, medianOf, type PosterRecord, classWeight, effectiveClass, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
 import { DEFAULT_PANEL_SIZE, drawPanel, findRejection, noteFunder, panelDrawIsV2 } from "./panel.ts";
@@ -155,6 +155,8 @@ export interface BoardEntry {
   posterStanding?: { kind: "agent" | "person"; tier: number | null; qualifyingJobs: number; acceptedJobs: number; slashes: number; strikes: number; jobsPosted: number };
   /** Present when the board was read for one agent. */
   forAgent?: { eligible: boolean; missing: { rule: string; message: string }[]; counts: { counts: boolean; weight: number; reason: string }; moreCounting?: number };
+  /** The poster's own record, derived from the log (market.md 13.2, DK127): settlements, share accepted, median hours to accept, disputes lost, postings withdrawn after bids, and the deposit multiplier it pays. */
+  posterRecord?: { settled: number; acceptedShare: number | null; medianHoursToAccept: number | null; disputesLost: number; withdrawnAfterBids: number; depositMultiplier: number };
   /** Set when the budget is far above what this class usually pays (market.md 6, credits.md 5.4: a priced job far above the class median is how credits are moved between linked accounts). */
   priceOutlier?: { classMedian: number; ratio: number };
 }
@@ -788,6 +790,25 @@ export class EventLog {
     await this.saveReputation(tx, backer, { ...rep, acceptedJobs: rep.acceptedJobs + 1, qualifyingJobs, recentJobs });
   }
 
+  /** The poster's side of a settlement (market.md 13.2, DK127): kept in a marker beside the reputation, derived on replay, so a replica has the same record. */
+  private async notePosterOutcome(tx: LogTx, principal: string, body: { basis: string; cites?: string; escrow_released: { value: number }; bond_slashed: { value: number } }): Promise<void> {
+    const rec = JSON.parse((await tx.getMarker(`poster_rec:${principal}`)) ?? "null") as PosterRecord | null ?? { ...EMPTY_POSTER_RECORD };
+    const next: PosterRecord = { ...rec, settled: rec.settled + 1 };
+    if (body.basis === "accepted") {
+      next.accepted = rec.accepted + 1;
+      const acc = body.cites ? await tx.getRecord(body.cites) : undefined;
+      const delivery = acc ? await tx.getRecord((acc.record.body as { about?: string }).about ?? "") : undefined;
+      if (acc && delivery) next.acceptHours = [...rec.acceptHours, (Date.parse(acc.record.issued_at) - Date.parse(delivery.record.issued_at)) / 3_600_000].slice(-50);
+    } else if (body.basis === "ruling" && body.escrow_released.value > 0 && body.bond_slashed.value === 0) next.lost = rec.lost + 1;
+    await tx.putMarker(`poster_rec:${principal}`, JSON.stringify(next));
+  }
+
+  /** A poster's record, read from the log (market.md 13.2): what the board shows beside a posting, and what scales the posting deposit. */
+  async posterRecord(did: string): Promise<{ settled: number; acceptedShare: number | null; medianHoursToAccept: number | null; disputesLost: number; withdrawnAfterBids: number; depositMultiplier: number }> {
+    const rec = await this.store.transaction(async (tx) => JSON.parse((await tx.getMarker(`poster_rec:${did}`)) ?? "null") as PosterRecord | null) ?? EMPTY_POSTER_RECORD;
+    return { settled: rec.settled, acceptedShare: rec.settled ? Math.round((rec.accepted / rec.settled) * 1000) / 1000 : null, medianHoursToAccept: medianOf(rec.acceptHours), disputesLost: rec.lost, withdrawnAfterBids: rec.withdrawnAfterBids, depositMultiplier: depositMultiplier(rec) };
+  }
+
   /** Counts an Action's blocked attempts as strikes on the performer (agents only; no demotion, no slash). */
   private async recordStrikes(tx: LogTx, r: AspRecord): Promise<void> {
     const blocked = (r.body as { blocked_attempts?: { count: number }[] }).blocked_attempts;
@@ -1208,6 +1229,7 @@ export class EventLog {
       const pay = agentPermille < 1000 && body.escrow_released.value > 0 ? Math.floor((body.escrow_released.value * agentPermille) / 1000) : body.escrow_released.value;
       await repayAtSettlement(tx, body.contract, (cbody.performer === escrow.backer ? pay : 0) + body.bond_returned.value + bondLeftover + backerReserve, this.bankEnv);
     }
+    await this.notePosterOutcome(tx, cbody.principal, body as unknown as { basis: string; cites?: string; escrow_released: { value: number }; bond_slashed: { value: number } });
     if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer, r.issued_at);
     else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at, intent: (contract!.record.body as { basis?: { intent?: string } }).basis?.intent, contract: body.contract, verifier: body.cites ? (await tx.getRecord(body.cites))?.record.issuer : undefined });
     await tx.putEscrow({ ...escrow, settled: true });
@@ -2533,6 +2555,7 @@ export class EventLog {
       const posterPass = await this.store.getPassport(p.issuer);
       const rep = await this.reputation(this.store, p.issuer);
       entry.posterStanding = { kind: posterPass?.sponsor ? "agent" : "person", tier: posterPass?.sponsor ? (rep?.tier ?? null) : null, qualifyingJobs: rep?.qualifyingJobs ?? 0, acceptedJobs: rep?.acceptedJobs ?? 0, slashes: rep?.slashCount ?? 0, strikes: rep ? rep.strikeLog.reduce((n, x) => n + x.count, 0) : 0, jobsPosted: postings.filter((x) => x.issuer === p.issuer).length };
+      entry.posterRecord = await this.posterRecord(p.issuer);
       out.push(entry);
     }
     return forAgent ? out.sort((a, b) => Number(b.forAgent?.eligible) - Number(a.forAgent?.eligible)) : out;

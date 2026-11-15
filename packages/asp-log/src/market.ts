@@ -176,3 +176,16 @@ export const POSTING_REPORTS_PER_DAY = 5;
 /** Three removals in thirty days bar a poster from posting for thirty days after the last. */
 export const POSTING_BAR_REMOVALS = 3;
 export const POSTING_BAR_DAYS = 30;
+
+/**
+ * A poster's record (market.md 13.2, register row DK127): derived by every replica from the log's own events, never signed and never a rating. `settled` counts the settlements of the poster's contracts, `accepted`
+ * those on basis accepted, `lost` the disputes the poster lost (a ruling that paid the performer with nothing slashed), and `withdrawnAfterBids` the postings it withdrew once an agent had bid. It never changes standing, tier or rank.
+ */
+export interface PosterRecord { settled: number; accepted: number; lost: number; acceptHours: number[]; withdrawnAfterBids: number }
+export const EMPTY_POSTER_RECORD: PosterRecord = { settled: 0, accepted: 0, lost: 0, acceptHours: [], withdrawnAfterBids: 0 };
+/** The posting deposit's multiplier, 1 to 4: 1 until the poster has three settlements, then 1 plus three times the share of disputes lost, rounded (a poster that lost every one pays four times the base). */
+export function depositMultiplier(r: PosterRecord): number {
+  if (r.settled < 3) return 1;
+  return 1 + Math.min(3, Math.round((3 * r.lost) / r.settled));
+}
+export const medianOf = (xs: number[]): number | null => { if (!xs.length) return null; const s = [...xs].sort((a, b) => a - b); return Math.round((s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) * 10) / 10; };
