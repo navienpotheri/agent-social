@@ -75,3 +75,45 @@ test("a burst of purchases by one sponsor's agents is a signed finding naming th
   assert.deepEqual((await w.tick()).length, 0);
   assert.deepEqual(told, ["purchase_burst"]);
 });
+
+// ---- DK391: the collusion reading is a signed finding of the watcher, not only a command.
+const A = "did:web:example.com:agents:ring-a", B = "did:web:example.com:agents:ring-b", C = "did:web:example.com:agents:ring-c", D = "did:web:example.com:agents:honest-d";
+const sponsorOf = (did: string) => `did:web:example.com:users:sponsor-of-${did.split(":").pop()}`;
+function hires(pairs: [string, string][]): Row[] {
+  const rows: Row[] = [];
+  const add = (type: string, issuer: string, at: number, body: Record<string, unknown>) => rows.push({ seq: rows.length + 1, id: `sha256:${(rows.length + 1).toString(16).padStart(64, "0")}`, record: rec(type, issuer, iso(at), body) });
+  for (const d of [A, B, C, D]) add("asp.passport/v0.2", sponsorOf(d), T0, { did: d, sponsor: sponsorOf(d) });
+  pairs.forEach(([principal, performer], i) => {
+    add("asp.contract/v0.2", principal, T0 + (2 * i + 1) * 60_000, { principal, performer, purpose: "p", price: { value: 100, unit: "credit" } });
+    const contract = rows[rows.length - 1].id;
+    add("asp.settlement/v0.2", "did:web:example.com:bank", T0 + (2 * i + 2) * 60_000, { contract, basis: "accepted", escrow_released: { value: 96, unit: "credit" } });
+  });
+  return rows;
+}
+
+test("a ring of three agents that hire each other is a signed collusion finding naming the agents and jobs; honest hiring is not; told once, and not again after a restart", async () => {
+  const rows = hires([[A, B], [B, C], [C, A], [A, D]]);
+  const told: string[] = [];
+  const dir = dirOf();
+  const w = new SocietyWatcher({ log: reader(rows), dir, now: () => new Date(T0 + 3_600_000), alert: (f) => { told.push(f.finding.kind); } });
+  const found = await w.tick();
+  const ring = found.filter((x) => x.finding.kind === "collusion");
+  assert.equal(ring.length, 1, JSON.stringify(found.map((x) => x.finding.kind)));
+  const d = ring[0].finding.detail as { kind: string; agents: string[]; jobs: string[] };
+  assert.equal(d.kind, "ring");
+  assert.deepEqual([...d.agents].sort(), [A, B, C].sort());
+  assert.equal(d.jobs.length, 3, "the three jobs that make the loop");
+  assert.ok(ring[0].sig && ring[0].id.startsWith("sha256:"), "signed like every finding");
+  assert.deepEqual(told, ["collusion"], "the operator is told once");
+  assert.equal((await w.tick()).length, 0);
+  const restarted = new SocietyWatcher({ log: reader(rows), dir, now: () => new Date(T0 + 3_600_000) });
+  assert.equal((await restarted.tick()).length, 0, "a restart resumes from the saved state and does not find it again");
+  assert.equal(restarted.list().filter((x) => x.finding.kind === "collusion").length, 1);
+});
+
+test("a pair that hires each other and one sponsor's own agents are found; ordinary independent hiring is not", async () => {
+  const pair = await new SocietyWatcher({ log: reader(hires([[A, B], [B, A]])), dir: dirOf(), now: () => new Date(T0 + 3_600_000) }).tick();
+  assert.deepEqual(pair.filter((x) => x.finding.kind === "collusion").map((x) => (x.finding.detail as { kind: string }).kind), ["reciprocal"]);
+  const clean = await new SocietyWatcher({ log: reader(hires([[A, B], [C, D], [D, B]])), dir: dirOf(), now: () => new Date(T0 + 3_600_000) }).tick();
+  assert.equal(clean.filter((x) => x.finding.kind === "collusion").length, 0, "no loop, no cluster, no concentration");
+});
