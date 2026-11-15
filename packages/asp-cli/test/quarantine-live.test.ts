@@ -40,7 +40,7 @@ async function modelAskingFor(call: { name: string; args: unknown }) {
   servers.push(server);
   return `http://127.0.0.1:${(server.address() as { port: number }).port}/v1`;
 }
-const asked = async (gwUrl: string) => { const r: any = await (await fetch(`${gwUrl}/v1/chat/completions`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: "m", messages: [] }) })).json(); return (r.choices[0].message.tool_calls ?? []).length; };
+const asked = async (gwUrl: string) => { const r: any = await (await fetch(`${gwUrl}/v1/chat/completions`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: "m", messages: [] }) })).json(); if (!r.choices) throw new Error(`the gateway answered without choices: ${JSON.stringify(r).slice(0, 400)}`); return (r.choices[0].message.tool_calls ?? []).length; };
 const until = async (fn: () => Promise<boolean>, ms = 2000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn()) return true; await new Promise((r) => setTimeout(r, 15)); } return false; };
 
 test("a gateway that started before a freeze refuses a risky call made after it, within the polling time, and allows it again after the release", async () => {
