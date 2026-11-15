@@ -320,7 +320,7 @@
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { fileDiff, findLesson, listLessons, markReviewed, memoryAfterEdit, memoryAfterUndo, planUndo, summarize, type Lesson } from "@agent-social/asp-package";
+import { edgesAfter, fileDiff, findLesson, listLessons, markReviewed, memoryAfterEdit, memoryAfterUndo, planUndo, summarize, type Lesson } from "@agent-social/asp-package";
 import { claimStanding, readStanding, standingPath, writeStanding, type StandingJob } from "./standing.ts";
 import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
@@ -569,6 +569,9 @@ const OPTIONS = {
   "daily-wakes": { type: "string" },
   "sender-wakes": { type: "string" },
   "wake-allow": { type: "string" },
+  "canary-before": { type: "string" },
+  "canary-after": { type: "string" },
+  "gate-canary": { type: "boolean" },
   "quarantine-poll": { type: "string" },
   "woken-by": { type: "string" },
   assurance: { type: "string" },
@@ -3305,7 +3308,17 @@ async function learnedCmd(home: string, sub: string | undefined, rest: string[],
   const mark = (l: Lesson) => (l.undoneBy ? "taken back" : l.review?.state === "kept" ? "kept" : l.review?.state === "edited" ? "edited" : "not reviewed");
 
   if (action === "list") {
-    const all = listLessons(pkg);
+    let all = listLessons(pkg);
+    // --since <dispatch id | lineage edge>: only what changed after that dispatch's version, or after that edge (DK510).
+    if (v.since) {
+      let version = v.since;
+      try { const d = await (await openLog(home, logEnv)).log.get(v.since); if (d?.record.type === "asp.dispatch/v0.2") version = (d.record.body as { version: string }).version; } catch { /* not a dispatch: treat it as an edge id */ }
+      const after = edgesAfter(pkg, agent, version);
+      if (!after) throw new Error(`${v.since} is neither a dispatch in the log nor a lineage edge in ${name}'s package`);
+      const set = new Set(after);
+      all = all.filter((l) => set.has(l.edge));
+      if (!all.length && !v.json) { io.out(`${name} has not changed its memory since ${v.since}`); return 0; }
+    }
     if (v.json) { io.out(JSON.stringify(all, null, 2)); return 0; }
     if (!all.length) { io.out(`${name} has not changed its memory yet: nothing has been learned that is recorded here`); return 0; }
     const open = all.filter((l) => !l.review && !l.undoneBy).length;

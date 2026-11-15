@@ -24,6 +24,14 @@ export function packageDigest(pkg: string, agent: string): string {
 /** The newest lineage edge of the agent in its package: the version a dispatch sends (undefined for an agent with no edge yet). */
 export const newestEdge = (pkg: string, agent: string): string | undefined => lineageOf(pkg, agent).at(-1)?.id;
 
+/** The ids of the agent's lineage edges after `version` (a lineage edge's id or an id prefix), in order; undefined when the package's history has no such edge. `version` of "none" or empty means every edge. */
+export function edgesAfter(pkg: string, agent: string, version: string): string[] | undefined {
+  const lineage = lineageOf(pkg, agent);
+  if (!version || version === "none") return lineage.map((e) => e.id);
+  const at = lineage.findIndex((e) => e.id === version || e.id.replace(/^sha256:/, "").startsWith(version.replace(/^sha256:/, "")));
+  return at < 0 ? undefined : lineage.slice(at + 1).map((e) => e.id);
+}
+
 export interface HandbackFacts {
   tierBefore: number; tierAfter: number; strikes: number; slashes: number; creditsEarned: number;
   creditsSpentByInstitution?: Record<string, number>;

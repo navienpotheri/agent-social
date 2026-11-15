@@ -47,7 +47,9 @@ test("a gateway that started before a freeze refuses a risky call made after it,
   const original = ["repo.read", "shell.exec"];
   const live = [...original];
   const upstream = await modelAskingFor({ name: "bash", args: { command: "node build.js" } });
-  const g = createGateway({ openaiUpstream: upstream, scopes: live, maxStrikes: 1000 /* the test asks again every 15 ms while it waits for a poll: three refusals would stop the run as probing */ });
+  // The test polls the gateway while the risky call is refused, and each refusal is a blocked attempt; the default of 3 would stop the run as probing
+  // before the quarantine is checked, so the limit is raised for this test only (the probing rule has its own tests).
+  const g = createGateway({ openaiUpstream: upstream, scopes: live, maxStrikes: 100000 });
   const port = await g.listen(); gateways.push(g);
   const url = `http://127.0.0.1:${port}`;
   const log = fakeLog();

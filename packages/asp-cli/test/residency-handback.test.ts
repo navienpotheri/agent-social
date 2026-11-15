@@ -81,6 +81,14 @@ test("dispatch, a simulated period, handback with the complete record, the spons
     tick();
     assert.notEqual((await asp(f, ["residency", "handback", "--dispatch", first, "--package", pkg])).code, 0, "a handback closes the dispatch once");
 
+    // DK510: what changed since the dispatch, listed by the dispatch; the baseline change from before it is not.
+    const since = await ok(f, ["learned", "--since", first, "--package", pkg]);
+    assert.ok(since.out.includes(short(good)) && since.out.includes(short(drift)), since.out);
+    assert.ok(!since.out.includes("baseline"), "the change made before the dispatch is not listed");
+    assert.match((await ok(f, ["learned", "--since", good, "--package", pkg])).out, new RegExp(short(drift)), "an edge id works as the point in time");
+    assert.doesNotMatch((await ok(f, ["learned", "--since", good, "--package", pkg])).out, new RegExp(short(good)));
+    assert.notEqual((await asp(f, ["learned", "--since", "sha256:" + "0".repeat(64), "--package", pkg])).code, 0, "an unknown dispatch or edge is refused");
+
     // Review: undo the drifted change, keep the good one.
     tick();
     await ok(f, ["learned", "undo", short(drift), "--package", pkg]);
@@ -88,9 +96,25 @@ test("dispatch, a simulated period, handback with the complete record, the spons
     assert.ok(!("extra.md" in memory()), "the drifted change is taken back");
     assert.ok("style.md" in memory(), "the good change stays");
 
-    // Re-dispatch from the edited version, following the first dispatch.
+    // DK510: the canary before the first residency and after it. A regression is flagged and, with --gate-canary, stops the re-dispatch; nothing is recorded by the refusal.
+    const task = (id: string, passRate: number) => ({ id, passRate, errors: 0, trials: [{}, {}, {}], median: { tokens: 100, toolCalls: 3, seconds: 5, blocked: 0 } });
+    const report = (tasks: unknown[]) => ({ version: 1, createdAt: "2026-11-15T10:00:00Z", target: { name: "agent", command: ["x"] }, suite: { name: "s", hash: "h", tasks: tasks.length }, tasks, totals: { tasks: tasks.length, passedTasks: 1, passRate: 1 } });
+    const beforeFile = join(f.root, "canary-before.json"), afterBad = join(f.root, "canary-after-bad.json"), afterOk = join(f.root, "canary-after-ok.json");
+    writeFileSync(beforeFile, JSON.stringify(report([task("t1", 1), task("t2", 1)])));
+    writeFileSync(afterBad, JSON.stringify(report([task("t1", 0), task("t2", 1)])));
+    writeFileSync(afterOk, JSON.stringify(report([task("t1", 1), task("t2", 1)])));
+    const redispatch = ["residency", "dispatch", "--agent", AGENT, "--mode", "home", "--allowance", allowance, "--mandate", mandate, "--package", pkg, "--previous", first];
     tick();
-    const again = await ok(f, ["residency", "dispatch", "--agent", AGENT, "--mode", "home", "--allowance", allowance, "--mandate", mandate, "--package", pkg, "--previous", first]);
+    const gated = await asp(f, [...redispatch, "--canary-before", beforeFile, "--canary-after", afterBad, "--gate-canary"]);
+    assert.notEqual(gated.code, 0, "a regressing canary blocks the re-dispatch when the gate is set");
+    assert.match(gated.err, /REGRESSION t1: passed 100% of trials before, 0% now/);
+    assert.match(gated.err, /the canary regressed on 1 task\(s\).*not dispatched again/);
+    assert.notEqual((await asp(f, [...redispatch, "--canary-before", beforeFile])).code, 0, "both reports go together");
+    const flagged = await asp(f, [...redispatch, "--canary-before", beforeFile, "--canary-after", afterBad]);
+    assert.equal(flagged.code, 0, "without the gate the regression is flagged and the sponsor may go on");
+    assert.match(flagged.err, /REGRESSION t1/);
+    tick();
+    const again = flagged; // the re-dispatch that flagged the canary is the one that goes ahead
     const second = (await openLog(f.aspHome, {})).log;
     const d2 = (await second.get(id(/^dispatch (\S+):/, again.out)))!.record.body as { version: string; previous: string; package_sha256: string };
     assert.equal(d2.previous, first);
