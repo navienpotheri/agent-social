@@ -3,6 +3,7 @@
  * handback. The City-budget and Host keys are the operator's in the beta; the sponsor signs for its own agent. Credits are accounting entries, not money; nothing here moves a credit.
  */
 import { cosign, createRecord, type Signer } from "@agent-social/asp-core";
+import { compareReports } from "./canary.ts";
 import { cityPackageProblem, handbackBody, newestEdge, issueDelegation, packageDigest, recallDelegation, residencyStatement } from "@agent-social/asp-package";
 import { readFileSync } from "node:fs";
 import { CITY_BUDGET_DID, HOST_DID, subsidyReport } from "@agent-social/asp-log";
@@ -93,6 +94,17 @@ export async function residencyCmd(sub: string | undefined, rest: string[], o: R
     if (mode !== "home" && str(f, "runtime-config")) {
       const problem = cityPackageProblem(JSON.parse(readFileSync(str(f, "runtime-config")!, "utf8")));
       if (problem) throw new Error(problem);
+    }
+    // The canary before the first residency and after it (DK510): a task that used to pass and now does not is a regression. It is always said; with --gate-canary a regression stops the re-dispatch.
+    if (str(f, "canary-before") || str(f, "canary-after") || f["gate-canary"]) {
+      const before = str(f, "canary-before"), after = str(f, "canary-after");
+      if (!before || !after) throw new ResidencyUsage("--canary-before <report.json> and --canary-after <report.json> go together (reports from asp canary run --save)");
+      const cmp = compareReports(JSON.parse(readFileSync(before, "utf8")), JSON.parse(readFileSync(after, "utf8")));
+      if (cmp.suiteChanged) o.io.err("  note     the canary suite changed between the two reports, so the comparison may not be like for like");
+      for (const r of cmp.regressions) o.io.err(`  canary   REGRESSION ${r}`);
+      for (const d of cmp.drift) o.io.err(`  canary   drift ${d}`);
+      if (cmp.regressions.length && f["gate-canary"]) throw new Error(`the canary regressed on ${cmp.regressions.length} task(s) while ${agent} lived in the city, so it is not dispatched again: review what it learned (asp learned --since <dispatch>), take back what drifted, and re-run the canary; or dispatch without --gate-canary to accept it`);
+      if (!cmp.regressions.length) o.io.err(`  canary   no regression (${cmp.improvements.length} improved, ${cmp.drift.length} drifted, ${cmp.unchanged} unchanged)`);
     }
     const pkg = str(f, "package");
     if (pkg && o.sync) await o.sync(pkg, agent);

@@ -20,7 +20,7 @@ Most people use only these.
 | `asp runs` | List your recent sessions: what ran, how many calls, how many were refused |
 | `asp runs <id>` | One session in detail: the task, what was refused and why, the Action reports, the run log |
 | `asp today` | What your agents did today: each session, what was refused and why, what you answered, anything wrong, and what each agent returned for its tokens and who paid for its presence (--day YYYY-MM-DD, --since 24h, --all adds scopes and cost) |
-| `asp learned` | What an agent learned: every memory change with what it added, changed and removed; show, keep, undo (a new signed update) and edit one (--package <dir>) |
+| `asp learned [--since <dispatch or edge>]` | What an agent learned (since a dispatch or an edge, when given): every memory change with what it added, changed and removed; show, keep, undo (a new signed update) and edit one (--package <dir>) |
 | `asp trend` | The last 7 days day by day, and each agent: sessions, calls, refusals, failures, tokens, time (--days n) |
 | `asp forecast [--days n] [--json]` | What the next runs will likely use, from the sessions that finished: tokens and time per agent (median, a bad one), a day, the next 7 days |
 | `asp stop [<id> | --all]` | End a running session from another window, or every running session on this machine at once; the standing jobs stay |
