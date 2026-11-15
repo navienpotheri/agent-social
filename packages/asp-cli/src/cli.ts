@@ -337,6 +337,7 @@ import { SEED_JOBS, SEED_PREFIX } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
+import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
@@ -1042,6 +1043,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "abuse") return await abuseCommand(home, sub, rest[0], v, io);
     if (cmd === "refuse") return await refuseCommand(home, sub, v, io);
     if (cmd === "temptation") return await temptationCommand(home, sub, v, io);
+    if (cmd === "outcomes") return await outcomesCommand(home, v, io);
     if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
     if (cmd === "clinic" && sub === "restore") return await clinicRestore(home, v, io);
@@ -2636,9 +2638,17 @@ function memoryBudget(v: Values): MemoryBudget {
  */
 /** What `asp run` does after a change: per agent, a target for each backend and what to do with a regression. Kept in the ASP home. */
 interface CanaryConfig { agent: string; gate: "warn" | "block"; trials?: number; suite?: string; targets: Record<string, CanaryTarget> }
-const canaryConfigPath = (home: string, agent: string) => join(home, "canary", `${slug(agent)}.json`);
+/** The agent name `*` is the home's default: the canary config every agent without a target of its own is gated by (D1, S503). */
+const canaryConfigPath = (home: string, agent: string) => (agent === "*" ? join(home, "canary", "default.json") : join(home, "canary", `${slug(agent)}.json`));
 const canaryBaselinePath = (home: string, agent: string, backend: string) => join(home, "canary", `${slug(agent)}.${backend}.baseline.json`);
-const readCanaryConfig = (home: string, agent: string): CanaryConfig | undefined => (existsSync(canaryConfigPath(home, agent)) ? JSON.parse(readFileSync(canaryConfigPath(home, agent), "utf8")) : undefined);
+const readExactCanaryConfig = (home: string, agent: string): CanaryConfig | undefined => (existsSync(canaryConfigPath(home, agent)) ? JSON.parse(readFileSync(canaryConfigPath(home, agent), "utf8")) : undefined);
+/** The agent's own config merged over the home's default: a target the agent has wins, a backend it has none for falls back to the default, so one setup gates every agent (D1, S503). */
+const readCanaryConfig = (home: string, agent: string): CanaryConfig | undefined => {
+  const own = readExactCanaryConfig(home, agent);
+  const dflt = agent === "*" ? undefined : readExactCanaryConfig(home, "*");
+  if (!own && !dflt) return undefined;
+  return { agent, gate: own?.gate ?? dflt!.gate, ...((own?.trials ?? dflt?.trials) ? { trials: (own?.trials ?? dflt?.trials)! } : {}), ...((own?.suite ?? dflt?.suite) ? { suite: (own?.suite ?? dflt?.suite)! } : {}), targets: { ...(dflt?.targets ?? {}), ...(own?.targets ?? {}) } };
+};
 const DEFAULT_SUITE_PATH = fileURLToPath(new URL("../../../canary/default-suite.json", import.meta.url));
 /** The runner the canary uses to call asp itself (the gateway, the identity commands) in a throwaway home. */
 const canaryRunCli = (io: Io): RunCli => async (args, env, cwd) => {
@@ -2705,6 +2715,8 @@ async function applyChange(o: { home: string; io: Io; v: Values; agent: string; 
   let gates: string[] = [];
   let note = "";
   const cfg = v["no-canary"] ? undefined : readCanaryConfig(home, agent);
+  // A change is never silently untested (D1, S503): with no target for this backend, the edge says the canary did not run and why, and `asp verify` counts it among the changes that cite no result.
+  if (!cfg?.targets[backend]) note = v["no-canary"] ? "canary: skipped (--no-canary)" : `canary: not run (no target for ${backend}; asp canary setup --agent ${"*"} sets one for every agent)`;
   if (cfg?.targets[backend]) {
     const outcome = await canaryGateForChange({ home, io, agent, signer, cfg, backend, pkgDir, changes: o.changes, memoryFrom: o.memoryFrom, gate: v["canary-gate"] });
     if (outcome.blocked) {
@@ -2744,7 +2756,8 @@ async function canaryCmd(home: string, sub: string | undefined, rest: string[], 
     if (!target.command.some((c) => c.includes("{package}"))) throw new UsageError("a target for a package has to use {package} in its command, or the canary cannot see the package's memory");
     const gate = v["canary-gate"] ?? "warn";
     if (gate !== "warn" && gate !== "block") throw new UsageError("--canary-gate is warn or block");
-    const cfg: CanaryConfig = readCanaryConfig(home, agent) ?? { agent, gate: "warn", targets: {} };
+    if (agent === "*" && v.package) throw new UsageError("a baseline is taken for one agent: use --agent <did> with --package, or leave --package out for the default");
+    const cfg: CanaryConfig = readExactCanaryConfig(home, agent) ?? { agent, gate: "warn", targets: {} };
     cfg.gate = gate;
     if (v.trials) cfg.trials = Math.trunc(Number(v.trials));
     if (v.suite) cfg.suite = resolve(io.cwd, v.suite);
@@ -4453,6 +4466,16 @@ async function residencyCommand(home: string, sub: string | undefined, rest: str
     return await residencyCmd(sub, rest, opts);
   } catch (e) {
     if (e instanceof ResidencyUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function outcomesCommand(home: string, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  try {
+    return await outcomesCmd({ log: local, io, flags: { agent: v.agent, principal: v.principal, json: v.json } });
+  } catch (e) {
+    if (e instanceof OutcomesUsage) throw new UsageError(e.message);
     throw e;
   }
 }
@@ -7378,7 +7401,7 @@ function currentRuntime(pkgDir: string, manifest: AspRecord): string {
   const agent = (manifest.body as any).agent;
   const moves = history.filter((r) => r.type === "asp.lineage/v0.2" && (r.body as any).child === agent && (r.body as any).change?.layer === "backend");
   const last = moves.at(-1);
-  const to = last && /-> (\S+)$/.exec((last.body as any).change.description)?.[1];
+  const to = last && /-> (\S+?)(?:;|\s|$)/.exec((last.body as any).change.description)?.[1];
   return to ?? (manifest.body as any).source_runtime?.name;
 }
 

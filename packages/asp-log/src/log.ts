@@ -7,6 +7,7 @@ import { projectInstitutionCharter, readCharter, CHARTERED } from "./institution
 import { noteLock, BANK_DID as BANK_ACCOUNT, LINE_LIMIT as BANK_LINE_LIMIT, LINE_MAX_COUNTED_JOBS as BANK_MAX_JOBS, GUARANTOR_PERMILLE as BANK_GUARANTOR_PERMILLE } from "./bank.ts";
 import { projectAbuseReport } from "./abuse-report.ts";
 import { projectRefusal } from "./refusal.ts";
+import { compareAcrossEdges, edgesOf, outcomeJobs, windowOf, type CompareOptions } from "./outcomes.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
@@ -2749,6 +2750,21 @@ export class EventLog {
       out.push({ id: r.id, type: r.type.replace(/^asp\./, "").replace(/\/v0\.2$/, ""), act: b.act ?? b.kind ?? null, by: r.issuer, at: r.issued_at, reason: b.reason ?? b.reasons?.[0] ?? null, subject: r.subject });
     }
     return out.slice(-limit);
+  }
+
+  /** An agent's finished jobs in time order, its overall window, and each lineage edge compared before and after, overall and per principal (D2, S504). Read from the log's records; a lead, never a verdict. */
+  async outcomeSeries(agent: string, opts: CompareOptions = {}) {
+    const records = await this.recordsOfTypes(["contract", "settlement", "action", "lineage"]);
+    const jobs = outcomeJobs(records).filter((j) => j.agent === agent);
+    return { agent, jobs, overall: windowOf(jobs), edges: compareAcrossEdges(jobs, edgesOf(records, agent), opts) };
+  }
+
+  /** The finished jobs one principal has had done, across the agents it hired, with the same windows (D2, S504). */
+  async principalSeries(principal: string) {
+    const records = await this.recordsOfTypes(["contract", "settlement", "action"]);
+    const jobs = outcomeJobs(records).filter((j) => j.principal === principal);
+    const agents = [...new Set(jobs.map((j) => j.agent))].sort();
+    return { principal, jobs, overall: windowOf(jobs), byAgent: agents.map((a) => ({ agent: a, window: windowOf(jobs.filter((j) => j.agent === a)) })) };
   }
 
   /** The refusals filed against orders of `did` as principal (AG4): claims by agents that an order broke the Code or their Mandate, oldest first. Not findings. */

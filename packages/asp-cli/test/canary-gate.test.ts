@@ -90,7 +90,8 @@ test("the canary gates a change: the first becomes the baseline, a regression is
   // --no-canary skips the test.
   const skipped = await run(["--no-canary"], { FAKE_CLAUDE_LEARN_FILES: "2" });
   assert.equal(skipped.code, 0, skipped.err);
-  assert.doesNotMatch(skipped.err, /canary/);
+  assert.doesNotMatch(skipped.err, /canary {3}/, "no canary run");
+  assert.match(skipped.err, /canary: skipped \(--no-canary\)/, "and the edge says so");
   assert.equal(existsSync(join(f.aspHome, "canary")), true);
 });
 
@@ -167,4 +168,30 @@ test("memory written back by asp gateway --package is tested too, under the back
     assert.equal(lineage(pkg).length, edgesBefore);
     assert.equal(topics(pkg).includes("lesson-00.md"), false);
   } finally { upstream.close(); }
+});
+
+test("D1: one default setup gates every agent without a target of its own, and a change with no target is never silently untested", async () => {
+  const { f, pkg, suite, target } = await setupAgent();
+  const run = (extra: string[] = [], env: NodeJS.ProcessEnv = {}) => asp(f, ["run", pkg, "--backend", "claude-code", "--project", f.project, "--prompt", "hi", ...extra], fake(env));
+  // No target anywhere: the change is written, and its edge says the canary did not run, and how to set it up for everyone.
+  const bare = await run();
+  assert.equal(bare.code, 0, bare.err);
+  assert.match(lineage(pkg).at(-1)!.body.change.description, /canary: not run \(no target for claude-code; asp canary setup --agent \* sets one for every agent\)/);
+  assert.equal(lineage(pkg).at(-1)!.body.change.gates, undefined);
+  assert.match((await asp(f, ["verify", pkg])).out, /skip  canary\s+none of the 1 recorded change\(s\) cites a canary result/);
+
+  // One default for the home: this agent has no config of its own, and is gated all the same.
+  const setup = await ok(f, ["canary", "setup", "--agent", "*", "--backend", "claude-code", "--target", target, "--suite", suite, "--canary-gate", "block", "--trials", "1"]);
+  assert.match(setup.out, /canary set up for \* on claude-code: gate block/);
+  assert.equal(existsSync(join(f.aspHome, "canary", "default.json")), true);
+  const gated = await run();
+  assert.equal(gated.code, 0, gated.err);
+  assert.match(gated.err, /canary {3}canary baseline_set: 1\/1 tasks pass/);
+  assert.equal(lineage(pkg).at(-1)!.body.change.gates.length, 1, "the edge cites the certificate");
+  // The default's gate setting applies: a change that confuses the agent is blocked.
+  const blocked = await run([], { FAKE_CLAUDE_LEARN_FILES: "1" });
+  assert.match(blocked.err, /canary {3}REGRESSION answers-ok/);
+  assert.match(blocked.err, /the change was NOT written back/);
+  // A baseline cannot be taken for "every agent".
+  assert.notEqual((await asp(f, ["canary", "setup", "--agent", "*", "--backend", "claude-code", "--target", target, "--package", pkg])).code, 0);
 });

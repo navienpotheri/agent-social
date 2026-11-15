@@ -261,8 +261,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| D1 | A | partial | No canary or regression suite; asp verify has an empty canary check |
-| D2 | A | partial | No behavioural baseline or before/after comparison |
+| D1 | A | closed | No canary or regression suite; asp verify has an empty canary check |
+| D2 | A | closed | No behavioural baseline or before/after comparison |
 | D3 | B | open | Memory loss is not detected |
 | D4 | A | closed | Which model weights actually ran is not recorded; a name can point to different weights |
 | D5 | B | open | Probation is recorded but changes no rule |
