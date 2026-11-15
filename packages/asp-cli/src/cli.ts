@@ -329,7 +329,7 @@ import { PricesUsage, pricesCmd } from "./prices.ts";
 import { SpendUsage, parseInstitutionSpend, priceView, spendCmd, standingNote } from "./spend.ts";
 import { AcademyUsage, academyCmd } from "./academy.ts";
 import { RegistryUsage, registryCmd } from "./registry.ts";
-import { ClinicUsage, clinicCmd, narrowForQuarantine, watchQuarantine } from "./clinic.ts";
+import { ClinicUsage, clinicCmd, narrowForQuarantine, rewriteHookScopes, watchQuarantine } from "./clinic.ts";
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
@@ -7031,6 +7031,8 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
         : `could not start ${plan.command}: ${e.message}`);
       void (approvals ? approvals.stop() : Promise.resolve()).then(() => done(-1));
     });
+    // A quarantine that begins while a hooked run goes on (DK500): the Mandate file the pre-call hook reads is rewritten with the freeze, so the next hooked call is judged on the new list, and again on release.
+    const stopQuarantineHook = mandate0 && local && plan.preventsCalls ? watchQuarantine(local, agent, mandate0.scopes, [...(mandate?.scopes ?? [])], (Number(v["quarantine-poll"]) > 0 ? Number(v["quarantine-poll"]) : 60) * 1000, now, (l) => io.err(l), (scopes) => { for (const f of [join(plan.runDir, "plugin", "asp-mandate.json"), join(plan.runDir, "asp-hook", "asp-mandate.json")]) rewriteHookScopes(f, scopes); }) : undefined;
     // "close", not "exit": every line of output is read (and every outcome judged) before the run is wrapped up.
     // asp stop on a session of a hooked runtime (Antigravity, OpenHands): the tool is ended; the standing job stays.
     const stopWatch = v["stop-file"] ? setInterval(() => {
@@ -7041,6 +7043,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
       killTimer ??= setTimeout(() => { if (child.exitCode === null && child.signalCode === null) killTree(child, "SIGKILL"); }, KILL_GRACE_MS);
     }, 300) : undefined;
     child.on("close", (c) => {
+      stopQuarantineHook?.();
       if (stopWatch) clearInterval(stopWatch);
       if (killTimer) clearTimeout(killTimer);
       void (approvals ? approvals.stop() : Promise.resolve())

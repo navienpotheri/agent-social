@@ -71,7 +71,9 @@ export function withFileLock<T>(file: string, fn: () => T): T {
   const deadline = Date.now() + 3000;
   for (;;) {
     try { mkdirSync(lock); break; } catch (e) {
-      if ((e as NodeJS.ErrnoException)?.code !== "EEXIST") break;
+      // On Windows a lock directory that is being removed by its holder answers a new mkdir with EPERM, EACCES or EBUSY rather than EEXIST: that is still "held", so wait and try again (seen as lost updates in a 4-process claim test).
+      const code = (e as NodeJS.ErrnoException)?.code;
+      if (code !== "EEXIST" && code !== "EPERM" && code !== "EACCES" && code !== "EBUSY") break;
       try { if (Date.now() - statSync(lock).mtimeMs > 5000) { rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
       if (Date.now() > deadline) break;
       sleep(5 + Math.floor(Math.random() * 15));

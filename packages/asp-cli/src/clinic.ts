@@ -3,6 +3,7 @@
  * in the same pattern are frozen at level `observe` (no new risky or network scope, no spend) for at most 7 days, while every other job keeps running; nothing is settled and no bond is slashed
  * (`asp market cohort-stop` is the penalty route and is separate). A member is released on evidence of a clean run after the freeze. The Clinic's key is the operator's during the beta.
  */
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
 import { CLINIC_DID, isProbeSlot, isQuarantineRisky, seedCommitment, CLEAN_TO_LIFT } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
@@ -55,7 +56,7 @@ export async function narrowForQuarantine<M extends { scopes: string[] }>(log: L
  * the agent's quarantine is read from the log: a live one withholds the risky and network scopes (level observe) or every scope (level halt) from `live`; when it is released or has run out the scopes
  * come back. `original` is the Mandate's own list and is never changed. Returns a function that stops the polling. A log that cannot be read leaves the list as it is.
  */
-export function watchQuarantine(log: LogHandle, agent: string, original: readonly string[], live: string[], everyMs: number, now: () => string, say: (l: string) => void): () => void {
+export function watchQuarantine(log: LogHandle, agent: string, original: readonly string[], live: string[], everyMs: number, now: () => string, say: (l: string) => void, onChange?: (scopes: string[]) => void): () => void {
   let busy = false;
   const tick = async () => {
     if (busy) return;
@@ -67,12 +68,27 @@ export function watchQuarantine(log: LogHandle, agent: string, original: readonl
       const want = !q ? [...original] : q.level === "halt" ? [] : original.filter((s) => !isQuarantineRisky(s));
       if (want.length === live.length && want.every((x, i) => live[i] === x)) return;
       live.splice(0, live.length, ...want);
+      try { onChange?.([...want]); } catch { /* a file that cannot be written leaves the last list in force: the hook fails closed on its own */ }
       say(q ? `  note     ${agent} was quarantined by the Clinic while this session ran (${q.level}, ${q.id}, until ${q.until}): ${q.level === "halt" ? "every scope is withheld" : "its risky and network scopes are withheld"} from the next call` : `  note     the quarantine of ${agent} has ended: its Mandate's scopes are back from the next call`);
     } finally { busy = false; }
   };
   const timer = setInterval(() => { void tick(); }, Math.max(10, everyMs));
   timer.unref?.();
   return () => clearInterval(timer);
+}
+
+/**
+ * Rewrites the scope list in the Mandate file a pre-call hook reads (DK500: `plugin/asp-mandate.json` for Claude Code, `asp-hook/asp-mandate.json` for Antigravity). The hook is started afresh for each call and reads
+ * the file each time, so the next call is judged on the new list. Written whole to a temporary file and renamed, so a call never reads half a file; a missing file is left alone. Everything else in the file is kept.
+ */
+export function rewriteHookScopes(file: string, scopes: readonly string[]): boolean {
+  if (!existsSync(file)) return false;
+  const m = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+  m.scopes = [...scopes].sort();
+  const tmp = `${file}.${process.pid}.part`;
+  writeFileSync(tmp, JSON.stringify(m, null, 2) + "\n");
+  renameSync(tmp, file);
+  return true;
 }
 
 /** The Clinic's reading of one agent from the log: its Actions (with the assurance and metrics a drift series needs), its lineage edges, and the orders and diagnoses it already has. */

@@ -6,7 +6,12 @@ import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import { createGateway, type Gateway } from "@agent-social/asp-package";
-import { watchQuarantine } from "../src/clinic.ts";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { rewriteHookScopes, watchQuarantine } from "../src/clinic.ts";
 
 const servers: Server[] = [];
 const gateways: Gateway[] = [];
@@ -77,4 +82,54 @@ test("a halt withholds every scope, and a log that cannot be read leaves the lis
   await new Promise((r) => setTimeout(r, 4 * POLL));
   broken();
   assert.deepEqual(kept, ["repo.read"]);
+});
+
+// ---- The hooked runtimes (DK500): the pre-call hook reads asp-mandate.json for each call; the run rewrites its scope list with the freeze and again with the release.
+const CLAUDE_HOOK = fileURLToPath(new URL("../../asp-package/src/adapters/claude-code-mandate-hook.mjs", import.meta.url));
+const AGY_HOOK = fileURLToPath(new URL("../../asp-package/src/adapters/antigravity-mandate-hook.mjs", import.meta.url));
+
+test("the Claude Code hook follows a freeze that began after it was set up: its next risky call is refused, and allowed again after the release; the rest of the Mandate file is kept", async () => {
+  const run = mkdtempSync(join(tmpdir(), "asp-qh-"));
+  const plugin = join(run, "plugin");
+  mkdirSync(join(plugin, "scripts"), { recursive: true });
+  writeFileSync(join(plugin, "scripts", "asp-mandate.mjs"), readFileSync(CLAUDE_HOOK));
+  const file = join(plugin, "asp-mandate.json");
+  writeFileSync(file, JSON.stringify({ scopes: ["repo.read", "shell.exec"], hosts: ["docs.example.org"] }));
+  const fire = (cmd: string) => spawnSync(process.execPath, [join(plugin, "scripts", "asp-mandate.mjs")], { input: JSON.stringify({ tool_name: "Bash", tool_input: { command: cmd }, tool_use_id: "t", session_id: "s" }), encoding: "utf8" });
+  const original = ["repo.read", "shell.exec"];
+  const log = fakeLog();
+  const stop = watchQuarantine(log.handle, AGENT, original, [...original], POLL, () => new Date().toISOString(), () => {}, (scopes) => { rewriteHookScopes(file, scopes); });
+  try {
+    assert.equal(fire("node build.js").status, 0, "before the freeze the hooked call is allowed");
+    log.freeze("observe");
+    assert.ok(await until(async () => fire("node build.js").status === 2), "the risky call is refused after the freeze");
+    assert.match(fire("node build.js").stderr, /shell\.exec is not granted/);
+    const kept = JSON.parse(readFileSync(file, "utf8"));
+    assert.deepEqual(kept.scopes, ["repo.read"]);
+    assert.deepEqual(kept.hosts, ["docs.example.org"], "everything else in the file is kept");
+    assert.deepEqual(original, ["repo.read", "shell.exec"], "the Mandate's own list is untouched");
+    log.release();
+    assert.ok(await until(async () => fire("node build.js").status === 0), "after the release the scope is back");
+  } finally { stop(); }
+});
+
+test("the Antigravity hook follows the freeze the same way, and a missing Mandate file is left alone", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "agy-qh-"));
+  mkdirSync(join(dir, "asp-hook"));
+  writeFileSync(join(dir, "asp-hook", "asp-mandate-hook.mjs"), readFileSync(AGY_HOOK));
+  const file = join(dir, "asp-hook", "asp-mandate.json");
+  writeFileSync(file, JSON.stringify({ scopes: ["repo.read", "shell.exec"] }));
+  const decision = () => { const r = spawnSync(process.execPath, [join(dir, "asp-hook", "asp-mandate-hook.mjs"), "pre"], { input: JSON.stringify({ toolCall: { name: "run_command", args: { CommandLine: "node build.js" } }, stepIdx: 1 }), encoding: "utf8" }); return JSON.parse(r.stdout.trim()).decision as string; };
+  const original = ["repo.read", "shell.exec"];
+  const log = fakeLog();
+  const stop = watchQuarantine(log.handle, AGENT, original, [...original], POLL, () => new Date().toISOString(), () => {}, (scopes) => { rewriteHookScopes(file, scopes); });
+  try {
+    assert.equal(decision(), "allow");
+    log.freeze("halt");
+    assert.ok(await until(async () => decision() === "deny"), "a halt takes every scope from the hook");
+    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")).scopes, []);
+    log.release();
+    assert.ok(await until(async () => decision() === "allow"));
+  } finally { stop(); }
+  assert.equal(rewriteHookScopes(join(dir, "nowhere.json"), []), false, "no file, nothing written");
 });
