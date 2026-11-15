@@ -5282,6 +5282,83 @@
       "valid": false
     },
     {
+      "name": "valid_abuse_case",
+      "schema": "court_act",
+      "instance": {
+        "act": "abuse_case",
+        "report": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": true
+    },
+    {
+      "name": "abuse_case_no_report",
+      "schema": "court_act",
+      "instance": {
+        "act": "abuse_case"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_abuse_ruling",
+      "schema": "court_act",
+      "instance": {
+        "act": "abuse_ruling",
+        "case": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "finding": "upheld",
+        "reasons": [
+          "scanned the reporter's servers"
+        ],
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "7"
+          ]
+        },
+        "restitution": {
+          "amount": {
+            "value": 100,
+            "unit": "credit"
+          }
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "abuse_ruling_bad_finding",
+      "schema": "court_act",
+      "instance": {
+        "act": "abuse_ruling",
+        "case": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "finding": "maybe",
+        "reasons": [
+          "x"
+        ],
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "7"
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "abuse_ruling_no_reasons",
+      "schema": "court_act",
+      "instance": {
+        "act": "abuse_ruling",
+        "case": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "finding": "dismissed",
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "7"
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
       "name": "valid_court_appeal",
       "schema": "court_act",
       "instance": {

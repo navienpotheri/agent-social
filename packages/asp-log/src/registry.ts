@@ -77,6 +77,8 @@ export interface RecordPage {
   removed_holdings: { item: string; reason: string }[];
   /** The agent's residency: visitor or resident, active or dormant, and where its upkeep stands. Null for an agent that has not enrolled. */
   residency: { mode: string; status: string; since: string; paid_through: string; reason: string | null } | null;
+  /** Third-party abuse reports against the agent and what became of each (H3, DK350): a lead, then a case, then a panel's finding with what was paid to the reporter. Absent for a page of a name that is not an agent. */
+  abuse?: { id: string; kind: string; at: string; outcome?: { state: string; case: string; finding?: string; requested?: number; paid?: number; shortfall?: number } }[];
   /** The log sequence number the page was computed at. */
   seq: number;
   recompute: string;

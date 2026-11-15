@@ -11,6 +11,8 @@ import type { LogTx } from "./store.ts";
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
 export const COURTS_DID = institutionDid("courts");
 const DAY = 24 * 3600 * 1000;
+/** The most a panel orders paid to a third-party victim in one case, in credits (accounting entries, not money). A beta default: docs/owner-decisions.md H4. */
+export const ABUSE_RESTITUTION_CAP = 200;
 const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
 const list = async (tx: Pick<LogTx, "getMarker">, key: string): Promise<string[]> => ((await tx.getMarker(key)) ?? "").split(",").filter(Boolean);
 
@@ -114,6 +116,53 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     await tx.putMarker(`case:${b.case}`, JSON.stringify({ ...info, state: b.order }));
     await tx.putMarker(`order:${r.id}`, JSON.stringify({ case: b.case, order: b.order, subject: info.subject, holder: info.holder, ...(b.until ? { until: b.until } : {}) }));
     if (b.order === "restore_name") await tx.putMarker(`appeal_refundable:${info.fee}`, r.id);
+    return;
+  }
+
+  // A third party's abuse report as a case (H3, LW5, DK350; spec-delta S502): the Registrar refers an admitted report, a panel hears it and rules, and an upheld finding pays restitution to the reporter.
+  if (b.act === "abuse_case") {
+    if (r.issuer !== REGISTRAR_DID && r.issuer !== env.operator) throw rule("abuse_case_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}) or the operator: only they refer an abuse report to a panel`);
+    const rep = await tx.getRecord(b.report);
+    if (!rep || rep.record.type !== "asp.abuse_report/v0.2") throw rule("abuse_case_not_a_report", `${b.report} is not an admitted abuse report in this log`);
+    if (await tx.getMarker(`abuse_case_for:${b.report}`)) throw rule("abuse_case_once", `${b.report} already has a case`);
+    const accused = (rep.record.body as { accused: string }).accused;
+    await tx.putMarker(`abuse_case:${r.id}`, JSON.stringify({ report: b.report, accused, reporter: rep.record.issuer, state: "open", at: now }));
+    await tx.putMarker(`abuse_case_for:${b.report}`, r.id);
+    return;
+  }
+
+  if (b.act === "abuse_ruling") {
+    const raw = await tx.getMarker(`abuse_case:${b.case}`);
+    if (!raw) throw rule("abuse_case_unknown", `${b.case} is not an abuse case in this log`);
+    const info = JSON.parse(raw) as { report: string; accused: string; reporter: string; state: string };
+    if (info.state !== "open") throw rule("abuse_case_decided", `the case ${b.case} was already ruled on`);
+    if (b.restitution && b.finding !== "upheld") throw rule("abuse_restitution_needs_finding", "restitution follows an upheld finding only");
+    if (b.restitution && b.restitution.amount.value > ABUSE_RESTITUTION_CAP) throw rule("abuse_restitution_cap", `restitution is at most ${ABUSE_RESTITUTION_CAP} credits a case (the Courts' cap)`);
+    const accusedPassport = await tx.getPassport(info.accused);
+    const sponsor = accusedPassport?.sponsor ?? null;
+    const signers = new Set([r.sig.kid, ...(r.cosigs ?? []).map((c) => c.kid)].map(didOf));
+    const conflicted = [...signers].filter((x) => x === info.accused || x === sponsor || x === info.reporter || x === REGISTRAR_DID);
+    if (conflicted.length) throw rule("abuse_panel_conflict", `${conflicted.join(", ")} is the accused, its sponsor, the reporter or the Registrar: the panel is jurors who are none of them`);
+    const routes = await routesOrDefault(tx, now);
+    const panel = await drawPanel(tx, { principal: sponsor ?? info.accused, performer: info.accused, seed: b.case, size: routes.standard_panel, v2: panelDrawIsV2(env.panelV2From, now) });
+    if (panel.length > 0) {
+      const onPanel = panel.filter((p) => signers.has(p));
+      const quorum = Math.ceil(panel.length / 2);
+      if (onPanel.length < quorum) throw rule("panel_quorum", `a ruling on an abuse case needs ${quorum} of the drawn panel (${panel.join(", ")}) to sign; only ${onPanel.length} did`);
+    }
+    // Restitution: the accused's free balance first, then its sponsor's (the sponsor answers for the agent). What is not there is not paid, and the shortfall is on the record. A transfer: supply does not change.
+    const asked = b.restitution?.amount.value ?? 0;
+    let paid = 0;
+    const from: { account: string; amount: number }[] = [];
+    for (const payer of [info.accused, sponsor]) {
+      if (!payer || paid >= asked) continue;
+      const acct = await tx.getAccount(payer);
+      const take = Math.min(acct?.balance ?? 0, asked - paid);
+      if (take > 0) { await tx.putAccount({ did: payer, balance: (acct?.balance ?? 0) - take }); from.push({ account: payer, amount: take }); paid += take; }
+    }
+    if (paid > 0) { const to = await tx.getAccount(info.reporter); await tx.putAccount({ did: info.reporter, balance: (to?.balance ?? 0) + paid }); }
+    await tx.putMarker(`abuse_case:${b.case}`, JSON.stringify({ ...info, state: b.finding }));
+    await tx.putMarker(`abuse_outcome:${info.report}`, JSON.stringify({ case: b.case, ruling: r.id, finding: b.finding, requested: asked, paid, shortfall: asked - paid, from, at: now }));
     return;
   }
 

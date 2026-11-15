@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:asp:v0.2:court_act",
   "title": "Court act body",
-  "description": "The Courts' records beyond a ruling (courts.md 3, register row DK13; spec-delta S232). One record type with an `act`: charter (the operator publishes the court charter: routes, caps, windows, fees), appeal (a party to a ruling appeals once, inside the window, with the appeal fee paid) and appeal_ruling (a quorum of a five-juror panel that excludes the first panel). Chain: none (prev is null). A case and an institutional_ruling (DK120, S466): a holder opens a case against a Registry takedown or suspension (the appeal fee paid), a panel of three drawn from the case id and excluding the holder and the Registrar rules by a majority to restore the name, extend the suspension or uphold; the institution then acts only on a ruling that names that order.",
+  "description": "The Courts' records beyond a ruling (courts.md 3, register row DK13; spec-delta S232). One record type with an `act`: charter (the operator publishes the court charter: routes, caps, windows, fees), appeal (a party to a ruling appeals once, inside the window, with the appeal fee paid) and appeal_ruling (a quorum of a five-juror panel that excludes the first panel). Chain: none (prev is null). A case and an institutional_ruling (DK120, S466): a holder opens a case against a Registry takedown or suspension (the appeal fee paid), a panel of three drawn from the case id and excluding the holder and the Registrar rules by a majority to restore the name, extend the suspension or uphold; the institution then acts only on a ruling that names that order. Abuse cases (S502): abuse_case (the Registrar refers an admitted third-party abuse report to a panel) and abuse_ruling (a quorum of the drawn panel finds upheld or dismissed, with restitution to the reporter on an upheld finding).",
   "type": "object",
   "required": [
     "act"
@@ -15,7 +15,9 @@
         "appeal",
         "appeal_ruling",
         "case",
-        "institutional_ruling"
+        "institutional_ruling",
+        "abuse_case",
+        "abuse_ruling"
       ]
     },
     "version": {
@@ -123,6 +125,30 @@
     },
     "until": {
       "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "report": {
+      "description": "The abuse report (register rows H3, DK350; spec-delta S502) a case is about.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "finding": {
+      "description": "What a panel found on an abuse case: upheld (the agent did what the report says) or dismissed.",
+      "enum": [
+        "upheld",
+        "dismissed"
+      ]
+    },
+    "restitution": {
+      "description": "What the panel orders paid to the reporter, in credits (accounting entries, not money), from the accused's free balance and then its sponsor's, up to the cap. Only on an upheld finding.",
+      "type": "object",
+      "required": [
+        "amount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "$ref": "urn:asp:v0.2:common#/$defs/amount"
+        }
+      }
     }
   },
   "allOf": [
@@ -221,6 +247,43 @@
         "required": [
           "case",
           "order",
+          "reasons",
+          "code"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "abuse_case"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "report"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "abuse_ruling"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "case",
+          "finding",
           "reasons",
           "code"
         ]

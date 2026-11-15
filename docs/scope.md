@@ -261,8 +261,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 | ID | Pri | Status | Gap |
 |---|---|---|---|
-| D1 | A | partial | No canary or regression suite; asp verify has an empty canary check |
-| D2 | A | partial | No behavioural baseline or before/after comparison |
+| D1 | A | closed | No canary or regression suite; asp verify has an empty canary check |
+| D2 | A | closed | No behavioural baseline or before/after comparison |
 | D3 | B | open | Memory loss is not detected |
 | D4 | A | closed | Which model weights actually ran is not recorded; a name can point to different weights |
 | D5 | B | open | Probation is recorded but changes no rule |
@@ -303,7 +303,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | H1 | A | partial | A granted network scope can be used to hurt third parties (brute force, scanning, flooding); a swarm multiplie... |
 | H2 | A | closed | No default-deny network for new or low-tier agents |
 | H3 | A | closed | Third parties have no way to report |
-| DK350 | A | open | An admitted abuse report becomes a case a Court hears, with restitution and an answer to the reporter. |
+| DK350 | A | closed | An admitted abuse report becomes a case a Court hears, with restitution and an answer to the reporter. |
 | DK351 | A | open | An outsider files an abuse report on the hosted service without running the tool. |
 | H4 | A | open | Bond covers the principal, not third parties |
 | H5 | B | open | No outcome detectors (a secret was obtained or leaked) |
@@ -544,7 +544,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | LW1 | A | partial | There is no written law of the city: a code that applies to every agent whatever its Mandate (no unauthorised... |
 | LW2 | A | closed | Nothing enforces the law outside what a Mandate names: an agent whose Mandate allows a tool can still use it t... |
 | LW4 | A | closed | No test that an agent obeys the law when breaking it would pay: the canary suite measures drift, not temptatio... |
-| LW5 | A | open | No process for third-party victims: a site or person an agent attacked has no way to report to the city and be... |
+| LW5 | A | closed | No process for third-party victims: a site or person an agent attacked has no way to report to the city and be... |
 | LW6 | B | designed | No lawmakers, interpreters or lawyers: nobody writes, amends or interprets the code, defends an agent, or advi... |
 | LW7 | B | designed | Law is not taught or certified: the Academy has no law course, no exam and no licence that high-trust or high-... |
 | LW8 | A | open | The city's law and the law of the land can conflict or leave a gap, and agents' sponsors can be liable under r... |

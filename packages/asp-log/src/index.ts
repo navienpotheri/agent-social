@@ -29,6 +29,8 @@ export * from "./market.ts";
 export * from "./registry.ts";
 export * from "./public-pages.ts";
 export * from "./courts.ts";
+export { compareAcrossEdges, edgesOf, outcomeJobs, windowOf, type EdgeComparison, type OutcomeJob, type Window as OutcomeWindow } from "./outcomes.ts";
+export { ABUSE_RESTITUTION_CAP } from "./courts-rules.ts";
 export * from "./academy.ts";
 export { SHOPS_DID, UPKEEP_SERVICE, FREE_DAYS, DORMANT_AFTER_DAYS, WARN_AFTER_DAYS, EFFECT_ALLOWLIST, DISPLAY_EFFECTS, RESOURCE_EFFECTS, PROTECTED_TARGETS, SHOPS_CATALOGUE, HOUSING_CATALOGUE, HOUSING_DID, CAPACITY_LEDGER, mimicsMark, resourceExtras, resourceReconciliation, runHousing, catalogueProblem, residentStates, holdingsAt, unpaidDays, runShops, freeThrough, type CatalogueItem, type ResidentState, type HoldingView, type ShopsRun, type ShopsIo } from "./shops.ts";
 export { PROFILE_LIMITS, THEME_PREFIX, LAYOUT_PREFIX, textProblem, homeView, homeHtml, decorAt, type HomeView } from "./housing.ts";

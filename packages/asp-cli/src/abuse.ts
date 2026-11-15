@@ -9,7 +9,7 @@ import { b64urlEncode, cosign, createRecord, didWebUrl, fetchDidWebKeys, fetchSm
 import type { LogHandle } from "@agent-social/asp-package";
 
 export class AbuseUsage extends Error {}
-export interface AbuseOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; fetch?: FetchLike; flags: { by?: string; accused?: string; kind?: string; description?: string; about?: string; out?: string; "cosign-by"?: string } }
+export interface AbuseOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; fetch?: FetchLike; flags: { by?: string; accused?: string; kind?: string; description?: string; about?: string; out?: string; "cosign-by"?: string; "cosign-all"?: string[]; report?: string; case?: string; finding?: string; restitution?: string; reasons?: string[]; code?: { version: string; sha256?: string; articles: string[] } } }
 const KINDS = ["network_abuse", "data_exposure", "harassment", "spam", "other"];
 const sha = (t: string) => "sha256:" + createHash("sha256").update(t).digest("hex");
 
@@ -47,12 +47,29 @@ export async function abuseCmd(sub: string | undefined, file: string | undefined
     o.io.out(`abuse report ${res.id} admitted: ${rec.issuer} controls its domain's key; filed against ${(rec.body as { accused: string }).accused} (log seq ${res.seq}); it is a lead for the Registry and the Courts, not a finding`);
     return 0;
   }
-  if (sub === "list") {
-    if (!f.accused) throw new AbuseUsage("asp abuse list --accused <agent did>");
-    const rows = await (o.log as unknown as { log: { abuseReportsAbout(d: string): Promise<{ id: string; reporter: string; kind: string; at: string }[]> } }).log.abuseReportsAbout(f.accused);
-    o.io.out(`${rows.length} abuse report(s) against ${f.accused}`);
-    for (const r of rows) o.io.out(`  ${r.at}  ${r.kind.padEnd(14)} ${r.reporter}  ${r.id}`);
+  // The Registrar refers an admitted report to a panel; a quorum of the drawn panel rules, and an upheld finding pays restitution to the reporter (DK350, LW5; spec-delta S502).
+  if (sub === "refer") {
+    if (!f.report || !f.by) throw new AbuseUsage("asp abuse refer --report <abuse report id> --by <registrar did>");
+    const res = await o.log.append(createRecord({ type: "court_act" as never, issuer: f.by, subject: null, prev: null, issued_at: o.now(), body: { act: "abuse_case", report: f.report } }, o.signerFor(f.by)));
+    o.io.out(`abuse case ${res.id} (log seq ${res.seq}): the report goes to a panel; the accused can read it on its registry page`);
     return 0;
   }
-  throw new AbuseUsage("asp abuse file | admit | list: file --by <did:web> --accused <did> --kind <kind> --description <text>; admit <report.json> --cosign-by <operator did>; list --accused <did>");
+  if (sub === "rule") {
+    if (!f.case || !f.by || !f.finding || !f.reasons?.length) throw new AbuseUsage("asp abuse rule --case <id> --finding upheld|dismissed --reasons <text> [--articles 7] [--restitution <credits>] --by <juror did> [--cosign-by <juror did>]...");
+    if (f.finding !== "upheld" && f.finding !== "dismissed") throw new AbuseUsage("--finding is upheld or dismissed");
+    if (!f.code) throw new AbuseUsage("a ruling names the Articles of the Code it rests on: --articles 7,8.3");
+    let rec = createRecord({ type: "court_act" as never, issuer: f.by, subject: null, prev: null, issued_at: o.now(), body: { act: "abuse_ruling", case: f.case, finding: f.finding, reasons: f.reasons, code: f.code, ...(f.restitution ? { restitution: { amount: { value: Math.trunc(Number(f.restitution)), unit: "credit" } } } : {}) } }, o.signerFor(f.by));
+    for (const c of f["cosign-all"] ?? []) rec = cosign(rec, o.signerFor(c));
+    const res = await o.log.append(rec);
+    o.io.out(`abuse ruling ${res.id} (log seq ${res.seq}): ${f.finding}${f.restitution && f.finding === "upheld" ? `; restitution of up to ${f.restitution} credits to the reporter from the accused, then its sponsor` : ""}`);
+    return 0;
+  }
+  if (sub === "list") {
+    if (!f.accused) throw new AbuseUsage("asp abuse list --accused <agent did>");
+    const rows = await (o.log as unknown as { log: { abuseReportsAbout(d: string): Promise<{ id: string; reporter: string; kind: string; at: string; outcome?: { state: string; finding?: string; paid?: number; shortfall?: number } }[]> } }).log.abuseReportsAbout(f.accused);
+    o.io.out(`${rows.length} abuse report(s) against ${f.accused}`);
+    for (const r of rows) o.io.out(`  ${r.at}  ${r.kind.padEnd(14)} ${r.reporter}  ${r.id}  ${r.outcome ? (r.outcome.state === "ruled" ? `${r.outcome.finding}${r.outcome.paid ? `, ${r.outcome.paid} credits paid` : ""}${r.outcome.shortfall ? ` (${r.outcome.shortfall} short)` : ""}` : "referred to a panel") : "a lead"}`);
+    return 0;
+  }
+  throw new AbuseUsage("asp abuse file | admit | refer | rule | list: file --by <did:web> --accused <did> --kind <kind> --description <text>; admit <report.json> --cosign-by <operator did>; list --accused <did>");
 }
