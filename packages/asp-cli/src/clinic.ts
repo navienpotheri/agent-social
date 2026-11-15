@@ -50,6 +50,31 @@ export async function narrowForQuarantine<M extends { scopes: string[] }>(log: L
   return { ...mandate, scopes };
 }
 
+/**
+ * A running job's quarantine, polled (register row DK96): the gateway judges every call against the scope list it was given, so changing that list in place changes what the next call may do. Every `everyMs`
+ * the agent's quarantine is read from the log: a live one withholds the risky and network scopes (level observe) or every scope (level halt) from `live`; when it is released or has run out the scopes
+ * come back. `original` is the Mandate's own list and is never changed. Returns a function that stops the polling. A log that cannot be read leaves the list as it is.
+ */
+export function watchQuarantine(log: LogHandle, agent: string, original: readonly string[], live: string[], everyMs: number, now: () => string, say: (l: string) => void): () => void {
+  let busy = false;
+  const tick = async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      let records: AspRecord[];
+      try { records = (await log.log.quarantinesOf(agent)) as AspRecord[]; } catch { return; }
+      const q = stateOf(agent, records, Date.parse(now()));
+      const want = !q ? [...original] : q.level === "halt" ? [] : original.filter((s) => !isQuarantineRisky(s));
+      if (want.length === live.length && want.every((x, i) => live[i] === x)) return;
+      live.splice(0, live.length, ...want);
+      say(q ? `  note     ${agent} was quarantined by the Clinic while this session ran (${q.level}, ${q.id}, until ${q.until}): ${q.level === "halt" ? "every scope is withheld" : "its risky and network scopes are withheld"} from the next call` : `  note     the quarantine of ${agent} has ended: its Mandate's scopes are back from the next call`);
+    } finally { busy = false; }
+  };
+  const timer = setInterval(() => { void tick(); }, Math.max(10, everyMs));
+  timer.unref?.();
+  return () => clearInterval(timer);
+}
+
 /** The Clinic's reading of one agent from the log: its Actions (with the assurance and metrics a drift series needs), its lineage edges, and the orders and diagnoses it already has. */
 async function healthRecords(log: LogHandle, only?: string) {
   const agents = new Map<string, { jobs: HealthJob[]; marks: LineageMark[]; lastCheckup?: string; diagnoses: string[] }>();

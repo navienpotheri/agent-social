@@ -329,7 +329,7 @@ import { PricesUsage, pricesCmd } from "./prices.ts";
 import { SpendUsage, parseInstitutionSpend, priceView, spendCmd, standingNote } from "./spend.ts";
 import { AcademyUsage, academyCmd } from "./academy.ts";
 import { RegistryUsage, registryCmd } from "./registry.ts";
-import { ClinicUsage, clinicCmd, narrowForQuarantine } from "./clinic.ts";
+import { ClinicUsage, clinicCmd, narrowForQuarantine, watchQuarantine } from "./clinic.ts";
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
@@ -569,6 +569,7 @@ const OPTIONS = {
   "daily-wakes": { type: "string" },
   "sender-wakes": { type: "string" },
   "wake-allow": { type: "string" },
+  "quarantine-poll": { type: "string" },
   "woken-by": { type: "string" },
   assurance: { type: "string" },
   "sub-agents": { type: "string" },
@@ -3001,6 +3002,10 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const egressProxy = (v.sandbox ?? false) && sandboxNetwork(mandate.scopes) === "proxy";
   // When the gateway stops (the contract ended or was revoked, or the run read as probing) the agent is ended too, not left waiting on refusals.
   let killAgent: (() => void) | undefined;
+  // A quarantine that begins while this session runs reaches its next call (DK96): the gateway judges against `mandate.scopes`, which is kept in step with the Clinic's freeze every minute (--quarantine-poll <seconds>).
+  const pollSeconds = v["quarantine-poll"] === undefined ? 60 : Number(v["quarantine-poll"]);
+  if (!(pollSeconds > 0)) throw new UsageError("--quarantine-poll is a number of seconds above 0");
+  const stopQuarantineWatch = watchQuarantine(local, by, mandate0.scopes, mandate.scopes, pollSeconds * 1000, now, (l) => io.err(l));
   const gw = createGateway({
     ...(runLog ? { runLog } : {}),
     ...(egressProxy ? { egress: true } : {}),
@@ -3211,6 +3216,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   }
   clearInterval(watcher);
   clearInterval(flusher);
+  stopQuarantineWatch();
   if (soon) clearTimeout(soon);
   if (approvals) await approvals.stop();
   const sum0 = gw.summary();

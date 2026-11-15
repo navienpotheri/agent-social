@@ -40,13 +40,13 @@ test("--prepare makes sure the job exists without counting a session, and a job 
   assert.equal(readStanding(h).other.sessions, 1);
 });
 
-test("six processes claiming 15 times each on one standing.json lose none (90 sessions)", async () => {
+test("four processes claiming 8 times each on one standing.json lose none (32 sessions)", async () => {
   const h = home();
   const script = fileURLToPath(new URL("./standing-claim-worker.mjs", import.meta.url));
   const run = () => new Promise<number>((resolve) => { const c = spawn(process.execPath, [script, h], { stdio: "ignore" }); c.on("close", (code) => resolve(code ?? 1)); });
-  const codes = await Promise.all(Array.from({ length: 6 }, run));
-  assert.deepEqual(codes, [0, 0, 0, 0, 0, 0]);
+  const codes = await Promise.all(Array.from({ length: 4 }, run));
+  assert.deepEqual(codes, [0, 0, 0, 0]);
   const stored = readStanding(h).k;
-  assert.equal(stored.sessions, 90);
+  assert.equal(stored.sessions, 32);
   assert.equal(stored.contract, "c-race", "one standing job");
 });

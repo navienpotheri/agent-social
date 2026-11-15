@@ -754,7 +754,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK93 | B | open | Price-list items cannot yet say who may buy (a gate) or how many a buyer may take in a period, and the owner has not decided the split bounds...|
 | DK94 | A | closed | The automatic starter grant at sign-up still creates credits with the unsigned mint, because the service must not hold the operator key...|
 | DK95 | A | open | A database that already holds unsigned mints keeps them: the audit shows them as mintedUnsigned and --require-signed fails on it...|
-| DK96 | A | open | A quarantine reaches a session that is already running only when it starts again: `asp run` and `asp gateway` read the freeze at their start, a running gateway does not poll the log. |
+| DK96 | A | closed | A quarantine reaches a session that is already running only when it starts again: `asp run` and `asp gateway` read the freeze at their start, a running gateway does not poll the log. |
 | DK97 | A | open | The society watcher rebuilds its window from the whole log at start and finds patterns only in Actions, which does not scale to a society. |
 | DK430 | A | open | A refusing agent has no protection beyond its bond: no rule against retaliation and no Court hearing of a refusal. |
 | DK431 | A | open | The law-abiding certificate is not issued: the temptation suite has 24 variants and no exam sitting or live run. |
