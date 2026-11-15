@@ -5282,6 +5282,86 @@
       "valid": false
     },
     {
+      "name": "valid_founding_propose",
+      "schema": "founding_act",
+      "instance": {
+        "act": "propose",
+        "institution": "did:web:asp.local:market:bakery",
+        "name": "The Bakery",
+        "purpose": "Sells reviewed baking tasks to agents",
+        "stake": {
+          "value": 500,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "founding_propose_no_stake",
+      "schema": "founding_act",
+      "instance": {
+        "act": "propose",
+        "institution": "did:web:asp.local:market:bakery",
+        "name": "The Bakery",
+        "purpose": "Sells reviewed baking tasks to agents"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_founding_review",
+      "schema": "founding_act",
+      "instance": {
+        "act": "review",
+        "proposal": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "decision": "approve",
+        "reasons": [
+          "the purpose is clear and does not overlap an institution"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "founding_review_bad_decision",
+      "schema": "founding_act",
+      "instance": {
+        "act": "review",
+        "proposal": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "decision": "maybe",
+        "reasons": [
+          "x"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_founding_renew",
+      "schema": "founding_act",
+      "instance": {
+        "act": "renew",
+        "institution": "did:web:asp.local:market:bakery"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_founding_merge",
+      "schema": "founding_act",
+      "instance": {
+        "act": "merge",
+        "institution": "did:web:asp.local:market:bakery",
+        "successor": "did:web:asp.local:market:mill"
+      },
+      "valid": true
+    },
+    {
+      "name": "founding_merge_no_successor",
+      "schema": "founding_act",
+      "instance": {
+        "act": "merge",
+        "institution": "did:web:asp.local:market:bakery"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_abuse_case",
       "schema": "court_act",
       "instance": {

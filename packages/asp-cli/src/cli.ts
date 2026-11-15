@@ -338,6 +338,7 @@ import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
+import { FoundUsage, foundCmd } from "./found.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
@@ -757,6 +758,8 @@ const OPTIONS = {
   mode: { type: "string" },
   finding: { type: "string" },
   case: { type: "string" },
+  decision: { type: "string" },
+  successor: { type: "string" },
   restitution: { type: "string" },
   with: { type: "string" },
   ref: { type: "string" },
@@ -1044,6 +1047,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "refuse") return await refuseCommand(home, sub, v, io);
     if (cmd === "temptation") return await temptationCommand(home, sub, v, io);
     if (cmd === "outcomes") return await outcomesCommand(home, v, io);
+    if (cmd === "found") return await foundCommand(home, sub, v, io);
     if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
     if (cmd === "insure") return await insureCommand(home, sub, v, io);
     if (cmd === "clinic" && sub === "restore") return await clinicRestore(home, v, io);
@@ -4466,6 +4470,17 @@ async function residencyCommand(home: string, sub: string | undefined, rest: str
     return await residencyCmd(sub, rest, opts);
   } catch (e) {
     if (e instanceof ResidencyUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function foundCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await foundCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, institution: v.institution, name: v.name, purpose: v.purpose, proposal: v.proposal, decision: v.decision, reasons: v.reasons, successor: v.successor, cosign: v["cosign-by"] } });
+  } catch (e) {
+    if (e instanceof FoundUsage) throw new UsageError(e.message);
     throw e;
   }
 }

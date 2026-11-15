@@ -570,6 +570,8 @@ Each thing found or fixed is placed on the flow: the **stage** a session is in a
 
 
 
+
+
 ## Journey index
 
 Where a journey step is covered by a row earlier in the map:

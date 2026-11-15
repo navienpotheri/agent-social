@@ -5,6 +5,7 @@
  */
 import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { INSTITUTION_DIDS, TREASURY_DID } from "./economy.ts";
+import { checkMarketCharter } from "./founding.ts";
 import type { LogTx } from "./store.ts";
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
@@ -14,7 +15,7 @@ export const CHARTERED: readonly string[] = [...INSTITUTION_DIDS, TREASURY_DID, 
 export const CHARTER_NOTICE_MS = 72 * 3600 * 1000;
 
 export interface CharterBody { institution: string; version: number; kind: "sovereign" | "market"; status: "active" | "closed"; text_sha256: string; effective_from: string; officers: string[]; funding: string; reason?: string }
-export interface CharterEnv { operator?: string; owner?: string; cosignedBy(r: AspRecord, did: string | undefined): boolean }
+export interface CharterEnv { operator?: string; owner?: string; cosignedBy(r: AspRecord, did: string | undefined): boolean; debit?(tx: LogTx, did: string, n: number): Promise<void>; credit?(tx: LogTx, did: string, n: number): Promise<void> }
 
 export const readCharter = async (tx: Pick<LogTx, "getMarker">, institution: string, version: number): Promise<(CharterBody & { record: string; at: string }) | null> => {
   const raw = await tx.getMarker(`charter_v:${institution}|${version}`);
@@ -24,11 +25,16 @@ export const readCharter = async (tx: Pick<LogTx, "getMarker">, institution: str
 export async function projectInstitutionCharter(tx: LogTx, r: AspRecord, env: CharterEnv): Promise<void> {
   const b = r.body as unknown as CharterBody;
   if (r.prev !== null) throw rule("charter_not_chained", "a charter version starts its own chain (prev is null)");
-  if (!env.operator || r.issuer !== env.operator) throw rule("charter_wrong_issuer", `${r.issuer} is not the operator (${env.operator ?? "none set"}): the operator is the officer of every institution in the beta and signs its charter`);
-  if (!CHARTERED.includes(b.institution)) throw rule("charter_unknown_institution", `${b.institution} is not an institution of the society: the twelve are ${CHARTERED.join(", ")}`);
+  // A market institution (DK397, S505): founded by a person or an agent after a panel approved it; its founder signs, and no owner co-signature is asked. The rest of the version rules below still apply.
+  const market = b.kind === "market" && String(b.institution).startsWith("did:web:asp.local:market:");
+  if (market) {
+    if (!env.debit || !env.credit) throw rule("charter_market_unavailable", "this log cannot return a stake");
+    await checkMarketCharter(tx, r, b, { debit: env.debit, credit: env.credit });
+  } else if (!env.operator || r.issuer !== env.operator) throw rule("charter_wrong_issuer", `${r.issuer} is not the operator (${env.operator ?? "none set"}): the operator is the officer of every institution in the beta and signs its charter`);
+  if (!market && !CHARTERED.includes(b.institution)) throw rule("charter_unknown_institution", `${b.institution} is not an institution of the society: the twelve are ${CHARTERED.join(", ")}`);
   const head = Number((await tx.getMarker(`charter_head:${b.institution}`)) ?? 0);
   if (b.version !== head + 1) throw rule("charter_version", `the next charter of ${b.institution} is version ${head + 1}, not ${b.version}`);
-  const owner = env.cosignedBy(r, env.owner);
+  const owner = market ? true : env.cosignedBy(r, env.owner);
   const prev = head > 0 ? await readCharter(tx, b.institution, head) : null;
   if (!prev) {
     if (b.status !== "active") throw rule("charter_found_active", "a founding charter is active: an institution is closed by a later version");

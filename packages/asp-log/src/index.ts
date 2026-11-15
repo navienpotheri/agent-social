@@ -49,7 +49,8 @@ export { plan as capacityPlan, limitProblems, type CapacityInput, type CapacityP
 export { PLACES, flowsOf, societyMap, dayReplay, simulatedFeed, type Flow, type FlowKind, type MapAgent, type MapFeed, type MapInput, type StoredLike, type RepLike } from "./society-map.ts";
 export { ABUSE_PER_DAY, ABUSE_PER_ACCUSED_DAYS } from "./abuse-report.ts";
 export { DEPOSIT_TERM_DAYS, REWARD_PERMILLE, REWARD_MONTHLY_CAP, REWARD_BUDGET_PURPOSE, rewardFor } from "./deposits.ts";
-export { BANK_DEPOSIT_DID } from "./economy.ts";
+export { BANK_DEPOSIT_DID, FOUNDING_STAKE_DID } from "./economy.ts";
+export { ENTRY_STAKE, FOUNDER_LIMIT, GRACE_DAYS, MARKET_PREFIX, PROBATION_DAYS, RENEWAL_WINDOW_DAYS, TERM_DAYS, stateAt as foundingStateAt } from "./founding.ts";
 export { findCollusion, closesLoop, type CollusionFinding } from "./collusion.ts";
 export { SUPPORT_TARGET_HOURS, SUPPORT_METHOD, supportStatus, type SupportStatus } from "./support.ts";
 export { commitTask, passes, ringReport, runSeason, type CommittedTask, type Entrant, type HiddenRule, type RevealedTask, type RingReport, type SeasonRun } from "./arena-runner.ts";

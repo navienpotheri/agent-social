@@ -71,6 +71,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.exam/v0.2` | An exam the Registrar runs (academy.md 3, AC-7, register row DK25). | `exam`, `skill`, `level`, `suite_hash`, `pass_mark_permille`, `pool_size`, `categories`, `max_sittings`, `window_days`, `sitting_service` |
 | `asp.exam_result/v0.2` | The result of one sitting (academy.md 3, AC-8, register row DK25). | `exam`, `holder`, `score_permille`, `pass_mark_permille`, `passed`, `attempt`, `variant`, `seed`, `sitting`, `run_log_hash`, `missed_categories` |
 | `asp.fleet/v0.2` | A declared group of agent persons under one organization, with a shared sponsor. | `did`, `org`, `name`, `purpose` |
+| `asp.founding_act/v0.2` | Founding a market institution (register row DK397; spec-delta S505; docs/institutions/charter.md, the decision of IS1). | `act` |
 | `asp.handback/v0.2` | What an agent became while it lived in the city, handed back to its sponsor (residency.md 5 and 9, register row DK84; spec-delta S303). | `dispatch`, `package_sha256_after`, `lineage_edges`, `lessons`, `tier_before`, `tier_after`, `strikes`, `slashes`, `credits_earned`, `usage`, `diff_sha256` |
 | `asp.housing_act/v0.2` | Housing's records (housing.md 3, register row DK38; spec-delta S270). | `act` |
 | `asp.institution_charter/v0.2` | The published charter of an institution, one version at a time (docs/institutions/charter.md; register rows IS1 and DK382; spec-delta S480). | `institution`, `version`, `kind`, `status`, `text_sha256`, `effective_from`, `officers`, `funding` |

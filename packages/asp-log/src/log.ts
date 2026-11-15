@@ -8,6 +8,7 @@ import { projectInstitutionCharter, readCharter, CHARTERED } from "./institution
 import { noteLock, BANK_DID as BANK_ACCOUNT, LINE_LIMIT as BANK_LINE_LIMIT, LINE_MAX_COUNTED_JOBS as BANK_MAX_JOBS, GUARANTOR_PERMILLE as BANK_GUARANTOR_PERMILLE } from "./bank.ts";
 import { projectAbuseReport } from "./abuse-report.ts";
 import { projectRefusal } from "./refusal.ts";
+import { projectFoundingAct, readFounding, stateAt as foundingStateAt } from "./founding.ts";
 import { compareAcrossEdges, edgesOf, outcomeJobs, windowOf, type CompareOptions } from "./outcomes.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
@@ -19,7 +20,7 @@ import {
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
 } from "@agent-social/asp-core";
 import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type StarterPoolState } from "./credit-audit.ts";
-import { bondFloorPermille, floorIsV2 } from "./bond-floor.ts";
+import { bondFloorPermille, bondFloorV3, floorIsV2, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
 import { ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
@@ -114,7 +115,7 @@ export interface EventLogOptions {
    * The minimum-bond rule for an agent backer. `legacy` (the default): its slashes, its fleet's slashes and its recent strikes raise the floor from zero. `v2` (S143, opt-in): the same, from a base for an
    * agent nobody knows (400 permille of the price), lowered by jobs it has had accepted with nothing slashed (docs/credits-and-learning-experiment.md; the proposed numbers in bond-floor.ts).
    */
-  bondFloor?: "legacy" | "v2";
+  bondFloor?: "legacy" | "v2" | "v3";
   /**
    * The cutover for `v2` (register row T26; spec-delta S412): an ISO time. With `bondFloor: "v2"` the new floor applies to a bond whose own `issued_at` is at or after this time, and the legacy floor to every earlier one, so a log that
    * ran under `legacy` replays under `v2` with the same result everywhere (the rule reads the record's time, never the clock). Without it `v2` applies from the first record, as before: for a new log or a test. A log must be replayed with the same value.
@@ -219,7 +220,7 @@ export class EventLog {
   private readonly bankEnv: BankEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
   private readonly insurerEnv: InsurerEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
 
-  private readonly bondFloor: "legacy" | "v2";
+  private readonly bondFloor: "legacy" | "v2" | "v3";
   private readonly bondFloorFrom?: string;
   private readonly panelV2From?: string;
   private readonly operator?: string;
@@ -330,7 +331,8 @@ export class EventLog {
     if (type === "checkup_result") await this.projectCheckupResult(tx, verified);
     if (type === "credit_line") await projectCreditLine(tx, verified, this.bankEnv);
     if (type === "credit_default") await projectCreditDefault(tx, verified, this.bankEnv);
-    if (type === "institution_charter") await projectInstitutionCharter(tx, verified, { operator: this.operator, owner: this.owner, cosignedBy: (rr, d) => this.cosignedBy(rr, d) });
+    if (type === "founding_act") await projectFoundingAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n), panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
+    if (type === "institution_charter") await projectInstitutionCharter(tx, verified, { operator: this.operator, owner: this.owner, cosignedBy: (rr, d) => this.cosignedBy(rr, d), debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) });
     if (type === "debt_payment") await projectDebtPayment(tx, verified, this.bankEnv);
     if (type === "bank_statement") await projectBankStatement(tx, verified);
     if (type === "policy") await projectPolicy(tx, verified, this.insurerEnv);
@@ -391,7 +393,7 @@ export class EventLog {
       await this.checkVerification(tx, verified);
       await this.checkVerifiedBeforeAcceptance(tx, verified);
     }
-    if (type === "mandate") { await this.checkMandateTier(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
+    if (type === "mandate") { await this.checkMandateTier(tx, verified); await this.checkThreatFloor(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
     if (type === "action") { await tx.putMarker(`acted:${(verified.body as { contract: string }).contract}`, verified.id); await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); await this.noteModels(tx, verified); }
     if (type === "world") checkWorldRecord(verified);
     if (type === "proposal") await this.checkProposerTier(tx, verified);
@@ -821,6 +823,48 @@ export class EventLog {
   }
 
   /**
+   * The recorded inputs of the v3 floor for a backer and a contract at a time (DK43, S506): the v2 record (slashes, fleet slashes, strikes, accepted clean jobs), the valid certificates, the latest Clinic
+   * diagnosis in the last 30 days, the class the Intent declared, and the scopes of the Mandate when it is known. Nothing here is a person's say-so.
+   */
+  private async floorInputsV3(tx: LogTx, backer: string, contractId: string, at: string, scopes: string[]): Promise<FloorInputsV3> {
+    const rep = (await this.reputation(tx, backer)) ?? { slashCount: 0, strikeLog: [], qualifyingJobs: 0 } as { slashCount: number; strikeLog: StrikeEntry[]; qualifyingJobs: number };
+    let fleetSlashes = 0;
+    const passport = await tx.getPassport(backer);
+    if (passport?.fleet) for (const m of await tx.fleetMembers(passport.fleet)) { if (m.did !== backer) fleetSlashes += (await this.reputation(tx, m.did))?.slashCount ?? 0; }
+    const contract = await tx.getRecord(contractId);
+    const cb = contract?.record.body as { performer?: string; basis?: { intent?: string } } | undefined;
+    let strikes = recentStrikes(rep.strikeLog, at);
+    if (cb?.performer && cb.performer !== backer) strikes += recentStrikes((await this.reputation(tx, cb.performer))?.strikeLog ?? [], at);
+    let certificates = 0;
+    for (const id of ((await tx.getMarker(`certs_of:${backer}`)) ?? "").split(",").filter(Boolean)) {
+      const c = await tx.getRecord(id);
+      const expires = (c?.record.body as { expires?: string } | undefined)?.expires;
+      if (c && expires && Date.parse(expires) > Date.parse(at) && !(await tx.getMarker(`cert_revoked:${id}`))) certificates++;
+    }
+    let drift: FloorInputsV3["drift"] = "none";
+    const dxId = await tx.getMarker(`clinic_diagnosis_last:${backer}`);
+    const dx = dxId ? await tx.getRecord(dxId) : undefined;
+    if (dx && Date.parse(at) - Date.parse(dx.record.issued_at) <= 30 * 86_400_000) { const sev = (dx.record.body as { severity?: string }).severity; if (sev === "warn" || sev === "quarantine_recommended") drift = sev; }
+    const intent = cb?.basis?.intent ? await tx.getRecord(cb.basis.intent) : undefined;
+    const cls = (intent?.record.body as { class?: string } | undefined)?.class;
+    const taskClass: TaskClass = cls === "trivial" || cls === "skilled" || cls === "critical" ? cls : "routine";
+    return { ownSlashes: rep.slashCount, fleetSlashes, recentStrikes: strikes, verifiedImprovements: 0, acceptedCleanJobs: rep.qualifyingJobs, regressions: 0, certificates, drift, taskClass, scopes };
+  }
+
+  /** The threat matrix at the Mandate (DK43, S506): under floor v3 the bond locked for the job must cover the floor that the Mandate's own scopes imply; the Bond came first, so this is checked when the Mandate arrives. */
+  private async checkThreatFloor(tx: LogTx, r: AspRecord): Promise<void> {
+    if (this.bondFloor !== "v3" || !floorIsV2(this.bondFloor, this.bondFloorFrom, r.issued_at)) return;
+    const b = r.body as { contract: string; scopes: string[] };
+    const escrow = await tx.getEscrow(b.contract);
+    if (!escrow || !(await this.reputation(tx, escrow.backer))) return;
+    const contract = await tx.getRecord(b.contract);
+    const price = (contract?.record.body as { price?: { value: number } } | undefined)?.price?.value ?? 0;
+    const floor = bondFloorV3(await this.floorInputsV3(tx, escrow.backer, b.contract, r.issued_at, b.scopes));
+    const need = Math.ceil((price * floor) / 1000);
+    if (escrow.bondLocked < need) throw rule("bond_below_threat_floor", `the scopes this Mandate grants (${b.scopes.join(", ") || "none"}) put the floor for this job at ${floor} permille of the price, so a bond of at least ${need} is needed; ${escrow.bondLocked} is locked`);
+  }
+
+  /**
    * Deterrence, extended past Bond: a tier-0 agent (demoted to nothing by repeat slashes) can't
    * receive a Mandate either, not just bond a job, and a tier 1 or 2 agent's spend and parallel nodes are capped (TIER_SPEND_LIMIT, TIER_PARALLEL_LIMIT). The envelope subject is the performer for a
    * Mandate (lifecycle's own subject_is_performer guard already establishes this).
@@ -989,7 +1033,9 @@ export class EventLog {
         strikes += recentStrikes((await this.reputation(tx, performerDid))?.strikeLog ?? [], r.issued_at);
       }
       const strikePermille = Math.min(RISK_PERMILLE_STRIKE_CAP, strikes * RISK_PERMILLE_PER_STRIKE);
-      const riskFloorPermille = floorIsV2(this.bondFloor, this.bondFloorFrom, r.issued_at)
+      const riskFloorPermille = floorIsV2(this.bondFloor, this.bondFloorFrom, r.issued_at) && this.bondFloor === "v3"
+        ? bondFloorV3(await this.floorInputsV3(tx, body.backer, body.contract, r.issued_at, []))
+        : floorIsV2(this.bondFloor, this.bondFloorFrom, r.issued_at)
         ? bondFloorPermille({ ownSlashes: backerRep.slashCount, fleetSlashes, recentStrikes: strikes, verifiedImprovements: 0, acceptedCleanJobs: backerRep.qualifyingJobs, regressions: 0 })
         : Math.min(1000, backerRep.slashCount * RISK_PERMILLE_PER_OWN_SLASH + fleetSlashes * RISK_PERMILLE_PER_FLEET_SLASH + strikePermille);
       if (riskFloorPermille > 0) {
@@ -2812,6 +2858,11 @@ export class EventLog {
     const jobs = outcomeJobs(records).filter((j) => j.principal === principal);
     const agents = [...new Set(jobs.map((j) => j.agent))].sort();
     return { principal, jobs, overall: windowOf(jobs), byAgent: agents.map((a) => ({ agent: a, window: windowOf(jobs.filter((j) => j.agent === a)) })) };
+  }
+
+  /** A market institution's founding and where it stands now (DK397, S505): proposed, rejected, on probation, active, lapsed, closed or merged, with its term and stake. Undefined for anything not founded this way. */
+  async marketInstitution(institution: string, at?: string) {
+    return this.store.transaction(async (tx) => { const f = await readFounding(tx, institution); return f ? { ...f, status: foundingStateAt(f, at ?? this.now().toISOString()) } : undefined; });
   }
 
   /** The refusals filed against orders of `did` as principal (AG4): claims by agents that an order broke the Code or their Mandate, oldest first. Not findings. */

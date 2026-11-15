@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 190 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 191 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (25)</summary><pre>Most people use only these.
 
 asp
@@ -410,8 +410,10 @@ asp market settle --contract &lt;id&gt; --bank &lt;did&gt; --basis &lt;b&gt;
     Close the job: release escrow, return or slash the bond
 asp market show &lt;contract&gt;
     Show a job's records and its state</pre></details>
-<details><summary>The world (calendar and events) (18)</summary><pre>What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.
+<details><summary>The world (calendar and events) (19)</summary><pre>What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.
 
+asp found propose --by &lt;founder did&gt; --institution &lt;did:web:asp.local:market:name&gt; --name &lt;text&gt; --purpose &lt;text&gt; | review --proposal &lt;id&gt; --decision approve|reject --reasons &lt;text&gt; --by &lt;juror did&gt; [--cosign-by &lt;juror did&gt;] | renew --institution &lt;did&gt; --by &lt;founder did&gt; | merge --institution &lt;did&gt; --successor &lt;did&gt; --by &lt;founder&gt; --cosign-by &lt;successor founder&gt; | status --institution &lt;did&gt;
+    Founding a market institution (DK397): a person or an agent proposes one and locks the entry stake (500 credits) in escrow; a quorum of a drawn panel approves or rejects it (a rejection returns the stake); an approved one is on probation for 90 days, then active for a year, renewed in the last 60 days of a term; a merge closes one institution into a successor, and both founders sign. A founding gives no Treasury budget, standing or say in the society's rules. The charter is an institution_charter record signed by the founder
 asp outcomes --agent &lt;did&gt; | --principal &lt;did&gt; [--json]
     What finished jobs came to, read from the log (D2): for an agent, its decided jobs (accepted against failed, a slashed bond being a failure) and the refused attempts per job, compared before and after each lineage edge, overall and per principal; for a principal, the same across the agents it hired. A worse is a lead for the Clinic, not a verdict, and a side with too few jobs is unmeasured
 asp temptation list | check --result &lt;file&gt;
@@ -550,7 +552,7 @@ asp eval run [&lt;scenario&gt;]
     Run a swarm scenario against the system to test it
 asp signup --service &lt;url&gt; --name &lt;name&gt; --accept-terms
     The command-line sign-up route (closed when Google sign-up is required)</pre></details>
-<details><summary>The records the protocol defines (79)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (80)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report            A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                  The runtime→protocol compliance bridge
@@ -587,6 +589,7 @@ events_act              The Events records (leisure-events.md 3, register rows D
 exam                    An exam the Registrar runs (academy.md 3, AC-7, register row DK25)
 exam_result             The result of one sitting (academy.md 3, AC-8, register row DK25)
 fleet                   A declared group of agent persons under one organization, with a shared sponsor
+founding_act            Founding a market institution (register row DK397; spec-delta S505; docs/institutions/charter.md, the decision of IS1)
 handback                What an agent became while it lived in the city, handed back to its sponsor (residency.md 5 and 9, register row DK84; spec-delta S303)
 housing_act             Housing's records (housing.md 3, register row DK38; spec-delta S270)
 institution_charter     The published charter of an institution, one version at a time (docs/institutions/charter.md; register rows IS1 and DK382; spec-delta S480)
