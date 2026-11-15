@@ -370,7 +370,7 @@ import {
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
-import { DailyCeiling, screenMemoryWriteBack, askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
+import { DailyCeiling, renderSponsorReturn, sponsorReturn, screenMemoryWriteBack, askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
 import { allowScopes, inferScopes, isPreset, presetScopes, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
 import { NEEDS_PASSPHRASE, isSealed, open as openSealed, passphraseFrom, seal } from "@agent-social/asp-package";
 import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
@@ -568,6 +568,7 @@ const OPTIONS = {
   "daily-tokens": { type: "string" },
   "daily-wakes": { type: "string" },
   "sender-wakes": { type: "string" },
+  "wake-allow": { type: "string" },
   "woken-by": { type: "string" },
   assurance: { type: "string" },
   "sub-agents": { type: "string" },
@@ -2892,7 +2893,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
   const gateOn = !!irreversible?.scopes?.length && irreversible.policy !== "allow";
   // The denial-of-wallet guard (DK8, CY14; S464): a run is a wake. Three ceilings for the UTC day, each refusing the run with its name: tokens spent today, wakes today, wakes by one sender; a run that starts is capped to the tokens left.
-  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; return { tokens: n("daily-tokens"), wakes: n("daily-wakes"), senderWakes: n("sender-wakes") }; })();
+  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); return { tokens: n("daily-tokens"), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(allow ? { allow } : {}) }; })();
   const ceilingFile = join(home, "wakes.json");
   const ceiling = new DailyCeiling(ceilingFile);
   const wakeDay = now().slice(0, 10);
@@ -6226,7 +6227,7 @@ function pidAlive(pid: number): boolean {
  * asp trend [--days 7]: the same day-by-day and agent-by-agent (gap D8). asp today [--day YYYY-MM-DD | --since 24h] [--all]: what your agents did in a day, what was refused and why, what you answered, and whether anything is wrong (gap T14, docs/daily-view.md).
  * Read from this machine's session index and run logs, and said to be so.
  */
-function todayCmd(home: string, v: Values, io: Io, trend = false): number {
+async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise<number> {
   const sessions: DaySession[] = sessionsOf(home).map((s) => ({ start: s.start, ...(s.end ? { end: s.end } : { alive: !!s.start.pid && pidAlive(s.start.pid) }) }));
   const eventsOf = (s: DaySession) => {
     const p = s.end?.runLog;
@@ -6238,6 +6239,22 @@ function todayCmd(home: string, v: Values, io: Io, trend = false): number {
   const period = periodOf({ day: v.day, since: v.since });
   const lines = renderToday(buildToday(sessions, eventsOf, period), { ...period, all: !!v.all });
   for (const l of lines) io.out(l);
+  // What the agents returned for what they cost, and who paid for their presence (DK388, CY12, CY15): from the log's signed records and this machine's token count (the last 14 days of wakes).
+  const wakeRows = new DailyCeiling(join(home, "wakes.json")).report();
+  const agents = [...new Set(wakeRows.map((r) => r.agent))];
+  if (agents.length) {
+    try {
+      const log = (await openLog(home, logEnv)).log;
+      const recs = (await log.since(0, 1_000_000)) as never[];
+      io.out("");
+      io.out("What your agents returned for what they cost (tokens from this machine's last 14 days of wakes, credits from the log):");
+      for (const a of agents) {
+        const mine = wakeRows.filter((r) => r.agent === a);
+        const st = sponsorReturn(recs, a, { spent: mine.reduce((n, r) => n + r.tokens, 0), wakes: mine.reduce((n, r) => n + r.wakes, 0) }, (await log.reputationOf(a))?.tier ?? null);
+        for (const l of renderSponsorReturn(st)) io.out(`  ${l}`);
+      }
+    } catch (e) { io.out(`(the return statement needs the log: ${(e as Error).message.slice(0, 80)})`); }
+  }
   return 0;
 }
 

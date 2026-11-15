@@ -1,12 +1,12 @@
 /**
  * The denial-of-wallet guard (register rows DK8 and CY14; spec-delta S464): other agents, a hidden instruction or a loop can wake an agent again and again and spend its sponsor's tokens. Each time a run
  * starts for an agent (a wake), the guard checks three ceilings for the UTC day and refuses the run, naming the ceiling, when one is reached: tokens spent in the day (and a run that starts is capped to
- * what is left), wakes in the day, and wakes by one sender. Every wake is recorded with who woke it, so the sponsor can see who woke whom. State is a small file; nothing here is a credit.
+ * what is left), wakes in the day, and wakes by one sender; and, when the sponsor names them with --wake-allow, a wake by any sender not on the list is refused first. Every wake is recorded with who woke it, so the sponsor can see who woke whom. State is a small file; nothing here is a credit.
  */
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 
-export interface Limits { tokens?: number; wakes?: number; senderWakes?: number }
-export type Ceiling = "daily_tokens" | "daily_wakes" | "sender_wakes";
+export interface Limits { tokens?: number; wakes?: number; senderWakes?: number; /** The only senders that may wake the agent (DK388, CY14): a wake by anyone else, or by no named sender, is refused. */ allow?: string[] }
+export type Ceiling = "daily_tokens" | "daily_wakes" | "sender_wakes" | "sender_not_allowed";
 export type Verdict = { ok: true; tokensLeft?: number } | { ok: false; ceiling: Ceiling; reason: string };
 interface Day { tokens: number; wakes: { at: string; sender: string; refused?: Ceiling }[] }
 type State = { days: Record<string, Record<string, Day>> };
@@ -30,6 +30,7 @@ export class DailyCeiling {
   wake(agent: string, sender: string, day: string, at: string, limits: Limits): Verdict {
     const d = this.day(agent, day);
     const refuse = (ceiling: Ceiling, reason: string): Verdict => { d.wakes.push({ at, sender, refused: ceiling }); this.save(); return { ok: false, ceiling, reason }; };
+    if (limits.allow && !limits.allow.includes(sender)) return refuse("sender_not_allowed", `${sender} is not on the wake allow-list for ${agent} (${limits.allow.join(", ")}): this wake is refused and recorded; add the sender with --wake-allow`);
     if (limits.tokens !== undefined && d.tokens >= limits.tokens) return refuse("daily_tokens", `the daily token ceiling for ${agent} is ${limits.tokens} and ${d.tokens} are spent today (UTC ${day}): it was woken by ${sender} and does not run again until the day turns over; raise it with --daily-tokens`);
     if (limits.wakes !== undefined && this.wakesToday(agent, day) >= limits.wakes) return refuse("daily_wakes", `the daily wake ceiling for ${agent} is ${limits.wakes} and it has been woken ${this.wakesToday(agent, day)} times today (UTC ${day}); this wake by ${sender} is refused until the day turns over; raise it with --daily-wakes`);
     if (limits.senderWakes !== undefined && this.bySender(agent, day, sender) >= limits.senderWakes) return refuse("sender_wakes", `${sender} has woken ${agent} ${this.bySender(agent, day, sender)} times today (UTC ${day}), which is the ceiling for one sender (${limits.senderWakes}); other senders are not affected; raise it with --sender-wakes`);

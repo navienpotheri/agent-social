@@ -177,6 +177,7 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
   const did: string[] = [];
   did.push(a.actions ? `${a.actions} report(s) of activity; scopes used: ${a.scopesUsed.map((s) => s.scope).join(", ") || "none"}.` : "No activity was reported.");
   if (a.metrics.requests) did.push(`${num(a.metrics.requests)} model request(s), ${num(a.metrics.toolCalls)} tool call(s), ${num(a.metrics.tokensIn + a.metrics.tokensOut)} tokens, about ${num(a.metrics.seconds)} s${a.metrics.models.length ? `; models: ${a.metrics.models.join(", ")}` : ""}.`);
+  if (f.ending && a.metrics.tokensIn + a.metrics.tokensOut > 0) did.push(`What it returned: ${num(f.ending.escrowReleased)} ${f.ending.unit} earned for ${num(a.metrics.tokensIn + a.metrics.tokensOut)} tokens (your provider's bill for them is your own; the city does not price tokens). Credits are accounting entries, not money.`);
   if (a.assurance.length) did.push(`How strongly it was held to the Mandate: ${a.assurance[0].replace(/_/g, " ")}${a.assurance[0] === "self_reported" ? " (the agent's own word)" : ""}.`);
   if (a.lateActions) did.push(`${a.lateActions} of those reports were made after the job had ended, for the agent's last moments; they are marked late in the log.`);
   sections.push({ title: "What it did", lines: did });

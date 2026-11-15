@@ -39,7 +39,7 @@
         },
         {
           "command": "asp today",
-          "description": "What your agents did today: each session, what was refused and why, what you answered, anything wrong (--day YYYY-MM-DD, --since 24h, --all adds scopes and cost)"
+          "description": "What your agents did today: each session, what was refused and why, what you answered, anything wrong, and what each agent returned for its tokens and who paid for its presence (--day YYYY-MM-DD, --since 24h, --all adds scopes and cost)"
         },
         {
           "command": "asp learned",
@@ -433,6 +433,10 @@
         {
           "command": "asp treasury draft [--period YYYY-MM] [--out <file>] | sign --draft <file> --id <draft id> --cosign-by <owner did> | list | statement [--since <time>] | pay --budget <id> --amount <n> [--memo <text>] | allowance --agent <did> [--yes]",
           "description": "The Treasury's first budgets as UNSIGNED drafts for the owner: draft writes a file (a budget for each of the eleven institutions, the newcomer allowance of 40 credits each, and the deposit-reward line) with the default figures and the reason for each, and signs and records nothing; sign takes one draft, checks it still matches its hash, signs it with the Treasury key and adds the owner's co-signature the log requires of a first budget, one command per budget. statement prints the Treasury's statement (what came in: issuance, job tax, its share of purchases; what went out; the balance and whether it reconciles to the ledger; and for each institution its budget, what the Treasury paid it and what it earned); list shows the budgets with what is paid and left, the payments, the newcomer allowances and the prizes; pay signs a payment out of a budget with the Treasury key (never beyond the budget); allowance shows an agent whether the 40-credit newcomer allowance is open to it, and with --yes claims it (the log applies its own rules)."
+        },
+        {
+          "command": "asp gateway ... --wake-allow <did>[,<did>...]",
+          "description": "Let only the named senders wake the agent: a wake by anyone else, or by no named sender, is refused and recorded (with --daily-tokens, --daily-wakes, --sender-wakes)"
         },
         {
           "command": "asp wakes [--agent <did>]",
