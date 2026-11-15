@@ -102,3 +102,37 @@ test("CY14: a daily wake ceiling and a per-sender ceiling refuse a wake with the
   assert.match(report, /4 wake\(s\), \d+ tokens, 2 refused \(sender_wakes, daily_wakes\); woken by did:web:example\.com:agents:chatty x2, did:web:example\.com:users:alice x2/);
   assert.equal((await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--daily-wakes", "0", "--", process.execPath, "-e", "0"])).code, 2, "a ceiling is a whole number, at least 1");
 });
+
+test("DK388, CY14: --wake-allow names the only senders that may wake the agent; anyone else, and a wake with no named sender, is refused with the sender named and recorded, before any other ceiling", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f, ["repo.read"]);
+  const upstream = await provider();
+  const run = (sender: string | undefined, extra: string[]) => asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, ...(sender ? ["--woken-by", sender] : []), ...extra, "--", process.execPath, "--input-type=module", "-e", AGENT]);
+  const FRIEND = "did:web:example.com:users:alice", STRANGER = "did:web:example.com:agents:stranger", SECOND = "did:web:example.com:agents:planner";
+  const allow = ["--wake-allow", `${FRIEND}, ${SECOND}`];
+  assert.equal((await run(FRIEND, allow)).code, 0, "a listed sender wakes it");
+  assert.equal((await run(SECOND, allow)).code, 0, "so does the second one on the list");
+  const refused = await run(STRANGER, allow);
+  assert.notEqual(refused.code, 0);
+  assert.match(refused.err, /did:web:example\.com:agents:stranger is not on the wake allow-list for did:web:example\.com:agents:coder \(did:web:example\.com:users:alice, did:web:example\.com:agents:planner\)/);
+  assert.notEqual((await run(undefined, allow)).code, 0, "a wake that names no sender is not on the list");
+  const early = await run(STRANGER, [...allow, "--daily-wakes", "1"]);
+  assert.match(early.err, /not on the wake allow-list/, "the allow-list is checked before the wake ceilings");
+  const report = (await ok(f, ["wakes"])).out;
+  assert.match(report, /2 wake\(s\), \d+ tokens, 3 refused \(sender_not_allowed\); woken by/);
+  assert.equal((await run(FRIEND, [])).code, 0, "without --wake-allow nothing is restricted");
+  assert.equal((await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--wake-allow", " , ", "--", process.execPath, "-e", "0"])).code, 2, "an empty list is a usage error");
+});
+
+test("DK388, CY12, CY15: asp today shows what each agent returned for its tokens and who paid for its presence, from this machine's wakes and the log", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f, ["repo.read"]);
+  const upstream = await provider();
+  assert.equal((await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--woken-by", ALICE, "--", process.execPath, "--input-type=module", "-e", AGENT])).code, 0);
+  const today = (await ok(f, ["today"])).out;
+  assert.match(today, /What your agents returned for what they cost/);
+  assert.match(today, /coder: 10 tokens spent over 1 wake\(s\); 0 credits earned from 0 settled job\(s\); 0 certificate\(s\); tier \d/);
+  assert.match(today, /Presence cost: you paid 10 tokens to your own provider \(the city does not price them\); the agent spent 0 credits in the city/);
+  const empty = makeFixture();
+  assert.doesNotMatch((await ok(empty, ["today"])).out, /What your agents returned/, "nothing woke an agent here, so nothing is added");
+});
