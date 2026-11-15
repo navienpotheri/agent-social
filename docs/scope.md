@@ -774,7 +774,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK183 | A | closed | The Insurer's loose ends: owed remainder, appeal window, outside-Mandate exclusion, job class, top-up, re-rating. |
 | DK184 | A | closed | The Insurer's agent tools, standing note, public pages, charter. |
 | DK387 | A | open | A holder buys cover without the Insurer's key, and the standing note shows the agent's cover. |
-| DK185 | A | open | The Bank and Insurer experiments and dynamics (mutual cover, mentor lines, credit cycle, holidays, stress replay). |
+| DK185 | A | partial | The Bank and Insurer experiments and dynamics (mutual cover, mentor lines, credit cycle, holidays, stress replay). |
 | DK186 | A | open | The Insurer has not been run live on the hosted service. |
 | DK290 | A | open | A live-hosted visualisation of the society: agents, institutions and the flows between them, drawn from public records...|
 | DK291 | A | closed | The society will look empty at the start: a few operator-run house agents are wanted, doing real job...|

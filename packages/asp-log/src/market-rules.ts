@@ -5,7 +5,7 @@
  */
 import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { bondFloorPermille, floorIsV2 } from "./bond-floor.ts";
-import { rotateAgents, MAX_OPEN_POSTINGS_TIER1, POSTING_BAR_DAYS, POSTING_BAR_REMOVALS, POSTING_HOLD_REPORTS, POSTING_REPORTS_PER_DAY, lawProblem, MARKET_DID, POSTING_DEPOSIT_SERVICE, CLASS_WEIGHT, JOB_CLASSES, classPriceProblem, eligibility, higherClass, rankAgents, type AgentFacts, type JobClass, type JobNeeds } from "./market.ts";
+import { EMPTY_POSTER_RECORD, depositMultiplier, type PosterRecord, rotateAgents, MAX_OPEN_POSTINGS_TIER1, POSTING_BAR_DAYS, POSTING_BAR_REMOVALS, POSTING_HOLD_REPORTS, POSTING_REPORTS_PER_DAY, lawProblem, MARKET_DID, POSTING_DEPOSIT_SERVICE, CLASS_WEIGHT, JOB_CLASSES, classPriceProblem, eligibility, higherClass, rankAgents, type AgentFacts, type JobClass, type JobNeeds } from "./market.ts";
 import { assertNotDormant } from "./shops-rules.ts";
 import type { LogTx, Store } from "./store.ts";
 
@@ -97,6 +97,11 @@ export async function projectMarketAct(tx: LogTx, r: AspRecord, env: MarketEnv):
     if (deposit.record.issuer !== r.issuer) throw rule("posting_deposit_not_posters", "the deposit was paid by someone else");
     if (pb?.service !== POSTING_DEPOSIT_SERVICE || pb.institution !== MARKET_DID) throw rule("posting_deposit_wrong_item", `the deposit must be a purchase of ${POSTING_DEPOSIT_SERVICE} from the Market`);
     if (await tx.getMarker(`deposit_used:${b.deposit}`)) throw rule("posting_deposit_used", "this deposit already pays for another posting");
+    // The deposit scales with the poster's record (market.md 13.2, DK127): a poster that lost disputes pays more of the base for a posting (quantity of the deposit item), up to four times.
+    const posterRec = JSON.parse((await tx.getMarker(`poster_rec:${r.issuer}`)) ?? "null") as PosterRecord | null;
+    const mult = depositMultiplier(posterRec ?? EMPTY_POSTER_RECORD);
+    const paid = (deposit.record.body as { quantity?: number }).quantity ?? 1;
+    if (paid < mult) throw rule("posting_deposit_too_small", `${r.issuer} lost ${posterRec?.lost ?? 0} of ${posterRec?.settled ?? 0} disputes as a poster, so a posting costs ${mult} times the base deposit: buy ${mult} (quantity), not ${paid}. The record comes from signed rulings and never changes standing`);
     const rep = await env.reputation(tx, r.issuer);
     if (rep?.tier === 0) throw rule("tier_excluded", `${r.issuer} is tier 0: repeat slashes demoted it, so it may not post jobs`);
     if (!rep || rep.tier <= 1) {
@@ -117,6 +122,10 @@ export async function projectMarketAct(tx: LogTx, r: AspRecord, env: MarketEnv):
   if (b.act === "withdraw") {
     const info = await loadPosting(tx, b.posting, now);
     if (info.poster !== r.issuer) throw rule("withdraw_not_posters", "only the poster withdraws a posting");
+    if ((await readList(tx, `bids:${b.posting}`)).length > 0) {
+      const rec = JSON.parse((await tx.getMarker(`poster_rec:${r.issuer}`)) ?? "null") as PosterRecord | null ?? { ...EMPTY_POSTER_RECORD };
+      await tx.putMarker(`poster_rec:${r.issuer}`, JSON.stringify({ ...rec, withdrawnAfterBids: rec.withdrawnAfterBids + 1 }));
+    }
     await tx.putMarker(`posting_state:${b.posting}`, "withdrawn");
     return;
   }
