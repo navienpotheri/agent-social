@@ -47,7 +47,7 @@ test("a gateway that started before a freeze refuses a risky call made after it,
   const original = ["repo.read", "shell.exec"];
   const live = [...original];
   const upstream = await modelAskingFor({ name: "bash", args: { command: "node build.js" } });
-  const g = createGateway({ openaiUpstream: upstream, scopes: live });
+  const g = createGateway({ openaiUpstream: upstream, scopes: live, maxStrikes: 1000 /* the test asks again every 15 ms while it waits for a poll: three refusals would stop the run as probing */ });
   const port = await g.listen(); gateways.push(g);
   const url = `http://127.0.0.1:${port}`;
   const log = fakeLog();
