@@ -81,3 +81,64 @@ test("DK84 done: dispatched, changed in the city, handed back with a checked rec
   assert.equal((await kit.log.verify()).ok, true);
   void back;
 });
+
+// ---- DK203: the handback is checked for completeness, not only chain and usage.
+
+test("DK203: a handback that leaves out an edge the log holds is refused, and one that lists them all is accepted", async () => {
+  const w = await world();
+  const { kit, root } = w;
+  const first = await kit.put(w.dispatch());
+  const e1 = await kit.put(w.edge("memory updated during a run: +1 (first)", null));
+  const e2 = await kit.put(w.edge("memory updated during a run: +1 (second)", e1));
+  const e3 = await kit.put(w.edge("memory updated during a run: +1 (third)", e2));
+  await kit.put(recallDelegation(root, root.did, w.grantRec, kit.tick()));
+  assert.equal(await refused(kit.put(w.handback(first, [e1, e2]))), "handback_edge_omitted", "the third change is in the log and not in the record");
+  assert.equal(await refused(kit.put(w.handback(first, [e1]))), "handback_edge_omitted");
+  await kit.put(w.handback(first, [e1, e2, e3]));
+});
+
+test("DK203: with no edge listed the log still knows whether the agent changed, and a dispatch with no change at all hands back an empty list", async () => {
+  const w = await world();
+  const { kit, root } = w;
+  const first = await kit.put(w.dispatch());
+  const e1 = await kit.put(w.edge("memory updated during a run: +1", null));
+  await kit.put(recallDelegation(root, root.did, w.grantRec, kit.tick()));
+  assert.equal(await refused(kit.put(w.handback(first, [], { package_sha256_after: SHA }))), "handback_edge_omitted", "an empty list while the log holds an edge");
+  assert.ok(e1);
+});
+
+test("DK203: the credits and certificates in the record equal the ledger's for the period, and a wrong figure is refused", async () => {
+  const w = await world();
+  const { kit, root } = w;
+  const payer = await kit.person("hb-payer");
+  const first = await kit.put(w.dispatch());
+  const e1 = await kit.put(w.edge("memory updated during a run: +1", null));
+  // While dispatched the agent finishes an accepted job (96 credits reach it) and earns a certificate.
+  await kit.acceptedJob(payer, root);
+  const cert = await kit.certify(root, "code", 1);
+  await kit.put(recallDelegation(root, root.did, w.grantRec, kit.tick()));
+  const ok = { credits_earned: 96, certificates_gained: [cert] };
+  assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok, credits_earned: 0 }))), "handback_ledger_mismatch", "the record says no credits, the ledger says 96");
+  assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok, credits_earned: 100 }))), "handback_ledger_mismatch", "or more than it earned");
+  assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok, certificates_gained: [] }))), "handback_ledger_mismatch", "a certificate left out");
+  assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok, certificates_gained: [cert, "sha256:" + "7".repeat(64)] }))), "handback_ledger_mismatch", "a certificate that was never issued");
+  assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok, certificates_lost: [cert] }))), "handback_ledger_mismatch", "a certificate lost that was not");
+  const back = await kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok }));
+  assert.ok(back);
+  assert.deepEqual(await kit.log.dispatchLedger(first), { earned: 96, gained: [cert], lost: [] }, "the log reports the same figures the handback had to state");
+});
+
+test("DK203: a certificate revoked while dispatched is a loss the handback must state, and credits earned before the dispatch are not counted", async () => {
+  const w = await world();
+  const { kit, root } = w;
+  const payer = await kit.person("hb-payer-2");
+  await kit.acceptedJob(payer, root);          // earned before the dispatch: not part of the period
+  const cert = await kit.certify(root, "code", 1);
+  const first = await kit.put(w.dispatch());
+  const e1 = await kit.put(w.edge("memory updated during a run: +1", null));
+  await kit.put(kit.revoke(cert, "drift"));
+  await kit.put(recallDelegation(root, root.did, w.grantRec, kit.tick()));
+  assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, credits_earned: 96 }))), "handback_ledger_mismatch", "the 96 were earned before the dispatch");
+  assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA }))), "handback_ledger_mismatch", "the revocation is a loss the record leaves out");
+  await kit.put(w.handback(first, [e1], { package_sha256_after: SHA, certificates_lost: [cert] }));
+});

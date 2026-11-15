@@ -732,7 +732,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK83 | A | closed | A city-hosted agent needs to act under keys, but the terms and privacy notice say the service never holds a us...|
 | DK201 | A | open | Delegated custody: the legal text, the daily renew, package sealing and a hosted recall drill are not done. |
 | DK84 | A | closed | There is no handback. The owner design is that the city runs the agent and returns it to the user when they wa...|
-| DK203 | A | open | The handback: completeness check, credit and certificate figures, review summary, canary gate. |
+| DK203 | A | partial | The handback: completeness check, credit and certificate figures, review summary, canary gate. |
 | DK111 | A | open | B |
 | DK113 | A | closed | B |
 | DK195 | A | closed | B |

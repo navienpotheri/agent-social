@@ -45,6 +45,7 @@ import { EMPTY_POSTER_RECORD, OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, depositMultipl
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
 import { DEFAULT_PANEL_SIZE, drawPanel, findRejection, noteFunder, panelDrawIsV2 } from "./panel.ts";
+import { ledgerSince, noteEarned, noteRevoked } from "./agent-ledger.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
 
 /** Record types that exist only inside a job chain. */
@@ -667,6 +668,7 @@ export class EventLog {
   private async projectLineage(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as { child: string; probation_until?: string };
     if (body.probation_until) await tx.putProbation({ did: body.child, until: body.probation_until, setBy: r.id });
+    await tx.putMarker(`lineage_head:${body.child}`, r.id); // the newest edge the log holds for this agent: a handback that leaves one out is refused (DK203)
   }
 
   /**
@@ -1214,11 +1216,13 @@ export class EventLog {
       if (!sponsor) throw rule("earnings_split_no_sponsor", `${cbody.performer} has no sponsor to receive the rest of an earnings_split`);
       const agentShare = Math.floor((body.escrow_released.value * agentPermille) / 1000);
       await this.credit(tx, cbody.performer, agentShare);
+      await noteEarned(tx, cbody.performer, agentShare);
       await this.credit(tx, sponsor, body.escrow_released.value - agentShare);
       await noteFunder(tx, cbody.performer, cbody.principal, isReservedAccount);
       await noteFunder(tx, sponsor, cbody.principal, isReservedAccount);
     } else {
       await this.credit(tx, cbody.performer, body.escrow_released.value);
+      await noteEarned(tx, cbody.performer, body.escrow_released.value);
       if (body.escrow_released.value > 0) await noteFunder(tx, cbody.performer, cbody.principal, isReservedAccount);
     }
     if (fees > 0) await this.credit(tx, PLATFORM_DID, fees);
@@ -1922,6 +1926,7 @@ export class EventLog {
     if (!c || c.record.type !== "asp.certificate/v0.2") throw rule("revocation_unknown_certificate", `${b.certificate} is not a certificate in this log`);
     if (await tx.getMarker(`cert_revoked:${b.certificate}`)) throw rule("certificate_already_revoked", `${b.certificate} is already revoked`);
     await tx.putMarker(`cert_revoked:${b.certificate}`, r.id);
+    await noteRevoked(tx, (c.record.body as { holder: string }).holder, b.certificate);
     if (b.reason === "error") return;
     const holder = (c.record.body as { holder: string }).holder;
     const promos = JSON.parse((await tx.getMarker(`promo_cert:${b.certificate}`)) ?? "[]") as { holder: string; from: number }[];
@@ -3059,6 +3064,14 @@ export class EventLog {
 
   /** The world as of `at` (an ISO time; default now): price multipliers, outages, tax-free, open job types. Read-only; it changes no tier, rank, standing or eligibility. */
   async worldState(at?: string): Promise<WorldState> { return worldStateAt(await this.worldRecords(), at ?? this.now().toISOString()); }
+
+  /** What the ledger says happened to a dispatched agent since the dispatch: credits earned and certificates gained and lost; the figures a handback must state (DK203). Undefined for an unknown dispatch or one recorded before snapshots. */
+  async dispatchLedger(dispatch: string): Promise<{ earned: number; gained: string[]; lost: string[] } | undefined> {
+    const d = await this.store.getRecord(dispatch);
+    if (!d || d.record.type !== "asp.dispatch/v0.2") return undefined;
+    const agent = (d.record.body as { agent: string }).agent;
+    return this.store.transaction((tx) => ledgerSince(tx, dispatch, agent));
+  }
 
   /** Every quarantine record that names `did` (all, when none is given), and the releases for it, in log order (read by `asp clinic`). */
   async quarantinesOf(did?: string): Promise<AspRecord[]> {

@@ -4,6 +4,7 @@
  * State lives in markers written inside the append. Credits are accounting entries, not money.
  */
 import { AspError, type AspRecord } from "@agent-social/asp-core";
+import { ledgerSince, snapshotDispatch } from "./agent-ledger.ts";
 import { HOST_DID } from "./subsidy.ts";
 import type { LogTx } from "./store.ts";
 
@@ -70,6 +71,7 @@ export async function projectDispatch(tx: LogTx, r: AspRecord): Promise<void> {
     if (!prev || prev.agent !== b.agent || prev.state !== "closed") throw rule("dispatch_previous_not_closed", `${b.previous} is not an earlier dispatch of ${b.agent} closed by a handback`);
   }
   await tx.putMarker(`dispatch_open:${b.agent}`, r.id);
+  await snapshotDispatch(tx, r.id, b.agent);
   await writeDispatch(tx, { id: r.id, agent: b.agent, sponsor: r.issuer, mode: b.mode, from: b.from, until: b.until, state: "open", allowance: b.sponsor_allowance, grant: b.subsidy_grant, delegation: b.delegation, mandate: b.mandate, version: b.version, sha: b.package_sha256 });
 }
 
@@ -129,6 +131,17 @@ export async function projectHandback(tx: LogTx, r: AspRecord, env: ResidencyEnv
     prev = id;
   }
   if (b.lineage_edges.length === 0 && b.package_sha256_after !== d.sha) throw rule("package_chain_broken", "no edge was added, so the package is the one that was sent: its hash cannot differ");
+  // Completeness (DK203): an edge the log holds for this agent that the handback leaves out is refused, and the credits and certificates the record states are the ledger's own for the period.
+  const head = await tx.getMarker(`lineage_head:${d.agent}`);
+  if (head !== undefined && head !== prev) throw rule("handback_edge_omitted", `the log holds a newer lineage edge of ${d.agent} (${head}) than the last one this handback lists (${prev ?? "none"}): a handback lists every change, in order`);
+  const ledger = await ledgerSince(tx, d.id, d.agent);
+  if (ledger) {
+    const hb = b as unknown as { credits_earned?: number; certificates_gained?: string[]; certificates_lost?: string[] };
+    if ((hb.credits_earned ?? 0) !== ledger.earned) throw rule("handback_ledger_mismatch", `the ledger says ${d.agent} earned ${ledger.earned} credits while dispatched, not ${hb.credits_earned ?? 0}`);
+    const same = (a: string[] | undefined, c: string[]) => JSON.stringify([...(a ?? [])].sort()) === JSON.stringify([...c].sort());
+    if (!same(hb.certificates_gained, ledger.gained)) throw rule("handback_ledger_mismatch", `the ledger says ${d.agent} gained ${ledger.gained.length} certificate(s) while dispatched (${ledger.gained.join(", ") || "none"}), not what the handback states`);
+    if (!same(hb.certificates_lost, ledger.lost)) throw rule("handback_ledger_mismatch", `the ledger says ${d.agent} lost ${ledger.lost.length} certificate(s) while dispatched (${ledger.lost.join(", ") || "none"}), not what the handback states`);
+  }
   const rep = await env.reputation(tx, d.agent);
   if (!rep || rep.tier !== b.tier_after) throw rule("handback_ledger_mismatch", `the log says ${d.agent} is at tier ${rep?.tier ?? "none"}, not ${b.tier_after}`);
   if (d.grant) {

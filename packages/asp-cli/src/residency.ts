@@ -125,11 +125,13 @@ export async function residencyCmd(sub: string | undefined, rest: string[], o: R
     const sponsor = (await o.log.log.passport(db.agent))?.sponsor ?? db.agent;
     if (o.sync) await o.sync(pkg, db.agent);
     const rep = await o.log.log.reputationOf(db.agent);
+    // The credits and certificates the record states are the ledger's own for the period (DK203): a log that cannot say leaves them at none.
+    const ledger = await (o.log.log as unknown as { dispatchLedger?: (d: string) => Promise<{ earned: number; gained: string[]; lost: string[] } | undefined> }).dispatchLedger?.(dispatchId);
     const meter = str(f, "meter") ? (JSON.parse(readFileSync(str(f, "meter")!, "utf8")) as { rows?: { source: string; tokens: number }[]; refusals?: { ceiling: string }[] }) : {};
     const sum = (src: string) => (meter.rows ?? []).filter((r) => r.source === src).reduce((n, r) => n + r.tokens, 0);
     const grant = (d.record.body as { subsidy_grant?: string }).subsidy_grant;
     const subsidyUsed = grant ? (await recordsOfTypes(o.log, ["asp.subsidy_use/v0.2"])).filter((r) => (r.body as { grant: string }).grant === grant).reduce((n, r) => n + (r.body as { units: number }).units, 0) : 0;
-    const body = handbackBody(pkg, db.agent, { id: dispatchId, version: db.version }, { tierBefore: rep?.tier ?? 1, tierAfter: rep?.tier ?? 1, strikes: rep?.strikes ?? 0, slashes: rep?.slashCount ?? 0, creditsEarned: 0, usage: { tokens_by_source: { sponsor: sum("sponsor"), subsidy: grant ? subsidyUsed : sum("subsidy") }, host_seconds: 0, wakes: 0, ceilings_hit: [...new Set((meter.refusals ?? []).map((r) => r.ceiling))], refusals: (meter.refusals ?? []).length } });
+    const body = handbackBody(pkg, db.agent, { id: dispatchId, version: db.version }, { tierBefore: rep?.tier ?? 1, tierAfter: rep?.tier ?? 1, strikes: rep?.strikes ?? 0, slashes: rep?.slashCount ?? 0, creditsEarned: ledger?.earned ?? 0, ...(ledger?.gained.length ? { certificatesGained: ledger.gained } : {}), ...(ledger?.lost.length ? { certificatesLost: ledger.lost } : {}), usage: { tokens_by_source: { sponsor: sum("sponsor"), subsidy: grant ? subsidyUsed : sum("subsidy") }, host_seconds: 0, wakes: 0, ceilings_hit: [...new Set((meter.refusals ?? []).map((r) => r.ceiling))], refusals: (meter.refusals ?? []).length } });
     const issuer = db.mode === "home" ? sponsor : HOST_DID;
     const rec = cosign(createRecord({ type: "handback" as never, issuer, subject: db.agent, prev: null, body, issued_at: o.now() }, o.signerFor(issuer)), o.signerFor(db.agent));
     const res = await o.log.append(rec);
