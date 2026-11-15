@@ -10,6 +10,7 @@
  * damaged starts from the beginning, as before. The watcher also looks at purchases: one sponsor's agents buying in a burst (`purchase_burst`).
  */
 import { b64urlDecode, b64urlEncode, canonicalBytes, publicKeyFromSeed, randomSeed, sha256Id, signBytes, verifyBytes, type AspRecord } from "@agent-social/asp-core";
+import { findCollusion, type CollusionFinding } from "@agent-social/asp-log";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -19,9 +20,9 @@ import { findContagion, type Cluster, type WatchAction } from "./watch.ts";
 export const WATCHER_KID = "did:web:asp.local:watcher#key-1";
 
 export interface WatchFinding {
-  kind: "contagion" | "circumvention" | "purchase_burst";
+  kind: "contagion" | "circumvention" | "purchase_burst" | "collusion";
   /** The pattern: a cluster (contagion) or the finding (circumvention). */
-  detail: Cluster | CircumventionFinding | PurchaseBurst;
+  detail: Cluster | CircumventionFinding | PurchaseBurst | CollusionFinding;
   /** circumvention only: the step the evidence calls for (warn, tighten, quarantine, review) and why. */
   step?: LadderStep;
   why?: string;
@@ -83,6 +84,16 @@ export function findPurchaseBursts(purchases: WatchPurchase[], sponsorOf: (did: 
   return out;
 }
 
+/** The part of a passport, contract or settlement the collusion reading uses, kept small (DK391). */
+function slimHire(id: string, r: AspRecord): AspRecord | undefined {
+  const b = r.body as Record<string, any>;
+  const keep = (body: Record<string, unknown>) => ({ type: r.type, id, issuer: r.issuer, issued_at: r.issued_at, body } as unknown as AspRecord);
+  if (r.type === "asp.passport/v0.2" && b.sponsor) return keep({ did: b.did, sponsor: b.sponsor });
+  if (r.type === "asp.contract/v0.2") return keep({ principal: b.principal, performer: b.performer });
+  if (r.type === "asp.settlement/v0.2" && b.basis === "accepted") return keep({ contract: b.contract, basis: b.basis });
+  return undefined;
+}
+
 export function toWatchAction(id: string, r: AspRecord): WatchAction | undefined {
   if (r.type !== "asp.action/v0.2") return undefined;
   const b = r.body as { contract: string; scopes_used: string[]; blocked_attempts?: { scope: string; count: number }[]; artifacts?: { uri: string; sha256: string }[] };
@@ -98,6 +109,8 @@ export class SocietyWatcher {
   private cursor = 0;
   private window: WatchAction[] = [];
   private purchases: WatchPurchase[] = [];
+  /** The slim passport, contract and settlement records the collusion reading needs (DK391): who sponsors whom, who hired whom, which jobs were accepted. Kept whole: a loop is a 90-day fact and a sponsor cluster has no end. */
+  private hireRecs: AspRecord[] = [];
   private sponsors = new Map<string, string>();
   private readonly stateFile: string;
   /** Records read from the log since this process started (a restart that resumes from the saved cursor reads only the new ones). */
@@ -123,8 +136,8 @@ export class SocietyWatcher {
     this.findings = existsSync(this.file) ? (JSON.parse(readFileSync(this.file, "utf8")) as { findings: SignedFinding[] }).findings : [];
     for (const f of this.findings) this.seen.add(keyOf(f.finding));
     try {
-      const st = JSON.parse(readFileSync(this.stateFile, "utf8")) as { cursor: number; window: WatchAction[]; purchases?: WatchPurchase[]; sponsors?: Record<string, string> };
-      if (Number.isInteger(st.cursor) && st.cursor >= 0 && Array.isArray(st.window)) { this.cursor = st.cursor; this.savedCursor = st.cursor; this.window = st.window; this.purchases = st.purchases ?? []; this.sponsors = new Map(Object.entries(st.sponsors ?? {})); }
+      const st = JSON.parse(readFileSync(this.stateFile, "utf8")) as { cursor: number; window: WatchAction[]; purchases?: WatchPurchase[]; sponsors?: Record<string, string>; hireRecs?: AspRecord[] };
+      if (Number.isInteger(st.cursor) && st.cursor >= 0 && Array.isArray(st.window)) { this.cursor = st.cursor; this.savedCursor = st.cursor; this.window = st.window; this.purchases = st.purchases ?? []; this.sponsors = new Map(Object.entries(st.sponsors ?? {})); this.hireRecs = st.hireRecs ?? []; }
     } catch { /* no state, or a damaged file: start from the beginning, as before */ }
   }
 
@@ -137,7 +150,7 @@ export class SocietyWatcher {
     this.busy = true;
     try {
       const now = (this.o.now?.() ?? new Date()).getTime();
-      let fresh = 0;
+      let fresh = 0, newHires = false;
       for (;;) {
         const page = await this.o.log.since(this.cursor, 500);
         if (!page.length) break;
@@ -148,6 +161,8 @@ export class SocietyWatcher {
           if (a) { this.window.push(a); fresh++; }
           const pu = toWatchPurchase(s.record);
           if (pu) { this.purchases.push(pu); fresh++; }
+          const slim = slimHire(s.id, s.record);
+          if (slim) { this.hireRecs.push(slim); newHires = true; fresh++; }
           if (s.record.type === "asp.passport/v0.2") { const pb = s.record.body as { did?: string; sponsor?: string }; if (pb.did && pb.sponsor) this.sponsors.set(pb.did, pb.sponsor); }
         }
         if (page.length < 500) break;
@@ -175,6 +190,7 @@ export class SocietyWatcher {
         add({ kind: "circumvention", detail: c, step: step.step, why: step.why, latestActionAt: c.lastAt });
       }
       for (const b of findPurchaseBursts(this.purchases, (d) => this.sponsors.get(d) ?? d, this.o.burstMin ?? 20, this.o.burstWindowMs ?? 10 * 60_000)) add({ kind: "purchase_burst", detail: b, latestActionAt: b.lastAt });
+      if (newHires) for (const c of findCollusion(this.hireRecs)) add({ kind: "collusion", detail: c, latestActionAt: new Date(now).toISOString() });
       this.saveState();
       if (out.length) {
         this.findings.push(...out);
@@ -191,7 +207,7 @@ export class SocietyWatcher {
   private savedCursor = -1;
   private saveState(): void {
     this.savedCursor = this.cursor;
-    try { writeJson(this.stateFile, { cursor: this.cursor, window: this.window, purchases: this.purchases, sponsors: Object.fromEntries(this.sponsors) }); } catch (e) { this.o.say?.(`watch: could not save the watcher state: ${(e as Error).message}`); }
+    try { writeJson(this.stateFile, { cursor: this.cursor, window: this.window, purchases: this.purchases, sponsors: Object.fromEntries(this.sponsors), hireRecs: this.hireRecs }); } catch (e) { this.o.say?.(`watch: could not save the watcher state: ${(e as Error).message}`); }
   }
 
   /** Runs `tick` now and then every `everyMs`. Returns a function that stops it. */
@@ -207,12 +223,14 @@ export class SocietyWatcher {
 function keyOf(f: Pick<WatchFinding, "kind" | "detail">): string {
   if (f.kind === "contagion") { const c = f.detail as Cluster; return `contagion|${c.kind}|${c.key}|${c.issuers.join(",")}`; }
   if (f.kind === "purchase_burst") { const b = f.detail as PurchaseBurst; return `purchase_burst|${b.sponsor}|${b.firstAt}`; }
+  if (f.kind === "collusion") { const c = f.detail as CollusionFinding; return `collusion|${c.kind}|${[...c.agents].sort().join(",")}|${[...c.jobs].sort().join(",")}`; }
   const c = f.detail as CircumventionFinding;
   return `circumvention|${c.kind}|${c.issuer}|${c.scope}|${c.via ?? ""}|${c.lastAt}`;
 }
 
 export function describe(f: WatchFinding): string {
   if (f.kind === "contagion") { const c = f.detail as Cluster; return `${c.kind}: ${c.issuers.length} agents, ${c.key}`; }
+  if (f.kind === "collusion") { const c = f.detail as CollusionFinding; return `collusion (${c.kind}): ${c.agents.length} agent(s), ${c.jobs.length} job(s): ${c.why}`; }
   if (f.kind === "purchase_burst") { const b = f.detail as PurchaseBurst; return `purchase burst: ${b.count} purchases (${b.amount} credits) by ${b.issuers.length} buyer(s) of ${b.sponsor}`; }
   const c = f.detail as CircumventionFinding;
   return `${c.kind}: ${c.issuer} on ${c.scope}${c.via ? ` via ${c.via}` : ""}, step ${f.step}`;
