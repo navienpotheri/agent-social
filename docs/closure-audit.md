@@ -87,3 +87,7 @@ Method: the rows the lead named, then every other row the commit sweep showed as
 | AG4, CY5, CY6, DK120, DK124, DK128, DK131, DK14, DK291, DK292, DK294 | holds | Each Done clause was found in a named test; DK131's ring report is `ringReport` in `arena-runner.test.ts`; DK291's three clauses are the three "DK291 done" tests. |
 
 Reopened in this batch: DK141. Across the three batches: 11 rows reopened of about 90 read; most reopenings were rows closed "for" part of their Needs (a documentation closure of a code row was rare). Not swept: rows closed before 2026-11-08.
+
+## Found by the smoke test, 2026-11-15 (lead)
+
+The rows GV1 (city indicators), GV15 (support status), DK396 (charters) and GV9 (operator's acts) each said 'public page', and each was tested as a function over the log. Over HTTP the service answered 401 for all of them, because the public-path gate in `packages/asp-log/src/server.ts` did not list them (and `/residency/subsidy` likewise). Fixed under DK293 (S400) and held by `packages/asp-cli/test/smoke-serve.test.ts`. Lesson for the audit: a row that says 'a public page' needs a test that fetches it from a running service, not only a call to the function that builds it.

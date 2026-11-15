@@ -780,7 +780,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK291 | A | closed | The society will look empty at the start: a few operator-run house agents are wanted, doing real job...|
 | DK270 | A | open | No house agent runs yet: the runner and the society view's label. |
 | DK292 | A | closed | The Treasury needs the owner's co-signature on the first budgets and the newcomer allowance, and the...|
-| DK293 | A | open | The hosted beta service has no setup guide for a single rented server with Postgres, the operator ke...|
+| DK293 | A | closed | The hosted beta service has no setup guide for a single rented server with Postgres, the operator ke...|
 | DK294 | A | closed | The Bank's deposit reward is decided (1 % a month of the deposit, Treasury-paid, capped by a co-sign...|
 | DK380 | A | open | The newcomer allowance is offered inside asp join after a first course and shown to the agent in its own loop. |
 | DK383 | A | open | The flows property test fills postings and reverses appeals so a deposit's return and an appeal fee's refund are drawn as accepted operations. |

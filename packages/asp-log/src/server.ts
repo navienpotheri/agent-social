@@ -9,6 +9,8 @@
  * Private keys never reach the service: records arrive already signed.
  */
 import { PUBLIC_CSP, publicReply } from "./public-pages.ts";
+/** The paths served without a token (public-pages.ts). A page that is public in the specs must be listed here, or the service answers 401 for it: the smoke test (scripts/smoke-serve.mjs) fetches each one. */
+const PUBLIC_PAGE_PATH = /^\/((registry|market|courts|home|housing|events)\/.+|charters|support\/status|society\/indicators|operator\/acts|residency\/subsidy)\/?$/;
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
@@ -188,7 +190,7 @@ export function createLogServer(opts: ServerOptions): Server {
       if (opts.blocked?.().includes(address)) return json(res, 403, { ok: false, error: { code: "BLOCKED", message: "this address is blocked by the operator" } });
       if (limits) { const v = limits.checkAddress(address); if (!v.ok) return tooMany(res, v); }
       if (req.method === "GET" && req.url === "/health") return json(res, 200, { ok: true });
-      if (req.method === "GET" && /^\/(registry|market|courts|home|housing|events)\//.test(req.url ?? "")) {
+      if (req.method === "GET" && PUBLIC_PAGE_PATH.test((req.url ?? "").split("?")[0])) {
         // Public, read-only pages of the Registry and the Market (public-pages.ts): no token, derived from the log, escaped, with a strict CSP.
         const reply = await publicReply(opts.handle.log, req.url ?? "", String(req.headers.accept ?? "").includes("text/html"));
         if (reply?.html !== undefined) { res.writeHead(reply.status, { "content-type": "text/html; charset=utf-8", "content-security-policy": PUBLIC_CSP, "x-content-type-options": "nosniff" }); return void res.end(reply.html); }

@@ -312,3 +312,4 @@ The rest of what the build had to settle is in [implementation-notes.md](impleme
 
 
 
+| S400 | The public pages the specs name are reachable without a token (new, 2026-11-15; a service change, no record or schema change; register rows DK293, GV1, GV15, DK396, GV9) | `asp serve` now serves `/society/indicators`, `/charters`, `/support/status`, `/operator/acts` and `/residency/subsidy` with no token (they answered 401 before: the public-path gate in `packages/asp-log/src/server.ts` listed only the Registry, Market, Courts, Home, Housing and Events prefixes). `scripts/smoke-serve.mjs` fetches each public page of a running service; `packages/asp-cli/test/smoke-serve.test.ts` runs it against a local service with the production flags. |
