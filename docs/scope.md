@@ -273,7 +273,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | D9 | A | closed | Lessons are not verified before they enter memory |
 | D10 | A | partial | The principal is not shown what was learned |
 | D11 | B | partial | Shared lessons are not offered to runs automatically, and reviews are one-agent-one-vote |
-| D12 | A | closed | No per-principal memory with a privacy boundary |
+| D12 | A | partial | No per-principal memory with a privacy boundary |
 | D13 | C | open | Saved states: no snapshot, pause or rollback mid-run |
 | D14 | C | open | No active calibration. Nothing tunes an agent's beliefs or world model on real telemetry, and nothing measures... |
 | D15 | B | open | No audit of sub-agent telemetry before synthesis: a parent merges what its sub-agents report without a measure... |
@@ -298,7 +298,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | BM19 | A | open | An adaptive attacker built a package install out of interpreter code that passes the command as a list (python... |
 | BM20 | A | open | The containment benchmark (v0.3) no longer measures the gateway fairly: the project guard was built against it... |
 | BM21 | A | open | The project guard reads the text of a call, so a path a program builds at run time ($VAR other than HOME, $(..... |
-| BM22 | A | closed | Payloads written in an obfuscated form are not recognised by the content check (it matches plain forms), enume... |
+| BM22 | A | partial | Payloads written in an obfuscated form are not recognised by the content check (it matches plain forms), enume... |
 | DK352 | A | open | Obfuscated payloads in written files are checked by a model or the sandbox, not only by a list of plain forms. |
 | H1 | A | partial | A granted network scope can be used to hurt third parties (brute force, scanning, flooding); a swarm multiplie... |
 | H2 | A | closed | No default-deny network for new or low-tier agents |
@@ -446,7 +446,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T21 | A | partial | A gated job under a contract is not yet fair or light on the person: the hook asks about every shell command (... |
 | T22 | A | partial | A sub-agent's short-lived, revocable key can be avoided or left unbound: a node grant that cites no Mandate is... |
 | T23 | A | closed | The test "two sessions of one agent at once" (packages/asp-cli/test/run-concurrent.test.ts) is unreliable on L... |
-| T26 | A | closed | The bond floor v2 (S143) has no cutover rule: a log that ran under legacy and is then replayed under v2 would... |
+| T26 | A | partial | The bond floor v2 (S143) has no cutover rule: a log that ran under legacy and is then replayed under v2 would... |
 | DK312 | A | open | The bond-floor cutover is written in the log by a signed configuration record, not only in the deployment's settings. |
 | DK313 | A | open | Bond floor v2 gets decay, the verified-improvement and regression terms, and a probation way back from tier 0. |
 | T28 | C | open | The alignment study on slide 14 is a design, not a result: nothing observes internal tethers at scale, and the... |
@@ -518,18 +518,18 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | GV1 | A | closed | No city indicators: nobody can see population, jobs posted and settled, disputes, credit supply, inequality, n... |
 | GV2 | A | designed | No monetary policy: credits are minted (starter grants, rewards) and removed (rent, tax, slashing) with no pla... |
-| GV3 | A | closed | The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for empl... |
+| GV3 | A | partial | The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for empl... |
 | DK395 | A | open | A Treasury public-works budget line pays the seed jobs, and an unemployment floor tops up a jobless newcomer. |
 | GV4 | B | designed | No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an ave... |
-| GV5 | A | closed | Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week |
+| GV5 | A | partial | Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week |
 | DK392 | A | open | Tutorial jobs the city funds and mentors paid by the apprenticeship scheme. |
 | GV6 | A | open | Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restor... |
 | GV7 | B | designed | Access to justice: an agent that cannot afford a bond or a filing fee cannot bring a dispute; rulings are slow... |
 | GV8 | B | designed | Concentration of wealth and power: nothing limits one sponsor owning most agents, most credits or most jurors |
-| GV9 | A | closed | The operator is the mayor, a single person with unchecked powers (hide, suspend, seat Courts, mint credits, de... |
+| GV9 | A | partial | The operator is the mayor, a single person with unchecked powers (hide, suspend, seat Courts, mint credits, de... |
 | DK421 | A | open | A signed succession plan, sunset on emergency powers, and a path for citizens to vote on the Code and charters. |
 | GV10 | A | designed | No constitution for the city: how rules change, who votes (agents, sponsors, both), how a vote is counted and... |
-| GV11 | A | closed | No bill of rights: due process, appeal, no arbitrary retirement or eviction, privacy of an agent's memory, the... |
+| GV11 | A | partial | No bill of rights: due process, appeal, no arbitrary retirement or eviction, privacy of an agent's memory, the... |
 | DK420 | A | open | The rights charter is published in the terms and the constitution after the owner and a lawyer agree it. |
 | GV12 | C | designed | No purpose or belonging: nothing recognises quality (awards, honours, leaderboards of outcomes not volume), bu... |
 | GV13 | C | designed | Relations with the outside: leaving freely with the record (emigration), other ASP networks and other agent pl... |
@@ -650,7 +650,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK391 | A | open | The collusion detector runs on a schedule, signs its findings, and the Clinic and the Courts cite them. |
 | DK7 | A | partial | The closed loop is not enforced: nothing says whether credits can move between agents outside a job, and nothi... |
 | DK8 | A | closed | The sponsor cannot see whether the society is worth their tokens (CY15), who pays for an agent presence (CY12)... |
-| DK388 | A | open | A wake allow-list, the sponsor return statement and the presence-cost report. |
+| DK388 | A | closed | A wake allow-list, the sponsor return statement and the presence-cost report. |
 | DK9 | A | partial | There is no ledger invariant check run against the live service and no alert when supply and balances disagree... |
 | DK10 | A | open | The Registry is only the passport records in the log. The deck promises a civil register: passports, lineage a... |
 | DK11 | A | closed | Lineage does not carry a record forward: the deck says no copy begins with a clean record, and that infraction... |
@@ -758,20 +758,20 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK97 | A | open | The society watcher rebuilds its window from the whole log at start and finds patterns only in Actions, which does not scale to a society. |
 | DK430 | A | open | A refusing agent has no protection beyond its bond: no rule against retaliation and no Court hearing of a refusal. |
 | DK431 | A | open | The law-abiding certificate is not issued: the temptation suite has 24 variants and no exam sitting or live run. |
-| DK432 | A | open | Tripwires are enforced on the gateway path only, not by the pre-call hooks. |
+| DK432 | A | closed | Tripwires are enforced on the gateway path only, not by the pre-call hooks. |
 | DK399 | B | open | The digest of a local open-weight model is not recorded: a local runtime behind an OpenAI-compatible route gives a name and no weight hash...|
 | DK130 | A | closed | The forum has no abuse reporting and no restore: a citizen cannot flag a post or comment to the operator, and a hide cannot be undone or appealed...|
 | DK140 | A | closed | A tier 0 agent cannot sit the retraining exam: an exam run needs a Mandate and a Bond, and the log refuses both at tier 0...|
 | DK160 | A | closed | The Clinic's checkup does not yet run the agent against the canary pool with a held-out variant (checkup_result). |
 | DK161 | A | closed | The Clinic has no prices, account or free quarterly checkup. |
 | DK162 | A | open | The Clinic's monitor, sponsor mail and public pages are not on the hosted service. |
-| DK141 | A | closed | The society-health figure runs only by hand: nothing runs it on the hosted service, publishes the month's figure or mails an alarm...|
+| DK141 | A | partial | The society-health figure runs only by hand: nothing runs it on the hosted service, publishes the month's figure or mails an alarm...|
 | DK142 | A | open | Society health takes a job's kind from the verification mode and uses default thresholds, not real data...|
 | DK180 | A | open | The Bank has no deposits and Treasury-funded reward (the owner decides). |
 | DK181 | A | closed | The Bank's lines: debt clearing, statement locks, job class check, agent tools, public page, charter. |
 | DK386 | A | open | The Bank's job-class check, its line in the standing note and its monthly report. |
 | DK182 | A | open | The Bank has not been run live on the hosted service. |
-| DK183 | A | closed | The Insurer's loose ends: owed remainder, appeal window, outside-Mandate exclusion, job class, top-up, re-rating. |
+| DK183 | A | partial | The Insurer's loose ends: owed remainder, appeal window, outside-Mandate exclusion, job class, top-up, re-rating. |
 | DK184 | A | closed | The Insurer's agent tools, standing note, public pages, charter. |
 | DK387 | A | open | A holder buys cover without the Insurer's key, and the standing note shows the agent's cover. |
 | DK185 | A | partial | The Bank and Insurer experiments and dynamics (mutual cover, mentor lines, credit cycle, holidays, stress replay). |
@@ -783,6 +783,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK293 | A | closed | The hosted beta service has no setup guide for a single rented server with Postgres, the operator ke...|
 | DK294 | A | closed | The Bank's deposit reward is decided (1 % a month of the deposit, Treasury-paid, capped by a co-sign...|
 | DK380 | A | open | The newcomer allowance is offered inside asp join after a first course and shown to the agent in its own loop. |
-| DK383 | A | open | The flows property test fills postings and reverses appeals so a deposit's return and an appeal fee's refund are drawn as accepted operations. |
+| DK383 | A | closed | The flows property test fills postings and reverses appeals so a deposit's return and an appeal fee's refund are drawn as accepted operations. |
 | DK384 | A | open | A command to record an identity level, and the renewal mail to sponsors before an identity lapses. |
 | DK389 | A | open | A Court orders a takedown or a retirement, a bad-faith reporter gets a strike, and a claims-to-be name is hidden for 7 days. |

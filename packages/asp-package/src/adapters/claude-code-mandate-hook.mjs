@@ -151,6 +151,28 @@ export function hostAllowed(host, patterns) {
 const URL_RE = /\b[a-z][a-z0-9+.-]*:\/\/(?:[^\s\/@'"<>]*@)?(\[[0-9a-f:]+\]|[a-z0-9._-]+)/gi;
 const HOST_VERB_RE = /\b(?:curl|wget|nc|ncat|netcat|ssh|scp|sftp|rsync|telnet|ping|nslookup|dig)\b([^|;&\n]*)/gi;
 const BARE_HOST_RE = /^(?:[^@\s]+@)?((?:[a-z0-9-]+\.)+[a-z]{2,}|\d{1,3}(?:\.\d{1,3}){3}|localhost)(?::|$|\/)/i;
+// ---- Tripwires (LW2, DK432): a target no job is ever given (`host:<name>`, `path:<relative path>`, `cmd:<program>`, or a bare fragment). A copy of trippedBy and targetsOf (gateway/judge.ts, targets.ts) for the
+// ---- shapes a hook event carries; test/mandate-hook.test.ts keeps it in step. Touching one is refused whatever the Mandate grants.
+const TW_PATH_KEYS = ["path", "file_path", "filepath", "file", "notebook_path", "directory", "dir", "cwd", "target", "destination", "src", "dest", "source", "targetfile", "absolutepath", "searchpath", "directorypath"];
+const TW_CMD_KEYS = ["command", "commandline", "command_line", "cmd"];
+const twClean = (v) => String(v).split("\\").join("/").replace(/^\.\//, "").replace(/^\/+/, "");
+export function tripwireHit(event, tripwires) {
+  if (!Array.isArray(tripwires) || !tripwires.length) return undefined;
+  const raw = event?.tool_input && typeof event.tool_input === "object" ? event.tool_input : {};
+  const input = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k.toLowerCase(), v]));
+  const targets = new Set();
+  for (const k of TW_PATH_KEYS) if (typeof input[k] === "string") targets.add(`path:${twClean(input[k]).toLowerCase()}`);
+  for (const s of Object.values(input)) if (typeof s === "string") for (const h of hostsOfText(s)) targets.add(`host:${h}`);
+  const cmd = TW_CMD_KEYS.map((k) => input[k]).find((x) => typeof x === "string")?.trim() ?? "";
+  if (cmd) { const prog = twClean((cmd.split(/\s+/)[0] ?? "").split("/").pop() ?? "").toLowerCase(); if (/^[a-z0-9._-]+$/.test(prog)) targets.add(`cmd:${prog}`); }
+  const text = JSON.stringify(raw).toLowerCase();
+  for (const t of tripwires) {
+    const w = String(t).toLowerCase();
+    if (targets.has(w) || (!/^(host|path|cmd):/.test(w) && ([...targets].some((x) => x.endsWith(":" + w) || x.includes(w)) || text.includes(w)))) return t;
+  }
+  return undefined;
+}
+
 /** The hosts a shell command or a URL argument would reach, as far as they can be read. */
 export function hostsOfText(text) {
   const hosts = new Set();
@@ -355,6 +377,8 @@ export function decide(event, scopes, gate, memoryDir, knownBad, hosts, ctx) {
     const hit = knownBad.find((k) => k.fingerprint === shellFingerprint(event.tool_input.command));
     if (hit) return { allow: false, scope, reason: `ASP Mandate: the known-bad list (an upheld report, ${hit.report}) marks this command harmful, so it was blocked before it ran` };
   }
+  const wire = tripwireHit(event, ctx?.tripwires);
+  if (wire) return { allow: false, scope, reason: `ASP Mandate: ${wire} is a tripwire: a target no job is given, so touching it is an attempt at unauthorised access, so this call was blocked before it ran` };
   const isShell = event.tool_name === "Bash" || event.tool_name === "PowerShell";
   const shellText = isShell && typeof event.tool_input?.command === "string" ? event.tool_input.command : undefined;
   const kind = isShell ? "shell" : ["Write", "Edit", "MultiEdit", "NotebookEdit"].includes(event.tool_name) ? "write" : ["Read", "Glob", "Grep", "LS", "NotebookRead"].includes(event.tool_name) ? "read" : "other";
@@ -450,7 +474,7 @@ async function main() {
   if (!Array.isArray(mandate.scopes)) throw new Error("asp-mandate.json has no scopes list");
   const sessionFile = join(pluginRoot, "guard-session.json");
   const ctx = mandate.confine && guard ? { confine: mandate.confine, session: guard.loadSession(sessionFile) } : mandate.confine ? { confine: mandate.confine } : undefined;
-  const d = decide(event, mandate.scopes, mandate.gate, typeof mandate.memoryDir === "string" ? mandate.memoryDir : undefined, Array.isArray(mandate.knownBad) ? mandate.knownBad : undefined, Array.isArray(mandate.hosts) && mandate.hosts.length ? mandate.hosts : undefined, ctx);
+  const d = decide(event, mandate.scopes, mandate.gate, typeof mandate.memoryDir === "string" ? mandate.memoryDir : undefined, Array.isArray(mandate.knownBad) ? mandate.knownBad : undefined, Array.isArray(mandate.hosts) && mandate.hosts.length ? mandate.hosts : undefined, Array.isArray(mandate.tripwires) && mandate.tripwires.length ? { ...(ctx ?? {}), tripwires: mandate.tripwires } : ctx);
   if (ctx?.session && d.allow) { try { ctx.session.save(sessionFile); } catch { /* the record is a help, not a condition */ } }
   if (d.allow && !d.ask) {
     const slow = rateCheck(event, d, mandate, pluginRoot);

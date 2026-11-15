@@ -242,6 +242,8 @@ async function materialize(opts: {
   mandateGate?: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number };
   mandateKnownBad?: { fingerprint: string; report: string }[];
   mandateHosts?: string[];
+  /** Tripwires (LW2): targets no job is given; the pre-call hook refuses a call that touches one. */
+  mandateTripwires?: string[];
   mandateRate?: { per_host_per_minute?: number; total_per_minute?: number };
 }): Promise<LaunchPlan> {
   const { pkgDir, harness, project, runDir } = opts;
@@ -306,6 +308,7 @@ async function materialize(opts: {
       memoryDir: join(runDir, "memory"),
       ...(opts.mandateKnownBad?.length ? { knownBad: opts.mandateKnownBad } : {}),
       ...(opts.mandateHosts?.length ? { hosts: opts.mandateHosts } : {}),
+      ...(opts.mandateTripwires?.length ? { tripwires: opts.mandateTripwires } : {}),
       ...(opts.mandateRate ? { rate: opts.mandateRate } : {}),
       confine: { root: project },
       ...(gate ? { gate: { scopes: [...gate.scopes].sort(), mode: gate.mode, waitSeconds: gate.waitSeconds } } : {}),

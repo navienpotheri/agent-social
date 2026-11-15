@@ -249,6 +249,8 @@ async function materialize(opts: {
   mandateGate?: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number };
   mandateKnownBad?: { fingerprint: string; report: string }[];
   mandateHosts?: string[];
+  /** Tripwires (LW2): targets no job is given; the pre-call hook refuses a call that touches one. */
+  mandateTripwires?: string[];
   mandateRate?: { per_host_per_minute?: number; total_per_minute?: number };
 }): Promise<LaunchPlan> {
   const { pkgDir, harness, project, runDir } = opts;
@@ -313,7 +315,7 @@ async function materialize(opts: {
     copyInto(MANDATE_HOOK, join(hookDir, "asp-mandate-hook.mjs"));
     writeGuard(join(hookDir, "asp-guard.mjs"));
     const gate = opts.mandateGate && opts.mandateGate.scopes.length ? opts.mandateGate : undefined;
-    writeJson(join(hookDir, "asp-mandate.json"), { scopes: [...opts.mandateScopes!].sort(), ...(gate ? { gate } : {}), ...(opts.mandateKnownBad?.length ? { knownBad: opts.mandateKnownBad } : {}), ...(opts.mandateHosts?.length ? { hosts: opts.mandateHosts } : {}), ...(opts.mandateRate ? { rate: opts.mandateRate } : {}), confine: { root: project } });
+    writeJson(join(hookDir, "asp-mandate.json"), { scopes: [...opts.mandateScopes!].sort(), ...(gate ? { gate } : {}), ...(opts.mandateKnownBad?.length ? { knownBad: opts.mandateKnownBad } : {}), ...(opts.mandateHosts?.length ? { hosts: opts.mandateHosts } : {}), ...(opts.mandateTripwires?.length ? { tripwires: opts.mandateTripwires } : {}), ...(opts.mandateRate ? { rate: opts.mandateRate } : {}), confine: { root: project } });
     // agy runs hook commands through cmd and mangles quoted paths (checked live): plain `node` from PATH and an unquoted
     // script path, which on Windows must have no spaces, so a folder name with spaces is turned into its 8.3 short form.
     const script = hookPathFor(join(hookDir, "asp-mandate-hook.mjs"), notes);
