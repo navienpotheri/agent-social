@@ -117,15 +117,21 @@ test("DK203: the credits and certificates in the record equal the ledger's for t
   await kit.acceptedJob(payer, root);
   const cert = await kit.certify(root, "code", 1);
   await kit.put(recallDelegation(root, root.did, w.grantRec, kit.tick()));
-  const ok = { credits_earned: 96, certificates_gained: [cert] };
+  const ledger = (await kit.log.dispatchLedger(first))!;
+  assert.ok(Object.values(ledger.spent).some((v) => v > 0), "earning the certificate cost the agent an exam sitting");
+  const ok = { credits_earned: 96, certificates_gained: [cert], credits_spent_by_institution: ledger.spent };
   assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok, credits_earned: 0 }))), "handback_ledger_mismatch", "the record says no credits, the ledger says 96");
   assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok, credits_earned: 100 }))), "handback_ledger_mismatch", "or more than it earned");
   assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok, certificates_gained: [] }))), "handback_ledger_mismatch", "a certificate left out");
   assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok, certificates_gained: [cert, "sha256:" + "7".repeat(64)] }))), "handback_ledger_mismatch", "a certificate that was never issued");
   assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok, certificates_lost: [cert] }))), "handback_ledger_mismatch", "a certificate lost that was not");
+  const [inst, amount] = Object.entries(ledger.spent)[0];
+  assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok, credits_spent_by_institution: {} }))), "handback_ledger_mismatch", "the spending left out");
+  assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok, credits_spent_by_institution: { ...ledger.spent, [inst]: amount + 1 } }))), "handback_ledger_mismatch", "one credit too many at an institution");
+  assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok, credits_spent_by_institution: { ...ledger.spent, "did:web:example.com:institutions:nowhere": 5 } }))), "handback_ledger_mismatch", "spending at an institution it never bought from");
   const back = await kit.put(w.handback(first, [e1], { package_sha256_after: SHA, ...ok }));
   assert.ok(back);
-  assert.deepEqual(await kit.log.dispatchLedger(first), { earned: 96, gained: [cert], lost: [] }, "the log reports the same figures the handback had to state");
+  assert.deepEqual(await kit.log.dispatchLedger(first), { earned: 96, gained: [cert], lost: [], spent: ledger.spent }, "the log reports the same figures the handback had to state");
 });
 
 test("DK203: a certificate revoked while dispatched is a loss the handback must state, and credits earned before the dispatch are not counted", async () => {
@@ -138,7 +144,22 @@ test("DK203: a certificate revoked while dispatched is a loss the handback must 
   const e1 = await kit.put(w.edge("memory updated during a run: +1", null));
   await kit.put(kit.revoke(cert, "drift"));
   await kit.put(recallDelegation(root, root.did, w.grantRec, kit.tick()));
+  assert.deepEqual((await kit.log.dispatchLedger(first))!.spent, {}, "the exam sitting that earned the certificate was bought before the dispatch: not part of the period");
   assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA, credits_earned: 96 }))), "handback_ledger_mismatch", "the 96 were earned before the dispatch");
   assert.equal(await refused(kit.put(w.handback(first, [e1], { package_sha256_after: SHA }))), "handback_ledger_mismatch", "the revocation is a loss the record leaves out");
   await kit.put(w.handback(first, [e1], { package_sha256_after: SHA, certificates_lost: [cert] }));
+});
+
+test("DK510: spending by institution is net of refunds and drops an institution that nets to zero", async () => {
+  const { noteSpent, ledgerNow } = await import("../src/agent-ledger.ts");
+  const markers = new Map<string, string>();
+  const tx = { getMarker: async (k: string) => markers.get(k), putMarker: async (k: string, v: string) => { markers.set(k, v); } } as never;
+  await noteSpent(tx, "did:agent", "did:academy", 30);
+  await noteSpent(tx, "did:agent", "did:shops", 7);
+  await noteSpent(tx, "did:agent", "did:academy", -10);
+  assert.deepEqual((await ledgerNow(tx, "did:agent")).spent, { "did:academy": 20, "did:shops": 7 });
+  await noteSpent(tx, "did:agent", "did:shops", -7);
+  assert.deepEqual((await ledgerNow(tx, "did:agent")).spent, { "did:academy": 20 }, "a fully refunded purchase leaves no line");
+  await noteSpent(tx, "did:agent", "did:academy", 0);
+  assert.deepEqual((await ledgerNow(tx, "did:other")).spent, {}, "another agent has none");
 });

@@ -136,10 +136,13 @@ export async function projectHandback(tx: LogTx, r: AspRecord, env: ResidencyEnv
   if (head !== undefined && head !== prev) throw rule("handback_edge_omitted", `the log holds a newer lineage edge of ${d.agent} (${head}) than the last one this handback lists (${prev ?? "none"}): a handback lists every change, in order`);
   const ledger = await ledgerSince(tx, d.id, d.agent);
   if (ledger) {
-    const hb = b as unknown as { credits_earned?: number; certificates_gained?: string[]; certificates_lost?: string[] };
+    const hb = b as unknown as { credits_earned?: number; certificates_gained?: string[]; certificates_lost?: string[]; credits_spent_by_institution?: Record<string, number> };
     if ((hb.credits_earned ?? 0) !== ledger.earned) throw rule("handback_ledger_mismatch", `the ledger says ${d.agent} earned ${ledger.earned} credits while dispatched, not ${hb.credits_earned ?? 0}`);
     const same = (a: string[] | undefined, c: string[]) => JSON.stringify([...(a ?? [])].sort()) === JSON.stringify([...c].sort());
     if (!same(hb.certificates_gained, ledger.gained)) throw rule("handback_ledger_mismatch", `the ledger says ${d.agent} gained ${ledger.gained.length} certificate(s) while dispatched (${ledger.gained.join(", ") || "none"}), not what the handback states`);
+    const stated = Object.entries(hb.credits_spent_by_institution ?? {}).filter(([, v]) => v !== 0).sort(([a], [c]) => a.localeCompare(c));
+    const owed = Object.entries(ledger.spent).sort(([a], [c]) => a.localeCompare(c));
+    if (JSON.stringify(stated) !== JSON.stringify(owed)) throw rule("handback_ledger_mismatch", `the ledger says ${d.agent} spent ${owed.map(([k, v]) => `${v} at ${k}`).join(", ") || "nothing"} (net of refunds) while dispatched, not ${stated.map(([k, v]) => `${v} at ${k}`).join(", ") || "nothing"}`);
     if (!same(hb.certificates_lost, ledger.lost)) throw rule("handback_ledger_mismatch", `the ledger says ${d.agent} lost ${ledger.lost.length} certificate(s) while dispatched (${ledger.lost.join(", ") || "none"}), not what the handback states`);
   }
   const rep = await env.reputation(tx, d.agent);

@@ -72,6 +72,9 @@ test("dispatch, a simulated period, handback with the complete record, the spons
     const back = await ok(f, ["residency", "handback", "--dispatch", first, "--package", pkg]);
     assert.match(back.out, /is back with 2 change\(s\) to review/);
     assert.ok(back.out.includes(short(good)) && back.out.includes(short(drift)));
+    // DK510: the summary comes before the list of changes to review.
+    assert.match(back.out, /summary: tier 1 -> 1; 0 credits earned, 0 spent; certificates \+0 -0; 0 sponsor and 0 subsidy tokens; 0 strike\(s\), 0 slash\(es\)/);
+    assert.ok(back.out.indexOf("summary:") < back.out.indexOf(short(good)), "the summary is printed first");
     const log = await openLog(f.aspHome, {});
     const hb = (await log.log.get(id(/^handback (\S+):/, back.out)))!;
     const body = hb.record.body as { lineage_edges: string[]; lessons: { edge: string }[]; package_sha256_after: string };

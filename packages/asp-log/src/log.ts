@@ -45,7 +45,7 @@ import { EMPTY_POSTER_RECORD, OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, depositMultipl
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
 import { DEFAULT_PANEL_SIZE, drawPanel, findRejection, noteFunder, panelDrawIsV2 } from "./panel.ts";
-import { ledgerSince, noteEarned, noteRevoked } from "./agent-ledger.ts";
+import { ledgerSince, noteEarned, noteRevoked, noteSpent } from "./agent-ledger.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
 
 /** Record types that exist only inside a job chain. */
@@ -1596,6 +1596,7 @@ export class EventLog {
     // An agent (a passport with a sponsor) may buy only what its Mandate's institution_spend lists, within the cap for the period (credits.md 4.4, DK3). A person spending their own credits is not limited by a Mandate.
     const spendKey = await this.checkInstitutionSpend(tx, r, b, buyer, item.class);
     await this.debit(tx, buyer, b.amount.value);
+    await noteSpent(tx, buyer, item.institution, b.amount.value);
     const parts = splitParts(b.amount.value, item.split);
     if (spendKey) await tx.putMarker(spendKey.key, String(spendKey.total));
     for (const p of parts.payees) await this.credit(tx, p.account, p.amount);
@@ -2435,6 +2436,7 @@ export class EventLog {
       throw e;
     }
     await this.credit(tx, purchase.record.issuer, refund);
+    await noteSpent(tx, purchase.record.issuer, (purchase.record.body as unknown as PurchaseBody).institution, -refund);
     await this.restoreSpend(tx, purchase, refund);
   }
 
@@ -3066,7 +3068,7 @@ export class EventLog {
   async worldState(at?: string): Promise<WorldState> { return worldStateAt(await this.worldRecords(), at ?? this.now().toISOString()); }
 
   /** What the ledger says happened to a dispatched agent since the dispatch: credits earned and certificates gained and lost; the figures a handback must state (DK203). Undefined for an unknown dispatch or one recorded before snapshots. */
-  async dispatchLedger(dispatch: string): Promise<{ earned: number; gained: string[]; lost: string[] } | undefined> {
+  async dispatchLedger(dispatch: string): Promise<{ earned: number; gained: string[]; lost: string[]; spent: Record<string, number> } | undefined> {
     const d = await this.store.getRecord(dispatch);
     if (!d || d.record.type !== "asp.dispatch/v0.2") return undefined;
     const agent = (d.record.body as { agent: string }).agent;

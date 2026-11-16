@@ -138,17 +138,23 @@ export async function residencyCmd(sub: string | undefined, rest: string[], o: R
     if (o.sync) await o.sync(pkg, db.agent);
     const rep = await o.log.log.reputationOf(db.agent);
     // The credits and certificates the record states are the ledger's own for the period (DK203): a log that cannot say leaves them at none.
-    const ledger = await (o.log.log as unknown as { dispatchLedger?: (d: string) => Promise<{ earned: number; gained: string[]; lost: string[] } | undefined> }).dispatchLedger?.(dispatchId);
+    const ledger = await (o.log.log as unknown as { dispatchLedger?: (d: string) => Promise<{ earned: number; gained: string[]; lost: string[]; spent: Record<string, number> } | undefined> }).dispatchLedger?.(dispatchId);
     const meter = str(f, "meter") ? (JSON.parse(readFileSync(str(f, "meter")!, "utf8")) as { rows?: { source: string; tokens: number }[]; refusals?: { ceiling: string }[] }) : {};
     const sum = (src: string) => (meter.rows ?? []).filter((r) => r.source === src).reduce((n, r) => n + r.tokens, 0);
     const grant = (d.record.body as { subsidy_grant?: string }).subsidy_grant;
     const subsidyUsed = grant ? (await recordsOfTypes(o.log, ["asp.subsidy_use/v0.2"])).filter((r) => (r.body as { grant: string }).grant === grant).reduce((n, r) => n + (r.body as { units: number }).units, 0) : 0;
-    const body = handbackBody(pkg, db.agent, { id: dispatchId, version: db.version }, { tierBefore: rep?.tier ?? 1, tierAfter: rep?.tier ?? 1, strikes: rep?.strikes ?? 0, slashes: rep?.slashCount ?? 0, creditsEarned: ledger?.earned ?? 0, ...(ledger?.gained.length ? { certificatesGained: ledger.gained } : {}), ...(ledger?.lost.length ? { certificatesLost: ledger.lost } : {}), usage: { tokens_by_source: { sponsor: sum("sponsor"), subsidy: grant ? subsidyUsed : sum("subsidy") }, host_seconds: 0, wakes: 0, ceilings_hit: [...new Set((meter.refusals ?? []).map((r) => r.ceiling))], refusals: (meter.refusals ?? []).length } });
+    const body = handbackBody(pkg, db.agent, { id: dispatchId, version: db.version }, { tierBefore: rep?.tier ?? 1, tierAfter: rep?.tier ?? 1, strikes: rep?.strikes ?? 0, slashes: rep?.slashCount ?? 0, creditsEarned: ledger?.earned ?? 0, ...(ledger && Object.keys(ledger.spent).length ? { creditsSpentByInstitution: ledger.spent } : {}), ...(ledger?.gained.length ? { certificatesGained: ledger.gained } : {}), ...(ledger?.lost.length ? { certificatesLost: ledger.lost } : {}), usage: { tokens_by_source: { sponsor: sum("sponsor"), subsidy: grant ? subsidyUsed : sum("subsidy") }, host_seconds: 0, wakes: 0, ceilings_hit: [...new Set((meter.refusals ?? []).map((r) => r.ceiling))], refusals: (meter.refusals ?? []).length } });
     const issuer = db.mode === "home" ? sponsor : HOST_DID;
     const rec = cosign(createRecord({ type: "handback" as never, issuer, subject: db.agent, prev: null, body, issued_at: o.now() }, o.signerFor(issuer)), o.signerFor(db.agent));
     const res = await o.log.append(rec);
     const lessons = body.lessons as { edge: string; description: string }[];
     o.io.out(`handback ${res.id}: ${db.agent} is back with ${lessons.length} change(s) to review (log seq ${res.seq}); the package digest is ${body.package_sha256_after}`);
+    // The summary first (DK510): what the period came to, from the ledger, before the list of changes to review.
+    {
+      const spent = Object.entries((body.credits_spent_by_institution ?? {}) as Record<string, number>);
+      const usage = body.usage as { tokens_by_source: { sponsor: number; subsidy: number }; refusals: number; wakes: number };
+      o.io.out(`summary: tier ${body.tier_before} -> ${body.tier_after}; ${body.credits_earned} credits earned, ${spent.reduce((n, [, v]) => n + v, 0)} spent${spent.length ? ` (${spent.map(([k, v]) => `${v} at ${k.split(":").pop()}`).join(", ")})` : ""}; certificates +${(body.certificates_gained as string[] | undefined)?.length ?? 0} -${(body.certificates_lost as string[] | undefined)?.length ?? 0}; ${usage.tokens_by_source.sponsor} sponsor and ${usage.tokens_by_source.subsidy} subsidy tokens; ${body.strikes} strike(s), ${body.slashes} slash(es)`);
+    }
     for (const l of lessons) o.io.out(`  ${l.edge.replace(/^sha256:/, "").slice(0, 8)}  ${l.description.slice(0, 80)}`);
     o.io.out(`review: asp learned --package ${pkg}   keep: asp learned keep <id>   take back: asp learned undo <id>; then dispatch again with --previous ${dispatchId} --edge <newest edge> --package-sha256 ${"<digest>"} (asp residency digest --package ${pkg})`);
     return 0;
