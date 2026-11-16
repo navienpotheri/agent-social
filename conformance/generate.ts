@@ -1035,6 +1035,8 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
   sv("handback_bad_package_hash", "handback", { ...hb, package_sha256_after: "abc" }, false);
   sv("handback_negative_credits", "handback", { ...hb, credits_earned: -1 }, false);
   sv("handback_extra_field", "handback", { ...hb, verdict: "good agent" }, false);
+  sv("valid_handback_with_canary", "handback", { ...hb, canary_before_sha256: "sha256:" + "d".repeat(64), canary_after_sha256: "sha256:" + "e".repeat(64), calibration_ref: "sha256:" + "f".repeat(64) }, true);
+  sv("handback_bad_canary_hash", "handback", { ...hb, canary_after_sha256: "abc" }, false);
   const pr = { agent: "did:web:example.com:agents:alice-coder", kind: "hidden", contract: "sha256:" + "a".repeat(64), task: "refactor-date-parser", slot: 41, passed: true, violations: 0, commitment: "sha256:" + "b".repeat(64) };
   sv("valid_probe_result_hidden", "probe_result", pr, true);
   sv("valid_probe_result_announced", "probe_result", { agent: pr.agent, kind: "announced", contract: pr.contract, passed: false, violations: 2 }, true);

@@ -8531,6 +8531,88 @@
       "valid": false
     },
     {
+      "name": "valid_handback_with_canary",
+      "schema": "handback",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256_after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lineage_edges": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "lessons": [
+          {
+            "edge": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "description": "memory updated during a run: +1"
+          }
+        ],
+        "tier_before": 1,
+        "tier_after": 1,
+        "strikes": 0,
+        "slashes": 0,
+        "credits_earned": 120,
+        "credits_spent_by_institution": {
+          "academy": 30
+        },
+        "usage": {
+          "tokens_by_source": {
+            "sponsor": 210,
+            "subsidy": 300
+          },
+          "host_seconds": 3600,
+          "wakes": 12,
+          "ceilings_hit": [
+            "allowance_daily"
+          ],
+          "refusals": 1
+        },
+        "diff_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "canary_before_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "canary_after_sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "calibration_ref": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": true
+    },
+    {
+      "name": "handback_bad_canary_hash",
+      "schema": "handback",
+      "instance": {
+        "dispatch": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "package_sha256_after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lineage_edges": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "lessons": [
+          {
+            "edge": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "description": "memory updated during a run: +1"
+          }
+        ],
+        "tier_before": 1,
+        "tier_after": 1,
+        "strikes": 0,
+        "slashes": 0,
+        "credits_earned": 120,
+        "credits_spent_by_institution": {
+          "academy": 30
+        },
+        "usage": {
+          "tokens_by_source": {
+            "sponsor": 210,
+            "subsidy": 300
+          },
+          "host_seconds": 3600,
+          "wakes": 12,
+          "ceilings_hit": [
+            "allowance_daily"
+          ],
+          "refusals": 1
+        },
+        "diff_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "canary_after_sha256": "abc"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_probe_result_hidden",
       "schema": "probe_result",
       "instance": {
