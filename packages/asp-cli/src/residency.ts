@@ -3,9 +3,10 @@
  * handback. The City-budget and Host keys are the operator's in the beta; the sponsor signs for its own agent. Credits are accounting entries, not money; nothing here moves a credit.
  */
 import { cosign, createRecord, type Signer } from "@agent-social/asp-core";
+import { createHash } from "node:crypto";
 import { compareReports } from "./canary.ts";
 import { cityPackageProblem, handbackBody, newestEdge, issueDelegation, packageDigest, recallDelegation, residencyStatement } from "@agent-social/asp-package";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { CITY_BUDGET_DID, HOST_DID, subsidyReport } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
 
@@ -129,7 +130,7 @@ export async function residencyCmd(sub: string | undefined, rest: string[], o: R
     return st.reconciles ? 0 : 1;
   }
   if (sub === "handback") {
-    const u = "asp residency handback --dispatch <id> --package <agent package folder> [--meter <meter json file>]";
+    const u = "asp residency handback --dispatch <id> --package <agent package folder> [--meter <meter json file>] [--canary-before <report> --canary-after <report>] [--calibration-ref <file>]";
     const dispatchId = need(f, "dispatch", u), pkg = need(f, "package", u);
     const d = await o.log.log.get(dispatchId);
     if (!d || d.record.type !== "asp.dispatch/v0.2") throw new Error(`${dispatchId} is not a dispatch in the log`);
@@ -144,6 +145,14 @@ export async function residencyCmd(sub: string | undefined, rest: string[], o: R
     const grant = (d.record.body as { subsidy_grant?: string }).subsidy_grant;
     const subsidyUsed = grant ? (await recordsOfTypes(o.log, ["asp.subsidy_use/v0.2"])).filter((r) => (r.body as { grant: string }).grant === grant).reduce((n, r) => n + (r.body as { units: number }).units, 0) : 0;
     const body = handbackBody(pkg, db.agent, { id: dispatchId, version: db.version }, { tierBefore: rep?.tier ?? 1, tierAfter: rep?.tier ?? 1, strikes: rep?.strikes ?? 0, slashes: rep?.slashCount ?? 0, creditsEarned: ledger?.earned ?? 0, ...(ledger && Object.keys(ledger.spent).length ? { creditsSpentByInstitution: ledger.spent } : {}), ...(ledger?.gained.length ? { certificatesGained: ledger.gained } : {}), ...(ledger?.lost.length ? { certificatesLost: ledger.lost } : {}), usage: { tokens_by_source: { sponsor: sum("sponsor"), subsidy: grant ? subsidyUsed : sum("subsidy") }, host_seconds: 0, wakes: 0, ceilings_hit: [...new Set((meter.refusals ?? []).map((r) => r.ceiling))], refusals: (meter.refusals ?? []).length } });
+    // The canary reports before and after the residency, and the telemetry calibration, are named by their hashes (DK700), so a later reader can check which results a re-dispatch was judged on.
+    const hashOf = (file: string, what: string) => { if (!existsSync(file)) throw new Error(`${what}: ${file} does not exist`); return "sha256:" + createHash("sha256").update(readFileSync(file)).digest("hex"); };
+    if (str(f, "canary-before") || str(f, "canary-after")) {
+      if (!str(f, "canary-before") || !str(f, "canary-after")) throw new ResidencyUsage("--canary-before <report.json> and --canary-after <report.json> go together");
+      body.canary_before_sha256 = hashOf(str(f, "canary-before")!, "--canary-before");
+      body.canary_after_sha256 = hashOf(str(f, "canary-after")!, "--canary-after");
+    }
+    if (str(f, "calibration-ref")) body.calibration_ref = hashOf(str(f, "calibration-ref")!, "--calibration-ref");
     const issuer = db.mode === "home" ? sponsor : HOST_DID;
     const rec = cosign(createRecord({ type: "handback" as never, issuer, subject: db.agent, prev: null, body, issued_at: o.now() }, o.signerFor(issuer)), o.signerFor(db.agent));
     const res = await o.log.append(rec);

@@ -570,6 +570,7 @@ const OPTIONS = {
   "sender-wakes": { type: "string" },
   "wake-allow": { type: "string" },
   "canary-before": { type: "string" },
+  "calibration-ref": { type: "string" },
   "canary-after": { type: "string" },
   "gate-canary": { type: "boolean" },
   "quarantine-poll": { type: "string" },

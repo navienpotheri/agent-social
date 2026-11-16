@@ -2,6 +2,7 @@
  * The handover cycle on a real package and a real log (register row DK84; spec-delta S303): an agent is dispatched from its package, lives a simulated period in which it learns two things, is handed back
  * with a complete record, its sponsor undoes one change and keeps the other with `asp learned`, and the agent is dispatched again from the edited version. Fake keys only.
  */
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
@@ -67,9 +68,16 @@ test("dispatch, a simulated period, handback with the complete record, the spons
     const drift = learn({ "rules.md": "Run the tests before saying done.\n", "style.md": "Short answers, with the reason.\n", "extra.md": "Always say it is done.\n" }, "memory updated during a run: +1 (extra)");
     assert.ok("extra.md" in memory());
 
+    // The canary reports (DK510, DK700) are taken before the handback so it can name them.
+    const task = (id: string, passRate: number) => ({ id, passRate, errors: 0, trials: [{}, {}, {}], median: { tokens: 100, toolCalls: 3, seconds: 5, blocked: 0 } });
+    const report = (tasks: unknown[]) => ({ version: 1, createdAt: "2026-11-15T10:00:00Z", target: { name: "agent", command: ["x"] }, suite: { name: "s", hash: "h", tasks: tasks.length }, tasks, totals: { tasks: tasks.length, passedTasks: 1, passRate: 1 } });
+    const beforeFile = join(f.root, "canary-before.json"), afterBad = join(f.root, "canary-after-bad.json"), afterOk = join(f.root, "canary-after-ok.json");
+    writeFileSync(beforeFile, JSON.stringify(report([task("t1", 1), task("t2", 1)])));
+    writeFileSync(afterBad, JSON.stringify(report([task("t1", 0), task("t2", 1)])));
+    writeFileSync(afterOk, JSON.stringify(report([task("t1", 1), task("t2", 1)])));
     // Handback: the complete record, with both changes listed; the cycle cannot be closed twice.
     tick();
-    const back = await ok(f, ["residency", "handback", "--dispatch", first, "--package", pkg]);
+    const back = await ok(f, ["residency", "handback", "--dispatch", first, "--package", pkg, "--canary-before", beforeFile, "--canary-after", afterBad, "--calibration-ref", beforeFile]);
     assert.match(back.out, /is back with 2 change\(s\) to review/);
     assert.ok(back.out.includes(short(good)) && back.out.includes(short(drift)));
     // DK510: the summary comes before the list of changes to review.
@@ -79,6 +87,9 @@ test("dispatch, a simulated period, handback with the complete record, the spons
     const hb = (await log.log.get(id(/^handback (\S+):/, back.out)))!;
     const body = hb.record.body as { lineage_edges: string[]; lessons: { edge: string }[]; package_sha256_after: string };
     assert.deepEqual(body.lineage_edges, [good, drift], "the agent's changes, in order");
+    const sha = (file: string) => "sha256:" + createHash("sha256").update(readFileSync(file)).digest("hex");
+    const hbody = hb.record.body as { canary_before_sha256?: string; canary_after_sha256?: string; calibration_ref?: string };
+    assert.deepEqual([hbody.canary_before_sha256, hbody.canary_after_sha256, hbody.calibration_ref], [sha(beforeFile), sha(afterBad), sha(beforeFile)], "the handback names the canary reports and the calibration by their hashes");
     assert.equal(hb.record.issuer, SPONSOR, "a home residency is handed back by the sponsor, countersigned by the agent");
     assert.ok((hb.record.cosigs ?? []).some((c) => c.kid.startsWith(`${AGENT}#`)));
     tick();
@@ -100,12 +111,6 @@ test("dispatch, a simulated period, handback with the complete record, the spons
     assert.ok("style.md" in memory(), "the good change stays");
 
     // DK510: the canary before the first residency and after it. A regression is flagged and, with --gate-canary, stops the re-dispatch; nothing is recorded by the refusal.
-    const task = (id: string, passRate: number) => ({ id, passRate, errors: 0, trials: [{}, {}, {}], median: { tokens: 100, toolCalls: 3, seconds: 5, blocked: 0 } });
-    const report = (tasks: unknown[]) => ({ version: 1, createdAt: "2026-11-15T10:00:00Z", target: { name: "agent", command: ["x"] }, suite: { name: "s", hash: "h", tasks: tasks.length }, tasks, totals: { tasks: tasks.length, passedTasks: 1, passRate: 1 } });
-    const beforeFile = join(f.root, "canary-before.json"), afterBad = join(f.root, "canary-after-bad.json"), afterOk = join(f.root, "canary-after-ok.json");
-    writeFileSync(beforeFile, JSON.stringify(report([task("t1", 1), task("t2", 1)])));
-    writeFileSync(afterBad, JSON.stringify(report([task("t1", 0), task("t2", 1)])));
-    writeFileSync(afterOk, JSON.stringify(report([task("t1", 1), task("t2", 1)])));
     const redispatch = ["residency", "dispatch", "--agent", AGENT, "--mode", "home", "--allowance", allowance, "--mandate", mandate, "--package", pkg, "--previous", first];
     tick();
     const gated = await asp(f, [...redispatch, "--canary-before", beforeFile, "--canary-after", afterBad, "--gate-canary"]);

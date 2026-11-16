@@ -143,6 +143,16 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
+    "canary_before_sha256": {
+      "description": "The hash of the canary report taken before the residency (asp canary run --save), so a later reader can check which results a re-dispatch was judged on (register row DK700).",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "canary_after_sha256": {
+      "description": "The hash of the canary report taken after the residency, as above.",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
     "diff_sha256": {
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
