@@ -66,7 +66,8 @@
       "enum": [
         "poster_choice",
         "best_match",
-        "rotation"
+        "rotation",
+        "panel_pick"
       ]
     },
     "seed": {

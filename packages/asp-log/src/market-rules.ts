@@ -7,6 +7,7 @@ import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { bondFloorPermille, floorIsV2 } from "./bond-floor.ts";
 import { EMPTY_POSTER_RECORD, depositMultiplier, type PosterRecord, rotateAgents, MAX_OPEN_POSTINGS_TIER1, POSTING_BAR_DAYS, POSTING_BAR_REMOVALS, POSTING_HOLD_REPORTS, POSTING_REPORTS_PER_DAY, lawProblem, MARKET_DID, POSTING_DEPOSIT_SERVICE, CLASS_WEIGHT, JOB_CLASSES, classPriceProblem, eligibility, higherClass, rankAgents, type AgentFacts, type JobClass, type JobNeeds } from "./market.ts";
 import { assertNotDormant } from "./shops-rules.ts";
+import { DEFAULT_PANEL_SIZE, drawPanel } from "./panel.ts";
 import type { LogTx, Store } from "./store.ts";
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
@@ -227,6 +228,16 @@ export async function projectMarketAct(tx: LogTx, r: AspRecord, env: MarketEnv):
       for (const c of r.cosigs ?? []) if ((await tx.getKey(c.kid))?.did === info.poster) countersigned = true;
       if (!countersigned) throw rule("assignment_needs_poster", "a poster_choice assignment is countersigned by the poster");
     }
+    if (b.rule === "panel_pick") {
+      // A contested or high-value job is allocated by a panel (DK394): a few staked jurors drawn from the posting's own id, none of whom is the poster, a bidder, or sponsored by one, choose among the bidders;
+      // the Market records the pick with the ranked list, and a majority of the panel cosigns it. The pick is any eligible bidder, not only the top of the ranking: the panel's choice is the point.
+      const panel = await drawPanel(tx, { principal: info.poster, performer: info.poster, seed: b.posting, size: DEFAULT_PANEL_SIZE, also: bidders });
+      if (panel.length === 0) throw rule("assignment_no_panel", "no staked, conflict-free juror is registered for this posting, so no panel can pick: use another allocation rule");
+      const signed = new Set<string>();
+      for (const c of r.cosigs ?? []) { const did = (await tx.getKey(c.kid))?.did; if (did && !signed.has(did)) { if (!panel.includes(did)) throw rule("panel_pick_not_panel", `${did} is not on the panel drawn for this posting (${panel.join(", ")})`); signed.add(did); } }
+      const need = Math.floor(panel.length / 2) + 1;
+      if (signed.size < need) throw rule("panel_pick_quorum", `a panel pick is cosigned by a majority of the panel: ${need} of ${panel.length}, got ${signed.size}`);
+    }
     const { ranked, candidates } = await rankedFor(tx, env, b.posting, b.rule, b.seed, now);
     if (!candidates.some((c) => c.did === b.agent)) throw rule("assignment_not_eligible", `${b.agent} is not eligible for this job (tier, certificate or bond floor), or is run by the operator and so may not be assigned by a rule other than poster_choice`);
     if (JSON.stringify(ranked) !== JSON.stringify(b.ranked)) throw rule("ranking_not_reproducible", `the ranked list does not reproduce from the log by the published rule; the rule gives ${JSON.stringify(ranked.map((x) => x.agent))}`);
@@ -261,7 +272,7 @@ export const readQualClass = async (tx: Pick<LogTx, "getMarker">, did: string): 
  * The ranked list for a posting under a rule (market.md 5): the eligible bidders, best first. `best_match` and `poster_choice` use the published score; `rotation` shares the work by the fewest board jobs
  * in the last 7 days. Used by the assignment check (which requires `ranked` to reproduce) and by the command that proposes an assignment, so the two cannot disagree.
  */
-export async function rankedFor(tx: LogTx, env: MarketEnv, posting: string, rule: "poster_choice" | "best_match" | "rotation", seed: string, now: string): Promise<{ ranked: ReturnType<typeof rankAgents>; candidates: AgentFacts[]; needs: JobNeeds }> {
+export async function rankedFor(tx: LogTx, env: MarketEnv, posting: string, rule: "poster_choice" | "best_match" | "rotation" | "panel_pick", seed: string, now: string): Promise<{ ranked: ReturnType<typeof rankAgents>; candidates: AgentFacts[]; needs: JobNeeds }> {
   const info = JSON.parse((await tx.getMarker(`posting:${posting}`)) ?? "null") as PostingInfo | null;
   if (!info) throw rule_("posting_unknown", `${posting} is not a posting in this log`);
   const intent = (await tx.getRecord(info.intent))!;

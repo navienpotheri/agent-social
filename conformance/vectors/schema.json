@@ -4950,6 +4950,42 @@
       "valid": true
     },
     {
+      "name": "valid_market_assignment_panel_pick",
+      "schema": "market_act",
+      "instance": {
+        "act": "assignment",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "intent": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "agent": "did:web:example.com:agents:a",
+        "rule": "panel_pick",
+        "seed": "s1",
+        "ranked": [
+          {
+            "agent": "did:web:example.com:agents:a",
+            "score": 1500,
+            "reasons": [
+              "skills 1 of 1"
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "market_assignment_bad_rule",
+      "schema": "market_act",
+      "instance": {
+        "act": "assignment",
+        "posting": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "intent": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "agent": "did:web:example.com:agents:a",
+        "rule": "lottery",
+        "seed": "s1",
+        "ranked": []
+      },
+      "valid": false
+    },
+    {
       "name": "valid_market_assignment_rotation",
       "schema": "market_act",
       "instance": {

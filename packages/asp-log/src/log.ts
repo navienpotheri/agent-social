@@ -2496,7 +2496,7 @@ export class EventLog {
   }
 
   /** The ranked list the log will require for an assignment of a posting by a rule (the same function the assignment check uses), so a proposed assignment reproduces. */
-  async rankPosting(posting: string, rule: "poster_choice" | "best_match" | "rotation", seed: string, at?: string): Promise<Ranked[]> {
+  async rankPosting(posting: string, rule: "poster_choice" | "best_match" | "rotation" | "panel_pick", seed: string, at?: string): Promise<Ranked[]> {
     const now = at ?? this.now().toISOString();
     return this.store.transaction(async (tx) => (await rankedFor(tx, this.marketEnv(), posting, rule, seed, now)).ranked);
   }
