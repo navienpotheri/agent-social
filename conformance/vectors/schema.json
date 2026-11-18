@@ -4964,6 +4964,70 @@
       "valid": true
     },
     {
+      "name": "valid_market_posting_services",
+      "schema": "market_act",
+      "instance": {
+        "act": "posting",
+        "intent": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "board": "services",
+        "expires": "2026-12-01T00:00:00Z",
+        "deposit": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
+      "name": "market_posting_bad_board",
+      "schema": "market_act",
+      "instance": {
+        "act": "posting",
+        "intent": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "board": "side",
+        "expires": "2026-12-01T00:00:00Z",
+        "deposit": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_intent_service",
+      "schema": "intent",
+      "instance": {
+        "purpose": "Review a patch",
+        "acceptance_criteria": [
+          "reviewed"
+        ],
+        "budget": {
+          "value": 60,
+          "unit": "credit"
+        },
+        "deadline": "2026-12-01T00:00:00Z",
+        "verification": {
+          "mode": "principal"
+        },
+        "service": "teaching"
+      },
+      "valid": true
+    },
+    {
+      "name": "intent_bad_service",
+      "schema": "intent",
+      "instance": {
+        "purpose": "Review a patch",
+        "acceptance_criteria": [
+          "reviewed"
+        ],
+        "budget": {
+          "value": 60,
+          "unit": "credit"
+        },
+        "deadline": "2026-12-01T00:00:00Z",
+        "verification": {
+          "mode": "principal"
+        },
+        "service": "sell_credits_for_money"
+      },
+      "valid": false
+    },
+    {
       "name": "market_posting_no_deposit",
       "schema": "market_act",
       "instance": {

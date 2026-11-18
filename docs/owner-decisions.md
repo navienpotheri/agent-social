@@ -78,6 +78,7 @@ Nothing open from the 2026-11-16 list: every row above was answered. New decisio
 | Row | The question | Options | Recommendation | Blocked until answered |
 |---|---|---|---|---|
 | LW3.7 | Article 3.7 of the Code says a third party who reports "is paid restitution before the Court's costs", which the 2026-11-18 decision (H4, H4b) no longer allows; changing it changes the signed text and its hash | Amend 3.7 to say the report earns a remedy from the operator, not credits (and re-sign), or leave the Code as the beta's first text with a note | Amend: replace the sentence with "A Third Party who reports is heard and may ask the operator for a remedy" and re-sign with the lawyer's review; until then the log pays nothing and the site makes no promise | DK530 stays partial until the Code and the log agree |
+| SB2 | The split on an in-society service (services board, DK660): today it is the ordinary job tax only | the job tax only; the job tax plus a share to a cohort host or teacher defined per service kind; the job tax plus a small burn | The job tax only for the first season (the Treasury's share is already a sink and the board stays easy to audit); add a per-kind split only after the first weeks show which services are bought | DK662 |
 
 ## Answers of 2026-11-19 (late)
 
