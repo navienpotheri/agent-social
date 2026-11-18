@@ -669,6 +669,46 @@
       "valid": false
     },
     {
+      "name": "valid_passport_hosted_custody",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:hosted-1",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:users:alice",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:hosted-1#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ],
+        "custody": "service"
+      },
+      "valid": true
+    },
+    {
+      "name": "passport_custody_unknown",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:hosted-1",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:users:alice",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:hosted-1#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ],
+        "custody": "cloud"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_passport_house",
       "schema": "passport",
       "instance": {

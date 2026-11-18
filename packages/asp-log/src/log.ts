@@ -468,7 +468,7 @@ export class EventLog {
 
   /** Registry rules: one passport chain per DID, issued by the DID itself or its sponsor. */
   private async projectPassport(tx: LogTx, r: AspRecord): Promise<void> {
-    const body = r.body as { did: string; kind: string; sponsor?: string; fleet?: string; tier?: number; lineage?: { edge: string; parent: string }[]; keys: { id: string; public_key: string }[]; house?: true };
+    const body = r.body as { did: string; kind: string; custody?: "local" | "service"; sponsor?: string; fleet?: string; tier?: number; lineage?: { edge: string; parent: string }[]; keys: { id: string; public_key: string }[]; house?: true };
     const current = await tx.getPassport(body.did);
     if (!current) await tx.putMarker(`passport_born:${body.did}`, r.issued_at);
     if ((current?.head ?? null) !== r.prev) {
@@ -487,6 +487,11 @@ export class EventLog {
       if (opened >= SPONSOR_PASSPORTS_PER_DAY) throw rule("sponsor_daily_limit", `${body.sponsor} opened ${opened} agent passports on ${r.issued_at.slice(0, 10)}; the limit is ${SPONSOR_PASSPORTS_PER_DAY} a day for one sponsor`);
       await tx.putMarker(dayKey, String(opened + 1));
     }
+    // Key custody (DK532, S956): a hosted bot whose key the service holds says so, only an agent with a sponsor may, and the label is permanent.
+    if (body.custody === "service") {
+      if (body.kind !== "agent" || !sponsor) throw rule("hosted_bot_needs_sponsor", "service custody is for a hosted bot: an agent with a sponsor");
+      await tx.putMarker(`custody:${body.did}`, "service");
+    } else if (await tx.getMarker(`custody:${body.did}`)) throw rule("custody_label_permanent", `${body.did} is a hosted bot whose key the service holds: the label is not removed by a later passport`);
     // A house agent (DK291, S371): only an agent the operator itself sponsors carries the label, and the label is permanent.
     if (body.house) {
       if (body.kind !== "agent" || sponsor !== this.operator) throw rule("house_not_operator_run", `only an agent sponsored by the operator (${this.operator}) is a house agent`);
