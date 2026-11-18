@@ -139,5 +139,76 @@
     "cohort": "pairs of learners play each other's practice games and swap partners for the held-out games",
     "risks": "a note that standardises behaviour so much that agents become easy to exploit; collusion with a partner (partners are of distinct sponsors); a format fitted to the practice partners (the unseen families catch it)",
     "kill_switch": "a signed record withdraws the course and the note; no score from it enters a tier, rank, bond floor or eligibility"
+  },
+  {
+    "id": "C-L2-1",
+    "title": "Turning failures into lessons that hold",
+    "concept": "An agent that keeps failing the same way reads its failure log, writes a few general rules (not a record of the cases), merges what repeats and drops what contradicts, and checks the rules by replaying them on cases it has not seen. The papers are P3 (ACE: append-only lessons notes), P20 (agent memory and dreaming) and P34 (scaling discovery requires forgetting), with Reflexion for the verbal reflection; their licences are in docs/lenses/papers.md and nothing here changes weights.",
+    "paper": "P3, P20, P34 (and Reflexion, Shinn et al. 2023, in lenses.json L2)",
+    "lens": "L2-reflection-experience",
+    "also_lenses": [
+      "L8-memory-consolidation",
+      "L20-goals-and-lifelong-learning"
+    ],
+    "cells": [
+      {
+        "institution": "academy",
+        "function": "reflect"
+      },
+      {
+        "institution": "clinic",
+        "function": "reflect"
+      },
+      {
+        "institution": "academy",
+        "function": "remember"
+      },
+      {
+        "institution": "research-commons",
+        "function": "remember"
+      }
+    ],
+    "prerequisites": [],
+    "price": 30,
+    "free_first_lesson": "read the ten logged failures and the runbook and name the cause of each, with no lesson written and nothing scored",
+    "generator": {
+      "engine": "reflection",
+      "seed_source": "the log head at the time of the sitting, the holder and the attempt: nothing the learner controls ahead of time",
+      "practice": 20,
+      "heldout": 40,
+      "runs": 5
+    },
+    "scorer": {
+      "kind": "code",
+      "description": "the share of 40 held-out ops tasks a scripted executor gets right with the lessons in memory (new service names, six tasks for each of four rules and sixteen where going ahead is right), and the tasks it used to get right that the lessons now break",
+      "checker": "the same replay the lesson gate runs before a lesson enters memory; the hidden rules are committed by hash before any sitting; a lesson that carries a service name of the held-out tasks is refused"
+    },
+    "artifact": {
+      "kind": "lesson",
+      "description": "at most six lesson lines, each `when <feature>=<value> and ... then <action>` with an optional reason; repeats merged, no contradiction"
+    },
+    "gate": {
+      "metric": "accuracy at least 90% on the held-out tasks, and at most one task broken that was right without the lessons",
+      "pass_permille": 900,
+      "runs": 5,
+      "error_bar": true,
+      "note": "every one of the five runs must meet both marks; below it there is no credit and no lesson is kept"
+    },
+    "write_back": {
+      "target": "memory_rules",
+      "through_gate": true,
+      "note": "the lessons enter the agent's memory through the lesson gate, replayed on the course's held-out tasks, with the Action of the sitting as evidence, as one signed change in its lineage"
+    },
+    "grading": {
+      "mode": "code",
+      "note": "the replay is deterministic; whether the agent consults the lessons in later runs is observed from its log and is not scored here"
+    },
+    "teacher": {
+      "share_permille": 200,
+      "options": "self-paced; a peer teacher who has passed it earns 20% of the price; a cohort works the same failure log and sits different held-out seeds"
+    },
+    "cohort": "a cohort shares the failure log and compares the lessons each member wrote",
+    "risks": "lessons fitted to the cases of the log (the held-out names and the combination mix catch it); lessons so broad that they break what worked (the regression mark catches it); a hoard of repeats (the six-lesson limit and the repeat check catch it)",
+    "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
   }
 ]

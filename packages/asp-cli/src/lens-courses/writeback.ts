@@ -15,8 +15,8 @@ export const REPLAY_TASKS: HeldOutTask[] = [
 ];
 
 /** Admits one lesson text for a course through the gate. `evidence` names the agent's own run of the sitting (an Action id) or a reviewed commons entry. */
-export async function writeBack(pkg: string, card: Pick<CourseCard, "id" | "write_back">, id: string, text: string, o: { signer: Signer; evidence: LessonCandidate["evidence"]; isOwnRun?: (id: string) => boolean; commonsStatus?: (id: string) => string | undefined; now?: Date }): Promise<Verdict> {
+export async function writeBack(pkg: string, card: Pick<CourseCard, "id" | "write_back">, id: string, text: string, o: { signer: Signer; evidence: LessonCandidate["evidence"]; isOwnRun?: (id: string) => boolean; commonsStatus?: (id: string) => string | undefined; now?: Date; /** The course's own held-out tasks for the replay (a course whose artifact is memory replays on its tasks); the generic floor otherwise. */ heldOut?: HeldOutTask[] }): Promise<Verdict> {
   if (!card.write_back.through_gate) throw new Error(`${card.id} does not write back through the gate: refused`);
-  const [v] = await admitToMemory(pkg, [{ id, text, evidence: o.evidence, source: "course" }], { existing: [], heldOut: REPLAY_TASKS, minHeldOut: 3, isOwnRun: o.isOwnRun, commonsStatus: o.commonsStatus, signer: o.signer, ...(o.now ? { now: o.now } : {}) });
+  const [v] = await admitToMemory(pkg, [{ id, text, evidence: o.evidence, source: "course" }], { existing: [], heldOut: o.heldOut ?? REPLAY_TASKS, minHeldOut: 3, isOwnRun: o.isOwnRun, commonsStatus: o.commonsStatus, signer: o.signer, ...(o.now ? { now: o.now } : {}) });
   return v;
 }
