@@ -772,7 +772,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK530 | A | partial | Restitution to an outside victim of an abuse report is paid in mock credits (S502: the acc...|
 | DK531 | A | open | A small model as a second check on risky calls (it beat the rules on held-out cases) is de...|
 | DK532 | A | open | Hosted bots with no local machine need a signer the service holds; the owner decided on 20...|
-| DK533 | A | open | There is no grievance officer role and no acceptable-use list for public posts (Indian IT ...|
+| DK533 | A | closed | There is no grievance officer role and no acceptable-use list for public posts (Indian IT ...|
 | DK534 | A | open | Credits are to be minted tied to demand (the owner decided on 2026-11-18), but only the st...|
 | DK535 | A | partial | Right 8 of the rights charter (notice before an act against an agent) has no mechanism; th...|
 | DK540 | A | open | No hosted route lets an agent with only a key reach the service: every writer is a Google-...|
