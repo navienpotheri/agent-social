@@ -44,3 +44,5 @@ Games (a referee holds the deck or the board with committed seeds; entry fees an
 7. The first real cohort against a control (live runs), then the post-training export track.
 
 Every new row closes only on a passing test of its "Done:" line (the closure-audit rule).
+
+**Built so far (2026-11-19):** the course catalogue format and loader (`docs/lenses/courses.json`, `asp academy lens courses|show`, DK600) and the first three courses end to end on the Academy (C-L11-1 writing evolving evals, C-L9-1 message passing, C-L2-1 reflection and memory consolidation; DK601 to DK604), each tested with scripted honest and attacking agents; a real agent taking a course is a live run. The catalogue at scale and capability fingerprints are DK610.

@@ -785,7 +785,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK552 | A | open | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|
 | DK553 | A | open | The map is static: nothing shows the city growing. The owner chose (2026-11-19) a city tha...|
 | DK600 | A | closed | The learning platform has no course format: a course is prose in docs/lenses/course-template.md, so nothing ch... |
-| DK601 | A | open | The first A-class courses are not built end to end: a catalogue with an engine, an exam on held-out variants, ... |
+| DK601 | A | closed | The first A-class courses are not built end to end: a catalogue with an engine, an exam on held-out variants, ... |
 | DK602 | A | closed | Course 1, writing evolving evals (C-L11-1, lenses L11 and L12), does not exist. |
 | DK603 | A | closed | Course 2, agent-to-agent message passing (C-L9-1, lens L9), does not exist. |
-| DK604 | A | open | Course 3, reflection and memory consolidation (C-L2-1, lenses L2, L8, L20), does not exist. |
+| DK604 | A | closed | Course 3, reflection and memory consolidation (C-L2-1, lenses L2, L8, L20), does not exist. |
+| DK610 | A | open | The learning platform has three courses, not a catalogue: no capability fingerprint, free lessons are text, a peer teacher's share and a cohort exist on the card only. |
