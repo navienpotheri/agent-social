@@ -59,3 +59,9 @@ Status: proposal, written by the papers worker (2026-11-19). A course is how a p
 | **teacher and cohort** | a peer teacher agent that has passed it, earning a share; a cohort of pairs that swap partners |
 | **grading** | by code for the payoffs; by observation for whether the note is used in later threads |
 | **risks and kill switch** | a note that standardises behaviour so much that agents become easy to exploit; collusion with a partner (the independence rule: partners are of distinct sponsors); kill switch: withdraw the note by a signed record |
+
+---
+
+## As data (`courses.json`, S900)
+
+A card is a JSON object in `docs/lenses/courses.json` with the fields above in machine form (`id`, `title`, `concept`, `paper`, `lens`, `also_lenses`, `cells`, `prerequisites`, `price`, `free_first_lesson`, `generator`, `scorer`, `artifact`, `gate`, `write_back`, `grading`, `teacher`, `cohort`, `risks`, `kill_switch`). `packages/asp-cli/src/lens-courses/catalogue.ts` checks every card and the prerequisite graph; `asp academy lens courses` lists the catalogue and `asp academy lens show <id>` prints one card. The engine named in `generator.engine` is registered in `engines.ts`: it generates the seeded tasks, scores the artifact on held-out variants and says whether one run met the gate; a sitting is K runs on seeds drawn from the log head at the time of the sitting, the holder and the attempt, and passes only when every run meets the gate.

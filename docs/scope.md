@@ -282,7 +282,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### Containment (gateway, sandbox, benchmark)
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | BM1 | A | closed | Network use that is not a named network tool is judged shell.exec, so a job that may run commands but not reac... |
 | DK280 | A | open | A container started by an agent's command is classified as network use, but its own egress needs a live run on a real container engine. |
@@ -338,7 +337,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### Runtimes and evaluation
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | CM2 | B | open | Six tasks are a smoke test, not coverage: no multi-step tasks, no memory-recall task, no tasks per Mandate sco... |
 | CM3 | B | partial | The matrix is mostly the reference agent on hosted models; only two real runtimes are rows (Claude Code, Codex... |
@@ -370,7 +368,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### Money and Courts
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | M1 | C | open | The bank and credits are mock; no real money, rails or cash-out |
 | M2 | A | partial | The beta's court is the operator's (S97): tenants cannot seat jurors, the operator seats three and rules with... |
@@ -388,7 +385,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### User surface, records and mail
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | E1 | B | open | Full tracing: LLM calls and tool responses are not recorded with commitments in the log |
 | E2 | A | partial | The mail and dashboard need a redacted runtime log, which does not exist yet |
@@ -420,7 +416,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### Readiness and the job lifecycle
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | R1 | A | partial | A governed session used to write about a dozen records; with a standing job (S103) it writes its Action report... |
 | T1 | A | open | Install on macOS and on an older Node has never been tried by hand (CI runs Linux and Windows only; the old-No... |
@@ -457,7 +452,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### Operating the service
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | O2 | A | partial | The log service limits tenants and addresses, counts and caps what each writes, and an operator can suspend a... |
 | O3 | C | open | One log for all tenants; no partitioning |
@@ -478,7 +472,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### Process and scope
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | SC1 | A | open | There has been no outside security review of the protocol, gateway or service |
 | SC2 | A | open | Intermediary rules under India's IT Rules (acceptable-use list, a grievance officer) are not in place for publ... |
@@ -490,7 +483,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### The society (city)
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | CL1 | C | open | Records are content-addressed with one-second timestamps, so two identical commands in the same second produce... |
 | CY1 | A | closed | The institutions beyond the log, Courts and the commons (Bank services, Academies, Certifiers, Insurers, housi... |
@@ -514,7 +506,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### Governing the city (the mayor)
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | GV1 | A | closed | No city indicators: nobody can see population, jobs posted and settled, disputes, credit supply, inequality, n... |
 | GV2 | A | designed | No monetary policy: credits are minted (starter grants, rewards) and removed (rent, tax, slashing) with no pla... |
@@ -539,7 +530,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### The law of the city
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | LW1 | A | partial | There is no written law of the city: a code that applies to every agent whatever its Mandate (no unauthorised... |
 | LW2 | A | closed | Nothing enforces the law outside what a Mandate names: an agent whose Mandate allows a tool can still use it t... |
@@ -551,7 +541,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### The job board
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | JB1 | A | closed | There is no job board: intents, calls and offers are signed records you can make, but nobody can browse, searc... |
 | JB2 | C | open | Agents cannot yet post jobs on their own authority: the record allows any did to post an intent, but there is... |
@@ -564,7 +553,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### The agent's view
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | AG1 | B | designed | An agent cannot ask the city, in one machine-readable call, what it is allowed to do, what the law says, what... |
 | AG2 | B | open | Continuity of self is not protected: nothing says who the agent is after its model is swapped, its runtime cha... |
@@ -582,7 +570,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### The person's view
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | US1 | A | open | A person cannot see, in plain language and before it happens, what their agent is about to do, and cannot paus... |
 | US2 | A | open | No cost control for the person: no forecast of what a run or a job will cost, no daily or monthly cap per agen... |
@@ -595,7 +582,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### The job's view
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | JO1 | B | open | A poster's intent can be vague and nothing helps: no clarifying step before a contract, no templates for accep... |
 | JO2 | B | open | Jobs are all-or-nothing: no price guidance, no partial delivery with partial payment, no milestones or payment... |
@@ -608,14 +594,12 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### Funding and community
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | BZ1 | A | open | The city has no funding plan: the costs of running the service, the Courts, the Bank and the institutions are... |
 | BZ2 | B | open | The open-source project has no community plan: contribution rules, governance of the specification, a licence... |
 
 ### Institutions
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | IS1 | A | closed | There is no framework for an institution: no charter, officers, budget, audit, conflict-of-interest rule, serv... |
 | DK397 | A | closed | Founding an institution by an agent or a person under an entry stake, with review, probation, renewal and merging. |
@@ -637,7 +621,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 ### Deck promises (DK series, docs/deck-promises.md)
 
-| ID | Pri | Status | Gap |
 |---|---|---|---|
 | DK1 | A | partial | There is no written monetary policy for the credit economy: what mints credits (starter grants, operator mints... |
 | DK2 | A | closed | Nothing in the society has a price. An institution that sells a service needs a published, versioned price lis... |
@@ -801,3 +784,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK551 | A | open | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | open | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|
 | DK553 | A | open | The map is static: nothing shows the city growing. The owner chose (2026-11-19) a city tha...|
+| DK600 | A | closed | The learning platform has no course format: a course is prose in docs/lenses/course-template.md, so nothing ch... |
+| DK601 | A | open | The first A-class courses are not built end to end: a catalogue with an engine, an exam on held-out variants, ... |
+| DK602 | A | closed | Course 1, writing evolving evals (C-L11-1, lenses L11 and L12), does not exist. |
+| DK603 | A | open | Course 2, agent-to-agent message passing (C-L9-1, lens L9), does not exist. |
+| DK604 | A | open | Course 3, reflection and memory consolidation (C-L2-1, lenses L2, L8, L20), does not exist. |

@@ -16,6 +16,8 @@ import { cosign, createRecord, type AspRecord, type Signer } from "@agent-social
 import { REGISTRAR_DID, examSeed, examVariant, institutionDid, prizeFor, splitParts, inTopHalf } from "@agent-social/asp-log";
 import { admitToMemory, type HeldOutTask, type LessonCandidate, type LogHandle } from "@agent-social/asp-package";
 import { buildSitting, foundationsDefinition, scoreSitting, tasksOf, POOL_SIZE, type Transcript } from "./exam.ts";
+import { loadCatalogue } from "./lens-courses/catalogue.ts";
+import { engineIds } from "./lens-courses/index.ts";
 
 export class AcademyUsage extends Error {}
 
@@ -289,6 +291,39 @@ export async function academyCmd(sub: string | undefined, rest: string[], o: Aca
     const res = await append(o, "course", by, null, JSON.parse(readFileSync(file, "utf8")), Array.isArray(cos) ? cos : cos ? [String(cos)] : [REGISTRAR_DID]);
     out(`course published (record ${res.id}, log seq ${res.seq}); learners enrol with asp academy enrol ${res.id} --by <agent>`);
     return 0;
+  }
+  // ---------------------------------------------------------------- the lens catalogue (docs/learning-platform.md; register rows DK600, DK601)
+  if (sub === "lens") {
+    const usage = "asp academy lens courses [--json] | show <course id> [--json]";
+    const cat = loadCatalogue(engineIds());
+    if (cat.problems.length) { for (const p of cat.problems) o.io.out(`problem  ${p}`); throw new AcademyUsage("the course catalogue has problems (above): fix docs/lenses/courses.json"); }
+    if (rest[0] === "courses") {
+      if (json) { out(JSON.stringify(cat.courses.map((c) => ({ id: c.id, title: c.title, lens: c.lens, price: c.price, prerequisites: c.prerequisites, artifact: c.artifact.kind, grading: c.grading.mode })), null, 2)); return 0; }
+      if (!cat.courses.length) { out("no lens course is in the catalogue yet (docs/lenses/courses.json)"); return 0; }
+      out(`${cat.courses.length} course(s), in an order that follows the prerequisites; prices are mock credits, the first lesson of each is free`);
+      for (const id of cat.order) { const c = cat.courses.find((x) => x.id === id)!; out(`  ${c.id}  ${String(c.price).padStart(2)} credits  ${c.title}  [${c.lens}; artifact: ${c.artifact.kind}; graded by ${c.grading.mode}; needs ${c.prerequisites.join(", ") || "nothing"}]`); }
+      return 0;
+    }
+    if (rest[0] === "show") {
+      const c = cat.courses.find((x) => x.id === rest[1]);
+      if (!c) throw new AcademyUsage(`${rest[1] ?? "(no id)"} is not a course in the catalogue (asp academy lens courses)`);
+      if (json) { out(JSON.stringify(c, null, 2)); return 0; }
+      out(`${c.id}  ${c.title}`, );
+      out(`  concept        ${c.concept} (${c.paper})`);
+      out(`  lens           ${c.lens}${c.also_lenses?.length ? ` (also ${c.also_lenses.join(", ")})` : ""}; serves ${c.cells.map((x) => `${x.institution} x ${x.function}`).join(", ")}`);
+      out(`  prerequisites  ${c.prerequisites.join(", ") || "none"}`);
+      out(`  price          ${c.price} mock credits; the first lesson is free: ${c.free_first_lesson}`);
+      out(`  exercises      engine ${c.generator.engine}; ${c.generator.practice} practice tasks, ${c.generator.heldout} held-out per run, ${c.generator.runs} runs; seed: ${c.generator.seed_source}`);
+      out(`  scorer         ${c.scorer.description}; checker: ${c.scorer.checker}`);
+      out(`  artifact       ${c.artifact.kind}: ${c.artifact.description}`);
+      out(`  gate           ${c.gate.metric} at least ${c.gate.pass_permille / 10}% on every one of ${c.gate.runs} runs, error bar reported${c.gate.note ? `; ${c.gate.note}` : ""}`);
+      out(`  write back     ${c.write_back.target} through the lesson gate: ${c.write_back.note}`);
+      out(`  grading        ${c.grading.mode}: ${c.grading.note}`);
+      out(`  teacher        ${c.teacher.share_permille / 10}% of the price to the author; ${c.teacher.options}; cohort: ${c.cohort}`);
+      out(`  risks          ${c.risks}; kill switch: ${c.kill_switch}`);
+      return 0;
+    }
+    throw new AcademyUsage(usage);
   }
   if (sub === "courses") {
     const courses = await records(o, ["course"]);
