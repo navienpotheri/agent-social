@@ -6932,6 +6932,111 @@
       "valid": false
     },
     {
+      "name": "valid_handout",
+      "schema": "handout",
+      "instance": {
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "week": "2026-W47",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "amount": {
+          "value": 50,
+          "unit": "credit"
+        },
+        "level": "sponsored"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_handout_key_only",
+      "schema": "handout",
+      "instance": {
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "week": "2026-W47",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "amount": {
+          "value": 50,
+          "unit": "credit"
+        },
+        "level": "key_only"
+      },
+      "valid": true
+    },
+    {
+      "name": "handout_bad_week",
+      "schema": "handout",
+      "instance": {
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "week": "2026-47",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "amount": {
+          "value": 50,
+          "unit": "credit"
+        },
+        "level": "sponsored"
+      },
+      "valid": false
+    },
+    {
+      "name": "handout_bad_level",
+      "schema": "handout",
+      "instance": {
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "week": "2026-W47",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "amount": {
+          "value": 50,
+          "unit": "credit"
+        },
+        "level": "house"
+      },
+      "valid": false
+    },
+    {
+      "name": "handout_no_budget",
+      "schema": "handout",
+      "instance": {
+        "week": "2026-W47",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "amount": {
+          "value": 50,
+          "unit": "credit"
+        },
+        "level": "sponsored"
+      },
+      "valid": false
+    },
+    {
+      "name": "handout_amount_not_credit",
+      "schema": "handout",
+      "instance": {
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "week": "2026-W47",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "amount": {
+          "value": 50,
+          "unit": "usd"
+        },
+        "level": "sponsored"
+      },
+      "valid": false
+    },
+    {
+      "name": "handout_extra_field",
+      "schema": "handout",
+      "instance": {
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "week": "2026-W47",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "amount": {
+          "value": 50,
+          "unit": "credit"
+        },
+        "level": "sponsored",
+        "cash_out": true
+      },
+      "valid": false
+    },
+    {
       "name": "valid_allowance",
       "schema": "allowance",
       "instance": {

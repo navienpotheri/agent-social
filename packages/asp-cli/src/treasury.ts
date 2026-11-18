@@ -9,8 +9,9 @@ import { cosign, createRecord, type Signer } from "@agent-social/asp-core";
 import { ALLOWANCE_AMOUNT, INSTITUTION_NAMES, TREASURY_DID, institutionDid } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
 
+import { handoutCmd, HandoutUsage } from "./treasury-handout.ts";
 export class TreasuryUsage extends Error {}
-export interface TreasuryOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; flags: { period?: string; out?: string; draft?: string; id?: string; by?: string; "cosign-by"?: string; amount?: string; budget?: string; memo?: string; claim?: boolean; agent?: string; since?: string } }
+export interface TreasuryOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; flags: { period?: string; out?: string; draft?: string; id?: string; by?: string; "cosign-by"?: string; amount?: string; budget?: string; memo?: string; claim?: boolean; agent?: string; since?: string; week?: string } }
 
 export interface Draft { id: string; institution: string; period: string; amount: number; purpose: string; why: string; sha256: string }
 export interface DraftFile { version: "asp.budget-drafts/v1"; status: string; period: string; drafts: Draft[]; growth: string }
@@ -93,6 +94,7 @@ export async function treasuryCmd(sub: string | undefined, o: TreasuryOpts): Pro
     for (const i of st.institutions) o.io.out(`  ${i.did.replace("did:web:asp.local:", "").padEnd(10)} budgeted ${String(i.budgeted).padStart(6)}  paid by the Treasury ${String(i.paidByTreasury).padStart(6)}  earned from purchases ${String(i.earnedFromPurchases).padStart(6)}  balance ${i.balance}`);
     return t.reconciles === false ? 1 : 0;
   }
+  if (sub === "handout") { try { return await handoutCmd({ log: o.log, io: o.io, now: o.now, signerFor: o.signerFor, flags: { week: f.week, budget: f.budget, amount: f.amount, yes: f.claim } }); } catch (e) { if (e instanceof HandoutUsage) throw new TreasuryUsage(e.message); throw e; } }
   if (sub === "pay") {
     if (!f.budget || f.amount === undefined) throw new TreasuryUsage("asp treasury pay --budget <budget id> --amount <credits> [--memo <text>] [--by did:web:asp.local:treasury]");
     const led = await o.log.log.treasuryLedger();

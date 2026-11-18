@@ -679,6 +679,7 @@ const OPTIONS = {
   "widen-hint": { type: "string" },
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
+  week: { type: "string" },
   "agent-name": { type: "string" },
   "google-auth-url": { type: "string" },
   "google-token-url": { type: "string" },
@@ -4587,7 +4588,7 @@ async function treasuryCommand(home: string, sub: string | undefined, v: Values,
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount, budget: v.budget, memo: v.memo, claim: v.yes, agent: v.agent, since: v.since } });
+    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount, budget: v.budget, memo: v.memo, claim: v.yes, agent: v.agent, since: v.since, week: v.week } });
   } catch (e) {
     if (e instanceof TreasuryUsage) throw new UsageError(e.message);
     throw e;
