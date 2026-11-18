@@ -31,19 +31,28 @@ export interface SupplyGuard {
   anyTriggered: boolean;
 }
 
+/** The starter-spend report (packages/asp-log/src/starter-spend.ts, DK543), as the page shows it. */
+export interface SupplyStarterSpend {
+  claimed: number; mature: number;
+  daysToSpend90: { reached: number; median: number | null; p90: number | null };
+  neverSpentShare: number; runOutShare: number; threshold: { text: string }; verdict: string; note: string;
+}
+
 const esc = (t: string) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /** `publicRoutes` for `createLogServer`: `GET /economy/supply` (HTML by default, JSON with `?format=json` or `Accept: application/json`). */
-export function economySupplyRoutes(o: { audit: () => Promise<SupplyAudit>; guard?: () => Promise<SupplyGuard> }) {
+export function economySupplyRoutes(o: { audit: () => Promise<SupplyAudit>; guard?: () => Promise<SupplyGuard>; starterSpend?: () => Promise<SupplyStarterSpend> }) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<boolean> => {
     const url = new URL(req.url ?? "/", "http://x");
     if (url.pathname !== "/economy/supply") return false;
     if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, { allow: "GET, HEAD" }); res.end(); return true; }
     let audit: SupplyAudit;
     let guard: SupplyGuard | undefined;
+    let spend: SupplyStarterSpend | undefined;
     try {
       audit = await o.audit();
       guard = o.guard ? await o.guard() : undefined;
+      spend = o.starterSpend ? await o.starterSpend() : undefined;
     } catch (e) {
       res.writeHead(500, { "content-type": "application/json" });
       res.end(JSON.stringify({ ok: false, error: { code: "SERVER_ERROR", message: (e as Error).message } }));
@@ -52,7 +61,7 @@ export function economySupplyRoutes(o: { audit: () => Promise<SupplyAudit>; guar
     const wantsJson = url.searchParams.get("format") === "json" || (req.headers.accept ?? "").includes("application/json");
     if (wantsJson) {
       res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
-      res.end(req.method === "HEAD" ? undefined : JSON.stringify({ ok: true, ...audit, ...(guard ? { guard } : {}), note: "credits are accounting entries, not money; recompute with: asp credits audit --json" }));
+      res.end(req.method === "HEAD" ? undefined : JSON.stringify({ ok: true, ...audit, ...(guard ? { guard } : {}), ...(spend ? { starterSpend: spend } : {}), note: "credits are accounting entries, not money; recompute with: asp credits audit --json" }));
       return true;
     }
     const rows: [string, number, string][] = [
@@ -73,6 +82,7 @@ export function economySupplyRoutes(o: { audit: () => Promise<SupplyAudit>; guar
       + (guard ? `<h2>Guard measures</h2><p class="${guard.anyTriggered ? "bad" : "ok"}">${guard.anyTriggered ? "A measure is over its threshold; the action named is the operator's decision." : "No measure is over its threshold."}</p>`
         + `<table><tbody>${guard.measures.map((m) => `<tr><th>${esc(m.id)}</th><td class="${m.triggered ? "bad" : "ok"}">${esc(m.value.toFixed(3))}</td><td>${esc(m.threshold)}</td><td>${esc(m.label)}${m.triggered ? ` Action: ${esc(m.action)}` : ""}</td></tr>`).join("")}`
         + `${guard.unavailable.map((u) => `<tr><th>${esc(u.id)}</th><td colspan="3">not available: ${esc(u.label)}: ${esc(u.reason)}</td></tr>`).join("")}</tbody></table>` : "")
+      + (spend ? `<h2>Starter spending</h2><p>${spend.claimed} agent(s) claimed starter credits; ${spend.mature} claimed long enough ago to judge. Days to spend 90 percent: median ${spend.daysToSpend90.median === null ? "n/a" : esc(spend.daysToSpend90.median.toFixed(1))}, 90th percentile ${spend.daysToSpend90.p90 === null ? "n/a" : esc(spend.daysToSpend90.p90.toFixed(1))} (${spend.daysToSpend90.reached} agent(s) got there). Never spent: ${esc((spend.neverSpentShare * 100).toFixed(0))} percent. Spent it and stopped: ${esc((spend.runOutShare * 100).toFixed(0))} percent. ${esc(spend.note)}.</p><p>Threshold: ${esc(spend.threshold.text)}.</p>` : "")
       + `<p>${audit.accounts} account(s) in all. Log head: seq ${audit.head.seq}, hash ${esc(audit.head.logHash.slice(0, 19))}&hellip;</p>`
       + `<p>Credits are accounting entries, not money; the service is a beta; there has been no outside security review.</p>`
       + `<p>Recompute these figures yourself: <code>asp credits audit --json</code>, or fetch this page with <code>Accept: application/json</code>.</p>`

@@ -2,6 +2,8 @@ export { PLATFORM_DID } from "./economy.ts";
 export { EventLog, SPONSOR_PASSPORTS_PER_DAY, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
 export { auditLedger, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type LedgerRows, type StarterPoolState } from "./credit-audit.ts";
+export { planHandout, hoardFactor, DEFAULT_HANDOUT, type HandoutPlan, type HandoutParams, type HandoutAgent } from "./handout-plan.ts";
+export { starterSpendOf, type StarterSpendReport, RAISE_RUNOUT_SHARE, MATURE_DAYS, STOPPED_DAYS, MIN_COHORT } from "./starter-spend.ts";
 export { computeGuardReport, type GuardMeasure, type GuardReport, type GuardUnavailable } from "./guard-monitor.ts";
 export { PostgresStore, migrate } from "./postgres.ts";
 export { DEFAULT_PANEL_SIZE, drawPanel, findRejection, noteFunder, PANEL_DRAW_V2_FROM, panelDrawIsV2, type PanelSource } from "./panel.ts";
@@ -57,3 +59,5 @@ export { commitTask, passes, ringReport, runSeason, type CommittedTask, type Ent
 export { SEED_JOBS, SEED_PREFIX, COLD_START_METHOD, type SeedJob, type ColdStart } from "./cold-start.ts";
 export { CHARTERED, CHARTER_NOTICE_MS, FORUM_DID, type CharterBody } from "./institution-charters.ts";
 export { cyclePermille, experiencePermille, holiday, quotePremium, simulateInsurer, type HolderRecord, type SimResult } from "./insurer-dynamics.ts";
+export { KEY_ONLY_BAN_AT, KEY_ONLY_QUARANTINE_AT, KeyOnlyBans, checkKeyProof, keyProofMessage, reviewKeyOnly, slashesOf, type BanEntry, type KeyOnlyAction, type KeyOnlyReview } from "./key-only.ts";
+export { frontDoorJson, frontDoorRoutes, frontDoorText, frontDoorTools, type FrontDoorOptions, type FrontDoorTool } from "./front-door.ts";

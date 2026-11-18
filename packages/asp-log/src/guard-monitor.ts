@@ -10,8 +10,8 @@
  */
 import type { LogHandle } from "./server.ts";
 
-export type GuardMeasureId = "G1" | "G2" | "G5" | "G6" | "G8";
-export type GuardUnavailableId = "G2" | "G3" | "G4" | "G7";
+export type GuardMeasureId = "G1" | "G2" | "G5" | "G6" | "G8" | "G9";
+export type GuardUnavailableId = "G2" | "G3" | "G4" | "G7" | "G9";
 
 export interface GuardMeasure {
   id: GuardMeasureId;
@@ -84,6 +84,13 @@ export async function computeGuardReport(o: { handle: LogHandle; now?: () => num
     });
   } else {
     unavailable.unshift({ id: "G2", label: "starter pool use", reason: "no signed starter pool has been funded yet: the operator funds it with `asp credits grant --to did:web:asp.local:starter-pool --by <operator did> --reason starter_upfront`" });
+  }
+  // G9 (DK543): the share of agents that spent their starter and stopped. Only judged when enough agents are old enough; the full figures are `starterSpend` and the supply page.
+  const sp = (o.handle.log as { starterSpend?: (n: number) => Promise<import("./starter-spend.ts").StarterSpendReport> }).starterSpend;
+  if (sp) {
+    const r = await sp.call(o.handle.log, now);
+    if (r.verdict === "too_little_data") unavailable.push({ id: "G9", label: "starter run-out share", reason: r.note });
+    else measures.push({ id: "G9", value: r.runOutShare, threshold: `above ${r.threshold.runOutShare}`, triggered: r.verdict === "raise_starter", label: `starter run-outs: share of ${r.mature} agents that spent 90 percent of the starter and then stopped (median ${r.daysToSpend90.median?.toFixed(1) ?? "n/a"} days to spend it)`, action: "consider raising the starter above 500 (an owner decision, docs/owner-decisions.md); nothing is changed" });
   }
   return { at: new Date(now).toISOString(), measures, unavailable, anyTriggered: measures.some((m) => m.triggered) };
 }
