@@ -76,7 +76,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     { n: "Bank & Insurer", x: 17, z: -53, w: 14, d: 10, fl: 2, c: 0xc9ac6b, t: TRIM, r: 0x7a6a45, roof: "flat", columns: 1, rot: 0, node: "CB" },
     { n: "Treasury", x: 8, z: -37, w: 12, d: 10, fl: 2, c: 0x9c3e2b, t: TRIM, r: 0x6f2e22, roof: "hip", dome: 1, rot: 2, node: "CT" },
     { n: "Academy", x: 44, z: -38, w: 16, d: 12, fl: 3, c: CREAM, t: 0x1f7a78, r: 0x1f7a78, roof: "hip", columns: 1, rot: 0, node: "KA" },
-    { n: "Research & Commons", x: 60, z: -38, w: 14, d: 10, fl: 2, c: 0xe3d6b4, t: 0x2d6a5e, r: 0x2d6a5e, roof: "flat", rot: 0, node: "KR" },
+    { n: "Research & Commons", x: -46, z: -30, w: 14, d: 10, fl: 2, c: 0xe3d6b4, t: 0x2d6a5e, r: 0x2d6a5e, roof: "flat", rot: 0, node: "KR" },
     { n: "Market", x: -44, z: -6, w: 18, d: 12, fl: 2, c: 0xd08a3a, t: TRIM, r: 0xe7c14a, roof: "flat", awning: 1, rot: 0, node: "M" },
     { n: "Shops", x: -44, z: 12, w: 14, d: 10, fl: 2, c: 0xc86c4f, t: TRIM, r: 0xe9a23b, roof: "flat", awning: 1, rot: 2, node: "M" },
     { n: "Forum", x: -4, z: -9, w: 12, d: 10, fl: 2, c: 0xe5d8b9, t: BR, r: 0xb5472f, roof: "hip", dome: 1, rot: 0, node: "FD" },
@@ -84,10 +84,10 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     { n: "Leisure & Events", x: 60, z: 14, w: 12, d: 12, fl: 1, c: 0xf1cf6a, t: 0xe05a3a, r: 0xe05a3a, roof: "hip", rot: 3, node: "LD" }
   ];
   var Nd = { P: [0, 0], N1: [-4, -16], N2: [-6, -30], C: [-6, -46], CW: [-18, -45.5], CR: [0, -45.5], CT: [8, -44.5], CB: [17, -45.5],
-    E1: [20, -10], E2: [36, -22], K: [50, -29.5], KA: [44, -29.5], KR: [60, -29.5], F1: [24, 6], F2: [40, 12], LD: [50.5, 14], L1: [52, 30], L2: [48, 40], H: [40, 46],
+    E1: [20, -10], E2: [36, -22], K: [50, -29.5], KA: [44, -29.5], KR: [-46, -21.5], F1: [24, 6], F2: [40, 12], LD: [50.5, 14], L1: [52, 30], L2: [48, 40], H: [40, 46],
     S1: [2, 14], S2: [4, 30], S3: [6, 44], CL: [6, 50.5], W1: [-14, 2], W2: [-28, 4], M: [-44, 4], D1: [-12, 14], D2: [-28, 30], D3: [-44, 44], G: [-52, 56], GW: [-52, 60], FD: [-4, -1.5],
     HA1: [30, 54], HA2: [20, 62], HB1: [52, 52], HB2: [56, 64], HC1: [38, 62], HC2: [30, 72] };
-  var E = [["P", "N1"], ["N1", "N2"], ["N2", "C"], ["CW", "C"], ["C", "CR"], ["CR", "CT"], ["CT", "CB"], ["P", "E1"], ["E1", "E2"], ["E2", "K"], ["KA", "K"], ["K", "KR"], ["P", "F1"], ["F1", "F2"], ["F2", "LD"], ["LD", "L1"], ["L1", "L2"], ["L2", "H"],
+  var E = [["P", "N1"], ["N1", "N2"], ["N2", "C"], ["CW", "C"], ["C", "CR"], ["CR", "CT"], ["CT", "CB"], ["P", "E1"], ["E1", "E2"], ["E2", "K"], ["KA", "K"], ["KR", "W2"], ["KR", "N2"], ["P", "F1"], ["F1", "F2"], ["F2", "LD"], ["LD", "L1"], ["L1", "L2"], ["L2", "H"],
     ["P", "S1"], ["S1", "S2"], ["S2", "S3"], ["S3", "CL"], ["P", "W1"], ["W1", "W2"], ["W2", "M"], ["P", "D1"], ["D1", "D2"], ["D2", "D3"], ["D3", "G"], ["G", "GW"], ["P", "FD"], ["H", "HA1"], ["HA1", "HA2"], ["H", "HB1"], ["HB1", "HB2"], ["H", "HC1"], ["HC1", "HC2"],
     ["N2", "E1"], ["F1", "S1"], ["W1", "D1"], ["CT", "E2"], ["L1", "S3"], ["D2", "S2"]];  // cross streets that close the blocks
   var LANE = { H: 1, HA1: 1, HA2: 1, HB1: 1, HB2: 1, HC1: 1, HC2: 1 };
