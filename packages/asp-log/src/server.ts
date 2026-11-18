@@ -53,7 +53,7 @@ export interface Tenant {
   /** When the token was last replaced by the person signing in again (src/signup.ts recover). */
   tokenRotatedAt?: string;
   /** Set on a tenant that signed itself up (src/signup.ts): when, a hash of the address, the terms it accepted and an unverified contact line. */
-  signup?: { at: string; addressHash: string; termsVersion: string; contact?: string; google?: { sub: string; email: string }; declaration?: "adult_or_guardian" };
+  signup?: { at: string; addressHash: string; termsVersion: string; contact?: string; google?: { sub: string; email: string }; declaration?: "adult_or_guardian"; /** Set when an agent enrolled itself with only a key (src/key-only.ts): the key and the did:key it stands for. */ keyOnly?: { publicKey: string; did: string } };
   /** Set when the tenant closed its account: the token is gone and so is everything personal except what is kept for abuse handling until `retainUntil`. */
   closed?: { at: string; retainUntil: string };
   /** Extra tokens for machines (a CI job, a scheduled task): named, with an expiry, revocable, and less powerful than the person's own token (src/account.ts). Only hashes are kept. */
@@ -254,7 +254,17 @@ export function createLogServer(opts: ServerOptions): Server {
         }
         return page(405, joinError("Not allowed", "Use the sign-up page."));
       }
-      if (opts.signup && (req.url === "/signup" || req.url === "/signup/challenge")) {
+      if (opts.signup && (req.url === "/signup" || req.url === "/signup/challenge" || req.url === "/signup/key")) {
+        if (req.method === "POST" && req.url === "/signup/key") {
+          let kb: unknown;
+          try { kb = JSON.parse(await readBody(req, 8 * 1024)); } catch { return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "the body is JSON, at most 8 KB" } }); }
+          const kr = opts.signup.registerKeyOnly(address, kb);
+          if (!kr.ok) {
+            if (kr.retryAfterSec) res.setHeader("retry-after", String(kr.retryAfterSec));
+            return json(res, kr.status, { ok: false, error: { code: kr.code, message: kr.message, ...(kr.retryAfterSec ? { retryAfterSec: kr.retryAfterSec } : {}) } });
+          }
+          return json(res, 201, { ok: true, tenant: kr.tenant, token: kr.token, did: kr.did, quotas: kr.quotas, termsVersion: kr.termsVersion });
+        }
         if (req.method === "GET" && req.url === "/signup") return json(res, 200, { ok: true, ...opts.signup.info() });
         if (req.method === "GET") return json(res, 200, { ok: true, ...opts.signup.challenge(address) });
         if (req.method === "POST" && req.url === "/signup") {

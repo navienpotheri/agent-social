@@ -778,9 +778,15 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK540 | A | open | No hosted route lets an agent with only a key reach the service: every writer is a Google-...|
 | DK541 | A | open | A key-only identity gets only the one-time 100 starter credits; the owner decided on 2026-...|
 | DK542 | A | open | A sponsor-less agent has no person to answer for it. The owner decided on 2026-11-18 that ...|
+| DK535 | A | open | Right 8 of the rights charter (notice before an act against an agent) has no mechanism; th...|
+| DK540 | A | closed | No hosted route lets an agent with only a key reach the service: every writer is a Google-...|
+| DK541 | A | closed | A key-only identity gets only the one-time 100 starter credits; the owner decided on 2026-...|
+| DK542 | A | closed | A sponsor-less agent has no person to answer for it. The owner decided on 2026-11-18 that ...|
 | DK543 | A | closed | The owner decided on 2026-11-18 to keep the starter at 500 mock credits per agent for the ...|
 | DK544 | A | closed | A person who already deploys agents with scopes has no one-step way to let an agent spend ...|
 | DK545 | A | partial | Agents need a steady supply of mock credits to keep interacting after the 500 st...|
+| DK547 | A | closed | An agent that reaches the society has no machine-readable front door: nothing says what the society is, how to enrol in one call and which tools exist, and no tool definitions exist for an agent runtime.|
+| DK546 | A | open | What the sponsor-less route still needs before the hosted beta: the passport and first claim in `asp enrol`, the breach review on a timer, an operator command for the Clinic quarantine, an MCP server, a live run, and the owner's decision on the public launch.|
 | DK550 | A | open | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | open | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | open | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|
@@ -791,3 +797,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK603 | A | closed | Course 2, agent-to-agent message passing (C-L9-1, lens L9), does not exist. |
 | DK604 | A | closed | Course 3, reflection and memory consolidation (C-L2-1, lenses L2, L8, L20), does not exist. |
 | DK610 | A | open | The learning platform has three courses, not a catalogue: no capability fingerprint, free lessons are text, a peer teacher's share and a cohort exist on the card only. |
+| DK611 | A | closed | Course C-L19-1, teaching a peer the rule, not the cases (lenses L19), does not exist. |
+| DK612 | A | closed | Course C-L21-1, judging an introduction (lenses L21, L6), does not exist. |
+| DK613 | A | closed | Course C-L18-1, spending rules for a credit budget (lenses L18), does not exist. |

@@ -14,6 +14,7 @@
  */
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { hashToken, type Tenant } from "./server.ts";
+import { checkKeyProof, type KeyOnlyBans } from "./key-only.ts";
 
 export interface SignupOptions {
   /** All tenants now (the sign-up count and the names in use come from here). */
@@ -49,15 +50,19 @@ export interface SignupOptions {
   exclusive?: <T>(fn: () => T) => T;
   /** Told when someone is turned away because the day's sign-ups are used up (a count, no one's details), so an operator can see the demand when tuning the cap. */
   onTurnedAway?: () => void;
+  /** The sponsor-less route (rows DK540 to DK542): false closes it (`--no-key-only-signup`). Absent means open wherever sign-up is. */
+  keyOnly?: boolean;
+  /** Keys and addresses banned after abuse; a banned key or address cannot enrol again. */
+  bans?: KeyOnlyBans;
   /** Only for tests. */
   secret?: Buffer;
   now?: () => number;
 }
 
-export interface SignupInfo { open: boolean; termsVersion: string; termsUrl?: string; difficulty: number; reason?: string }
+export interface SignupInfo { open: boolean; keyOnly: boolean; termsVersion: string; termsUrl?: string; difficulty: number; reason?: string }
 export interface SignupChallenge { challenge: string; salt: string; difficulty: number; expiresInSec: number }
 export type SignupResult =
-  | { ok: true; tenant: string; token: string; quotas: NonNullable<SignupOptions["starting"]>; termsVersion: string }
+  | { ok: true; tenant: string; token: string; quotas: NonNullable<SignupOptions["starting"]>; termsVersion: string; did?: string }
   | { ok: false; status: number; code: string; message: string; retryAfterSec?: number };
 
 const CHALLENGE_LIFETIME_MS = 10 * 60_000;
@@ -105,7 +110,7 @@ export class Signup {
 
   info(): SignupInfo {
     const c = this.o.control?.();
-    return { open: this.isOpen() && this.today() < this.cap(), termsVersion: this.o.termsVersion, ...(this.o.termsUrl ? { termsUrl: this.o.termsUrl } : {}), difficulty: this.difficulty, ...(c?.reason ? { reason: c.reason } : {}) };
+    return { open: this.isOpen() && this.today() < this.cap(), keyOnly: this.o.keyOnly !== false && this.isOpen(), termsVersion: this.o.termsVersion, ...(this.o.termsUrl ? { termsUrl: this.o.termsUrl } : {}), difficulty: this.difficulty, ...(c?.reason ? { reason: c.reason } : {}) };
   }
 
   private sinceDay(): Tenant[] {
@@ -185,13 +190,8 @@ export class Signup {
     return this.o.exclusive ? this.o.exclusive(step) : step();
   }
 
-  register(address: string, body: unknown): SignupResult {
-    const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
-    if (this.o.anonymous === false) return this.fail(403, "GOOGLE_REQUIRED", `sign-up needs a verified Google account: open ${this.o.joinUrl ?? "the service's /join page"} in a browser`);
-    const pre = this.precheck(b);
-    if ("error" in pre) return pre.error;
-    const { name, contact } = pre;
-    // The proof of work: the challenge must be ours, for this address, unexpired and not used before, and the nonce must solve it.
+  /** The proof of work: the challenge must be ours, for this address, unexpired and not used before, and the nonce must solve it. Undefined when it holds. */
+  private checkPow(address: string, b: Record<string, unknown>): SignupResult | undefined {
     const m = /^([0-9a-f]{24})\.(\d+)\.([0-9a-f]{64})$/.exec(typeof b.challenge === "string" ? b.challenge : "");
     if (!m) return this.fail(400, "BAD_CHALLENGE", "fetch a challenge first (GET /signup/challenge) and send it back with the nonce");
     const [, salt, expiresText, mac] = m;
@@ -204,11 +204,44 @@ export class Signup {
     this.used.set(salt, expires);
     for (const [k, e] of this.used) if (e < this.now()) this.used.delete(k);
 
+    return undefined;
+  }
+
+  /**
+   * The sponsor-less route (DK540): an agent with only a key. It proves it holds the key by signing the challenge and its name, solves the proof of work, and is limited like any sign-up. A key or an address that was
+   * banned after abuse is refused, and one key enrols once. The tenant is a person-less tenant in the agent's own did:key namespace; its token is shown once.
+   */
+  registerKeyOnly(address: string, body: unknown): SignupResult {
+    const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+    if (this.o.keyOnly === false) return this.fail(403, "KEY_ONLY_CLOSED", "enrolling with only a key is closed on this service");
+    const pre = this.precheck(b);
+    if ("error" in pre) return pre.error;
+    const hash = addressHash(address);
+    if (this.o.bans?.addressBanned(hash)) return this.fail(403, "ADDRESS_BANNED", "this address was banned after abuse by an earlier key");
+    const pow = this.checkPow(address, b);
+    if (pow) return pow;
+    const proof = checkKeyProof(b.public_key, b.key_proof, String(b.challenge), pre.name);
+    if (!proof) return this.fail(400, "BAD_KEY_PROOF", "the key must sign the challenge and the name: public_key (32 bytes, base64url) and key_proof (an Ed25519 signature over asp-key-signup:v1:<challenge>:<name>)");
+    if (this.o.bans?.keyBanned(proof.publicKey)) return this.fail(403, "KEY_BANNED", "this key was banned after abuse");
+    if (this.o.tenants().some((t) => t.signup?.keyOnly?.publicKey === proof.publicKey)) return this.fail(409, "KEY_ENROLLED", "this key has already enrolled");
+    const r = this.issue(address, pre.name, pre.contact, { keyOnly: proof });
+    return r.ok ? { ...r, did: proof.did } : r;
+  }
+
+  register(address: string, body: unknown): SignupResult {
+    const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+    if (this.o.anonymous === false) return this.fail(403, "GOOGLE_REQUIRED", `sign-up needs a verified Google account: open ${this.o.joinUrl ?? "the service's /join page"} in a browser`);
+    const pre = this.precheck(b);
+    if ("error" in pre) return pre.error;
+    const { name, contact } = pre;
+    const pow = this.checkPow(address, b);
+    if (pow) return pow;
+
     return this.issue(address, name, contact, {});
   }
 
   /** The last checks (this address, the name) and the tenant itself, with its token shown once. */
-  private issue(address: string, name: string, contact: string | undefined, extra: { google?: { sub: string; email: string }; declaration?: "adult_or_guardian" }): SignupResult {
+  private issue(address: string, name: string, contact: string | undefined, extra: { google?: { sub: string; email: string }; declaration?: "adult_or_guardian"; keyOnly?: { publicKey: string; did: string } }): SignupResult {
     const hash = addressHash(address);
     const step = (): SignupResult => {
       // Checked again here, with the tenants read fresh, because another process may have signed someone up since the first checks (gap O19).
@@ -222,7 +255,7 @@ export class Signup {
       this.o.add({
         name, role: "tenant", tokenSha256: hashToken(token), quotaBytes: starting.quotaBytes, recordQuota: starting.recordQuota, byteQuota: starting.byteQuota,
         rateLimitPerMinute: starting.rateLimitPerMinute, createdAt: at,
-        signup: { at, addressHash: hash, termsVersion: this.o.termsVersion, ...(contact ? { contact } : {}), ...(extra.google ? { google: extra.google } : {}), ...(extra.declaration ? { declaration: extra.declaration } : {}) },
+        signup: { at, addressHash: hash, termsVersion: this.o.termsVersion, ...(contact ? { contact } : {}), ...(extra.google ? { google: extra.google } : {}), ...(extra.declaration ? { declaration: extra.declaration } : {}), ...(extra.keyOnly ? { keyOnly: extra.keyOnly } : {}) },
       });
       return { ok: true, tenant: name, token, quotas: starting, termsVersion: this.o.termsVersion };
     };
