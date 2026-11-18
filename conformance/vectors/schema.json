@@ -3616,6 +3616,20 @@
       "valid": true
     },
     {
+      "name": "valid_mint_demand",
+      "schema": "mint",
+      "instance": {
+        "to": "did:web:example.com:users:alice",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        },
+        "reason": "demand",
+        "authority": "operator"
+      },
+      "valid": true
+    },
+    {
       "name": "mint_unknown_reason",
       "schema": "mint",
       "instance": {

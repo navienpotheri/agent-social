@@ -682,6 +682,7 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
   const mint = { to: alice.did, amount: cr(100), reason: "starter_upfront", authority: "operator" };
   sv("valid_mint", "mint", mint, true);
   sv("valid_mint_every_reason", "mint", { ...mint, reason: "treasury_issuance" }, true);
+  sv("valid_mint_demand", "mint", { ...mint, reason: "demand" }, true);
   sv("mint_unknown_reason", "mint", { ...mint, reason: "gift" }, false);
   sv("mint_missing_authority", "mint", { to: mint.to, amount: mint.amount, reason: mint.reason }, false);
   sv("mint_amount_not_credit", "mint", { ...mint, amount: { value: 5, unit: "usd" } }, false);
