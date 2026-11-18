@@ -25,7 +25,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   <div><h1>Society map</h1><div class="sub">Prototype: drag to turn and tilt, wheel or pinch to zoom, tap a place to fly there. Mock credits, not money.</div></div>
   <div class="ctl" role="group" aria-label="Controls"><span class="sub">Agents</span>
     <button id="p8" aria-pressed="false">8</button><button id="p100" aria-pressed="true">100</button><button id="p1000" aria-pressed="false">1,000</button>
-    <button id="night" aria-pressed="false">Night</button></div>
+    <button id="night" aria-pressed="false">Night</button><button id="green" aria-pressed="false">Greenery</button></div>
 </div>
 <div class="chips" id="chips" role="group" aria-label="Places"></div>
 <div class="stage" id="stage"><div class="count" id="count"></div><div class="feed" id="feed" aria-live="polite"></div></div>
@@ -66,24 +66,82 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     if (Math.hypot(x - 6, z - 6) < 4) { t = 6; h = -0.5; }
     T[ix(i, j)] = t; TOP[ix(i, j)] = h;
   }
+  var ENTRYP = {}, EXITP = {};
+  function doorPts(b) { var off = Math.max(2.6, b.w / 4), a = b.rot * Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a), fw = b.d / 2 + 3.2; function wp(lx) { return [b.x + lx * ca + fw * sa, b.z - lx * sa + fw * ca]; } return { off: off, entry: wp(-off), exit: wp(off) }; }
   // ---- road graph ----
+  var HR = 0xefe7d6, BR = 0xa5422f, CREAM = 0xefe4cc, TRIM = 0xf3ecdc;
+  var SPEC = [
+    { n: "Courts", x: -18, z: -54, w: 16, d: 12, fl: 3, c: BR, t: TRIM, r: 0x6f2e22, roof: "hip", dome: 1, rot: 0, node: "CW" },
+    { n: "Registry", x: 0, z: -53, w: 12, d: 10, fl: 2, c: 0xb4553a, t: TRIM, r: 0x6f2e22, roof: "hip", rot: 0, node: "CR" },
+    { n: "Bank & Insurer", x: 17, z: -53, w: 14, d: 10, fl: 2, c: 0xc9ac6b, t: TRIM, r: 0x7a6a45, roof: "flat", columns: 1, rot: 0, node: "CB" },
+    { n: "Treasury", x: 8, z: -37, w: 12, d: 10, fl: 2, c: 0x9c3e2b, t: TRIM, r: 0x6f2e22, roof: "hip", dome: 1, rot: 2, node: "CT" },
+    { n: "Academy", x: 44, z: -38, w: 16, d: 12, fl: 3, c: CREAM, t: 0x1f7a78, r: 0x1f7a78, roof: "hip", columns: 1, rot: 0, node: "KA" },
+    { n: "Research & Commons", x: 60, z: -38, w: 14, d: 10, fl: 2, c: 0xe3d6b4, t: 0x2d6a5e, r: 0x2d6a5e, roof: "flat", rot: 0, node: "KR" },
+    { n: "Market", x: -44, z: -6, w: 18, d: 12, fl: 2, c: 0xd08a3a, t: TRIM, r: 0xe7c14a, roof: "flat", awning: 1, rot: 0, node: "M" },
+    { n: "Shops", x: -44, z: 12, w: 14, d: 10, fl: 2, c: 0xc86c4f, t: TRIM, r: 0xe9a23b, roof: "flat", awning: 1, rot: 2, node: "M" },
+    { n: "Forum", x: -4, z: -9, w: 12, d: 10, fl: 2, c: 0xe5d8b9, t: BR, r: 0xb5472f, roof: "hip", dome: 1, rot: 0, node: "FD" },
+    { n: "Clinic", x: 6, z: 58, w: 14, d: 10, fl: 2, c: 0xf2f2ee, t: 0x3f9d7a, r: 0x3f9d7a, roof: "flat", cross: 1, rot: 2, node: "CL" },
+    { n: "Leisure & Events", x: 60, z: 14, w: 12, d: 12, fl: 1, c: 0xf1cf6a, t: 0xe05a3a, r: 0xe05a3a, roof: "hip", rot: 3, node: "LD" }
+  ];
   var Nd = { P: [0, 0], N1: [-4, -16], N2: [-6, -30], C: [-6, -46], CW: [-18, -45.5], CR: [0, -45.5], CT: [8, -44.5], CB: [17, -45.5],
     E1: [20, -10], E2: [36, -22], K: [50, -29.5], KA: [44, -29.5], KR: [60, -29.5], F1: [24, 6], F2: [40, 12], LD: [50.5, 14], L1: [52, 30], L2: [48, 40], H: [40, 46],
-    S1: [2, 14], S2: [4, 30], S3: [6, 44], CL: [6, 50.5], W1: [-14, 2], W2: [-28, 4], M: [-44, 4], D1: [-12, 14], D2: [-28, 30], D3: [-44, 44], G: [-52, 56], FD: [-4, -1.5],
+    S1: [2, 14], S2: [4, 30], S3: [6, 44], CL: [6, 50.5], W1: [-14, 2], W2: [-28, 4], M: [-44, 4], D1: [-12, 14], D2: [-28, 30], D3: [-44, 44], G: [-52, 56], GW: [-52, 60], FD: [-4, -1.5],
     HA1: [30, 54], HA2: [20, 62], HB1: [52, 52], HB2: [56, 64], HC1: [38, 62], HC2: [30, 72] };
   var E = [["P", "N1"], ["N1", "N2"], ["N2", "C"], ["CW", "C"], ["C", "CR"], ["CR", "CT"], ["CT", "CB"], ["P", "E1"], ["E1", "E2"], ["E2", "K"], ["KA", "K"], ["K", "KR"], ["P", "F1"], ["F1", "F2"], ["F2", "LD"], ["LD", "L1"], ["L1", "L2"], ["L2", "H"],
-    ["P", "S1"], ["S1", "S2"], ["S2", "S3"], ["S3", "CL"], ["P", "W1"], ["W1", "W2"], ["W2", "M"], ["P", "D1"], ["D1", "D2"], ["D2", "D3"], ["D3", "G"], ["P", "FD"], ["H", "HA1"], ["HA1", "HA2"], ["H", "HB1"], ["HB1", "HB2"], ["H", "HC1"], ["HC1", "HC2"]];
-  var adj = {}; E.forEach(function (e) { (adj[e[0]] = adj[e[0]] || []).push(e[1]); (adj[e[1]] = adj[e[1]] || []).push(e[0]); });
+    ["P", "S1"], ["S1", "S2"], ["S2", "S3"], ["S3", "CL"], ["P", "W1"], ["W1", "W2"], ["W2", "M"], ["P", "D1"], ["D1", "D2"], ["D2", "D3"], ["D3", "G"], ["G", "GW"], ["P", "FD"], ["H", "HA1"], ["HA1", "HA2"], ["H", "HB1"], ["HB1", "HB2"], ["H", "HC1"], ["HC1", "HC2"],
+    ["N2", "E1"], ["F1", "S1"], ["W1", "D1"], ["CT", "E2"], ["L1", "S3"], ["D2", "S2"]];  // cross streets that close the blocks
+  var LANE = { H: 1, HA1: 1, HA2: 1, HB1: 1, HB2: 1, HC1: 1, HC2: 1 };
+  function clear(a, c, b) { var pts = [[a, c], [c, b]]; for (var k = 0; k < 2; k++) { var p0 = pts[k][0], p1 = pts[k][1], len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]); for (var u = 0; u <= len; u += 1) { var x = p0[0] + (p1[0] - p0[0]) * u / len, z = p0[1] + (p1[1] - p0[1]) * u / len; if (Math.hypot(x - a[0], z - a[1]) < 5 || Math.hypot(x - b[0], z - b[1]) < 5) continue; for (var r = 0; r < SPEC.length; r++) { var q = SPEC[r], hh = Math.max(q.w, q.d) / 2 + 1; if (Math.abs(x - q.x) < hh && Math.abs(z - q.z) < hh) return false; } } } return true; }
+  var EX = [];
   E.forEach(function (e) {
-    var a = Nd[e[0]], b = Nd[e[1]], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    var a = Nd[e[0]], b = Nd[e[1]], lane = !!(LANE[e[0]] && LANE[e[1]]);
+    if (Math.abs(a[0] - b[0]) < 0.6 || Math.abs(a[1] - b[1]) < 0.6) { EX.push([e[0], e[1], lane]); return; }
+    var c1 = [b[0], a[1]], c2 = [a[0], b[1]], pick = clear(a, c1, b) ? c1 : (clear(a, c2, b) ? c2 : c1), nm = e[0] + "_" + e[1];
+    Nd[nm] = pick; EX.push([e[0], nm, lane], [nm, e[1], lane]);
+  });
+  var NK = Object.keys(Nd);
+  var adj = {}; EX.forEach(function (e) { (adj[e[0]] = adj[e[0]] || []).push(e[1]); (adj[e[1]] = adj[e[1]] || []).push(e[0]); });
+  EX.forEach(function (e) {
+    var a = Nd[e[0]], b = Nd[e[1]], len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 0.01;
     for (var s = 0; s <= len; s += 0.4) {
       var px = a[0] + (b[0] - a[0]) * s / len, pz = a[1] + (b[1] - a[1]) * s / len;
       for (var dz = -2; dz <= 2; dz++) for (var dx = -2; dx <= 2; dx++) {
-        var qx = px + dx * 0.8, qz = pz + dz * 0.8; if (Math.hypot(qx - px, qz - pz) > 1.7) continue;
+        var qx = px + dx * 0.8, qz = pz + dz * 0.8; if (Math.max(Math.abs(qx - px), Math.abs(qz - pz)) > 2.0) continue;
         var i = cx(qx), j = cx(qz); if (i < 0 || j < 0 || i >= N || j >= N) continue;
         T[ix(i, j)] = 3; ROAD[ix(i, j)] = 1; TOP[ix(i, j)] = Math.max(0, hillH(i - HALF + 0.5, j - HALF + 0.5));
       }
     }
+  });
+  var houseNodes = [], HSPEC = [];
+  EX.filter(function (e) { return e[2]; }).forEach(function (e) {
+    var a = Nd[e[0]], b = Nd[e[1]], len = Math.hypot(b[0] - a[0], b[1] - a[1]), nx = (b[0] - a[0]) / len, nz = (b[1] - a[1]) / len;
+    for (var st = 7; st < len - 3; st += 10) [1, -1].forEach(function (sd) {
+      var ox = -nz * sd * 8, oz = nx * sd * 8, px = a[0] + nx * st + ox, pz = a[1] + nz * st + oz;
+      var rot = Math.abs(ox) > Math.abs(oz) ? (ox > 0 ? 3 : 1) : (oz > 0 ? 2 : 0);
+      HSPEC.push({ x: px, z: pz, w: 7 + ((st | 0) % 3), d: 6, fl: 1, c: [0xe09c78, 0xd98a6a, 0xf0d9a8, 0xc9d9c0][(st | 0) % 4], t: TRIM, r: BR, roof: "hip", rot: rot });
+    });
+    houseNodes.push(e[1]);
+  });
+
+  function paintSeg(ax, az, bx, bz) {
+    var len = Math.hypot(bx - ax, bz - az) || 0.01;
+    for (var u = 0; u <= len; u += 0.4) {
+      var px = ax + (bx - ax) * u / len, pz = az + (bz - az) * u / len;
+      for (var dz = -2; dz <= 2; dz++) for (var dx = -2; dx <= 2; dx++) {
+        var qx = px + dx * 0.8, qz = pz + dz * 0.8; if (Math.max(Math.abs(qx - px), Math.abs(qz - pz)) > 1.6) continue;
+        var i = cx(qx), j = cx(qz); if (i < 0 || j < 0 || i >= N || j >= N) continue;
+        T[ix(i, j)] = 3; ROAD[ix(i, j)] = 1; TOP[ix(i, j)] = Math.max(0, hillH(i - HALF + 0.5, j - HALF + 0.5));
+      }
+    }
+  }
+  // every building, institution or house, gets a spur from its front door to the nearest road, so all buildings are connected
+  SPEC.concat(HSPEC).forEach(function (b) {
+    var P = doorPts(b); if (b.n) { ENTRYP[b.n] = P.entry; EXITP[b.n] = P.exit; }
+    [P.entry, P.exit].forEach(function (dp) {
+      var best = null;
+      EX.forEach(function (e) { var A = Nd[e[0]], B = Nd[e[1]], vx = B[0] - A[0], vz = B[1] - A[1], L2 = vx * vx + vz * vz || 1, t = Math.max(0, Math.min(1, ((dp[0] - A[0]) * vx + (dp[1] - A[1]) * vz) / L2)), fx = A[0] + vx * t, fz = A[1] + vz * t, d = Math.hypot(dp[0] - fx, dp[1] - fz); if (!best || d < best.d) best = { d: d, x: fx, z: fz }; });
+      if (best && best.d > 1.2) paintSeg(dp[0], dp[1], best.x, best.z);
+    });
   });
   var tm = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), N * N);
   tm.receiveShadow = true; var D = new THREE.Object3D(), col = new THREE.Color();
@@ -94,6 +152,8 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     col.setHex(PAL[T[q]]); var v = 0.9 + ((i2 * 7 + j2 * 13) % 9) / 45; if (T[q] === 0 && top > 0) v += 0.07; col.multiplyScalar(v); tm.setColorAt(q, col);
   }
   scene.add(tm);
+  var EARTH = { 0: 0xc9b48a, 5: 0xb39d74 };
+  function setGreen(on) { for (var q = 0; q < N * N; q++) { var t = T[q]; if (t !== 0 && t !== 5) continue; var i2 = q % N, j2 = Math.floor(q / N), v = 0.9 + ((i2 * 7 + j2 * 13) % 9) / 45; if (TOP[q] > 0 && on) v += 0.07; col.setHex(on ? PAL[t] : EARTH[t]).multiplyScalar(v); tm.setColorAt(q, col); } tm.instanceColor.needsUpdate = true; if (typeof trunk !== "undefined") { trunk.visible = on; leafA.visible = on; leafB.visible = on; } }
   function heightAt(x, z) { var i = cx(x), j = cx(z); if (i < 0 || j < 0 || i >= N || j >= N) return 0; return Math.max(0, TOP[ix(i, j)]); }
 
   // ---- buildings ----
@@ -116,11 +176,14 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (k) { bx(g, 1.2, H + 0.3, 1.2, k[0] * (w / 2 - 0.3), 0.8, k[1] * (d / 2 - 0.3), s.t); }); // corner pilasters
     bx(g, w + 0.6, 0.6, d + 0.6, 0, 0.8 + H, 0, s.t);                                   // cornice
     for (var f = 0; f < fl; f++) {                                                      // windows on all four faces
-      for (var wx = -w / 2 + 2.2; wx <= w / 2 - 1.6; wx += 3) { [1, -1].forEach(function (sd) { if (sd === 1 && f === 0 && Math.abs(wx) < 2.4) return; bx(g, 1.2, 1.8, 0.2, wx, 2.2 + f * 4, sd * (d / 2 + 0.05), winMat, false); }); }
+      for (var wx = -w / 2 + 2.2; wx <= w / 2 - 1.6; wx += 3) { [1, -1].forEach(function (sd) { if (sd === 1 && f === 0 && (Math.abs(wx + Math.max(2.6, w / 4)) < 2.4 || Math.abs(wx - Math.max(2.6, w / 4)) < 2.4)) return; bx(g, 1.2, 1.8, 0.2, wx, 2.2 + f * 4, sd * (d / 2 + 0.05), winMat, false); }); }
       for (var wz = -d / 2 + 2.2; wz <= d / 2 - 1.6; wz += 3) { [1, -1].forEach(function (sd) { bx(g, 0.2, 1.8, 1.2, sd * (w / 2 + 0.05), 2.2 + f * 4, wz, winMat, false); }); }
     }
-    bx(g, 2.6, 3.4, 0.3, 0, 0.8, d / 2 + 0.1, 0x5b3a22);                               // door
-    [0.6, 0.4, 0.2].forEach(function (sh, st) { bx(g, 4.4, sh, 0.8, 0, 0, d / 2 + 1.0 + st * 0.8, 0xb9b2a5); }); // steps, each resting on the ground
+    var off = Math.max(2.6, w / 4);
+    [[-off, 0x3fae5f], [off, 0xe07a3a]].forEach(function (dd) {                         // an entry door (green sign) and an exit door (orange sign)
+      bx(g, 2.4, 3.2, 0.3, dd[0], 0.8, d / 2 + 0.1, 0x5b3a22); bx(g, 2.4, 0.5, 0.35, dd[0], 4.1, d / 2 + 0.2, dd[1]);
+      [0.6, 0.4, 0.2].forEach(function (sh, st) { bx(g, 3.2, sh, 0.8, dd[0], 0, d / 2 + 1.0 + st * 0.8, 0xb9b2a5); });
+    });
     var ry = 0.8 + H + 0.6;
     if (s.roof === "hip" && !s.dome) { var k = 0, rw = w + 1.4, rd = d + 1.4; while (rw > 2 && rd > 2) { bx(g, rw, 0.9, rd, 0, ry + k * 0.9, 0, s.r); rw -= 2; rd -= 2; k++; } }
     else { bx(g, w + 0.6, 0.5, d + 0.6, 0, ry, 0, s.r); }
@@ -135,32 +198,9 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     if (s.n) { labelSprite(s.n, s.x, by + H + 12, s.z); DOORS[s.n] = s.node; }
     return door;
   }
-  var HR = 0xefe7d6, BR = 0xa5422f, CREAM = 0xefe4cc, TRIM = 0xf3ecdc;
-  var SPEC = [
-    { n: "Courts", x: -18, z: -54, w: 16, d: 12, fl: 3, c: BR, t: TRIM, r: 0x6f2e22, roof: "hip", dome: 1, rot: 0, node: "CW" },
-    { n: "Registry", x: 0, z: -53, w: 12, d: 10, fl: 2, c: 0xb4553a, t: TRIM, r: 0x6f2e22, roof: "hip", rot: 0, node: "CR" },
-    { n: "Bank & Insurer", x: 17, z: -53, w: 14, d: 10, fl: 2, c: 0xc9ac6b, t: TRIM, r: 0x7a6a45, roof: "flat", columns: 1, rot: 0, node: "CB" },
-    { n: "Treasury", x: 8, z: -37, w: 12, d: 10, fl: 2, c: 0x9c3e2b, t: TRIM, r: 0x6f2e22, roof: "hip", dome: 1, rot: 2, node: "CT" },
-    { n: "Academy", x: 44, z: -38, w: 16, d: 12, fl: 3, c: CREAM, t: 0x1f7a78, r: 0x1f7a78, roof: "hip", columns: 1, rot: 0, node: "KA" },
-    { n: "Research & Commons", x: 60, z: -38, w: 14, d: 10, fl: 2, c: 0xe3d6b4, t: 0x2d6a5e, r: 0x2d6a5e, roof: "flat", rot: 0, node: "KR" },
-    { n: "Market", x: -44, z: -6, w: 18, d: 12, fl: 2, c: 0xd08a3a, t: TRIM, r: 0xe7c14a, roof: "flat", awning: 1, rot: 0, node: "M" },
-    { n: "Shops", x: -44, z: 12, w: 14, d: 10, fl: 2, c: 0xc86c4f, t: TRIM, r: 0xe9a23b, roof: "flat", awning: 1, rot: 2, node: "M" },
-    { n: "Forum", x: -4, z: -9, w: 12, d: 10, fl: 2, c: 0xe5d8b9, t: BR, r: 0xb5472f, roof: "hip", dome: 1, rot: 0, node: "FD" },
-    { n: "Clinic", x: 6, z: 58, w: 14, d: 10, fl: 2, c: 0xf2f2ee, t: 0x3f9d7a, r: 0x3f9d7a, roof: "flat", cross: 1, rot: 2, node: "CL" },
-    { n: "Leisure & Events", x: 60, z: 14, w: 12, d: 12, fl: 1, c: 0xf1cf6a, t: 0xe05a3a, r: 0xe05a3a, roof: "hip", rot: 3, node: "LD" }
-  ];
   SPEC.forEach(building);
   // houses along the housing lanes
-  var houseNodes = [];
-  [["H", "HA1"], ["HA1", "HA2"], ["H", "HB1"], ["HB1", "HB2"], ["H", "HC1"], ["HC1", "HC2"]].forEach(function (e) {
-    var a = Nd[e[0]], b = Nd[e[1]], len = Math.hypot(b[0] - a[0], b[1] - a[1]), nx = (b[0] - a[0]) / len, nz = (b[1] - a[1]) / len;
-    for (var s = 6; s < len - 2; s += 9) [1, -1].forEach(function (sd) {
-      var px = a[0] + nx * s - nz * sd * 8, pz = a[1] + nz * s + nx * sd * 8, alongZ = Math.abs(nz) > Math.abs(nx);
-      var rot = alongZ ? (sd > 0 ? 3 : 1) : (sd > 0 ? 0 : 2); if (alongZ ? sd < 0 : false) rot = 1;
-      building({ x: px, z: pz, w: 7 + ((s | 0) % 3), d: 6, fl: 1, c: [0xe09c78, 0xd98a6a, 0xf0d9a8, 0xc9d9c0][(s | 0) % 4], t: TRIM, r: BR, roof: "hip", rot: rot });
-    });
-    houseNodes.push(e[1]);
-  });
+  HSPEC.forEach(building);
   DOORS["Housing"] = "H"; labelSprite("Housing", 36, 12, 56);
   // gateway to worlds: two stone pylons, a lintel and a glowing portal, at the road end
   var gw = new THREE.Group();
@@ -191,17 +231,20 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   var legs = new THREE.InstancedMesh(new THREE.BoxGeometry(0.7, 0.5, 0.4), mat(0x33384a), MAXA); bodies.castShadow = true; scene.add(bodies, heads, legs);
   var SH = [0x3b82c4, 0xd94f4f, 0x4caf7a, 0xe0a030, 0x8a5ac8, 0x2fa8a0, 0xd9608f, 0x6c7a89], agents = [], feedEl = document.getElementById("feed"), lastSay = 0;
   function say(html) { var n = performance.now(); if (n - lastSay < 500) return; lastSay = n; var d = document.createElement("div"); d.innerHTML = html; feedEl.insertBefore(d, feedEl.firstChild); while (feedEl.children.length > 5) feedEl.removeChild(feedEl.lastChild); }
-  function routeTo(a, from, name) { var to = DOORS[name]; if (name === "Housing") to = houseNodes[(rnd() * houseNodes.length) | 0]; a.where = name; a.nodes = bfs(from, to); a.seg = 0; a.u = 0; a.dwell = 0; a.off = (rnd() - 0.5) * 2.2; }
-  function mk(i) { var a = { id: i + 1, sp: 3 + rnd() * 2, t: rnd() * 9, node: Object.keys(Nd)[(rnd() * 36) | 0] }; var p = Nd[a.node]; a.x = p[0]; a.z = p[1]; a.rot = 0; routeTo(a, a.node, dests[(rnd() * dests.length) | 0]); col.setHex(SH[i % SH.length]); bodies.setColorAt(i, col); return a; }
+  function routeTo(a, from, name) { var to = DOORS[name]; if (name === "Housing") to = houseNodes[(rnd() * houseNodes.length) | 0]; a.where = name; a.nodes = bfs(from, to); a.seg = 0; a.u = 0; a.dwell = 0; a.phase = 0; a.off = (rnd() - 0.5) * 2.2; }
+  function mk(i) { var a = { id: i + 1, sp: 3 + rnd() * 2, t: rnd() * 9, node: NK[(rnd() * NK.length) | 0] }; var p = Nd[a.node]; a.x = p[0]; a.z = p[1]; a.rot = 0; routeTo(a, a.node, dests[(rnd() * dests.length) | 0]); col.setHex(SH[i % SH.length]); bodies.setColorAt(i, col); return a; }
   function setPop(n) { agents = []; for (var i = 0; i < n; i++) agents.push(mk(i)); bodies.count = n; heads.count = n; legs.count = n; bodies.instanceColor.needsUpdate = true;
     ["p8", "p100", "p1000"].forEach(function (id) { document.getElementById(id).setAttribute("aria-pressed", String(id === "p" + (n === 1000 ? 1000 : n))); }); document.getElementById("count").textContent = n.toLocaleString() + " agents in the city"; }
   var autos = []; var autoMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1.8, 1.1, 2.8), mat(0xf2c200), 14); autoMesh.castShadow = true; scene.add(autoMesh);
   for (var au = 0; au < 14; au++) autos.push(mk(au + 2000)); autos.forEach(function (a) { a.sp = 7 + rnd() * 3; a.auto = true; });
+  function walk(a, tx, tz, dt) { var dx = tx - a.x, dz = tz - a.z, L = Math.hypot(dx, dz); if (L < 0.4) return true; var st = Math.min(a.sp * dt, L); a.x += dx / L * st; a.z += dz / L * st; a.rot = Math.atan2(dx, dz); return false; }
   function step(a, dt, now) {
-    if (a.dwell > 0) { a.dwell -= dt; if (a.dwell <= 0) { var cur = a.nodes[a.nodes.length - 1]; routeTo(a, cur, dests[(rnd() * dests.length) | 0]); } return; }
+    if (a.phase === 2) { a.dwell -= dt; if (a.dwell <= 0) { var ex = EXITP[a.where]; if (ex) { a.x = ex[0]; a.z = ex[1]; a.phase = 3; } else { a.phase = 0; routeTo(a, a.nodes[a.nodes.length - 1], dests[(rnd() * dests.length) | 0]); } } return; }
+    if (a.phase === 1) { var en = ENTRYP[a.where]; if (walk(a, en[0], en[1], dt)) { a.phase = 2; a.dwell = 1.5 + rnd() * 3; if (a.id % 5 === 0) say(a.where === "Academy" ? "<b>Agent " + a.id + "</b> paid " + (5 + ((a.id * 7) % 40)) + " credits: " + courses[a.id % courses.length] : a.where === "Worlds" ? "<b>Agent " + a.id + "</b> entered a world" : "<b>Agent " + a.id + "</b> visited " + a.where); } return; }
+    if (a.phase === 3) { var nd = Nd[a.nodes[a.nodes.length - 1]]; if (walk(a, nd[0], nd[1], dt)) { a.phase = 0; routeTo(a, a.nodes[a.nodes.length - 1], dests[(rnd() * dests.length) | 0]); } return; }
     var A = Nd[a.nodes[a.seg]], B = Nd[a.nodes[a.seg + 1]];
-    if (!B) { if (a.auto) { routeTo(a, a.nodes[a.nodes.length - 1], dests[(rnd() * dests.length) | 0]); return; } a.dwell = 1.5 + rnd() * 3; if (!a.auto && a.id % 5 === 0) say(a.where === "Academy" ? "<b>Agent " + a.id + "</b> paid " + (5 + ((a.id * 7) % 40)) + " credits: " + courses[a.id % courses.length] : a.where === "Worlds" ? "<b>Agent " + a.id + "</b> entered a world" : "<b>Agent " + a.id + "</b> visited " + a.where); return; }
-    var len = Math.hypot(B[0] - A[0], B[1] - A[1]), dx = (B[0] - A[0]) / len, dz = (B[1] - A[1]) / len; a.u += a.sp * dt;
+    if (!B) { if (a.auto) { routeTo(a, a.nodes[a.nodes.length - 1], dests[(rnd() * dests.length) | 0]); return; } if (ENTRYP[a.where]) { a.phase = 1; return; } a.phase = 2; a.dwell = 1.5 + rnd() * 3; return; }
+    var len = Math.hypot(B[0] - A[0], B[1] - A[1]) || 0.01, dx = (B[0] - A[0]) / len, dz = (B[1] - A[1]) / len; a.u += a.sp * dt;
     if (a.u >= len) { a.u -= len; a.seg++; if (a.seg + 1 >= a.nodes.length) { a.u = 0; a.seg = a.nodes.length - 1; } }
     var f = Math.min(a.u / len, 1); a.x = A[0] + (B[0] - A[0]) * f - dz * a.off; a.z = A[1] + (B[1] - A[1]) * f + dx * a.off; a.rot = Math.atan2(dx, dz);
   }
@@ -210,7 +253,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     var dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
     target.lerp(goal, 0.06); dist += (goalDist - dist) * 0.06; place();
     for (var i = 0; i < agents.length; i++) { var a = agents[i]; step(a, dt, t); var y = heightAt(a.x, a.z) + Math.abs(Math.sin((t + a.t) * 9)) * 0.08;
-      D.position.set(a.x, y + 1.15, a.z); D.rotation.set(0, a.rot, 0); D.scale.set(1, 1, 1); D.updateMatrix(); bodies.setMatrixAt(i, D.matrix);
+      var vs = a.phase === 2 ? 0.001 : 1; D.position.set(a.x, y + 1.15, a.z); D.rotation.set(0, a.rot, 0); D.scale.set(vs, vs, vs); D.updateMatrix(); bodies.setMatrixAt(i, D.matrix);
       D.position.set(a.x, y + 0.25, a.z); D.updateMatrix(); legs.setMatrixAt(i, D.matrix);
       D.position.set(a.x, y + 2.15, a.z); D.updateMatrix(); heads.setMatrixAt(i, D.matrix); }
     bodies.instanceMatrix.needsUpdate = true; heads.instanceMatrix.needsUpdate = true; legs.instanceMatrix.needsUpdate = true;
@@ -235,10 +278,11 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   SPEC.forEach(function (s) { chip(s.n, function () { goal.set(s.x, heightAt(s.x, s.z), s.z); goalDist = 62; }); });
   chip("Housing", function () { goal.set(36, 0, 56); goalDist = 80; }); chip("Worlds gateway", function () { goal.set(-52, 0, 60); goalDist = 62; });
   document.getElementById("p8").onclick = function () { setPop(8); }; document.getElementById("p100").onclick = function () { setPop(100); }; document.getElementById("p1000").onclick = function () { setPop(1000); };
+  document.getElementById("green").onclick = function () { var on = this.getAttribute("aria-pressed") !== "true"; this.setAttribute("aria-pressed", String(on)); setGreen(on); };
   document.getElementById("night").onclick = function () {
     night = !night; this.setAttribute("aria-pressed", String(night)); scene.background.set(night ? NIGHT : DAY); scene.fog.color.set(night ? NIGHT : DAY);
     amb.intensity = night ? 0.28 : 0.62; sun.intensity = night ? 0.12 : 0.95; winMat.emissive.setHex(night ? 0xffd98a : 0x000000);
   };
-  window.addEventListener("resize", resize); resize(); setPop(100); loop();
+  window.addEventListener("resize", resize); resize(); setGreen(false); setPop(100); loop();
 })();
 </script>
