@@ -4,7 +4,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { cosign, b64urlEncode, type Signer } from "@agent-social/asp-core";
 import { ABUSE_RESTITUTION_CAP, REGISTRAR_DID, drawPanel } from "../src/index.ts";
-import { credit, kit, mk, operator, party, refusedBy, registrar, type Party } from "./society-kit.ts";
+import { DAY, credit, jump, kit, mk, operator, party, refusedBy, registrar, type Party } from "./society-kit.ts";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 const CODE = { version: "1.0", articles: ["7"] };
 const site = party("did:web:victim-site.example");
@@ -84,4 +86,25 @@ test("what the accused and its sponsor do not hold is not paid, and the shortfal
   assert.equal(await d.k.log.balance(d.agent.did), 40);
   assert.equal((await d.k.log.registryPage(d.agent.did))!.abuse![0].outcome!.finding, "dismissed");
   void REGISTRAR_DID;
+});
+
+test("DK530 (S952): from 2026-11-19 no credits reach an outside victim; an upheld finding names the operator's remedy, and the docs promise no payment", async () => {
+  const w = await world({ agent: 50, sponsor: 300 });
+  const log = w.k.log;
+  const c = w.refer();
+  await log.append(c);
+  jump(20 * DAY); // past the switch-off
+  const before = { agent: await log.balance(w.agent.did), sponsor: await log.balance(w.sponsor.did), site: await log.balance(site.did) };
+  assert.equal(await refusedBy(log.append(await w.rule(c.id, { restitution: { amount: credit(100) }, remedy: "suspension" }))), "abuse_restitution_off");
+  assert.equal(await refusedBy(log.append(await w.rule(c.id))), "abuse_remedy_needed", "an upheld finding must name the remedy");
+  assert.equal(await refusedBy(log.append(await w.rule(c.id, { finding: "dismissed", remedy: "takedown" }))), "abuse_remedy_needs_finding");
+  await log.append(await w.rule(c.id, { remedy: "suspension" }));
+  assert.deepEqual([await log.balance(w.agent.did), await log.balance(w.sponsor.did), await log.balance(site.did)], [before.agent, before.sponsor, before.site], "nobody paid anybody");
+  const out = (await log.registryPage(w.agent.did))!.abuse![0].outcome!;
+  assert.deepEqual([out.finding, out.remedy, out.paid], ["upheld", "suspension", 0]);
+  assert.equal((await log.creditAudit()).verdict, "balanced");
+  assert.equal((await log.verify()).ok, true);
+  const docs = readFileSync(fileURLToPath(new URL("../../../docs/commands.md", import.meta.url)), "utf8");
+  assert.match(docs, /no credits are paid to an outside party/);
+  assert.doesNotMatch(docs, /with restitution to the reporter from the accused/);
 });

@@ -138,7 +138,7 @@
       ]
     },
     "restitution": {
-      "description": "What the panel orders paid to the reporter, in credits (accounting entries, not money), from the accused's free balance and then its sponsor's, up to the cap. Only on an upheld finding.",
+      "description": "What the panel orders paid to the reporter, in credits (accounting entries, not money), from the accused's free balance and then its sponsor's, up to the cap. Only on an upheld finding. Switched off from 2026-11-19 (S952): a ruling from that day with a restitution is refused; earlier ones still replay.",
       "type": "object",
       "required": [
         "amount"
@@ -149,6 +149,14 @@
           "$ref": "urn:asp:v0.2:common#/$defs/amount"
         }
       }
+    },
+    "remedy": {
+      "description": "What the operator does for an outside victim after an upheld abuse finding (S952, owner decision 2026-11-18): takedown of the thing, suspension of the agent, or a written response to the reporter. From 2026-11-19 an upheld abuse_ruling must name one, and no restitution in credits is paid to an outside party.",
+      "enum": [
+        "takedown",
+        "suspension",
+        "written_response"
+      ]
     }
   },
   "allOf": [

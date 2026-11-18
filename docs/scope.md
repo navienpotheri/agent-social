@@ -769,11 +769,15 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK383 | A | closed | The flows property test fills postings and reverses appeals so a deposit's return and an appeal fee's refund are drawn as accepted operations. |
 | DK384 | A | open | A command to record an identity level, and the renewal mail to sponsors before an identity lapses. |
 | DK389 | A | open | A Court orders a takedown or a retirement, a bad-faith reporter gets a strike, and a claims-to-be name is hidden for 7 days. |
-| DK530 | A | open | Restitution to an outside victim of an abuse report is paid in mock credits (S502: the acc...|
+| DK530 | A | partial | Restitution to an outside victim of an abuse report is paid in mock credits (S502: the acc...|
 | DK531 | A | open | A small model as a second check on risky calls (it beat the rules on held-out cases) is de...|
 | DK532 | A | open | Hosted bots with no local machine need a signer the service holds; the owner decided on 20...|
-| DK533 | A | open | There is no grievance officer role and no acceptable-use list for public posts (Indian IT ...|
+| DK533 | A | closed | There is no grievance officer role and no acceptable-use list for public posts (Indian IT ...|
 | DK534 | A | open | Credits are to be minted tied to demand (the owner decided on 2026-11-18), but only the st...|
+| DK535 | A | partial | Right 8 of the rights charter (notice before an act against an agent) has no mechanism; th...|
+| DK540 | A | open | No hosted route lets an agent with only a key reach the service: every writer is a Google-...|
+| DK541 | A | open | A key-only identity gets only the one-time 100 starter credits; the owner decided on 2026-...|
+| DK542 | A | open | A sponsor-less agent has no person to answer for it. The owner decided on 2026-11-18 that ...|
 | DK535 | A | open | Right 8 of the rights charter (notice before an act against an agent) has no mechanism; th...|
 | DK540 | A | closed | No hosted route lets an agent with only a key reach the service: every writer is a Google-...|
 | DK541 | A | closed | A key-only identity gets only the one-time 100 starter credits; the owner decided on 2026-...|

@@ -24,7 +24,7 @@ import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type Balanc
 import { bondFloorPermille, bondFloorV3, floorIsV2, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
-import { ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { ALLOWANCE_AMOUNT, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { charterIn, checkCaseload, checkRulingExtras, closeDispute, projectCourtAct } from "./courts-rules.ts";
@@ -66,6 +66,10 @@ const RISK_PERMILLE_STRIKE_CAP = 200;
 const PROMOTION_QUALIFYING_JOBS_1_TO_2 = 3;
 /** The Clinic's quarantine (DK29, DK30, DK53): an interim freeze lasts at most 7 days; a cohort needs this many distinct sponsors. */
 const QUARANTINE_MAX_MS = 7 * 24 * 60 * 60 * 1000;
+/** Right 8 (DK535, S953): from this time a quarantine gives the agent notice first, and an emergency freeze lasts at most 72 hours. */
+export const QUARANTINE_NOTICE_FROM = "2026-11-19T00:00:00Z";
+export const QUARANTINE_NOTICE_MS = 24 * 60 * 60 * 1000;
+export const QUARANTINE_EMERGENCY_MAX_MS = 72 * 60 * 60 * 1000;
 const QUARANTINE_COHORT_MIN_SPONSORS = 3;
 const PROMOTION_SLASH_FREE_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -203,7 +207,7 @@ export function periodKey(period: "day" | "week" | "month", at: string): string 
 }
 
 /** What became of an abuse report: referred to a panel, or ruled on (finding, credits ordered, credits paid and from whom). */
-export interface AbuseOutcome { state: "referred" | "ruled"; case: string; ruling?: string; finding?: "upheld" | "dismissed"; requested?: number; paid?: number; shortfall?: number; from?: { account: string; amount: number }[]; at?: string }
+export interface AbuseOutcome { state: "referred" | "ruled"; case: string; ruling?: string; finding?: "upheld" | "dismissed"; requested?: number; paid?: number; shortfall?: number; from?: { account: string; amount: number }[]; remedy?: "takedown" | "suspension" | "written_response"; at?: string }
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
 /** How well established a claim is, for comparing a verifier's grade with the performer's declared one. */
 const GRADE_RANK: Record<string, number> = { measured: 3, simulated: 2, predicted: 1, unverified: 0 };
@@ -357,6 +361,7 @@ export class EventLog {
     if (type === "claim_decision") await projectClaimDecision(tx, verified, this.insurerEnv);
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
+    if (type === "handout") await this.projectHandout(tx, verified);
     if (type === "allowance") await this.projectAllowance(tx, verified);
     if (type === "prize") await this.projectPrize(tx, verified);
     if (type === "certificate") await this.projectCertificate(tx, verified);
@@ -1703,7 +1708,7 @@ export class EventLog {
     const allowanceLine = b.institution === TREASURY_DID;
     if (!allowanceLine && !INSTITUTION_DIDS.includes(b.institution)) throw rule("budget_unknown_institution", `${b.institution} is neither a registered institution account nor the Treasury's own allowance line`);
     // The Treasury's own lines are the newcomer allowance and, since DK294, the deposit reward: nothing else is a budget the Treasury holds for itself.
-    if (allowanceLine !== (b.purpose === "allowance" || b.purpose === "deposit_reward")) throw rule("budget_bad_line", "the Treasury's own lines are the newcomer allowance (purpose allowance) and the Bank deposit reward (purpose deposit_reward), and an institution's budget is neither");
+    if (allowanceLine !== (b.purpose === "allowance" || b.purpose === "deposit_reward" || b.purpose === "handout")) throw rule("budget_bad_line", "the Treasury's own lines are the newcomer allowance (purpose allowance), the Bank deposit reward (purpose deposit_reward) and the weekly handout (purpose handout), and an institution's budget is neither");
     const line = allowanceLine && b.purpose !== "allowance" ? `${b.institution}|${b.purpose}` : b.institution; // one budget per line per month
     if (b.period < r.issued_at.slice(0, 7)) throw rule("budget_period_past", `a budget for ${b.period} cannot be set in ${r.issued_at.slice(0, 7)}`);
     const key = `budget:${line}|${b.period}`;
@@ -1747,6 +1752,35 @@ export class EventLog {
     await this.drawBudget(tx, b.budget, b.amount.value, r.issued_at);
     await this.debit(tx, TREASURY_DID, b.amount.value);
     await this.credit(tx, b.to, b.amount.value);
+  }
+
+  /**
+   * The weekly handout (DK545, S951): the Treasury pays one agent for one ISO week out of its handout budget. The Treasury decides who (the plan, handout-plan.ts); the log holds the hard rules: one
+   * per agent per week, a registered agent that is not a house agent or an account of the society, at most HANDOUT_MAX, paid in the week or the week after, and never past the co-signed budget.
+   */
+  private async projectHandout(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { budget: string; week: string; agent: string; amount: { value: number }; level: "sponsored" | "key_only" };
+    if (r.prev !== null) throw rule("handout_not_chained", "a handout starts its own chain (prev is null)");
+    if (r.issuer !== TREASURY_DID) throw rule("handout_wrong_issuer", `${r.issuer} is not the Treasury: only the Treasury pays a handout`);
+    if (b.amount.value <= 0) throw rule("amount_not_positive", "a handout must be for at least 1 credit");
+    if (b.amount.value > HANDOUT_MAX) throw rule("handout_too_big", `a weekly handout is at most ${HANDOUT_MAX} credits, not ${b.amount.value}`);
+    if (isReservedAccount(b.agent) || !(await tx.getPassport(b.agent))) throw rule("handout_bad_agent", `${b.agent} is not an agent with a passport in this log`);
+    if (await tx.getMarker(`house:${b.agent}`)) throw rule("handout_house_agent", `${b.agent} is a house agent: the handout is for real agents`);
+    const p = (await tx.getPassport(b.agent))!;
+    if ((b.level === "sponsored") !== !!p.sponsor) throw rule("handout_level_mismatch", `${b.agent} is ${p.sponsor ? "sponsored" : "key-only"}, not ${b.level}`);
+    const m = /^(\d{4})-W(\d{2})$/.exec(b.week)!;
+    const jan4 = Date.UTC(Number(m[1]), 0, 4);
+    const monday = jan4 - ((new Date(jan4).getUTCDay() + 6) % 7) * 86_400_000 + (Number(m[2]) - 1) * 7 * 86_400_000;
+    const at = Date.parse(r.issued_at);
+    if (at < monday || at >= monday + 14 * 86_400_000) throw rule("handout_week_window", `the handout for ${b.week} is paid in that week or the week after`);
+    if (await tx.getMarker(`handout:${b.agent}|${b.week}`)) throw rule("handout_already_paid", `${b.agent} already received the handout for ${b.week}: one per agent per week`);
+    const rec = await tx.getRecord(b.budget);
+    const bb = rec?.record.type === "asp.budget/v0.2" ? (rec.record.body as { institution: string; purpose: string }) : undefined;
+    if (!bb || bb.institution !== TREASURY_DID || bb.purpose !== "handout") throw rule("handout_budget_wrong", `${b.budget} is not the Treasury's handout budget: the handout is paid only from one`);
+    await this.drawBudget(tx, b.budget, b.amount.value, r.issued_at);
+    await this.debit(tx, TREASURY_DID, b.amount.value);
+    await this.credit(tx, b.agent, b.amount.value);
+    await tx.putMarker(`handout:${b.agent}|${b.week}`, r.id);
   }
 
   /**
@@ -2172,8 +2206,9 @@ export class EventLog {
     if (!id) return undefined;
     const q = await tx.getRecord(id);
     if (!q) return undefined;
-    const b = q.record.body as { level: "observe" | "halt"; until: string };
+    const b = q.record.body as { level: "observe" | "halt"; until: string; effective_from?: string };
     if (Date.parse(b.until) <= Date.parse(at)) return undefined;
+    if (b.effective_from && Date.parse(b.effective_from) > Date.parse(at)) return undefined; // notice period: not yet in force (S953)
     if (await tx.getMarker(`quarantine_released:${id}|${did}`)) return undefined;
     return { id, level: b.level, until: b.until };
   }
@@ -2201,12 +2236,23 @@ export class EventLog {
 
   /** A quarantine (clinic.md; DK29, DK30, DK53): only the Clinic; at most 7 days; a cohort needs an upheld report and 3 distinct sponsors; every member is an agent with a passport. */
   private async projectQuarantine(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { members: string[]; level: string; until: string; report?: string };
+    const b = r.body as { members: string[]; level: string; until: string; report?: string; effective_from?: string; emergency?: { reason: string } };
     if (r.prev !== null) throw rule("quarantine_not_chained", "a quarantine starts its own chain (prev is null)");
     if (r.issuer !== CLINIC_DID) throw rule("quarantine_wrong_issuer", `${r.issuer} is not the Clinic (${CLINIC_DID}): only the Clinic quarantines an agent`);
     const at = Date.parse(r.issued_at);
     const until = Date.parse(b.until);
     if (until <= at) throw rule("quarantine_until_past", "a quarantine ends after it starts");
+    // Right 8 (DK535, S953): the record is the notice and carries its reason; the freeze starts at least 24 hours later, unless an emergency is on the record, which lasts at most 72 hours and is listed for review.
+    if (at >= Date.parse(QUARANTINE_NOTICE_FROM)) {
+      if (b.emergency) {
+        if (b.effective_from) throw rule("quarantine_emergency_no_delay", "an emergency freeze takes effect at once: it has no effective_from");
+        if (until - at > QUARANTINE_EMERGENCY_MAX_MS) throw rule("quarantine_emergency_too_long", "an emergency freeze lasts at most 72 hours, then the Clinic reviews it and, if it must go on, gives notice");
+      } else {
+        if (!b.effective_from) throw rule("quarantine_needs_notice", "a quarantine gives the agent notice first: effective_from at least 24 hours after this record, or an emergency with its reason");
+        if (Date.parse(b.effective_from) - at < QUARANTINE_NOTICE_MS) throw rule("quarantine_notice_too_short", "the notice period before a quarantine takes effect is 24 hours");
+        if (Date.parse(b.effective_from) >= until) throw rule("quarantine_until_past", "a quarantine ends after it takes effect");
+      }
+    }
     if (until - at > QUARANTINE_MAX_MS) throw rule("quarantine_too_long", "an interim quarantine lasts at most 7 days; a longer one needs a Court ruling, which the log does not take yet");
     const sponsors = new Set<string>();
     for (const m of b.members) {
@@ -2221,6 +2267,11 @@ export class EventLog {
       if (sponsors.size < QUARANTINE_COHORT_MIN_SPONSORS) throw rule("quarantine_cohort_too_few_sponsors", `a cohort needs at least ${QUARANTINE_COHORT_MIN_SPONSORS} distinct sponsors among its members (${sponsors.size} here): a pattern across fewer is one operator's, not a swarm`);
     }
     for (const m of b.members) await tx.putMarker(`quarantine_member:${m}`, r.id);
+  }
+
+  /** Emergency quarantines (S953): every freeze that took effect without notice, with its reason, for the operator's review. */
+  async emergencyQuarantines(): Promise<{ id: string; members: string[]; reason: string; at: string; until: string }[]> {
+    return (await this.recordsOfTypes(["quarantine"])).filter((r) => (r.body as { emergency?: unknown }).emergency).map((r) => { const b = r.body as { members: string[]; until: string; emergency: { reason: string } }; return { id: r.id, members: b.members, reason: b.emergency.reason, at: r.issued_at, until: b.until }; });
   }
 
   /** A release (clinic.md; DK29, DK30, DK53): the Clinic clears one member on evidence of a clean run after the freeze. */
@@ -3125,6 +3176,9 @@ export class EventLog {
 
   /** Every purchase record `did` signed, in log order (read by `asp spend`). */
   async purchasesBy(did: string): Promise<AspRecord[]> { return this.recordsWhere((r) => r.type === "asp.purchase/v0.2" && r.issuer === did); }
+
+  /** The records the given issuers signed in [fromMs, toMs): what the weekly handout counts as activity (DK545). */
+  async recordsBetween(fromMs: number, toMs: number, issuers: ReadonlySet<string>): Promise<AspRecord[]> { return this.recordsWhere((r) => issuers.has(r.issuer) && Date.parse(r.issued_at) >= fromMs && Date.parse(r.issued_at) < toMs); }
 
   private async recordsWhere(pred: (r: AspRecord) => boolean): Promise<AspRecord[]> {
     const out: AspRecord[] = [];

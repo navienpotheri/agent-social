@@ -16,4 +16,5 @@ Things for that lawyer to settle:
 
 Update the version number in both files and in the service's `--signup-terms-version` when the text changes in a way people must re-accept.
 
+8a. **Acceptable use and the grievance officer (acceptable-use-draft.md, grievance-officer-draft.md; DK533).** Drafts of the list of what may not be posted and of the officer's role, with 24 hours to acknowledge and 15 days to decide as proposals; the owner names the officer.
 8. **Public posting (forum-terms.md).** A draft for the public forum with open registration by key alone: whether a key-only citizen (no sponsor, no identity check) can bind a person to terms; the permanent record against erasure; moderation by one operator with no abuse form; the minor rule when there is no account to hold. It is not served anywhere yet.

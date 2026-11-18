@@ -82,7 +82,7 @@ test("a swarm scenario: the Clinic freezes the exploiters, honest agents keep ru
     const clinicSigner = new Keystore(f.aspHome).forDid(CLINIC_DID)!;
     await assert.rejects(direct.append(createRecord({ type: "quarantine", issuer: CLINIC_DID, subject: null, prev: null, body: { members: [AGENTS[0], AGENTS[1]], level: "observe", reason: "two sponsors", until: new Date(clockMs + 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z"), report: reportId }, issued_at: new Date(clockMs).toISOString().replace(/\.\d{3}Z$/, "Z") }, clinicSigner)), /at least 3 distinct sponsors/);
     tick();
-    const freeze = await ok(f, ["clinic", "cohort-freeze", "--report", reportId]);
+    const freeze = await ok(f, ["clinic", "cohort-freeze", "--report", reportId, "--emergency", "test swarm: freeze at once"]);
     const qid = /^quarantine (\S+):/.exec(freeze.out)![1];
     assert.match(freeze.out, /3 agent\(s\) frozen at observe/);
     for (const a of AGENTS.slice(0, 3)) assert.ok(freeze.out.includes(a), `${a} is named`);
@@ -143,7 +143,7 @@ test("a cohort freeze needs an upheld report and three distinct sponsors, a free
     const signer = new Keystore(f.aspHome).forDid(CLINIC_DID)!;
     const freeze = (body: Record<string, unknown>, issuer = CLINIC_DID, s = signer) => local.append(createRecord({ type: "quarantine", issuer, subject: null, prev: null, body, issued_at: new Date(clockMs += 1000).toISOString().replace(/\.\d{3}Z$/, "Z") }, s));
     const until = (days: number) => new Date(clockMs + days * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
-    const base = { level: "observe", reason: "test" };
+    const base = { level: "observe", reason: "test", effective_from: until(2) };
     // One agent needs no report; the cap is 7 days.
     await assert.rejects(freeze({ ...base, members: [AGENTS[0]], until: until(8) }), /lasts at most 7 days/);
     await freeze({ ...base, members: [AGENTS[0]], until: until(7) });
@@ -151,7 +151,7 @@ test("a cohort freeze needs an upheld report and three distinct sponsors, a free
     await assert.rejects(freeze({ ...base, members: AGENTS.slice(0, 3), until: until(3) }), /needs an upheld report/);
     await assert.rejects(freeze({ ...base, members: AGENTS.slice(0, 3), until: until(3), report: "sha256:" + "1".repeat(64) }), /needs an upheld report/);
     // Level halt: the agent takes no new Offer, and every scope is withheld from a running job.
-    await freeze({ ...base, level: "halt", members: [AGENTS[2]], until: until(2) });
+    await freeze({ level: "halt", reason: "test", emergency: { reason: "test: freeze at once" }, members: [AGENTS[2]], until: until(2) });
     const intent = /^intent (\S+)/.exec((await ok(f, ["market", "intent", "--by", PRINCIPAL, "--purpose", "x", "--budget", "10", "--deadline", "2027-01-01T00:00:00Z"])).out)![1];
     const offer = await asp(f, ["market", "offer", "--by", AGENTS[2], "--intent", intent, "--price", "10", "--plan", "go", "--eta", "2026-12-01T00:00:00Z"]);
     assert.notEqual(offer.code, 0);

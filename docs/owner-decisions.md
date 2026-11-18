@@ -77,7 +77,7 @@ Nothing open from the 2026-11-16 list: every row above was answered. New decisio
 
 | Row | The question | Options | Recommendation | Blocked until answered |
 |---|---|---|---|---|
-| HO1 | The size of the weekly mock-credit handout. The plan takes it as a parameter (default 50 a week; caps per level and address, 100 an address; anti-hoarding from 4 to 8 weeks of amount held) | 25, 50, 100 a week, or a size set each month from the spending measure (G9) | Start at 50 and review it after four weeks of the spending measure: raise it only if more than 30 percent of mature agents spend their starter and stop (G9 on the supply page); lower it if the Treasury balance share (G6) passes 25 percent. Credits are mock, so the risk is inflation of the supply, not money | The signed handout payment (DK545) is not switched on until it is answered |
+| LW3.7 | Article 3.7 of the Code says a third party who reports "is paid restitution before the Court's costs", which the 2026-11-18 decision (H4, H4b) no longer allows; changing it changes the signed text and its hash | Amend 3.7 to say the report earns a remedy from the operator, not credits (and re-sign), or leave the Code as the beta's first text with a note | Amend: replace the sentence with "A Third Party who reports is heard and may ask the operator for a remedy" and re-sign with the lawyer's review; until then the log pays nothing and the site makes no promise | DK530 stays partial until the Code and the log agree |
 
 ## Answers of 2026-11-19 (late)
 

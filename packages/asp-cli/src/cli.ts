@@ -659,6 +659,7 @@ const OPTIONS = {
   "agent-did": { type: "string" },
   "fail-on-refusal": { type: "boolean" },
   days: { type: "string" },
+  emergency: { type: "string" },
   seed: { type: "string" },
   effect: { type: "string" },
   value: { type: "string" },
@@ -682,6 +683,7 @@ const OPTIONS = {
   "widen-hint": { type: "string" },
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
+  week: { type: "string" },
   "agent-name": { type: "string" },
   "google-auth-url": { type: "string" },
   "google-token-url": { type: "string" },
@@ -773,6 +775,7 @@ const OPTIONS = {
   decision: { type: "string" },
   successor: { type: "string" },
   restitution: { type: "string" },
+  remedy: { type: "string" },
   with: { type: "string" },
   ref: { type: "string" },
   entry: { type: "string" },
@@ -4668,7 +4671,7 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await abuseCmd(sub, file, { log: local, io, now, signerFor, flags: { by: v.by, accused: v.accused, kind: v.kind, description: v.description, about: v.about, out: v.out, "cosign-by": v["cosign-by"]?.[0], "cosign-all": v["cosign-by"], report: v.report, case: v.case, finding: v.finding, restitution: v.restitution, reasons: v.reasons, ...(v.articles ? { code: codeCitation(v.articles, v["code-version"], false).code } : {}) } });
+    return await abuseCmd(sub, file, { log: local, io, now, signerFor, flags: { by: v.by, accused: v.accused, kind: v.kind, description: v.description, about: v.about, out: v.out, "cosign-by": v["cosign-by"]?.[0], "cosign-all": v["cosign-by"], report: v.report, case: v.case, finding: v.finding, restitution: v.restitution, remedy: v.remedy, reasons: v.reasons, ...(v.articles ? { code: codeCitation(v.articles, v["code-version"], false).code } : {}) } });
   } catch (e) {
     if (e instanceof AbuseUsage) throw new UsageError(e.message);
     throw e;
@@ -4707,7 +4710,7 @@ async function treasuryCommand(home: string, sub: string | undefined, v: Values,
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount, budget: v.budget, memo: v.memo, claim: v.yes, agent: v.agent, since: v.since } });
+    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount, budget: v.budget, memo: v.memo, claim: v.yes, agent: v.agent, since: v.since, week: v.week } });
   } catch (e) {
     if (e instanceof TreasuryUsage) throw new UsageError(e.message);
     throw e;
@@ -4740,7 +4743,7 @@ async function clinicCommand(home: string, sub: string | undefined, v: Values, i
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await clinicCmd(sub, { service: io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN ? { url: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN } : undefined, log: local, io, now, signerFor, actions: () => collectWatchActions(local), flags: { by: v.by, reason: v.reason, exam: v.exam, revouch: v.revouch, report: v.report, level: v.level, days: v.days, "min-agents": v["min-agents"], window: v.window, all: v.all, quarantine: v.quarantine, member: v.member, evidence: v.evidence, agent: v.agent, json: v.json, skill: v.skill, issue: v.issue, order: v.order, kind: v.kind, contract: v.contract, passed: v.passed, violations: v.violations, slot: v.slot, seed: v.seed, "probe-task": v["probe-task"] } });
+    return await clinicCmd(sub, { service: io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN ? { url: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN } : undefined, log: local, io, now, signerFor, actions: () => collectWatchActions(local), flags: { emergency: v.emergency, by: v.by, reason: v.reason, exam: v.exam, revouch: v.revouch, report: v.report, level: v.level, days: v.days, "min-agents": v["min-agents"], window: v.window, all: v.all, quarantine: v.quarantine, member: v.member, evidence: v.evidence, agent: v.agent, json: v.json, skill: v.skill, issue: v.issue, order: v.order, kind: v.kind, contract: v.contract, passed: v.passed, violations: v.violations, slot: v.slot, seed: v.seed, "probe-task": v["probe-task"] } });
   } catch (e) {
     if (e instanceof ClinicUsage) throw new UsageError(e.message);
     throw e;

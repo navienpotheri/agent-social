@@ -86,8 +86,8 @@ install -d /opt/asp-tools
 cat > /opt/asp-tools/pages.mjs <<'PAGES'
 import { readFileSync, writeFileSync } from "node:fs";
 import { marked } from "marked";
-for (const name of ["terms", "privacy"]) {
-  const md = readFileSync("/opt/asp/docs/legal/" + name + ".md", "utf8");
+for (const [name, file] of [["terms", "terms"], ["privacy", "privacy"], ["acceptable-use", "acceptable-use-draft"], ["grievance", "grievance-officer-draft"]]) {
+  const md = readFileSync("/opt/asp/docs/legal/" + file + ".md", "utf8");
   if (/\[[a-z][^\]]*\]/i.test(md)) console.error("WARNING: " + name + ".md still has [bracketed] items to fill in before launch");
   const body = marked.parse(md);
   const css = "body{font:16px/1.6 system-ui,sans-serif;max-width:46rem;margin:2rem auto;padding:0 1rem;color:#1a1a1a}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:.4rem .6rem;vertical-align:top}h1,h2{line-height:1.25}";
@@ -173,6 +173,16 @@ $DOMAIN {
 	handle /privacy {
 		root * /var/www/asp
 		rewrite * /privacy.html
+		file_server
+	}
+	handle /acceptable-use {
+		root * /var/www/asp
+		rewrite * /acceptable-use.html
+		file_server
+	}
+	handle /grievance {
+		root * /var/www/asp
+		rewrite * /grievance.html
 		file_server
 	}
 	redir / /join 302

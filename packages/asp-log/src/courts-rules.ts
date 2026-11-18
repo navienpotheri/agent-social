@@ -13,6 +13,8 @@ export const COURTS_DID = institutionDid("courts");
 const DAY = 24 * 3600 * 1000;
 /** The most a panel orders paid to a third-party victim in one case, in credits (accounting entries, not money). A beta default: docs/owner-decisions.md H4. */
 export const ABUSE_RESTITUTION_CAP = 200;
+/** From this time no credit restitution is paid to an outside victim and an upheld abuse ruling names the operator's remedy instead (DK530, S952; owner decision 2026-11-18, H4 and H4b). Rulings before it replay as they were. */
+export const ABUSE_RESTITUTION_OFF_FROM = "2026-11-19T00:00:00Z";
 const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
 const list = async (tx: Pick<LogTx, "getMarker">, key: string): Promise<string[]> => ((await tx.getMarker(key)) ?? "").split(",").filter(Boolean);
 
@@ -136,6 +138,9 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     if (!raw) throw rule("abuse_case_unknown", `${b.case} is not an abuse case in this log`);
     const info = JSON.parse(raw) as { report: string; accused: string; reporter: string; state: string };
     if (info.state !== "open") throw rule("abuse_case_decided", `the case ${b.case} was already ruled on`);
+    if (b.restitution && Date.parse(now) >= Date.parse(ABUSE_RESTITUTION_OFF_FROM)) throw rule("abuse_restitution_off", "a third party is not paid in credits (they mean nothing outside the society): the ruling names the operator's remedy instead, takedown, suspension or a written response");
+    if (b.finding === "upheld" && !b.remedy && Date.parse(now) >= Date.parse(ABUSE_RESTITUTION_OFF_FROM)) throw rule("abuse_remedy_needed", "an upheld abuse finding names the operator's remedy: takedown, suspension or written_response");
+    if (b.remedy && b.finding !== "upheld") throw rule("abuse_remedy_needs_finding", "a remedy follows an upheld finding only");
     if (b.restitution && b.finding !== "upheld") throw rule("abuse_restitution_needs_finding", "restitution follows an upheld finding only");
     if (b.restitution && b.restitution.amount.value > ABUSE_RESTITUTION_CAP) throw rule("abuse_restitution_cap", `restitution is at most ${ABUSE_RESTITUTION_CAP} credits a case (the Courts' cap)`);
     const accusedPassport = await tx.getPassport(info.accused);
@@ -162,7 +167,7 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     }
     if (paid > 0) { const to = await tx.getAccount(info.reporter); await tx.putAccount({ did: info.reporter, balance: (to?.balance ?? 0) + paid }); }
     await tx.putMarker(`abuse_case:${b.case}`, JSON.stringify({ ...info, state: b.finding }));
-    await tx.putMarker(`abuse_outcome:${info.report}`, JSON.stringify({ case: b.case, ruling: r.id, finding: b.finding, requested: asked, paid, shortfall: asked - paid, from, at: now }));
+    await tx.putMarker(`abuse_outcome:${info.report}`, JSON.stringify({ case: b.case, ruling: r.id, finding: b.finding, requested: asked, paid, shortfall: asked - paid, from, ...(b.remedy ? { remedy: b.remedy } : {}), at: now }));
     return;
   }
 
