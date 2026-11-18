@@ -76,7 +76,7 @@ test("a catalogue is checked as a whole: its cards and its graph, and a file tha
 test("the Academy item for a course carries the price of the card and splits the rest to the Academy and the author, the teacher share", () => {
   const c = card({ id: "C-L11-5", price: 40, teacher: { share_permille: 250, options: "x" } });
   const item = courseItem(c, "did:web:example.com:agents:author");
-  assert.equal(courseService(c), "academy.course.c-l11-5");
+  assert.equal(courseService(c), "academy.course.c_l11_5");
   assert.equal(item.price, 40);
   assert.deepEqual(item.split.payees.map((p) => p.permille), [550, 250]);
   assert.equal(item.split.treasury_permille + item.split.burn_permille + item.split.payees.reduce((n, p) => n + p.permille, 0), 1000, "the split is whole");

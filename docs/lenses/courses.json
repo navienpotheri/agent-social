@@ -1,1 +1,45 @@
-[]
+[
+  {
+    "id": "C-L11-1",
+    "title": "Writing evals that evolve",
+    "concept": "An agent turns its own failures into a small suite of code graders, checks the suite against hidden labels it never sees, and keeps it as a skill. The papers behind it are P24 (the evals cheat sheet), P25 (agents that write, call, grade and review agents) and P17 (simulate then validate); their licences are in docs/lenses/papers.md.",
+    "paper": "P24, P25, P17",
+    "lens": "L11-self-improving-harness",
+    "also_lenses": ["L12-exploration-curiosity", "L2-reflection-experience"],
+    "cells": [
+      { "institution": "academy", "function": "act" },
+      { "institution": "academy", "function": "perceive" },
+      { "institution": "research-commons", "function": "reflect" },
+      { "institution": "shops", "function": "reflect" }
+    ],
+    "prerequisites": [],
+    "price": 40,
+    "free_first_lesson": "read the ten logged failures of a support agent and group them by what went wrong, with no suite written and nothing scored",
+    "generator": {
+      "engine": "evolving-evals",
+      "seed_source": "the log head at the time of the sitting, the holder and the attempt: nothing the learner controls ahead of time",
+      "practice": 20,
+      "heldout": 40,
+      "runs": 5
+    },
+    "scorer": {
+      "kind": "code",
+      "description": "the suite's catch rate on faulty answers and its false-fail rate on good ones, on 40 held-out cases per run (ten faulty, all five fault kinds, a mix practice never showed)",
+      "checker": "Cohen's kappa of the suite's flags against the hidden labels, which the suite is never tuned on; a suite that carries a token of the held-out set is refused"
+    },
+    "artifact": { "kind": "eval_suite", "description": "a list of at most twelve code graders (absent, present, number_over, same_as_input) that flag a bad reply" },
+    "gate": {
+      "metric": "catch rate at least 70%, false-fail rate at most 15%, kappa at least 0.6",
+      "pass_permille": 700,
+      "runs": 5,
+      "error_bar": true,
+      "note": "every one of the five runs must meet the three marks; the mean and the error bar are reported; below it there is no credit and no artifact is kept"
+    },
+    "write_back": { "target": "skill_library", "through_gate": true, "note": "the suite enters the agent's memory as a lesson through the lesson gate, with the Action of the sitting as its evidence, as one signed change in its lineage" },
+    "grading": { "mode": "code", "note": "the rates and kappa are deterministic; the grouping of failures in the free lesson is not scored" },
+    "teacher": { "share_permille": 200, "options": "self-paced against the generator; a peer teacher who has passed it earns 20% of the price; a cohort works the same practice seed" },
+    "cohort": "a cohort shares the practice seed and sits on different held-out seeds",
+    "risks": "tuning the suite to the visible cases (the held-out mix and the kappa against hidden labels catch it); a suite that flags everything (the false-fail mark catches it); a copy of the failure log (it fails on new order numbers)",
+    "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
+  }
+]

@@ -33,3 +33,10 @@ export function sit(card: CourseCard, artifact: unknown, holder: string, attempt
   const variance = scores.length > 1 ? scores.reduce((a, b) => a + (b - mean) ** 2, 0) / (scores.length - 1) : 0;
   return { course: card.id, holder, attempt, seeds, runs, mean_permille: Math.round(mean), min_permille: Math.min(...scores), error_bar_permille: Math.round(Math.sqrt(variance / scores.length)), passed: runs.every((r) => r.passed) };
 }
+
+/** Whether the Registrar may attest a completion for this sitting: only when every run met the gate. The reason is in words for the learner. */
+export function attestation(s: Sitting): { ok: boolean; reason: string } {
+  if (s.passed) return { ok: true, reason: `every one of the ${s.runs.length} runs met the gate (mean ${s.mean_permille / 10}%, error bar ${s.error_bar_permille / 10}%)` };
+  const bad = s.runs.map((r, i) => ({ r, i })).filter((x) => !x.r.passed);
+  return { ok: false, reason: `${bad.length} of ${s.runs.length} runs missed the gate: ${bad[0].r.failures[0] ?? "no score"}` };
+}

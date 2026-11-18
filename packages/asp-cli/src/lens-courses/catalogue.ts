@@ -120,7 +120,7 @@ export function loadCatalogue(engines: ReadonlySet<string>, file = process.env.A
 }
 
 /** The Academy's price-list service name for a course, and the item the Treasury publishes for it: the card's price, the Treasury and burn parts of the Academy's standard split, and the rest to the Academy and the course's author (the teacher's share). */
-export const courseService = (card: Pick<CourseCard, "id">) => `academy.course.${card.id.toLowerCase()}`;
+export const courseService = (card: Pick<CourseCard, "id">) => `academy.course.${card.id.toLowerCase().replace(/-/g, "_")}`;
 export function courseItem(card: Pick<CourseCard, "id" | "price" | "teacher">, author: string) {
   const academy = institutionDid("academy");
   const share = card.teacher.share_permille;

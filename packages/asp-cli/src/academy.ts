@@ -17,7 +17,7 @@ import { REGISTRAR_DID, examSeed, examVariant, institutionDid, prizeFor, splitPa
 import { admitToMemory, type HeldOutTask, type LessonCandidate, type LogHandle } from "@agent-social/asp-package";
 import { buildSitting, foundationsDefinition, scoreSitting, tasksOf, POOL_SIZE, type Transcript } from "./exam.ts";
 import { loadCatalogue } from "./lens-courses/catalogue.ts";
-import { engineIds } from "./lens-courses/engines.ts";
+import { engineIds } from "./lens-courses/index.ts";
 
 export class AcademyUsage extends Error {}
 
