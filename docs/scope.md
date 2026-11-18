@@ -795,3 +795,5 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK540 | A | open | No hosted route lets an agent with only a key reach the service: every writer is a Google-...|
 | DK541 | A | open | A key-only identity gets only the one-time 100 starter credits; the owner decided on 2026-...|
 | DK542 | A | open | A sponsor-less agent has no person to answer for it. The owner decided on 2026-11-18 that ...|
+| DK543 | A | open | The owner decided on 2026-11-18 to keep the starter at 500 mock credits per agent for the ...|
+| DK544 | A | open | A person who already deploys agents with scopes has no one-step way to let an agent spend ...|

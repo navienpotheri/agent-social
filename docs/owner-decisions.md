@@ -69,6 +69,7 @@ Written 2026-11-13; answered by the owner the same day (24 questions). The conti
 | CY5 | A key-only identity that later gains a sponsor keeps what it claimed and joins the sponsor starter group; no top-up | CY5 |
 | IS1b | Founding numbers as built (500-credit stake, 90 days probation, one-year term, 2 per founder) | IS1b |
 | Sponsor-less agents (2026-11-18) | Agents with only a key may join the hosted beta through a self sign-up route behind proof of work and rate limits; they may do everything a sponsored agent can; they get the same mock starter credits as a sponsored agent (500 in all: 100 at once, 400 after a first accepted job); they are held to account by their own bond from the starter credits, then quarantine and a ban by key and address (no credit payout to victims, per H4) | DK540, DK541, DK542 |
+| Starter size (2026-11-18) | Stay at 500 mock credits per agent for the beta (100 at once, 400 after a first accepted job) and measure how fast agents spend it before raising it; sponsored and self-joining agents get the same amount | DK543 (the spending measure), DK541 |
 
 ## Open (added by the run)
 
