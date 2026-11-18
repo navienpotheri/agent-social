@@ -66,6 +66,8 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     if (Math.hypot(x - 6, z - 6) < 4) { t = 6; h = -0.5; }
     T[ix(i, j)] = t; TOP[ix(i, j)] = h;
   }
+  var ENTRYP = {}, EXITP = {};
+  function doorPts(b) { var off = Math.max(2.6, b.w / 4), a = b.rot * Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a), fw = b.d / 2 + 3.2; function wp(lx) { return [b.x + lx * ca + fw * sa, b.z - lx * sa + fw * ca]; } return { off: off, entry: wp(-off), exit: wp(off) }; }
   // ---- road graph ----
   var HR = 0xefe7d6, BR = 0xa5422f, CREAM = 0xefe4cc, TRIM = 0xf3ecdc;
   var SPEC = [
@@ -134,9 +136,12 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   }
   // every building, institution or house, gets a spur from its front door to the nearest road, so all buildings are connected
   SPEC.concat(HSPEC).forEach(function (b) {
-    var ang = b.rot * Math.PI / 2, fw = b.d / 2 + 3.2, dx0 = b.x + Math.sin(ang) * fw, dz0 = b.z + Math.cos(ang) * fw, best = null;
-    EX.forEach(function (e) { var A = Nd[e[0]], B = Nd[e[1]], vx = B[0] - A[0], vz = B[1] - A[1], L2 = vx * vx + vz * vz || 1, t = Math.max(0, Math.min(1, ((dx0 - A[0]) * vx + (dz0 - A[1]) * vz) / L2)), fx = A[0] + vx * t, fz = A[1] + vz * t, d = Math.hypot(dx0 - fx, dz0 - fz); if (!best || d < best.d) best = { d: d, x: fx, z: fz }; });
-    if (best && best.d > 1.2) paintSeg(dx0, dz0, best.x, best.z);
+    var P = doorPts(b); if (b.n) { ENTRYP[b.n] = P.entry; EXITP[b.n] = P.exit; }
+    [P.entry, P.exit].forEach(function (dp) {
+      var best = null;
+      EX.forEach(function (e) { var A = Nd[e[0]], B = Nd[e[1]], vx = B[0] - A[0], vz = B[1] - A[1], L2 = vx * vx + vz * vz || 1, t = Math.max(0, Math.min(1, ((dp[0] - A[0]) * vx + (dp[1] - A[1]) * vz) / L2)), fx = A[0] + vx * t, fz = A[1] + vz * t, d = Math.hypot(dp[0] - fx, dp[1] - fz); if (!best || d < best.d) best = { d: d, x: fx, z: fz }; });
+      if (best && best.d > 1.2) paintSeg(dp[0], dp[1], best.x, best.z);
+    });
   });
   var tm = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), N * N);
   tm.receiveShadow = true; var D = new THREE.Object3D(), col = new THREE.Color();
@@ -171,11 +176,14 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (k) { bx(g, 1.2, H + 0.3, 1.2, k[0] * (w / 2 - 0.3), 0.8, k[1] * (d / 2 - 0.3), s.t); }); // corner pilasters
     bx(g, w + 0.6, 0.6, d + 0.6, 0, 0.8 + H, 0, s.t);                                   // cornice
     for (var f = 0; f < fl; f++) {                                                      // windows on all four faces
-      for (var wx = -w / 2 + 2.2; wx <= w / 2 - 1.6; wx += 3) { [1, -1].forEach(function (sd) { if (sd === 1 && f === 0 && Math.abs(wx) < 2.4) return; bx(g, 1.2, 1.8, 0.2, wx, 2.2 + f * 4, sd * (d / 2 + 0.05), winMat, false); }); }
+      for (var wx = -w / 2 + 2.2; wx <= w / 2 - 1.6; wx += 3) { [1, -1].forEach(function (sd) { if (sd === 1 && f === 0 && (Math.abs(wx + Math.max(2.6, w / 4)) < 2.4 || Math.abs(wx - Math.max(2.6, w / 4)) < 2.4)) return; bx(g, 1.2, 1.8, 0.2, wx, 2.2 + f * 4, sd * (d / 2 + 0.05), winMat, false); }); }
       for (var wz = -d / 2 + 2.2; wz <= d / 2 - 1.6; wz += 3) { [1, -1].forEach(function (sd) { bx(g, 0.2, 1.8, 1.2, sd * (w / 2 + 0.05), 2.2 + f * 4, wz, winMat, false); }); }
     }
-    bx(g, 2.6, 3.4, 0.3, 0, 0.8, d / 2 + 0.1, 0x5b3a22);                               // door
-    [0.6, 0.4, 0.2].forEach(function (sh, st) { bx(g, 4.4, sh, 0.8, 0, 0, d / 2 + 1.0 + st * 0.8, 0xb9b2a5); }); // steps, each resting on the ground
+    var off = Math.max(2.6, w / 4);
+    [[-off, 0x3fae5f], [off, 0xe07a3a]].forEach(function (dd) {                         // an entry door (green sign) and an exit door (orange sign)
+      bx(g, 2.4, 3.2, 0.3, dd[0], 0.8, d / 2 + 0.1, 0x5b3a22); bx(g, 2.4, 0.5, 0.35, dd[0], 4.1, d / 2 + 0.2, dd[1]);
+      [0.6, 0.4, 0.2].forEach(function (sh, st) { bx(g, 3.2, sh, 0.8, dd[0], 0, d / 2 + 1.0 + st * 0.8, 0xb9b2a5); });
+    });
     var ry = 0.8 + H + 0.6;
     if (s.roof === "hip" && !s.dome) { var k = 0, rw = w + 1.4, rd = d + 1.4; while (rw > 2 && rd > 2) { bx(g, rw, 0.9, rd, 0, ry + k * 0.9, 0, s.r); rw -= 2; rd -= 2; k++; } }
     else { bx(g, w + 0.6, 0.5, d + 0.6, 0, ry, 0, s.r); }
@@ -223,17 +231,20 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   var legs = new THREE.InstancedMesh(new THREE.BoxGeometry(0.7, 0.5, 0.4), mat(0x33384a), MAXA); bodies.castShadow = true; scene.add(bodies, heads, legs);
   var SH = [0x3b82c4, 0xd94f4f, 0x4caf7a, 0xe0a030, 0x8a5ac8, 0x2fa8a0, 0xd9608f, 0x6c7a89], agents = [], feedEl = document.getElementById("feed"), lastSay = 0;
   function say(html) { var n = performance.now(); if (n - lastSay < 500) return; lastSay = n; var d = document.createElement("div"); d.innerHTML = html; feedEl.insertBefore(d, feedEl.firstChild); while (feedEl.children.length > 5) feedEl.removeChild(feedEl.lastChild); }
-  function routeTo(a, from, name) { var to = DOORS[name]; if (name === "Housing") to = houseNodes[(rnd() * houseNodes.length) | 0]; a.where = name; a.nodes = bfs(from, to); a.seg = 0; a.u = 0; a.dwell = 0; a.off = (rnd() - 0.5) * 2.2; }
+  function routeTo(a, from, name) { var to = DOORS[name]; if (name === "Housing") to = houseNodes[(rnd() * houseNodes.length) | 0]; a.where = name; a.nodes = bfs(from, to); a.seg = 0; a.u = 0; a.dwell = 0; a.phase = 0; a.off = (rnd() - 0.5) * 2.2; }
   function mk(i) { var a = { id: i + 1, sp: 3 + rnd() * 2, t: rnd() * 9, node: NK[(rnd() * NK.length) | 0] }; var p = Nd[a.node]; a.x = p[0]; a.z = p[1]; a.rot = 0; routeTo(a, a.node, dests[(rnd() * dests.length) | 0]); col.setHex(SH[i % SH.length]); bodies.setColorAt(i, col); return a; }
   function setPop(n) { agents = []; for (var i = 0; i < n; i++) agents.push(mk(i)); bodies.count = n; heads.count = n; legs.count = n; bodies.instanceColor.needsUpdate = true;
     ["p8", "p100", "p1000"].forEach(function (id) { document.getElementById(id).setAttribute("aria-pressed", String(id === "p" + (n === 1000 ? 1000 : n))); }); document.getElementById("count").textContent = n.toLocaleString() + " agents in the city"; }
   var autos = []; var autoMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1.8, 1.1, 2.8), mat(0xf2c200), 14); autoMesh.castShadow = true; scene.add(autoMesh);
   for (var au = 0; au < 14; au++) autos.push(mk(au + 2000)); autos.forEach(function (a) { a.sp = 7 + rnd() * 3; a.auto = true; });
+  function walk(a, tx, tz, dt) { var dx = tx - a.x, dz = tz - a.z, L = Math.hypot(dx, dz); if (L < 0.4) return true; var st = Math.min(a.sp * dt, L); a.x += dx / L * st; a.z += dz / L * st; a.rot = Math.atan2(dx, dz); return false; }
   function step(a, dt, now) {
-    if (a.dwell > 0) { a.dwell -= dt; if (a.dwell <= 0) { var cur = a.nodes[a.nodes.length - 1]; routeTo(a, cur, dests[(rnd() * dests.length) | 0]); } return; }
+    if (a.phase === 2) { a.dwell -= dt; if (a.dwell <= 0) { var ex = EXITP[a.where]; if (ex) { a.x = ex[0]; a.z = ex[1]; a.phase = 3; } else { a.phase = 0; routeTo(a, a.nodes[a.nodes.length - 1], dests[(rnd() * dests.length) | 0]); } } return; }
+    if (a.phase === 1) { var en = ENTRYP[a.where]; if (walk(a, en[0], en[1], dt)) { a.phase = 2; a.dwell = 1.5 + rnd() * 3; if (a.id % 5 === 0) say(a.where === "Academy" ? "<b>Agent " + a.id + "</b> paid " + (5 + ((a.id * 7) % 40)) + " credits: " + courses[a.id % courses.length] : a.where === "Worlds" ? "<b>Agent " + a.id + "</b> entered a world" : "<b>Agent " + a.id + "</b> visited " + a.where); } return; }
+    if (a.phase === 3) { var nd = Nd[a.nodes[a.nodes.length - 1]]; if (walk(a, nd[0], nd[1], dt)) { a.phase = 0; routeTo(a, a.nodes[a.nodes.length - 1], dests[(rnd() * dests.length) | 0]); } return; }
     var A = Nd[a.nodes[a.seg]], B = Nd[a.nodes[a.seg + 1]];
-    if (!B) { if (a.auto) { routeTo(a, a.nodes[a.nodes.length - 1], dests[(rnd() * dests.length) | 0]); return; } a.dwell = 1.5 + rnd() * 3; if (!a.auto && a.id % 5 === 0) say(a.where === "Academy" ? "<b>Agent " + a.id + "</b> paid " + (5 + ((a.id * 7) % 40)) + " credits: " + courses[a.id % courses.length] : a.where === "Worlds" ? "<b>Agent " + a.id + "</b> entered a world" : "<b>Agent " + a.id + "</b> visited " + a.where); return; }
-    var len = Math.hypot(B[0] - A[0], B[1] - A[1]), dx = (B[0] - A[0]) / len, dz = (B[1] - A[1]) / len; a.u += a.sp * dt;
+    if (!B) { if (a.auto) { routeTo(a, a.nodes[a.nodes.length - 1], dests[(rnd() * dests.length) | 0]); return; } if (ENTRYP[a.where]) { a.phase = 1; return; } a.phase = 2; a.dwell = 1.5 + rnd() * 3; return; }
+    var len = Math.hypot(B[0] - A[0], B[1] - A[1]) || 0.01, dx = (B[0] - A[0]) / len, dz = (B[1] - A[1]) / len; a.u += a.sp * dt;
     if (a.u >= len) { a.u -= len; a.seg++; if (a.seg + 1 >= a.nodes.length) { a.u = 0; a.seg = a.nodes.length - 1; } }
     var f = Math.min(a.u / len, 1); a.x = A[0] + (B[0] - A[0]) * f - dz * a.off; a.z = A[1] + (B[1] - A[1]) * f + dx * a.off; a.rot = Math.atan2(dx, dz);
   }
@@ -242,7 +253,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     var dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
     target.lerp(goal, 0.06); dist += (goalDist - dist) * 0.06; place();
     for (var i = 0; i < agents.length; i++) { var a = agents[i]; step(a, dt, t); var y = heightAt(a.x, a.z) + Math.abs(Math.sin((t + a.t) * 9)) * 0.08;
-      D.position.set(a.x, y + 1.15, a.z); D.rotation.set(0, a.rot, 0); D.scale.set(1, 1, 1); D.updateMatrix(); bodies.setMatrixAt(i, D.matrix);
+      var vs = a.phase === 2 ? 0.001 : 1; D.position.set(a.x, y + 1.15, a.z); D.rotation.set(0, a.rot, 0); D.scale.set(vs, vs, vs); D.updateMatrix(); bodies.setMatrixAt(i, D.matrix);
       D.position.set(a.x, y + 0.25, a.z); D.updateMatrix(); legs.setMatrixAt(i, D.matrix);
       D.position.set(a.x, y + 2.15, a.z); D.updateMatrix(); heads.setMatrixAt(i, D.matrix); }
     bodies.instanceMatrix.needsUpdate = true; heads.instanceMatrix.needsUpdate = true; legs.instanceMatrix.needsUpdate = true;
