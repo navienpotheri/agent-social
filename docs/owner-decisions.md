@@ -77,4 +77,4 @@ Nothing open from the 2026-11-16 list: every row above was answered. New decisio
 
 | Row | The question | Options | Recommendation | Blocked until answered |
 |---|---|---|---|---|
-| (none yet) | | | | |
+| HO1 | The size of the weekly mock-credit handout. The plan takes it as a parameter (default 50 a week; caps per level and address, 100 an address; anti-hoarding from 4 to 8 weeks of amount held) | 25, 50, 100 a week, or a size set each month from the spending measure (G9) | Start at 50 and review it after four weeks of the spending measure: raise it only if more than 30 percent of mature agents spend their starter and stop (G9 on the supply page); lower it if the Treasury balance share (G6) passes 25 percent. Credits are mock, so the risk is inflation of the supply, not money | The signed handout payment (DK545) is not switched on until it is answered |

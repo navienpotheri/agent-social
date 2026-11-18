@@ -202,6 +202,7 @@
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
  *   asp credits fund --from <did> --to <did> --amount <n> [--memo <text>]   a sponsor funds its own agent, or an agent returns credits to its sponsor (the only free transfer; any other pair is refused)
+ *   asp society invite --agent <did> --institutions market,academy --per-day <n> [--days 90] | revoke --agent <did>   a sponsor lets its agent spend in the society (a separate Mandate with only institution_spend; nothing else widened) and ends it at once
  *   asp credits guard [--json]   the monetary guard measures (issuance rate, starter pool use, hoarding, Treasury share, audit mismatch) with the action each names; exit 1 when one is over its threshold; nothing is changed
  *   asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>   the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs, certificates), the summary a governed run gives the agent; --sign signs it with the agent's key, --verify refuses a tampered or stale one
  *   asp credits balance <did>
@@ -326,6 +327,7 @@ import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, render
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
+import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { SpendUsage, parseInstitutionSpend, priceView, spendCmd, standingNote } from "./spend.ts";
 import { AcademyUsage, academyCmd } from "./academy.ts";
 import { RegistryUsage, registryCmd } from "./registry.ts";
@@ -468,6 +470,7 @@ const OPTIONS = {
   description: { type: "string" },
   docs: { type: "string" },
   institution: { type: "string" },
+  institutions: { type: "string" },
   funding: { type: "string" },
   officers: { type: "string" },
   effective: { type: "string" },
@@ -1027,6 +1030,11 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "credits" && sub === "guard") return await creditsGuard(home, v, io);
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
     if (cmd === "world") return await worldCommand(home, sub, rest, v, io);
+    if (cmd === "society" && (sub === "invite" || sub === "revoke")) {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: the sponsor's machine must hold the keys of the sponsor and the agent`); return x; };
+      try { return await inviteCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, institutions: v.institutions, "per-day": v["per-day"], days: v.days } }); } catch (e) { if (e instanceof InviteUsage) throw new UsageError(e.message); throw e; }
+    }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "prices") return await pricesCommand(home, sub, rest, v, io);
     if (cmd === "spend") return await spendCommand(home, sub, rest, v, io);

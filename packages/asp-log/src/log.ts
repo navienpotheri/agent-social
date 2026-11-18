@@ -1111,6 +1111,8 @@ export class EventLog {
     const escrow = await tx.getEscrow(body.contract);
     if (!escrow) throw rule("no_bond_for_settlement", `no Bond found for contract ${body.contract}`);
     if (escrow.settled) throw rule("already_settled", `contract ${body.contract} was already settled`);
+    // S950 (DK544): a Mandate ends at once when its contract is revoked; a purchase under it is refused from then on (checkInstitutionSpend).
+    if (body.basis === "revoked") await tx.putMarker(`mandate_ended:${body.contract}`, r.issued_at);
     // A conscientious refusal (AG4, S500) protects the performer: a refused order is not a ground for slashing its bond. Only an upheld report's forced full fault or a Court ruling basis can.
     if (body.bond_slashed.value > 0 && !escrow.forcedFault && body.basis !== "ruling" && (await tx.getMarker(`refusal:${body.contract}`))) {
       throw rule("refusal_protected", `${escrow.backer} refused an order under this contract (${await tx.getMarker(`refusal:${body.contract}`)}): its bond is not slashed on that ground; only a ruling or an upheld report can slash it`);
@@ -1617,6 +1619,8 @@ export class EventLog {
     if (!m || m.record.type !== "asp.mandate/v0.2") throw rule("mandate_unknown", `${b.mandate} is not a Mandate in this log`);
     if (m.record.subject !== buyer) throw rule("mandate_not_buyers", `the Mandate ${b.mandate} is for ${m.record.subject}, not ${buyer}`);
     const mb = m.record.body as { expires?: string; institution_spend?: InstitutionSpend[]; remedial?: unknown };
+    const endedAt = await tx.getMarker(`mandate_ended:${(m.record.body as { contract?: string }).contract}`);
+    if (endedAt) throw rule("mandate_revoked", `the Mandate ${b.mandate} ended at ${endedAt}: its contract was revoked, so it lets ${buyer} buy nothing`);
     if (mb.remedial) throw rule("remedial_mandate_buys_remedial_only", `the Mandate ${b.mandate} is a remedial one (a Clinic exam or course): it buys remedial or essential items only`);
     if (mb.expires && Date.parse(mb.expires) <= Date.parse(r.issued_at)) throw rule("mandate_expired", `the Mandate ${b.mandate} expired at ${mb.expires}`);
     const entry = spendEntry(mb.institution_spend, b.institution);
