@@ -11,7 +11,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Keystore, listLessons, verifyPackage } from "@agent-social/asp-package";
 import { institutionDid } from "@agent-social/asp-log";
-import { Kit, SERVICES, registrar, treasury } from "../../asp-log/test/academy-kit.ts";
+import { registrar, treasury } from "../../asp-log/test/academy-kit.ts";
+import { agentPackage, school } from "./lens-course-kit.ts";
 import { main, type Io } from "../src/cli.ts";
 import { makeFixture } from "./fixture.ts";
 import { attestation, courseItem, courseService, courseSeeds, engineIds, loadCatalogue, sit, writeBack } from "../src/lens-courses/index.ts";
@@ -110,21 +111,8 @@ test("asp academy lens lists the course with its price and shows its card, from 
 
 // ---- on the log: tuition by the Academy's split with the author's share, the completion, the books
 
-async function school() {
-  const k = new Kit();
-  const academy = institutionDid("academy");
-  const author = await k.agent("c11-author"), r1 = await k.agent("c11-rev1"), r2 = await k.agent("c11-rev2");
-  const at = k.tick();
-  const standard = [{ service: SERVICES.sitting, institution: academy, price: 20, class: "standard", split: { treasury_permille: 200, burn_permille: 100, payees: [{ account: academy, permille: 700 }] } }];
-  const body = { version: 1, effective_from: at, bounds_version: 1, job_tax_permille: 50, items: [...standard, courseItem(card, author.did)] };
-  (k as unknown as { list: string }).list = await k.put(k.mk("price_list", treasury, body, null, { at }));
-  const hash = (s: string) => "sha256:" + createHash("sha256").update(s).digest("hex");
-  const course = await k.put(k.mk("course", author, { course: card.id, title: card.title, skill: "evolving-evals", level: 1, lessons: [hash("lesson")], exercises: hash(card.generator.engine), exercise_count: 1, price_service: courseService(card), author_share_permille: card.teacher.share_permille, reviews: [hash("r1"), hash("r2")], reviewers: [r1.did, r2.did] }, null, { subject: null, cosigners: [registrar] }));
-  return { k, author, course };
-}
-
 test("the learner pays the card's price through the Academy's split (the Treasury, the burn, the Academy and the author's 20%), enrols, sits, and the Registrar attests a completion for a passed sitting only; the books balance", async () => {
-  const { k, author, course } = await school();
+  const { k, author, course } = await school(card);
   const learner = await k.agent("c11-learner", undefined, 2);
   await k.job(learner, 500);
   await k.fund(learner, 100);
@@ -150,7 +138,7 @@ test("the learner pays the card's price through the Academy's split (the Treasur
 });
 
 test("a price off the card is refused by the log: the tuition is the published price", async () => {
-  const { k } = await school();
+  const { k } = await school(card);
   const learner = await k.agent("c11-learner-2", undefined, 2);
   await k.job(learner, 500);
   await k.fund(learner, 100);
@@ -158,17 +146,6 @@ test("a price off the card is refused by the log: the tuition is the published p
 });
 
 // ---- the write-back through the lesson gate
-
-async function agentPackage() {
-  const f = makeFixture();
-  const run = async (args: string[]) => { const io = { out: () => {}, err: () => {}, env: { ASP_HOME: f.aspHome }, cwd: f.root } as unknown as Io; assert.equal(await main(args, io), 0, args.join(" ")); };
-  const ALICE = "did:web:example.com:users:alice", CODER = "did:web:example.com:agents:coder";
-  await run(["identity", "new", "--kind", "human", "--did", ALICE]);
-  await run(["identity", "new", "--kind", "agent", "--did", CODER, "--sponsor", ALICE, "--purpose", "Learns evals"]);
-  const pkg = join(f.root, "coder.aspkg");
-  await run(["pack", "--runtime", "claude-code", "--agent", CODER, "--project", f.project, "--user-home", f.home, "--out", pkg]);
-  return { pkg, signer: new Keystore(f.aspHome).forDid(CODER)! };
-}
 
 test("a passed suite is written back through the lesson gate as a signed change in the agent's lineage that asp learned lists; a poisoned or unevidenced suite is rejected and memory is unchanged", async () => {
   const { pkg, signer } = await agentPackage();
