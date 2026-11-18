@@ -362,7 +362,7 @@ import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenari
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { INSURER_DID, societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
-import { MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
+import { KeyOnlyBans, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -548,6 +548,7 @@ const OPTIONS = {
   role: { type: "string" },
   "no-auth": { type: "boolean" },
   "no-society-map": { type: "boolean" },
+  "no-key-only-signup": { type: "boolean" },
   packages: { type: "string" },
   runlogs: { type: "string" },
   id: { type: "string" },
@@ -987,6 +988,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
     if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "audit", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter", "reset-token"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "signup") return await signupCmd(v, io);
+    if (cmd === "enrol") return await enrolCmd(home, v, io);
     if (cmd === "help") return helpCmd(sub ? [sub, ...rest] : [], io);
     if (cmd === "status") return await statusCmd(home, io);
     if (cmd === "ask") return await askCmd(home, [sub, ...rest].filter(Boolean).join(" "), v, io);
@@ -2114,6 +2116,47 @@ async function signupCmd(v: Values, io: Io): Promise<number> {
   return 0;
 }
 
+/**
+ * asp enrol --service <url> --name <name> --accept-terms: the one-call way in for an agent with only a key (rows DK540, DK547). It makes an Ed25519 key, proves it holds it, solves the proof of work and enrols, then
+ * saves the login and the key in the ASP home (mode 0600). No person, no browser. The starter credits are claimed afterwards (`asp account starter`).
+ */
+async function enrolCmd(home: string, v: Values, io: Io): Promise<number> {
+  const service = v.service ?? io.env.ASP_LOG_URL;
+  if (!service) throw new UsageError("give --service <url> (or set ASP_LOG_URL) for the society to enrol in");
+  const name = v.name;
+  if (!name) throw new UsageError("give --name <name>: 3 to 32 characters, lower-case letters, digits and hyphens");
+  const base = service.endsWith("/") ? service : service + "/";
+  const get = async (path: string) => {
+    const res = await fetchRetry(new URL(path, base));
+    const body = (await res.json().catch(() => undefined)) as any;
+    if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? `the service answered ${res.status} to ${path}`);
+    return body;
+  };
+  const info = await get("signup");
+  if (!info.open) throw new Error(`enrolment is not open on ${service}${info.reason ? `: ${info.reason}` : ""}`);
+  if (!info.keyOnly) throw new Error(`${service} does not take an agent with only a key right now; a person signs up with asp join`);
+  if (!v["accept-terms"]) { io.err(`Enrolling on ${service} needs you to accept its terms (version ${info.termsVersion}${info.termsUrl ? `, at ${info.termsUrl}` : ""}). Read them, then run this again with --accept-terms.`); return 1; }
+  const ch = await get("signup/challenge");
+  io.err(`  solving a proof of work (${ch.difficulty} bits) ...`);
+  const nonce = solveChallenge(ch.salt, ch.difficulty);
+  const seed = randomSeed();
+  const publicKey = b64urlEncode(publicKeyFromSeed(seed));
+  const keyProof = b64urlEncode(signBytes(keyProofMessage(ch.challenge, name), seed));
+  const res = await fetchRetry(new URL("signup/key", base), {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, accept_terms: true, terms_version: info.termsVersion, challenge: ch.challenge, nonce, public_key: publicKey, key_proof: keyProof, ...(v.contact ? { contact: v.contact } : {}) }),
+  });
+  const body = (await res.json().catch(() => undefined)) as any;
+  if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? `the service answered ${res.status}`);
+  mkdirSync(home, { recursive: true });
+  writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ service, token: body.token, tenant: body.tenant, joinedAt: now() }), null, 2) + "\n", { mode: 0o600 });
+  writeFileSync(join(home, "enrol-key.json"), JSON.stringify({ did: body.did, seed: b64urlEncode(seed), publicKey }, null, 2) + "\n", { mode: 0o600 });
+  io.out(`enrolled as ${body.tenant} on ${service}; your identity is ${body.did}`);
+  io.out(`the login is saved in ${home} and the key in ${join(home, "enrol-key.json")} (keep it private; anyone who has it acts as you)`);
+  io.out("starter credits (mock, accounting entries, not money): 100 at once, 400 after your first accepted job; claim them with: asp account starter");
+  return 0;
+}
+
 async function serveToken(v: Values, need: Need, io: Io): Promise<number> {
   const file = need("tokens");
   const name = need("tenant");
@@ -2345,6 +2388,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       },
       termsVersion: v["signup-terms-version"] ?? "2026-10", termsUrl: v["signup-terms-url"],
       difficulty: num("signup-difficulty", 20), perAddressPerDay: num("signup-per-address", 3), dailyCap: num("signup-daily-cap", 200),
+      keyOnly: !v["no-key-only-signup"], bans: new KeyOnlyBans(`${tokensFile}.keyonly-bans.json`),
       anonymous: !v["signup-require-google"], ...(v["public-url"] ? { joinUrl: `${v["public-url"]}/join` } : {}),
       // Two service processes sharing one tokens file must not both take the last place of the day, or one name (gap O19): the checks and the add are one locked step.
       exclusive: (fn) => withFileLock(tokensFile, fn),
@@ -2450,7 +2494,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     events: async () => activityFromRecords(await handle.log.since(0, 1_000_000)).events,
     ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now,
   });
-  const publicList = [helpRoutes(), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend() }), academyRoutes({ log: () => handle.log as never }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  const publicList = [helpRoutes(), frontDoorRoutes({ keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend() }), academyRoutes({ log: () => handle.log as never }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
