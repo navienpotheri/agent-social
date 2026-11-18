@@ -1,0 +1,121 @@
+<title>Society Road Editor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Concept: a drafting table for the city plan: a top-down sheet of the 176-block map where you lay roads with right-angle strokes, move buildings, and see at once which doors are not yet connected. */
+:root{--bg:#f3efe6;--ink:#2a2420;--muted:#6b5f55;--panel:#fbf8f1;--line:#d9cfbf;--accent:#b5472f;--ok:#2f8f46;--bad:#d03a2f;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181b;--ink:#ece6da;--muted:#a19a8e;--panel:#1d2226;--line:#333b40;--accent:#e0805f;--ok:#58b36d;--bad:#ef6a5f;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15181b;--ink:#ece6da;--muted:#a19a8e;--panel:#1d2226;--line:#333b40;--accent:#e0805f;--ok:#58b36d;--bad:#ef6a5f;color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 "Inter",system-ui,sans-serif;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;flex-direction:column;gap:8px}
+h1{font:600 18px/1.2 "Space Grotesk","Inter",sans-serif;margin:0}
+.sub{color:var(--muted);font-size:12px}
+.wrap{display:flex;flex-wrap:wrap;gap:10px;flex:1;min-height:0}
+.sheet{flex:1 1 420px;min-width:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#dfe9d6;touch-action:none}
+canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;max-height:78vh}
+.side{flex:0 1 270px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button,select{font:inherit;font-size:12px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 9px;cursor:pointer}
+button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.status{font-size:12px;border:1px solid var(--line);border-radius:6px;padding:6px 9px;background:var(--panel)}
+.status b.ok{color:var(--ok)}.status b.bad{color:var(--bad)}
+textarea{width:100%;min-height:96px;font:11px/1.35 ui-monospace,Consolas,monospace;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px;resize:vertical}
+.hint{font-size:12px;color:var(--muted)}
+</style>
+<div><h1>Society road editor</h1><div class="sub">Draw the roads for the city map. Each building has an entry door (green) and an exit door (orange); a ring turns red when a door has no road yet.</div></div>
+<div class="wrap">
+  <div class="sheet"><canvas id="cv" width="880" height="880" aria-label="City plan, top-down"></canvas></div>
+  <div class="side">
+    <div class="row" role="group" aria-label="Tools"><button id="t-road" aria-pressed="true">Draw road</button><button id="t-erase" aria-pressed="false">Erase</button><button id="t-move" aria-pressed="false">Move building</button></div>
+    <div class="row"><span class="sub">Road width</span><select id="wd"><option value="3">3 blocks</option><option value="4" selected>4 blocks</option><option value="5">5 blocks</option></select><span class="sub">Snap</span><select id="sn"><option value="1">1</option><option value="2" selected>2</option><option value="4">4</option></select></div>
+    <div class="row"><button id="undo">Undo</button><button id="redo">Redo</button><button id="reset">Start from the default plan</button><button id="clear">Clear roads</button></div>
+    <div class="status" id="status" aria-live="polite"></div>
+    <div class="hint"><b>Draw road:</b> tap a start point, then an end point. A straight line stays straight; hold Shift (or tap a point off the line) and it bends with a right angle. <b>Erase:</b> tap a road. <b>Move building:</b> drag a building; its doors and their road spurs follow.</div>
+    <div class="row"><button id="export">Copy plan as JSON</button><button id="import">Load the JSON below</button></div>
+    <textarea id="json" aria-label="Plan as JSON" spellcheck="false"></textarea>
+    <div class="hint">Send me the copied JSON and I will build the 3D map from it.</div>
+  </div>
+</div>
+<script>
+(function () {
+  var cv = document.getElementById("cv"), ctx = cv.getContext("2d"), W = cv.width, HALF = 88, SC = W / 176;
+  function X(x) { return (x + HALF) * SC; } function Z(z) { return (z + HALF) * SC; }
+  var BLD = [
+    { n: "Courts", x: -18, z: -54, w: 16, d: 12, rot: 0 }, { n: "Registry", x: 0, z: -53, w: 12, d: 10, rot: 0 }, { n: "Bank & Insurer", x: 17, z: -53, w: 14, d: 10, rot: 0 },
+    { n: "Treasury", x: 8, z: -37, w: 12, d: 10, rot: 2 }, { n: "Academy", x: 44, z: -38, w: 16, d: 12, rot: 0 }, { n: "Research & Commons", x: 60, z: -38, w: 14, d: 10, rot: 0 },
+    { n: "Market", x: -44, z: -6, w: 18, d: 12, rot: 0 }, { n: "Shops", x: -44, z: 12, w: 14, d: 10, rot: 2 }, { n: "Forum", x: -4, z: -9, w: 12, d: 10, rot: 0 },
+    { n: "Clinic", x: 6, z: 58, w: 14, d: 10, rot: 2 }, { n: "Leisure & Events", x: 60, z: 14, w: 12, d: 12, rot: 3 }, { n: "Housing", x: 40, z: 60, w: 24, d: 16, rot: 0 },
+    { n: "Gateway to Worlds", x: -52, z: 66, w: 12, d: 6, rot: 0 }
+  ];
+  var RIVER = [[-90, 22], [-60, 20], [-40, 26], [-20, 30], [0, 32], [20, 30], [40, 34], [60, 38], [90, 34]];
+  var DEFAULT_ROADS = (function () {   // the default plan: right-angle roads between the hubs of the 3D map
+    var Nd = { P: [0, 0], N1: [-4, -16], N2: [-6, -30], C: [-6, -46], CW: [-18, -45.5], CR: [0, -45.5], CT: [8, -44.5], CB: [17, -45.5], E1: [20, -10], E2: [36, -22], K: [50, -29.5], KA: [44, -29.5], KR: [60, -29.5], F1: [24, 6], F2: [40, 12], LD: [50.5, 14], L1: [52, 30], L2: [48, 40], H: [40, 46], S1: [2, 14], S2: [4, 30], S3: [6, 44], CL: [6, 50.5], W1: [-14, 2], W2: [-28, 4], M: [-44, 4], D1: [-12, 14], D2: [-28, 30], D3: [-44, 44], G: [-52, 56], GW: [-52, 60], FD: [-4, -1.5], HA1: [30, 54], HA2: [20, 62], HB1: [52, 52], HB2: [56, 64], HC1: [38, 62], HC2: [30, 72] };
+    var E = [["P", "N1"], ["N1", "N2"], ["N2", "C"], ["CW", "C"], ["C", "CR"], ["CR", "CT"], ["CT", "CB"], ["P", "E1"], ["E1", "E2"], ["E2", "K"], ["KA", "K"], ["K", "KR"], ["P", "F1"], ["F1", "F2"], ["F2", "LD"], ["LD", "L1"], ["L1", "L2"], ["L2", "H"], ["P", "S1"], ["S1", "S2"], ["S2", "S3"], ["S3", "CL"], ["P", "W1"], ["W1", "W2"], ["W2", "M"], ["P", "D1"], ["D1", "D2"], ["D2", "D3"], ["D3", "G"], ["G", "GW"], ["P", "FD"], ["H", "HA1"], ["HA1", "HA2"], ["H", "HB1"], ["HB1", "HB2"], ["H", "HC1"], ["HC1", "HC2"], ["N2", "E1"], ["F1", "S1"], ["W1", "D1"], ["CT", "E2"], ["L1", "S3"], ["D2", "S2"]];
+    var out = [];
+    E.forEach(function (e) { var a = Nd[e[0]], b = Nd[e[1]]; if (Math.abs(a[0] - b[0]) < 0.6 || Math.abs(a[1] - b[1]) < 0.6) out.push([a[0], a[1], b[0], b[1]]); else { out.push([a[0], a[1], b[0], a[1]]); out.push([b[0], a[1], b[0], b[1]]); } });
+    return out;
+  })();
+  var roads = DEFAULT_ROADS.map(function (r) { return r.slice(); }), hist = [], fut = [], tool = "road", start = null, hover = null, drag = null;
+  var RW = 4, SN = 2;
+  function snap(v) { return Math.round(v / SN) * SN; }
+  function doors(b) { var off = Math.max(2.6, b.w / 4), a = b.rot * Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a), fw = b.d / 2 + 3.2; function wp(lx) { return [b.x + lx * ca + fw * sa, b.z - lx * sa + fw * ca]; } return { entry: wp(-off), exit: wp(off) }; }
+  function segDist(px, pz, s) { var ax = s[0], az = s[1], bx = s[2], bz = s[3], dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / L2)); return Math.hypot(px - (ax + t * dx), pz - (az + t * dz)); }
+  function nearRoad(p) { var m = 999; roads.forEach(function (s) { m = Math.min(m, segDist(p[0], p[1], s)); }); return m; }
+  function inter(s, t) { function box(q) { return [Math.min(q[0], q[2]) - 0.1, Math.max(q[0], q[2]) + 0.1, Math.min(q[1], q[3]) - 0.1, Math.max(q[1], q[3]) + 0.1]; } var a = box(s), b = box(t); return a[0] <= b[1] && b[0] <= a[1] && a[2] <= b[3] && b[2] <= a[3]; }
+  function components() { var n = roads.length, par = roads.map(function (_, i) { return i; }); function f(i) { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; } for (var i = 0; i < n; i++) for (var j = i + 1; j < n; j++) if (inter(roads[i], roads[j])) par[f(i)] = f(j); return { f: f, n: n }; }
+  function check() {
+    var comp = components(), big = {}, count = {};
+    for (var i = 0; i < comp.n; i++) { var r = comp.f(i); count[r] = (count[r] || 0) + 1; } var best = null; Object.keys(count).forEach(function (k) { if (best === null || count[k] > count[best]) best = k; });
+    var bad = [], ok = 0;
+    BLD.forEach(function (b) { var d = doors(b), good = true; [d.entry, d.exit].forEach(function (p) { var hit = false; for (var i = 0; i < comp.n; i++) if (String(comp.f(i)) === String(best) && segDist(p[0], p[1], roads[i]) <= RW / 2 + 1.2) hit = true; if (!hit) { good = false; bad.push([p[0], p[1]]); } }); if (good) ok++; });
+    var parts = Object.keys(count).length;
+    document.getElementById("status").innerHTML = "<b class='" + (ok === BLD.length ? "ok" : "bad") + "'>" + ok + " of " + BLD.length + " buildings connected</b> by both doors to the main road network. " + roads.length + " road segments in " + parts + " network" + (parts === 1 ? "" : "s") + (parts > 1 ? " (join them so everything is one network)" : "") + ".";
+    return bad;
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, W); ctx.fillStyle = "#cfe0b9"; ctx.fillRect(0, 0, W, W);
+    ctx.fillStyle = "#e3cf9a"; ctx.fillRect(X(62), 0, X(70) - X(62), W); ctx.fillStyle = "#3a8fb0"; ctx.fillRect(X(70), 0, W - X(70), W);
+    ctx.beginPath(); ctx.arc(X(52), Z(-32), 25 * SC, 0, 7); ctx.fillStyle = "rgba(120,150,90,.35)"; ctx.fill(); ctx.beginPath(); ctx.arc(X(52), Z(-32), 13 * SC, 0, 7); ctx.fillStyle = "rgba(120,150,90,.35)"; ctx.fill();
+    ctx.strokeStyle = "#4f9fc0"; ctx.lineWidth = 6.4 * SC; ctx.lineCap = "round"; ctx.beginPath(); RIVER.forEach(function (p, i) { i ? ctx.lineTo(X(p[0]), Z(p[1])) : ctx.moveTo(X(p[0]), Z(p[1])); }); ctx.stroke();
+    ctx.beginPath(); ctx.arc(X(0), Z(0), 11 * SC, 0, 7); ctx.fillStyle = "#d8cfbd"; ctx.fill(); ctx.beginPath(); ctx.arc(X(6), Z(6), 4 * SC, 0, 7); ctx.fillStyle = "#4aa0c0"; ctx.fill();
+    ctx.lineCap = "butt"; ctx.strokeStyle = "#55565a"; ctx.lineWidth = RW * SC; roads.forEach(function (s) { ctx.beginPath(); ctx.moveTo(X(s[0]), Z(s[1])); ctx.lineTo(X(s[2]), Z(s[3])); ctx.stroke(); });
+    ctx.strokeStyle = "#f2e6b0"; ctx.lineWidth = 1; ctx.setLineDash([6, 8]); roads.forEach(function (s) { ctx.beginPath(); ctx.moveTo(X(s[0]), Z(s[1])); ctx.lineTo(X(s[2]), Z(s[3])); ctx.stroke(); }); ctx.setLineDash([]);
+    var bad = check();
+    BLD.forEach(function (b) {
+      ctx.save(); ctx.translate(X(b.x), Z(b.z)); ctx.rotate(-b.rot * Math.PI / 2); ctx.fillStyle = b.n === "Housing" ? "rgba(217,138,106,.55)" : "#c9a27a"; ctx.strokeStyle = "#5a4636"; ctx.lineWidth = 2; ctx.fillRect(-b.w / 2 * SC, -b.d / 2 * SC, b.w * SC, b.d * SC); ctx.strokeRect(-b.w / 2 * SC, -b.d / 2 * SC, b.w * SC, b.d * SC); ctx.restore();
+      ctx.fillStyle = "#2a2420"; ctx.font = "600 13px Inter, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillText(b.n, X(b.x), Z(b.z) + 4);
+      var d = doors(b); [[d.entry, "#3fae5f"], [d.exit, "#e07a3a"]].forEach(function (q) { ctx.beginPath(); ctx.arc(X(q[0][0]), Z(q[0][1]), 5, 0, 7); ctx.fillStyle = q[1]; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke(); });
+    });
+    bad.forEach(function (p) { ctx.beginPath(); ctx.arc(X(p[0]), Z(p[1]), 11, 0, 7); ctx.strokeStyle = "#d03a2f"; ctx.lineWidth = 3; ctx.stroke(); });
+    if (tool === "road" && start && hover) { var seg = plan(start, hover, false); ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.lineWidth = RW * SC; seg.forEach(function (s) { ctx.beginPath(); ctx.moveTo(X(s[0]), Z(s[1])); ctx.lineTo(X(s[2]), Z(s[3])); ctx.stroke(); }); }
+    if (start) { ctx.beginPath(); ctx.arc(X(start[0]), Z(start[1]), 6, 0, 7); ctx.fillStyle = "#b5472f"; ctx.fill(); }
+  }
+  function plan(a, b, shift) { if (Math.abs(a[0] - b[0]) < 0.5 || Math.abs(a[1] - b[1]) < 0.5) return [[a[0], a[1], b[0], b[1]]]; var c = shift ? [a[0], b[1]] : [b[0], a[1]]; return [[a[0], a[1], c[0], c[1]], [c[0], c[1], b[0], b[1]]]; }
+  function push() { hist.push(JSON.stringify({ roads: roads, bld: BLD })); if (hist.length > 80) hist.shift(); fut = []; }
+  function load(js) { var o = JSON.parse(js); roads = o.roads; o.bld.forEach(function (q, i) { BLD[i].x = q.x; BLD[i].z = q.z; BLD[i].rot = q.rot; }); }
+  function pos(e) { var r = cv.getBoundingClientRect(); return [snap((e.clientX - r.left) / r.width * 176 - HALF), snap((e.clientY - r.top) / r.height * 176 - HALF)]; }
+  cv.addEventListener("pointerdown", function (e) {
+    var p = pos(e);
+    if (tool === "road") { if (!start) start = p; else { push(); plan(start, p, e.shiftKey).forEach(function (s) { if (Math.hypot(s[2] - s[0], s[3] - s[1]) > 0.1) roads.push(s); }); start = null; } }
+    else if (tool === "erase") { var best = -1, m = 3; roads.forEach(function (s, i) { var d = segDist(p[0], p[1], s); if (d < m) { m = d; best = i; } }); if (best >= 0) { push(); roads.splice(best, 1); } }
+    else if (tool === "move") { var hit = null; BLD.forEach(function (b) { if (Math.abs(p[0] - b.x) < b.w / 2 + 1 && Math.abs(p[1] - b.z) < b.d / 2 + 1) hit = b; }); if (hit) { push(); drag = { b: hit, dx: hit.x - p[0], dz: hit.z - p[1] }; cv.setPointerCapture(e.pointerId); } }
+    draw();
+  });
+  cv.addEventListener("pointermove", function (e) { var p = pos(e); hover = p; if (drag) { drag.b.x = p[0] + drag.dx; drag.b.z = p[1] + drag.dz; } draw(); });
+  cv.addEventListener("pointerup", function () { drag = null; });
+  function setTool(t) { tool = t; start = null; ["road", "erase", "move"].forEach(function (k) { document.getElementById("t-" + k).setAttribute("aria-pressed", String(k === t)); }); draw(); }
+  ["road", "erase", "move"].forEach(function (k) { document.getElementById("t-" + k).onclick = function () { setTool(k); }; });
+  document.getElementById("wd").onchange = function () { RW = Number(this.value); draw(); }; document.getElementById("sn").onchange = function () { SN = Number(this.value); };
+  document.getElementById("undo").onclick = function () { if (hist.length) { fut.push(JSON.stringify({ roads: roads, bld: BLD })); load(hist.pop()); draw(); } };
+  document.getElementById("redo").onclick = function () { if (fut.length) { hist.push(JSON.stringify({ roads: roads, bld: BLD })); load(fut.pop()); draw(); } };
+  document.getElementById("reset").onclick = function () { push(); roads = DEFAULT_ROADS.map(function (r) { return r.slice(); }); draw(); };
+  document.getElementById("clear").onclick = function () { push(); roads = []; draw(); };
+  var box = document.getElementById("json");
+  document.getElementById("export").onclick = function () {
+    var out = JSON.stringify({ version: 1, roadWidth: RW, roads: roads, bld: BLD.map(function (b) { return { n: b.n, x: b.x, z: b.z, rot: b.rot }; }) });
+    box.value = out; box.select(); try { navigator.clipboard.writeText(out).then(function () {}, function () {}); } catch (e) {}
+  };
+  document.getElementById("import").onclick = function () { try { push(); var o = JSON.parse(box.value); roads = o.roads; if (o.roadWidth) RW = o.roadWidth; (o.bld || []).forEach(function (q, i) { if (BLD[i]) { BLD[i].x = q.x; BLD[i].z = q.z; BLD[i].rot = q.rot; } }); draw(); } catch (e) { document.getElementById("status").textContent = "That JSON could not be read: " + e.message; } };
+  draw();
+})();
+</script>
