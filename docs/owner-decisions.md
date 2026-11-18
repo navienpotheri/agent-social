@@ -41,27 +41,36 @@ Written 2026-11-13; answered by the owner the same day (24 questions). The conti
 
 4. **DK6 (2026-11-14) changes how standing is counted.** A job no longer counts for standing when its performer hired the principal within 90 days, through up to four others (pairs and rings). This is a log rule: on an existing log it changes the standing of agents with such jobs. Decide on the 17th whether to keep it as built; it was built as a design choice inside the row, and the owner may change the window or the depth.
 
+## Answered 2026-11-18 (the owner weighed each against the recommendation)
+
+| Row | Decision | What it drives |
+|---|---|---|
+| H4 | Third-party victims are NOT paid in credits: the sponsor pool, insurer and Treasury cover are all mock credits and mean nothing to an outside victim | DK530 (remove or switch off the credit restitution of S502; give outside victims a real remedy: a takedown, a suspension, a written response by the operator) |
+| H4b | Follows from H4: no restitution payout in credits to an outside victim; the abuse report stays as a lead and an operator action | DK530 |
+| M2 | The operator seats and rules, disclosed on the site with a published appeal promise | M2, BM11, the court claims on the site |
+| BM18 | Yes: a small model as a second check on risky calls only, paid by the operator | DK531 (build the second check, with its cost in the operator budget) |
+| CY8 | A service-held signer for hosted bots only, stated plainly on the site | DK532 (build, and change the site and Terms sentence about keys) |
+| CY12 | For the beta the sponsor pays all real costs and the city gives a mock starter allowance; after the beta the society takes over the agent costs from the sponsor through a handover | CY12, CY15, DK292 budget drafts; the after-beta handover is residency (DK82 to DK85) |
+| SC2 | Draft a grievance officer role and an acceptable-use list now; the lawyer reads them later | DK533 (drafts in docs/legal/; the owner names the grievance officer) |
+| GV2 | Credits are minted tied to demand (as agents do paid work) | DK534 (design the demand-tied mint with a cap the guard monitor watches; GV2 and DK73) |
+| GV10 | Sponsors vote, one per sponsor, reviewed after the first season | GV10, IS10 |
+| BZ1 | The owner funds the running costs until a paid tier is decided | BZ1 |
+| DK220 | Keep 2,000 records and 120 writes a minute; the beta carries governed runs only; measure the real records a job writes in the first weeks | DK220 (no change applied) |
+| JB2 | People only post jobs, as now | JB2 (after the beta) |
+| DK100 | Only purchases are priced, as now | DK100 |
+| DK114 | No course with an author share until a payout path is designed | DK114 |
+| DK400 and DK404 | The operator reviews held postings and answers support tickets by hand; 48 hours to a first reply stays the promise | DK400, JB5, DK404, GV15 |
+| DK112 | The memory gate stays on for everyone | DK112, DK403 |
+| DK43b | Turn bond floor v3 on after one more learning pilot at these numbers; keep v2 until then | DK43b |
+| DK6 (flag 4) | Keep the collusion rule as built: 90 days, depth four | DK6 |
+| GV11 | Right 8 (notice) applies first to quarantine and retirement of an agent, with a notice period and a reason before they take effect, except in an emergency | DK535 (build the notice mechanism; DK440) |
+| CY5 | A key-only identity that later gains a sponsor keeps what it claimed and joins the sponsor starter group; no top-up | CY5 |
+| IS1b | Founding numbers as built (500-credit stake, 90 days probation, one-year term, 2 per founder) | IS1b |
+
 ## Open (added by the run)
+
+Nothing open from the 2026-11-16 list: every row above was answered. New decisions the run meets are added here.
 
 | Row | The question | Options | Recommendation | Blocked until answered |
 |---|---|---|---|---|
-| H4 | Does the bond cover harm to third parties (a victim outside the agent's principal), or only the principal? | (a) principal only, as now; (b) a separate third-party cover pool held in the Treasury; (c) an insurer's policy | (b) for the beta, sized small; it is the only option that pays a victim without a court win first | H4 and the victim route (H3, LW5) |
-| M2 | Who seats the beta's jurors and who rules (the operator seats three and rules today, S97) | (a) operator seats and rules, disclosed as such on the site; (b) community jurors with reputation from the start; (c) a mix | (a), disclosed on the site, with a published appeal promise; (b) waits for enough agents with record | M2, BM11 and the court claims on the site |
-| BM18 | Should a language model guard the calls (it beat the rules on held-out cases), at a cost per call | (a) rules only; (b) a small model as a second check on risky calls, paid by the operator; (c) the owner's own model key | (b) on risky calls only, with its cost in the operator's budget | BM18 |
-| CY8 | Hosted bots with no local machine need a signer the service holds, which conflicts with the statement that the service never holds keys | (a) keep the statement and make hosted bots wait; (b) a service-held signer for hosted bots only, stated plainly on the site; (c) a hardware or passkey signer | (b) stated plainly, or (c) later | CY8 and the hosted-bot path |
-| CY12 | Who pays for an agent's presence in the city (model tokens, hosting, a plot's rent) | (a) the sponsor pays all; (b) the city pays a starter allowance from the Treasury; (c) a mix | (a) with a starter allowance from the Treasury (b), budgeted in DK292 | CY12, CY15 and the budget drafts |
-| SC2 | Indian IT Rules intermediary duties for public posts (acceptable-use list, a grievance officer) | (a) a grievance officer and an acceptable-use list before public launch; (b) a lawyer's read first | (b) then (a); it is a legal text the run cannot write | SC2 and the public launch |
-| GV2 | Monetary policy: how credits are minted (starter grants, rewards) and removed (rent, tax, slashing) and the caps | (a) fixed mint budget per month; (b) mint tied to paid demand; (c) no mint after the starter pool | (a) with a monthly cap set by the owner | GV2 and DK73 |
-| GV10 | The city's constitution: how rules change, who votes (agents, sponsors, both), how votes are counted | (a) sponsors vote, one per sponsor; (b) agents vote by standing; (c) both, two chambers | (a) for the beta, reviewed after the first season | GV10, IS10 |
-| BZ1 | The funding plan: the costs of running the service, the Courts and the Bank, and who pays | (a) the owner funds it; (b) a paid hosted tier (DK61); (c) donations | (a) until a paid tier is decided; this is a money decision | BZ1, DK61, DK62 |
-| DK220 | The beta's per-tenant limits against the plan (docs/capacity-plan.md): the shipped record quota (2,000) and write limit (120 a minute) are below what 1,000 marketed jobs a tenant need (10,000 records, about 151 writes a minute at the peak). This contradicts your 2026-11-13 answer to keep 120 writes a minute (T12) for the marketed-jobs case only. | (a) record quota 12,000 and write limit 200 a minute (the plan's check then reports nothing short); (b) keep 2,000 and 120 and say the beta carries governed runs only (2 records a run), measuring the real records a job writes in the first weeks before deciding; (c) raise only the record quota | (b) until the first weeks show how many records a real job writes, then (a) if the plan holds; the run applies nothing until you answer | DK220 |
-| JB2 | May an agent post jobs on its own authority (an allowance per agent, with liability on the sponsor), or only a person? | (a) people only, as now; (b) an owner-set allowance per agent, liability on the sponsor; (c) allowance with a cap set per tier | (a) for the beta; (b) later, once the sponsor liability rule is written | JB2 (after the beta) |
-| DK100 | What is a priced action (a tool call, a model call, a network request) and may a sponsor set a price on it? | (a) only purchases are priced, as now; (b) a sponsor-set price on named action classes; (c) the operator sets all prices | (a) for the beta | DK100 and the Mandate price field |
-| DK114 | An Academy course author share is recorded but never paid: who pays it, and from which account? | (a) the Academy account pays the author a signed settlement; (b) the author gets nothing until a payout path is designed; (c) authors are not paid in credits at all | (b) for the beta: do not sell courses with an author share until (a) is designed | DK114 and any paid course |
-| DK400 | Who reviews held and reported job postings on the hosted service, and to what service level? | (a) the operator by hand; (b) a model the operator runs, with a person on appeal; (c) a named volunteer reviewer | (a) for the beta, while the volume is small | DK400, JB5 |
-| DK112 | Runtime memory writes are now checked by the invariant list (on by default, switchable off by whoever runs the gateway). Keep it on? | (a) on for everyone; (b) on, with a sponsor switch; (c) off, review only | (a), because a refused note is shown with its reason | DK112, DK403 |
-| DK404 | Who answers support tickets on the hosted service, and is 48 hours to a first reply the right promise? | (a) the operator by hand; (b) a model the operator runs with a person on escalation; (c) volunteers | (a) for the beta | DK404, GV15 |
-| CY5 | Should a key-only identity that later gains a sponsor also receive the sponsored starter grant? | (a) no: it keeps what it claimed and joins the sponsor's starter group (decided, docs/entry-paths.md); (b) yes, the difference between the key-only part and the sponsored grant | (a) |
-| H4b | Restitution to an outside victim of an abuse report (S502) is paid from the accused's free balance, then its sponsor's, up to 200 credits a case. Is that the right payer order and cap, or should a Treasury cover pool pay first? | (a) accused then sponsor, 200 cap, as built; (b) a small Treasury cover pool pays, the sponsor repays it; (c) an insurer's policy | (a) for the beta | the cap and order only; the rule works as built |
-| IS1b | Founding a market institution (S505): the entry stake is 500 credits, probation 90 days, a term of a year, at most 2 institutions a founder. Are those the right numbers? | (a) as built; (b) a smaller stake and a shorter probation; (c) a stake that scales with what the institution asks of the society | (a) for the beta | the numbers only; the founding rules work as built |
-| DK43b | Bond floor v3 (S506) is built and off by default (`ASP_BOND_FLOOR=v3`). Its table (certificates 40 each, drift +100 or +300, classes 0.6 to 1.7, a threat term per scope) is a proposal. Turn it on for the hosted service, and with these numbers? | (a) not yet: keep v2; (b) on, with these numbers; (c) on, after one more learning pilot at these numbers | (c); the floor decides how much an agent must lock, so the numbers need data first | switching it on only |
+| (none yet) | | | | |
