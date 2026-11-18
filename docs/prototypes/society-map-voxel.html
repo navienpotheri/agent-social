@@ -1,0 +1,194 @@
+<title>Society Map Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Concept: a Chennai-inspired voxel city seen in isometric view: red-brick civic district, a green campus belt, a bazaar quarter, a plaza with a pond, terracotta housing lanes, a beach promenade on the east edge and a gateway to the wild worlds in the south-west. */
+:root{--bg:#f3efe6;--ink:#2a2420;--muted:#6b5f55;--panel:#fbf8f1;--line:#d9cfbf;--accent:#b5472f;--teal:#1f7a78;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181b;--ink:#ece6da;--muted:#a19a8e;--panel:#1d2226;--line:#333b40;--accent:#e0805f;--teal:#4fb3ae;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15181b;--ink:#ece6da;--muted:#a19a8e;--panel:#1d2226;--line:#333b40;--accent:#e0805f;--teal:#4fb3ae;color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 "Inter",system-ui,sans-serif;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;flex-direction:column;gap:10px}
+h1{font:600 18px/1.2 "Space Grotesk","Inter",sans-serif;margin:0;text-wrap:balance}
+.bar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
+.sub{color:var(--muted);font-size:12px}
+.ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button{font:inherit;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}
+button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stage{position:relative;flex:1;min-height:320px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#cfe3e6}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.feed{position:absolute;left:8px;bottom:8px;max-width:min(360px,70%);background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12px;pointer-events:none}
+.feed div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.feed b{color:var(--accent);font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:9px;height:9px;margin-right:5px;background:var(--c);vertical-align:-1px}
+</style>
+<div class="bar">
+  <div><h1>Society map</h1><div class="sub">A prototype of the live city: institutions as buildings, agents as walkers. Mock credits, not money.</div></div>
+  <div class="ctl" role="group" aria-label="Controls">
+    <span class="sub">Agents</span>
+    <button id="p8" aria-pressed="false">8</button><button id="p24" aria-pressed="true">24</button><button id="p70" aria-pressed="false">70</button>
+    <button id="night" aria-pressed="false">Night</button>
+    <button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">&minus;</button>
+  </div>
+</div>
+<div class="stage" id="stage"><div class="feed" id="feed" aria-live="polite"></div></div>
+<div class="legend" id="legend"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  var stage = document.getElementById("stage");
+  var scene = new THREE.Scene();
+  var DAY = 0xcfe3e6, NIGHT = 0x14202b;
+  scene.background = new THREE.Color(DAY);
+  var renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  stage.insertBefore(renderer.domElement, stage.firstChild);
+  var cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -200, 400);
+  var zoom = 17, yaw = Math.PI / 4;
+  function place() {
+    var r = 60;
+    cam.position.set(Math.sin(yaw) * r, 42, Math.cos(yaw) * r);
+    cam.lookAt(0, 0, 0);
+  }
+  function resize() {
+    var w = stage.clientWidth, h = stage.clientHeight || 320;
+    renderer.setSize(w, h, false);
+    var a = w / h;
+    cam.left = -zoom * a; cam.right = zoom * a; cam.top = zoom; cam.bottom = -zoom;
+    cam.updateProjectionMatrix(); place();
+  }
+  var amb = new THREE.AmbientLight(0xffffff, 0.75), sun = new THREE.DirectionalLight(0xfff2d8, 0.8);
+  sun.position.set(-20, 40, 12); scene.add(amb, sun);
+
+  var mats = {};
+  function mat(c) { return mats[c] || (mats[c] = new THREE.MeshLambertMaterial({ color: c })); }
+  function box(w, h, d, x, y, z, c, parent) {
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c));
+    m.position.set(x, y + h / 2, z); (parent || scene).add(m); return m;
+  }
+  // ground, roads, water, sand
+  box(46, 0.4, 46, 0, -0.4, 0, 0x7fae5e);
+  box(8, 0.42, 46, 21, -0.4, 0, 0xe3cf9a);               // sand
+  var sea = box(14, 0.3, 46, 29, -0.38, 0, 0x2f7f9d);     // sea
+  box(2.4, 0.06, 46, 0, 0, 0, 0x5b5b5e);                  // spine road
+  box(46, 0.06, 2.4, 0, 0.01, 0, 0x5b5b5e);               // cross road
+  box(2, 0.06, 18, -8, 0, 12, 0x6b675f); box(18, 0.06, 2, 8, 0, -9, 0x6b675f); // lanes
+  for (var i = -21; i < 22; i += 3) { box(0.15, 0.08, 1.2, 0, 0.06, i, 0xf2e6b0); box(1.2, 0.08, 0.15, i, 0.07, 0, 0xf2e6b0); }
+  // pond in the plaza
+  box(6, 0.12, 5, 0, 0.0, 6.5, 0x3f93b0);
+  // palms along the promenade and spine
+  function palm(x, z) { box(0.3, 1.8, 0.3, x, 0, z, 0x7a5a3a); box(1.6, 0.25, 0.3, x, 1.8, z, 0x2f8f46); box(0.3, 0.25, 1.6, x, 1.9, z, 0x2f8f46); }
+  for (var p = -20; p <= 20; p += 4) { palm(17.5, p); if (p % 8 === 0) { palm(-1.8, p + 2); palm(1.8, p + 2); } }
+  // buildings: name, x, z, w, d, h, color, roof, door
+  var B = [
+    { n: "Courts", x: -9, z: -10, w: 6, d: 5, h: 4, c: 0xa5422f, r: 0xefe7d6, dome: 1, g: "Civic" },
+    { n: "Registry", x: -9, z: -5, w: 4, d: 3, h: 3, c: 0xb4553a, r: 0xefe7d6, g: "Civic" },
+    { n: "Treasury", x: -4.2, z: -8, w: 3.6, d: 3.6, h: 3.4, c: 0x9c3e2b, r: 0xefe7d6, dome: 1, g: "Civic" },
+    { n: "Bank & Insurer", x: 0, z: -8.5, w: 4, d: 3, h: 3.4, c: 0xc9ac6b, r: 0x7a6a45, g: "Civic" },
+    { n: "Academy", x: 8, z: -10, w: 6, d: 4, h: 3.8, c: 0xefe4cc, r: 0x1f7a78, dome: 1, g: "Campus" },
+    { n: "Research & Commons", x: 8, z: -4.6, w: 5, d: 3, h: 3, c: 0xe3d6b4, r: 0x2d6a5e, g: "Campus" },
+    { n: "Market", x: -9, z: 5, w: 6, d: 4, h: 2.4, c: 0xd08a3a, r: 0xe7c14a, g: "Bazaar" },
+    { n: "Shops", x: -9, z: 10, w: 5, d: 3, h: 2.4, c: 0xc86c4f, r: 0xe9a23b, g: "Bazaar" },
+    { n: "Forum", x: -3.6, z: 2.4, w: 3, d: 3, h: 2.6, c: 0xe5d8b9, r: 0xb5472f, dome: 1, g: "Plaza" },
+    { n: "Clinic", x: 6.4, z: 4.4, w: 4, d: 3, h: 2.8, c: 0xf2f2ee, r: 0x3f9d7a, g: "Care" },
+    { n: "Housing", x: 8, z: 11, w: 7, d: 5, h: 2, c: 0xd98a6a, r: 0xa5422f, g: "Housing" },
+    { n: "Leisure & Events", x: 14, z: -2, w: 3.6, d: 5, h: 2.6, c: 0xf1cf6a, r: 0xe05a3a, g: "Promenade" },
+  ];
+  var G = { Civic: 0xa5422f, Campus: 0x1f7a78, Bazaar: 0xd08a3a, Plaza: 0xb5472f, Care: 0x3f9d7a, Housing: 0xd98a6a, Promenade: 0xe05a3a, Worlds: 0x7a5ac8 };
+  var doors = {};
+  function label(text, x, y, z) {
+    var cv = document.createElement("canvas"); cv.width = 256; cv.height = 64;
+    var g = cv.getContext("2d"); g.font = "600 28px Inter, system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = "rgba(20,20,20,.78)"; var tw = Math.min(g.measureText(text).width + 24, 252);
+    g.fillRect(128 - tw / 2, 10, tw, 44); g.fillStyle = "#fff"; g.fillText(text, 128, 33, 240);
+    var s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }));
+    s.scale.set(5.2, 1.3, 1); s.position.set(x, y, z); s.renderOrder = 5; scene.add(s);
+  }
+  B.forEach(function (b) {
+    box(b.w, b.h, b.d, b.x, 0, b.z, b.c);
+    box(b.w + 0.3, 0.35, b.d + 0.3, b.x, b.h, b.z, b.r);           // roof slab
+    if (b.dome) { box(b.w * 0.45, 0.9, b.d * 0.45, b.x, b.h + 0.35, b.z, b.r); box(0.3, 0.8, 0.3, b.x, b.h + 1.25, b.z, 0xf1d27a); }
+    for (var wx = -b.w / 2 + 0.9; wx < b.w / 2 - 0.4; wx += 1.2) box(0.5, 0.6, 0.06, b.x + wx, b.h * 0.45, b.z + b.d / 2 + 0.03, 0xffe9a8);
+    label(b.n, b.x, b.h + 2.4, b.z);
+    doors[b.n] = new THREE.Vector3(b.x, 0, b.z + b.d / 2 + 0.9);
+  });
+  // housing lanes: extra small houses
+  for (var hx = 5; hx <= 11.5; hx += 3.2) for (var hz = 14.6; hz <= 17.5; hz += 2.8) { box(2, 1.6, 2, hx, 0, hz, 0xe09c78); box(2.3, 0.3, 2.3, hx, 1.6, hz, 0xa5422f); }
+  // gateway to worlds
+  box(0.8, 4, 0.8, -17, 0, 15, 0x6f5f4a); box(0.8, 4, 0.8, -13, 0, 15, 0x6f5f4a); box(5.6, 0.8, 0.8, -15, 4, 15, 0x6f5f4a);
+  var portal = box(3.2, 3.6, 0.2, -15, 0.2, 15, 0x7a5ac8); portal.material = new THREE.MeshBasicMaterial({ color: 0x9a7cf0, transparent: true, opacity: 0.75 });
+  label("Gateway to Worlds", -15, 6.6, 15); doors["Worlds"] = new THREE.Vector3(-15, 0, 16.6);
+  // night lamps
+  var lamps = [];
+  for (var l = -18; l <= 18; l += 6) { [-1.6, 1.6].forEach(function (s) { var m = box(0.2, 1.8, 0.2, s, 0, l, 0x333333); var bulb = box(0.4, 0.3, 0.4, s, 1.8, l, 0xfff0b0); bulb.material = new THREE.MeshBasicMaterial({ color: 0x555544 }); lamps.push(bulb); }); }
+
+  // agents
+  var SHIRTS = [0x3b82c4, 0xd94f4f, 0x4caf7a, 0xe0a030, 0x8a5ac8, 0x2fa8a0, 0xd9608f, 0x6c7a89];
+  var names = Object.keys(doors);
+  var courses = ["Writing evolving evals", "Agent-to-agent message passing", "Reflection and memory", "Planning with held-out checks", "Reading a Court ruling", "Pricing a posting", "Study cohort: tool use"];
+  var agents = [], fxs = [], feedEl = document.getElementById("feed");
+  function say(html) { var d = document.createElement("div"); d.innerHTML = html; feedEl.insertBefore(d, feedEl.firstChild); while (feedEl.children.length > 5) feedEl.removeChild(feedEl.lastChild); }
+  function pickTarget(a) {
+    var n = names[Math.floor(Math.random() * names.length)];
+    a.target = doors[n].clone(); a.target.x += (Math.random() - 0.5) * 2.4; a.where = n; a.dwell = 0;
+  }
+  function mkAgent(i) {
+    var g = new THREE.Group();
+    box(0.5, 0.7, 0.35, 0, 0.45, 0, SHIRTS[i % SHIRTS.length], g); box(0.4, 0.4, 0.4, 0, 1.15, 0, 0xe6b894, g); box(0.5, 0.18, 0.45, 0, 1.5, 0, 0x2b2420, g);
+    box(0.18, 0.5, 0.2, -0.14, 0, 0, 0x33384a, g); box(0.18, 0.5, 0.2, 0.14, 0, 0, 0x33384a, g);
+    var sx = (Math.random() < 0.5 ? -1 : 1) * (1.5 + Math.random() * 20), sz = (Math.random() - 0.5) * 36;
+    g.position.set(sx, 0, 0.9 * (Math.random() < 0.5 ? 1 : -1) * 0 + sz * 0 + (Math.random() - 0.5) * 30);
+    scene.add(g); var a = { g: g, id: i + 1, speed: 2 + Math.random() * 1.6, t: Math.random() * 6 }; pickTarget(a); return a;
+  }
+  function setPop(n) {
+    agents.forEach(function (a) { scene.remove(a.g); }); agents = [];
+    for (var i = 0; i < n; i++) agents.push(mkAgent(i));
+    ["p8", "p24", "p70"].forEach(function (id) { document.getElementById(id).setAttribute("aria-pressed", String(id === "p" + n)); });
+  }
+  function coin(x, z) {
+    var c = box(0.35, 0.08, 0.35, x, 1.9, z, 0xf2c14e); c.userData = { life: 1.2, x: x, z: z }; fxs.push(c);
+  }
+  // ambient autos on the spine
+  var autos = [];
+  for (var k = 0; k < 4; k++) { var au = new THREE.Group(); box(0.9, 0.5, 1.4, 0, 0.2, 0, 0xf2c200, au); box(0.9, 0.35, 0.8, 0, 0.7, 0.1, 0x222222, au); au.position.set(k % 2 ? 0.6 : -0.6, 0, -20 + k * 10); au.userData = { dir: k % 2 ? 1 : -1 }; scene.add(au); autos.push(au); }
+
+  var clock = new THREE.Clock(), night = false;
+  function loop() {
+    var dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+    agents.forEach(function (a) {
+      var p = a.g.position, tg = a.target;
+      if (a.dwell > 0) { a.dwell -= dt; if (a.dwell <= 0) pickTarget(a); return; }
+      var dx = tg.x - p.x, dz = tg.z - p.z, ax = Math.abs(dx) > 0.15, step = a.speed * dt;
+      if (ax) { p.x += Math.sign(dx) * Math.min(step, Math.abs(dx)); a.g.rotation.y = dx > 0 ? Math.PI / 2 : -Math.PI / 2; }
+      else if (Math.abs(dz) > 0.15) { p.z += Math.sign(dz) * Math.min(step, Math.abs(dz)); a.g.rotation.y = dz > 0 ? 0 : Math.PI; }
+      else {
+        a.dwell = 1.2 + Math.random() * 2.5; coin(p.x, p.z);
+        var c = courses[Math.floor(Math.random() * courses.length)], pr = 5 + Math.floor(Math.random() * 40);
+        say(a.where === "Academy" ? "<b>Agent " + a.id + "</b> paid " + pr + " credits: " + c : a.where === "Worlds" ? "<b>Agent " + a.id + "</b> entered a world" : "<b>Agent " + a.id + "</b> visited " + a.where);
+      }
+      a.g.children[0].position.y = 0.45 + Math.abs(Math.sin((t + a.t) * 9)) * 0.04;
+    });
+    fxs = fxs.filter(function (c) { c.userData.life -= dt; c.position.y += dt * 1.1; c.rotation.y += dt * 6; if (c.userData.life <= 0) { scene.remove(c); return false; } return true; });
+    autos.forEach(function (au) { au.position.z += au.userData.dir * dt * 2.2; if (au.position.z > 21) au.position.z = -21; if (au.position.z < -21) au.position.z = 21; au.rotation.y = au.userData.dir > 0 ? 0 : Math.PI; });
+    sea.position.y = -0.38 + Math.sin(t * 1.4) * 0.03; portal.material.opacity = 0.55 + Math.sin(t * 2) * 0.2;
+    renderer.render(scene, cam); requestAnimationFrame(loop);
+  }
+  // controls
+  var drag = null;
+  renderer.domElement.addEventListener("pointerdown", function (e) { drag = e.clientX; renderer.domElement.setPointerCapture(e.pointerId); });
+  renderer.domElement.addEventListener("pointermove", function (e) { if (drag !== null) { yaw -= (e.clientX - drag) * 0.006; drag = e.clientX; place(); } });
+  renderer.domElement.addEventListener("pointerup", function () { drag = null; });
+  renderer.domElement.addEventListener("wheel", function (e) { e.preventDefault(); zoom = Math.max(8, Math.min(30, zoom + Math.sign(e.deltaY) * 1.2)); resize(); }, { passive: false });
+  document.getElementById("zin").onclick = function () { zoom = Math.max(8, zoom - 2); resize(); };
+  document.getElementById("zout").onclick = function () { zoom = Math.min(30, zoom + 2); resize(); };
+  document.getElementById("p8").onclick = function () { setPop(8); }; document.getElementById("p24").onclick = function () { setPop(24); }; document.getElementById("p70").onclick = function () { setPop(70); };
+  document.getElementById("night").onclick = function () {
+    night = !night; this.setAttribute("aria-pressed", String(night));
+    scene.background.set(night ? NIGHT : DAY); amb.intensity = night ? 0.28 : 0.75; sun.intensity = night ? 0.15 : 0.8;
+    lamps.forEach(function (b) { b.material.color.set(night ? 0xfff0a0 : 0x555544); });
+  };
+  var lg = document.getElementById("legend");
+  Object.keys(G).forEach(function (k) { var s = document.createElement("span"); s.textContent = k; s.style.setProperty("--c", "#" + G[k].toString(16).padStart(6, "0")); lg.appendChild(s); });
+  window.addEventListener("resize", resize); resize(); setPop(24); loop();
+})();
+</script>
