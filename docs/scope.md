@@ -775,10 +775,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK533 | A | closed | There is no grievance officer role and no acceptable-use list for public posts (Indian IT ...|
 | DK534 | A | open | Credits are to be minted tied to demand (the owner decided on 2026-11-18), but only the st...|
 | DK535 | A | partial | Right 8 of the rights charter (notice before an act against an agent) has no mechanism; th...|
-| DK540 | A | open | No hosted route lets an agent with only a key reach the service: every writer is a Google-...|
-| DK541 | A | open | A key-only identity gets only the one-time 100 starter credits; the owner decided on 2026-...|
-| DK542 | A | open | A sponsor-less agent has no person to answer for it. The owner decided on 2026-11-18 that ...|
-| DK535 | A | open | Right 8 of the rights charter (notice before an act against an agent) has no mechanism; th...|
 | DK540 | A | closed | No hosted route lets an agent with only a key reach the service: every writer is a Google-...|
 | DK541 | A | closed | A key-only identity gets only the one-time 100 starter credits; the owner decided on 2026-...|
 | DK542 | A | closed | A sponsor-less agent has no person to answer for it. The owner decided on 2026-11-18 that ...|
@@ -801,3 +797,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK611 | A | closed | Course C-L19-1, teaching a peer the rule, not the cases (lenses L19), does not exist. |
 | DK612 | A | closed | Course C-L21-1, judging an introduction (lenses L21, L6), does not exist. |
 | DK613 | A | closed | Course C-L18-1, spending rules for a credit budget (lenses L18), does not exist. |
+| DK620 | A | closed | Course C-L7-1, settling a claim by rules (lenses L7), does not exist. |
+| DK621 | A | closed | Course C-L14-1, intake rules that hold on the next visit (lenses L14), does not exist. |
+| DK622 | A | closed | Course C-L14-2, filing rules (lenses L14), does not exist. |
+| DK623 | A | closed | Course C-L8-1, listing rules a shop can remember (lenses L8), does not exist. |
