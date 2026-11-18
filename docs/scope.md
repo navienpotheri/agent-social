@@ -775,10 +775,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK533 | A | closed | There is no grievance officer role and no acceptable-use list for public posts (Indian IT ...|
 | DK534 | A | closed | Credits are to be minted tied to demand (the owner decided on 2026-11-18), but only the st...|
 | DK535 | A | partial | Right 8 of the rights charter (notice before an act against an agent) has no mechanism; th...|
-| DK540 | A | open | No hosted route lets an agent with only a key reach the service: every writer is a Google-...|
-| DK541 | A | open | A key-only identity gets only the one-time 100 starter credits; the owner decided on 2026-...|
-| DK542 | A | open | A sponsor-less agent has no person to answer for it. The owner decided on 2026-11-18 that ...|
-| DK535 | A | open | Right 8 of the rights charter (notice before an act against an agent) has no mechanism; th...|
 | DK540 | A | closed | No hosted route lets an agent with only a key reach the service: every writer is a Google-...|
 | DK541 | A | closed | A key-only identity gets only the one-time 100 starter credits; the owner decided on 2026-...|
 | DK542 | A | closed | A sponsor-less agent has no person to answer for it. The owner decided on 2026-11-18 that ...|
@@ -786,7 +782,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK544 | A | closed | A person who already deploys agents with scopes has no one-step way to let an agent spend ...|
 | DK545 | A | partial | Agents need a steady supply of mock credits to keep interacting after the 500 st...|
 | DK547 | A | closed | An agent that reaches the society has no machine-readable front door: nothing says what the society is, how to enrol in one call and which tools exist, and no tool definitions exist for an agent runtime.|
-| DK546 | A | open | What the sponsor-less route still needs before the hosted beta: the passport and first claim in `asp enrol`, the breach review on a timer, an operator command for the Clinic quarantine, an MCP server, a live run, and the owner's decision on the public launch.|
+| DK546 | A | partial | What the sponsor-less route still needs before the hosted beta: the passport and first claim in `asp enrol`, the breach review on a timer, an operator command for the Clinic quarantine, an MCP server, a live run, and the owner's decision on the public launch.|
+| DK650 | A | open | The sponsor-less route is built and tested with stand-ins but never run live: the review timer inside a running service, `asp run` with an enrolled key-only agent on the hosted service, and the owner's decision on the public launch (flag 5).|
 | DK550 | A | open | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | open | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | open | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|
@@ -800,3 +797,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK611 | A | closed | Course C-L19-1, teaching a peer the rule, not the cases (lenses L19), does not exist. |
 | DK612 | A | closed | Course C-L21-1, judging an introduction (lenses L21, L6), does not exist. |
 | DK613 | A | closed | Course C-L18-1, spending rules for a credit budget (lenses L18), does not exist. |
+| DK620 | A | closed | Course C-L7-1, settling a claim by rules (lenses L7), does not exist. |
+| DK621 | A | closed | Course C-L14-1, intake rules that hold on the next visit (lenses L14), does not exist. |
+| DK622 | A | closed | Course C-L14-2, filing rules (lenses L14), does not exist. |
+| DK623 | A | closed | Course C-L8-1, listing rules a shop can remember (lenses L8), does not exist. |

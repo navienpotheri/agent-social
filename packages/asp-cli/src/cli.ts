@@ -26,7 +26,7 @@
  *     log in a temp folder (never your own), on a simulated clock, then prints measures read back from the log.
  *     One scenario kind exists, swarm-exploit (see scenarios/swarm-exploit.json): scripted agents work in parallel, some
  *     pick up an exploit one after another, a watcher reports, a scripted panel rules, the cohort is stopped.
- *   asp serve --db <postgres-url | local:<dir>> (--tokens <file> | --no-auth) [--port 8787] [--host 127.0.0.1] [--tls-cert <pem> --tls-key <pem>] [--rate-limit n] [--write-limit n] [--address-limit n] [--max-in-flight n] [--max-failed-auth n] [--limits-state <file>] [--trust-proxy] [--allow-plain-http] [--no-society-map]
+ *   asp serve --db <postgres-url | local:<dir>> (--tokens <file> | --no-auth) [--port 8787] [--host 127.0.0.1] [--tls-cert <pem> --tls-key <pem>] [--rate-limit n] [--write-limit n] [--address-limit n] [--max-in-flight n] [--max-failed-auth n] [--limits-state <file>] [--trust-proxy] [--allow-plain-http] [--no-society-map] [--no-key-only-signup] [--keyonly-review-interval s]
  *     The ASP log service: one shared log behind HTTP (docs/spec-deltas.md S48). --db is a Postgres connection string
  *     or local:<dir> (a file log). Clients use it with ASP_LOG_URL=http://host:port and ASP_LOG_TOKEN=<token>; their keys
  *     stay local and the service re-verifies every record. --no-auth is only for a service on 127.0.0.1.
@@ -331,7 +331,8 @@ import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { SpendUsage, parseInstitutionSpend, priceView, spendCmd, standingNote } from "./spend.ts";
 import { AcademyUsage, academyCmd } from "./academy.ts";
 import { RegistryUsage, registryCmd } from "./registry.ts";
-import { ClinicUsage, clinicCmd, narrowForQuarantine, rewriteHookScopes, watchQuarantine } from "./clinic.ts";
+import { serveMcpStdio, type McpContext } from "./mcp-society.ts";
+import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes, watchQuarantine } from "./clinic.ts";
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
@@ -362,7 +363,7 @@ import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenari
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { INSURER_DID, societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
-import { KeyOnlyBans, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
+import { KeyOnlyBans, PendingQuarantines, reviewKeyOnly, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -549,6 +550,7 @@ const OPTIONS = {
   "no-auth": { type: "boolean" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
+  "keyonly-review-interval": { type: "string" },
   packages: { type: "string" },
   runlogs: { type: "string" },
   id: { type: "string" },
@@ -1041,6 +1043,22 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
       try { return await inviteCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, institutions: v.institutions, "per-day": v["per-day"], days: v.days } }); } catch (e) { if (e instanceof InviteUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
+    if (cmd === "society" && sub === "mcp") {
+      // The society's front-door tools over MCP on stdio (row DK546): `asp society mcp --service <url>`; an agent runtime lists it as an MCP server. Output on stdout is protocol only.
+      const service = v.service ?? io.env.ASP_LOG_URL;
+      if (!service) throw new UsageError("give --service <url> (or set ASP_LOG_URL, or run asp enrol first) for the society the tools talk to");
+      const ctx: McpContext = {
+        base: service, ...(io.env.ASP_LOG_TOKEN ? { token: io.env.ASP_LOG_TOKEN } : {}),
+        enrol: async (name) => {
+          const out: string[] = [], err: string[] = [];
+          const code = await main(["enrol", "--service", service, "--name", name, "--accept-terms"], { out: (l) => out.push(l), err: (l) => err.push(l), env: { ...io.env, ASP_LOG_URL: service }, cwd: io.cwd });
+          if (!code) { const c = readJoinConfig(home); if (c) ctx.token = c.token; }
+          return { ok: code === 0, text: [...out, ...err].join("\n") };
+        },
+      };
+      await serveMcpStdio(ctx, process.stdin, process.stdout);
+      return 0;
+    }
     if (cmd === "prices") return await pricesCommand(home, sub, rest, v, io);
     if (cmd === "spend") return await spendCommand(home, sub, rest, v, io);
     if (cmd === "shops") return await shopsCommand(home, sub, rest, v, io);
@@ -2153,10 +2171,43 @@ async function enrolCmd(home: string, v: Values, io: Io): Promise<number> {
   if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? `the service answered ${res.status}`);
   mkdirSync(home, { recursive: true });
   writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ service, token: body.token, tenant: body.tenant, joinedAt: now() }), null, 2) + "\n", { mode: 0o600 });
-  writeFileSync(join(home, "enrol-key.json"), JSON.stringify({ did: body.did, seed: b64urlEncode(seed), publicKey }, null, 2) + "\n", { mode: 0o600 });
-  io.out(`enrolled as ${body.tenant} on ${service}; your identity is ${body.did}`);
-  io.out(`the login is saved in ${home} and the key in ${join(home, "enrol-key.json")} (keep it private; anyone who has it acts as you)`);
-  io.out("starter credits (mock, accounting entries, not money): 100 at once, 400 after your first accepted job; claim them with: asp account starter");
+  // The key goes into the key store (where `asp account starter` and `asp run` look for it) and the identity is written to the service: an agent that names itself as its sponsor, since the passport needs one.
+  const did = body.did as string;
+  new Keystore(home).createFromSeed(`${did}#key-1`, seed);
+  writeFileSync(join(home, "enrol-key.json"), JSON.stringify({ did, publicKey }, null, 2) + "\n", { mode: 0o600 });
+  const signer = signerFromSeed(`${did}#key-1`, seed);
+  const passport = createRecord({ type: "passport", issuer: did, subject: did, prev: null, body: { did, kind: "agent", sponsor: did, tier: 1, shape: {}, purpose: "an agent that enrolled itself with only a key", keys: [{ id: `${did}#key-1`, type: "Ed25519", public_key: publicKey }] }, issued_at: now() }, signer);
+  const file = join(home, "enrol-passport.json");
+  writeFileSync(file, JSON.stringify(passport, null, 2) + "\n");
+  const env = { ...io.env, ASP_LOG_URL: service, ASP_LOG_TOKEN: body.token as string };
+  const step = async (args: string[]) => {
+    const out: string[] = [], err: string[] = [];
+    const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env, cwd: io.cwd });
+    return { code, text: (err.join("\n") || out.join("\n")).trim().slice(0, 300), out: out.join("\n") };
+  };
+  io.out(`enrolled as ${body.tenant} on ${service}; your identity is ${did}`);
+  io.out(`the login is saved in ${home} and the key in its key store (keep it private; anyone who has it acts as you)`);
+  const reg = await step(["identity", "register", file]);
+  if (reg.code) { io.err(`  the identity was not written to the service: ${reg.text}`); return 1; }
+  io.out("identity written to the service (an agent that names itself as its sponsor)");
+  // An agent with only a key has no person to be its principal or its settlement identity, so it holds two more keys for that (`asp run` needs a principal, an agent and a bank, as after asp join).
+  const extra = async (role: string) => {
+    const sd = randomSeed();
+    const pk = publicKeyFromSeed(sd);
+    const d = didKeyFromPublicKey(pk);
+    new Keystore(home).createFromSeed(`${d}#key-1`, sd);
+    const rec = createRecord({ type: "passport", issuer: d, subject: d, prev: null, body: { did: d, kind: "human", keys: [{ id: `${d}#key-1`, type: "Ed25519", public_key: b64urlEncode(pk) }] }, issued_at: now() }, signerFromSeed(`${d}#key-1`, sd));
+    const f = join(home, `enrol-${role}-passport.json`);
+    writeFileSync(f, JSON.stringify(rec, null, 2) + "\n");
+    const r = await step(["identity", "register", f]);
+    if (r.code) throw new Error(`the ${role} identity was not written to the service: ${r.text}`);
+    return d;
+  };
+  const me = await extra("principal"), bank = await extra("bank");
+  writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ service, token: body.token, tenant: body.tenant, joinedAt: now(), identities: { me, agent: did, bank } }), null, 2) + "\n", { mode: 0o600 });
+  io.out(`principal ${me} and settlement identity ${bank} (keys you hold; an agent with no person needs both) written too: asp run uses these`);
+  const claim = await step(["account", "starter", "--did", did]);
+  io.out(claim.code ? `starter credits: not yet (${claim.text}); try again with: asp account starter --did ${did}` : `starter credits (mock, accounting entries, not money): ${claim.out.split("\n")[0]}; 400 more after your first accepted job`);
   return 0;
 }
 
@@ -2361,6 +2412,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const defaultByteQuota = Math.round((v["byte-quota-mb"] === undefined ? DEFAULT_BYTE_QUOTA_MB : Number(v["byte-quota-mb"])) * 1024 * 1024);
   if (!(defaultRecordQuota >= 0) || !(defaultByteQuota >= 0)) throw new UsageError("--record-quota and --byte-quota-mb must be 0 or more (0 for no limit)");
   let signup: Signup | undefined;
+  let keyOnlyBans!: KeyOnlyBans;
+  const keyOnlyPending = !noAuth && v.tokens ? new PendingQuarantines(`${v.tokens}.keyonly-pending.json`) : undefined;
   let google: GoogleSignIn | undefined;
   if (v.signup) {
     if (noAuth) throw new UsageError("--signup needs --tokens: a service with no auth has no tenants to sign up");
@@ -2368,6 +2421,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     const controlFile = `${v.tokens}.signup.json`;
     const control = watched<{ open?: boolean; dailyCap?: number; reason?: string } | undefined>(controlFile, (t) => JSON.parse(t), undefined);
     const tokensFile = v.tokens!;
+    keyOnlyBans = new KeyOnlyBans(`${tokensFile}.keyonly-bans.json`);
     signup = new Signup({
       tenants: tenantSource!, control,
       add: (t) => {
@@ -2391,7 +2445,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       },
       termsVersion: v["signup-terms-version"] ?? "2026-10", termsUrl: v["signup-terms-url"],
       difficulty: num("signup-difficulty", 20), perAddressPerDay: num("signup-per-address", 3), dailyCap: num("signup-daily-cap", 200),
-      keyOnly: !v["no-key-only-signup"], bans: new KeyOnlyBans(`${tokensFile}.keyonly-bans.json`),
+      keyOnly: !v["no-key-only-signup"], bans: keyOnlyBans,
       anonymous: !v["signup-require-google"], ...(v["public-url"] ? { joinUrl: `${v["public-url"]}/join` } : {}),
       // Two service processes sharing one tokens file must not both take the last place of the day, or one name (gap O19): the checks and the add are one locked step.
       exclusive: (fn) => withFileLock(tokensFile, fn),
@@ -2444,7 +2498,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const routes = [
     ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
-    ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now })] : []),
+    ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}) })] : []),
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
     ...(v.runlogs ? [runLogRoutes({ root: resolve(v.runlogs) })] : []),
     ...(v.commons ? [commonsRoutes({ root: resolve(v.commons), handle })] : []),
@@ -2500,6 +2554,28 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const publicList = [helpRoutes(), frontDoorRoutes({ keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend() }), academyRoutes({ log: () => handle.log as never }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  // The sponsor-less review (rows DK542, DK546): every --keyonly-review-interval seconds (default 300) the slashes of each key-only tenant are counted from the log; three ban its key and address and suspend the tenant,
+  // two ask the Clinic for a quarantine, which the service cannot sign (the Clinic's key is the owner's): the request waits in <tokens>.keyonly-pending.json for `asp clinic keyonly-freeze`.
+  if (signup && keyOnlyPending && !v["no-key-only-signup"]) {
+    const every = Math.max(1, num("keyonly-review-interval", 300)) * 1000;
+    const pass = async () => {
+      try {
+        const rows = await reviewKeyOnly({
+          log: handle.log as never, tenants: tenantSource!, bans: keyOnlyBans, now,
+          suspend: (name, why) => { setSuspension({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now }, "the sponsor-less review", "local", name, true, why); },
+          quarantine: async (did, name, slashes) => {
+            const live = stateOf(did, (await handle.log.quarantinesOf(did)) as never, Date.parse(now()));
+            if (!live && keyOnlyPending.add({ did, tenant: name, slashes, at: now() })) io.out(`  sponsor-less review: ${name} has ${slashes} slashes; a Clinic quarantine is waiting for asp clinic keyonly-freeze`);
+          },
+        });
+        for (const r of rows) if (r.action === "ban") io.out(`  sponsor-less review: ${r.tenant} banned by key and address after ${r.slashes} slashes`);
+      } catch (e) { io.out(`  sponsor-less review failed: ${(e as Error).message}`); }
+    };
+    const timer = setInterval(() => { void pass(); }, every);
+    timer.unref();
+    server.on("close", () => clearInterval(timer));
+    (server as unknown as { keyOnlyReview?: () => Promise<void> }).keyOnlyReview = pass;
+  }
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
   mailPort = addr.port;
@@ -4667,7 +4743,7 @@ async function clinicCommand(home: string, sub: string | undefined, v: Values, i
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await clinicCmd(sub, { log: local, io, now, signerFor, actions: () => collectWatchActions(local), flags: { emergency: v.emergency, by: v.by, reason: v.reason, exam: v.exam, revouch: v.revouch, report: v.report, level: v.level, days: v.days, "min-agents": v["min-agents"], window: v.window, all: v.all, quarantine: v.quarantine, member: v.member, evidence: v.evidence, agent: v.agent, json: v.json, skill: v.skill, issue: v.issue, order: v.order, kind: v.kind, contract: v.contract, passed: v.passed, violations: v.violations, slot: v.slot, seed: v.seed, "probe-task": v["probe-task"] } });
+    return await clinicCmd(sub, { service: io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN ? { url: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN } : undefined, log: local, io, now, signerFor, actions: () => collectWatchActions(local), flags: { emergency: v.emergency, by: v.by, reason: v.reason, exam: v.exam, revouch: v.revouch, report: v.report, level: v.level, days: v.days, "min-agents": v["min-agents"], window: v.window, all: v.all, quarantine: v.quarantine, member: v.member, evidence: v.evidence, agent: v.agent, json: v.json, skill: v.skill, issue: v.issue, order: v.order, kind: v.kind, contract: v.contract, passed: v.passed, violations: v.violations, slot: v.slot, seed: v.seed, "probe-task": v["probe-task"] } });
   } catch (e) {
     if (e instanceof ClinicUsage) throw new UsageError(e.message);
     throw e;

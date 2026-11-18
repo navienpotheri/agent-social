@@ -13,6 +13,8 @@ import { HEALTH, checkupDue, diagnosisOf, driftSeries, findContagion, jobOf, sco
 export class ClinicUsage extends Error {}
 
 export interface ClinicOpts {
+  /** The service and an admin token, for the commands that read the service's own lists (keyonly-freeze). */
+  service?: { url: string; token: string } | undefined;
   log: LogHandle;
   io: { out: (l: string) => void; err: (l: string) => void };
   now: () => string;
@@ -233,6 +235,37 @@ export async function clinicCmd(sub: string | undefined, o: ClinicOpts): Promise
       o.io.out(`    order ${ores.id}: ${kind.replace("_", " ")} of ${f.skill ?? "foundations"}, due within 14 days${d.severity === "quarantine_recommended" ? "; a quarantine at level observe is recommended while the cause is found" : ""}`);
     }
     return sub === "checkup" && flagged ? 1 : 0;
+  }
+  if (sub === "keyonly-freeze") {
+    // The quarantines the service asked for after a sponsor-less agent's repeat slashes (rows DK542, DK546). The service holds no Clinic key: the Clinic signs here, on the owner's machine, one interim quarantine
+    // per agent (at most 7 days), appends it to the log and tells the service it is done. Needs an admin token (ASP_LOG_URL, ASP_LOG_TOKEN). Nothing is settled and no bond is slashed by this.
+    if (!o.service) throw new ClinicUsage("asp clinic keyonly-freeze needs the service and an admin token: set ASP_LOG_URL and ASP_LOG_TOKEN");
+    const by = f.by ?? CLINIC_DID;
+    const level = f.level ?? "halt";
+    if (level !== "observe" && level !== "halt") throw new ClinicUsage("--level is observe or halt");
+    const days = f.days === undefined ? 7 : Number(f.days);
+    if (!(days > 0 && days <= 7)) throw new ClinicUsage("--days is more than 0 and at most 7 (a longer quarantine needs a Court)");
+    const api = async (path: string, init?: { method: string; body: string }) => {
+      const res = await fetch(new URL(path, o.service!.url.endsWith("/") ? o.service!.url : o.service!.url + "/"), { ...(init ?? {}), headers: { authorization: `Bearer ${o.service!.token}`, "content-type": "application/json" } });
+      const j = (await res.json().catch(() => undefined)) as { ok?: boolean; error?: { message?: string } } & Record<string, unknown>;
+      if (!res.ok || !j?.ok) throw new Error(j?.error?.message ?? `the service answered ${res.status} to ${path}`);
+      return j;
+    };
+    const pending = ((await api("admin/keyonly-pending")).pending ?? []) as { did: string; tenant: string; slashes: number }[];
+    if (!pending.length) { o.io.out("no quarantine is waiting"); return 0; }
+    const done: string[] = [];
+    for (const p of pending) {
+      const at = o.now();
+      const rec = createRecord({ type: "quarantine", issuer: by, subject: null, prev: null, body: { members: [p.did], level, reason: `a sponsor-less agent with ${p.slashes} slashes of its own bond`, until: iso(Date.parse(at) + days * DAY) }, issued_at: at }, o.signerFor(by));
+      try {
+        const res = await o.log.append(rec);
+        o.io.out(`quarantine ${res.id}: ${p.did} (${p.tenant}) frozen at ${level} until ${iso(Date.parse(at) + days * DAY)}`);
+        done.push(p.did);
+      } catch (e) { o.io.err(`  ${p.did}: not quarantined: ${(e as Error).message}`); }
+    }
+    if (done.length) await api("admin/keyonly-pending/ack", { method: "POST", body: JSON.stringify({ dids: done }) });
+    o.io.out(`${done.length} of ${pending.length} done. Release a member after a clean run: asp clinic release --quarantine <id> --member <did>`);
+    return done.length === pending.length ? 0 : 1;
   }
   if (sub === "cohort-freeze") {
     const by = f.by ?? CLINIC_DID;

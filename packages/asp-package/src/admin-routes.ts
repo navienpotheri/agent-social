@@ -45,7 +45,7 @@ export class AdminAudit {
   }
 }
 
-export interface AdminOptions { tokensFile: string; blockedFile: string; audit: AdminAudit; now: () => string }
+export interface AdminOptions { tokensFile: string; blockedFile: string; audit: AdminAudit; now: () => string; /** The quarantines the sponsor-less review asks the Clinic for (rows DK540 to DK542, DK546). */ pending?: { list(): unknown[]; ack(dids: string[]): number } }
 
 /** Suspends or resumes a tenant in the tokens file (under the file lock sign-up uses), and records it. Returns an error text or undefined. */
 export function setSuspension(o: AdminOptions, by: string, via: "api" | "local", name: string, suspend: boolean, reason?: string): string | undefined {
@@ -96,8 +96,14 @@ export function adminRoutes(o: AdminOptions) {
         const tenants: Tenant[] = JSON.parse(readFileSync(o.tokensFile, "utf8"));
         return send(200, { ok: true, tenants: tenants.map((t) => ({ name: t.name, role: t.role, suspended: t.suspended ?? null })) });
       }
+      if (o.pending && req.method === "GET" && url.pathname === "/admin/keyonly-pending") return send(200, { ok: true, pending: o.pending.list() });
       if (req.method !== "POST") return send(405, { ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "GET or POST" } });
       const body = await readBody(req);
+      if (o.pending && url.pathname === "/admin/keyonly-pending/ack") {
+        const dids = Array.isArray(body.dids) ? body.dids.filter((d): d is string => typeof d === "string") : [];
+        o.audit.add({ at: o.now(), by, via: "api", action: "keyonly_quarantine_ack", target: dids.join(",").slice(0, 200) } as never);
+        return send(200, { ok: true, acknowledged: o.pending.ack(dids) });
+      }
       const reason = typeof body.reason === "string" ? body.reason.slice(0, 300) : undefined;
       const m = /^\/admin\/tenants\/([^/]+)\/(suspend|resume)$/.exec(url.pathname);
       if (m) {

@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 196 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 198 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (25)</summary><pre>Most people use only these.
 
 asp
@@ -538,7 +538,7 @@ asp mail preview|queue|pending|watch|address
     The end-of-job mail and alerts; set where they go
 asp dashboard [--port n]
     A page on your machine: agents, jobs, approvals, alerts, where every credit is</pre></details>
-<details><summary>Running a service (11)</summary><pre>For an operator.
+<details><summary>Running a service (13)</summary><pre>For an operator.
 
 asp serve --db &lt;postgres-url|local:dir&gt; --tokens &lt;file&gt;
     Run the log service (add --signup, --packages, --runlogs, --commons, --known-bad, TLS and Google options)
@@ -561,7 +561,11 @@ asp eval run [&lt;scenario&gt;]
 asp signup --service &lt;url&gt; --name &lt;name&gt; --accept-terms
     The command-line sign-up route (closed when Google sign-up is required)
 asp enrol --service &lt;url&gt; --name &lt;name&gt; --accept-terms
-    An agent with only a key enrols itself in one call: makes a key, proves it, solves the proof of work, saves the login (closed by --no-key-only-signup)</pre></details>
+    An agent with only a key enrols itself in one call: makes a key, proves it, solves the proof of work, saves the login (closed by --no-key-only-signup)
+asp clinic keyonly-freeze [--by &lt;did&gt;] [--level observe|halt] [--days 1-7]
+    Sign the quarantines the service queued after a sponsor-less agent's repeat slashes (needs an admin token); acknowledges each
+asp society mcp [--service &lt;url&gt;]
+    Serve the society's front-door tools to an agent runtime over MCP on stdio (enrol, look around, claim starter credits)</pre></details>
 <details><summary>The records the protocol defines (81)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report            A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
