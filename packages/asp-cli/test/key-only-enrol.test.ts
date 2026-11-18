@@ -26,10 +26,10 @@ async function serve(dir: string, extra: string[]) {
   });
   return { url, tokens, stop: () => server.kill() };
 }
-async function asp(args: string[]) {
+async function asp(args: string[], extraEnv: Record<string, string> = {}) {
   const out: string[] = [], err: string[] = [];
-  const home = mkdtempSync(join(tmpdir(), "asp-enrol-home-"));
-  const io: Io = { out: (l) => out.push(l), err: (l) => err.push(l), env: { ASP_HOME: home }, cwd: home };
+  const home = extraEnv.ASP_HOME ?? mkdtempSync(join(tmpdir(), "asp-enrol-home-"));
+  const io: Io = { out: (l) => out.push(l), err: (l) => err.push(l), env: { ASP_HOME: home, ...extraEnv }, cwd: home };
   const code = await main(args, io);
   return { code, out: out.join("\n"), err: err.join("\n"), home };
 }
@@ -44,10 +44,16 @@ test("DK540 and DK547: asp enrol enrols a key with no person; the login and key 
     const r = await asp(["enrol", "--service", s.url, "--name", "lone-agent", "--accept-terms"]);
     assert.equal(r.code, 0, r.err);
     assert.match(r.out, /enrolled as lone-agent .* your identity is did:key:z/);
-    assert.match(r.out, /100 at once, 400 after your first accepted job/);
+    assert.match(r.out, /identity written to the service/);
+    assert.match(r.out, /starter credits/);
     const cfg = JSON.parse(readFileSync(join(r.home, "config.json"), "utf8"));
     assert.equal(cfg.tenant, "lone-agent");
+    assert.equal(cfg.identities.agent.startsWith("did:key:z"), true);
+    assert.notEqual(cfg.identities.me, cfg.identities.agent);
+    assert.notEqual(cfg.identities.bank, cfg.identities.me);
+    for (const d of [cfg.identities.me, cfg.identities.agent, cfg.identities.bank]) { const seen = await asp(["identity", "show", d], { ASP_HOME: r.home, ASP_LOG_URL: s.url, ASP_LOG_TOKEN: cfg.token }); assert.equal(seen.code, 0, `${d}: ${seen.err}`); }
     const key = JSON.parse(readFileSync(join(r.home, "enrol-key.json"), "utf8"));
+    assert.equal(key.seed, undefined, "the seed lives in the key store, not here");
     assert.match(key.did, /^did:key:z/);
     const tenant = JSON.parse(readFileSync(s.tokens, "utf8")).find((t: { name: string }) => t.name === "lone-agent");
     assert.equal(tenant.signup.keyOnly.did, key.did);

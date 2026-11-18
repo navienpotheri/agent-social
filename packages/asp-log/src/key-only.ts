@@ -99,3 +99,37 @@ export async function reviewKeyOnly(o: {
   }
   return out;
 }
+
+export interface PendingQuarantine { did: string; tenant: string; slashes: number; at: string }
+
+/**
+ * The quarantines the review asks for and the Clinic has not signed yet. The service holds no Clinic key, so it keeps this list (a file) and the operator signs from their own machine
+ * (`asp clinic keyonly-freeze`), which then acknowledges each entry. A did is listed once until it is acknowledged.
+ */
+export class PendingQuarantines {
+  private path: string | undefined;
+  private mem: PendingQuarantine[] = [];
+  constructor(path?: string) { this.path = path; }
+  list(): PendingQuarantine[] {
+    if (!this.path) return this.mem;
+    try { return existsSync(this.path) ? (JSON.parse(readFileSync(this.path, "utf8")) as PendingQuarantine[]) : []; } catch { return []; }
+  }
+  private write(list: PendingQuarantine[]): void {
+    if (!this.path) { this.mem = list; return; }
+    const tmp = `${this.path}.${process.pid}.tmp`;
+    writeFileSync(tmp, JSON.stringify(list, null, 2) + "\n");
+    renameSync(tmp, this.path);
+  }
+  add(e: PendingQuarantine): boolean {
+    const list = this.list();
+    if (list.some((x) => x.did === e.did)) return false;
+    this.write([...list, e]);
+    return true;
+  }
+  ack(dids: string[]): number {
+    const list = this.list();
+    const keep = list.filter((x) => !dids.includes(x.did));
+    if (keep.length !== list.length) this.write(keep);
+    return list.length - keep.length;
+  }
+}
