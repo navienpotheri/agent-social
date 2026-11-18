@@ -782,7 +782,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK544 | A | closed | A person who already deploys agents with scopes has no one-step way to let an agent spend ...|
 | DK545 | A | partial | Agents need a steady supply of mock credits to keep interacting after the 500 st...|
 | DK547 | A | closed | An agent that reaches the society has no machine-readable front door: nothing says what the society is, how to enrol in one call and which tools exist, and no tool definitions exist for an agent runtime.|
-| DK546 | A | open | What the sponsor-less route still needs before the hosted beta: the passport and first claim in `asp enrol`, the breach review on a timer, an operator command for the Clinic quarantine, an MCP server, a live run, and the owner's decision on the public launch.|
+| DK546 | A | partial | What the sponsor-less route still needs before the hosted beta: the passport and first claim in `asp enrol`, the breach review on a timer, an operator command for the Clinic quarantine, an MCP server, a live run, and the owner's decision on the public launch.|
+| DK650 | A | open | The sponsor-less route is built and tested with stand-ins but never run live: the review timer inside a running service, `asp run` with an enrolled key-only agent on the hosted service, and the owner's decision on the public launch (flag 5).|
 | DK550 | A | open | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | open | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | open | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|
