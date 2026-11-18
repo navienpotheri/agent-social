@@ -30,6 +30,7 @@ textarea{width:100%;min-height:96px;font:11px/1.35 ui-monospace,Consolas,monospa
     <div class="row"><span class="sub">Road width</span><select id="wd"><option value="3">3 blocks</option><option value="4" selected>4 blocks</option><option value="5">5 blocks</option></select><span class="sub">Snap</span><select id="sn"><option value="1">1</option><option value="2" selected>2</option><option value="4">4</option></select></div>
     <div class="row"><button id="undo">Undo</button><button id="redo">Redo</button><button id="reset">Start from the default plan</button><button id="clear">Clear roads</button></div>
     <div class="status" id="status" aria-live="polite"></div>
+    <div class="hint" id="saved">Your plan is saved in this browser after every change.</div>
     <div class="hint"><b>Draw road:</b> tap a start point, then an end point. A straight line stays straight; hold Shift (or tap a point off the line) and it bends with a right angle. <b>Erase:</b> tap a road. <b>Move building:</b> drag a building; its doors and their road spurs follow.</div>
     <div class="row"><button id="export">Copy plan as JSON</button><button id="import">Load the JSON below</button></div>
     <textarea id="json" aria-label="Plan as JSON" spellcheck="false"></textarea>
@@ -116,6 +117,19 @@ textarea{width:100%;min-height:96px;font:11px/1.35 ui-monospace,Consolas,monospa
     box.value = out; box.select(); try { navigator.clipboard.writeText(out).then(function () {}, function () {}); } catch (e) {}
   };
   document.getElementById("import").onclick = function () { try { push(); var o = JSON.parse(box.value); roads = o.roads; if (o.roadWidth) RW = o.roadWidth; (o.bld || []).forEach(function (q, i) { if (BLD[i]) { BLD[i].x = q.x; BLD[i].z = q.z; BLD[i].rot = q.rot; } }); draw(); } catch (e) { document.getElementById("status").textContent = "That JSON could not be read: " + e.message; } };
+  var KEY = "society-road-plan-v1";
+  function state() { return { roads: roads, rw: RW, bld: BLD.map(function (b) { return { n: b.n, x: b.x, z: b.z, rot: b.rot }; }) }; }
+  function apply(o) { if (!o || !o.roads) return false; roads = o.roads; if (o.rw) RW = o.rw; (o.bld || []).forEach(function (q, i) { if (BLD[i]) { BLD[i].x = q.x; BLD[i].z = q.z; BLD[i].rot = q.rot; } }); return true; }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state())); document.getElementById("saved").textContent = "Saved in this browser at " + new Date().toLocaleTimeString() + ". Copy the plan as JSON as well, to keep a copy outside the browser."; } catch (e) { document.getElementById("saved").textContent = "This browser cannot keep the plan between visits: copy it as JSON."; } }
+  ["pointerup", "click"].forEach(function (ev) { cv.addEventListener(ev, save); });
+  ["undo", "redo", "reset", "clear", "import"].forEach(function (id) { document.getElementById(id).addEventListener("click", save); });
+  var hot = window.claude && window.claude.hot;
+  try { if (hot && hot.snapshot) hot.snapshot(state); } catch (e) {}
+  var restored = false;
+  try { if (hot && hot.data && hot.data.roads) restored = apply(hot.data); } catch (e) {}
+  if (!restored) { try { var raw = localStorage.getItem(KEY); if (raw) { restored = apply(JSON.parse(raw)); } } catch (e) {} }
+  document.getElementById("wd").value = String(RW);
+  if (restored) document.getElementById("saved").textContent = "Your last plan was restored.";
   draw();
 })();
 </script>
