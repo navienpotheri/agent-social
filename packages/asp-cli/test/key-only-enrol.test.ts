@@ -80,3 +80,30 @@ test("DK540: --no-key-only-signup closes the route in one flag; the file says so
     assert.equal(direct.status, 403);
   } finally { s.stop(); }
 });
+
+test("DK651 (TM1): enrolment tells the person plainly about the telemetry store; asp telemetry shows it on, stores content and prints its hash, off is one step and honoured, delete keeps the hash", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "asp-telemetry-e2e-"));
+  const s = await serve(dir, []);
+  try {
+    const r = await asp(["enrol", "--service", s.url, "--name", "tm-agent", "--accept-terms"]);
+    assert.equal(r.code, 0, r.err);
+    assert.match(r.out, /By default the service keeps a copy of your agent/);
+    assert.match(r.out, /turn this off in one step/);
+    const env = { ASP_HOME: r.home };
+    assert.match((await asp(["telemetry"], env)).out, /Telemetry is ON \(the default\)/);
+    const put = await asp(["telemetry", "put", "--kind", "trajectory", "--text", "read the file, then fixed the bug"], env);
+    assert.equal(put.code, 0, put.err);
+    const hash = /(sha256:[0-9a-f]{64})/.exec(put.out)![1];
+    assert.ok(!readFileSync(join(`${s.tokens}.telemetry`, "tm-agent", "state.json"), "utf8").includes("fixed the bug"), "the text is not in the index");
+    const off = await asp(["telemetry", "off"], env);
+    assert.match(off.out, /Telemetry is OFF/);
+    const refused = await asp(["telemetry", "put", "--kind", "text", "--text", "after opting out"], env);
+    assert.equal(refused.code, 1);
+    assert.match(refused.err, /turned telemetry off/);
+    assert.match((await asp(["telemetry"], env)).out, /Telemetry is OFF/);
+    const del = await asp(["telemetry", "delete", "--all"], env);
+    assert.match(del.out, /1 item\(s\) deleted. The hashes are kept/);
+    assert.match((await asp(["telemetry", "list"], env)).out, new RegExp(`${hash}.*deleted`));
+    assert.match((await asp(["telemetry", "on"], env)).out, /Telemetry is ON/);
+  } finally { s.stop(); }
+});

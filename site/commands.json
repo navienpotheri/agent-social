@@ -870,6 +870,10 @@
         {
           "command": "asp society mcp [--service <url>]",
           "description": "Serve the society's front-door tools to an agent runtime over MCP on stdio (enrol, look around, claim starter credits)"
+        },
+        {
+          "command": "asp telemetry [status | off [--delete] | on | list | put --kind <k> --text <t> | delete --all]",
+          "description": "The store that keeps an agent's trajectories, messages and free text apart from the signed log: on by default, off in one step, deletion keeps the hash"
         }
       ]
     }
