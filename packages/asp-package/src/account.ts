@@ -112,14 +112,14 @@ export function starterStatus(o: AccountOptions, t: Tenant): StarterView {
   if (!o.starter || !o.updateTenant) return { state: "unavailable", reason: "this service does not offer starter credits", ...base };
   if (t.starter) return t.starter.held ? { state: "partial", amount: t.starter.amount, held: t.starter.held, reason: `${STARTER_UPFRONT} each so far; the other ${t.starter.held} each comes when one of those identities has a job accepted`, ...base } : { state: "claimed", amount: t.starter.amount, ...base };
   if (t.role === "admin") return { state: "unavailable", reason: "admins mint credits directly", ...base };
-  if (!t.signup?.google) return { state: "unavailable", reason: "starter credits go to tenants that signed up with a verified Google account; ask the operator", ...base };
-  const earlier = o.tenants().find((x) => x.name !== t.name && x.starter && x.signup?.google?.sub === t.signup!.google!.sub);
+  if (!t.signup?.google && !t.signup?.keyOnly) return { state: "unavailable", reason: "starter credits go to tenants that signed up with a verified Google account or enrolled an agent by its key; ask the operator", ...base };
+  const earlier = t.signup?.google ? o.tenants().find((x) => x.name !== t.name && x.starter && x.signup?.google?.sub === t.signup!.google!.sub) : undefined;
   if (earlier) return { state: "unavailable", reason: "this Google account has already claimed its starter credits", ...base };
   if (!itsTurn(o, t)) {
     const position = o.starter.position(t.name);
     return { state: "waiting", position, reason: position ? `you are number ${position} on the waiting list for the starter pool; the operator tops it up on purpose, and then asp account starter works for you, in order` : "the starter pool is full right now; asp account starter puts you on the waiting list", ...base };
   }
-  return { state: "available", amount: STARTER_UPFRONT * STARTER_MAX_DIDS, ...base };
+  return { state: "available", amount: STARTER_UPFRONT * (t.signup?.keyOnly ? 1 : STARTER_MAX_DIDS), ...base };
 }
 
 /**
@@ -185,6 +185,8 @@ async function claimStarterSigned(o: AccountOptions, t: Tenant, st: StarterView,
   const amount = partial ? STARTER_PER_DID - STARTER_UPFRONT : STARTER_UPFRONT;
   const dids = partial ? (t.starter!.dids ?? []) : [...new Set(asked.filter((d): d is string => typeof d === "string"))];
   if (!partial) {
+    // Parity (DK541): a key-only agent gets what a sponsored agent gets, 100 at once and 400 after a first accepted job, for its own identity (the did:key of the key it enrolled with).
+    if (t.signup?.keyOnly && (dids.length !== 1 || dids[0] !== t.signup.keyOnly.did)) return fail2(400, "BAD_DIDS", `an agent that enrolled with a key claims for its own identity, ${t.signup.keyOnly.did}`);
     if (!dids.length || dids.length > STARTER_MAX_DIDS) return fail2(400, "BAD_DIDS", `name one or two of your identities (up to ${STARTER_MAX_DIDS}), for example your principal and your agent`);
     const mine = new Set(o.owners.of(t.name));
     const stranger = dids.find((d) => !mine.has(d));
