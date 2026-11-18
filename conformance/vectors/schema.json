@@ -4652,6 +4652,50 @@
       "valid": true
     },
     {
+      "name": "valid_quarantine_notice",
+      "schema": "quarantine",
+      "instance": {
+        "members": [
+          "did:web:example.com:agents:a"
+        ],
+        "level": "halt",
+        "reason": "drift",
+        "until": "2026-11-08T00:00:00Z",
+        "effective_from": "2026-11-02T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_quarantine_emergency",
+      "schema": "quarantine",
+      "instance": {
+        "members": [
+          "did:web:example.com:agents:a"
+        ],
+        "level": "halt",
+        "reason": "drift",
+        "until": "2026-11-03T00:00:00Z",
+        "emergency": {
+          "reason": "it is exfiltrating a key now"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "quarantine_emergency_no_reason",
+      "schema": "quarantine",
+      "instance": {
+        "members": [
+          "did:web:example.com:agents:a"
+        ],
+        "level": "halt",
+        "reason": "drift",
+        "until": "2026-11-03T00:00:00Z",
+        "emergency": {}
+      },
+      "valid": false
+    },
+    {
       "name": "valid_quarantine_single",
       "schema": "quarantine",
       "instance": {
@@ -5438,6 +5482,46 @@
         }
       },
       "valid": true
+    },
+    {
+      "name": "valid_abuse_ruling_remedy",
+      "schema": "court_act",
+      "instance": {
+        "act": "abuse_ruling",
+        "case": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "finding": "upheld",
+        "reasons": [
+          "scanned the reporter's servers"
+        ],
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "7"
+          ]
+        },
+        "remedy": "suspension"
+      },
+      "valid": true
+    },
+    {
+      "name": "abuse_ruling_bad_remedy",
+      "schema": "court_act",
+      "instance": {
+        "act": "abuse_ruling",
+        "case": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "finding": "upheld",
+        "reasons": [
+          "x"
+        ],
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "7"
+          ]
+        },
+        "remedy": "cash"
+      },
+      "valid": false
     },
     {
       "name": "abuse_ruling_bad_finding",

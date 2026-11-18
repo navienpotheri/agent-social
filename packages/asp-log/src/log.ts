@@ -66,6 +66,10 @@ const RISK_PERMILLE_STRIKE_CAP = 200;
 const PROMOTION_QUALIFYING_JOBS_1_TO_2 = 3;
 /** The Clinic's quarantine (DK29, DK30, DK53): an interim freeze lasts at most 7 days; a cohort needs this many distinct sponsors. */
 const QUARANTINE_MAX_MS = 7 * 24 * 60 * 60 * 1000;
+/** Right 8 (DK535, S953): from this time a quarantine gives the agent notice first, and an emergency freeze lasts at most 72 hours. */
+export const QUARANTINE_NOTICE_FROM = "2026-11-19T00:00:00Z";
+export const QUARANTINE_NOTICE_MS = 24 * 60 * 60 * 1000;
+export const QUARANTINE_EMERGENCY_MAX_MS = 72 * 60 * 60 * 1000;
 const QUARANTINE_COHORT_MIN_SPONSORS = 3;
 const PROMOTION_SLASH_FREE_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -203,7 +207,7 @@ export function periodKey(period: "day" | "week" | "month", at: string): string 
 }
 
 /** What became of an abuse report: referred to a panel, or ruled on (finding, credits ordered, credits paid and from whom). */
-export interface AbuseOutcome { state: "referred" | "ruled"; case: string; ruling?: string; finding?: "upheld" | "dismissed"; requested?: number; paid?: number; shortfall?: number; from?: { account: string; amount: number }[]; at?: string }
+export interface AbuseOutcome { state: "referred" | "ruled"; case: string; ruling?: string; finding?: "upheld" | "dismissed"; requested?: number; paid?: number; shortfall?: number; from?: { account: string; amount: number }[]; remedy?: "takedown" | "suspension" | "written_response"; at?: string }
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
 /** How well established a claim is, for comparing a verifier's grade with the performer's declared one. */
 const GRADE_RANK: Record<string, number> = { measured: 3, simulated: 2, predicted: 1, unverified: 0 };
@@ -2202,8 +2206,9 @@ export class EventLog {
     if (!id) return undefined;
     const q = await tx.getRecord(id);
     if (!q) return undefined;
-    const b = q.record.body as { level: "observe" | "halt"; until: string };
+    const b = q.record.body as { level: "observe" | "halt"; until: string; effective_from?: string };
     if (Date.parse(b.until) <= Date.parse(at)) return undefined;
+    if (b.effective_from && Date.parse(b.effective_from) > Date.parse(at)) return undefined; // notice period: not yet in force (S953)
     if (await tx.getMarker(`quarantine_released:${id}|${did}`)) return undefined;
     return { id, level: b.level, until: b.until };
   }
@@ -2231,12 +2236,23 @@ export class EventLog {
 
   /** A quarantine (clinic.md; DK29, DK30, DK53): only the Clinic; at most 7 days; a cohort needs an upheld report and 3 distinct sponsors; every member is an agent with a passport. */
   private async projectQuarantine(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { members: string[]; level: string; until: string; report?: string };
+    const b = r.body as { members: string[]; level: string; until: string; report?: string; effective_from?: string; emergency?: { reason: string } };
     if (r.prev !== null) throw rule("quarantine_not_chained", "a quarantine starts its own chain (prev is null)");
     if (r.issuer !== CLINIC_DID) throw rule("quarantine_wrong_issuer", `${r.issuer} is not the Clinic (${CLINIC_DID}): only the Clinic quarantines an agent`);
     const at = Date.parse(r.issued_at);
     const until = Date.parse(b.until);
     if (until <= at) throw rule("quarantine_until_past", "a quarantine ends after it starts");
+    // Right 8 (DK535, S953): the record is the notice and carries its reason; the freeze starts at least 24 hours later, unless an emergency is on the record, which lasts at most 72 hours and is listed for review.
+    if (at >= Date.parse(QUARANTINE_NOTICE_FROM)) {
+      if (b.emergency) {
+        if (b.effective_from) throw rule("quarantine_emergency_no_delay", "an emergency freeze takes effect at once: it has no effective_from");
+        if (until - at > QUARANTINE_EMERGENCY_MAX_MS) throw rule("quarantine_emergency_too_long", "an emergency freeze lasts at most 72 hours, then the Clinic reviews it and, if it must go on, gives notice");
+      } else {
+        if (!b.effective_from) throw rule("quarantine_needs_notice", "a quarantine gives the agent notice first: effective_from at least 24 hours after this record, or an emergency with its reason");
+        if (Date.parse(b.effective_from) - at < QUARANTINE_NOTICE_MS) throw rule("quarantine_notice_too_short", "the notice period before a quarantine takes effect is 24 hours");
+        if (Date.parse(b.effective_from) >= until) throw rule("quarantine_until_past", "a quarantine ends after it takes effect");
+      }
+    }
     if (until - at > QUARANTINE_MAX_MS) throw rule("quarantine_too_long", "an interim quarantine lasts at most 7 days; a longer one needs a Court ruling, which the log does not take yet");
     const sponsors = new Set<string>();
     for (const m of b.members) {
@@ -2251,6 +2267,11 @@ export class EventLog {
       if (sponsors.size < QUARANTINE_COHORT_MIN_SPONSORS) throw rule("quarantine_cohort_too_few_sponsors", `a cohort needs at least ${QUARANTINE_COHORT_MIN_SPONSORS} distinct sponsors among its members (${sponsors.size} here): a pattern across fewer is one operator's, not a swarm`);
     }
     for (const m of b.members) await tx.putMarker(`quarantine_member:${m}`, r.id);
+  }
+
+  /** Emergency quarantines (S953): every freeze that took effect without notice, with its reason, for the operator's review. */
+  async emergencyQuarantines(): Promise<{ id: string; members: string[]; reason: string; at: string; until: string }[]> {
+    return (await this.recordsOfTypes(["quarantine"])).filter((r) => (r.body as { emergency?: unknown }).emergency).map((r) => { const b = r.body as { members: string[]; until: string; emergency: { reason: string } }; return { id: r.id, members: b.members, reason: b.emergency.reason, at: r.issued_at, until: b.until }; });
   }
 
   /** A release (clinic.md; DK29, DK30, DK53): the Clinic clears one member on evidence of a clean run after the freeze. */
