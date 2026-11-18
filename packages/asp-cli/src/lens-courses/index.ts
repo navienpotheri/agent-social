@@ -2,6 +2,7 @@
 import "./evolving-evals.ts";
 import "./message-passing.ts";
 import "./reflection.ts";
+import "./rule-courses.ts";
 export { ENGINES, attestation, engineIds, sit, type CourseRun, type Engine, type Sitting } from "./engines.ts";
 export * from "./catalogue.ts";
 export { writeBack, REPLAY_TASKS } from "./writeback.ts";
