@@ -25,7 +25,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   <div><h1>Society map</h1><div class="sub">Prototype: drag to turn and tilt, wheel or pinch to zoom, tap a place to fly there. Mock credits, not money.</div></div>
   <div class="ctl" role="group" aria-label="Controls"><span class="sub">Agents</span>
     <button id="p8" aria-pressed="false">8</button><button id="p100" aria-pressed="true">100</button><button id="p1000" aria-pressed="false">1,000</button>
-    <button id="night" aria-pressed="false">Night</button></div>
+    <button id="night" aria-pressed="false">Night</button><button id="green" aria-pressed="false">Greenery</button></div>
 </div>
 <div class="chips" id="chips" role="group" aria-label="Places"></div>
 <div class="stage" id="stage"><div class="count" id="count"></div><div class="feed" id="feed" aria-live="polite"></div></div>
@@ -94,6 +94,8 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     col.setHex(PAL[T[q]]); var v = 0.9 + ((i2 * 7 + j2 * 13) % 9) / 45; if (T[q] === 0 && top > 0) v += 0.07; col.multiplyScalar(v); tm.setColorAt(q, col);
   }
   scene.add(tm);
+  var EARTH = { 0: 0xc9b48a, 5: 0xb39d74 };
+  function setGreen(on) { for (var q = 0; q < N * N; q++) { var t = T[q]; if (t !== 0 && t !== 5) continue; var i2 = q % N, j2 = Math.floor(q / N), v = 0.9 + ((i2 * 7 + j2 * 13) % 9) / 45; if (TOP[q] > 0 && on) v += 0.07; col.setHex(on ? PAL[t] : EARTH[t]).multiplyScalar(v); tm.setColorAt(q, col); } tm.instanceColor.needsUpdate = true; if (typeof trunk !== "undefined") { trunk.visible = on; leafA.visible = on; leafB.visible = on; } }
   function heightAt(x, z) { var i = cx(x), j = cx(z); if (i < 0 || j < 0 || i >= N || j >= N) return 0; return Math.max(0, TOP[ix(i, j)]); }
 
   // ---- buildings ----
@@ -235,10 +237,11 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   SPEC.forEach(function (s) { chip(s.n, function () { goal.set(s.x, heightAt(s.x, s.z), s.z); goalDist = 62; }); });
   chip("Housing", function () { goal.set(36, 0, 56); goalDist = 80; }); chip("Worlds gateway", function () { goal.set(-52, 0, 60); goalDist = 62; });
   document.getElementById("p8").onclick = function () { setPop(8); }; document.getElementById("p100").onclick = function () { setPop(100); }; document.getElementById("p1000").onclick = function () { setPop(1000); };
+  document.getElementById("green").onclick = function () { var on = this.getAttribute("aria-pressed") !== "true"; this.setAttribute("aria-pressed", String(on)); setGreen(on); };
   document.getElementById("night").onclick = function () {
     night = !night; this.setAttribute("aria-pressed", String(night)); scene.background.set(night ? NIGHT : DAY); scene.fog.color.set(night ? NIGHT : DAY);
     amb.intensity = night ? 0.28 : 0.62; sun.intensity = night ? 0.12 : 0.95; winMat.emissive.setHex(night ? 0xffd98a : 0x000000);
   };
-  window.addEventListener("resize", resize); resize(); setPop(100); loop();
+  window.addEventListener("resize", resize); resize(); setGreen(false); setPop(100); loop();
 })();
 </script>

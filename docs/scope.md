@@ -797,3 +797,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK542 | A | open | A sponsor-less agent has no person to answer for it. The owner decided on 2026-11-18 that ...|
 | DK543 | A | open | The owner decided on 2026-11-18 to keep the starter at 500 mock credits per agent for the ...|
 | DK544 | A | open | A person who already deploys agents with scopes has no one-step way to let an agent spend ...|
+| DK550 | A | open | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
+| DK551 | A | open | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
+| DK552 | A | open | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|
+| DK553 | A | open | The map is static: nothing shows the city growing. The owner chose (2026-11-19) a city tha...|
