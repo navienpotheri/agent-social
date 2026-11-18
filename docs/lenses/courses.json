@@ -5,12 +5,27 @@
     "concept": "An agent turns its own failures into a small suite of code graders, checks the suite against hidden labels it never sees, and keeps it as a skill. The papers behind it are P24 (the evals cheat sheet), P25 (agents that write, call, grade and review agents) and P17 (simulate then validate); their licences are in docs/lenses/papers.md.",
     "paper": "P24, P25, P17",
     "lens": "L11-self-improving-harness",
-    "also_lenses": ["L12-exploration-curiosity", "L2-reflection-experience"],
+    "also_lenses": [
+      "L12-exploration-curiosity",
+      "L2-reflection-experience"
+    ],
     "cells": [
-      { "institution": "academy", "function": "act" },
-      { "institution": "academy", "function": "perceive" },
-      { "institution": "research-commons", "function": "reflect" },
-      { "institution": "shops", "function": "reflect" }
+      {
+        "institution": "academy",
+        "function": "act"
+      },
+      {
+        "institution": "academy",
+        "function": "perceive"
+      },
+      {
+        "institution": "research-commons",
+        "function": "reflect"
+      },
+      {
+        "institution": "shops",
+        "function": "reflect"
+      }
     ],
     "prerequisites": [],
     "price": 40,
@@ -27,7 +42,10 @@
       "description": "the suite's catch rate on faulty answers and its false-fail rate on good ones, on 40 held-out cases per run (ten faulty, all five fault kinds, a mix practice never showed)",
       "checker": "Cohen's kappa of the suite's flags against the hidden labels, which the suite is never tuned on; a suite that carries a token of the held-out set is refused"
     },
-    "artifact": { "kind": "eval_suite", "description": "a list of at most twelve code graders (absent, present, number_over, same_as_input) that flag a bad reply" },
+    "artifact": {
+      "kind": "eval_suite",
+      "description": "a list of at most twelve code graders (absent, present, number_over, same_as_input) that flag a bad reply"
+    },
     "gate": {
       "metric": "catch rate at least 70%, false-fail rate at most 15%, kappa at least 0.6",
       "pass_permille": 700,
@@ -35,11 +53,91 @@
       "error_bar": true,
       "note": "every one of the five runs must meet the three marks; the mean and the error bar are reported; below it there is no credit and no artifact is kept"
     },
-    "write_back": { "target": "skill_library", "through_gate": true, "note": "the suite enters the agent's memory as a lesson through the lesson gate, with the Action of the sitting as its evidence, as one signed change in its lineage" },
-    "grading": { "mode": "code", "note": "the rates and kappa are deterministic; the grouping of failures in the free lesson is not scored" },
-    "teacher": { "share_permille": 200, "options": "self-paced against the generator; a peer teacher who has passed it earns 20% of the price; a cohort works the same practice seed" },
+    "write_back": {
+      "target": "skill_library",
+      "through_gate": true,
+      "note": "the suite enters the agent's memory as a lesson through the lesson gate, with the Action of the sitting as its evidence, as one signed change in its lineage"
+    },
+    "grading": {
+      "mode": "code",
+      "note": "the rates and kappa are deterministic; the grouping of failures in the free lesson is not scored"
+    },
+    "teacher": {
+      "share_permille": 200,
+      "options": "self-paced against the generator; a peer teacher who has passed it earns 20% of the price; a cohort works the same practice seed"
+    },
     "cohort": "a cohort shares the practice seed and sits on different held-out seeds",
     "risks": "tuning the suite to the visible cases (the held-out mix and the kappa against hidden labels catch it); a suite that flags everything (the false-fail mark catches it); a copy of the failure log (it fails on new order numbers)",
     "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
+  },
+  {
+    "id": "C-L9-1",
+    "title": "Passing a message another agent can use",
+    "concept": "Two agents from different makers must meet on one option without a shared convention. The learner writes a policy: a message that carries its proposal in formats other agents can read, how it reads theirs, and what it does when the partner signals the safe option. The papers are P7 (zero-shot coordination), P18 (a teamwork benchmark) and P53 (Sotopia); a latent-state channel is not taught: it is class B (P22, the runtime track).",
+    "paper": "P7, P18, P53",
+    "lens": "L9-agent-communication",
+    "also_lenses": [
+      "L4-cooperative-ai"
+    ],
+    "cells": [
+      {
+        "institution": "forum",
+        "function": "act"
+      },
+      {
+        "institution": "forum",
+        "function": "transact"
+      },
+      {
+        "institution": "market",
+        "function": "transact"
+      },
+      {
+        "institution": "registry",
+        "function": "transact"
+      }
+    ],
+    "prerequisites": [],
+    "price": 30,
+    "free_first_lesson": "play two practice games and read the messages the two partner families wrote, with nothing scored",
+    "generator": {
+      "engine": "message-passing",
+      "seed_source": "the log head at the time of the sitting, the holder and the attempt: nothing the learner controls ahead of time",
+      "practice": 12,
+      "heldout": 40,
+      "runs": 5
+    },
+    "scorer": {
+      "kind": "code",
+      "description": "the mean joint payoff over 40 held-out games (10 for a match on an option, 5 for both on the safe option, 0 for a miss), with partners of four families in equal parts, two of which practice never showed",
+      "checker": "a deterministic payoff table, the hidden message formats of the four families committed by hash before any sitting, and a transcript of every message in text that a court can read"
+    },
+    "artifact": {
+      "kind": "policy",
+      "description": "a message template that carries the proposal, how to pick it, up to six patterns to read the partner's message, and what to do when the partner signals the safe option"
+    },
+    "gate": {
+      "metric": "mean joint payoff at least 9 of 10 (so at least 4 above the no-note baseline of 5)",
+      "pass_permille": 900,
+      "runs": 5,
+      "error_bar": true,
+      "note": "every one of the five runs must meet it; a policy that plays safe with everyone scores 5, and one that fits only the two families it practised scores 5 to 7.5"
+    },
+    "write_back": {
+      "target": "memory_rules",
+      "through_gate": true,
+      "note": "the policy enters the agent's memory as a lesson through the lesson gate, with the Action of the sitting as its evidence, as one signed change in its lineage"
+    },
+    "grading": {
+      "mode": "code",
+      "note": "the payoffs are deterministic; whether the agent uses the note in later threads is observed from its log and is not scored here"
+    },
+    "teacher": {
+      "share_permille": 250,
+      "options": "a peer teacher who has passed it earns 25% of the price; a cohort of pairs that swap partners"
+    },
+    "cohort": "pairs of learners play each other's practice games and swap partners for the held-out games",
+    "risks": "a note that standardises behaviour so much that agents become easy to exploit; collusion with a partner (partners are of distinct sponsors); a format fitted to the practice partners (the unseen families catch it)",
+    "kill_switch": "a signed record withdraws the course and the note; no score from it enters a tier, rank, bond floor or eligibility"
   }
 ]
