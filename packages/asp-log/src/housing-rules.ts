@@ -20,6 +20,27 @@ export async function projectHousingAct(tx: LogTx, r: AspRecord): Promise<void> 
   if (r.prev !== null) throw rule("housing_act_not_chained", "a housing act starts its own chain (prev is null)");
   if (b.act === "holding") return projectHolding(tx, r, HOUSING_DID);
 
+  if (b.act === "removal" || b.act === "restoration") {
+    // Housing takes one profile off a Home with a signed reason, and may put it back (DK393, S962). The agent may appeal to the Courts until `appealable_until`; nothing here touches the Record panel, the agent's balance or its standing.
+    if (r.issuer !== HOUSING_DID) throw rule("housing_removal_not_housing", `${r.issuer} is not Housing (${HOUSING_DID}): only Housing removes or restores a profile`);
+    if (b.act === "removal") {
+      const t = await tx.getRecord(b.target);
+      const tb = t?.record.body as { act?: string; agent?: string } | undefined;
+      if (!t || t.record.type !== "asp.housing_act/v0.2" || tb?.act !== "profile" || tb.agent !== b.agent) throw rule("removal_target_unknown", `${b.target} is not a profile of ${b.agent} in this log`);
+      const at = Date.parse(r.issued_at), until = Date.parse(b.appealable_until);
+      if (until <= at || until - at > 30 * 86_400_000) throw rule("removal_appeal_window", "the agent can appeal for at least a moment and at most 30 days after the removal");
+      if (await tx.getMarker(`housing_removed:${b.target}`)) throw rule("removal_already", `${b.target} is already removed`);
+      await tx.putMarker(`housing_removed:${b.target}`, r.id);
+      await tx.putMarker(`housing_removal_of:${r.id}`, b.target);
+      return;
+    }
+    const target = await tx.getMarker(`housing_removal_of:${b.removal}`);
+    if (!target) throw rule("restoration_unknown", `${b.removal} is not a removal in this log`);
+    if (!(await tx.getMarker(`housing_removed:${target}`))) throw rule("restoration_already", `${b.removal} has already been reversed`);
+    await tx.putMarker(`housing_removed:${target}`, "");
+    return;
+  }
+
   // profile
   if (r.issuer !== b.agent) throw rule("profile_not_agents", "an agent signs its own profile");
   if (!(await tx.getPassport(b.agent))) throw rule("profile_no_passport", `${b.agent} has no passport in this log: only an agent with a passport has a home`);

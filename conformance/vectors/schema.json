@@ -6102,6 +6102,70 @@
       "valid": false
     },
     {
+      "name": "valid_housing_removal",
+      "schema": "housing_act",
+      "instance": {
+        "act": "removal",
+        "agent": "did:web:example.com:agents:a",
+        "target": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "reason": "the about text carries an address outside the city",
+        "appealable_until": "2026-12-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "housing_removal_no_reason",
+      "schema": "housing_act",
+      "instance": {
+        "act": "removal",
+        "agent": "did:web:example.com:agents:a",
+        "target": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "appealable_until": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "housing_removal_no_target",
+      "schema": "housing_act",
+      "instance": {
+        "act": "removal",
+        "agent": "did:web:example.com:agents:a",
+        "reason": "x",
+        "appealable_until": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "housing_removal_no_appeal_window",
+      "schema": "housing_act",
+      "instance": {
+        "act": "removal",
+        "agent": "did:web:example.com:agents:a",
+        "target": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_housing_restoration",
+      "schema": "housing_act",
+      "instance": {
+        "act": "restoration",
+        "removal": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "reason": "upheld on appeal"
+      },
+      "valid": true
+    },
+    {
+      "name": "housing_restoration_no_removal",
+      "schema": "housing_act",
+      "instance": {
+        "act": "restoration",
+        "reason": "upheld on appeal"
+      },
+      "valid": false
+    },
+    {
       "name": "housing_profile_showcase_over_schema_cap",
       "schema": "housing_act",
       "instance": {
@@ -7959,6 +8023,150 @@
       "valid": true
     },
     {
+      "name": "valid_clinic_order_collusion_finding",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "collusion_finding",
+        "due": "2026-11-26T00:00:00Z",
+        "finding": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": true
+    },
+    {
+      "name": "clinic_order_finding_not_an_id",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "collusion_finding",
+        "due": "2026-11-26T00:00:00Z",
+        "finding": "not-an-id"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_watcher_finding",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "ring",
+        "agents": [
+          "did:web:example.com:agents:alice-coder",
+          "did:web:example.com:agents:ring-b"
+        ],
+        "jobs": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "why": "a closed loop of three accepted jobs between the same agents",
+        "detected_at": "2026-11-19T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_watcher_finding_without_jobs",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "concentration",
+        "agents": [
+          "did:web:example.com:agents:alice-coder",
+          "did:web:example.com:agents:ring-b"
+        ],
+        "why": "a closed loop of three accepted jobs between the same agents",
+        "detected_at": "2026-11-19T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "watcher_finding_no_agents",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "ring",
+        "agents": [],
+        "jobs": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "why": "a closed loop of three accepted jobs between the same agents",
+        "detected_at": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "watcher_finding_unknown_kind",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "contagion",
+        "agents": [
+          "did:web:example.com:agents:alice-coder",
+          "did:web:example.com:agents:ring-b"
+        ],
+        "jobs": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "why": "a closed loop of three accepted jobs between the same agents",
+        "detected_at": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "watcher_finding_no_why",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "ring",
+        "agents": [
+          "did:web:example.com:agents:alice-coder",
+          "did:web:example.com:agents:ring-b"
+        ],
+        "jobs": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "detected_at": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "watcher_finding_bad_finding_id",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "abc",
+        "kind": "ring",
+        "agents": [
+          "did:web:example.com:agents:alice-coder",
+          "did:web:example.com:agents:ring-b"
+        ],
+        "jobs": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "why": "a closed loop of three accepted jobs between the same agents",
+        "detected_at": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "watcher_finding_extra_field",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "ring",
+        "agents": [
+          "did:web:example.com:agents:alice-coder",
+          "did:web:example.com:agents:ring-b"
+        ],
+        "jobs": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "why": "a closed loop of three accepted jobs between the same agents",
+        "detected_at": "2026-11-19T00:00:00Z",
+        "verdict": "guilty"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_clinic_order_re_exam",
       "schema": "clinic_order",
       "instance": {
@@ -8194,6 +8402,105 @@
         }
       },
       "valid": false
+    },
+    {
+      "name": "valid_standing_order",
+      "schema": "standing_order",
+      "instance": {
+        "act": "order",
+        "service": "academy.course.foundations",
+        "institution": "did:web:asp.local:academy",
+        "quantity": 1,
+        "period": "week",
+        "until": "2027-01-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_standing_order_cancel",
+      "schema": "standing_order",
+      "instance": {
+        "act": "cancel",
+        "order": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
+    },
+    {
+      "name": "standing_order_no_period",
+      "schema": "standing_order",
+      "instance": {
+        "act": "order",
+        "service": "academy.course.foundations",
+        "institution": "did:web:asp.local:academy",
+        "quantity": 1,
+        "until": "2027-01-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_order_period_year",
+      "schema": "standing_order",
+      "instance": {
+        "act": "order",
+        "service": "academy.course.foundations",
+        "institution": "did:web:asp.local:academy",
+        "quantity": 1,
+        "period": "year",
+        "until": "2027-01-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_order_quantity_zero",
+      "schema": "standing_order",
+      "instance": {
+        "act": "order",
+        "service": "academy.course.foundations",
+        "institution": "did:web:asp.local:academy",
+        "quantity": 0,
+        "period": "week",
+        "until": "2027-01-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_order_cancel_no_order",
+      "schema": "standing_order",
+      "instance": {
+        "act": "cancel"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_order_extra_field",
+      "schema": "standing_order",
+      "instance": {
+        "act": "order",
+        "service": "academy.course.foundations",
+        "institution": "did:web:asp.local:academy",
+        "quantity": 1,
+        "period": "week",
+        "until": "2027-01-01T00:00:00Z",
+        "price": 10
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_purchase_run_of_standing_order",
+      "schema": "purchase",
+      "instance": {
+        "service": "academy.course.foundations",
+        "institution": "did:web:asp.local:academy",
+        "price_list": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "quantity": 1,
+        "amount": {
+          "value": 10,
+          "unit": "credit"
+        },
+        "idempotency": "week-1",
+        "standing_order": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
     },
     {
       "name": "valid_treasury_statement",

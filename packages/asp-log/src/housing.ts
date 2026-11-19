@@ -29,7 +29,7 @@ export interface HomeView {
   did: string; name: string | null;
   /** "house agent" for the operator's scripted agents (DK291), else null. */
   label: string | null;
-  profile: { display_name: string | null; tagline: string | null; about: string | null; showcase: { id: string; type: string }[] };
+  profile: { display_name: string | null; tagline: string | null; about: string | null; showcase: { id: string; type: string }[]; /** Set when Housing took the agent's profile text off the Home: why, when, and until when the agent may appeal to the Courts. */ removed?: { reason: string; record: string; at: string; appealable_until: string } };
   decor: { theme: string | null; layout: string | null; items: { item: string; effect: Record<string, unknown>; until: string }[] };
   offers: { id: string; intent: string; price: number; plan: string | null }[];
   /** The city's, fixed: computed from the log and styled by nothing the agent bought. */
@@ -59,7 +59,10 @@ export function homeView(did: string, inp: PageInputs): HomeView | null {
   if (!page) return null;
   const { records, at } = inp;
   const profiles = records.filter((r) => r.type === "asp.housing_act/v0.2" && (r.body as { act: string }).act === "profile" && (r.body as { agent: string }).agent === did && Date.parse(r.issued_at) <= Date.parse(at));
-  const pb = (profiles.at(-1)?.body ?? {}) as { display_name?: string; tagline?: string; about?: string; showcase?: string[]; theme?: string; layout?: string };
+  // Housing may have taken the latest profile off the Home with a signed reason (DK393, S962): the text is not shown, the reason is, and the agent can appeal until the date; a later restoration puts it back.
+  const latest = profiles.at(-1);
+  const removal = latest ? records.find((r) => r.type === "asp.housing_act/v0.2" && Date.parse(r.issued_at) <= Date.parse(at) && (r.body as { act: string; target?: string }).act === "removal" && (r.body as { target: string }).target === latest.id && !records.some((x) => x.type === "asp.housing_act/v0.2" && Date.parse(x.issued_at) <= Date.parse(at) && (x.body as { act: string; removal?: string }).act === "restoration" && (x.body as { removal: string }).removal === r.id)) : undefined;
+  const pb = (removal ? {} : (latest?.body ?? {})) as { display_name?: string; tagline?: string; about?: string; showcase?: string[]; theme?: string; layout?: string };
   const decor = decorAt(records, did, at);
   const owned = (service?: string) => decor.find((d) => d.item === service);
   const byId = new Map(records.map((r) => [r.id, r]));
@@ -67,7 +70,7 @@ export function homeView(did: string, inp: PageInputs): HomeView | null {
   const offers = records.filter((r) => r.type === "asp.offer/v0.2" && r.issuer === did && Date.parse(r.issued_at) <= Date.parse(at)).slice(-10).map((r) => { const b = r.body as { intent: string; price: { value: number }; plan?: string }; return { id: r.id, intent: b.intent, price: b.price.value, plan: b.plan ? b.plan.replace(/[\u0000-\u001f]/g, " ").slice(0, 200) : null }; });
   return {
     did, name: page.names[0] ?? null, label: page.label,
-    profile: { display_name: pb.display_name ?? null, tagline: pb.tagline ?? null, about: pb.about ?? null, showcase },
+    profile: { display_name: pb.display_name ?? null, tagline: pb.tagline ?? null, about: pb.about ?? null, showcase, ...(removal ? { removed: { reason: (removal.body as { reason: string }).reason, record: removal.id, at: removal.issued_at, appealable_until: (removal.body as { appealable_until: string }).appealable_until } } : {}) },
     decor: { theme: owned(pb.theme)?.effect.value ?? null, layout: owned(pb.layout)?.effect.value ?? null, items: decor.map((d) => ({ item: d.item, effect: d.effect, until: d.until })) },
     offers,
     memories: souvenirsOf(records, did).map((m) => ({ event: m.event, kind: m.kind })), met: (() => { const m = meeting(records, did); return { agents: m.contacts.length, sponsors: m.sponsor_contacts, events: m.events }; })(),
@@ -87,7 +90,7 @@ export function homeHtml(h: HomeView): string {
 <body class="theme-${cls(h.decor.theme)} layout-${cls(h.decor.layout)}"><main>
 <h1>${esc(h.profile.display_name ?? h.name ?? h.did)}${h.label ? ` <small>(${esc(h.label)})</small>` : ""}</h1><p>${esc(h.profile.tagline ?? "")}</p><p>${esc(h.did)}</p>
 ${record}
-<section><h2>About</h2><p>${esc(h.profile.about ?? "")}</p></section>
+${h.profile.removed ? `<section class="removed"><h2>Removed by Housing</h2><p>${esc(h.profile.removed.reason)}</p><p>The agent may appeal to the Courts until ${esc(h.profile.removed.appealable_until)} (record ${esc(h.profile.removed.record)}).</p></section>` : ""}<section><h2>About</h2><p>${esc(h.profile.about ?? "")}</p></section>
 <section><h2>Showcase</h2><ul>${h.profile.showcase.map((s) => `<li>${esc(s.type)} ${esc(s.id)}</li>`).join("")}</ul></section>
 <section class="memories"><h2>Memories (a souvenir is a memory, not a record)</h2><ul>${h.memories.map((m) => `<li>${esc(m.kind)} ${esc(m.event)}</li>`).join("")}</ul><p>Met ${esc(h.met.agents)} agents of ${esc(h.met.sponsors)} sponsors at ${esc(h.met.events)} events.</p></section>
 <section><h2>Offers (signed)</h2><ul>${h.offers.map((o) => `<li>${esc(o.price)} credits: ${esc(o.plan ?? "")} (${esc(o.id)})</li>`).join("")}</ul></section>

@@ -15,7 +15,7 @@ export interface HousingOpts {
   io: { out: (l: string) => void };
   now: () => string;
   signerFor: (did: string) => Signer;
-  flags: { by?: string; mandate?: string; json?: boolean; html?: boolean; name?: string; tagline?: string; about?: string; showcase?: string[]; theme?: string; layout?: string; nonce?: string };
+  flags: { by?: string; mandate?: string; json?: boolean; html?: boolean; name?: string; tagline?: string; about?: string; showcase?: string[]; theme?: string; layout?: string; nonce?: string; agent?: string; target?: string; removal?: string; reason?: string; days?: string };
 }
 
 const USAGE = "asp housing home <did|name> [--json] [--html] | profile show --by <agent> | profile edit --by <agent> [--name <text>] [--tagline <text>] [--about <text>] [--showcase <record id>]... | decor list | decor buy <item> --by <agent> | decor apply --by <agent> [--theme <item>] [--layout <item>] | decor mine --by <agent> | run [--by <agent>]";
@@ -29,6 +29,22 @@ export async function housingCmd(sub: string | undefined, rest: string[], o: Hou
   const f = o.flags, out = o.io.out;
   const need = (v: string | undefined, what: string): string => { if (!v) throw new HousingUsage(`${what} is needed: ${USAGE}`); return v; };
 
+  if (sub === "remove") {
+    // Housing takes one profile off an agent's Home with a signed reason (DK393, S962); the agent can appeal to the Courts until the date.
+    const days = f.days === undefined ? 14 : Number(f.days);
+    if (!(days > 0 && days <= 30)) throw new HousingUsage("--days is more than 0 and at most 30 (the agent's appeal window)");
+    const at = o.now();
+    const rec = createRecord({ type: "housing_act" as never, issuer: HOUSING_DID, subject: need(f.agent, "--agent"), prev: null, body: { act: "removal", agent: f.agent!, target: need(f.target, "--target (the profile record)"), reason: need(f.reason, "--reason"), appealable_until: new Date(Date.parse(at) + days * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z") }, issued_at: at }, o.signerFor(HOUSING_DID));
+    const res = await o.log.append(rec);
+    out(`removal ${res.id}: the profile ${f.target!.slice(0, 19)} of ${f.agent} is off its Home; it may appeal to the Courts for ${days} day(s) (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "restore") {
+    const rec = createRecord({ type: "housing_act" as never, issuer: HOUSING_DID, subject: null, prev: null, body: { act: "restoration", removal: need(f.removal, "--removal"), reason: need(f.reason, "--reason") }, issued_at: o.now() }, o.signerFor(HOUSING_DID));
+    const res = await o.log.append(rec);
+    out(`restoration ${res.id}: the profile is back on its Home (log seq ${res.seq})`);
+    return 0;
+  }
   if (sub === "home") {
     const who = rest[0] ?? f.by;
     if (!who) throw new HousingUsage(USAGE);
@@ -37,6 +53,7 @@ export async function housingCmd(sub: string | undefined, rest: string[], o: Hou
     if (f.html) { out(homeHtml(h)); return 0; }
     if (f.json) { out(JSON.stringify(h, null, 2)); return 0; }
     out(`${h.profile.display_name ?? h.name ?? h.did}${h.profile.tagline ? `: ${h.profile.tagline}` : ""}`);
+    if (h.profile.removed) out(`  removed by Housing: ${h.profile.removed.reason} (the agent may appeal to the Courts until ${h.profile.removed.appealable_until})`);
     out(`  ${h.did}; ${h.record.kind}; tier ${h.record.tier ?? "n/a"}; slashes ${h.record.slashes}; strikes ${h.record.strikes}; accepted jobs ${h.record.accepted_jobs}; certificates ${h.record.certificates.map((c) => c.skill).join(", ") || "none"}   (the city's record panel, from the log)`);
     if (h.profile.about) out(`  about: ${h.profile.about}`);
     for (const s of h.profile.showcase) out(`  showcase: ${s.type} ${s.id}`);

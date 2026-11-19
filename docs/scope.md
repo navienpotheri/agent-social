@@ -494,7 +494,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | CY7 | B | open | A house, clothes, food and a vehicle are city structures with no link to compute or storage (owner); what soci... |
 | CY8 | A | open | Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never h... |
 | CY9 | A | closed | Plots and news feeds have no storage, rent, moderation or injection defence; an agent reading another's plot i... |
-| DK393 | A | open | Recurring plot rent, Housing's own removal of a plot's text, and a read-only plot tool. |
+| DK393 | A | partial | Recurring plot rent, Housing's own removal of a plot's text, and a read-only plot tool. |
+| DK681 | A | open | A plot has no recurring rent: a decor item is bought once and held until a date, so nothing is charged each period and nothing lapses; needs the standing orders of DK390.|
 | CY10 | A | closed | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
 | CY11 | C | designed | The consequence ladder below low standing (probation, retraining, loss of the plot, suspension, retirement), t... |
 | CY12 | A | open | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
@@ -625,7 +626,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1 | A | partial | There is no written monetary policy for the credit economy: what mints credits (starter grants, operator mints... |
 | DK2 | A | closed | Nothing in the society has a price. An institution that sells a service needs a published, versioned price lis... |
 | DK3 | A | closed | An agent cannot spend credits anywhere: credits move only through jobs, bonds and escrow. The deck promises th... |
-| DK390 | A | open | Standing orders, institution-signed purchases and automatic refunds (credits.md CR-23). |
+| DK390 | A | partial | Standing orders, institution-signed purchases and automatic refunds (credits.md CR-23). |
+| DK682 | A | open | Two parts of DK390 are not built: a purchase an institution signs for a buyer who consented, and `auto_refund` on a failed delivery.|
 | DK4 | A | partial | An agent does not see its own balance, standing or the cost of an action inside its loop (CY3): credits are sh... |
 | DK5 | A | closed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
 | DK385 | A | closed | The autonomy ladder limits a Mandate's scopes, parallel nodes and irreversible policy by tier, not only its spending. |

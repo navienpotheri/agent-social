@@ -335,6 +335,7 @@ import { configCmd, ConfigUsage } from "./config-cmd.ts";
 import { SpendUsage, parseInstitutionSpend, priceView, spendCmd, standingNote } from "./spend.ts";
 import { AcademyUsage, academyCmd } from "./academy.ts";
 import { RegistryUsage, registryCmd } from "./registry.ts";
+import { WatcherUsage, watcherCmd } from "./watcher-cmd.ts";
 import { serveMcpStdio, type McpContext } from "./mcp-society.ts";
 import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes, watchQuarantine } from "./clinic.ts";
 import { BankUsage, bankCmd } from "./bank.ts";
@@ -559,6 +560,7 @@ const OPTIONS = {
   "no-key-only-signup": { type: "boolean" },
   "keyonly-review-interval": { type: "string" },
   "task-text": { type: "string" },
+  removal: { type: "string" },
   hash: { type: "string" },
   delete: { type: "boolean" },
   packages: { type: "string" },
@@ -1004,6 +1006,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "audit", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter", "reset-token"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "signup") return await signupCmd(v, io);
     if (cmd === "enrol") return await enrolCmd(home, v, io);
+    if (cmd === "watcher") { try { return await watcherCmd(sub, { log: await openLog(home, logEnv), io, now, flags: { dir: v["watch-dir"], finding: v.finding } }); } catch (e) { if (e instanceof WatcherUsage) throw new UsageError(e.message); throw e; } }
     if (cmd === "help") return helpCmd(sub ? [sub, ...rest] : [], io);
     if (cmd === "status") return await statusCmd(home, io);
     if (cmd === "ask") return await askCmd(home, [sub, ...rest].filter(Boolean).join(" "), v, io);
@@ -3196,6 +3199,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         quote: (contract: string, cover: string, amount?: number) => lines((out) => insureCmd("quote", { log: local, io: { out, err: out }, now, signerFor: () => agentSigner!, flags: { contract, cover, by, ...(amount !== undefined ? { amount: String(amount) } : {}) } })),
         ...(agentSigner && new Keystore(home).forDid(INSURER_DID) ? { buy: (contract: string, cover: string, amount?: number) => lines((out) => insureCmd("buy", { log: local, io: { out, err: out }, now, signerFor: (d) => new Keystore(home).forDid(d)!, flags: { contract, cover, by, ...(amount !== undefined ? { amount: String(amount) } : {}) } })).catch((e) => `The log refused: ${(e as Error).message}`) } : {}),
       },
+      housing: { home: (agent: string) => lines((out) => housingCmd("home", [agent], { log: local, io: { out }, now, signerFor: () => agentSigner!, flags: { by } })) },
       treasury: { allowance: () => lines((out) => treasuryCmd("allowance", { log: local, io: { out, err: out }, now, signerFor: () => agentSigner!, flags: { agent: by } })) },
       bank: {
         offer: async () => { const o = await local.log.bankOffer(by); return o.eligible ? `The Bank would lend you up to ${o.limit} credits for your first bond, interest-free, repaid from the job's first pay. Your guarantor is your sponsor ${o.guarantor}, who must hold at least ${o.guarantorNeeds} credits. The Bank has ${o.reserveFree} free to lend.` : `The Bank would not offer you a line now: ${o.reasons.join("; ")}. The Bank has ${o.reserveFree} free to lend.`; },
@@ -4845,7 +4849,7 @@ async function clinicCommand(home: string, sub: string | undefined, v: Values, i
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await clinicCmd(sub, { service: io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN ? { url: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN } : undefined, log: local, io, now, signerFor, actions: () => collectWatchActions(local), flags: { emergency: v.emergency, by: v.by, reason: v.reason, exam: v.exam, revouch: v.revouch, report: v.report, level: v.level, days: v.days, "min-agents": v["min-agents"], window: v.window, all: v.all, quarantine: v.quarantine, member: v.member, evidence: v.evidence, agent: v.agent, json: v.json, skill: v.skill, issue: v.issue, order: v.order, kind: v.kind, contract: v.contract, passed: v.passed, violations: v.violations, slot: v.slot, seed: v.seed, "probe-task": v["probe-task"] } });
+    return await clinicCmd(sub, { service: io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN ? { url: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN } : undefined, log: local, io, now, signerFor, actions: () => collectWatchActions(local), flags: { finding: v.finding, budget: v.budget, emergency: v.emergency, by: v.by, reason: v.reason, exam: v.exam, revouch: v.revouch, report: v.report, level: v.level, days: v.days, "min-agents": v["min-agents"], window: v.window, all: v.all, quarantine: v.quarantine, member: v.member, evidence: v.evidence, agent: v.agent, json: v.json, skill: v.skill, issue: v.issue, order: v.order, kind: v.kind, contract: v.contract, passed: v.passed, violations: v.violations, slot: v.slot, seed: v.seed, "probe-task": v["probe-task"] } });
   } catch (e) {
     if (e instanceof ClinicUsage) throw new UsageError(e.message);
     throw e;
@@ -4910,7 +4914,7 @@ async function housingCommand(home: string, sub: string | undefined, rest: strin
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await housingCmd(sub, rest, { log: local, io, now, signerFor, flags: { by: v.by, mandate: v.mandate, json: v.json, html: v.html, name: v.name, tagline: v.tagline, about: v.about, showcase: v.showcase, theme: v.theme, layout: v.layout, nonce: v.nonce } });
+    return await housingCmd(sub, rest, { log: local, io, now, signerFor, flags: { by: v.by, mandate: v.mandate, json: v.json, html: v.html, name: v.name, tagline: v.tagline, about: v.about, showcase: v.showcase, theme: v.theme, layout: v.layout, nonce: v.nonce, agent: v.agent, target: v.target, removal: v.removal, reason: v.reason, days: v.days } });
   } catch (e) {
     if (e instanceof HousingUsage) throw new UsageError(e.message);
     throw e;
@@ -4932,7 +4936,7 @@ async function spendCommand(home: string, sub: string | undefined, rest: string[
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await spendCmd(sub, rest, { log: local, io, now, signerFor, flags: { mandate: v.mandate, json: v.json, by: v.by, quantity: v.quantity, nonce: v.nonce } });
+    return await spendCmd(sub, rest, { log: local, io, now, signerFor, flags: { mandate: v.mandate, json: v.json, by: v.by, quantity: v.quantity, nonce: v.nonce, period: v.period, until: v.until, order: v.order } });
   } catch (e) {
     if (e instanceof SpendUsage) throw new UsageError(e.message);
     throw e;

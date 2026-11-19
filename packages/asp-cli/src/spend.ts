@@ -36,7 +36,7 @@ export interface SpendOpts {
   log: LogHandle;
   io: { out: (l: string) => void };
   now: () => string;
-  flags: { mandate?: string; json?: boolean; by?: string; quantity?: string; nonce?: string };
+  flags: { mandate?: string; json?: boolean; by?: string; quantity?: string; nonce?: string; period?: string; until?: string; order?: string };
   signerFor: (did: string) => Signer;
 }
 
@@ -53,6 +53,7 @@ async function mandateFor(o: SpendOpts, agent: string): Promise<AspRecord | unde
 
 export async function spendCmd(sub: string | undefined, rest: string[], o: SpendOpts): Promise<number> {
   if (sub === "buy") return buy(rest[0], o);
+  if (sub === "standing") return standing(rest[0], rest[1], o);
   const agent = sub ?? o.flags.by;
   if (!agent) throw new SpendUsage("asp spend <agent did> [--mandate <id>] [--json] | asp spend buy <service> --by <agent did> [--mandate <id>] [--quantity <n>]");
   const m = await mandateFor(o, agent);
@@ -96,6 +97,71 @@ async function buy(service: string | undefined, o: SpendOpts): Promise<number> {
   const res = await o.log.append(record);
   o.io.out(`bought ${service} x${quantity} for ${body.amount.value} credits (purchase ${res.id}, log seq ${res.seq}); the institution answers with a receipt`);
   return 0;
+}
+
+/**
+ * `asp spend standing create|list|run|cancel` (row DK390, S963): a purchase the agent signs once to repeat. The log keeps the order and lets one run through in each period; `run` signs this period's purchase for every live
+ * order that has not run yet (the agent's own tool does the running, so the schedule is only as regular as the runs; a missed period is a missed purchase, nothing is charged for it). Every ordinary rule of a purchase applies,
+ * the Mandate's institution_spend cap included.
+ */
+async function standing(action: string | undefined, arg: string | undefined, o: SpendOpts): Promise<number> {
+  const agent = o.flags.by;
+  const USAGE = "asp spend standing create <service> --by <agent> --period day|week|month --until <ISO time or days from now> [--quantity n] | list --by <agent> | run --by <agent> | cancel <order id> --by <agent>";
+  if (!agent || !action) throw new SpendUsage(USAGE);
+  const now = o.now();
+  const orders = async () => {
+    const recs = ((await o.log.log.recordsOfTypes(["standing_order"])) as unknown as AspRecord[]).filter((r) => r.issuer === agent);
+    const cancelled = new Set(recs.filter((r) => (r.body as { act: string }).act === "cancel").map((r) => (r.body as { order: string }).order));
+    return recs.filter((r) => (r.body as { act: string }).act === "order").map((r) => ({ id: r.id, ...(r.body as { service: string; institution: string; quantity: number; period: "day" | "week" | "month"; until: string }), cancelled: cancelled.has(r.id) }));
+  };
+  const liveOrders = async () => (await orders()).filter((x) => !x.cancelled && Date.parse(x.until) > Date.parse(now));
+  if (action === "create") {
+    if (!arg || !o.flags.period || !o.flags.until) throw new SpendUsage(USAGE);
+    if (!["day", "week", "month"].includes(o.flags.period)) throw new SpendUsage("--period is day, week or month");
+    const list = ((await o.log.log.priceLists()) as AspRecord[]).filter((l) => Date.parse((l.body as { effective_from: string }).effective_from) <= Date.parse(now)).sort((a, b) => (b.body as { version: number }).version - (a.body as { version: number }).version)[0];
+    const item = (list?.body as { items: { service: string; institution: string; price: number }[] } | undefined)?.items.find((i) => i.service === arg);
+    if (!item) { o.io.out(`${arg} is not in the price list in force (asp prices show)`); return 1; }
+    const quantity = o.flags.quantity === undefined ? 1 : Math.trunc(Number(o.flags.quantity));
+    const until = /^[0-9]+$/.test(o.flags.until) ? new Date(Date.parse(now) + Number(o.flags.until) * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z") : o.flags.until;
+    const res = await o.log.append(createRecord({ type: "standing_order" as never, issuer: agent, subject: null, prev: null, body: { act: "order", service: arg, institution: item.institution, quantity, period: o.flags.period, until }, issued_at: now }, o.signerFor(agent)));
+    o.io.out(`standing order ${res.id}: ${quantity} x ${arg} (${item.price * quantity} credits) each ${o.flags.period} until ${until}; run it with: asp spend standing run --by ${agent}`);
+    return 0;
+  }
+  if (action === "list") {
+    const all = await orders();
+    if (!all.length) o.io.out("no standing orders");
+    for (const x of all) o.io.out(`  ${x.id.slice(0, 19)}  ${x.quantity} x ${x.service}  each ${x.period}  until ${x.until}${x.cancelled ? "  (cancelled)" : Date.parse(x.until) <= Date.parse(now) ? "  (ended)" : ""}`);
+    return 0;
+  }
+  if (action === "cancel") {
+    if (!arg) throw new SpendUsage(USAGE);
+    const found = (await orders()).find((x) => x.id === arg || x.id.startsWith(arg) || x.id.slice(7).startsWith(arg));
+    if (!found) { o.io.out(`${agent} has no standing order ${arg}`); return 1; }
+    const res = await o.log.append(createRecord({ type: "standing_order" as never, issuer: agent, subject: null, prev: null, body: { act: "cancel", order: found.id }, issued_at: now }, o.signerFor(agent)));
+    o.io.out(`standing order ${found.id.slice(0, 19)} cancelled at once (record ${res.id})`);
+    return 0;
+  }
+  if (action === "run") {
+    const mine = (await o.log.log.purchasesBy(agent)) as AspRecord[];
+    const m = await mandateFor(o, agent);
+    const list = ((await o.log.log.priceLists()) as AspRecord[]).filter((l) => Date.parse((l.body as { effective_from: string }).effective_from) <= Date.parse(now)).sort((a, b) => (b.body as { version: number }).version - (a.body as { version: number }).version)[0];
+    let ran = 0, failed = 0;
+    for (const x of await liveOrders()) {
+      const key = periodKey(x.period, now);
+      if (mine.some((p) => (p.body as { standing_order?: string }).standing_order === x.id && periodKey(x.period, p.issued_at) === key)) { o.io.out(`  ${x.id.slice(0, 19)}  already ran this ${x.period}`); continue; }
+      const item = (list?.body as { items: { service: string; price: number }[] } | undefined)?.items.find((i) => i.service === x.service);
+      if (!list || !item) { o.io.out(`  ${x.id.slice(0, 19)}  ${x.service} is not in the price list in force; not run`); failed++; continue; }
+      const body = { service: x.service, institution: x.institution, price_list: list.id, quantity: x.quantity, amount: { value: item.price * x.quantity, unit: "credit" as const }, idempotency: `standing-${x.id.slice(7, 19)}-${key}`, standing_order: x.id, ...(m ? { mandate: m.id } : {}) };
+      try {
+        const res = await o.log.append(createRecord({ type: "purchase", issuer: agent, subject: null, prev: null, body, issued_at: now }, o.signerFor(agent)));
+        o.io.out(`  ${x.id.slice(0, 19)}  ran: ${x.quantity} x ${x.service} for ${body.amount.value} credits (purchase ${res.id})`);
+        ran++;
+      } catch (e) { o.io.out(`  ${x.id.slice(0, 19)}  not run: ${(e as Error).message}`); failed++; }
+    }
+    o.io.out(`${ran} ran, ${failed} refused`);
+    return failed ? 1 : 0;
+  }
+  throw new SpendUsage(USAGE);
 }
 
 /** Runs `asp spend <agent> --json` and returns its lines, or none when the agent has no Mandate with a budget. */

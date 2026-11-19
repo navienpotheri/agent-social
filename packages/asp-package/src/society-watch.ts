@@ -9,7 +9,7 @@
  * State (DK97): after each pass the cursor, the compact window and the sponsor map are kept in `<dir>/state.json`, so a restart reads only the records appended since, not the whole log; a state file that is missing or
  * damaged starts from the beginning, as before. The watcher also looks at purchases: one sponsor's agents buying in a burst (`purchase_burst`).
  */
-import { b64urlDecode, b64urlEncode, canonicalBytes, publicKeyFromSeed, randomSeed, sha256Id, signBytes, verifyBytes, type AspRecord } from "@agent-social/asp-core";
+import { b64urlDecode, b64urlEncode, canonicalBytes, publicKeyFromSeed, randomSeed, sha256Id, signBytes, signerFromSeed, verifyBytes, type AspRecord } from "@agent-social/asp-core";
 import { findCollusion, type CollusionFinding } from "@agent-social/asp-log";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -142,6 +142,10 @@ export class SocietyWatcher {
   }
 
   get publicKey(): string { return b64urlEncode(publicKeyFromSeed(this.seed)); }
+  /** The watcher's signer (kid WATCHER_KID): signs its findings in the feed and, once its passport is in the log, the records that put a finding there (DK520). */
+  get signer() { return signerFromSeed(WATCHER_KID, this.seed); }
+  /** Signs a finding as the feed does (used by tests and by anything that raises a finding by hand). */
+  sign(finding: WatchFinding): SignedFinding { const bytes = signedBytes(finding); return { id: sha256Id(bytes), finding, kid: WATCHER_KID, sig: b64urlEncode(signBytes(bytes, this.seed)) }; }
   list(): SignedFinding[] { return [...this.findings]; }
 
   /** One pass: read what is new, look at the window, sign and tell what has not been found before. Returns the new findings. */
@@ -234,6 +238,13 @@ export function describe(f: WatchFinding): string {
   if (f.kind === "purchase_burst") { const b = f.detail as PurchaseBurst; return `purchase burst: ${b.count} purchases (${b.amount} credits) by ${b.issuers.length} buyer(s) of ${b.sponsor}`; }
   const c = f.detail as CircumventionFinding;
   return `${c.kind}: ${c.issuer} on ${c.scope}${c.via ? ` via ${c.via}` : ""}, step ${f.step}`;
+}
+
+/** The body of the `watcher_finding` record for a collusion finding of the feed (DK520, S961); other kinds of finding are not put in the log. */
+export function watcherFindingBody(f: SignedFinding): Record<string, unknown> | undefined {
+  if (f.finding.kind !== "collusion") return undefined;
+  const c = f.finding.detail as CollusionFinding;
+  return { finding_id: f.id, kind: c.kind, agents: [...new Set(c.agents)].sort().slice(0, 20), ...(c.jobs.length ? { jobs: [...new Set(c.jobs)].sort().slice(0, 50) } : {}), why: c.why.slice(0, 300), detected_at: f.finding.detectedAt };
 }
 
 /** Whether a finding's signature verifies under `publicKey` (b64url): how anyone checks one read from the public page. */

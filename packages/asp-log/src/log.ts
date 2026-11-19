@@ -25,7 +25,7 @@ import { bondFloorPermille, bondFloorV3, floorIsV2, type FloorInputsV3, type Tas
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
 import { breadthProblem } from "./tier-breadth.ts";
-import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { charterIn, checkCaseload, checkRulingExtras, closeDispute, projectCourtAct } from "./courts-rules.ts";
@@ -193,7 +193,7 @@ interface PriceListBody {
   version: number; effective_from: string; bounds_version: number; job_tax_permille: number;
   items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial"; gives_standing?: boolean; effect?: CatalogueItem["effect"]; duration_days?: number; gate?: CatalogueItem["gate"] }[];
 }
-interface PurchaseBody { service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string; mandate?: string }
+interface PurchaseBody { service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string; mandate?: string; standing_order?: string }
 interface InstitutionSpend { institution: string; cap: { value: number }; period: "day" | "week" | "month"; services?: string[] }
 
 /** The institution_spend line of a Mandate that covers an institution (named by its DID or its short name). */
@@ -343,6 +343,8 @@ export class EventLog {
     if (type === "retraining_release") await this.projectRetrainingRelease(tx, verified);
     if (type === "clinic_diagnosis") await this.projectClinicDiagnosis(tx, verified);
     if (type === "clinic_order") await this.projectClinicOrder(tx, verified);
+    if (type === "watcher_finding") await this.projectWatcherFinding(tx, verified);
+    if (type === "standing_order") await this.projectStandingOrder(tx, verified);
     if (type === "checkup_result") await this.projectCheckupResult(tx, verified);
     if (type === "credit_line") await projectCreditLine(tx, verified, this.bankEnv);
     if (type === "credit_default") await projectCreditDefault(tx, verified, this.bankEnv);
@@ -1640,6 +1642,18 @@ export class EventLog {
     if (!item) throw rule("unknown_service", `${b.service} is not in the price list in force`);
     if (item.institution !== b.institution) throw rule("institution_mismatch", `${b.service} is sold by ${item.institution}, not ${b.institution}`);
     if (b.amount.value !== item.price * b.quantity) throw rule("price_mismatch", `${b.service} costs ${item.price} each, so ${b.quantity} cost ${item.price * b.quantity}, not ${b.amount.value}: a price is a published record`);
+    // One run of a standing order (DK390, S963): the buyer's own live order, for exactly this, and one run in each period.
+    let standingRun: string | undefined;
+    if (b.standing_order) {
+      const so = JSON.parse((await tx.getMarker(`standing_order:${b.standing_order}`)) ?? "null") as { issuer: string; service: string; institution: string; quantity: number; period: "day" | "week" | "month"; until: string; cancelled?: string } | null;
+      if (!so) throw rule("standing_order_unknown", `${b.standing_order} is not a standing order in this log`);
+      if (so.issuer !== buyer) throw rule("standing_order_not_buyers", "a standing order is run only by the buyer who signed it");
+      if (so.cancelled) throw rule("standing_order_cancelled", `the standing order was cancelled at ${so.cancelled}`);
+      if (Date.parse(so.until) <= Date.parse(r.issued_at)) throw rule("standing_order_expired", `the standing order ended at ${so.until}`);
+      if (so.service !== b.service || so.institution !== b.institution || so.quantity !== b.quantity) throw rule("standing_order_mismatch", `the standing order is for ${so.quantity} of ${so.service} from ${so.institution}; this purchase is something else`);
+      standingRun = `standing_run:${b.standing_order}|${periodKey(so.period, r.issued_at)}`;
+      if (await tx.getMarker(standingRun)) throw rule("standing_order_period_used", `the standing order already ran for this ${so.period}`);
+    }
     const key = `purchase:${buyer}|${b.service}|${b.idempotency}`;
     if (await tx.getMarker(key)) throw rule("purchase_replay", `${buyer} already made a purchase of ${b.service} with the nonce ${b.idempotency}`);
     if (item.split.payees.some((p) => p.account === buyer)) throw rule("self_dealing", "a buyer cannot be a payee of its own purchase");
@@ -1667,6 +1681,7 @@ export class EventLog {
     await this.credit(tx, TREASURY_DID, parts.treasury);
     await this.credit(tx, BURN_DID, parts.burn);
     await tx.putMarker(key, r.id);
+    if (standingRun) await tx.putMarker(standingRun, r.id);
     if (item.institution === institutionDid("academy")) await tx.putMarker(`first_course:${buyer}`, r.id);
   }
 
@@ -1793,6 +1808,45 @@ export class EventLog {
     if (drawn + amount > bb.amount.value) throw rule("over_budget", `the budget is ${bb.amount.value} credits and ${drawn} are drawn: ${amount} more would be ${drawn + amount}`);
     await tx.putMarker(`budget_drawn:${id}`, String(drawn + amount));
     await tx.putMarker("budget_open", String(Number((await tx.getMarker("budget_open")) ?? 0) - amount));
+  }
+
+  /**
+   * A standing order or its cancellation (DK390, S963). The buyer signs it once; the log keeps it as state and lets one purchase through for each period (see projectPurchase). At most 20 orders for one buyer in all
+   * (`standing_orders_full`) and none for more than a year (`standing_order_too_long`). A cancel ends it at once and only by its buyer.
+   */
+  private async projectStandingOrder(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { act: "order" | "cancel"; service?: string; institution?: string; quantity?: number; period?: string; until?: string; order?: string };
+    if (r.prev !== null) throw rule("standing_order_not_chained", "a standing order starts its own chain (prev is null)");
+    if (isReservedAccount(r.issuer)) throw rule("standing_order_reserved", "an account of the society does not place a standing order");
+    if (b.act === "cancel") {
+      const key = `standing_order:${b.order}`;
+      const so = JSON.parse((await tx.getMarker(key)) ?? "null") as { issuer: string; cancelled?: string } | null;
+      if (!so) throw rule("standing_order_unknown", `${b.order} is not a standing order in this log`);
+      if (so.issuer !== r.issuer) throw rule("standing_cancel_not_owner", "only the buyer cancels its standing order");
+      if (so.cancelled) throw rule("standing_cancel_already", `the standing order was already cancelled at ${so.cancelled}`);
+      await tx.putMarker(key, JSON.stringify({ ...so, cancelled: r.issued_at }));
+      return;
+    }
+    const at = Date.parse(r.issued_at), until = Date.parse(b.until!);
+    if (until <= at) throw rule("standing_order_ends_before_it_starts", "a standing order ends after it is signed");
+    if (until - at > 366 * 86_400_000) throw rule("standing_order_too_long", "a standing order lasts at most a year: sign a new one to go on");
+    const count = Number((await tx.getMarker(`standing_count:${r.issuer}`)) ?? 0);
+    if (count >= 20) throw rule("standing_orders_full", "at most 20 standing orders for one buyer in all: cancel one and sign it again if it must go on");
+    await tx.putMarker(`standing_count:${r.issuer}`, String(count + 1));
+    await tx.putMarker(`standing_order:${r.id}`, JSON.stringify({ issuer: r.issuer, service: b.service, institution: b.institution, quantity: b.quantity, period: b.period, until: b.until }));
+  }
+
+  /**
+   * A collusion finding of the society watcher (DK520, S961), put in the log so the Clinic can cite it. Only the watcher (its key is the one in its passport), every named agent has a passport, and a finding is in the
+   * log once (`watcher_finding_known`). It changes no balance, tier or standing: it is a lead.
+   */
+  private async projectWatcherFinding(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { finding_id: string; agents: string[] };
+    if (r.prev !== null) throw rule("watcher_finding_not_chained", "a watcher finding starts its own chain (prev is null)");
+    if (r.issuer !== WATCHER_DID) throw rule("watcher_finding_wrong_issuer", `${r.issuer} is not the society watcher (${WATCHER_DID}): only the watcher files a finding`);
+    for (const a of b.agents) if (!(await tx.getPassport(a))) throw rule("watcher_finding_unknown_agent", `${a} has no passport in this log`);
+    if (await tx.getMarker(`watcher_finding:${b.finding_id}`)) throw rule("watcher_finding_known", `the finding ${b.finding_id} is already in the log`);
+    await tx.putMarker(`watcher_finding:${b.finding_id}`, r.id);
   }
 
   /**
@@ -2463,7 +2517,7 @@ export class EventLog {
    * diagnosis of the same agent and names the skill.
    */
   private async projectClinicOrder(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { agent: string; kind: string; reason: string; due: string; diagnosis?: string; skill?: string; purchase?: string; budget?: string; change?: string };
+    const b = r.body as { agent: string; kind: string; reason: string; due: string; diagnosis?: string; skill?: string; purchase?: string; budget?: string; change?: string; finding?: string };
     if (r.prev !== null) throw rule("order_not_chained", "an order starts its own chain (prev is null)");
     if (r.issuer !== CLINIC_DID) throw rule("order_wrong_issuer", `${r.issuer} is not the Clinic (${CLINIC_DID}): only the Clinic orders a checkup, a re-exam or a course`);
     if (!(await tx.getPassport(b.agent))) throw rule("order_not_an_agent", `${b.agent} has no passport in this log`);
@@ -2475,6 +2529,14 @@ export class EventLog {
       const d = await tx.getRecord(b.diagnosis);
       if (!d || d.record.type !== "asp.clinic_diagnosis/v0.2" || (d.record.body as { agent?: string }).agent !== b.agent) throw rule("order_diagnosis_unknown", `${b.diagnosis} is not a diagnosis of ${b.agent} in this log`);
     } else if (b.reason === "post_diagnosis") throw rule("order_needs_diagnosis", "a checkup is scheduled, requested or after a change; after a diagnosis the order is a re-exam or a course");
+    if (b.reason === "collusion_finding") {
+      // A watcher finding is a lead: the Clinic may look (a checkup), never penalise on it (DK520, S961).
+      if (b.kind !== "checkup") throw rule("order_finding_only_checkup", "a collusion finding leads to a checkup, not to a re-exam or a course: a finding is a lead, not a verdict");
+      const f = b.finding ? await tx.getRecord(b.finding) : undefined;
+      const fb = f?.record.body as { agents?: string[] } | undefined;
+      if (!f || f.record.type !== "asp.watcher_finding/v0.2" || f.record.issuer !== WATCHER_DID) throw rule("order_finding_unknown", `${b.finding ?? "no finding"} is not a finding signed by the society watcher in this log: cite the watcher_finding record`);
+      if (!fb?.agents?.includes(b.agent)) throw rule("order_finding_not_about_agent", `the finding does not name ${b.agent}`);
+    } else if (b.finding) throw rule("order_finding_without_reason", "a finding is cited only by an order whose reason is collusion_finding");
     const key = `clinic_order:${b.agent}|${b.kind}`;
     const open = await tx.getMarker(key);
     if (open && Date.parse(open) > at) throw rule("order_already_open", `${b.agent} already has a ${b.kind} order that is due ${open}: one open order of each kind`);
@@ -2487,7 +2549,7 @@ export class EventLog {
    * change to the agent's runtime or memory, once for each change), paid for by the Treasury's budget line `free_checkups`, or requested and paid for by a purchase of `clinic.checkup` by the agent or its sponsor, used
    * once. Before the list carries the item the Clinic orders as it did. A free checkup moves the price from the Treasury to the Clinic out of the budget (never beyond it).
    */
-  private async payForCheckup(tx: LogTx, r: AspRecord, b: { agent: string; reason: string; purchase?: string; budget?: string; change?: string }): Promise<void> {
+  private async payForCheckup(tx: LogTx, r: AspRecord, b: { agent: string; reason: string; purchase?: string; budget?: string; change?: string; finding?: string }): Promise<void> {
     const list = await this.priceListInForce(tx, Date.parse(r.issued_at));
     if (!(list?.record.body as unknown as PriceListBody | undefined)?.items.some((i) => i.service === CLINIC_CHECKUP_SERVICE)) return;
     if (b.reason === "requested") {
@@ -2501,7 +2563,7 @@ export class EventLog {
       return;
     }
     const q = `${r.issued_at.slice(0, 4)}-Q${Math.floor((Number(r.issued_at.slice(5, 7)) - 1) / 3) + 1}`;
-    const freeKey = b.reason === "post_change" ? `free_change:${b.agent}|${b.change ?? ""}` : `free_scheduled:${b.agent}|${q}`;
+    const freeKey = b.reason === "post_change" ? `free_change:${b.agent}|${b.change ?? ""}` : b.reason === "collusion_finding" ? `free_finding:${b.agent}|${b.finding ?? ""}` : `free_scheduled:${b.agent}|${q}`;
     if (b.reason === "post_change" && !b.change) throw rule("order_needs_change", "a checkup after a change names the change (the memory change or runtime change it follows)");
     if (await tx.getMarker(freeKey)) throw rule("order_free_used", `${b.agent} has had its free checkup for ${b.reason === "post_change" ? `the change ${b.change}` : `${q}`}: request one for ${CLINIC_CHECKUP_PRICE} credits (${CLINIC_CHECKUP_SERVICE})`);
     const bud = b.budget ? await tx.getRecord(b.budget) : undefined;
