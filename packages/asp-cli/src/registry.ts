@@ -12,7 +12,7 @@ export interface RegistryOpts {
   log: LogHandle;
   io: { out: (l: string) => void };
   now: () => string;
-  flags: { by?: string; did?: string; paid?: string; page?: string; genuine?: string; grounds?: string; evidence?: string; reason?: string; articles?: string; report?: string; suspension?: string; until?: string; days?: string; json?: boolean; "cosign-by"?: string[]; name?: string };
+  flags: { by?: string; did?: string; paid?: string; page?: string; genuine?: string; grounds?: string; evidence?: string; reason?: string; articles?: string; report?: string; suspension?: string; level?: string; until?: string; days?: string; json?: boolean; "cosign-by"?: string[]; name?: string };
   signerFor: (did: string) => Signer;
   readJson?: (path: string) => unknown;
 }
@@ -110,6 +110,12 @@ export async function registryCmd(sub: string | undefined, rest: string[], o: Re
     return append("interim suspension", sign(REGISTRAR_DID, { act: "identity_suspension", holder: need(f.did, "did"), reason: need(f.reason, "reason"), code: { version: "1.0", articles: (f.articles ?? "4.1").split(",") }, until: iso(Date.parse(o.now()) + days * 86_400_000) }));
   }
   if (sub === "lift") return append("suspension lifted", sign(REGISTRAR_DID, { act: "suspension_lift", suspension: need(f.suspension, "suspension"), reason: need(f.reason, "reason") }));
+  if (sub === "level") {
+    // The Registrar records an identity level (RG-12, row DK384): key_only, sponsored or verified_sponsor. The Registrar's key decides; the operator checks the sponsor's account before verified_sponsor. `certified` is not available in the beta.
+    const level = need(f.level, "level");
+    if (!["key_only", "sponsored", "verified_sponsor"].includes(level)) throw new RegistryUsage("--level is key_only, sponsored or verified_sponsor (certified is not available in the beta)");
+    return append(`${need(f.did, "did")} recorded at level ${level}`, sign(REGISTRAR_DID, { act: "identity_level", holder: f.did!, level, reason: need(f.reason, "reason") }));
+  }
   if (sub === "retire") return append("identity retired", sign(need(f.by, "by"), { act: "identity_retirement", holder: f.by!, reason: need(f.reason, "reason") }));
-  throw new RegistryUsage("asp registry lookup|search|verify|claim|release|renew|report|reply|takedown|dismiss|suspend|lift|retire");
+  throw new RegistryUsage("asp registry lookup|search|verify|claim|release|renew|report|reply|takedown|dismiss|suspend|lift|level|retire");
 }

@@ -767,7 +767,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK294 | A | closed | The Bank's deposit reward is decided (1 % a month of the deposit, Treasury-paid, capped by a co-sign...|
 | DK380 | A | open | The newcomer allowance is offered inside asp join after a first course and shown to the agent in its own loop. |
 | DK383 | A | closed | The flows property test fills postings and reverses appeals so a deposit's return and an appeal fee's refund are drawn as accepted operations. |
-| DK384 | A | open | A command to record an identity level, and the renewal mail to sponsors before an identity lapses. |
+| DK384 | A | partial | A command to record an identity level, and the renewal mail to sponsors before an identity lapses. |
 | DK389 | A | open | A Court orders a takedown or a retirement, a bad-faith reporter gets a strike, and a claims-to-be name is hidden for 7 days. |
 | DK530 | A | partial | Restitution to an outside victim of an abuse report is paid in mock credits (S502: the acc...|
 | DK531 | A | partial | A small model as a second check on risky calls (it beat the rules on held-out cases) is de...|
