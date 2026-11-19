@@ -346,7 +346,7 @@ import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
-import { SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf } from "@agent-social/asp-log";
+import { TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
@@ -792,6 +792,7 @@ const OPTIONS = {
   verdict: { type: "string" },
   fault: { type: "string", multiple: true },
   "cosign-by": { type: "string", multiple: true },
+  "fund-from": { type: "string" },
   "institution-spend": { type: "string", multiple: true },
   mode: { type: "string" },
   finding: { type: "string" },
@@ -4861,7 +4862,7 @@ async function treasuryCommand(home: string, sub: string | undefined, v: Values,
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount, budget: v.budget, memo: v.memo, claim: v.yes, agent: v.agent, since: v.since, week: v.week, sign: v.sign } });
+    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount, budget: v.budget, memo: v.memo, claim: v.yes, to: v.to, agent: v.agent, since: v.since, week: v.week, sign: v.sign } });
   } catch (e) {
     if (e instanceof TreasuryUsage) throw new UsageError(e.message);
     throw e;
@@ -5057,6 +5058,17 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     if (!house) throw new UsageError(`${by} is not a house agent: only the operator's labelled house agent posts seed jobs, so that a seed is never taken for a real poster`);
     const mandate = need("mandate");
     const deadline = v.deadline ?? new Date(Date.parse(now()) + 60 * 86_400_000).toISOString().replace(/\.\d+Z$/, "Z");
+    // The public-works line (DK760, S997): with --fund-from <budget id> the Treasury pays the house agent what the jobs' escrow needs beyond its balance, from that line, and never past it (the log refuses).
+    if (v["fund-from"]) {
+      const led = await local.log.treasuryLedger();
+      const line = led.budgets.find((b) => b.id === v["fund-from"] || b.id.slice(7).startsWith(v["fund-from"]!));
+      if (!line || line.purpose !== "public_works") throw new UsageError(`--fund-from names a public-works budget of the Treasury (asp treasury list); ${v["fund-from"]} is not one`);
+      const need_ = SEED_JOBS.slice(0, count).reduce((n, j) => n + j.budget, 0), shortfall = need_ - (await local.log.balance(by));
+      if (shortfall > 0) {
+        const pay = await local.append(createRecord({ type: "treasury_payment" as never, issuer: TREASURY_DID, subject: null, prev: null, body: { budget: line.id, to: by, amount: { value: shortfall, unit: "credit" }, memo: "public works: the seed jobs' escrow" }, issued_at: now() }, signerFor(TREASURY_DID)));
+        io.out(`public works: ${shortfall} credits from the Treasury's public-works line to ${by} for the seed jobs (payment ${pay.id}, log seq ${pay.seq})`);
+      } else io.out(`public works: ${by} already holds the ${need_} credits the seed jobs need; nothing paid`);
+    }
     let n = 0;
     for (const job of SEED_JOBS.slice(0, count)) {
       const rec = createRecord({ type: "intent", issuer: by, subject: by, prev: null, body: { purpose: SEED_PREFIX + job.purpose, acceptance_criteria: job.criteria, budget: { value: job.budget, unit: "credit" }, deadline, verification: { mode: "principal" }, class: "routine", min_tier: 1, skills: job.skills }, issued_at: now() }, signerFor(by));
