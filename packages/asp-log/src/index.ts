@@ -66,8 +66,10 @@ export { SEED_JOBS, SEED_PREFIX, COLD_START_METHOD, type SeedJob, type ColdStart
 export { CHARTERED, CHARTER_NOTICE_MS, FORUM_DID, type CharterBody } from "./institution-charters.ts";
 export { cyclePermille, experiencePermille, holiday, quotePremium, simulateInsurer, type HolderRecord, type SimResult } from "./insurer-dynamics.ts";
 export { KEY_ONLY_BAN_AT, KEY_ONLY_QUARANTINE_AT, KeyOnlyBans, PendingQuarantines, checkKeyProof, keyProofMessage, reviewKeyOnly, slashesOf, type BanEntry, type PendingQuarantine, type KeyOnlyAction, type KeyOnlyReview } from "./key-only.ts";
-export { frontDoorJson, frontDoorRoutes, frontDoorText, frontDoorTools, type FrontDoorOptions, type FrontDoorTool } from "./front-door.ts";
+export { frontDoorJson, frontDoorRoutes, frontDoorText, startPageHtml, startPageText, frontDoorTools, type FrontDoorOptions, type FrontDoorTool } from "./front-door.ts";
 export { TELEMETRY_KINDS, TELEMETRY_MAX_ITEMS, TELEMETRY_MAX_ITEM_BYTES, TELEMETRY_NOTICE, TelemetryStore, telemetryHash, type PutResult, type TelemetryEntry, type TelemetryKind } from "./telemetry-store.ts";
 export { renewalNotices, type RenewalNotice } from "./registry.ts";
 export { velocityOf, type VelocityReport, type VelocityWindow } from "./velocity.ts";
 export { GAME_HANDS, GAME_NAME, STAND_MAX, STAND_MIN, commitSeed, playEntrant, runGame, scoreOf, total as gameTotal, transcriptHash, validPolicy, type GameEntrant, type GamePolicy, type GameResult, type GameRun, type HandRecord } from "./game-engine.ts";
+export { SURFACE, publicSurface, surfaceListing, surfaceText, type SurfaceRoute, type SurfaceAuth, type SurfaceGroup } from "./surface.ts";
+export { DEFAULT_LIMITS } from "./limits.ts";

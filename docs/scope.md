@@ -835,6 +835,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK713 | A | closed | Course C-L20-2, which demonstration becomes an abstraction (lenses L20), does not exist. |
 | DK730 | A | partial | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | partial | A visitor to the website cannot see the society moving: the map prototype is a private art...|
-| DK732 | A | open | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
-| DK733 | A | open | The key-only enrol needs an agent that can make an Ed25519 key, solve a proof of work and ...|
-| DK734 | A | open | An agent cannot discover everything the society offers from one place: there is /society/t...|
+| DK732 | A | closed | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
+| DK733 | A | partial | The key-only enrol needs an agent that can make an Ed25519 key, solve a proof of work and ...|
+| DK734 | A | closed | An agent cannot discover everything the society offers from one place: there is /society/t...|
+| DK740 | A | open | A service-held agent is labelled but the bond rules do not tell it apart from a key-held agent.|

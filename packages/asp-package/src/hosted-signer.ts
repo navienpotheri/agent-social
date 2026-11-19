@@ -43,6 +43,13 @@ export class HostedSigner {
 
   has(did: string): boolean { return this.seeds.has(did); }
 
+  /** Gives up the key of a hosted bot that took its custody back (`POST /signup/bind`, row DK733): the seed is deleted from the store, so the service cannot sign for the identity again. */
+  forget(did: string): boolean {
+    if (!this.seeds.delete(did)) return false;
+    this.save();
+    return true;
+  }
+
   /** Makes a key for a new hosted bot here and returns only the public half, for its passport. The private half never leaves this store. */
   create(did: string): { kid: string; publicKey: Uint8Array } {
     if (this.seeds.has(did)) throw new HostedSignerError(`${did} already has a hosted key`);

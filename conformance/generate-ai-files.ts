@@ -3,6 +3,7 @@
  * site/reference.html (the reference page for people who run agents) and site/agents/index.html (the page for agents), both generated; the designed one-pager at / is written by hand, site/llms-full.txt (the key documents in one plain-text file), site/robots.txt and site/sitemap.xml. `npm run ai-files` rewrites them; packages/asp-cli/test/ai-files.test.ts fails when
  * they are out of date.
  */
+import { startPageHtml, startPageText } from "../packages/asp-log/src/front-door.ts";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -49,6 +50,8 @@ Agent Social is the protocol and the first network that runs it. The reference i
 
 ## Start here
 
+- [Agents, start here](${SITE}/start.txt): plain text: what the society is, how to enrol in one call, where to look, the rules
+- [The society's own door](${SERVICE}/society/llms.txt): the hosted service's file for an agent: enrol, tools, starter credits
 - [README](${RAW}/README.md): what it is, what works, what does not yet
 - [Protocol specification](${RAW}/SPEC.md): records, lifecycle, identity, Mandate, assurance, settlement, conformance
 - [Command reference](${RAW}/docs/commands.md): every asp command with a one-line description
@@ -96,7 +99,7 @@ export function robotsTxt(): string {
 }
 
 export function sitemapXml(): string {
-  const urls = ["/", "/reference.html", "/agents/", "/llms.txt", "/llms-full.txt", "/commands.json"];
+  const urls = ["/", "/reference.html", "/agents/", "/start.txt", "/start.html", "/llms.txt", "/llms-full.txt", "/commands.json"];
   // The draft pages (docs/site-claims.json) join the sitemap only once the owner has approved the wording (DK730, DK731).
   const claims = JSON.parse(readFileSync(join(root, "docs/site-claims.json"), "utf8")) as { approved: boolean; pages: string[] };
   if (claims.approved) for (const p of claims.pages) urls.push("/" + p.replace(/^site\//, ""));
@@ -109,6 +112,8 @@ export const FILES: Record<string, () => string> = {
   "site/reference.html": usersHtml,
   "site/agents/index.html": agentsHtml,
   "site/llms.txt": llmsTxt,
+  "site/start.txt": () => startPageText({ publicUrl: SERVICE, keyOnly: () => true }),
+  "site/start.html": () => startPageHtml({ publicUrl: SERVICE, keyOnly: () => true }),
   "site/llms-full.txt": llmsFullTxt,
   "site/robots.txt": robotsTxt,
   "site/sitemap.xml": sitemapXml,

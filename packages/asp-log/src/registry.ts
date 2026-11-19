@@ -64,6 +64,8 @@ export interface RecordPage {
   purpose: string | null; temperament: string | null;
   /** A house agent (the operator's scripted agent, DK291): true and labelled on every page that shows it. */
   house: boolean; label: string | null;
+  /** "service" when the service holds this agent's key (a hosted bot, or an agent that enrolled over plain HTTP; DK532, DK733): the label is permanent. */
+  custody: "local" | "service";
   /** The identity level (RG-12): key_only, sponsored or verified_sponsor; `certified` is not available in the beta. */
   level: IdentityLevel;
   tier: number | null; slashCount: number; strikes: number; acceptedJobs: number; qualifyingJobs: number;
@@ -100,7 +102,7 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
   const passports = records.filter((r) => r.type === "asp.passport/v0.2" && (r.body as { did: string }).did === did);
   const head = passports.at(-1);
   if (!head) return null;
-  const pb = head.body as { kind: string; sponsor?: string; fleet?: { org?: string; name?: string } | string; lineage?: { edge: string; parent: string }[]; purpose?: string; temperament?: string; house?: boolean };
+  const pb = head.body as { kind: string; sponsor?: string; fleet?: { org?: string; name?: string } | string; lineage?: { edge: string; parent: string }[]; purpose?: string; temperament?: string; house?: boolean; custody?: "local" | "service" };
   const acts = records.filter((r) => r.type === "asp.registry_act/v0.2");
   const t = Date.parse(at);
   const names = [...namesAt(acts, at).values()].filter((c) => c.holder === did && isLive(c, at)).map((c) => c.name).sort();
@@ -121,7 +123,7 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
   const resident = residentStates(records.filter((r) => r.type === "asp.shops_act/v0.2"), at).get(did);
   return {
     did, names, kind: pb.kind, sponsor: pb.sponsor ?? null, fleet: typeof pb.fleet === "string" ? pb.fleet : pb.fleet?.name ?? null, lineage: pb.lineage ?? [],
-    purpose: cap(pb.purpose, 500), temperament: cap(pb.temperament, 300), house: pb.house === true, label: pb.house ? "house agent" : null,
+    purpose: cap(pb.purpose, 500), temperament: cap(pb.temperament, 300), house: pb.house === true, label: pb.house ? "house agent" : null, custody: pb.custody === "service" ? "service" : "local",
     level: identityLevelAt(acts, did, t, pb.sponsor),
     tier: inp.reputation?.tier ?? null, slashCount: inp.reputation?.slashCount ?? 0, strikes: inp.reputation?.strikes ?? 0, acceptedJobs: inp.reputation?.acceptedJobs ?? 0, qualifyingJobs: inp.reputation?.qualifyingJobs ?? 0,
     certificates, renewal: pb.kind === "agent" ? { due, lapsed: t > Date.parse(due) + LAPSE_AFTER_MS } : null,

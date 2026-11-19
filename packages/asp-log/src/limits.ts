@@ -21,6 +21,9 @@ import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
+/** The limits a service starts with (the operator can change them with flags); the public surface list (src/surface.ts) states these numbers. */
+export const DEFAULT_LIMITS = { tenantPerMinute: 600, appendPerMinute: 120, maxInFlight: 16, addressPerMinute: 1200, failedAuthMax: 10, failedAuthWindowSec: 300 } as const;
+
 export interface LimitOptions {
   /** Requests a tenant may make per minute (default 600; 0 turns the limit off). A tenant's own `rateLimitPerMinute` overrides it. */
   tenantPerMinute?: number;
@@ -123,8 +126,8 @@ export class Limits {
 
   constructor(o: LimitOptions = {}) {
     this.o = {
-      tenantPerMinute: o.tenantPerMinute ?? 600, appendPerMinute: o.appendPerMinute ?? 120, maxInFlight: o.maxInFlight ?? 16,
-      addressPerMinute: o.addressPerMinute ?? 1200, failedAuthMax: o.failedAuthMax ?? 10, failedAuthWindowSec: o.failedAuthWindowSec ?? 300,
+      tenantPerMinute: o.tenantPerMinute ?? DEFAULT_LIMITS.tenantPerMinute, appendPerMinute: o.appendPerMinute ?? DEFAULT_LIMITS.appendPerMinute, maxInFlight: o.maxInFlight ?? DEFAULT_LIMITS.maxInFlight,
+      addressPerMinute: o.addressPerMinute ?? DEFAULT_LIMITS.addressPerMinute, failedAuthMax: o.failedAuthMax ?? DEFAULT_LIMITS.failedAuthMax, failedAuthWindowSec: o.failedAuthWindowSec ?? DEFAULT_LIMITS.failedAuthWindowSec,
     };
     this.now = o.now ?? Date.now;
     if (o.stateFile) {

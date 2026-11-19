@@ -89,3 +89,4 @@ export { DailyCeiling, type Limits as WakeLimits, type Ceiling as WakeCeiling } 
 export { newMemoryKey, openPrivateScope, sealPrivateScope, type MemoryKey, type PrivateScope, type ScopePair } from "./private-memory.ts";
 export { renderSponsorReturn, sponsorReturn, type SponsorReturn } from "./sponsor-return.ts";
 export { telemetryRoutes, type TelemetryRoutesOptions } from "./telemetry-routes.ts";
+export { httpEnrol, bindMessage, type HttpEnrolOptions, type HttpEnrolReply } from "./http-enrol.ts";

@@ -23,7 +23,7 @@ const placeOfDid = (did: string): string | undefined => (did === TREASURY_DID ? 
 
 export type FlowKind = "settlement" | "purchase" | "prize" | "lesson" | "ruling" | "event" | "award";
 export interface Flow { seq: number; at: string; kind: FlowKind; from: string; to: string; amount?: number; label: string }
-export interface MapAgent { id: string; name: string; tier: number | null; standing: { qualifying_jobs: number; slashes: number; strikes: number; certificates: number }; state: "active" | "quarantined" | "suspended"; house: boolean; group: string }
+export interface MapAgent { id: string; name: string; tier: number | null; standing: { qualifying_jobs: number; slashes: number; strikes: number; certificates: number }; state: "active" | "quarantined" | "suspended"; house: boolean; /** "service" when the service holds the agent's key (row DK733): labelled wherever the agent is shown. */ custody?: "service"; group: string }
 export interface MapFeed {
   generated: string; head: { seq: number; hash: string }; note: string;
   places: { id: string; name: string }[]; agents: MapAgent[]; flows: Flow[];
@@ -100,7 +100,7 @@ export function societyMap(i: MapInput): MapFeed {
       id: p.did, name: names.get(p.did) ?? handleOf(p.did), tier: rep?.tier ?? null,
       standing: { qualifying_jobs: rep?.qualifyingJobs ?? 0, slashes: rep?.slashCount ?? 0, strikes: rep?.strikes ?? 0, certificates: certs.get(p.did) ?? 0 },
       state: suspended.has(p.did) ? "suspended" : quarantined.has(p.did) ? "quarantined" : "active",
-      house: !!i.operator && p.sponsor === i.operator, group: hash6(String(p.sponsor ?? p.did)),
+      house: !!i.operator && p.sponsor === i.operator, ...(p.custody === "service" ? { custody: "service" as const } : {}), group: hash6(String(p.sponsor ?? p.did)),
     });
   }
   const from = t - (i.days ?? 7) * 86_400_000;

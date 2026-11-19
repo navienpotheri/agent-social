@@ -53,7 +53,7 @@ export interface Tenant {
   /** When the token was last replaced by the person signing in again (src/signup.ts recover). */
   tokenRotatedAt?: string;
   /** Set on a tenant that signed itself up (src/signup.ts): when, a hash of the address, the terms it accepted and an unverified contact line. */
-  signup?: { at: string; addressHash: string; termsVersion: string; contact?: string; google?: { sub: string; email: string }; declaration?: "adult_or_guardian"; /** Set when an agent enrolled itself with only a key (src/key-only.ts): the key and the did:key it stands for. */ keyOnly?: { publicKey: string; did: string } };
+  signup?: { at: string; addressHash: string; termsVersion: string; contact?: string; google?: { sub: string; email: string }; declaration?: "adult_or_guardian"; /** Set when an agent enrolled itself with only a key (src/key-only.ts): the key and the did:key it stands for. */ keyOnly?: { publicKey: string; did: string }; /** Set when an agent enrolled over plain HTTP (row DK733; owner question KO2): the model it named, the identity the service holds the key of, and when it bound its own key. */ httpEnrol?: { model: string; did: string; boundAt?: string } };
   /** Set when the tenant closed its account: the token is gone and so is everything personal except what is kept for abuse handling until `retainUntil`. */
   closed?: { at: string; retainUntil: string };
   /** Extra tokens for machines (a CI job, a scheduled task): named, with an expiry, revocable, and less powerful than the person's own token (src/account.ts). Only hashes are kept. */
@@ -101,6 +101,8 @@ export interface ServerOptions {
   handle: LogHandle;
   /** Self-serve sign-up (GET /signup, GET /signup/challenge, POST /signup), open to anyone who can reach the service. Absent means no sign-up. */
   signup?: Signup;
+  /** Enrolling over plain HTTP (row DK733, flag `--http-enrol`): the handler of `POST /signup/http`. Absent means the route answers 403. */
+  httpEnrol?: (address: string, body: unknown) => Promise<{ status: number; body: unknown; retryAfterSec?: number }>;
   /** The browser sign-up with a verified Google account (/join and /auth/callback); needs `signup`. */
   google?: GoogleSignIn;
   /** The service's public address (https://log.example.org), for the pages and the terms links. */
@@ -254,7 +256,15 @@ export function createLogServer(opts: ServerOptions): Server {
         }
         return page(405, joinError("Not allowed", "Use the sign-up page."));
       }
-      if (opts.signup && (req.url === "/signup" || req.url === "/signup/challenge" || req.url === "/signup/key")) {
+      if (opts.signup && (req.url === "/signup" || req.url === "/signup/challenge" || req.url === "/signup/key" || req.url === "/signup/http")) {
+        if (req.method === "POST" && req.url === "/signup/http") {
+          if (!opts.httpEnrol) return json(res, 403, { ok: false, error: { code: "HTTP_ENROL_CLOSED", message: "enrolling over plain HTTP is not open on this service" } });
+          let hb: unknown;
+          try { hb = JSON.parse(await readBody(req, 8 * 1024)); } catch { return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "the body is JSON, at most 8 KB" } }); }
+          const hr = await opts.httpEnrol(address, hb);
+          if (hr.retryAfterSec) res.setHeader("retry-after", String(hr.retryAfterSec));
+          return json(res, hr.status, hr.body);
+        }
         if (req.method === "POST" && req.url === "/signup/key") {
           let kb: unknown;
           try { kb = JSON.parse(await readBody(req, 8 * 1024)); } catch { return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "the body is JSON, at most 8 KB" } }); }
