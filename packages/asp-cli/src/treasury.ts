@@ -11,7 +11,7 @@ import type { LogHandle } from "@agent-social/asp-package";
 
 import { handoutCmd, HandoutUsage } from "./treasury-handout.ts";
 export class TreasuryUsage extends Error {}
-export interface TreasuryOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; flags: { period?: string; out?: string; draft?: string; id?: string; by?: string; "cosign-by"?: string; amount?: string; budget?: string; memo?: string; claim?: boolean; agent?: string; since?: string; week?: string; sign?: boolean } }
+export interface TreasuryOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; flags: { period?: string; out?: string; draft?: string; id?: string; by?: string; "cosign-by"?: string; amount?: string; budget?: string; memo?: string; claim?: boolean; to?: string; agent?: string; since?: string; week?: string; sign?: boolean } }
 
 export interface Draft { id: string; institution: string; period: string; amount: number; purpose: string; why: string; sha256: string }
 export interface DraftFile { version: "asp.budget-drafts/v1"; status: string; period: string; drafts: Draft[]; growth: string }
@@ -36,6 +36,8 @@ export const DEFAULT_FIGURES: Record<string, { amount: number; why: string }> = 
 export const ALLOWANCE_NEWCOMERS = 500;
 /** The deposit reward line (DK294): 1 % a month on deposits; sized for 50,000 credits on deposit. */
 export const REWARD_LINE = 500;
+/** The public-works line (DK395, DK760): the month's credits the Treasury may pay the operator's house agent so it can escrow the seed jobs. A proposal, not a decision: the owner sets the figure (docs/owner-decisions.md, PW1). */
+export const PUBLIC_WORKS_LINE = 600;
 
 const hashOf = (d: Omit<Draft, "sha256" | "why">) => "sha256:" + createHash("sha256").update(JSON.stringify([d.id, d.institution, d.period, d.amount, d.purpose])).digest("hex");
 const nextPeriod = (now: string) => { const d = new Date(Date.parse(now)); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + 1); return d.toISOString().slice(0, 7); };
@@ -47,6 +49,7 @@ export function buildDrafts(period: string): DraftFile {
     ...INSTITUTION_NAMES.map((n) => mk(n, institutionDid(n), DEFAULT_FIGURES[n].amount, "charter", DEFAULT_FIGURES[n].why)),
     mk("allowance", TREASURY_DID, ALLOWANCE_AMOUNT * ALLOWANCE_NEWCOMERS, "allowance", `${ALLOWANCE_AMOUNT} credits each for up to ${ALLOWANCE_NEWCOMERS} newcomers in the month (the Treasury's newcomer allowance, credits.md T5)`),
     mk("deposit-reward", TREASURY_DID, REWARD_LINE, "deposit_reward", "1 % a month on Bank deposits, at most 50 credits a month to one holder (credits.md T16; owner decision 2026-11-13)"),
+    mk("public-works", TREASURY_DID, PUBLIC_WORKS_LINE, "public_works", "the seed jobs the operator's house agent posts for newcomers (market cold start, GV3): paid to the house agent only, never past the line; a proposed figure for the owner to set (PW1)"),
   ];
   return { version: "asp.budget-drafts/v1", status: UNSIGNED, period, drafts, growth: `A later month's budget for a line needs no co-signature up to 125 % of the last one; more than that needs the owner again. At most: ${drafts.map((d) => `${d.id} ${Math.floor((d.amount * 5) / 4)}`).join(", ")}.` };
 }
@@ -112,9 +115,11 @@ export async function treasuryCmd(sub: string | undefined, o: TreasuryOpts): Pro
     if (!b) throw new Error(`no budget ${f.budget} in this log: asp treasury list`);
     const amount = Math.trunc(Number(f.amount));
     const by = f.by ?? TREASURY_DID;
-    const rec = createRecord({ type: "treasury_payment" as never, issuer: by, subject: null, prev: null, body: { budget: b.id, to: b.institution, amount: { value: amount, unit: "credit" }, ...(f.memo ? { memo: f.memo } : {}) }, issued_at: o.now() }, o.signerFor(by));
+    // A public-works line (DK760) pays a house agent, named with --to, and nobody else; every other line pays its institution.
+    if (b.purpose === "public_works" && !f.to) throw new TreasuryUsage("a public-works payment names the house agent that escrows the seed jobs: asp treasury pay --budget <id> [--to <house agent, for a public-works line>] --amount <credits> --to <house agent did>");
+    const rec = createRecord({ type: "treasury_payment" as never, issuer: by, subject: null, prev: null, body: { budget: b.id, to: b.purpose === "public_works" ? f.to! : b.institution, amount: { value: amount, unit: "credit" }, ...(f.memo ? { memo: f.memo } : {}) }, issued_at: o.now() }, o.signerFor(by));
     const res = await o.log.append(rec);
-    o.io.out(`payment ${res.id}: ${amount} credits to ${b.institution} out of budget ${b.id.slice(7, 19)} (${b.amount - b.paid - amount} left; log seq ${res.seq})`);
+    o.io.out(`payment ${res.id}: ${amount} credits to ${b.purpose === "public_works" ? f.to : b.institution} out of budget ${b.id.slice(7, 19)} (${b.amount - b.paid - amount} left; log seq ${res.seq})`);
     return 0;
   }
   if (sub === "allowance") {
@@ -139,13 +144,13 @@ export async function treasuryCmd(sub: string | undefined, o: TreasuryOpts): Pro
     }
     if (!line) throw new Error(problems.join("; "));
     let lastError = "";
-    for (const trigger of ["first_course", "bonded"]) {
+    for (const trigger of ["first_course", "bonded", "no_job_30d"]) {
       try {
         const rec = createRecord({ type: "allowance" as never, issuer: who, subject: who, prev: null, body: { amount: { value: ALLOWANCE_AMOUNT, unit: "credit" }, trigger, budget: line.id }, issued_at: o.now() }, o.signerFor(who));
         const res = await o.log.append(rec);
         o.io.out(`allowance ${res.id}: ${ALLOWANCE_AMOUNT} credits to ${who} (${trigger}) from the Treasury's allowance line for ${month} (log seq ${res.seq})`);
         return 0;
-      } catch (e) { lastError = (e as Error).message; }
+      } catch (e) { if (trigger !== "no_job_30d" || !lastError) lastError = (e as Error).message; } // the floor is tried last: its refusal does not hide the reason the first two gave
     }
     throw new Error(`the log refused the claim: ${lastError}`);
   }

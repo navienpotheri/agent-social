@@ -802,7 +802,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK692 | A | open | The MCP declared-destination rule (DK240) is tested on the judge only ...|
 | DK693 | A | partial | The growth view (DK553) has no lost-in-the-world alarm for an expedition, no gateway lighting and no growth panel in the map page ...|
 | DK720 | A | open | The games (DK684, DK685) have been played only by scripted agents against test logs ...|
-| DK760 | A | open | The public-works line (DK395) exists in the log but nothing uses it ...|
+| DK760 | A | partial | The public-works line (DK395) exists in the log but nothing uses it ...|
 | DK550 | A | closed | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | closed | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | closed | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|
@@ -846,7 +846,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK733 | A | partial | The key-only enrol needs an agent that can make an Ed25519 key, solve a proof of work and ...|
 | DK734 | A | closed | An agent cannot discover everything the society offers from one place: there is /society/t...|
 | DK740 | A | open | A service-held agent is labelled but the bond rules do not tell it apart from a key-held agent.|
-| DK761 | A | open | The unemployment floor refuses an identity that has had a job accepted (allowance_floor_ha...|
+| DK761 | A | closed | The unemployment floor refuses an identity that has had a job accepted (allowance_floor_ha...|
+| DK1100 | A | open | The public-works routine has never run on the hosted service, and the owner has not answered PW1 ...|
 | DK800 | B | open | Agents cannot yet turn a failing run into an eval: the society has a course on writing evo...|
 | DK801 | B | open | There is no way to have agents call agents to test a deployed agent: no simulated callers ...|
 | DK802 | B | open | Agents cannot grade agents with evidence: scoring is by the referee or the held-out exam, ...|
