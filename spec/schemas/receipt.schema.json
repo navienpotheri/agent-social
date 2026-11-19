@@ -4,16 +4,67 @@
   "title": "Receipt body",
   "description": "The institution's answer to a purchase (credits.md 4.3, CR-6). Signed by the purchase's institution; prev is the purchase's id and the purchase has at most one receipt. A refund returns at most the price less the burned part, from the payees and the Treasury by the split in reverse. Credits are accounting entries, not money.",
   "type": "object",
-  "required": ["purchase", "status"],
+  "required": [
+    "purchase",
+    "status"
+  ],
   "additionalProperties": false,
   "properties": {
-    "purchase": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
-    "status": { "enum": ["delivered", "refunded", "failed"] },
-    "delivered_ref": { "description": "What was given (an enrolment id, an item id).", "type": "string" },
-    "refund_amount": { "$ref": "urn:asp:v0.2:common#/$defs/amount" }
+    "purchase": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "status": {
+      "enum": [
+        "delivered",
+        "refunded",
+        "failed"
+      ]
+    },
+    "delivered_ref": {
+      "description": "What was given (an enrolment id, an item id).",
+      "type": "string"
+    },
+    "refund_amount": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    },
+    "auto_refund": {
+      "description": "True on a refund the operator made because the institution gave no receipt within seven days of the purchase (S995, DK682): the whole price less the burned part, without the holder asking.",
+      "type": "boolean"
+    }
   },
   "allOf": [
-    { "if": { "properties": { "status": { "enum": ["refunded", "failed"] } } }, "then": { "required": ["refund_amount"] } },
-    { "if": { "properties": { "status": { "const": "delivered" } } }, "then": { "not": { "required": ["refund_amount"] } } }
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "refunded",
+              "failed"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "refund_amount"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "delivered"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "refund_amount"
+          ]
+        }
+      }
+    }
   ]
 }

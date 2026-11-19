@@ -89,13 +89,14 @@ async function runningJob(tx: LogTx, agent: string): Promise<string | undefined>
 }
 
 /** A holding (shops.md 3, housing.md 3): the seller (the Shops or Housing) signs that a delivered purchase of its own catalogue item gives the buyer the item's effect until a date. */
+import { buyerOf } from "./purchase-buyer.ts";
 export async function projectHolding(tx: LogTx, r: AspRecord, seller: string): Promise<void> {
   const b = r.body as Record<string, any>;
   if (r.issuer !== seller) throw rule("shops_act_wrong_issuer", `${r.issuer} is not ${seller}: only the seller signs a holding`);
   const p = await tx.getRecord(b.purchase);
   const pb = p?.record.body as { service: string; institution: string; price_list: string } | undefined;
   if (!p || p.record.type !== "asp.purchase/v0.2" || !pb) throw rule("holding_purchase_unknown", `${b.purchase} is not a purchase in this log`);
-  if (p.record.issuer !== b.holder) throw rule("holding_not_holders", `the purchase ${b.purchase} was made by ${p.record.issuer}, not ${b.holder}`);
+  if (buyerOf(p.record) !== b.holder) throw rule("holding_not_holders", `the purchase ${b.purchase} was made by ${buyerOf(p.record)}, not ${b.holder}`);
   if (pb.service !== b.item || pb.institution !== seller) throw rule("holding_wrong_item", `the purchase is for ${pb.service}, not ${b.item} from ${seller}`);
   const rc = await tx.getRecord(b.receipt);
   const rb = rc?.record.body as { status: string } | undefined;

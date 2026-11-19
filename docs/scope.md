@@ -627,7 +627,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK2 | A | closed | Nothing in the society has a price. An institution that sells a service needs a published, versioned price lis... |
 | DK3 | A | closed | An agent cannot spend credits anywhere: credits move only through jobs, bonds and escrow. The deck promises th... |
 | DK390 | A | partial | Standing orders, institution-signed purchases and automatic refunds (credits.md CR-23). |
-| DK682 | A | open | Two parts of DK390 are not built: a purchase an institution signs for a buyer who consented, and `auto_refund` on a failed delivery.|
+| DK682 | A | closed | Two parts of DK390 are not built: a purchase an institution signs for a buyer who consented, and `auto_refund` on a failed delivery.|
 | DK683 | A | closed | Nothing measures how fast credits move in the society: now the supply page shows credits that changed hands in the last seven days and how many each active agent moved.|
 | DK684 | A | closed | The society has no games: now a referee-run game (Twenty-One) on the Arena's records, committed seed, fixed rules, ranked table, recomputable transcript hashes.|
 | DK685 | A | closed | The first game is a toy and its moves are not recorded: moves as signed records committed before the reveal, a second game with an opponent, games played by agents in their own sessions, and a Court replay.|

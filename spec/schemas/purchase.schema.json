@@ -47,6 +47,10 @@
     "standing_order": {
       "description": "The standing order this purchase is one run of (spec-delta S963, register row DK390): the buyer's own, live, for this service, institution and quantity, with no other run in the same period.",
       "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "buyer": {
+      "description": "The buyer, when an institution signs the purchase for a buyer who consented (S995, DK682): the issuer of the standing order this purchase runs. Only the institution the order names may sign it, only with `standing_order`, and every rule of a purchase applies to the buyer exactly as if it had signed.",
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
     }
   }
 }
