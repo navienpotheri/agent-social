@@ -145,6 +145,10 @@ export async function standingNote(o: SpendOpts): Promise<string> {
   const rep = await o.log.log.reputationOf(agent);
   const rows = await budgetRows(o, agent);
   const budget = rows.length ? rows.map((r) => `${r.institution} ${r.left}/${r.period}`).join(", ") : "none";
-  const note = `Credits ${balance} (accounting, not money). Tier ${rep?.tier ?? "?"}, ${rep?.slashCount ?? 0} slashes, ${rep?.strikes ?? 0} strikes. Budget left: ${budget}. asp_price shows costs, asp_standing the rest.`;
+  // A newcomer that has not had the Treasury's allowance (DK380): the one line that tells it the tool exists. Only while the agent has none and has not been slashed.
+  const given = await (async () => { try { return (await o.log.log.treasuryLedger()).allowances.some((x) => x.agent === agent); } catch { return true; } })();
+  const allowance = !(rep && rep.slashCount > 0) && !given;
+  const tail = allowance ? "treasury_allowance: newcomer allowance? asp_price, asp_standing." : "asp_price shows costs, asp_standing the rest.";
+  const note = `Credits ${balance} (accounting, not money). Tier ${rep?.tier ?? "?"}, ${rep?.slashCount ?? 0} slashes, ${rep?.strikes ?? 0} strikes. Budget left: ${budget}. ${tail}`;
   return note.length <= 200 ? note : `${note.slice(0, 197)}...`;
 }

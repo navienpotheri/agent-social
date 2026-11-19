@@ -86,3 +86,14 @@ test("the Insurer's tools (DK184): insurance_quote is offered when the CLI suppl
   assert.match(((await full.callTool("insurance_buy", { contract: "sha256:c", cover: "failed_job", amount: 30 })).content[0] as { text: string }).text, /premium 2 paid/);
   assert.deepEqual(seen, [["quote", "sha256:c", "bond_slash", undefined], ["buy", "sha256:c", "failed_job", 30]]);
 });
+
+test("the Treasury's newcomer allowance tool (DK380): treasury_allowance is offered only when the CLI supplies it, reads the line from the log and changes nothing", async () => {
+  const none = aspHandler({ society: { standing: async () => "x" } });
+  assert.ok(!(await none.listTools()).some((t) => t.name === "treasury_allowance"));
+  let calls = 0;
+  const h = aspHandler({ society: { standing: async () => "x", treasury: { allowance: async () => { calls++; return "did:x: you may be eligible for the 40-credit newcomer allowance"; } } } });
+  assert.ok((await h.listTools()).some((t) => t.name === "treasury_allowance"));
+  const r = await h.callTool("treasury_allowance", { claim: true });
+  assert.match((r.content[0] as { text: string }).text, /40-credit newcomer allowance/);
+  assert.equal(calls, 1, "arguments change nothing: the tool only reads");
+});
