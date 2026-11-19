@@ -145,3 +145,31 @@ Folder read: `D by dt\agent social\11th NOv,2026` (49 PNG screenshots IMG_6464 t
 - **Mechanism:** conceptual framework; auctions; mission economies (a shared goal funded and rewarded as a whole).
 - **Evidence:** none (position paper).
 - **For us:** yes, **already P37** (class A, economy-physics). Two ideas not yet visible in our register: **mission economies** (a collective goal that agents pool credits for and share a reward on completion; extends research bounties and the services board, not the same as a bounty because the goal is shared and scored as a whole) and the **origin axis** (emergent versus intentional) as a way to label each society flow. See DK813 and DK824.
+
+### IMG_6484.PNG
+- **What it is:** a short text excerpt on white (a book or interview transcript; no title, author or date is visible here, but IMG_6486 shows the same typeface with Dwarkesh Patel and Francois Chollet as speakers, so it is probably the same book). Black padding above and below.
+- **Claim:** a question: is there a loss function that easily gives System 2 (slow, deliberate) thinking? Few animals have it and evolution took long; pretraining on trillions of tokens gives many capabilities but not much System 2, so why assume it will be an easy unlocking?
+- **Mechanism:** none; it is a doubt about whether deliberate reasoning arrives from a training objective alone.
+- **Evidence:** none.
+- **For us:** maybe. It is a weights-level question (class C), so no build from it. The useful side: if System 2 is not a free by-product of training, it has to be supplied by the harness: deliberation steps, a verifier, a planner. That supports the harness-level continual learning stance and the state-machine items (IMG_6464 to 6466): courses that teach an agent to *slow down* (plan, check, ask) at agent level, scored by held-out tasks where the fast answer is a trap.
+
+### IMG_6485.PNG (the same book as IMG_6484 and IMG_6486; the source is named only on IMG_6486)
+- **What it is:** another excerpt from a long text opened from a downloaded file (the browser bar reads chrome://downloads); a footnote number 82 appears. No title or author visible.
+- **Claim:** the brain has a separate mechanism for quickly learning specific facts (hear a name, remember it tomorrow) and another for slowly integrating a lifetime of experience into deep generalities. They are different optimisation problems with a tension between them; a complete system needs both, one could in principle build a single system that does both, but because they differ it makes sense to do them separately, which is why the author thinks the brain does.
+- **Mechanism:** two learning systems with different speeds (fast episodic, slow semantic): complementary learning systems.
+- **Evidence:** none shown (an argument from neuroscience).
+- **For us:** yes, and it is the design principle behind our own split: the fast store (memory notes, episodic traces, per-customer memory as in SPAR) versus the slow store (skills, playbook, harness). Build: make the two stores explicit in the learning platform with different gates: a **fast lane** (a note written quickly after one episode, marked tentative, expires unless re-confirmed) and a **slow lane** (a skill or rule that is promoted only after repeated evidence and a held-out replay). A course "fast notes, slow rules" and a metric: how often a tentative note was promoted and how often a promoted rule later failed. Extends the lesson gate and the memory consolidation courses (L8). Hard: deciding the promotion threshold without overfitting to the sample.
+
+### IMG_6486.PNG (same book as IMG_6484 and IMG_6485: the typeface, the dark viewer bar and the speaker headings match)
+- **What it is:** a page from a PDF opened in a phone browser; the address bar ends in "Stripe-Press-2025.pdf#page279". A dialogue format with speaker headings DWARKESH PATEL and FRANCOIS CHOLLET (so it is a Stripe Press 2025 book of conversations; I read the book title as not visible, only the file name). The page opens in the middle of Chollet's answer.
+- **Claim:** language models "solve" a task like a transposition cipher by recalling memorised examples: they succeed for transposition lengths of three or five, which are common in internet examples, and fail for an arbitrary length like nine. That shows they encode specific cases, not the general algorithm; if they could synthesise the solver on the fly, n would not matter. Patel replies he thinks this is true of humans as well; Chollet starts to answer that humans use memorisation and pattern matching all the time (cut off).
+- **Mechanism:** a diagnostic: vary a parameter outside the common range and see whether performance collapses.
+- **Evidence:** a worked example in conversation, no numbers.
+- **For us:** yes, strongly, for the **held-out replay**. This is the method behind our Overfitter test: a course exercise passes only if the agent's skill holds on a *rare parameter value* (nine, not three or five), not just on the values a lesson was written from. Build: in the task generator, always include a "off-the-common-path" variant set (parameters chosen from the tail), and report memorisation-versus-algorithm as a separate score on the capability fingerprint. Class A: it grades agents, not weights. Existing: held-out variants from seeds nobody controls; the tail-variant rule is the addition. Candidate DK814.
+
+### IMG_6487.PNG (same book as IMG_6484 to IMG_6486)
+- **What it is:** one question under the heading DWARKESH PATEL, on white with black padding.
+- **Claim:** asks whether episodic memory is fairly called the root of human sample efficiency, or something different.
+- **Mechanism:** none; the answer is not on this screenshot (it may be IMG_6485, which is the fast-learning versus slow-generalising answer, but the order is not shown).
+- **Evidence:** none.
+- **For us:** yes, as the framing of one measurable thing: **sample efficiency of an agent's learning** (how many episodes of a failure before the agent no longer repeats it). Our held-out gain measures the size of a gain, not the number of episodes it took. Candidate DK815: record "episodes to fix" for each lesson and show it on the capability fingerprint.
