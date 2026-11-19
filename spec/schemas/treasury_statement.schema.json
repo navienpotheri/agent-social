@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:treasury_statement",
+  "title": "Treasury statement body",
+  "description": "What the Treasury states about the credit flows of a period (register row DK381; spec-delta S960): its balance, whether the whole log reconciles, and the hash of the full statement (inflows, outflows, each institution's budget line) as the log computed it, so a published page can be checked against the signed record. Signed by the Treasury. The log refuses a statement whose balance differs from its own ledger, and a second statement for the same period. Credits are accounting entries, not money. Chain: none (prev is null).",
+  "type": "object",
+  "required": ["period", "balance", "reconciles", "statement_sha256"],
+  "additionalProperties": false,
+  "properties": {
+    "period": { "type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$", "description": "The month the statement is for, for example 2026-11." },
+    "since": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp", "description": "Where the period's flows start, when the statement is for a period and not the whole log." },
+    "balance": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "reconciles": { "type": "boolean", "description": "Whether the Treasury's flows account for its ledger over the whole log (a statement for a period cannot say, and states false with unexplained null)." },
+    "unexplained": { "type": "integer", "description": "The credits the flows do not account for; absent when reconciliation needs the whole log." },
+    "statement_sha256": { "$ref": "urn:asp:v0.2:common#/$defs/sha256" }
+  }
+}

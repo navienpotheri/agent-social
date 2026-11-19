@@ -8160,6 +8160,111 @@
       "valid": false
     },
     {
+      "name": "valid_treasury_statement",
+      "schema": "treasury_statement",
+      "instance": {
+        "period": "2026-11",
+        "balance": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "reconciles": true,
+        "unexplained": 0,
+        "statement_sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_treasury_statement_for_a_period",
+      "schema": "treasury_statement",
+      "instance": {
+        "period": "2026-11",
+        "balance": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "reconciles": false,
+        "statement_sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "since": "2026-11-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "treasury_statement_no_hash",
+      "schema": "treasury_statement",
+      "instance": {
+        "period": "2026-11",
+        "balance": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "reconciles": true,
+        "unexplained": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "treasury_statement_bad_period",
+      "schema": "treasury_statement",
+      "instance": {
+        "period": "November",
+        "balance": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "reconciles": true,
+        "unexplained": 0,
+        "statement_sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      "valid": false
+    },
+    {
+      "name": "treasury_statement_month_13",
+      "schema": "treasury_statement",
+      "instance": {
+        "period": "2026-13",
+        "balance": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "reconciles": true,
+        "unexplained": 0,
+        "statement_sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      "valid": false
+    },
+    {
+      "name": "treasury_statement_bad_hash",
+      "schema": "treasury_statement",
+      "instance": {
+        "period": "2026-11",
+        "balance": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "reconciles": true,
+        "unexplained": 0,
+        "statement_sha256": "abc"
+      },
+      "valid": false
+    },
+    {
+      "name": "treasury_statement_extra_field",
+      "schema": "treasury_statement",
+      "instance": {
+        "period": "2026-11",
+        "balance": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "reconciles": true,
+        "unexplained": 0,
+        "statement_sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "note": "x"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_policy",
       "schema": "policy",
       "instance": {

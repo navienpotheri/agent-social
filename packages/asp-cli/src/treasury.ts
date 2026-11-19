@@ -5,13 +5,13 @@
  */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
-import { cosign, createRecord, type Signer } from "@agent-social/asp-core";
+import { canonicalize, cosign, createRecord, type Signer } from "@agent-social/asp-core";
 import { ALLOWANCE_AMOUNT, INSTITUTION_NAMES, TREASURY_DID, institutionDid } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
 
 import { handoutCmd, HandoutUsage } from "./treasury-handout.ts";
 export class TreasuryUsage extends Error {}
-export interface TreasuryOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; flags: { period?: string; out?: string; draft?: string; id?: string; by?: string; "cosign-by"?: string; amount?: string; budget?: string; memo?: string; claim?: boolean; agent?: string; since?: string; week?: string } }
+export interface TreasuryOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; flags: { period?: string; out?: string; draft?: string; id?: string; by?: string; "cosign-by"?: string; amount?: string; budget?: string; memo?: string; claim?: boolean; agent?: string; since?: string; week?: string; sign?: boolean } }
 
 export interface Draft { id: string; institution: string; period: string; amount: number; purpose: string; why: string; sha256: string }
 export interface DraftFile { version: "asp.budget-drafts/v1"; status: string; period: string; drafts: Draft[]; growth: string }
@@ -92,6 +92,16 @@ export async function treasuryCmd(sub: string | undefined, o: TreasuryOpts): Pro
     o.io.out(`  went out: budget payments ${t.out.budgetPayments}, newcomer allowances ${t.out.allowances}`);
     o.io.out(`  balance ${t.balance}; ${t.reconciles === null ? "reconciliation needs the whole log" : t.reconciles ? "reconciles to the ledger" : `DOES NOT RECONCILE: ${t.unexplained} unexplained`}`);
     for (const i of st.institutions) o.io.out(`  ${i.did.replace("did:web:asp.local:", "").padEnd(10)} budgeted ${String(i.budgeted).padStart(6)}  paid by the Treasury ${String(i.paidByTreasury).padStart(6)}  earned from purchases ${String(i.earnedFromPurchases).padStart(6)}  balance ${i.balance}`);
+    if (f.sign) {
+      // The signed copy (DK381, S960): the Treasury signs the month, the Treasury's balance and the hash of the whole statement as printed above. One for each month; the log refuses a second.
+      const period = f.period ?? o.now().slice(0, 7);
+      if (!/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(period)) throw new TreasuryUsage("--period is a month, for example 2026-11");
+      const hash = "sha256:" + createHash("sha256").update(canonicalize(st as never)).digest("hex");
+      const by = f.by ?? TREASURY_DID;
+      const body = { period, ...(st.since ? { since: st.since } : {}), balance: { value: t.balance, unit: "credit" as const }, reconciles: t.reconciles === true, ...(t.unexplained !== null ? { unexplained: t.unexplained } : {}), statement_sha256: hash };
+      const res = await o.log.append(createRecord({ type: "treasury_statement" as never, issuer: by, subject: null, prev: null, body, issued_at: o.now() }, o.signerFor(by)));
+      o.io.out(`signed statement ${res.id} for ${period}: balance ${t.balance}, hash ${hash} (log seq ${res.seq})`);
+    }
     return t.reconciles === false ? 1 : 0;
   }
   if (sub === "handout") { try { return await handoutCmd({ log: o.log, io: o.io, now: o.now, signerFor: o.signerFor, flags: { week: f.week, budget: f.budget, amount: f.amount, yes: f.claim } }); } catch (e) { if (e instanceof HandoutUsage) throw new TreasuryUsage(e.message); throw e; } }
