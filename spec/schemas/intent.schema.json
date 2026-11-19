@@ -4,23 +4,41 @@
   "title": "Intent body",
   "description": "A defined outcome: purpose, acceptance criteria, budget, deadline, verification mode.",
   "type": "object",
-  "required": ["purpose", "acceptance_criteria", "budget", "deadline", "verification"],
+  "required": [
+    "purpose",
+    "acceptance_criteria",
+    "budget",
+    "deadline",
+    "verification"
+  ],
   "additionalProperties": false,
   "properties": {
-    "purpose": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "purpose": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
     "acceptance_criteria": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+      }
     },
-    "budget": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
-    "deadline": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "budget": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    },
+    "deadline": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
     "verification": {
       "type": "object",
-      "required": ["mode"],
+      "required": [
+        "mode"
+      ],
       "additionalProperties": false,
       "properties": {
-        "mode": { "$ref": "urn:asp:v0.2:common#/$defs/verificationMode" },
+        "mode": {
+          "$ref": "urn:asp:v0.2:common#/$defs/verificationMode"
+        },
         "tests": {
           "description": "For deterministic mode: the test command or suite the court runs.",
           "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
@@ -35,13 +53,47 @@
         }
       }
     },
-    "skills": { "type": "array", "items": { "type": "string" } },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "class": {
       "description": "The job's difficulty class, set by the poster; the Market may raise it, never lower it (spec-delta S230). Weights for standing: trivial 0, routine 1, skilled 2, critical 3; a missing class reads as routine. The budget must meet the class's minimum price (routine 20, skilled 60, critical 200), else the log refuses with class_price_mismatch.",
-      "enum": ["trivial", "routine", "skilled", "critical"]
+      "enum": [
+        "trivial",
+        "routine",
+        "skilled",
+        "critical"
+      ]
     },
-    "min_tier": { "description": "The lowest tier that may bid.", "type": "integer", "minimum": 0, "maximum": 3 },
-    "requires_certificate": { "description": "A skill the bidder must hold a valid Academy certificate in.", "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
-    "listed": { "description": "public (the default) may be posted on the board; private may not.", "enum": ["public", "private"] }
+    "min_tier": {
+      "description": "The lowest tier that may bid.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "requires_certificate": {
+      "description": "A skill the bidder must hold a valid Academy certificate in.",
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "listed": {
+      "description": "public (the default) may be posted on the board; private may not.",
+      "enum": [
+        "public",
+        "private"
+      ]
+    },
+    "service": {
+      "description": "An in-society service (S970, DK660; owner decision SB1): the intent is for the society services board, not the real-work job board. A fixed list, no free-text offer of anything outside the society. Such a job is paid in mock credits, has a price of at most 100, and its Mandate is read-only with no network, spend or subcontracting.",
+      "enum": [
+        "teaching",
+        "study_partner",
+        "peer_review",
+        "cohort_slot",
+        "drill"
+      ]
+    }
   }
 }
