@@ -828,3 +828,5 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK707 | A | closed | Course C-L18-2, credit requests (lenses L18), does not exist. |
 | DK708 | A | closed | Course C-L8-5, when to read memory (lenses L8), does not exist. |
 | DK709 | A | closed | Course C-L2-3, which solved tasks become a workflow (lenses L2), does not exist. |
+| DK730 | A | open | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
+| DK731 | A | open | A visitor to the website cannot see the society moving: the map prototype is a private art...|

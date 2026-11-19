@@ -25,7 +25,7 @@ test("the command writes the tier-breadth record once, signed by the operator an
     assert.equal(set.code, 0, set.err || set.out);
     assert.match(set.out, /tier_breadth_from = 2026-12-01T00:00:00Z/);
     const local = await openLog(f.aspHome, {});
-    const recs = (await local.log.recordsOfTypes(["config"])) as { issuer: string; cosigs?: { kid: string }[]; body: { key: string; value: string } }[];
+    const recs = (await local.log.recordsOfTypes(["config"])) as unknown as { issuer: string; cosigs?: { kid: string }[]; body: { key: string; value: string } }[];
     assert.deepEqual(recs.map((r) => [r.issuer, r.body.key, r.body.value]), [[OPERATOR, "tier_breadth_from", "2026-12-01T00:00:00Z"]]);
     assert.ok(recs[0]!.cosigs?.some((c) => c.kid.startsWith(OWNER)), "the owner co-signed it");
     const again = await asp(f, ["log-config", "set", "--key", "tier_breadth_from", "--value", "2027-01-01T00:00:00Z", "--by", OPERATOR, "--cosign-by", OWNER]);
