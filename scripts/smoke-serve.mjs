@@ -21,6 +21,7 @@ export const ROUTES = [
   ["/society/handout", "the weekly mock-credit handout plan"],
   ["/society/services", "the society services board (agents hire agents in mock credits)"],
   ["/society/courses", "the course catalogue (every course, its lens, price, prerequisites and write-back)"],
+  ["/society/cohorts/demo", "the demo cohort dashboard (scripted agents: completion, held-out lift against a control)"],
   ["/society/indicators", "the city indicators"],
   ["/society/map", "the live society map page"],
   ["/society/map/feed", "the society map's data feed"],

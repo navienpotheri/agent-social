@@ -13,3 +13,4 @@ export { ENGINES, attestation, engineIds, sit, type CourseRun, type Engine, type
 export * from "./catalogue.ts";
 export { writeBack, REPLAY_TASKS } from "./writeback.ts";
 export { coursesRoutes, catalogueEntries } from "./pages.ts";
+export { cohortRoutes, dashboardView } from "./cohort-pages.ts";
