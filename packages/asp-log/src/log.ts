@@ -231,7 +231,8 @@ export class EventLog {
   private readonly insurerEnv: InsurerEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
 
   private readonly bondFloor: "legacy" | "v2" | "v3";
-  private readonly bondFloorFrom?: string;
+  private bondFloorFrom?: string;
+  private configLoaded = false;
   private readonly panelV2From?: string;
   private readonly operator?: string;
   private readonly allowUnsignedMint: boolean;
@@ -271,6 +272,8 @@ export class EventLog {
   }
 
   private async appendIn(tx: LogTx, r: AspRecord, appendedAt: string): Promise<AppendResult> {
+    // The cutover of the bond floor travels with the log (DK312, S972): a `config` record already in the store sets it, so a restart or a replay without the deployment option judges the same way.
+    if (!this.configLoaded) { const v = await tx.getMarker("config:bond_floor_from"); if (v) this.bondFloorFrom = v; this.configLoaded = true; }
     const existing = await tx.getRecord(r.id);
     if (existing) {
       const chain = await tx.getChain(existing.chain);
@@ -364,6 +367,7 @@ export class EventLog {
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
     if (type === "handout") await this.projectHandout(tx, verified);
+    if (type === "config") await this.projectConfig(tx, verified);
     if (type === "allowance") await this.projectAllowance(tx, verified);
     if (type === "prize") await this.projectPrize(tx, verified);
     if (type === "certificate") await this.projectCertificate(tx, verified);
@@ -1796,6 +1800,22 @@ export class EventLog {
     await this.drawBudget(tx, b.budget, b.amount.value, r.issued_at);
     await this.debit(tx, TREASURY_DID, b.amount.value);
     await this.credit(tx, b.to, b.amount.value);
+  }
+
+  /** The bond floor cutover this log judges by: the signed configuration record, or the deployment option when the log has none (DK312). */
+  async bondFloorCutover(): Promise<string | undefined> { await this.store.transaction(async (tx) => { if (!this.configLoaded) { const v = await tx.getMarker("config:bond_floor_from"); if (v) this.bondFloorFrom = v; this.configLoaded = true; } }); return this.bondFloorFrom; }
+
+  /** A configuration record (DK312, S972): the operator, with the owner, sets the bond floor cutover once, at or after the record's own time. The value then travels with the log. */
+  private async projectConfig(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { key: string; value: string };
+    if (r.prev !== null) throw rule("config_not_chained", "a configuration record starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("config_unauthorised", `${r.issuer} is not the operator: only the operator writes a configuration record`);
+    if (!this.cosignedBy(r, this.owner)) throw rule("config_needs_cosign", "a configuration record needs the owner's co-signature");
+    if (Date.parse(b.value) < Date.parse(r.issued_at)) throw rule("config_cutover_past", "the cutover is at or after the record's own time, so no earlier record is judged differently");
+    if (await tx.getMarker(`config:${b.key}`)) throw rule("config_already_set", `${b.key} is already set in this log: it is set once and never changed`);
+    if (this.bondFloorFrom !== undefined && Date.parse(this.bondFloorFrom) !== Date.parse(b.value)) throw rule("config_conflicts_option", `the deployment's own option names ${this.bondFloorFrom}: remove it or write the same time`);
+    await tx.putMarker(`config:${b.key}`, b.value);
+    this.bondFloorFrom = b.value;
   }
 
   /**
