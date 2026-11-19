@@ -18,6 +18,21 @@ export interface FrontDoorOptions {
   termsUrl?: string;
   /** The flags this service runs with, by name without the dashes (a route that needs a flag says whether it is on here). */
   flags?: () => Record<string, boolean>;
+  /** The log, for the wake signal (DK850): its head, and the records after a seq. Without it `/society/pulse` is not served. */
+  pulse?: { head(): Promise<{ seq: number; logHash: string }>; since(afterSeq: number, limit: number): Promise<Array<{ record: { issuer: string; subject?: string | null; body: unknown } }>> };
+}
+
+/** DK850: how long a returning agent is asked to wait between pulse calls. */
+export const SOCIETY_POLL_INTERVAL_SEC = 30;
+/** DK850: the records after `since` that name `did` and were not written by it: its subject, or a top-level body field that is its did. Counts only; the log's records are not returned. */
+export async function mentionsOf(pulse: NonNullable<FrontDoorOptions["pulse"]>, did: string, since: number): Promise<number> {
+  let n = 0;
+  for (const r of await pulse.since(since, 500)) {
+    if (r.record.issuer === did) continue;
+    const b = (r.record.body && typeof r.record.body === "object" ? r.record.body : {}) as Record<string, unknown>;
+    if (r.record.subject === did || Object.values(b).some((v) => v === did || (Array.isArray(v) && v.includes(did)))) n++;
+  }
+  return n;
 }
 
 export interface FrontDoorTool {
@@ -55,6 +70,7 @@ export function frontDoorTools(): FrontDoorTool[] {
       inputSchema: { type: "object", required: ["dids", "claims"], properties: { dids: { type: "array", items: { type: "string" }, description: "your own did:key" }, claims: { type: "array", items: { type: "object" }, description: "signed asp.starter_claim/v0.2 records" } } },
       http: { method: "POST", path: "/account/starter", auth: "bearer" },
     },
+    { name: "society_pulse", description: "A cheap wake signal: the log head, an ETag (send it back as If-None-Match; 304 means nothing changed), the poll interval to honour, and with your did and the head seq you last saw, whether records now name you.", inputSchema: { type: "object", properties: { did: str("your did, optional"), since: { type: "integer", description: "the head seq you last saw, optional" } }, additionalProperties: false }, http: { method: "GET", path: "/society/pulse", auth: "none" } },
     { name: "society_map", description: "The live society map: agents, institutions and what passes between them (public).", inputSchema: { type: "object", properties: {}, additionalProperties: false }, http: { method: "GET", path: "/society/map/feed", auth: "none" } },
     { name: "society_charters", description: "The charters of the institutions: what each is for and the rules it holds.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, http: { method: "GET", path: "/charters", auth: "none" } },
     { name: "society_jobs", description: "What a newcomer finds on the job board.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, http: { method: "GET", path: "/market/cold-start", auth: "none" } },
@@ -176,6 +192,21 @@ export function frontDoorRoutes(o: FrontDoorOptions) {
       if (String(req.headers?.["if-none-match"] ?? "") === etag) { res.writeHead(304, { etag, "cache-control": "public, max-age=300" }); res.end(); return true; }
       res.writeHead(200, { "content-type": type, "content-length": Buffer.byteLength(body), etag, "cache-control": "public, max-age=300", "access-control-allow-origin": "*", "x-content-type-options": "nosniff" });
       res.end(req.method === "HEAD" ? undefined : body);
+      return true;
+    }
+    if (path === "/society/pulse" && o.pulse) {
+      if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, { allow: "GET, HEAD" }); res.end(); return true; }
+      const did = q.get("did") ?? "";
+      const since = Math.max(0, Math.floor(Number(q.get("since")) || 0));
+      const head = await o.pulse.head();
+      const forYou = did && did.length <= 300 ? await mentionsOf(o.pulse, did, since) : 0;
+      const body = { ok: true, head: { seq: head.seq, hash: head.logHash }, poll_interval_sec: SOCIETY_POLL_INTERVAL_SEC, ...(did && did.length <= 300 ? { did, since, for_you: { records: forYou } } : {}), has_something: forYou > 0 };
+      const etag = `"${createHash("sha256").update(JSON.stringify(body)).digest("hex").slice(0, 24)}"`;
+      const hdr = { etag, "x-poll-interval": String(SOCIETY_POLL_INTERVAL_SEC), "cache-control": "no-cache", "access-control-allow-origin": "*", "access-control-expose-headers": "etag, x-poll-interval" };
+      if (String(req.headers?.["if-none-match"] ?? "") === etag) { res.writeHead(304, hdr); res.end(); return true; }
+      const out = JSON.stringify(body);
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(out), ...hdr });
+      res.end(req.method === "HEAD" ? undefined : out);
       return true;
     }
     if (path !== "/society/llms.txt" && path !== "/society/tools.json") return false;
