@@ -92,6 +92,8 @@ export interface AspToolsOptions {
   society?: { standing: () => Promise<string>; buy?: (service: string, quantity: number) => Promise<string>; price?: (service: string | undefined) => Promise<string>; /** The School (academy.md AC-19): the catalogue, and enrolling (tuition from the agent's own credits, inside its Mandate). */ academy?: { catalog: () => Promise<string>; enrol?: (course: string) => Promise<string> };
     /** The Bank (bank-insurer.md BI-10; DK181): what line it would offer this agent now, and what it states the agent has and owes. Read from the log; the agent cannot change either. */
     bank?: { offer: () => Promise<string>; statement: () => Promise<string> };
+    /** The Treasury's newcomer allowance (DK380, DK98): whether this agent may claim it now and what stands in the way. Read from the log; claiming is `asp treasury allowance --claim` under the agent's own key. */
+    treasury?: { allowance: () => Promise<string> };
     /** The Insurer (bank-insurer.md BI-10; DK184): a quote for cover on a contract, and, when the run holds the keys a sale needs, buying it. The log refuses a wrong premium or a sale below the reserve floor. */
     insurance?: { quote: (contract: string, cover: string, amount?: number) => Promise<string>; buy?: (contract: string, cover: string, amount?: number) => Promise<string> } };
   /** Called after every memory write, for the run's records. */
@@ -294,6 +296,14 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
         name: "bank_statement", description: "See what the Bank has on record for you: your balance, what you owe it, and the credits you have locked in bonds, by contract.",
         inputSchema: { type: "object", properties: {} },
         run: async () => textResult(await bank.statement()),
+      });
+    }
+    if (society.treasury) {
+      const treasury = society.treasury;
+      tools.push({
+        name: "treasury_allowance", description: "See whether you may claim the Treasury's newcomer allowance (mock credits, accounting entries, not money; once for each identity and each sponsor, after a first course or a first bond, for a passport under 90 days old with no slash), and every reason you cannot yet. It changes nothing; claiming is a separate step your sponsor or you take with asp treasury allowance --claim.",
+        inputSchema: { type: "object", properties: {} },
+        run: async () => textResult(await treasury.allowance()),
       });
     }
     if (society.insurance) {

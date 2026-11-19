@@ -52,6 +52,11 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
   if (path === "/insurer/reserve") { const i = await log.insurerPage(); return wantsHtml ? { status: 200, html: insurerHtml(i, []) } : { status: 200, json: { ok: true, result: i } }; }
   if (path === "/insurer/claims") { const c = await log.insurerClaims(); return wantsHtml ? { status: 200, html: insurerHtml(await log.insurerPage(), c) } : { status: 200, json: { ok: true, result: c } }; }
   if (path === "/market/cold-start") return { status: 200, json: { ok: true, result: await log.coldStart() } };
+  if (path === "/treasury/statement") {
+    // The Treasury statement as the log computes it now, and the signed copies (DK381, S960): a signed record names the hash of the statement of its day, so a page saved then can be checked against it.
+    const signed = (await log.recordsOfTypes(["treasury_statement"])).map((r) => ({ record: r.id, issued_at: r.issued_at, ...(r.body as object) }));
+    return { status: 200, json: { ok: true, result: { note: "Credits are accounting entries, not money. The signed copies are the Treasury's own records; the hash covers the whole statement as it was when signed.", statement: await log.treasuryStatement(url.searchParams.get("since") ?? undefined), signed } } };
+  }
   if (path === "/charters") { const idx = await log.charterIndex(); const chk = await log.charterCrossCheck(); return wantsHtml ? { status: 200, html: chartersHtml(idx, chk.problems.length) } : { status: 200, json: { ok: true, result: { charters: idx, crossCheck: chk } } }; }
   if (path === "/operator/acts") { const acts = await log.operatorActs(Number(url.searchParams.get("limit") ?? 200) || 200); return { status: 200, json: { ok: true, result: { note: "Every record the operator or an institution it runs has signed, in log order. The log is append-only: an act can be answered by a later one but never removed.", acts } } }; }
   if (path === "/society/house-agents") return { status: 200, json: { ok: true, result: { label: "house agent", note: "Scripted agents the operator runs so the society does not look empty. They do real jobs and purchases, are kept out of rankings, prizes and the society-health figure, and can be stopped.", agents: await log.houseAgents() } } };

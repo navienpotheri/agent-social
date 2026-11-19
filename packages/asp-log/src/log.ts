@@ -363,6 +363,7 @@ export class EventLog {
     if (type === "claim_decision") await projectClaimDecision(tx, verified, this.insurerEnv);
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
+    if (type === "treasury_statement") await this.projectTreasuryStatement(tx, verified);
     if (type === "handout") await this.projectHandout(tx, verified);
     if (type === "allowance") await this.projectAllowance(tx, verified);
     if (type === "prize") await this.projectPrize(tx, verified);
@@ -1781,6 +1782,20 @@ export class EventLog {
     if (drawn + amount > bb.amount.value) throw rule("over_budget", `the budget is ${bb.amount.value} credits and ${drawn} are drawn: ${amount} more would be ${drawn + amount}`);
     await tx.putMarker(`budget_drawn:${id}`, String(drawn + amount));
     await tx.putMarker("budget_open", String(Number((await tx.getMarker("budget_open")) ?? 0) - amount));
+  }
+
+  /**
+   * A Treasury statement (DK381, S960): the Treasury signs what the log says about its flows for a month. The log checks what it can recompute (the Treasury's balance now) and holds one statement for each month
+   * (`treasury_statement_period_taken`); the hash is of the full statement the Treasury's command computed, so a published page is checked against it outside the log.
+   */
+  private async projectTreasuryStatement(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { period: string; balance: { value: number } };
+    if (r.prev !== null) throw rule("treasury_statement_not_chained", "a Treasury statement starts its own chain (prev is null)");
+    if (r.issuer !== TREASURY_DID) throw rule("treasury_statement_wrong_issuer", `${r.issuer} is not the Treasury (${TREASURY_DID}): only the Treasury issues its statement`);
+    const balance = (await tx.getAccount(TREASURY_DID))?.balance ?? 0;
+    if (b.balance.value !== balance) throw rule("treasury_statement_balance_mismatch", `the Treasury holds ${balance} credits in the log, not ${b.balance.value}`);
+    if (await tx.getMarker(`treasury_statement:${b.period}`)) throw rule("treasury_statement_period_taken", `a statement for ${b.period} is already in the log`);
+    await tx.putMarker(`treasury_statement:${b.period}`, r.id);
   }
 
   /** A Treasury payment (T10): part of an approved budget goes to that budget's institution, and to no one else. Debits only the Treasury. */

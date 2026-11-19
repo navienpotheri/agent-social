@@ -3178,6 +3178,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         quote: (contract: string, cover: string, amount?: number) => lines((out) => insureCmd("quote", { log: local, io: { out, err: out }, now, signerFor: () => agentSigner!, flags: { contract, cover, by, ...(amount !== undefined ? { amount: String(amount) } : {}) } })),
         ...(agentSigner && new Keystore(home).forDid(INSURER_DID) ? { buy: (contract: string, cover: string, amount?: number) => lines((out) => insureCmd("buy", { log: local, io: { out, err: out }, now, signerFor: (d) => new Keystore(home).forDid(d)!, flags: { contract, cover, by, ...(amount !== undefined ? { amount: String(amount) } : {}) } })).catch((e) => `The log refused: ${(e as Error).message}`) } : {}),
       },
+      treasury: { allowance: () => lines((out) => treasuryCmd("allowance", { log: local, io: { out, err: out }, now, signerFor: () => agentSigner!, flags: { agent: by } })) },
       bank: {
         offer: async () => { const o = await local.log.bankOffer(by); return o.eligible ? `The Bank would lend you up to ${o.limit} credits for your first bond, interest-free, repaid from the job's first pay. Your guarantor is your sponsor ${o.guarantor}, who must hold at least ${o.guarantorNeeds} credits. The Bank has ${o.reserveFree} free to lend.` : `The Bank would not offer you a line now: ${o.reasons.join("; ")}. The Bank has ${o.reserveFree} free to lend.`; },
         statement: async () => { const locks = await local.log.bankLocksOf(by); const balance = await local.log.balance(by); const page = await local.log.bankPage(); const owed = page.lines.filter((l) => l.borrower === by && (l.status === "drawn" || l.status === "owing")).reduce((n, l) => n + l.owed, 0); return `balance ${balance}; owed to the Bank ${owed}; locked in bonds ${locks.reduce((n, l) => n + l.bond, 0)}${locks.length ? ` (${locks.map((l) => `${l.contract.slice(7, 19)}: ${l.bond}`).join(", ")})` : ""}`; },
@@ -4793,7 +4794,7 @@ async function treasuryCommand(home: string, sub: string | undefined, v: Values,
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount, budget: v.budget, memo: v.memo, claim: v.yes, agent: v.agent, since: v.since, week: v.week } });
+    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount, budget: v.budget, memo: v.memo, claim: v.yes, agent: v.agent, since: v.since, week: v.week, sign: v.sign } });
   } catch (e) {
     if (e instanceof TreasuryUsage) throw new UsageError(e.message);
     throw e;

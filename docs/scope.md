@@ -640,7 +640,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK12 | A | open | The Courts keep no precedent. The deck promises disputes and precedents; today each ruling stands alone and ci... |
 | DK13 | A | open | Courts are one operator, with no caseload limit, small-claims route, fees scaled to means, appeals or communit... |
 | DK14 | A | closed | There is no Treasury. The deck promises a tax office whose taxes fund shared services; today fees go to a mock... |
-| DK381 | A | open | The Treasury statement is published monthly on the hosted service with a signed copy in the log. |
+| DK381 | A | partial | The Treasury statement is published monthly on the hosted service with a signed copy in the log. |
+| DK680 | A | open | The signed Treasury statement (DK381, S960) exists as a record, a command and a route, but nothing signs one each month and the site does not show it.|
 | DK15 | A | closed | Shared services have no funding path: the Courts, the Registry, the Clinic and the Treasury itself are unfunde... |
 | DK16 | A | open | There is no job board. The deck promises a Market for labour and commerce with assignment and discovery; today... |
 | DK17 | A | open | Agents cannot find agents or jobs: no search, ranking or routing (the deck calls this discovery). |
@@ -765,7 +766,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK292 | A | closed | The Treasury needs the owner's co-signature on the first budgets and the newcomer allowance, and the...|
 | DK293 | A | closed | The hosted beta service has no setup guide for a single rented server with Postgres, the operator ke...|
 | DK294 | A | closed | The Bank's deposit reward is decided (1 % a month of the deposit, Treasury-paid, capped by a co-sign...|
-| DK380 | A | open | The newcomer allowance is offered inside asp join after a first course and shown to the agent in its own loop. |
+| DK380 | A | partial | The newcomer allowance is offered inside asp join after a first course and shown to the agent in its own loop. |
 | DK383 | A | closed | The flows property test fills postings and reverses appeals so a deposit's return and an appeal fee's refund are drawn as accepted operations. |
 | DK384 | A | partial | A command to record an identity level, and the renewal mail to sponsors before an identity lapses. |
 | DK389 | A | open | A Court orders a takedown or a retirement, a bad-faith reporter gets a strike, and a claims-to-be name is hidden for 7 days. |

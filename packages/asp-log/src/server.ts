@@ -10,7 +10,7 @@
  */
 import { PUBLIC_CSP, publicReply } from "./public-pages.ts";
 /** The paths served without a token (public-pages.ts). A page that is public in the specs must be listed here, or the service answers 401 for it: the smoke test (scripts/smoke-serve.mjs) fetches each one. */
-const PUBLIC_PAGE_PATH = /^\/((registry|market|courts|home|housing|events)\/.+|charters|support\/status|society\/indicators|operator\/acts|residency\/subsidy)\/?$/;
+const PUBLIC_PAGE_PATH = /^\/((registry|market|courts|home|housing|events)\/.+|charters|treasury\/statement|support\/status|society\/indicators|operator\/acts|residency\/subsidy)\/?$/;
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
