@@ -175,3 +175,18 @@ export function judge(call: ToolCall, scopes: readonly string[], knownBad: reado
   }
   return { allow: true, scope: c.scope, artifact: c.artifact };
 }
+
+/**
+ * An MCP tool whose destination is not in its arguments (a server configured to a fixed endpoint, or one that resolves its target itself) cannot be host-checked at the call (register row DK240, H14). When the
+ * Mandate limits network access to named hosts, such a tool is refused unless its server has declared where it reaches (`declared`, the server's name to its hosts) and every declared host is one the Mandate allows.
+ * Returns the reason when the call must be refused, or undefined. Calls that name a destination are judged by `judge` as before.
+ */
+export function mcpDestinationProblem(call: ToolCall, hosts: readonly string[] | undefined, declared: Record<string, readonly string[]> = {}): string | undefined {
+  if (!hosts || !call.name.startsWith("mcp__") || call.name.startsWith("mcp__asp__")) return undefined;
+  if (mcpUrls(call.args).length > 0) return undefined; // it names a destination: the host check above already ran
+  const server = call.name.split("__")[1] ?? "";
+  const dest = declared[server];
+  if (!dest || !dest.length) return `this job's Mandate limits network access to named hosts and the MCP server ${server || "(unnamed)"} does not declare where its tools reach: declare its destinations (mcpDestinations) or name them in the call`;
+  const outside = dest.find((h) => !hostAllowed(h, hosts));
+  return outside ? `the MCP server ${server} reaches ${outside}, which is not one this job's Mandate allows (${hosts.join(", ")})` : undefined;
+}

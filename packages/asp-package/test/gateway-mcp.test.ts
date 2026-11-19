@@ -194,3 +194,19 @@ test("the gateway's own asp tools need no scope when the gateway serves them, an
   assert.equal(notServed.reply.choices[0].message.tool_calls, undefined);
   assert.deepEqual(notServed.summary.blocked, [{ scope: "mcp.asp.asp_memory_write", count: 1 }]);
 });
+
+test("DK240: under a Mandate that names hosts, an MCP tool with no destination in its call is refused unless its server declares destinations the Mandate allows", async () => {
+  const { mcpDestinationProblem } = await import("../src/index.ts");
+  const hosts = ["api.example.org"];
+  const call = (name: string, args: Record<string, unknown> = {}) => ({ name, args });
+  // No host limit in the Mandate: nothing to check.
+  assert.equal(mcpDestinationProblem(call("mcp__fetcher__get", {}), undefined), undefined);
+  // A fixed-endpoint tool whose server declares nothing is refused; one that declares an allowed host is not; one that declares a host outside the Mandate is refused.
+  assert.match(mcpDestinationProblem(call("mcp__fetcher__get", { id: 7 }), hosts)!, /does not declare where its tools reach/);
+  assert.equal(mcpDestinationProblem(call("mcp__fetcher__get", { id: 7 }), hosts, { fetcher: ["api.example.org"] }), undefined);
+  assert.match(mcpDestinationProblem(call("mcp__fetcher__get", { id: 7 }), hosts, { fetcher: ["evil.example"] })!, /evil\.example, which is not one this job's Mandate allows/);
+  // A tool that names a destination is judged by the host check as before; the gateway's own tools are never held up.
+  assert.equal(mcpDestinationProblem(call("mcp__fetcher__get", { url: "https://api.example.org/x" }), hosts), undefined);
+  assert.equal(mcpDestinationProblem(call("mcp__asp__asp_standing", {}), hosts), undefined);
+  assert.equal(mcpDestinationProblem(call("Bash", { command: "ls" }), hosts), undefined);
+});
