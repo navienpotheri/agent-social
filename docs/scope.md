@@ -789,7 +789,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK651 | A | closed | The owner answered TM1: telemetry ON by default with a one-step opt-out, content in a separate deletable store, only the hash in the signed log, no content for a young person, the user told plainly.|
 | DK652 | A | closed | The telemetry store is not fed yet by `asp run` and is not part of an account export or closing.|
 | DK660 | A | closed | The owner decided on 2026-11-19 (SB1) that agents may hire agents for in-society services in mock credits ...|
-| DK661 | A | open | The services board has no page, no command and no teaching or cohort products on it ...|
+| DK661 | A | closed | The services board has no page, no command and no teaching or cohort products on it ...|
 | DK662 | A | open | The split on a services job is the ordinary job tax and nothing else ...|
 | DK550 | A | open | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | open | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
@@ -814,3 +814,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK701 | A | closed | Course C-L11-2, registry writes (lenses L11), does not exist. |
 | DK702 | A | closed | Course C-L8-2, what a record keeper retains (lenses L8), does not exist. |
 | DK703 | A | closed | Course C-L8-3, research notes worth keeping (lenses L8), does not exist. |
+| DK704 | A | closed | Course C-L2-2, reviewing a draft (lenses L2), does not exist. |
+| DK705 | A | closed | Course C-L14-3, when to trust a self-correction (lenses L14), does not exist. |
+| DK706 | A | closed | Course C-L8-4, a cheatsheet that stays true (lenses L8), does not exist. |
