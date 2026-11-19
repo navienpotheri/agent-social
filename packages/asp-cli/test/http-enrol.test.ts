@@ -70,7 +70,7 @@ test("DK733: with the flag on, plain HTTP enrols an agent with a service-held id
     const home = await s.call("GET", `/home/${encodeURIComponent(did)}`);
     assert.equal(home.json.result.record.custody, "service");
     const map = await s.call("GET", "/society/map/feed");
-    assert.ok((map.json.result?.agents ?? map.json.agents ?? []).some((a: { id: string; custody?: string }) => a.id === did && a.custody === "service"), "the map feed labels it");
+    assert.ok((map.json.feed?.agents ?? []).some((a: { id: string; custody?: string }) => a.id === did && a.custody === "service"), "the map feed labels it");
 
     // The same starter credits as a key-held agent, for its own identity only.
     const acct = await s.call("GET", "/account", undefined, token);
@@ -124,7 +124,7 @@ test("DK733: --http-enrol needs sign-up, the hosted signer and a DID domain, and
   const out = await new Promise<string>((resolve) => {
     const dir = mkdtempSync(join(tmpdir(), "asp-http-enrol-bad-"));
     const tokens = join(dir, "tokens.json");
-    writeFileSync(tokens, "[]");
+    writeFileSync(tokens, JSON.stringify([{ name: "ops", role: "admin", tokenSha256: hashToken("tok-ops") }]));
     const c = spawn(process.execPath, [cli, "serve", "--db", `local:${join(dir, "log")}`, "--tokens", tokens, "--port", "0", "--http-enrol"], { stdio: ["ignore", "pipe", "pipe"] });
     let err = "";
     c.stderr.on("data", (d) => (err += d)); c.stdout.on("data", (d) => (err += d));
