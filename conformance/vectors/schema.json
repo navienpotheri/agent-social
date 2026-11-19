@@ -5789,6 +5789,66 @@
       "valid": false
     },
     {
+      "name": "valid_abuse_ruling_retire",
+      "schema": "court_act",
+      "instance": {
+        "act": "abuse_ruling",
+        "case": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "finding": "upheld",
+        "reasons": [
+          "x"
+        ],
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "7"
+          ]
+        },
+        "remedy": "retire_identity"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_abuse_ruling_bad_faith",
+      "schema": "court_act",
+      "instance": {
+        "act": "abuse_ruling",
+        "case": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "finding": "dismissed",
+        "reasons": [
+          "the report was false"
+        ],
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "7"
+          ]
+        },
+        "bad_faith": true
+      },
+      "valid": true
+    },
+    {
+      "name": "abuse_ruling_bad_faith_not_boolean",
+      "schema": "court_act",
+      "instance": {
+        "act": "abuse_ruling",
+        "case": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "finding": "dismissed",
+        "reasons": [
+          "x"
+        ],
+        "code": {
+          "version": "1.0",
+          "articles": [
+            "7"
+          ]
+        },
+        "bad_faith": "yes"
+      },
+      "valid": false
+    },
+    {
       "name": "abuse_ruling_bad_finding",
       "schema": "court_act",
       "instance": {
@@ -10049,6 +10109,77 @@
         "act": "suspension_extend",
         "suspension": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "ruling": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_court_takedown",
+      "schema": "registry_act",
+      "instance": {
+        "act": "court_takedown",
+        "name": "scout-7",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "ruling": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "reason": "the panel upheld the finding",
+        "appealable_until": "2026-12-30T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "court_takedown_no_ruling",
+      "schema": "registry_act",
+      "instance": {
+        "act": "court_takedown",
+        "name": "scout-7",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "reason": "the panel upheld the finding",
+        "appealable_until": "2026-12-30T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_reporter_strike",
+      "schema": "registry_act",
+      "instance": {
+        "act": "reporter_strike",
+        "reporter": "did:web:example.com:agents:alice-coder",
+        "ruling": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "reason": "the report was false and in bad faith"
+      },
+      "valid": true
+    },
+    {
+      "name": "reporter_strike_no_reporter",
+      "schema": "registry_act",
+      "instance": {
+        "act": "reporter_strike",
+        "ruling": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "reason": "the report was false and in bad faith"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_name_hide",
+      "schema": "registry_act",
+      "instance": {
+        "act": "name_hide",
+        "name": "scout-7",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "report": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "reason": "the look-alike says it is the genuine agent",
+        "until": "2026-12-30T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "name_hide_no_until",
+      "schema": "registry_act",
+      "instance": {
+        "act": "name_hide",
+        "name": "scout-7",
+        "holder": "did:web:example.com:agents:alice-coder",
+        "report": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "reason": "the look-alike says it is the genuine agent"
       },
       "valid": false
     },

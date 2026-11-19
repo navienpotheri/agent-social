@@ -156,6 +156,7 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     if (b.restitution && Date.parse(now) >= Date.parse(ABUSE_RESTITUTION_OFF_FROM)) throw rule("abuse_restitution_off", "a third party is not paid in credits (they mean nothing outside the society): the ruling names the operator's remedy instead, takedown, suspension or a written response");
     if (b.finding === "upheld" && !b.remedy && Date.parse(now) >= Date.parse(ABUSE_RESTITUTION_OFF_FROM)) throw rule("abuse_remedy_needed", "an upheld abuse finding names the operator's remedy: takedown, suspension or written_response");
     if (b.remedy && b.finding !== "upheld") throw rule("abuse_remedy_needs_finding", "a remedy follows an upheld finding only");
+    if (b.bad_faith && b.finding !== "dismissed") throw rule("abuse_bad_faith_needs_dismissal", "a report is found false and in bad faith only by a dismissed finding");
     if (b.restitution && b.finding !== "upheld") throw rule("abuse_restitution_needs_finding", "restitution follows an upheld finding only");
     if (b.restitution && b.restitution.amount.value > ABUSE_RESTITUTION_CAP) throw rule("abuse_restitution_cap", `restitution is at most ${ABUSE_RESTITUTION_CAP} credits a case (the Courts' cap)`);
     const accusedPassport = await tx.getPassport(info.accused);
@@ -182,7 +183,7 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     }
     if (paid > 0) { const to = await tx.getAccount(info.reporter); await tx.putAccount({ did: info.reporter, balance: (to?.balance ?? 0) + paid }); }
     await tx.putMarker(`abuse_case:${b.case}`, JSON.stringify({ ...info, state: b.finding }));
-    await tx.putMarker(`abuse_outcome:${info.report}`, JSON.stringify({ case: b.case, ruling: r.id, finding: b.finding, requested: asked, paid, shortfall: asked - paid, from, ...(b.remedy ? { remedy: b.remedy } : {}), at: now }));
+    await tx.putMarker(`abuse_outcome:${info.report}`, JSON.stringify({ case: b.case, ruling: r.id, finding: b.finding, requested: asked, paid, shortfall: asked - paid, from, ...(b.remedy ? { remedy: b.remedy } : {}), ...(b.bad_faith ? { bad_faith: true } : {}), at: now }));
     return;
   }
 

@@ -152,11 +152,12 @@
       }
     },
     "remedy": {
-      "description": "What the operator does for an outside victim after an upheld abuse finding (S952, owner decision 2026-11-18): takedown of the thing, suspension of the agent, or a written response to the reporter. From 2026-11-19 an upheld abuse_ruling must name one, and no restitution in credits is paid to an outside party.",
+      "description": "What the operator does for an outside victim after an upheld abuse finding (S952, owner decision 2026-11-18): takedown of the thing, suspension of the agent, or a written response to the reporter. From 2026-11-19 an upheld abuse_ruling must name one, and no restitution in credits is paid to an outside party. `retire_identity` (DK389) orders the Registry to retire the accused identity, with 24 hours' notice.",
       "enum": [
         "takedown",
         "suspension",
-        "written_response"
+        "written_response",
+        "retire_identity"
       ]
     },
     "replay": {
@@ -196,6 +197,10 @@
           ]
         }
       }
+    },
+    "bad_faith": {
+      "description": "A dismissed abuse finding that also says the report was false and made in bad faith (DK389; registry.md RG-9 step 4): the Registrar then records a strike against the reporter (`reporter_strike`).",
+      "type": "boolean"
     }
   },
   "allOf": [

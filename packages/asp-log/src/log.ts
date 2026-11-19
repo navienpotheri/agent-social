@@ -46,7 +46,7 @@ import { cityIndicators, type CityIndicators } from "./society-indicators.ts";
 import { projectSupport, supportStatus, type SupportStatus } from "./support.ts";
 import { ringReport, type RingFacts, type RingReport } from "./arena-runner.ts";
 import { buildAgentRecord, type AgentRecord } from "./agent-record.ts";
-import { buildPage, namesAt, isLive, skeleton, verifyPage, lapsedIdentities, identityLevelAt, type RecordPage } from "./registry.ts";
+import { buildPage, namesAt, isLive, isVisible, skeleton, verifyPage, lapsedIdentities, identityLevelAt, type RecordPage } from "./registry.ts";
 import { EMPTY_POSTER_RECORD, OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, depositMultiplier, medianOf, type PosterRecord, classWeight, effectiveClass, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
@@ -2891,7 +2891,7 @@ export class EventLog {
     const when = at ?? this.now().toISOString();
     const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "receipt"]);
     let did = idOrName;
-    if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isLive(c, when)) return null; did = c.holder; }
+    if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isVisible(c, when)) return null; did = c.holder; }
     const head = await this.store.logHead();
     const page = buildPage(did, { records, seq: head.seq, at: when, reputation: await this.reputationOf(did) ? { ...(await this.reputationOf(did))! } : undefined });
     if (!page) return null;
@@ -3218,7 +3218,7 @@ export class EventLog {
     const when = at ?? this.now().toISOString();
     const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "housing_act", "events_act", "receipt", "offer"]);
     let did = idOrName;
-    if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isLive(c, when)) return null; did = c.holder; }
+    if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isVisible(c, when)) return null; did = c.holder; }
     const head = await this.store.logHead();
     const rep = await this.reputationOf(did);
     return homeView(did, { records, seq: head.seq, at: when, reputation: rep ? { ...rep } : undefined });
@@ -3240,10 +3240,14 @@ export class EventLog {
   async registryVerify(held: RecordPage, at?: string): Promise<string[]> { return verifyPage(held, await this.registryPage(held.did, at)); }
 
   /** Search the register (registry.md 7): live names containing the query, and DIDs containing it, with their names. */
+  /** Strikes the Registrar recorded against a reporter whose abuse report a panel dismissed in bad faith (DK389, S1021). */
+  async reporterStrikes(did: string): Promise<number> {
+    return (await this.recordsOfTypes(["registry_act"])).filter((r) => { const b = r.body as { act: string; reporter?: string }; return b.act === "reporter_strike" && b.reporter === did; }).length;
+  }
   async registrySearch(q: string, at?: string): Promise<{ did: string; names: string[] }[]> {
     const when = at ?? this.now().toISOString();
     const records = await this.recordsOfTypes(["passport", "registry_act"]);
-    const names = [...namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).values()].filter((c) => isLive(c, when));
+    const names = [...namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).values()].filter((c) => isVisible(c, when));
     const want = q.toLowerCase(), skel = skeleton(q);
     const byDid = new Map<string, string[]>();
     for (const c of names) byDid.set(c.holder, [...(byDid.get(c.holder) ?? []), c.name]);

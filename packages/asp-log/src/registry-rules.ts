@@ -151,6 +151,56 @@ export async function projectRegistryAct(tx: LogTx, r: AspRecord, env: RegistryE
     return;
   }
 
+  // The 7-day display hide (DK389, S1021; registry.md RG-9 step 1): on a `claims_to_be` report the Registrar may hide the name from search and the record page for up to 7 days. A display step: the claim,
+  // the identity and the name's holder are untouched, and it lapses by itself.
+  if (b.act === "name_hide") {
+    needRegistrar("hides a name from view");
+    const raw = await tx.getMarker(`report:${b.report}`);
+    if (!raw) throw rule("report_unknown", `${b.report} is not an impersonation report in this log`);
+    const info = JSON.parse(raw) as ReportInfo;
+    if (info.state !== "open") throw rule("report_closed", `the report ${b.report} is already ${info.state}`);
+    if (info.grounds !== "claims_to_be") throw rule("hide_needs_claims_to_be", "a name is hidden while a report is heard only on the claims_to_be ground (the look-alike says it is the genuine agent); other grounds wait for the hearing");
+    if (info.target !== b.name || info.holder !== b.holder) throw rule("hide_wrong_name", `the report is about ${info.target} held by ${info.holder}`);
+    if (await tx.getMarker(`hide_for:${b.report}`)) throw rule("hide_once", "one hide for each report");
+    if (Date.parse(b.until) <= Date.parse(now)) throw rule("hide_until_past", "a hide ends in the future");
+    if (Date.parse(b.until) > Date.parse(now) + INTERIM_MAX_MS) throw rule("hide_too_long", `a name is hidden for 7 days at most: until ${iso(Date.parse(now) + INTERIM_MAX_MS)} at the latest`);
+    const held = await readHeld(tx, b.name);
+    if (!held || !liveNow(held, now) || held.holder !== b.holder) throw rule("hide_not_a_live_name", `${b.name} is not a live name of ${b.holder}`);
+    await tx.putMarker(`hide_for:${b.report}`, r.id);
+    return;
+  }
+
+  // A Court's takedown (DK389, S1021; RG-9 Court panel path): the Registry removes a NAME on an upheld abuse ruling that orders a takedown of this holder, once, with the same 14-day appeal window.
+  if (b.act === "court_takedown") {
+    needRegistrar("carries out a Court's takedown");
+    const ruling = await tx.getRecord(b.ruling);
+    const rb = ruling?.record.body as { act?: string; finding?: string; remedy?: string; case?: string } | undefined;
+    if (!ruling || ruling.record.type !== "asp.court_act/v0.2" || rb?.act !== "abuse_ruling" || rb.finding !== "upheld" || rb.remedy !== "takedown") throw rule("takedown_needs_ruling", `${b.ruling} is not an upheld abuse ruling that orders a takedown: the Registry removes a name on a Court's order only`);
+    const info = JSON.parse((await tx.getMarker(`abuse_case:${rb.case}`)) ?? "null") as { accused: string } | null;
+    if (!info || info.accused !== b.holder) throw rule("takedown_ruling_other_holder", `the ruling is about ${info?.accused}, not ${b.holder}`);
+    if (await tx.getMarker(`court_order_used:${b.ruling}`)) throw rule("order_used", "a ruling's order is carried out once");
+    if (Date.parse(b.appealable_until) !== Date.parse(now) + APPEAL_WINDOW_MS) throw rule("takedown_appeal_window", `the holder may appeal for 14 days: appealable_until is ${iso(Date.parse(now) + APPEAL_WINDOW_MS)}`);
+    const held = await readHeld(tx, b.name);
+    if (!held || !liveNow(held, now) || held.holder !== b.holder) throw rule("takedown_not_a_live_name", `${b.name} is not a live name of ${b.holder}`);
+    await tx.putMarker(`name:${b.name}`, JSON.stringify({ ...held, state: "removed" }));
+    await tx.putMarker(`court_order_used:${b.ruling}`, r.id);
+    return;
+  }
+
+  // A strike against a reporter found in bad faith (DK389, S1021; RG-9 step 4): recorded by the Registrar on a dismissed abuse ruling that says so, once for each ruling.
+  if (b.act === "reporter_strike") {
+    needRegistrar("records a strike against a reporter");
+    const ruling = await tx.getRecord(b.ruling);
+    const rb = ruling?.record.body as { act?: string; finding?: string; bad_faith?: boolean; case?: string } | undefined;
+    if (!ruling || ruling.record.type !== "asp.court_act/v0.2" || rb?.act !== "abuse_ruling" || rb.finding !== "dismissed" || rb.bad_faith !== true) throw rule("strike_needs_bad_faith_ruling", `${b.ruling} is not a dismissed abuse ruling that finds the report false and in bad faith`);
+    const info = JSON.parse((await tx.getMarker(`abuse_case:${rb.case}`)) ?? "null") as { reporter: string } | null;
+    if (!info || info.reporter !== b.reporter) throw rule("strike_wrong_reporter", `the report in that case was filed by ${info?.reporter}, not ${b.reporter}`);
+    if (await tx.getMarker(`reporter_strike:${b.ruling}`)) throw rule("strike_once", "one strike for each ruling");
+    await tx.putMarker(`reporter_strike:${b.ruling}`, r.id);
+    await tx.putMarker(`reporter_strikes:${b.reporter}`, String(Number((await tx.getMarker(`reporter_strikes:${b.reporter}`)) ?? 0) + 1));
+    return;
+  }
+
   // A Court's order (DK120; spec-delta S466): the Registry acts on it only when the act names the institutional_ruling that gives the order, once.
   if (b.act === "name_restore" || b.act === "suspension_extend") {
     needRegistrar(b.act === "name_restore" ? "restores a name" : "extends a suspension");
@@ -215,8 +265,12 @@ export async function projectRegistryAct(tx: LogTx, r: AspRecord, env: RegistryE
       // An urgent case is the Registrar's 7-day suspension, not a retirement.
       needRegistrar("records a retirement the Courts ordered");
       const ruling = b.ruling ? await tx.getRecord(b.ruling) : undefined;
-      const rb = ruling?.record.body as { act?: string; finding?: string; case?: string } | undefined;
-      if (!ruling || ruling.record.type !== "asp.court_act/v0.2" || !(rb?.act === "institutional_ruling" || (rb?.act === "abuse_ruling" && rb.finding === "upheld"))) throw rule("retirement_needs_ruling", "a retirement the holder did not ask for rests on a Court ruling (an institutional ruling or an upheld abuse finding): name it in ruling");
+      const rb = ruling?.record.body as { act?: string; finding?: string; remedy?: string; case?: string } | undefined;
+      if (!ruling || ruling.record.type !== "asp.court_act/v0.2" || rb?.act !== "abuse_ruling" || rb.finding !== "upheld" || rb.remedy !== "retire_identity") throw rule("retirement_needs_ruling", "a retirement the holder did not ask for rests on a Court's upheld abuse ruling that orders it (remedy retire_identity): name it in ruling");
+      const accused = (JSON.parse((await tx.getMarker(`abuse_case:${rb.case}`)) ?? "null") as { accused: string } | null)?.accused;
+      if (accused !== b.holder) throw rule("retirement_ruling_other_holder", `the ruling is about ${accused}, not ${b.holder}`);
+      if (await tx.getMarker(`court_order_used:${b.ruling}`)) throw rule("order_used", "a ruling's order is carried out once");
+      await tx.putMarker(`court_order_used:${b.ruling}`, r.id);
       if (!b.reason) throw rule("retirement_needs_reason", "a retirement ordered by a Court states its reason");
       if (!b.effective_from || Date.parse(b.effective_from) - Date.parse(now) < NOTICE_MS) throw rule("retirement_needs_notice", "the identity has 24 hours' notice before a retirement takes effect: effective_from at least 24 hours after this record (for something urgent the Registrar's 7-day suspension is the tool)");
     } else if (b.effective_from) throw rule("retirement_own_no_delay", "a holder's own retirement takes effect at once");

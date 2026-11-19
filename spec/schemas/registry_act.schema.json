@@ -23,7 +23,10 @@
         "identity_retirement",
         "identity_level",
         "name_restore",
-        "suspension_extend"
+        "suspension_extend",
+        "court_takedown",
+        "reporter_strike",
+        "name_hide"
       ]
     },
     "name": {
@@ -142,6 +145,10 @@
       "description": "When a retirement ordered by a Court takes effect (S971, DK535, right 8): at least 24 hours after the record is issued, so the identity has notice and its reason first. Not used by a holder's own retirement.",
       "type": "string",
       "format": "date-time"
+    },
+    "reporter": {
+      "description": "The reporter a strike is recorded against (reporter_strike): the DID that filed the abuse report a panel dismissed in bad faith.",
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
     }
   },
   "allOf": [
@@ -390,6 +397,67 @@
         "required": [
           "suspension",
           "ruling",
+          "until"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "court_takedown"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "name",
+          "holder",
+          "ruling",
+          "reason",
+          "appealable_until"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "reporter_strike"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "reporter",
+          "ruling",
+          "reason"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "name_hide"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "name",
+          "holder",
+          "report",
+          "reason",
           "until"
         ]
       }
