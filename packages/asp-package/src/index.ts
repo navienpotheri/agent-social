@@ -90,3 +90,4 @@ export { newMemoryKey, openPrivateScope, sealPrivateScope, type MemoryKey, type 
 export { renderSponsorReturn, sponsorReturn, type SponsorReturn } from "./sponsor-return.ts";
 export { telemetryRoutes, type TelemetryRoutesOptions } from "./telemetry-routes.ts";
 export { httpEnrol, bindMessage, type HttpEnrolOptions, type HttpEnrolReply } from "./http-enrol.ts";
+export { findFirstRiskyUse, measureFirstUse, FIRST_USE_DECISION, RISKY_SCOPE, type FirstUse, type FirstUseRates, type UseAction } from "./first-use.ts";
