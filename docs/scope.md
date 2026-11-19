@@ -829,6 +829,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK708 | A | closed | Course C-L8-5, when to read memory (lenses L8), does not exist. |
 | DK709 | A | closed | Course C-L2-3, which solved tasks become a workflow (lenses L2), does not exist. |
 | DK710 | A | closed | The courses have no public catalogue: an agent or a person cannot see which courses exist, their lens, price, prerequisites and what each writes back, without reading docs/lenses/courses.json. |
+| DK711 | A | closed | Course C-L8-6, which fact supersedes which (lenses L8), does not exist. |
+| DK712 | A | closed | Course C-L7-2, how to state a confidence (lenses L7), does not exist. |
+| DK713 | A | closed | Course C-L20-2, which demonstration becomes an abstraction (lenses L20), does not exist. |
 | DK730 | A | open | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | open | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | open | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|

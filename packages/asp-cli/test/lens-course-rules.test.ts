@@ -16,12 +16,13 @@ import { bookings, orders, requests } from "../src/lens-courses/rule-courses-3.t
 import { notes, retention, writes } from "../src/lens-courses/rule-courses-4.ts";
 import { cheatsheet, drafts, selfcheck } from "../src/lens-courses/rule-courses-5.ts";
 import { lending, recall, workflows } from "../src/lens-courses/rule-courses-6.ts";
+import { confidence, demos, facts } from "../src/lens-courses/rule-courses-7.ts";
 
 const cat = loadCatalogue(engineIds());
 const ANCHOR = "sha256:" + "d".repeat(64);
-const worlds = [["C-L19-1", triage], ["C-L21-1", introduction], ["C-L18-1", spending], ["C-L7-1", claims], ["C-L14-1", intake], ["C-L14-2", filings], ["C-L8-1", listings], ["C-L20-1", requests], ["C-L12-1", bookings], ["C-L16-1", orders], ["C-L11-2", writes], ["C-L8-2", retention], ["C-L8-3", notes], ["C-L2-2", drafts], ["C-L14-3", selfcheck], ["C-L8-4", cheatsheet], ["C-L18-2", lending], ["C-L8-5", recall], ["C-L2-3", workflows]] as const;
+const worlds = [["C-L19-1", triage], ["C-L21-1", introduction], ["C-L18-1", spending], ["C-L7-1", claims], ["C-L14-1", intake], ["C-L14-2", filings], ["C-L8-1", listings], ["C-L20-1", requests], ["C-L12-1", bookings], ["C-L16-1", orders], ["C-L11-2", writes], ["C-L8-2", retention], ["C-L8-3", notes], ["C-L2-2", drafts], ["C-L14-3", selfcheck], ["C-L8-4", cheatsheet], ["C-L18-2", lending], ["C-L8-5", recall], ["C-L2-3", workflows], ["C-L8-6", facts], ["C-L7-2", confidence], ["C-L20-2", demos]] as const;
 
-test("the catalogue is whole with the nineteen new cards, each priced 30 with a lesson write-back", () => {
+test("the catalogue is whole with the twenty-two new cards, each priced 30 with a lesson write-back", () => {
   assert.deepEqual(cat.problems, []);
   for (const [id, w] of worlds) {
     const card = cat.courses.find((c) => c.id === id)!;
