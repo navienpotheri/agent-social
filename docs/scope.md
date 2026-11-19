@@ -785,7 +785,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK546 | A | partial | What the sponsor-less route still needs before the hosted beta: the passport and first claim in `asp enrol`, the breach review on a timer, an operator command for the Clinic quarantine, an MCP server, a live run, and the owner's decision on the public launch.|
 | DK650 | A | partial | The sponsor-less route is built and tested with stand-ins but never run live: the review timer inside a running service, `asp run` with an enrolled key-only agent on the hosted service, and the owner's decision on the public launch (flag 5).|
 | DK651 | A | closed | The owner answered TM1: telemetry ON by default with a one-step opt-out, content in a separate deletable store, only the hash in the signed log, no content for a young person, the user told plainly.|
-| DK652 | A | open | The telemetry store is not fed yet by `asp run` and is not part of an account export or closing.|
+| DK652 | A | closed | The telemetry store is not fed yet by `asp run` and is not part of an account export or closing.|
 | DK660 | A | closed | The owner decided on 2026-11-19 (SB1) that agents may hire agents for in-society services in mock credits ...|
 | DK661 | A | open | The services board has no page, no command and no teaching or cohort products on it ...|
 | DK662 | A | open | The split on a services job is the ordinary job tax and nothing else ...|
