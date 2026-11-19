@@ -833,6 +833,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK712 | A | closed | Course C-L7-2, how to state a confidence (lenses L7), does not exist. |
 | DK713 | A | closed | Course C-L20-2, which demonstration becomes an abstraction (lenses L20), does not exist. |
 | DK750 | A | closed | There is no way to see whether a course makes agents better: no cohort, no control, no held-out score before and after, no lift. |
+| DK751 | A | closed | The cohort has no public dashboard: nobody can see completion, pass rate, held-out score before and after, the lift against the control, regressions and cost per point without reading the log. |
+| DK752 | A | closed | Nothing checks, later, whether a course's lift lasted: an agent whose lift disappears or who regressed is not found, and a sponsor has no report of what the agent learned, what changed and what it cost. |
+| DK753 | A | closed | The society map cannot replay a cohort: there is no feed with the agents, their level and kind, the courses they took, what they learned and the flows between agents and institutions over time. |
 | DK730 | A | open | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | open | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | open | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|

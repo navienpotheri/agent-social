@@ -148,7 +148,9 @@ export async function runCohortWithLog(o: DemoOptions = {}): Promise<{ story: St
     }
     // the memory after the course: the lessons only when they were written back; otherwise it is unchanged
     if (!a.written_back) a.lessons = [];
-    a.after = heldoutScore(a.lessons, seeds[0]).accuracy;
+    const kept = heldoutScore(a.lessons, seeds[0]);
+    a.regressions = kept.regressions;
+    a.after = kept.accuracy;
     a.lift = a.after - a.before;
   }
   // the control did nothing: its before and after are the same held-out cases with an empty memory
