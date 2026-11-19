@@ -103,3 +103,7 @@ A passing drill ends `DRILL PASSED`. Record the date, the backup file and the ou
 ## Hosted bots (DK532)
 
 A bot with no machine of its own can run on the service, which then holds its signing key. Start the service with `--hosted-keys <file>` (and `--did-domain`), with the passphrase in the environment as `ASP_HOSTED_PASSPHRASE` (at least 12 characters, never a flag). The file is sealed with AES-256-GCM; back it up with `GET /hosted/backup` (admin token) and keep the passphrase somewhere else. A tenant makes a bot with `POST /hosted/bots`, registers its passport (`custody: service`, signed by the sponsor on its own machine), then calls `POST /hosted/bots/<name>/sign`. Local agents' keys never reach the service. The Terms say so.
+
+## Abuse reports from outsiders (DK351)
+
+Start the service with `--abuse-intake`, with `ASP_OPERATOR_DID` set and the operator's key in the machine's keys. An outsider then files with `asp abuse file` (it writes a signed file) and posts it to `POST /abuse/report`; the route checks that the reporter's own domain publishes the signing key, countersigns with the operator's key and records a lead for the Registry and the Courts. Five reports a day from one address. Nothing is paid to the reporter (the beta pays no restitution in credits).

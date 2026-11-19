@@ -303,7 +303,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | H2 | A | closed | No default-deny network for new or low-tier agents |
 | H3 | A | closed | Third parties have no way to report |
 | DK350 | A | closed | An admitted abuse report becomes a case a Court hears, with restitution and an answer to the reporter. |
-| DK351 | A | open | An outsider files an abuse report on the hosted service without running the tool. |
+| DK351 | A | closed | An outsider files an abuse report on the hosted service without running the tool. |
 | H4 | A | open | Bond covers the principal, not third parties |
 | H5 | B | open | No outcome detectors (a secret was obtained or leaked) |
 | H6 | B | open | Known-bad list is exact-match, shell commands only, has no expiry |
@@ -790,6 +790,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK661 | A | closed | The services board has no page, no command and no teaching or cohort products on it ...|
 | DK662 | A | open | The split on a services job is the ordinary job tax and nothing else ...|
 | DK690 | A | open | The tier limits on a Mandate's breadth (DK385) are built but off ...|
+| DK691 | A | open | The abuse-report intake route (DK351) has run only against a fake DID-document fetch ...|
 | DK550 | A | open | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | open | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | open | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|
