@@ -52,7 +52,8 @@ test("DK652: a run sends its trajectory and task to the store and only the hashe
     // On (the default): the trajectory and the task are in the store; the Action carries only their hashes.
     const r1 = await run();
     assert.ok(r1.code === 0 || r1.code === 10, `${r1.err}\n${r1.out}`);
-    const listed = (await call(["telemetry", "list"])).out.split("\n").filter(Boolean);
+    let listed: string[] = [];
+    for (let i = 0; i < 20 && listed.length < 2; i++) { listed = (await call(["telemetry", "list"])).out.split(String.fromCharCode(10)).filter(Boolean); if (listed.length < 2) await new Promise((r) => setTimeout(r, 500)); }
     assert.equal(listed.length, 2, `a trajectory and a message are stored: ${listed.join(" | ")}`);
     assert.ok(listed.some((l) => /trajectory/.test(l)) && listed.some((l) => /message/.test(l)));
     const hashes = listed.map((l) => /(sha256:[0-9a-f]{64})/.exec(l)![1]);

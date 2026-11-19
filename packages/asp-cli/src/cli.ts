@@ -3314,16 +3314,16 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   // Actions are reported while the run goes on, not only at the end: a contract revoked or settled mid-run can no longer take one.
   let flushing = Promise.resolve(0);
   const flushAction = (why: string) => (flushing = flushing.then(async () => {
-    const d = gw.drain();
-    // Nothing to report only when nothing happened: tokens of a request that was counted in the interval before arrive in this one, and must not be dropped.
-    const m = d.metrics;
-    if (!d.scopesUsed.length && !d.blocked.length && m.requests === 0 && m.tool_calls === 0 && m.tokens_in === 0 && m.tokens_out === 0) return 0;
-    const s = gw.summary();
     // At the end of the run (owner answer TM1, row DK652): the trajectory and the task go to the telemetry store when it is on, and the Action carries only their hashes.
-    const tmRefs = why === "exit" ? await captureTelemetry(logEnv, [
+    const tmRefs = why === "exit" ? await captureTelemetry(io.env, [
       ...(runLog && existsSync(join(gwRunDir, "run-log.ndjson")) ? [{ kind: "trajectory", content: readFileSync(join(gwRunDir, "run-log.ndjson"), "utf8"), did: by }] : []),
       ...(v["task-text"] ? [{ kind: "message", content: v["task-text"], did: by }] : []),
     ]) : [];
+    const d = gw.drain();
+    // Nothing to report only when nothing happened: tokens of a request that was counted in the interval before arrive in this one, and must not be dropped.
+    const m = d.metrics;
+    if (!d.scopesUsed.length && !d.blocked.length && m.requests === 0 && m.tool_calls === 0 && m.tokens_in === 0 && m.tokens_out === 0 && !tmRefs.length) return 0;
+    const s = gw.summary();
     const args = ["market", "action", "--contract", contract, "--by", by, "--home", home,
       ...tmRefs.flatMap((t) => ["--artifact", `${t.uri}=${t.sha256}`]),
       ...d.scopesUsed.flatMap((x) => ["--scopes-used", x]),
@@ -7292,7 +7292,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   const blockedAttempts = [...blockedByScope].sort(([a], [b]) => a.localeCompare(b)).map(([scope, count]) => ({ scope, count }));
   // Network calls the pre-call hook refused for being over the rate limit: not strikes, but counted in the Action's metrics (H1).
   const rateLimited = plan.rateLimitedFile && existsSync(plan.rateLimitedFile) ? readFileSync(plan.rateLimitedFile, "utf8").split(/\r?\n/).filter(Boolean).length : 0;
-  const telemetryRefs = await captureTelemetry(logEnv, [
+  const telemetryRefs = await captureTelemetry(io.env, [
     ...(runLog && existsSync(join(runDir, "run-log.ndjson")) ? [{ kind: "trajectory", content: readFileSync(join(runDir, "run-log.ndjson"), "utf8"), did: agent }] : []),
     ...(v.prompt ? [{ kind: "message", content: v.prompt, did: agent }] : []),
   ]);
