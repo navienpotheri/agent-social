@@ -798,7 +798,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK690 | A | open | The tier limits on a Mandate's breadth (DK385) are built but off ...|
 | DK691 | A | open | The abuse-report intake route (DK351) has run only against a fake DID-document fetch ...|
 | DK692 | A | open | The MCP declared-destination rule (DK240) is tested on the judge only ...|
-| DK693 | A | open | The growth view (DK553) has no lost-in-the-world alarm for an expedition, no gateway lighting and no growth panel in the map page ...|
+| DK693 | A | partial | The growth view (DK553) has no lost-in-the-world alarm for an expedition, no gateway lighting and no growth panel in the map page ...|
 | DK550 | A | closed | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | closed | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | closed | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|

@@ -169,3 +169,15 @@ test("time slider and replay: the slider spans the feed's time, moving it stops 
   assert.match(b.els.get("counts")!.textContent, /Replay of 2026-11-12: 5 movement\(s\) from the log \(records 1 to 5\)/);
   assert.ok(b.fetched.includes("/society/map/day/2026-11-12"));
 });
+
+test("DK553: the page shows the city's growth stage, what it unlocks and the tournaments from /society/growth, as text only", async () => {
+  const feed = simulatedFeed(3, 30, 120);
+  const b = await run(feed, (url) => url === "/society/growth" ? { ok: true, stage: 2, population: 12, acts: 140, unlocked: ["the town square", "a second road ring"], next: { stage: 3, agents: 50, acts: 1000 }, tournaments: [{ arena: "refactoring", season: "2026-q4", seats: 3, results: 3, opens: "x", closes: "y", replay: [{ rank: 1, name: "ada", score: 900 }] }], expeditions: [] } : { ok: false });
+  assert.ok(b.fetched.includes("/society/growth"), "the page reads the growth view");
+  assert.match(b.els.get("growth")!.textContent, /Stage 2: 12 agents, 140 acts\. Next stage at 50 agents and 1000 acts\. Unlocked: the town square; a second road ring\./);
+  assert.match(b.els.get("tournaments")!.children[0]!.textContent, /refactoring 2026-q4: 3 seat\(s\), 3 result\(s\), won by ada/);
+  assert.match(societyMapPage(), /id="growth"/);
+  // A failing or hostile answer changes nothing and throws nothing.
+  const quiet = await run(feed, () => ({ ok: false }));
+  assert.equal(quiet.els.get("growth")?.textContent ?? "", "", "nothing is written when the view does not answer");
+});
