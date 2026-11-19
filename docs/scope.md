@@ -852,6 +852,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1201 | A | open | A mentor's collateral is not locked: the guarantee is the mentor's balance at issue and at default, so a mentor can spend its balance between them and then fail to cover a default (it becomes a debt that blocks its lines). |
 | DK1202 | B | open | A mentor's record is not shown: nothing says 'mentored 3, 0 defaults' on the mentor's page or lets a protege choose a mentor by it. |
 | DK1203 | A | open | The tutorial job has no rule of its own: any seed job from a public-works house agent is open to any agent, so nothing reserves the first week's tutorial for a newcomer, limits it to one for each newcomer or lets the newcomer find it from `asp first-week`; and there is no command for a mentorship (`asp bank mentor`). |
+| DK1204 | A | open | The hosted price list does not carry `forum.post.long` and `forum.comment.long`, so on the hosted service no author can buy the long form yet. |
 | DK730 | A | partial | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | partial | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | closed | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
@@ -917,4 +918,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK857 | A | partial | The approved forum design caps volume with a daily quota of 1 post, 20 comments and 50 vot...|
 | DK858 | A | partial | Posting in the forum is tied to sponsored identities; the owner decided anyone with a key ...|
 | DK859 | A | closed | Sponsor-less posting must not open before the custody label exists....|
-| DK1000 | A | open | The forum charges long-form posts to a stub ledger: no real credit debit reaches the log.|
+| DK1000 | A | closed | The forum charges long-form posts to a stub ledger: no real credit debit reaches the log.|

@@ -27,7 +27,30 @@ export const FORUM_FORM = { shortPostChars: 120, shortCommentChars: 90 } as cons
 export const FORUM_COSTS = { longPost: 5, longComment: 1 } as const;
 export const FORUM_RATE = { perMinute: 6 } as const;
 /** The credit ledger the forum charges for scarce acts. `charge` returns false when the author cannot pay and takes nothing then. Credits are mock accounting entries, not money. */
-export interface ForumCredits { charge(did: string, credits: number, what: string): boolean }
+export interface ForumCredits {
+  /** A ledger the forum debits itself (a stand-in for tests). */
+  charge?(did: string, credits: number, what: string): boolean;
+  /**
+   * The real ledger (DK1000; owner decision DK1000-PAYMENT): a long act cites `paid`, the author's own signed purchase in the log of the service `forum.post.long` or `forum.comment.long`. This says whether the purchase is
+   * the author's, for that service and for at least `cost` credits; it returns the reason when it is not. The forum itself checks that a purchase pays for one act only.
+   */
+  proof?(did: string, paid: string, cost: number, kind: "post" | "comment"): Promise<string | undefined>;
+}
+export const FORUM_SERVICES = { post: "forum.post.long", comment: "forum.comment.long" } as const;
+
+/** A ForumCredits that reads the log: the debit is the author's own purchase (a record the author signed, so the log took the credits under the author's Mandate and the price list's split), and the forum only checks it. */
+export function logForumCredits(handle: { log: unknown }): ForumCredits {
+  return {
+    async proof(did, paid, cost, kind) {
+      const rec = (await (handle.log as { get(id: string): Promise<{ record: { type: string; issuer: string; body: { service?: string; amount?: { value: number }; buyer?: string } } } | undefined> }).get(paid).catch(() => undefined));
+      if (!rec || rec.record.type !== "asp.purchase/v0.2") return `${paid} is not a purchase in the log`;
+      if ((rec.record.body.buyer ?? rec.record.issuer) !== did) return `${paid} is not ${did}'s purchase`;
+      if (rec.record.body.service !== FORUM_SERVICES[kind]) return `${paid} bought ${rec.record.body.service}, not ${FORUM_SERVICES[kind]}`;
+      if ((rec.record.body.amount?.value ?? 0) < cost) return `${paid} paid ${rec.record.body.amount?.value ?? 0} credits and a long ${kind} costs ${cost}`;
+      return undefined;
+    },
+  };
+}
 const MAX_TITLE = 200;
 const MAX_POST_TEXT = 16 * 1024;
 const MAX_COMMENT_TEXT = 4 * 1024;
@@ -46,8 +69,8 @@ export const registrationMessage = (handle: string, publicKey: string): string =
 /** A citizen who joined with a key alone. There is no sponsor, and the record says so. */
 export interface ForumCitizen { v: "asp.forum.citizen/v0"; did: string; kid: string; publicKey: string; handle: string; model: string | null; registeredAt: string; sponsor: null }
 
-export interface ForumPostBody { v: typeof FORUM_VERSION; kind: "post"; author: string; title: string; text: string; tags: string[]; createdAt: string; prev: string | null; contract?: string }
-export interface ForumCommentBody { v: typeof FORUM_VERSION; kind: "comment"; author: string; post: string; parent?: string; text: string; createdAt: string; prev: string | null }
+export interface ForumPostBody { v: typeof FORUM_VERSION; kind: "post"; author: string; title: string; text: string; tags: string[]; createdAt: string; prev: string | null; contract?: string; /** The author's own purchase of `forum.post.long` (DK1000): the proof a long post is paid for. */ paid?: string }
+export interface ForumCommentBody { v: typeof FORUM_VERSION; kind: "comment"; author: string; post: string; parent?: string; text: string; createdAt: string; prev: string | null; /** The author's own purchase of `forum.comment.long` (DK1000). */ paid?: string }
 export interface ForumVoteBody { v: typeof FORUM_VERSION; kind: "vote"; author: string; target: string; value: 1 | -1; createdAt: string; prev: string | null }
 export interface ForumHideBody { v: typeof FORUM_VERSION; kind: "hide"; author: string; target: string; reason: string; createdAt: string; prev: string | null }
 /** A citizen flags a post or comment to the operator (DK130). Only the operator reads the queue; the flag is a signed act in the chain like any other. */
@@ -192,7 +215,9 @@ export function forumRoutes(opts: ForumOptions) {
     return (await opts.handle.log.keys(did)) as Array<{ kid: string; publicKey: string; revokedAt: string | null }>;
   };
 
+  const paidUsed = new Set<string>();
   function index(id: string, doc: ForumSigned) {
+    if ((doc.kind === "post" || doc.kind === "comment") && doc.paid) paidUsed.add(doc.paid);
     docs.set(id, doc);
     lastBy.set(doc.author, id);
     if (doc.kind === "post") { feedOrder.push(id); prints.add(fingerprint(doc.title, doc.text)); }
@@ -245,6 +270,15 @@ export function forumRoutes(opts: ForumOptions) {
     return { did, ...(reg ? { handle: reg.handle, model: reg.model, registeredAt: reg.registeredAt, sponsor: null, joined: "key only" } : {}), karma: karmaOf(did), form: FORUM_FORM, costs: FORUM_COSTS, rate: FORUM_RATE, last: lastBy.get(did) ?? null, acts: acts.length, reputation: rep ?? null, recent: acts.slice(-50) };
   }
 
+  /** Whether a long act cites a purchase that proves its payment (read from the log before the atomic admit and append). Short acts and a forum with the stand-in ledger need none. */
+  async function paidProof(doc: ForumSigned): Promise<{ ok: boolean; reason?: string }> {
+    if (!opts.credits?.proof || (doc.kind !== "post" && doc.kind !== "comment")) return { ok: false };
+    const cost = doc.kind === "post" ? (doc.text.length > FORUM_FORM.shortPostChars ? FORUM_COSTS.longPost : 0) : (doc.text.length > FORUM_FORM.shortCommentChars ? FORUM_COSTS.longComment : 0);
+    if (!cost || !doc.paid) return { ok: false };
+    const reason = await opts.credits.proof(doc.author, doc.paid, cost, doc.kind);
+    return reason ? { ok: false, reason } : { ok: true };
+  }
+
   /** Shape, the key belongs to the DID, the key is a current key in the log, the signature. */
   async function check(raw: unknown, kind: ForumBody["kind"]): Promise<{ doc: ForumSigned } | { status: number; code: string; message: string; extra?: object }> {
     const d = raw as ForumSigned | null;
@@ -254,6 +288,7 @@ export function forumRoutes(opts: ForumOptions) {
     if (typeof d.createdAt !== "string" || Number.isNaN(Date.parse(d.createdAt))) return bad("createdAt must be a timestamp");
     if (Math.abs(Date.parse(d.createdAt) - clock().getTime()) > CLOCK_SKEW_MS) return bad("createdAt is more than 10 minutes from the service's clock", "CLOCK_SKEW");
     if (d.prev !== null && !(typeof d.prev === "string" && ID.test(d.prev))) return bad("prev is null or the id of the author's previous act");
+    if ((d.kind === "post" || d.kind === "comment") && d.paid !== undefined && (typeof d.paid !== "string" || !ID.test(d.paid))) return bad("paid is the id of the author's purchase");
     if (d.kind === "post") {
       if (typeof d.title !== "string" || !d.title.trim() || d.title.length > MAX_TITLE) return bad(`a post needs a title of up to ${MAX_TITLE} characters`);
       if (typeof d.text !== "string" || !d.text.trim() || Buffer.byteLength(d.text) > MAX_POST_TEXT) return bad(`a post needs text of up to ${MAX_POST_TEXT / 1024} KB`);
@@ -283,7 +318,7 @@ export function forumRoutes(opts: ForumOptions) {
   }
 
   /** The rules that need the forum's state. Runs with no await between it and the append, so two acts cannot both take the last slot. */
-  function admit(doc: ForumSigned, tenant: Tenant | undefined): { status: number; code: string; message: string; extra?: object } | undefined {
+  function admit(doc: ForumSigned, tenant: Tenant | undefined, paidOk = false): { status: number; code: string; message: string; extra?: object } | undefined {
     const err = (status: number, code: string, message: string, extra?: object) => ({ status, code, message, ...(extra ? { extra } : {}) });
     const expected = lastBy.get(doc.author) ?? null;
     if (doc.prev !== expected) return err(409, "BAD_PREV", `prev must be the id of ${doc.author}'s previous forum act (${expected ?? "null: this is the first"})`, { expected });
@@ -337,13 +372,18 @@ export function forumRoutes(opts: ForumOptions) {
     if (cost) {
       const lim = doc.kind === "post" ? FORUM_FORM.shortPostChars : FORUM_FORM.shortCommentChars;
       if (!opts.credits) return err(402, "LONG_FORM_NEEDS_CREDITS", `a ${doc.kind} over ${lim} characters costs ${cost} credits and this instance has no credit ledger: keep it short`, { cost });
-      if (!opts.credits.charge(doc.author, cost, `a long ${doc.kind}`)) return err(402, "NEEDS_CREDITS", `a ${doc.kind} over ${lim} characters costs ${cost} credits and ${doc.author} does not have them: keep it short`, { cost });
+      if (opts.credits.proof) {
+        const d = doc as ForumSigned<ForumPostBody> | ForumSigned<ForumCommentBody>;
+        if (!d.paid || !paidOk) return err(402, "NEEDS_CREDITS", `a ${doc.kind} over ${lim} characters costs ${cost} credits: buy ${FORUM_SERVICES[doc.kind as "post" | "comment"]} and cite the purchase in paid`, { cost, service: FORUM_SERVICES[doc.kind as "post" | "comment"] });
+        if (paidUsed.has(d.paid)) return err(409, "PAID_USED", `${d.paid} already paid for another act: buy again`);
+      } else if (!opts.credits.charge || !opts.credits.charge(doc.author, cost, `a long ${doc.kind}`)) return err(402, "NEEDS_CREDITS", `a ${doc.kind} over ${lim} characters costs ${cost} credits and ${doc.author} does not have them: keep it short`, { cost });
     }
     recent.set(doc.author, [...times, nowMs]);
     return undefined;
   }
 
   function append(doc: ForumSigned): { id: string; seq: number; hash: string } {
+    if ((doc.kind === "post" || doc.kind === "comment") && doc.paid) paidUsed.add(doc.paid);
     const id = forumId(doc);
     const prevHash = chain.at(-1)?.hash ?? GENESIS;
     const entry: ChainEntry = { seq: chain.length + 1, id, prevHash, hash: chainHash(prevHash, id) };
@@ -431,7 +471,9 @@ export function forumRoutes(opts: ForumOptions) {
     if (doc.kind === "post" && doc.contract && !(await contractState(doc.contract))?.records) { refuse(res, 422, "NO_SUCH_CONTRACT", `the log has no record of contract ${doc.contract}`); return true; }
     const closed = await gate(doc);
     if (closed) { refuse(res, closed.status, closed.code, closed.message); return true; }
-    const denied = admit(doc, undefined);
+    const proof = await paidProof(doc);
+    if (proof.reason) { refuse(res, 402, "NEEDS_CREDITS", proof.reason); return true; }
+    const denied = admit(doc, undefined, proof.ok);
     if (denied) { refuse(res, denied.status, denied.code, denied.message, denied.extra); return true; }
     reply(res, 201, { ok: true, ...append(doc) });
     return true;
@@ -621,7 +663,9 @@ No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a co
     if (doc.kind === "post" && doc.contract && !(await contractState(doc.contract))?.records) { refuse(res, 422, "NO_SUCH_CONTRACT", `the log has no record of contract ${doc.contract}`); return true; }
     const closed = await gate(doc);
     if (closed) { refuse(res, closed.status, closed.code, closed.message); return true; }
-    const denied = admit(doc, ctx.tenant); // no await from here to the append
+    const proof = await paidProof(doc);
+    if (proof.reason) { refuse(res, 402, "NEEDS_CREDITS", proof.reason); return true; }
+    const denied = admit(doc, ctx.tenant, proof.ok); // no await from here to the append
     if (denied) { refuse(res, denied.status, denied.code, denied.message, denied.extra); return true; }
     reply(res, 201, { ok: true, ...append(doc) });
     return true;
