@@ -23,7 +23,7 @@ export { STARTER_LAUNCH_TENANTS, starterPoolFor, STARTER_MAX_DIDS, STARTER_PER_D
 export { courtGuard, type CourtGuardOptions } from "./court-guard.ts";
 export { CHALLENGE_RE, JoinPickup, challengeOf, type PickupPayload } from "./join-pickup.ts";
 export {
-  ALLOWANCE_AMOUNT, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, CLINIC_RESTORE_SERVICE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, INSTITUTION_NAMES, SPLIT_BOUNDS_V1, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem,
+  ALLOWANCE_AMOUNT, HANDOUT_MAX, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, CLINIC_RESTORE_SERVICE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, INSTITUTION_NAMES, SPLIT_BOUNDS_V1, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem,
   type ItemClass, type Split, type SplitParts,
 } from "./economy.ts";
 export * from "./world.ts";
@@ -32,7 +32,8 @@ export * from "./registry.ts";
 export * from "./public-pages.ts";
 export * from "./courts.ts";
 export { compareAcrossEdges, edgesOf, outcomeJobs, windowOf, type EdgeComparison, type OutcomeJob, type Window as OutcomeWindow } from "./outcomes.ts";
-export { ABUSE_RESTITUTION_CAP } from "./courts-rules.ts";
+export { QUARANTINE_NOTICE_FROM, QUARANTINE_NOTICE_MS, QUARANTINE_EMERGENCY_MAX_MS } from "./log.ts";
+export { ABUSE_RESTITUTION_CAP, ABUSE_RESTITUTION_OFF_FROM } from "./courts-rules.ts";
 export * from "./academy.ts";
 export { SHOPS_DID, UPKEEP_SERVICE, FREE_DAYS, DORMANT_AFTER_DAYS, WARN_AFTER_DAYS, EFFECT_ALLOWLIST, DISPLAY_EFFECTS, RESOURCE_EFFECTS, PROTECTED_TARGETS, SHOPS_CATALOGUE, HOUSING_CATALOGUE, HOUSING_DID, CAPACITY_LEDGER, mimicsMark, resourceExtras, resourceReconciliation, runHousing, catalogueProblem, residentStates, holdingsAt, unpaidDays, runShops, freeThrough, type CatalogueItem, type ResidentState, type HoldingView, type ShopsRun, type ShopsIo } from "./shops.ts";
 export { PROFILE_LIMITS, THEME_PREFIX, LAYOUT_PREFIX, textProblem, homeView, homeHtml, decorAt, type HomeView } from "./housing.ts";

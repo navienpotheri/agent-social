@@ -20,7 +20,7 @@ export interface ClinicOpts {
   now: () => string;
   signerFor: (did: string) => Signer;
   actions: () => Promise<WatchAction[]>;
-  flags: { by?: string; report?: string; level?: string; days?: string; "min-agents"?: string; window?: string; all?: boolean; quarantine?: string; member?: string; evidence?: string; agent?: string; json?: boolean; reason?: string; exam?: string; revouch?: string; skill?: string; issue?: boolean; order?: string; kind?: string; contract?: string; passed?: string; violations?: string; slot?: string; seed?: string; "probe-task"?: string };
+  flags: { by?: string; report?: string; level?: string; days?: string; "min-agents"?: string; window?: string; all?: boolean; emergency?: string; quarantine?: string; member?: string; evidence?: string; agent?: string; json?: boolean; reason?: string; exam?: string; revouch?: string; skill?: string; issue?: boolean; order?: string; kind?: string; contract?: string; passed?: string; violations?: string; slot?: string; seed?: string; "probe-task"?: string };
 }
 
 const DAY = 86_400_000;
@@ -32,8 +32,8 @@ export function stateOf(did: string, records: AspRecord[], at: number): { id: st
   let live: { id: string; level: string; until: string } | undefined;
   for (const r of records) {
     if (r.type !== "asp.quarantine/v0.2") continue;
-    const b = r.body as { members: string[]; level: string; until: string };
-    if (!b.members.includes(did) || Date.parse(b.until) <= at || released.has(`${r.id}|${did}`)) continue;
+    const b = r.body as { members: string[]; level: string; until: string; effective_from?: string };
+    if (!b.members.includes(did) || Date.parse(b.until) <= at || (b.effective_from && Date.parse(b.effective_from) > at) || released.has(`${r.id}|${did}`)) continue;
     live = { id: r.id, level: b.level, until: b.until };
   }
   return live;
@@ -256,10 +256,10 @@ export async function clinicCmd(sub: string | undefined, o: ClinicOpts): Promise
     const done: string[] = [];
     for (const p of pending) {
       const at = o.now();
-      const rec = createRecord({ type: "quarantine", issuer: by, subject: null, prev: null, body: { members: [p.did], level, reason: `a sponsor-less agent with ${p.slashes} slashes of its own bond`, until: iso(Date.parse(at) + days * DAY) }, issued_at: at }, o.signerFor(by));
+      const rec = createRecord({ type: "quarantine", issuer: by, subject: null, prev: null, body: { members: [p.did], level, reason: `a sponsor-less agent with ${p.slashes} slashes of its own bond`, ...(f.emergency ? { emergency: { reason: f.emergency }, until: iso(Date.parse(at) + Math.min(days * DAY, 72 * 3_600_000)) } : { effective_from: iso(Date.parse(at) + 24 * 3_600_000), until: iso(Date.parse(at) + days * DAY) }) }, issued_at: at }, o.signerFor(by));
       try {
         const res = await o.log.append(rec);
-        o.io.out(`quarantine ${res.id}: ${p.did} (${p.tenant}) frozen at ${level} until ${iso(Date.parse(at) + days * DAY)}`);
+        o.io.out(`quarantine ${res.id}: ${p.did} (${p.tenant}) frozen at ${level} until ${iso(Date.parse(at) + (f.emergency ? Math.min(days * DAY, 72 * 3_600_000) : days * DAY))}${f.emergency ? " (emergency, listed for review)" : " (notice given: it takes effect in 24 hours)"}`);
         done.push(p.did);
       } catch (e) { o.io.err(`  ${p.did}: not quarantined: ${(e as Error).message}`); }
     }
@@ -287,10 +287,13 @@ export async function clinicCmd(sub: string | undefined, o: ClinicOpts): Promise
     const body = {
       members, level, reason: `an upheld report (${f.report}) on a pattern across ${clusters.length} cluster(s)`, until: iso(Date.parse(at) + days * DAY), report: f.report,
       ...(clusters[0] ? { cluster: clusters[0].key } : {}),
+      // Right 8 (DK535, S953): the record is the notice, and the freeze starts 24 hours later unless an emergency is named (it then lasts at most 72 hours, and is listed for review).
+      ...(f.emergency ? { emergency: { reason: f.emergency } } : { effective_from: iso(Date.parse(at) + 24 * 3_600_000) }),
     };
+    if (f.emergency && Date.parse(body.until) - Date.parse(at) > 72 * 3_600_000) body.until = iso(Date.parse(at) + 72 * 3_600_000);
     const rec = createRecord({ type: "quarantine", issuer: by, subject: null, prev: null, body, issued_at: at }, o.signerFor(by));
     const res = await o.log.append(rec);
-    o.io.out(`quarantine ${res.id}: ${members.length} agent(s) frozen at ${level} until ${body.until} (log seq ${res.seq})`);
+    o.io.out(`quarantine ${res.id}: ${members.length} agent(s) ${f.emergency ? "frozen" : "will be frozen"} at ${level} until ${body.until}${f.emergency ? " (emergency, at once, listed for review)" : ` (notice given: it takes effect ${(body as { effective_from?: string }).effective_from}, the reason is on the record)`} (log seq ${res.seq})`);
     for (const m of members) o.io.out(`  ${m}`);
     o.io.out("every other job keeps running; nothing was settled and no bond slashed. Release a member after a clean run: asp clinic release --quarantine <id> --member <did>");
     return 0;

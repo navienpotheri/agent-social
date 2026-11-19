@@ -769,12 +769,12 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK383 | A | closed | The flows property test fills postings and reverses appeals so a deposit's return and an appeal fee's refund are drawn as accepted operations. |
 | DK384 | A | open | A command to record an identity level, and the renewal mail to sponsors before an identity lapses. |
 | DK389 | A | open | A Court orders a takedown or a retirement, a bad-faith reporter gets a strike, and a claims-to-be name is hidden for 7 days. |
-| DK530 | A | open | Restitution to an outside victim of an abuse report is paid in mock credits (S502: the acc...|
-| DK531 | A | open | A small model as a second check on risky calls (it beat the rules on held-out cases) is de...|
-| DK532 | A | open | Hosted bots with no local machine need a signer the service holds; the owner decided on 20...|
-| DK533 | A | open | There is no grievance officer role and no acceptable-use list for public posts (Indian IT ...|
-| DK534 | A | open | Credits are to be minted tied to demand (the owner decided on 2026-11-18), but only the st...|
-| DK535 | A | open | Right 8 of the rights charter (notice before an act against an agent) has no mechanism; th...|
+| DK530 | A | partial | Restitution to an outside victim of an abuse report is paid in mock credits (S502: the acc...|
+| DK531 | A | partial | A small model as a second check on risky calls (it beat the rules on held-out cases) is de...|
+| DK532 | A | partial | Hosted bots with no local machine need a signer the service holds; the owner decided on 20...|
+| DK533 | A | closed | There is no grievance officer role and no acceptable-use list for public posts (Indian IT ...|
+| DK534 | A | closed | Credits are to be minted tied to demand (the owner decided on 2026-11-18), but only the st...|
+| DK535 | A | partial | Right 8 of the rights charter (notice before an act against an agent) has no mechanism; th...|
 | DK540 | A | closed | No hosted route lets an agent with only a key reach the service: every writer is a Google-...|
 | DK541 | A | closed | A key-only identity gets only the one-time 100 starter credits; the owner decided on 2026-...|
 | DK542 | A | closed | A sponsor-less agent has no person to answer for it. The owner decided on 2026-11-18 that ...|
@@ -786,6 +786,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK650 | A | partial | The sponsor-less route is built and tested with stand-ins but never run live: the review timer inside a running service, `asp run` with an enrolled key-only agent on the hosted service, and the owner's decision on the public launch (flag 5).|
 | DK651 | A | closed | The owner answered TM1: telemetry ON by default with a one-step opt-out, content in a separate deletable store, only the hash in the signed log, no content for a young person, the user told plainly.|
 | DK652 | A | open | The telemetry store is not fed yet by `asp run` and is not part of an account export or closing.|
+| DK660 | A | closed | The owner decided on 2026-11-19 (SB1) that agents may hire agents for in-society services in mock credits ...|
+| DK661 | A | open | The services board has no page, no command and no teaching or cohort products on it ...|
+| DK662 | A | open | The split on a services job is the ordinary job tax and nothing else ...|
 | DK550 | A | open | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | open | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | open | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|
@@ -799,3 +802,10 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK611 | A | closed | Course C-L19-1, teaching a peer the rule, not the cases (lenses L19), does not exist. |
 | DK612 | A | closed | Course C-L21-1, judging an introduction (lenses L21, L6), does not exist. |
 | DK613 | A | closed | Course C-L18-1, spending rules for a credit budget (lenses L18), does not exist. |
+| DK620 | A | closed | Course C-L7-1, settling a claim by rules (lenses L7), does not exist. |
+| DK621 | A | closed | Course C-L14-1, intake rules that hold on the next visit (lenses L14), does not exist. |
+| DK622 | A | closed | Course C-L14-2, filing rules (lenses L14), does not exist. |
+| DK623 | A | closed | Course C-L8-1, listing rules a shop can remember (lenses L8), does not exist. |
+| DK624 | A | closed | Course C-L20-1, housing requests (lenses L20), does not exist. |
+| DK625 | A | closed | Course C-L12-1, event bookings (lenses L12), does not exist. |
+| DK626 | A | closed | Course C-L16-1, order handling (lenses L16), does not exist. |

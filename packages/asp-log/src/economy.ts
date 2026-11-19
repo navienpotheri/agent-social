@@ -98,6 +98,12 @@ export function refundParts(refund: number, parts: SplitParts): SplitParts | nul
 
 /** The newcomer allowance (treasury.md, credits.md 5.2 T5): what the Treasury pays once to a new identity, and how old its passport may be. Proposal values; the owner may change them. */
 export const ALLOWANCE_AMOUNT = 40;
+/** The most one weekly handout may be (DK545, S951): the plan's default is 50; the log's ceiling stops a mistaken or hostile Treasury key from paying more. */
+export const HANDOUT_MAX = 100;
+/** The demand-tied mint (DK534, S954): in any 30 days at most this many permille of the credits released to performers by settlements in the same 30 days (owner decision 2026-11-18, GV2). */
+export const DEMAND_MINT_PERMILLE = 100;
+/** The most one in-society service on the services board may cost, in credits (DK660, S970; owner decision SB1). */
+export const SERVICE_PRICE_MAX = 100;
 export const ALLOWANCE_MAX_AGE_DAYS = 90;
 
 /** The Clinic's priced services (clinic.md 4, CL-12; DK161): a checkup beyond the free ones, and a restore. The price in the list in force is the price; this is what a free checkup draws from the Treasury's budget line for it. */

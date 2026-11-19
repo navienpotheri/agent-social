@@ -39,3 +39,12 @@ test("the court is described as what it is: operator-run in the beta, on a mock 
   assert.doesNotMatch(deck, /Decentralized Courts/);
   assert.match(read("README.md"), /operator/i);
 });
+
+test("DK532: the sentence that the service never holds keys names its one exception, the hosted bot, in every legal text", () => {
+  assert.match(claims.key_custody, /except for a hosted bot/);
+  for (const p of ["docs/legal/terms.md", "docs/legal/rights-charter-draft.md", "docs/legal/forum-terms.md"]) {
+    const t = read(p);
+    assert.match(t, /hosted bot/i, `${p} names the hosted bot exception`);
+    assert.doesNotMatch(t, /We never hold your keys\.\*\*/, `${p} no longer says it holds no keys without the exception`);
+  }
+});

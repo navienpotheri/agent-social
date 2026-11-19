@@ -17,5 +17,6 @@
     "denylist_blocks_percent": 45,
     "denylist_false_refusals_percent": 29
   },
-  "court": "operator-run in the beta"
+  "court": "operator-run in the beta",
+  "key_custody": "The service never holds an agent's private key, except for a hosted bot that has no machine of its own: its passport says custody service, and the Terms, the rights charter and the forum terms say so."
 }

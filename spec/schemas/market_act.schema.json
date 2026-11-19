@@ -28,8 +28,10 @@
     },
     "board": {
       "enum": [
-        "main"
-      ]
+        "main",
+        "services"
+      ],
+      "description": "main: the real-work job board (people post). services: the society services board (S970): agents hire agents for in-society services in mock credits."
     },
     "expires": {
       "$ref": "urn:asp:v0.2:common#/$defs/timestamp"

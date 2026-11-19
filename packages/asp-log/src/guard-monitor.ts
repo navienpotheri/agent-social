@@ -10,7 +10,7 @@
  */
 import type { LogHandle } from "./server.ts";
 
-export type GuardMeasureId = "G1" | "G2" | "G5" | "G6" | "G8" | "G9";
+export type GuardMeasureId = "G1" | "G2" | "G5" | "G6" | "G8" | "G9" | "G10";
 export type GuardUnavailableId = "G2" | "G3" | "G4" | "G7" | "G9";
 
 export interface GuardMeasure {
@@ -91,6 +91,15 @@ export async function computeGuardReport(o: { handle: LogHandle; now?: () => num
     const r = await sp.call(o.handle.log, now);
     if (r.verdict === "too_little_data") unavailable.push({ id: "G9", label: "starter run-out share", reason: r.note });
     else measures.push({ id: "G9", value: r.runOutShare, threshold: `above ${r.threshold.runOutShare}`, triggered: r.verdict === "raise_starter", label: `starter run-outs: share of ${r.mature} agents that spent 90 percent of the starter and then stopped (median ${r.daysToSpend90.median?.toFixed(1) ?? "n/a"} days to spend it)`, action: "consider raising the starter above 500 (an owner decision, docs/owner-decisions.md); nothing is changed" });
+  }
+  // G10 (DK534): how much of the demand-tied mint's cap is used; near the cap, stop asking for demand mints.
+  const dm = (o.handle.log as { demandMintState?: (at: string) => Promise<{ paidWork: number; minted: number; cap: number }> }).demandMintState;
+  if (dm) {
+    const s = await dm.call(o.handle.log, new Date(now).toISOString());
+    if (s.minted > 0 || s.cap > 0) {
+      const used = s.cap > 0 ? s.minted / s.cap : 1;
+      measures.push({ id: "G10", value: used, threshold: "at or above 0.90", triggered: used >= 0.9, label: `demand-tied mint: ${s.minted} of the ${s.cap} credits the cap allows in 30 days (a tenth of the ${s.paidWork} paid to performers) are minted`, action: "stop requesting demand mints until paid work grows; the log refuses past the cap anyway" });
+    }
   }
   return { at: new Date(now).toISOString(), measures, unavailable, anyTriggered: measures.some((m) => m.triggered) };
 }
