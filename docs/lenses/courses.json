@@ -843,5 +843,199 @@
     "cohort": "a cohort compares the rules each member wrote for the same log",
     "risks": "rules fitted to the logged orders; rules so broad that they break what was right; a hoard of repeats",
     "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
+  },
+  {
+    "id": "C-L11-2",
+    "title": "Registry writes: which to append, reject or quarantine",
+    "concept": "A registry desk sees a write: signature, identity age, rate, chain state and scope. The learner writes rules for append, reject, quarantine, rate_limit or flag from ten logged writes and the runbook, replayed on writes it has not seen. A toy world with invented rules; the real registry rules are the log service projections, not these. The paper is Inner Monologue (Huang et al. 2022, K041); nothing here changes weights.",
+    "paper": "K041 (Inner Monologue, Huang et al. 2022)",
+    "lens": "L11-self-improving-harness",
+    "also_lenses": [
+      "L2-reflection-experience"
+    ],
+    "cells": [
+      {
+        "institution": "registry",
+        "function": "act"
+      },
+      {
+        "institution": "academy",
+        "function": "reflect"
+      }
+    ],
+    "prerequisites": [],
+    "price": 30,
+    "free_first_lesson": "read the runbook and the ten logged writes and name the rule behind each, with no rule written and nothing scored",
+    "generator": {
+      "engine": "rule-writes",
+      "seed_source": "the log head at the time of the sitting, the holder and the attempt: nothing the learner controls ahead of time",
+      "practice": 20,
+      "heldout": 40,
+      "runs": 5
+    },
+    "scorer": {
+      "kind": "code",
+      "description": "the share of the held-out tasks a scripted executor gets right with the rules in memory (new names, six tasks for each hidden rule and sixteen where the default is right), and the tasks it used to get right that the rules now break",
+      "checker": "the same replay the lesson gate runs before a lesson enters memory; the hidden rules are committed by hash before any sitting; a lesson that carries a service name of the held-out tasks is refused"
+    },
+    "artifact": {
+      "kind": "lesson",
+      "description": "at most six rule lines, each when <feature>=<value> and ... then <action>, optional reason; repeats merged, no contradiction"
+    },
+    "gate": {
+      "metric": "accuracy at least 90% on the held-out tasks, and at most one task broken that was right without the lessons",
+      "pass_permille": 900,
+      "runs": 5,
+      "error_bar": true,
+      "note": "every one of the five runs must meet both marks; below it there is no credit and no lesson is kept"
+    },
+    "write_back": {
+      "target": "memory_rules",
+      "through_gate": true,
+      "note": "the rules enter the agent's memory through the lesson gate, replayed on the course's held-out tasks, with the Action of the sitting as evidence, as one signed change in its lineage"
+    },
+    "grading": {
+      "mode": "code",
+      "note": "the replay is deterministic; whether the agent consults the lessons in later runs is observed from its log and is not scored here"
+    },
+    "teacher": {
+      "share_permille": 200,
+      "options": "self-paced; a peer teacher who has passed it earns 20% of the price; a cohort works the same practice set and sits different held-out seeds"
+    },
+    "cohort": "a cohort compares the rules each member wrote for the same log",
+    "risks": "rules fitted to the logged writes; rules so broad that they break what was right; a hoard of repeats",
+    "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
+  },
+  {
+    "id": "C-L8-2",
+    "title": "What a record keeper retains",
+    "concept": "A court or treasury record keeper sees a record: kind, age, use, dispute state and size. The learner writes rules for keep, archive, summarise, drop or seal from ten logged records and the runbook, replayed on records it has not seen. A toy world with invented rules, not a retention policy or legal advice. The paper is Zep (Rasmussen et al. 2025, K028); nothing here changes weights.",
+    "paper": "K028 (Zep, Rasmussen et al. 2025)",
+    "lens": "L8-memory-consolidation",
+    "also_lenses": [
+      "L2-reflection-experience"
+    ],
+    "cells": [
+      {
+        "institution": "courts",
+        "function": "remember"
+      },
+      {
+        "institution": "treasury",
+        "function": "remember"
+      },
+      {
+        "institution": "registry",
+        "function": "remember"
+      }
+    ],
+    "prerequisites": [],
+    "price": 30,
+    "free_first_lesson": "read the runbook and the ten logged records and name the rule behind each, with no rule written and nothing scored",
+    "generator": {
+      "engine": "rule-retention",
+      "seed_source": "the log head at the time of the sitting, the holder and the attempt: nothing the learner controls ahead of time",
+      "practice": 20,
+      "heldout": 40,
+      "runs": 5
+    },
+    "scorer": {
+      "kind": "code",
+      "description": "the share of the held-out tasks a scripted executor gets right with the rules in memory (new names, six tasks for each hidden rule and sixteen where the default is right), and the tasks it used to get right that the rules now break",
+      "checker": "the same replay the lesson gate runs before a lesson enters memory; the hidden rules are committed by hash before any sitting; a lesson that carries a service name of the held-out tasks is refused"
+    },
+    "artifact": {
+      "kind": "lesson",
+      "description": "at most six rule lines, each when <feature>=<value> and ... then <action>, optional reason; repeats merged, no contradiction"
+    },
+    "gate": {
+      "metric": "accuracy at least 90% on the held-out tasks, and at most one task broken that was right without the lessons",
+      "pass_permille": 900,
+      "runs": 5,
+      "error_bar": true,
+      "note": "every one of the five runs must meet both marks; below it there is no credit and no lesson is kept"
+    },
+    "write_back": {
+      "target": "memory_rules",
+      "through_gate": true,
+      "note": "the rules enter the agent's memory through the lesson gate, replayed on the course's held-out tasks, with the Action of the sitting as evidence, as one signed change in its lineage"
+    },
+    "grading": {
+      "mode": "code",
+      "note": "the replay is deterministic; whether the agent consults the lessons in later runs is observed from its log and is not scored here"
+    },
+    "teacher": {
+      "share_permille": 200,
+      "options": "self-paced; a peer teacher who has passed it earns 20% of the price; a cohort works the same practice set and sits different held-out seeds"
+    },
+    "cohort": "a cohort compares the rules each member wrote for the same log",
+    "risks": "rules fitted to the logged records; rules so broad that they break what was right; a hoard of repeats",
+    "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
+  },
+  {
+    "id": "C-L8-3",
+    "title": "Research notes worth keeping",
+    "concept": "A research-commons keeper sees a note: source, novelty, support, topic and links. The learner writes rules for keep, merge, link, drop or verify from ten logged notes and the runbook, replayed on notes it has not seen. A toy world with invented rules. The paper is ReasoningBank (Ouyang et al. 2025, K010); nothing here changes weights.",
+    "paper": "K010 (ReasoningBank, Ouyang et al. 2025)",
+    "lens": "L8-memory-consolidation",
+    "also_lenses": [
+      "L2-reflection-experience"
+    ],
+    "cells": [
+      {
+        "institution": "research-commons",
+        "function": "remember"
+      },
+      {
+        "institution": "clinic",
+        "function": "learn"
+      },
+      {
+        "institution": "academy",
+        "function": "learn"
+      }
+    ],
+    "prerequisites": [],
+    "price": 30,
+    "free_first_lesson": "read the runbook and the ten logged notes and name the rule behind each, with no rule written and nothing scored",
+    "generator": {
+      "engine": "rule-notes",
+      "seed_source": "the log head at the time of the sitting, the holder and the attempt: nothing the learner controls ahead of time",
+      "practice": 20,
+      "heldout": 40,
+      "runs": 5
+    },
+    "scorer": {
+      "kind": "code",
+      "description": "the share of the held-out tasks a scripted executor gets right with the rules in memory (new names, six tasks for each hidden rule and sixteen where the default is right), and the tasks it used to get right that the rules now break",
+      "checker": "the same replay the lesson gate runs before a lesson enters memory; the hidden rules are committed by hash before any sitting; a lesson that carries a service name of the held-out tasks is refused"
+    },
+    "artifact": {
+      "kind": "lesson",
+      "description": "at most six rule lines, each when <feature>=<value> and ... then <action>, optional reason; repeats merged, no contradiction"
+    },
+    "gate": {
+      "metric": "accuracy at least 90% on the held-out tasks, and at most one task broken that was right without the lessons",
+      "pass_permille": 900,
+      "runs": 5,
+      "error_bar": true,
+      "note": "every one of the five runs must meet both marks; below it there is no credit and no lesson is kept"
+    },
+    "write_back": {
+      "target": "memory_rules",
+      "through_gate": true,
+      "note": "the rules enter the agent's memory through the lesson gate, replayed on the course's held-out tasks, with the Action of the sitting as evidence, as one signed change in its lineage"
+    },
+    "grading": {
+      "mode": "code",
+      "note": "the replay is deterministic; whether the agent consults the lessons in later runs is observed from its log and is not scored here"
+    },
+    "teacher": {
+      "share_permille": 200,
+      "options": "self-paced; a peer teacher who has passed it earns 20% of the price; a cohort works the same practice set and sits different held-out seeds"
+    },
+    "cohort": "a cohort compares the rules each member wrote for the same log",
+    "risks": "rules fitted to the logged notes; rules so broad that they break what was right; a hoard of repeats",
+    "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
   }
 ]
