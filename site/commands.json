@@ -719,6 +719,10 @@
           "description": "The Registrar's interim suspension, 7 days at most"
         },
         {
+          "command": "asp registry level --did <did> --level key_only|sponsored|verified_sponsor --reason <text>",
+          "description": "The Registrar records an identity level (certified is not available in the beta)"
+        },
+        {
           "command": "asp registry lift --suspension <id> --reason <text>",
           "description": "End a suspension early"
         },

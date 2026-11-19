@@ -232,6 +232,7 @@ What keeps the society from standing still: signed calendar entries and a seeded
 | `asp registry takedown --report <id> --reason <text> [--articles 4.1]` | The Registrar removes a look-alike NAME (never the identity) with an Article and a reason, after the holder is heard |
 | `asp registry dismiss --report <id> --reason <text>` | The Registrar closes a report with a reason |
 | `asp registry suspend --did <did> --reason <text> [--days <1-7>]` | The Registrar's interim suspension, 7 days at most |
+| `asp registry level --did <did> --level key_only|sponsored|verified_sponsor --reason <text>` | The Registrar records an identity level (certified is not available in the beta) |
 | `asp registry lift --suspension <id> --reason <text>` | End a suspension early |
 | `asp registry retire --by <did> --reason <text>` | A holder retires its identity: no new contract or purchase; records stay readable |
 

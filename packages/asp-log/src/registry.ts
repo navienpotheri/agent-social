@@ -161,6 +161,44 @@ export function lapsedIdentities(records: AspRecord[], at: string): Set<string> 
   return out;
 }
 
+export interface RenewalNotice { did: string; sponsor: string; due: string; daysLeft: number; stage: "30" | "7" | "lapsed"; key: string }
+/**
+ * The sponsor mail of RG-10 (row DK384): for each agent with a sponsor, whose renewal is due, a notice 30 days and 7 days before the term ends and one when it has lapsed (the lapse period starts at the end of the term).
+ * Each is `stage`d once per term: the key names the agent, the due date and the stage, so a mailer sends each only once and a renewal (which moves the due date) starts a new set. Read from the signed records only.
+ */
+export function renewalNotices(records: AspRecord[], at: string): RenewalNotice[] {
+  const t = Date.parse(at);
+  const sponsorOf = new Map<string, string>();
+  const born = new Map<string, string>();
+  const passportOf = new Map<string, string>();
+  for (const r of records) if (r.type === "asp.passport/v0.2") {
+    const b = r.body as { did: string; kind: string; sponsor?: string };
+    if (b.kind !== "agent") continue;
+    if (!born.has(b.did)) born.set(b.did, r.issued_at);
+    passportOf.set(r.id, b.did);
+    if (b.sponsor) sponsorOf.set(b.did, b.sponsor); else sponsorOf.delete(b.did);
+  }
+  const last = new Map(born);
+  for (const r of records) {
+    if (r.type !== "asp.registry_act/v0.2") continue;
+    const b = r.body as { act: string; passport?: string };
+    const did = b.act === "identity_renewal" && b.passport ? passportOf.get(b.passport) : undefined;
+    if (did && Date.parse(r.issued_at) <= t) last.set(did, r.issued_at);
+  }
+  const retired = new Set(records.filter((r) => r.type === "asp.registry_act/v0.2" && (r.body as { act: string }).act === "identity_retirement").map((r) => (r.body as { holder: string }).holder));
+  const out: RenewalNotice[] = [];
+  for (const [did, from] of last) {
+    const sponsor = sponsorOf.get(did);
+    if (!sponsor || retired.has(did)) continue;
+    const dueMs = Date.parse(from) + RENEWAL_TERM_MS;
+    const due = new Date(dueMs).toISOString().replace(/\.\d+Z$/, "Z");
+    const daysLeft = Math.ceil((dueMs - t) / 86_400_000);
+    const stage = t >= dueMs ? "lapsed" : daysLeft <= 7 ? "7" : daysLeft <= 30 ? "30" : undefined;
+    if (stage && !(stage === "lapsed" && t > dueMs + LAPSE_AFTER_MS)) out.push({ did, sponsor, due, daysLeft, stage, key: `renewal:${did}:${due}:${stage}` });
+  }
+  return out;
+}
+
 /** The identity levels in order, weakest first. `certified` is not available in the beta. */
 export const IDENTITY_LEVELS = ["key_only", "sponsored", "verified_sponsor"] as const;
 export type IdentityLevel = (typeof IDENTITY_LEVELS)[number];

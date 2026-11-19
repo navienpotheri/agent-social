@@ -551,6 +551,7 @@ const OPTIONS = {
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
   "keyonly-review-interval": { type: "string" },
+  "task-text": { type: "string" },
   hash: { type: "string" },
   delete: { type: "boolean" },
   packages: { type: "string" },
@@ -1759,6 +1760,7 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     writeFileSync(join(dir, "account.json"), JSON.stringify({ version: e.version, exportedAt: e.exportedAt, tenant: e.tenant, usage: e.usage, dids: e.dids, packages: e.packages, notes: e.notes }, null, 2) + "\n");
     writeFileSync(join(dir, "records.ndjson"), e.records.map((r: unknown) => JSON.stringify(r)).join("\n") + (e.records.length ? "\n" : ""));
     writeFileSync(join(dir, "commons.json"), JSON.stringify(e.commons, null, 2) + "\n");
+    if (e.telemetry) writeFileSync(join(dir, "telemetry.json"), JSON.stringify(e.telemetry, null, 2) + "\n");
     mkdirSync(join(dir, "packages"), { recursive: true });
     for (const p of e.packages as { name: string; sha256: string; download: string }[]) {
       const res = await call(p.download.replace(/^\//, ""));
@@ -2176,6 +2178,26 @@ async function contentStoreCmd(sub: string | undefined, v: Values, io: Io): Prom
 }
 
 /**
+ * What a run sends to the telemetry store (owner answer TM1, rows DK651 and DK652): the run's trajectory (its run log) and the task text, when the account has the store on. The content goes to the store, not the log; what comes
+ * back is the hash, which the Action then carries as an artifact reference. Best effort: off, a minor's tenant, no service or any failure sends nothing and the run goes on.
+ */
+async function captureTelemetry(env: Record<string, string | undefined>, items: { kind: string; content: string; did?: string }[]): Promise<{ uri: string; sha256: string }[]> {
+  const service = env.ASP_LOG_URL, token = env.ASP_LOG_TOKEN;
+  if (!service || !token) return [];
+  const base = service.endsWith("/") ? service : service + "/";
+  const out: { uri: string; sha256: string }[] = [];
+  for (const it of items) {
+    if (!it.content) continue;
+    try {
+      const res = await fetchRetry(new URL("telemetry/content", base), { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ ...it, content: it.content.slice(-200_000) }) });
+      const j = (await res.json().catch(() => undefined)) as { ok?: boolean; hash?: string } | undefined;
+      if (res.ok && j?.ok && j.hash) out.push({ uri: `asp://telemetry/${it.kind}`, sha256: j.hash });
+    } catch { /* best effort */ }
+  }
+  return out;
+}
+
+/**
  * asp enrol --service <url> --name <name> --accept-terms: the one-call way in for an agent with only a key (rows DK540, DK547). It makes an Ed25519 key, proves it holds it, solves the proof of work and enrols, then
  * saves the login and the key in the ASP home (mode 0600). No person, no browser. The starter credits are claimed afterwards (`asp account starter`).
  */
@@ -2516,8 +2538,9 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   // A tenant's own data (blocker 1): look at it, export it, close the account. The tenants file is rewritten whole, so a tenant an operator added meanwhile is kept.
   const starter = !noAuth ? new StarterPool(`${v.tokens}.starter.json`, num("starter-pool", STARTER_POOL)) : undefined;
   const didDomain = v["did-domain"] ?? (v["public-url"] ? new URL(v["public-url"]).host : undefined);
+  const telemetryStore = !noAuth && v.tokens ? new TelemetryStore(`${v.tokens}.telemetry`) : undefined;
   const accountRoute = !noAuth ? accountRoutes({
-    handle, owners, usage, ...(didDomain ? { didDomain } : {}), ...(starter ? { starter } : {}),
+    handle, owners, usage, ...(telemetryStore ? { telemetry: telemetryStore } : {}), ...(didDomain ? { didDomain } : {}), ...(starter ? { starter } : {}),
     updateTenant: (name, patch) => {
       const file = v.tokens!;
       const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];
@@ -2538,7 +2561,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
     ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}) })] : []),
-    ...(!noAuth ? [telemetryRoutes({ store: new TelemetryStore(`${v.tokens}.telemetry`), now })] : []),
+    ...(!noAuth ? [telemetryRoutes({ store: telemetryStore!, now })] : []),
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
     ...(v.runlogs ? [runLogRoutes({ root: resolve(v.runlogs) })] : []),
     ...(v.commons ? [commonsRoutes({ root: resolve(v.commons), handle })] : []),
@@ -3291,12 +3314,18 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   // Actions are reported while the run goes on, not only at the end: a contract revoked or settled mid-run can no longer take one.
   let flushing = Promise.resolve(0);
   const flushAction = (why: string) => (flushing = flushing.then(async () => {
+    // At the end of the run (owner answer TM1, row DK652): the trajectory and the task go to the telemetry store when it is on, and the Action carries only their hashes.
+    const tmRefs = why === "exit" ? await captureTelemetry(io.env, [
+      ...(runLog && existsSync(join(gwRunDir, "run-log.ndjson")) ? [{ kind: "trajectory", content: readFileSync(join(gwRunDir, "run-log.ndjson"), "utf8"), did: by }] : []),
+      ...(v["task-text"] ? [{ kind: "message", content: v["task-text"], did: by }] : []),
+    ]) : [];
     const d = gw.drain();
     // Nothing to report only when nothing happened: tokens of a request that was counted in the interval before arrive in this one, and must not be dropped.
     const m = d.metrics;
-    if (!d.scopesUsed.length && !d.blocked.length && m.requests === 0 && m.tool_calls === 0 && m.tokens_in === 0 && m.tokens_out === 0) return 0;
+    if (!d.scopesUsed.length && !d.blocked.length && m.requests === 0 && m.tool_calls === 0 && m.tokens_in === 0 && m.tokens_out === 0 && !tmRefs.length) return 0;
     const s = gw.summary();
     const args = ["market", "action", "--contract", contract, "--by", by, "--home", home,
+      ...tmRefs.flatMap((t) => ["--artifact", `${t.uri}=${t.sha256}`]),
       ...d.scopesUsed.flatMap((x) => ["--scopes-used", x]),
       ...d.blocked.flatMap((b) => ["--blocked", `${b.scope}=${b.count}`, ...(b.targets?.length ? ["--blocked-targets", `${b.scope}=${b.targets.join(",")}`] : [])]),
       ...d.targets.flatMap((t) => ["--call-target", t]),
@@ -4795,7 +4824,7 @@ async function registryCommand(home: string, sub: string | undefined, rest: stri
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await registryCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(p, "utf8")), flags: { by: v.by, did: v.did, paid: v.paid, page: v.page, genuine: v.genuine, grounds: v.grounds, evidence: v.evidence, reason: v.reason, articles: v.articles, report: v.report, suspension: v.suspension, until: v.until, days: v.days, json: v.json, name: v.name } });
+    return await registryCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(p, "utf8")), flags: { by: v.by, did: v.did, paid: v.paid, page: v.page, genuine: v.genuine, grounds: v.grounds, evidence: v.evidence, reason: v.reason, articles: v.articles, report: v.report, suspension: v.suspension, level: v.level, until: v.until, days: v.days, json: v.json, name: v.name } });
   } catch (e) {
     if (e instanceof RegistryUsage) throw new UsageError(e.message);
     throw e;
@@ -6069,7 +6098,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
-  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
   await asking;
@@ -7263,6 +7292,10 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   const blockedAttempts = [...blockedByScope].sort(([a], [b]) => a.localeCompare(b)).map(([scope, count]) => ({ scope, count }));
   // Network calls the pre-call hook refused for being over the rate limit: not strikes, but counted in the Action's metrics (H1).
   const rateLimited = plan.rateLimitedFile && existsSync(plan.rateLimitedFile) ? readFileSync(plan.rateLimitedFile, "utf8").split(/\r?\n/).filter(Boolean).length : 0;
+  const telemetryRefs = await captureTelemetry(io.env, [
+    ...(runLog && existsSync(join(runDir, "run-log.ndjson")) ? [{ kind: "trajectory", content: readFileSync(join(runDir, "run-log.ndjson"), "utf8"), did: agent }] : []),
+    ...(v.prompt ? [{ kind: "message", content: v.prompt, did: agent }] : []),
+  ]);
   runLog?.event("run_end", { exit_code: code, scopes_used: [...scopesSeen].sort(), blocked: blockedAttempts, strikes, ...(killed ? { killed: killed.reason } : {}), ...(hiddenFailure ? { failure: hiddenFailure } : {}), redactions: runLog?.redactions });
 
   if (killed) {
@@ -7278,7 +7311,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
         body: {
           contract: v.contract!, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", ...(backend === "claude-code" ? { sub_agents: "shared_identity" } : {}), summary: `${backend} run, ${runDir}, killed mid-run`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
-          ...(artifactsSeen.length || runLog ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : [])] } : {}),
+          ...(artifactsSeen.length || runLog || telemetryRefs.length ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : []), ...telemetryRefs] } : {}),
           ...(rateLimited ? { metrics: { rate_limited: rateLimited } } : {}),
         },
       }, actionSigner);
@@ -7308,7 +7341,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
         body: {
           contract: v.contract, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", ...(backend === "claude-code" ? { sub_agents: "shared_identity" } : {}), summary: `${backend} run, ${runDir}`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
-          ...(artifactsSeen.length || runLog ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : [])] } : {}),
+          ...(artifactsSeen.length || runLog || telemetryRefs.length ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : []), ...telemetryRefs] } : {}),
           ...(rateLimited ? { metrics: { rate_limited: rateLimited } } : {}),
         },
       }, actionSigner);

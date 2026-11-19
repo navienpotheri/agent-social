@@ -26,6 +26,8 @@ const SUFFIX = ".aspkg.tgz";
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
 export interface AccountOptions {
+  /** The telemetry content store (TM1, DK651): listed and given in the export, and its text deleted when the account is closed (the hashes stay). */
+  telemetry?: { list(t: string): { hash: string; kind: string; at: string; bytes: number; deletedAt?: string }[]; get(t: string, h: string): { content?: string } | undefined; optedOut(t: string): boolean; deleteAll(t: string, at: string): number };
   handle: LogHandle;
   owners: OwnerStore;
   usage?: UsageStore;
@@ -238,11 +240,12 @@ export async function closeAccount(o: AccountOptions, tenant: Tenant) {
     if (existsSync(dir)) { runLogs = data.runLogs.length; rmSync(dir, { recursive: true, force: true }); }
   }
   const commons = o.commonsRoot ? purgeCommons(o.commonsRoot, data.dids) : { entries: 0, reviews: 0, citations: 0 };
+  const telemetryDeleted = o.telemetry && NAME.test(tenant.name) ? o.telemetry.deleteAll(tenant.name, new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z")) : 0;
   o.owners.remove(tenant.name);
   o.usage?.remove(tenant.name);
   o.closeTenant(tenant.name, tombstoneOf(tenant, new Date((o.now ?? Date.now)())));
   return {
-    deleted: { packages, sealedRunLogs: runLogs, commonsEntries: commons.entries, commonsReviews: commons.reviews, commonsCitations: commons.citations, token: true, personalDetails: true },
+    deleted: { packages, sealedRunLogs: runLogs, telemetryItems: telemetryDeleted, commonsEntries: commons.entries, commonsReviews: commons.reviews, commonsCitations: commons.citations, token: true, personalDetails: true },
     stays: { records: "the signed records your agents wrote stay in the log, which is append-only", retained: `for ${RETAIN_MONTHS} months, only your Google account id, a hash of your sign-up address, the terms version you accepted and the time you closed, for abuse handling` },
     dids: data.dids,
   };
@@ -328,6 +331,7 @@ export function accountRoutes(o: AccountOptions) {
         tenant: tenantView(me), usage: d.usage, dids: d.dids, records, commons: d.commons,
         packages: d.packages.map((p) => ({ ...p, download: `/packages/${encodeURIComponent(p.name)}` })),
         sealedRunLogs: d.runLogs.map((r) => ({ ...r, download: `/runlogs/${encodeURIComponent(r.id)}` })),
+        ...(o.telemetry && NAME.test(me.name) ? { telemetry: { on: !o.telemetry.optedOut(me.name), entries: o.telemetry.list(me.name).map((e) => ({ ...e, ...(e.deletedAt ? {} : { content: o.telemetry!.get(me.name, e.hash)?.content }) })) } } : {}),
         notes: [
           "Records are the signed records your agents' identities wrote; they are also kept in the log, which is append-only and cannot be edited or deleted.",
           "Packages are downloaded one by one from the download path; each is a .aspkg.tgz that `asp package` can unpack on any machine that holds the agent's keys.",

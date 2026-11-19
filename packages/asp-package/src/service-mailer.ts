@@ -14,7 +14,7 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import type { OwnerStore, Tenant } from "@agent-social/asp-log";
+import { renewalNotices, type OwnerStore, type Tenant } from "@agent-social/asp-log";
 import { buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MailLog } from "./mail.ts";
 import { RetryableMailError, unsubscribeOk, unsubscribeToken, verifySvix, type MailTransport } from "./mail-send.ts";
 
@@ -180,6 +180,15 @@ export class ServiceMailer {
         const f = await collectMandateFacts(log, a.contract);
         if (!f) continue;
         if (await this.deliver(a.key, this.recipientFor(f.contract.principal), `principal ${f.contract.principal}`, (to) => buildAlertMail(a, f, { to, from: this.o.from, ...(this.o.linkBase ? { linkBase: this.o.linkBase } : {}) }))) sent++;
+      }
+      // The sponsor's renewal mail (RG-10, row DK384): 30 and 7 days before an agent's identity term ends and once when it has lapsed; each only once per term.
+      for (const n of renewalNotices(all.map((s) => ({ ...s.record, id: s.id })) as never, new Date(this.now()).toISOString())) {
+        if (sent >= budget) break;
+        if (this.state.sent[n.key] || this.state.skipped[n.key]) continue;
+        const subject = n.stage === "lapsed" ? `The identity of ${n.did} has lapsed` : `The identity of ${n.did} needs renewing in ${n.daysLeft} day(s)`;
+        const text = [subject, "", `You sponsor ${n.did}. Its identity term ${n.stage === "lapsed" ? "ended" : "ends"} on ${n.due}.`, n.stage === "lapsed" ? "A lapsed identity renews in one command, and keeps its name for 30 days after the term:" : "Renew it in one command (the agent signs, you countersign):", `  asp registry renew --by ${n.did}`, "", "-- Agent Social. Credits are accounting entries, not money.", ""].join("\n");
+        const html = `<!doctype html><html><body style="font-family:sans-serif"><p><strong>${esc(subject)}</strong></p><p>You sponsor <code>${esc(n.did)}</code>. Its identity term ${n.stage === "lapsed" ? "ended" : "ends"} on ${esc(n.due)}.</p><p>Renew it: <code>asp registry renew --by ${esc(n.did)}</code></p></body></html>`;
+        if (await this.deliver(n.key, this.recipientFor(n.sponsor), `sponsor ${n.sponsor}`, () => ({ subject, text, html }))) sent++;
       }
       // The credit audit (DK1, DK9): at most once every auditIntervalMs; a mismatch mails the operator at once, through the same channel as
       // the other operator notes (credits.md decision 8). Running it costs a full ledger read, so it is not on every pass like the mail above.
