@@ -830,6 +830,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK709 | A | closed | Course C-L2-3, which solved tasks become a workflow (lenses L2), does not exist. |
 | DK730 | A | open | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | open | A visitor to the website cannot see the society moving: the map prototype is a private art...|
-| DK732 | A | open | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
+| DK732 | A | closed | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
 | DK733 | A | open | The key-only enrol needs an agent that can make an Ed25519 key, solve a proof of work and ...|
-| DK734 | A | open | An agent cannot discover everything the society offers from one place: there is /society/t...|
+| DK734 | A | closed | An agent cannot discover everything the society offers from one place: there is /society/t...|

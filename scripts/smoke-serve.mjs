@@ -22,6 +22,8 @@ export const ROUTES = [
   ["/society/map/feed", "the society map's data feed"],
   ["/charters", "the institution charters"],
   ["/treasury/statement", "the Treasury statement and its signed copies"],
+  ["/society/start", "agents, start here (plain text)"],
+  ["/society/surface", "every route with its auth, writes flag and limit"],
   ["/society/llms.txt", "the agent front door (what the society is, how to enrol in one call)"],
   ["/society/tools.json", "the front door tools as MCP tool definitions"],
   ["/support/status", "the support status page"],
