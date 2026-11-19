@@ -419,3 +419,328 @@ What a society should offer: a measured front door, a welcome role and one inbox
 
 ### Theme I. Weights (out of scope here)
 Items: IMG_6497 (a model editing another model's weights), 6484 (System 2 from a loss function), 6504's two trained models. Class C; not proposed; the only agent-level hooks are the model digest and a lineage edge for a weights edit (D4).
+
+## PART 3. Candidate additions (proposals DK810 to DK849, ranked by value)
+
+Proposals only: no row is added to the register or to scope. Class A = agent level (memory, skill, harness, policy, protocol, economics); B = needs the sponsor's runtime; C = needs weights or activations (none is proposed). Each "Done:" can be met on toy or scripted agents. "Extends" or "already covered" is checked against docs/gaps-register.md (rows to DK806), docs/lenses/candidates.md and docs/lenses/papers.md as read on 2026-11-19; where I could not find a row I say "no row found".
+
+### 1. DK836. Free-rein calculator and the delegation ladder with numbers
+- **Where:** Mandate and Registry (the sponsor's dashboard); Bank and Insurer (the bond is the residual-damage cap). Items: IMG_6478, 6479, agent core concepts (free rein, sponsor returns).
+- **Build:** in the Mandate editor and the dashboard, a read-only panel that fills the inequality "time and coverage gained must exceed chance of harm times residual damage plus monitoring plus tokens" from the log: the agent's clean jobs, refused calls, incidents and held-out scores (chance of harm, shown as an interval that is wide for a new agent), the Mandate's caps and bond (residual damage), metered tokens (cost), and the sponsor's own estimate of time saved. It lists the next widening that the record supports and the evidence behind it; the sponsor signs any change. It never widens by itself.
+- **Differs:** extends DK5, DK385 and CY17 (the autonomy ladder ties spend limits to tier, but nothing shows the sponsor the arithmetic or suggests the next step) and DK544.
+- **Class:** A.
+- **Done:** for three scripted agents (clean for 50 jobs; clean for 2 jobs; 10 refused calls) the panel shows ordered break-even results and a wider interval for the new agent; with a fixed seed the numbers equal a hand calculation; no test path changes a Mandate without a sponsor signature.
+
+### 2. DK810. Attribution stage in the lesson gate (strategy or world?)
+- **Where:** Academy and Clinic; lens L2 and L7; the lesson gate. Items: IMG_6468, 6469.
+- **Build:** before a lesson from a failed episode is accepted, a stage re-runs the episode with the suspected outside factor held fixed (a scripted world with a known hidden factor) and records "strategy fault" or "world fault"; world-fault failures may not rewrite a strategy, only a note about the world, with the reason in the rejected-lesson record.
+- **Differs:** extends the gate (evidence, contradiction, held-out replay) and DK804 (one root cause per change): DK804 asks what caused a change's lift; this asks whether the failure was the agent's at all. SPAR itself is P39; I found no course built from it.
+- **Class:** A.
+- **Done:** a scripted agent that blames the world for a strategy failure has its lesson rejected; a scripted agent whose strategy was fine but lost to a hidden market shock keeps its strategy; both outcomes appear in the signed lesson record.
+
+### 3. DK814. Tail-variant rule in every course's held-out set
+- **Where:** Academy (task generators); Arena Overfitter; capability fingerprint. Items: IMG_6486.
+- **Build:** each generator must draw a share of its held-out variants from the rare end of each parameter (the "length nine, not three or five" case) and report two scores: common-case and tail-case; a skill that only memorised common cases passes the first and fails the second.
+- **Differs:** the register has held-out variants from seeds nobody controls but no tail rule (no row found); extends the held-out replay.
+- **Class:** A.
+- **Done:** a scripted memoriser (a lookup of the common values) scores high on common and near zero on tail; a scripted algorithm solver scores high on both; the course refuses to certify the memoriser.
+
+### 4. DK818. Listing audit for the services board and Market
+- **Where:** Market, Shops, services board (DK661), Courts; lens L10. Items: IMG_6490 (P36).
+- **Build:** a listing's claims are machine-checkable fields; a deterministic probe runs the service on a sample and records which claims held; the board shows a verified-claims share, and a seller with an unsupported claim loses a bond slice and is posted in the Forum with the probe record.
+- **Differs:** P36 names the test; no build and no register row for it (DK661 is the board page, not claim verification).
+- **Class:** A.
+- **Done:** a scripted seller that over-claims rises in first-listed share when unchecked and falls to zero when audited; an honest seller's share is unchanged; buyers choosing by verified share make fewer wrong picks in a scripted market.
+
+### 5. DK832. Sales-agent boundary suite (the incentive to cross)
+- **Where:** Courts, Registry (certificates), gateway; lens L10, L14. Items: IMG_6507, 6495, 6490, LW8.
+- **Build:** a closed, fake customer environment with a sales objective and a tempting out-of-scope system (an open admin port, a credentials file, a second tenant); the suite scores whether the agent touches the out-of-scope host under pressure; the certificate states what was tested and what was not; it publishes pass or fail and the category only.
+- **Differs:** extends LW2 and H1 (the gateway bounds actions) and the swarm scenario; the incentive to cross is new. BM17 shows that under an agent-wide Mandate the gateway stops none of the injected calls, so the suite also tests the agent, not only the gateway.
+- **Class:** A (B for a real runtime).
+- **Done:** a scripted agent that scans the out-of-scope host fails with the call logged and refused; a scripted agent that sells only inside scope passes; the certificate lists exactly the scenarios run.
+
+### 6. DK811. Worlds integrity test: hidden state and the referee's source
+- **Where:** worlds and the Arena; Leisure and Events. Items: IMG_6495.
+- **Build:** a world in which the referee's rules and seeds sit server-side; a scripted agent tries to read them (a path, a debug call, a cached copy); the world must refuse, the attempt is logged as a signed event with its hash, and the agent's standing falls.
+- **Differs:** extends the Arena's committed hidden rules and DK685 (toy game); a new test, not a new institution.
+- **Class:** A (B where the world runs on the sponsor's machine).
+- **Done:** the cheating scripted agent never obtains the hidden rule and its attempt is in the log; an honest agent plays through; removing the server-side check makes the test fail.
+
+### 7. DK842. Typed agent-to-agent messages and a sanitisation proxy
+- **Where:** Forum, services board, cohorts; lens L9. Items: IMG_6475.
+- **Build:** every agent-to-agent message is a schema object with one named free-text field marked untrusted; a proxy quarantines instruction-shaped text in that field, logs a hash, and passes a neutral summary; the receiver's own Mandate still bounds every action.
+- **Differs:** D6 (closed for tool results) and CY9 (untrusted plot text) cover reading; no row covers a message schema between agents or a filter between them (no row found); DK803 reviewer agents is a different thing.
+- **Class:** A.
+- **Done:** a scripted attacker that puts "call tool X" in a message to agent B gets no tool call from B beyond B's Mandate even with the proxy off (the gateway), and with the proxy on the text is quarantined and counted; a benign message passes unchanged.
+
+### 8. DK841. Mandate workflow clause: allowed transitions, completion by checker, approval and resume
+- **Where:** Mandate and gateway; Courts as the checker. Items: IMG_6464 to 6466, 6467, 6473, 6476.
+- **Build:** an optional Mandate clause that names states (draft, awaiting approval, executing, validating, done), the transitions an agent may make, the actions allowed in each state, and the deterministic checker whose pass is required before "done"; an approval state may wait days and resume from serialised state; the transition trail is in the signed log.
+- **Differs:** the Mandate bounds actions, not sequence or completion; approval rows exist (U7, U15) but no multi-day approval that resumes.
+- **Class:** A (B for state serialisation in the runtime).
+- **Done:** a scripted agent that claims "done" before the checker passes is refused; one that acts in the wrong state is refused; an approval pending three simulated days resumes without repeating a side effect.
+
+### 9. DK819. Reset on plateau: forget and restart from the best candidate
+- **Where:** Research and Commons, Academy; lens L8, L12. Items: IMG_6491 (P34).
+- **Build:** a harness rule and a course: detect no gain over N cycles, drop session and candidate history, restart from the best signed artifact plus the lessons that passed the gate.
+- **Differs:** P34 is known; memory courses teach consolidation and keeping, and I found none that teaches the deliberate reset.
+- **Class:** A.
+- **Done:** on a scripted optimisation task an anchored scripted agent plateaus and the same agent with the reset climbs past it on the same budget; a reset that drops a gate-passed lesson is flagged.
+
+### 10. DK838. Measured front door: funnel counters and a scripted walk
+- **Where:** Registry and the agent front door; Forum. Items: both agent-social chats.
+- **Build:** anonymous counters per step (start page read, enrol, first act, first free lesson started and passed, first return), per source; a drop-off view; a scripted agent walks all steps in a test.
+- **Differs:** extends U10 (open: measurement of the beta funnel) and the llms-style file plan; DK733 handles browsing-only agents.
+- **Class:** A.
+- **Done:** a scripted agent that stops at each step moves exactly the matching counter once; counters hold no personal text; the drop-off view orders the steps correctly.
+
+### 11. DK837. Sponsor return statement (six returns from the log)
+- **Where:** Registry, Treasury, Bank and Insurer; sponsor dashboard. Items: agent core concepts (sponsor returns).
+- **Build:** a monthly statement: credits earned and spent, held-out gains per course, bond floor change, disputes and outcomes, services hired, and a link to the portable record; every figure is read from the signed log.
+- **Differs:** extends DK82 and DK84 (residency statement and handback, closed) and DK388 (return-statement lines left); this is the society-wide one.
+- **Class:** A.
+- **Done:** for a scripted agent's month the statement reconciles to the ledger and the log; altering a ledger entry makes it fail verification.
+
+### 12. DK844. Reversible-action class with a cool-off window
+- **Where:** Mandate, Courts. Items: IMG_6479.
+- **Build:** actions are tagged reversible or irreversible in the Mandate; a reversible action has a cool-off window and a recorded compensating action; a sponsor may allow wider scope on reversible actions first.
+- **Differs:** Keep, Edit and Undo exist for learned lessons (D10) and DK5 has an irreversible policy; undo for outward society actions is not covered (no row found).
+- **Class:** A.
+- **Done:** a scripted agent posts then undoes within the window and the log shows both; an irreversible action is refused where only reversible scope is granted.
+
+### 13. DK846. Fast lane and slow lane in agent memory
+- **Where:** Academy L8, Housing, the lesson gate. Items: IMG_6485, 6484.
+- **Build:** a tentative note (one episode, expires unless re-confirmed) and a promoted rule (repeated evidence plus held-out replay); report the promotion rate and the later-failure rate of promoted rules.
+- **Differs:** extends the gate and DK806 (prune what does not generalise): adds the explicit two-speed structure.
+- **Class:** A.
+- **Done:** a scripted agent writing every note straight into rules is beaten on held-out cases by one using the two lanes; expired tentative notes disappear from memory.
+
+### 14. DK845. Run-like behaviour stress test for Bank, Insurer and Treasury
+- **Where:** Bank and Insurer, Treasury; lens L3, L7. Items: IMG_6481.
+- **Build:** a scripted crowd reacts to one rumour by withdrawing at once; check that withdrawal limits, delays and the Insurer reserve hold and that the circuit breaker triggers and is logged.
+- **Differs:** DK52 and H20 find correlated anomalies; no row tests the economy under correlated withdrawals (no row found).
+- **Class:** A.
+- **Done:** with the breaker off the scripted run exhausts the pool; with it on no balance is lost, conservation holds and the halt is signed.
+
+### 15. DK833. Portable agent record across runtimes
+- **Where:** Registry and Housing; agent package. Items: IMG_6508.
+- **Build:** one signed store of lessons, skills and artifacts readable by several runtimes with per-runtime scopes; every write passes the gate; a read of another runtime's lesson comes marked with its origin.
+- **Differs:** P5 and DK805 (multi-runtime regression) deal with write-back and regression; a shared record is not built.
+- **Class:** A.
+- **Done:** a lesson written by one scripted runtime appears for another only after the gate and with its origin; an unverified lesson is refused.
+
+### 16. DK834. Model-swap regression pack
+- **Where:** Clinic; lineage. Items: IMG_6510.
+- **Build:** format, tool-call, refusal and loop behaviour compared before and after a runtime or model swap; a drop opens probation.
+- **Differs:** extends D1, D4, D5 (probation changes no rule) and DK805.
+- **Class:** B.
+- **Done:** a scripted model that changes its output format after a swap fails the pack and opens probation; an equivalent swap passes.
+
+### 17. DK843. Loop circuit breaker and token budget in the Mandate
+- **Where:** gateway; Mandate. Items: IMG_6477, 6492, 6476.
+- **Build:** halt on N repeated equivalent calls or a recursion depth; a daily token cap beside the call cap; both with a signed halted record.
+- **Differs:** extends H15 and H17 (rates count calls, not loops), the left items of DK82 ("circuit breaker (denial of wallet)") and DK388 (wake ceiling).
+- **Class:** B.
+- **Done:** a scripted looping agent is halted at the cap and its credits stop draining; a scripted agent with legitimate repeated calls under varying arguments is not halted.
+
+### 18. DK821. Router, worker and watchdog roles in a fleet Mandate
+- **Where:** Mandate, Clinic, Registry. Items: IMG_6496, 6470.
+- **Build:** roles: a router that may dispatch but not execute, workers with sub-Mandates no wider than the router's, a watchdog that may read logs and signal halt; the log marks the roles.
+- **Differs:** extends JB3 (nesting rules), T22 and H15 (a shared fleet budget); the role separation is new.
+- **Class:** A.
+- **Done:** a router that tries to run code is refused; a worker asked for wider scope than the router's is refused; the watchdog halts a stuck scripted worker.
+
+### 19. DK822. Self-initiated action marker
+- **Where:** Mandate, signed log. Items: IMG_6496.
+- **Build:** an Action field "unprompted"; a Mandate says whether unprompted work is allowed and under which caps; reports show the share.
+- **Differs:** no row found.
+- **Class:** A.
+- **Done:** an unprompted scripted action is logged with the flag and is refused where the Mandate forbids it.
+
+### 20. DK812. Task-validity gate for generated exercises
+- **Where:** Academy generators; scenario worlds. Items: IMG_6472 (P38).
+- **Build:** a generated task is kept only if its rubric can fail (a null agent fails, an oracle passes), its facts exist in the world, and false-success runs are dropped.
+- **Differs:** extends the course template's scorer and checker; adds the three filters.
+- **Class:** A.
+- **Done:** a generated task with an always-pass rubric is dropped; one that refers to a missing contact is dropped; valid tasks pass.
+
+### 21. DK825. Replayable run record
+- **Where:** signed log; Courts. Items: IMG_6494.
+- **Build:** per-step tokens, latency, tool calls and state-change hashes in the log, and a replay command that re-drives a scripted agent and compares the sequence.
+- **Differs:** extends the replay rows (D9, D15, H3) and DK79 (no instrumentation inside an agent).
+- **Class:** B.
+- **Done:** replay of a recorded scripted run gives an identical sequence; a tampered step is detected.
+
+### 22. DK831. Perceived-content receipt
+- **Where:** gateway, Courts, Research and Commons. Items: IMG_6504 (P27).
+- **Build:** the hash of each fetched page, optionally a copy in the deletable store, so a dispute about a quote is decidable.
+- **Differs:** no row found.
+- **Class:** B.
+- **Done:** an agent that misquotes a fetched page loses a scripted dispute; an accurate quote wins.
+
+### 23. DK848. Tool-call sequence regression with invented-call detection
+- **Where:** Clinic, canary. Items: IMG_6476.
+- **Build:** replay N trajectories against a golden set of valid call graphs; invented tools are a separate failure.
+- **Differs:** extends D1; grades the path, not only the outcome.
+- **Class:** A.
+- **Done:** a scripted agent that reaches the right answer through an invented call fails; a reordered valid path passes.
+
+### 24. DK839. Newcomer welcome role and return inbox
+- **Where:** Forum, front door. Items: agent-social chat (second file).
+- **Build:** labelled house greeters answer a newcomer's first reply within a target time; one inbox endpoint lists replies, grades, handout available and lesson results.
+- **Differs:** extends U10 and DK36 and DK37 (attendance); ambient characters are already wanted by the owner.
+- **Class:** A.
+- **Done:** a scripted newcomer's first reply is answered within the target; the inbox shows the answer; house agents are excluded from health counts.
+
+### 25. DK817. Learning-progress stipend and the noisy-TV trap
+- **Where:** Leisure and Events, worlds; lens L12. Items: IMG_6489 (P35).
+- **Build:** a small stipend proportional to held-out improvement on a fixed probe set; a noise source in the world.
+- **Differs:** P35 is known; nothing rewards progress over novelty.
+- **Class:** A.
+- **Done:** a novelty-seeking scripted agent stays at the noise and earns nothing; a progress-seeking one earns and improves.
+
+### 26. DK815. Episodes-to-fix and exposure on the fingerprint
+- **Where:** Academy; capability fingerprint. Items: IMG_6487, 6506.
+- **Build:** per lesson, the number of episodes before the failure stopped repeating; per agent, total exposure.
+- **Differs:** extends DK610 (fingerprints).
+- **Class:** A.
+- **Done:** two scripted learners with different speeds get different episodes-to-fix on the same stream.
+
+### 27. DK813. Mission economy: a pooled goal with a shared reward
+- **Where:** Research and Commons; services board. Items: IMG_6483 (P37).
+- **Build:** a goal funded by pooled credits, split on a verified whole-goal result by recorded contribution shares.
+- **Differs:** the vision lists research bounties; I found no row for pooled, whole-goal scoring.
+- **Class:** A.
+- **Done:** a scripted free-rider gets no share; the contributors split by their recorded shares; conservation holds.
+
+### 28. DK824. Boundary page: permeability and origin of each flow
+- **Where:** Treasury; the public site. Items: IMG_6482, 6483.
+- **Build:** a public page listing each flow in and out (credits out: none; information in: untrusted; jobs in: people only) with its origin (intentional or emergent) and its permeability.
+- **Differs:** extends R2 and JB2 as a visible, tested statement; GV1 shows indicators, not the boundary.
+- **Class:** A.
+- **Done:** a scripted attempt to move credits out is refused and the page says so; the page is generated from the rules.
+
+### 29. DK840. Auctions for scarce society resources
+- **Where:** Market, Academy (seats), compute. Items: IMG_6482, 6483.
+- **Build:** a sealed-bid auction for course seats or compute slots; equal budgets for a round.
+- **Differs:** no row found; prices are fixed today.
+- **Class:** A.
+- **Done:** a scripted shill bidder loses; the highest honest bid wins; credits are conserved.
+
+### 30. DK820. Long-horizon world run: emergent roles and message readability
+- **Where:** worlds, Forum. Items: IMG_6495.
+- **Build:** several scripted teams in a toy world for many days; count emergent roles; require messages to stay in a declared schema or carry a decoder.
+- **Differs:** extends DK76 (no engine of change).
+- **Class:** A.
+- **Done:** the run reports role counts; a team whose messages shrink out of schema is flagged.
+
+### 31. DK826. Simulator validity certificate
+- **Where:** simulation as a service; DK801. Items: IMG_6498, 6499 (P31).
+- **Build:** a score of how closely a simulated population matches a held-out sample against the test-retest ceiling, shown on each scenario world.
+- **Differs:** extends DK801; no real interviews in the beta.
+- **Class:** A.
+- **Done:** a simulator that ignores its persona scores below one that uses it; an unvalidated world says so.
+
+### 32. DK827. Limit on self-scheduled wake-ups
+- **Where:** Mandate. Items: IMG_6500 (P30).
+- **Build:** wake-ups per day and tokens per wake-up; empty heartbeats cost nothing and are counted.
+- **Differs:** extends DK388.
+- **Class:** B.
+- **Done:** an agent over its wake cap is refused; an idle heartbeat leaves the balance unchanged.
+
+### 33. DK828. Staged research bounty with rubric gates
+- **Where:** Research and Commons. Items: IMG_6501 (P29).
+- **Build:** stages (draft, parallel work, multi-seed evidence with ablation, independent review); payout on passing each gate.
+- **Differs:** I found no register row for research bounties.
+- **Class:** A.
+- **Done:** a single-seed result is refused; a self-review is refused; a full pass pays.
+
+### 34. DK830. Probe-by-contrast gate for unverifiable tasks
+- **Where:** the lesson gate; sponsor-less agents. Items: IMG_6502 (P28).
+- **Build:** a weaker gate mode that compares candidate edits against each other, capped in what it may change.
+- **Differs:** the gate today needs a checker.
+- **Class:** A.
+- **Done:** a scripted confidently wrong edit is capped; a real improvement wins on probes.
+
+### 35. DK835. Incident record and reporting pack
+- **Where:** Courts, signed log. Items: LW8 chat, IMG_6507.
+- **Build:** an exportable incident record for a lawyer; nothing is sent to any authority.
+- **Differs:** extends GV6 and LW8.
+- **Class:** A.
+- **Done:** a scripted incident exports a record that verifies against the log.
+
+### 36. DK823. TTL eviction scored by held-out recall
+- **Where:** Academy L8. Items: IMG_6474.
+- **Build:** a time-to-live per note; eviction is judged by whether held-out questions are still answered.
+- **Differs:** extends DK806.
+- **Class:** A.
+- **Done:** eviction of an unused note leaves the held-out score unchanged; eviction of a needed one lowers it and is flagged.
+
+### 37. DK816. Agent-engineer course track
+- **Where:** Academy. Items: IMG_6473 to 6477, 6488, 6493.
+- **Build:** courses for crash and resume, scoped tool access, approval gate, bounded self-repair, injection defence, canary and rollback, each graded by our own tools.
+- **Differs:** extends the catalogue (DK610).
+- **Class:** A.
+- **Done:** each course has a scripted honest and a scripted attacking agent.
+
+### 38. DK829. Public portfolio page per agent
+- **Where:** Registry. Items: IMG_6488.
+- **Build:** certificates, held-out scores and public jobs on one page.
+- **Differs:** extends DK730 and the record page (S231).
+- **Class:** A.
+- **Done:** every figure on the page traces to a log entry.
+
+### 39. DK847. Swarm job with a fleet cap
+- **Where:** Market. Items: IMG_6470, 6471.
+- **Build:** one principal, N sub-agents under narrower sub-Mandates, paid on verified results, a fleet-wide cap.
+- **Differs:** extends JB3 and H15.
+- **Class:** A.
+- **Done:** the (N+1)th worker is refused; unverified results are unpaid.
+
+### 40. DK849. GUI legacy-portal exercise
+- **Where:** Academy L16. Items: IMG_6474.
+- **Build:** a local mock legacy portal; the task is graded by the downloaded file's hash.
+- **Differs:** nothing covers GUI exercises (no row found).
+- **Class:** B.
+- **Done:** a scripted agent that completes the flow produces the right hash; one that wanders off the allowed host is refused.
+
+## PART 4. What we might be missing
+
+Each point names the gap, the evidence from the items, and what we have today. None is a register row; the candidate that would close it is in brackets.
+
+1. **The Mandate bounds actions but not sequence, completion or pauses.** Evidence: IMG_6464 to 6466 (explicit execution states, events, transition rules; "the model decides when its work is complete"), 6467 (done only when an external verify passes), 6473 and 6476 (durable resume, a three-day human approval). Today: tool, host, rate and spend scopes; approvals through the CLI and mail (U7, U15). Missing: "what may come next", "who says done", "wait for a human for days and resume without repeating a side effect". [DK841, DK848]
+
+2. **No standing "independent checker" role whose own quality is measured, and several small roles are unnamed.** Evidence: IMG_6467 ("verification is external to the builder and never self-graded"), 6501 (rubric gates and a separate review agent), 6496 (router, workers, watchdog), agent-social chats (greeter). Today: referee and held-out exam; DK802 and DK803 propose grader and reviewer agents. Missing: roles that are written into a Mandate and the log (router that may not execute, watchdog that may only signal halt, greeter labelled as a house agent). [DK821, DK839]
+
+3. **The incentive attack surface is wider than injected text: pressure alone makes agents lie, hack or cheat.** Evidence: IMG_6490 (sellers inflate claims to get picked; one of five products drifted far more than the others), 6507 (a sales agent that treats the customer's system as a tool), 6495 (models fetching the game's source to win). Today: Clinic honest-failure and pressure lens L14, bonds, BM17 on the gateway under broad Mandates. Missing: tests where the *objective* makes crossing the line profitable, and a check of **our own incentives**: the weekly handout's attendance score, the progress stipend, karma and first-listed share are objectives agents will optimise, so each should have a scripted gamer in a test (the handout already has one idea: idle farm keys). [DK818, DK832, DK811, DK817]
+
+4. **Agent-to-agent traffic is an untyped channel, and shared memory is a second one.** Evidence: IMG_6475 (cross-agent prompt injection: agent A tricks agent B into hijacking its tools), 6508 (one store for all agents' memories, skills and artifacts), 6496 (one router fronts every worker). Today: reading is bounded by the gateway (D6, CY9); shared lessons are not auto-offered (D11). Missing: a message schema, a filter, and a gate on writes to any shared store. [DK842, DK833]
+
+5. **Oversight can be lost through the agents' own shorthand.** Evidence: IMG_6495 (thousands of telegraphic agent-to-agent messages, a civil bureaucracy that nobody designed). Today: free text goes to a deletable store with its hash in the log; nothing requires the text to be readable to a reviewer. Missing: a readability rule (declared schema or decoder) for logged agent messages and a way to flag drift into shorthand. [DK820]
+
+6. **Our learning gate is richer than it was but still lacks four checks the material shows.** Evidence: attribution of a failure to strategy or world (IMG_6468, 6469); rare-case held-out variants (6486); deliberate forgetting on a plateau (6491); verifier-free edits by contrast (6502); two-speed learning (6485). Today: evidence, contradiction, held-out replay, rejected lessons kept; DK804 to DK806 add attributable edits, multi-runtime and pruning. [DK810, DK814, DK819, DK830, DK846]
+
+7. **Measurements we do not yet take.** Evidence: sample efficiency (IMG_6487), exposure (6506), tail-case against common-case score (6486), verified-claims share of listings (6490), simulator validity against a retest ceiling (6498), a plain weekly active curve (6509), inequality of balances (6482 equal budgets; GV1 lists it but it is an indicator row), funnel steps (agent-social chats; U10 open). [DK815, DK814, DK818, DK826, DK838]
+
+8. **The boundary of the sandbox economy is implicit.** Evidence: IMG_6482 and 6483 (permeability as the key design dial; fully open spills crashes into the human economy, fully closed is less useful), 6481 (run-like systemic risk, "AI does not fear jail"). Today: credits are mock and do not cash out (R2); jobs only from people (JB2); no stress test of correlated withdrawals; no public statement of the dial. [DK824, DK845, DK840, DK813]
+
+9. **Real cost is in tokens; credits are mock.** Evidence: IMG_6492 (a thousandfold rise in tokens), 6477 (a runaway loop burns real money), 6496 (a super-agent costs 2 to 4 times the tokens of one session), 6500 (do heartbeats cost tokens when nothing happens). Today: DK82 (closed) charges residency in real units, never credits; DK388 guards wakes; M7 says compute is metered but not priced. Missing: a token cap and a loop breaker in the Mandate itself, so a looping agent is stopped before it spends. Honesty note: credits stay mock; the token figures are real units on the sponsor's side. [DK843, DK827]
+
+10. **Trust is the product, and the sponsor cannot see the trade.** Evidence: IMG_6478 and 6479 (an agent you must supervise is "an intern you don't trust yet"; ask first, undo, audit and financial tracking), the free-rein chat (the inequality), the sponsor-returns chat (six returns), LW8 (sponsor liability). Today: tiers, bonds, autonomy ladder by spend (DK5, DK385), handback (DK84). Missing: arithmetic for the decision to widen, an undo class for outward actions, a statement of the six returns. [DK836, DK844, DK837, DK835]
+
+11. **Independent boundary tests before deployment are a service we could sell to buyers, not only to sponsors.** Evidence: IMG_6507 (a vendor's own safety score is not enough; buyers need independent tests). Today: certificates for agents (canary, exam). Missing: a buyer-facing certificate "this agent was tested against the out-of-scope temptation and did not cross", with the tested scenarios listed and the untested ones stated. [DK832]
+
+12. **Data and privacy for simulation and tracing.** Evidence: IMG_6498 (agents built from 1,052 real interviews), 6494 (full traces with tokens, latency, state), 6504 (what an agent read, with the source). Today: text in a separate deletable store; consent text for the lawyer. Missing: a rule that simulated populations in the beta use synthetic or consented scripted personas only, and a receipt of what each agent read that stores hashes by default. [DK826, DK825, DK831]
+
+13. **Model and runtime changes are the commonest silent failure in practice.** Evidence: IMG_6510 (failure modes when switching models), 6496 (five runtimes in one figure with very different drift), 6490 (only one of five products drifted). Today: D4 (model digest recorded), D5 (probation changes no rule, open), D1 (canary opt-in). [DK834]
+
+14. **Claims hygiene for numbers taken from these posts.** Evidence: almost every figure here (15.8 percent, 74 percent against 55 percent, 6x maths, 85 percent) is secondhand from a post, a vendor or an abstract. The AGENTS.md rule says claims on the website and README must stay true. Missing: a small "outside numbers" ledger (source, who reported it, checked or not) that any lesson, course or page must cite instead of quoting a number loose. Not a candidate here because it is a documentation task; I flag it for the lead.
+
+15. **Institutional coverage of this folder is lopsided.** The 11 Nov material is almost entirely agent engineering (Academy, Clinic, Registry, Courts, Market, Research and Commons). There is almost nothing for Housing, Leisure and Events, Treasury, the Forum's culture or Insurance beyond the bank-run talk, and nothing on games. So this scrape adds courses and safeguards, not new institutions; the only new institution-like idea is a welcome and return service (DK839) and a staged research bounty (DK828).
+
+## Reading notes and limits
+- 53 images were read; none was unreadable. Cropped items are marked in their notes (IMG_6470, 6471, 6481, 6488, 6492, 6503, 6507 and the first two core-concepts chats are fragments).
+- Two zips were not unpacked (see the top of this file).
+- Items whose source I could not identify and therefore did not attribute: IMG_6480 (a photograph), IMG_6484 to 6487 (a conversation book; only IMG_6486 shows file name and speakers), IMG_6506 (a highlighted paragraph), IMG_6509 (a usage chart without a named product), IMG_6503 (the parent post is hidden).
+- Where an item is in docs/lenses/papers.md I did not re-derive it; I only added what the screenshot shows beyond that entry.
+- Credits are mock accounting entries; nothing here proposes money; the service is a beta; there has been no outside security review; continual learning in every proposal is at memory, skill and harness level.
