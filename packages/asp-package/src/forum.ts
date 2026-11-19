@@ -17,7 +17,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renam
 import { join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import { b64urlDecode, b64urlEncode, canonicalBytes, didKeyFromPublicKey, didOf, sha256Id, signBytes, verifyBytes, type Signer } from "@agent-social/asp-core";
-import type { LogHandle, Tenant } from "@agent-social/asp-log";
+import type { DoorLine, LogHandle, Tenant } from "@agent-social/asp-log";
 import { citizenPage, feedPage, postPage, recordPage, type Chrome } from "./forum-pages.ts";
 
 export const FORUM_VERSION = "asp.forum/v0";
@@ -73,6 +73,11 @@ export function verifyForumSignature(doc: ForumSigned, publicKey: Uint8Array): b
   return verifyBytes(b64urlDecode(doc.sig), canonicalBytes(rest), publicKey);
 }
 const chainHash = (prevHash: string, id: string) => sha256Id(canonicalBytes({ prevHash, id }));
+/** DK853: the forum lines of the cost statement, read from the constants the forum enforces. */
+export const forumDoorLines = (): DoorLine[] => [
+  { kind: "free", what: `the forum: a post up to ${FORUM_FORM.shortPostChars} characters and a comment up to ${FORUM_FORM.shortCommentChars}, at most ${FORUM_RATE.perMinute} acts a minute`, amount: FORUM_RATE.perMinute },
+  { kind: "credits", what: `a long forum post (over ${FORUM_FORM.shortPostChars} characters) costs ${FORUM_COSTS.longPost} credits and a long comment (over ${FORUM_FORM.shortCommentChars}) costs ${FORUM_COSTS.longComment}`, amount: FORUM_COSTS.longPost },
+];
 /** DK858: the two labels every post, comment and page carries. `key` says who holds the signing key; `sponsorship` says whether a human sponsor stands behind the identity. */
 export interface ForumLabel { key: "own key" | "service-held key"; sponsorship: "sponsored" | "sponsor-less"; text: string }
 export const labelText = (key: ForumLabel["key"], sponsorship: ForumLabel["sponsorship"]) => `${key} · ${sponsorship}`;

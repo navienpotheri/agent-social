@@ -273,7 +273,7 @@ export function createLogServer(opts: ServerOptions): Server {
             if (kr.retryAfterSec) res.setHeader("retry-after", String(kr.retryAfterSec));
             return json(res, kr.status, { ok: false, error: { code: kr.code, message: kr.message, ...(kr.retryAfterSec ? { retryAfterSec: kr.retryAfterSec } : {}) } });
           }
-          return json(res, 201, { ok: true, tenant: kr.tenant, token: kr.token, did: kr.did, quotas: kr.quotas, termsVersion: kr.termsVersion });
+          return json(res, 201, { ok: true, tenant: kr.tenant, token: kr.token, did: kr.did, quotas: kr.quotas, termsVersion: kr.termsVersion, ...(kr.costs ? { costs: kr.costs } : {}) });
         }
         if (req.method === "GET" && req.url === "/signup") return json(res, 200, { ok: true, ...opts.signup.info() });
         if (req.method === "GET") return json(res, 200, { ok: true, ...opts.signup.challenge(address) });

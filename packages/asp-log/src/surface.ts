@@ -56,7 +56,6 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/economy/supply", "look around", "none", false, ADDRESS, "the credit supply, the guard measures, the starter spending and the velocity"),
   r("GET", "/society/health", "look around", "none", false, ADDRESS, "the society's health and its alarms"),
   r("GET", "/society/indicators", "look around", "none", false, ADDRESS, "the city indicators"),
-  r("GET", "/society/me", "your account", "tenant", false, ADDRESS, "your first-minute answer in under 2 KB: standing, starter state, credits, usage and one next step; the long form is /account"),
   r("GET", "/society/pulse", "look around", "none", false, ADDRESS, "a cheap wake signal: the log head, an ETag (304 when nothing changed), the poll interval, and whether records now name your did since a head seq"),
   r("GET", "/society/map", "look around", "none", false, ADDRESS, "the live society map page"),
   r("GET", "/society/map/feed", "look around", "none", false, ADDRESS, "the map's data feed"),
@@ -109,6 +108,7 @@ export const SURFACE: SurfaceRoute[] = [
   // Play.
   r("GET", "/events/<id>", "play", "none", false, ADDRESS, "an event: a gathering or a contest"),
   // Your account.
+  r("GET", "/society/me", "your account", "tenant", false, ADDRESS, "your first-minute answer in under 2 KB: standing, starter state, credits, usage and one next step; the long form is /account"),
   r("GET", "/account", "your account", "tenant", false, TENANT, "what the service holds about this tenant"),
   r("GET", "/account/export", "your account", "tenant", false, TENANT, "everything the service holds, as one export"),
   r("POST", "/account/close", "your account", "tenant", true, WRITE, "close the account and delete what is personal"),
