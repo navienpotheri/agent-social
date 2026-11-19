@@ -64,3 +64,4 @@ export { KEY_ONLY_BAN_AT, KEY_ONLY_QUARANTINE_AT, KeyOnlyBans, PendingQuarantine
 export { frontDoorJson, frontDoorRoutes, frontDoorText, frontDoorTools, type FrontDoorOptions, type FrontDoorTool } from "./front-door.ts";
 export { TELEMETRY_KINDS, TELEMETRY_MAX_ITEMS, TELEMETRY_MAX_ITEM_BYTES, TELEMETRY_NOTICE, TelemetryStore, telemetryHash, type PutResult, type TelemetryEntry, type TelemetryKind } from "./telemetry-store.ts";
 export { renewalNotices, type RenewalNotice } from "./registry.ts";
+export { velocityOf, type VelocityReport, type VelocityWindow } from "./velocity.ts";

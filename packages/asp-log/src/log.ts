@@ -20,6 +20,7 @@ import {
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
 } from "@agent-social/asp-core";
 import { starterSpendOf, type StarterSpendReport } from "./starter-spend.ts";
+import { velocityOf, type VelocityReport } from "./velocity.ts";
 import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type StarterPoolState } from "./credit-audit.ts";
 import { bondFloorPermille, bondFloorV3, floorIsV2, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
@@ -3334,6 +3335,9 @@ export class EventLog {
 
   /** Share of circulation held by the top slice of accounts (credits.md 5.6, G5, CR-19): a number only, never which DIDs hold it. */
   async creditConcentration(topFraction = 0.01): Promise<BalanceConcentration> { return topBalanceShare(await this.store.ledgerRows(), topFraction); }
+
+  /** How many credits changed hands in the last seven days and how many each active agent moved (row DK683): counted from purchases, settlements and transfers; figures only. */
+  async velocity(nowMs: number = Date.now()): Promise<VelocityReport> { return velocityOf(await this.recordsOfTypes(["passport", "contract", "settlement", "purchase", "internal_transfer"]), nowMs); }
 
   /** How fast agents spend their starter credits (DK543): median and 90th percentile of days to spend 90 percent, never-spenders, run-outs; figures only. */
   async starterSpend(nowMs: number = Date.now()): Promise<StarterSpendReport> { return starterSpendOf(await this.recordsOfTypes(["starter_claim", "purchase"]), nowMs); }
