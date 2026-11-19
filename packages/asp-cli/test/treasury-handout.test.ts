@@ -47,3 +47,35 @@ test("the plan pays only agents that signed acts on two days of the week; --yes 
   assert.match(lines.join("\n"), /already received the handout/);
   assert.equal((await k.log.creditAudit()).verdict, "balanced");
 });
+
+test("the public page shows the week's plan: the paid agents and counts of the reasons, never the names of the unpaid", async () => {
+  const { createServer } = await import("node:http");
+  const { handoutRoutes } = await import("../../asp-package/src/handout-pages.ts");
+  const { handoutPlanFromLog } = await import("@agent-social/asp-log");
+  const k = await kit();
+  await k.withPrices();
+  const sponsor = await k.person("hp-sponsor", 10);
+  const busy = await k.agent("hp-busy", sponsor, { funds: 100 });
+  await k.agent("hp-idle", sponsor, { funds: 10 });
+  await k.mint(TREASURY_DID, 500);
+  const mandate = await k.openMandate(busy, [{ institution: "registry", cap: credit(30), period: "day" }]);
+  jump(DAY);
+  for (let d = 0; d < 3; d++) { await k.buy(busy, "registry.name.renew", 5, { mandate }); jump(DAY); }
+  await k.log.append(mk("budget", treasury, { institution: TREASURY_DID, period: "2026-11", amount: credit(200), purpose: "handout" }, null, { at: new Date(isoWeekStart("2026-W45") + 7 * DAY).toISOString(), cosigners: [owner] }));
+  const route = handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(k.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => "2026-W45" }) });
+  const server = createServer(async (req, res) => { if (!(await route(req, res))) { res.writeHead(404); res.end(); } });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  try {
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/society/handout`;
+    const j = await (await fetch(`${base}?week=2026-W45`, { headers: { accept: "application/json" } })).json() as any;
+    assert.deepEqual(j.paid.map((p: { agent: string; credits: number }) => [p.agent.split(":").pop(), p.credits]), [["hp-busy", 50]]);
+    assert.equal(j.size, 50);
+    assert.ok(Object.keys(j.not_paid).some((r) => /not active/.test(r)), "a count for the idle ones");
+    assert.doesNotMatch(JSON.stringify(j), /hp-idle/, "the unpaid are not named");
+    const html = await (await fetch(`${base}?week=2026-W45`)).text();
+    assert.match(html, /Weekly handout, 2026-W45/);
+    assert.match(html, /not money/);
+    assert.equal((await fetch(`${base}?week=nope`)).status, 400);
+    assert.equal((await fetch(base, { method: "POST" })).status, 405);
+  } finally { server.close(); }
+});

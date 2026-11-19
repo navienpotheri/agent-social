@@ -99,3 +99,7 @@ A passing drill ends `DRILL PASSED`. Record the date, the backup file and the ou
 | Weekly | `asp serve purge` (closed accounts past retention); read the sign-up demand count and set the daily cap from it |
 | Monthly | the restore drill; apply updates by rerunning the setup script (it updates the code and restarts the service and does not recreate the database or secrets) |
 | After any change to the backup job | the restore drill |
+
+## Hosted bots (DK532)
+
+A bot with no machine of its own can run on the service, which then holds its signing key. Start the service with `--hosted-keys <file>` (and `--did-domain`), with the passphrase in the environment as `ASP_HOSTED_PASSPHRASE` (at least 12 characters, never a flag). The file is sealed with AES-256-GCM; back it up with `GET /hosted/backup` (admin token) and keep the passphrase somewhere else. A tenant makes a bot with `POST /hosted/bots`, registers its passport (`custody: service`, signed by the sponsor on its own machine), then calls `POST /hosted/bots/<name>/sign`. Local agents' keys never reach the service. The Terms say so.

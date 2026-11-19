@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { cosign, b64urlEncode, type Signer } from "@agent-social/asp-core";
 import { ABUSE_RESTITUTION_CAP, REGISTRAR_DID, drawPanel } from "../src/index.ts";
-import { DAY, credit, jump, kit, mk, operator, party, refusedBy, registrar, type Party } from "./society-kit.ts";
+import { DAY, credit, jump, kit, mk, nowIso, operator, party, refusedBy, registrar, type Party } from "./society-kit.ts";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -107,4 +107,29 @@ test("DK530 (S952): from 2026-11-19 no credits reach an outside victim; an uphel
   const docs = readFileSync(fileURLToPath(new URL("../../../docs/commands.md", import.meta.url)), "utf8");
   assert.match(docs, /no credits are paid to an outside party/);
   assert.doesNotMatch(docs, /with restitution to the reporter from the accused/);
+});
+
+test("DK535 (S971): a retirement a Court ordered rests on its ruling, states its reason and gives 24 hours' notice before it takes effect; the holder's own retirement still takes effect at once", async () => {
+  const w = await world({ agent: 100, sponsor: 100 });
+  const log = w.k.log;
+  const c = w.refer();
+  await log.append(c);
+  jump(20 * DAY);
+  const rulingRec = await w.rule(c.id, { remedy: "suspension" });
+  await log.append(rulingRec);
+  const retire = (over: Record<string, unknown>, by: Party | Signer & { did: string } = registrar) => mk("registry_act", by, { act: "identity_retirement", holder: w.agent.did, ...over }, null);
+  const soon = (hours: number) => new Date(Date.parse(nowIso()) + hours * 3_600_000).toISOString().replace(/\.\d+Z$/, "Z");
+    assert.equal(await refusedBy(log.append(retire({ reason: "x" }, w.sponsor))), "registry_wrong_issuer", "only the Registrar records a Court's order, and the holder its own");
+  assert.equal(await refusedBy(log.append(retire({ reason: "ordered", effective_from: soon(30) }))), "retirement_needs_ruling");
+  await assert.rejects(() => log.append(retire({ ruling: rulingRec.id, effective_from: soon(30) })), /reason/, "the schema already asks for a reason");
+  assert.equal(await refusedBy(log.append(retire({ ruling: rulingRec.id, reason: "ordered", effective_from: soon(2) }))), "retirement_needs_notice");
+  assert.equal(await refusedBy(log.append(retire({ ruling: rulingRec.id, reason: "ordered" }))), "retirement_needs_notice");
+  await log.append(retire({ ruling: rulingRec.id, reason: "the panel upheld the finding", effective_from: soon(30) }));
+  // Inside the notice period the identity is free; after it, it takes no new purchase.
+  await w.k.withPrices();
+  await w.k.buy(w.agent, "academy.exam_sitting", 20);
+  jump(31 * 3_600_000);
+  assert.equal(await refusedBy(w.k.buy(w.agent, "academy.exam_sitting", 20)), "identity_retired");
+  assert.equal((await log.creditAudit()).verdict, "balanced");
+  assert.equal((await log.verify()).ok, true);
 });

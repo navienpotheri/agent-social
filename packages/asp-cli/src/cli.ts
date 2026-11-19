@@ -338,7 +338,7 @@ import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
-import { SEED_JOBS, SEED_PREFIX } from "@agent-social/asp-log";
+import { SEED_JOBS, SEED_PREFIX, handoutPlanFromLog, isoWeekOf } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
@@ -383,7 +383,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  societyMapRoutes, telemetryRoutes, servicesRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  societyMapRoutes, telemetryRoutes, servicesRoutes, handoutRoutes, hostedBotRoutes, HostedSigner, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -474,6 +474,7 @@ const OPTIONS = {
   docs: { type: "string" },
   institution: { type: "string" },
   institutions: { type: "string" },
+  "hosted-keys": { type: "string" },
   funding: { type: "string" },
   officers: { type: "string" },
   effective: { type: "string" },
@@ -2564,7 +2565,12 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     },
   }) : undefined;
   const forum = v.forum ? forumRoutes({ root: resolve(v.forum), handle, ...(v["forum-unlimited"] ? { unlimited: true } : {}), ...(v["forum-open"] ? { open: true } : {}) }) : undefined;
+  // Hosted bots (DK532, S956): the service holds the signing key of a bot with no machine of its own, in one sealed file under a passphrase from the environment, never a flag.
+  if (v["hosted-keys"] && !(io.env.ASP_HOSTED_PASSPHRASE ?? process.env.ASP_HOSTED_PASSPHRASE)) throw new UsageError("--hosted-keys needs the passphrase in ASP_HOSTED_PASSPHRASE (at least 12 characters)");
+  if (v["hosted-keys"] && !didDomain) throw new UsageError("--hosted-keys needs --did-domain or --public-url: a hosted bot's identity lives in the service's namespace");
+  const hosted = v["hosted-keys"] && didDomain && !noAuth ? hostedBotRoutes({ handle, signer: new HostedSigner(resolve(v["hosted-keys"]), (io.env.ASP_HOSTED_PASSPHRASE ?? process.env.ASP_HOSTED_PASSPHRASE)!), domain: didDomain, file: resolve(v["hosted-keys"]) }) : undefined;
   const routes = [
+    ...(hosted ? [hosted] : []),
     ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
     ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}) })] : []),
@@ -2621,7 +2627,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     events: async () => activityFromRecords(await handle.log.since(0, 1_000_000)).events,
     ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now,
   });
-  const publicList = [helpRoutes(), frontDoorRoutes({ keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend() }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  const publicList = [helpRoutes(), frontDoorRoutes({ keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend() }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(handle.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => isoWeekOf(Date.now() - 7 * 86_400_000) }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   // The sponsor-less review (rows DK542, DK546): every --keyonly-review-interval seconds (default 300) the slashes of each key-only tenant are counted from the log; two ban its key and address and suspend the tenant,

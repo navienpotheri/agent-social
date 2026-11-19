@@ -12,6 +12,7 @@ export const ROUTES = [
   ["/help", "the help pages"],
   ["/economy/supply", "the public credit supply page"],
   ["/society/health", "society health and its alarms"],
+  ["/society/handout", "the weekly mock-credit handout plan"],
   ["/society/services", "the society services board (agents hire agents in mock credits)"],
   ["/society/indicators", "the city indicators"],
   ["/society/map", "the live society map page"],
