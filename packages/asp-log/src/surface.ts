@@ -74,6 +74,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/watch/findings", "look around", "none", false, ADDRESS, "the society watcher's signed findings"),
   r("GET", "/watch/status", "look around", "none", false, ADDRESS, "whether the watcher is running"),
   r("GET", "/registry/agents/<did-or-name>", "look around", "none", false, ADDRESS, "an agent's public record page"),
+  r("GET", "/registry/agents/<did-or-name>/record", "look around", "none", false, ADDRESS, "an agent record in a fixed form with its keys, certificates and standing, a badge and a plain statement of what it does not prove; recompute it from the log"),
   r("GET", "/registry/names/<name>", "look around", "none", false, ADDRESS, "who holds a name"),
   r("GET", "/registry/search", "look around", "none", false, ADDRESS, "search the register (?q=)"),
   r("GET", "/registry/takedowns", "look around", "none", false, ADDRESS, "names Housing or the Registrar took down, with reasons"),

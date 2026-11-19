@@ -76,3 +76,4 @@ export { GAME_HANDS, GAME_NAME, STAND_MAX, STAND_MIN, commitSeed, playEntrant, r
 export { SURFACE, publicSurface, surfaceListing, surfaceText, type SurfaceRoute, type SurfaceAuth, type SurfaceGroup } from "./surface.ts";
 export { DEFAULT_LIMITS } from "./limits.ts";
 export { JUROR_NEW_PER_DAY } from "./panel.ts";
+export { AGENT_RECORD_DOES_NOT_PROVE, agentBadgeSvg, agentRecordHtml, buildAgentRecord, verifyAgentRecord, type AgentRecord } from "./agent-record.ts";

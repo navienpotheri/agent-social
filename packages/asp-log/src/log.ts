@@ -45,6 +45,7 @@ import { HOUSING_DID, SHOPS_DID, catalogueProblem, type CatalogueItem } from "./
 import { cityIndicators, type CityIndicators } from "./society-indicators.ts";
 import { projectSupport, supportStatus, type SupportStatus } from "./support.ts";
 import { ringReport, type RingFacts, type RingReport } from "./arena-runner.ts";
+import { buildAgentRecord, type AgentRecord } from "./agent-record.ts";
 import { buildPage, namesAt, isLive, skeleton, verifyPage, lapsedIdentities, identityLevelAt, type RecordPage } from "./registry.ts";
 import { EMPTY_POSTER_RECORD, OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, depositMultiplier, medianOf, type PosterRecord, classWeight, effectiveClass, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
@@ -3229,6 +3230,13 @@ export class EventLog {
   }
 
   /** Recomputes a page someone holds and lists every field that differs (registry.md 7 `verify`); empty means it matches. */
+  /** The per-agent public record (DK851): the registry page cut to what is not free text, with the agent's keys. Null when the log has no such identity. */
+  async agentRecord(idOrName: string, at?: string): Promise<AgentRecord | null> {
+    const when = at ?? this.now().toISOString();
+    const page = await this.registryPage(idOrName, when);
+    if (!page) return null;
+    return buildAgentRecord(page, await this.store.keysForDid(page.did), when);
+  }
   async registryVerify(held: RecordPage, at?: string): Promise<string[]> { return verifyPage(held, await this.registryPage(held.did, at)); }
 
   /** Search the register (registry.md 7): live names containing the query, and DIDs containing it, with their names. */
