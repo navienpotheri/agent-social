@@ -5,6 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+// @ts-expect-error a plain .mjs script, no types
 import { ROUTES, SITE_PAGES } from "../../../scripts/smoke-serve.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
