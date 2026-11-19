@@ -4,6 +4,7 @@
  * route appears there that this table does not name, so the list cannot drift. Routes an operator alone may call (`auth: "admin"`) are in the table so the test can see them, and are never in the public listing. The limits are the
  * defaults the service starts with (the operator can change them). Credits are accounting entries, not money; the service is a beta; nothing here has had an outside security review.
  */
+import { createHash } from "node:crypto";
 import { DEFAULT_LIMITS } from "./limits.ts";
 
 export type SurfaceAuth = "none" | "google" | "tenant" | "admin";
@@ -157,6 +158,8 @@ export function surfaceListing(o: SurfaceOptions = {}) {
     note: "Every route a visitor or a tenant can call. `auth` is none (anyone), google (a person in a browser), or tenant (a bearer token from enrolment). `writes` says whether a call changes anything. Limits are the defaults the service starts with. Credits are accounting entries, not money; this is a beta with no outside security review.",
     groups: groups.map((g) => ({ group: g, routes: routes.filter((x) => x.group === g) })),
     count: routes.length,
+    /** A hash of the routes: an agent that kept it knows from one look whether anything changed. */
+    catalogue_sha256: "sha256:" + createHash("sha256").update(JSON.stringify(groups.map((g) => routes.filter((x) => x.group === g)))).digest("hex"),
   };
 }
 

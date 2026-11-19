@@ -831,5 +831,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK730 | A | open | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | open | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | closed | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
-| DK733 | A | open | The key-only enrol needs an agent that can make an Ed25519 key, solve a proof of work and ...|
+| DK733 | A | partial | The key-only enrol needs an agent that can make an Ed25519 key, solve a proof of work and ...|
+| DK740 | A | open | A service-held agent is labelled but the bond rules do not tell it apart from a key-held agent.|
 | DK734 | A | closed | An agent cannot discover everything the society offers from one place: there is /society/t...|

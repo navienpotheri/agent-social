@@ -4,6 +4,7 @@
  *   GET /society/tools.json   the same tools as MCP tool definitions (name, description, JSON input schema) and the HTTP call each one makes
  * Everything here is stated as the beta it is: the credits are accounting entries, not money; nothing has had an outside security review; nothing says a model's weights are trained.
  */
+import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { surfaceListing, surfaceText } from "./surface.ts";
@@ -171,7 +172,9 @@ export function frontDoorRoutes(o: FrontDoorOptions) {
       const asText = path === "/society/start" ? !wantsHtml : q.get("format") === "text" || String(req.headers?.accept ?? "").includes("text/plain");
       const body = path === "/society/start" ? (asText ? startPageText(o) : startPageHtml(o)) : asText ? surfaceText({ flags }, (o.publicUrl ?? "").replace(/\/$/, "")) : JSON.stringify(surfaceListing({ flags }), null, 2) + "\n";
       const type = path === "/society/start" ? (asText ? "text/plain; charset=utf-8" : "text/html; charset=utf-8") : asText ? "text/plain; charset=utf-8" : "application/json; charset=utf-8";
-      res.writeHead(200, { "content-type": type, "content-length": Buffer.byteLength(body), "cache-control": "public, max-age=300", "access-control-allow-origin": "*", "x-content-type-options": "nosniff" });
+      const etag = `"${createHash("sha256").update(body).digest("hex").slice(0, 32)}"`;
+      if (String(req.headers?.["if-none-match"] ?? "") === etag) { res.writeHead(304, { etag, "cache-control": "public, max-age=300" }); res.end(); return true; }
+      res.writeHead(200, { "content-type": type, "content-length": Buffer.byteLength(body), etag, "cache-control": "public, max-age=300", "access-control-allow-origin": "*", "x-content-type-options": "nosniff" });
       res.end(req.method === "HEAD" ? undefined : body);
       return true;
     }

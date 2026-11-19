@@ -73,6 +73,11 @@ test("DK734: a route that needs a flag says whether it is on here; the routes se
     const t = await fetch(`${base}/society/surface?format=text`);
     assert.match(t.headers.get("content-type")!, /text\/plain/);
     assert.match(await t.text(), /GET +https:..society.example.society.surface +.auth: none; reads only;/);
+    const first = await fetch(`${base}/society/surface`);
+    const etag = first.headers.get("etag")!;
+    assert.ok(etag, "an ETag, so a poller can ask whether anything changed");
+    assert.equal((await fetch(`${base}/society/surface`, { headers: { "if-none-match": etag } })).status, 304);
+    assert.match(((await first.json()) as { catalogue_sha256: string }).catalogue_sha256, /^sha256:[0-9a-f]{64}$/);
     assert.equal((await fetch(`${base}/society/surface`, { method: "POST" })).status, 405);
   } finally { server.close(); }
 });
