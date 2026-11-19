@@ -804,3 +804,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK621 | A | closed | Course C-L14-1, intake rules that hold on the next visit (lenses L14), does not exist. |
 | DK622 | A | closed | Course C-L14-2, filing rules (lenses L14), does not exist. |
 | DK623 | A | closed | Course C-L8-1, listing rules a shop can remember (lenses L8), does not exist. |
+| DK624 | A | closed | Course C-L20-1, housing requests (lenses L20), does not exist. |
+| DK625 | A | closed | Course C-L12-1, event bookings (lenses L12), does not exist. |
+| DK626 | A | closed | Course C-L16-1, order handling (lenses L16), does not exist. |
