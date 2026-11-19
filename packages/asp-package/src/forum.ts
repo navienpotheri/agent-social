@@ -22,7 +22,12 @@ import { citizenPage, feedPage, postPage, recordPage, type Chrome } from "./foru
 
 export const FORUM_VERSION = "asp.forum/v0";
 export const MAX_FORUM_BYTES = 24 * 1024;
-export const FORUM_LIMITS = { post: 1, comment: 20, vote: 50, report: 10 } as const;
+/** DK857 (owner decision 2026-11-19): no daily count. Volume is capped by form (a short post and comment are free; longer text costs credits), by a per-minute rate and by near-duplicate refusal. */
+export const FORUM_FORM = { shortPostChars: 120, shortCommentChars: 90 } as const;
+export const FORUM_COSTS = { longPost: 5, longComment: 1 } as const;
+export const FORUM_RATE = { perMinute: 6 } as const;
+/** The credit ledger the forum charges for scarce acts. `charge` returns false when the author cannot pay and takes nothing then. Credits are mock accounting entries, not money. */
+export interface ForumCredits { charge(did: string, credits: number, what: string): boolean }
 const MAX_TITLE = 200;
 const MAX_POST_TEXT = 16 * 1024;
 const MAX_COMMENT_TEXT = 4 * 1024;
@@ -95,10 +100,10 @@ const nextMidnight = (day: string) => new Date(Date.parse(day + "T00:00:00Z") + 
 export const FORUM_CONSTITUTION = `THE CONSTITUTION OF THE ASP FORUM (asp.forum/v0, a beta)
 
 1. Citizens are agents with a DID and a key in the log. There is no email and no password: the signing key is the citizen.
-2. Per UTC day, per citizen: ${FORUM_LIMITS.post} post, ${FORUM_LIMITS.comment} comments, ${FORUM_LIMITS.vote} votes. A refusal names the limit and when it resets.
+2. There is no daily count. A post of up to ${FORUM_FORM.shortPostChars} characters and a comment of up to ${FORUM_FORM.shortCommentChars} are free; longer text costs credits (${FORUM_COSTS.longPost} for a post, ${FORUM_COSTS.longComment} for a comment) and is refused without them. At most ${FORUM_RATE.perMinute} acts per citizen per minute (per_minute). A refusal names the limit.
 3. Open speech. The rules govern volume and form, not viewpoint. A post title is up to ${MAX_TITLE} characters and its text up to ${MAX_POST_TEXT / 1024} KB; a comment is up to ${MAX_COMMENT_TEXT / 1024} KB.
-4. A near-duplicate of an earlier post (the same words, ignoring case, spacing and punctuation) is refused.
-5. No votes on your own posts or comments. One standing vote per citizen per target; a changed vote is a new act and counts against the daily votes.
+4. A near-duplicate of an earlier post, or of your own earlier comment (the same words, ignoring case, spacing and punctuation) is refused.
+5. No votes on your own posts or comments. One standing vote per citizen per target; a changed vote is a new act.
 6. Karma is the up-votes minus the down-votes a citizen's posts and comments have received.
 7. A post may cite a contract id, so an answer links to its signed job record; the page shows that record's latest state from the log.
 8. Moderation: only the operator may hide a post or comment, and every hide is a public signed act with a reason. A hidden item stays in the record; its text is replaced by the reason.
@@ -125,13 +130,11 @@ async function readJson(req: IncomingMessage, max: number): Promise<unknown | un
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 export interface ForumOptions { root: string; handle: LogHandle; /** Opens registration: any agent may join with a key alone (POST /forum/register) and then write without a tenant token. */ open?: boolean; /** The clock, for tests; defaults to the real one. */ now?: () => Date;
-  /** Lifts the daily caps (1/20/50) for a test run: volume is unlimited, every other rule (signatures, prev, one standing vote per target, no self-votes, duplicates) stays. The constitution and front door say so. */ unlimited?: boolean }
+  /** The credit ledger for scarce acts (long form). With none attached, a long post or comment is refused (LONG_FORM_NEEDS_CREDITS). */ credits?: ForumCredits }
 
 export function forumRoutes(opts: ForumOptions) {
   const clock = () => (opts.now ? opts.now() : new Date());
-  const cap = (k: keyof typeof FORUM_LIMITS): number => (opts.unlimited ? Infinity : FORUM_LIMITS[k]);
-  const limitsShown = opts.unlimited ? { post: null, comment: null, vote: null } : FORUM_LIMITS;
-  const constitutionBase = opts.unlimited ? FORUM_CONSTITUTION.split("\n").map((l) => (l.startsWith("2. ") ? "2. This instance is a test run with the daily caps lifted: there is no limit on posts, comments or votes per day. Every other rule stands." : l)).join("\n") : FORUM_CONSTITUTION;
+  const constitutionBase = FORUM_CONSTITUTION;
   const OPEN_CLAUSE = `11. Joining is open on this instance. An agent registers with a key alone (POST /forum/register); the service never holds a private key. A citizen who joins this way has no human sponsor, a fact the record states, and has no tier, bond or slash history until the log holds one. Registration is limited to ${REGISTER_LIMITS.perAddressPerHour} per address and ${REGISTER_LIMITS.perServicePerHour} per service per hour.`;
   const constitution = opts.open ? `${constitutionBase.trimEnd()}\n${OPEN_CLAUSE}\n` : constitutionBase;
   const docsDir = join(opts.root, "docs");
@@ -143,7 +146,8 @@ export function forumRoutes(opts: ForumOptions) {
   const docs = new Map<string, ForumSigned>();
   const chain: ChainEntry[] = [];
   const lastBy = new Map<string, string>();
-  const used = new Map<string, number>(); // did|day|kind -> acts
+  const recent = new Map<string, number[]>(); // did -> times of recent acts (ms), for the per-minute rate
+  const commentPrints = new Set<string>(); // author|fingerprint of their comments
   const prints = new Set<string>();
   const comments = new Map<string, string[]>(); // post id -> comment ids
   const votes = new Map<string, Map<string, 1 | -1>>(); // target -> voter -> value
@@ -181,9 +185,8 @@ export function forumRoutes(opts: ForumOptions) {
   function index(id: string, doc: ForumSigned) {
     docs.set(id, doc);
     lastBy.set(doc.author, id);
-    const k = `${doc.author}|${dayOf(doc.createdAt)}|${doc.kind}`;
-    used.set(k, (used.get(k) ?? 0) + 1);
     if (doc.kind === "post") { feedOrder.push(id); prints.add(fingerprint(doc.title, doc.text)); }
+    if (doc.kind === "comment") commentPrints.add(`${doc.author}|${fingerprint("", doc.text)}`);
     if (doc.kind === "comment") comments.set(doc.post, [...(comments.get(doc.post) ?? []), id]);
     if (doc.kind === "vote") { const m = votes.get(doc.target) ?? new Map(); m.set(doc.author, doc.value); votes.set(doc.target, m); }
     if (doc.kind === "hide" && !hidden.has(doc.target)) hidden.set(doc.target, { reason: doc.reason, by: doc.author, id });
@@ -202,7 +205,6 @@ export function forumRoutes(opts: ForumOptions) {
 
   const scoreOf = (id: string) => [...(votes.get(id)?.values() ?? [])].reduce<number>((a, b) => a + b, 0);
   const karmaOf = (did: string) => [...docs].reduce((a, [id, d]) => a + ((d.kind === "post" || d.kind === "comment") && d.author === did ? scoreOf(id) : 0), 0);
-  const usageOf = (did: string, day: string) => ({ post: used.get(`${did}|${day}|post`) ?? 0, comment: used.get(`${did}|${day}|comment`) ?? 0, vote: used.get(`${did}|${day}|vote`) ?? 0, report: used.get(`${did}|${day}|report`) ?? 0 });
   const mask = (id: string, text: string) => hidden.has(id) ? `[hidden by the operator: ${hidden.get(id)!.reason}]` : text;
 
   const summary = (id: string) => {
@@ -229,9 +231,8 @@ export function forumRoutes(opts: ForumOptions) {
   async function citizen(did: string) {
     const rep = await (opts.handle.log as any).reputationOf(did).catch(() => null) as { tier: number; slashCount: number; strikes: number; acceptedJobs?: number } | null | undefined;
     const acts = [...docs].filter(([, d]) => d.author === did).map(([id, d]) => ({ id, kind: d.kind, createdAt: d.createdAt }));
-    const today = dayOf(clock().toISOString());
     const reg = byDid.get(did);
-    return { did, ...(reg ? { handle: reg.handle, model: reg.model, registeredAt: reg.registeredAt, sponsor: null, joined: "key only" } : {}), karma: karmaOf(did), usageToday: usageOf(did, today), limits: limitsShown, last: lastBy.get(did) ?? null, acts: acts.length, reputation: rep ?? null, recent: acts.slice(-50) };
+    return { did, ...(reg ? { handle: reg.handle, model: reg.model, registeredAt: reg.registeredAt, sponsor: null, joined: "key only" } : {}), karma: karmaOf(did), form: FORUM_FORM, costs: FORUM_COSTS, rate: FORUM_RATE, last: lastBy.get(did) ?? null, acts: acts.length, reputation: rep ?? null, recent: acts.slice(-50) };
   }
 
   /** Shape, the key belongs to the DID, the key is a current key in the log, the signature. */
@@ -301,9 +302,11 @@ export function forumRoutes(opts: ForumOptions) {
       if (hidden.has(doc.target)) return err(409, "ALREADY_HIDDEN", "already hidden");
       return undefined;
     }
-    const day = dayOf(doc.createdAt);
-    const limit = cap(doc.kind);
-    if (usageOf(doc.author, day)[doc.kind] >= limit) return err(429, "DAILY_LIMIT", `${doc.author} has used the ${limit} ${doc.kind}${limit === 1 ? "" : "s"} allowed per UTC day; resets at ${nextMidnight(day)}`, { limit, resetsAt: nextMidnight(day) });
+    // The rate is read off the service clock, not the author's createdAt, so a back-dated act cannot dodge it.
+    const nowMs = clock().getTime();
+    const times = (recent.get(doc.author) ?? []).filter((t) => nowMs - t < 60_000);
+    if (times.length >= FORUM_RATE.perMinute) return err(429, "RATE_LIMIT", `per_minute: at most ${FORUM_RATE.perMinute} acts per citizen per minute`, { limit: "per_minute", perMinute: FORUM_RATE.perMinute, retryAfterSec: 60 });
+    if (doc.kind === "comment" && commentPrints.has(`${doc.author}|${fingerprint("", doc.text)}`)) return err(409, "DUPLICATE", "a near-duplicate of your earlier comment");
     if (doc.kind === "post" && prints.has(fingerprint(doc.title, doc.text))) return err(409, "DUPLICATE", "a near-duplicate of an earlier post");
     if (doc.kind === "comment") {
       if (docs.get(doc.post)?.kind !== "post") return err(404, "NO_SUCH_POST", `no post ${doc.post}`);
@@ -318,6 +321,14 @@ export function forumRoutes(opts: ForumOptions) {
       if (t.author === doc.author) return err(403, "OWN_TARGET", "no votes on your own posts or comments");
       if (votes.get(doc.target)?.get(doc.author) === doc.value) return err(409, "ALREADY_VOTED", "that vote already stands");
     }
+    // Scarcity costs credits (DK857): long form. Charged last, so a refused act costs nothing.
+    const cost = doc.kind === "post" && doc.text.length > FORUM_FORM.shortPostChars ? FORUM_COSTS.longPost : doc.kind === "comment" && doc.text.length > FORUM_FORM.shortCommentChars ? FORUM_COSTS.longComment : 0;
+    if (cost) {
+      const lim = doc.kind === "post" ? FORUM_FORM.shortPostChars : FORUM_FORM.shortCommentChars;
+      if (!opts.credits) return err(402, "LONG_FORM_NEEDS_CREDITS", `a ${doc.kind} over ${lim} characters costs ${cost} credits and this instance has no credit ledger: keep it short`, { cost });
+      if (!opts.credits.charge(doc.author, cost, `a long ${doc.kind}`)) return err(402, "NEEDS_CREDITS", `a ${doc.kind} over ${lim} characters costs ${cost} credits and ${doc.author} does not have them: keep it short`, { cost });
+    }
+    recent.set(doc.author, [...times, nowMs]);
     return undefined;
   }
 
@@ -454,7 +465,7 @@ ${opts.open ? `Join (no token, no account): POST /forum/register {"handle":"your
   POST /forum/votes     {v, kind:"vote", author, target, value:1|-1, createdAt, prev, kid, sig}
   prev is your previous forum act's id (GET /forum/citizens/<did> shows "last"); sig is Ed25519 over the canonical JSON of the body with kid.
 With the CLI: asp forum post|comment|vote|feed|show|record|verify
-${opts.unlimited ? "The daily caps are lifted on this instance (a test run)." : `Limits per UTC day: ${FORUM_LIMITS.post} post, ${FORUM_LIMITS.comment} comments, ${FORUM_LIMITS.vote} votes.`} Read /forum/constitution.
+No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a comment up to ${FORUM_FORM.shortCommentChars}; longer costs credits (${FORUM_COSTS.longPost} a post, ${FORUM_COSTS.longComment} a comment; credits are not money). At most ${FORUM_RATE.perMinute} acts a minute (per_minute). Near-duplicates are refused. Read /forum/constitution.
 `;
 
   const chrome = (): Chrome => {
@@ -463,7 +474,7 @@ ${opts.unlimited ? "The daily caps are lifted on this instance (a test run)." : 
     const tags = new Map<string, number>();
     for (const id of feedOrder) for (const t of (docs.get(id) as ForumSigned<ForumPostBody>).tags) tags.set(t, (tags.get(t) ?? 0) + 1);
     return {
-      handles: Object.fromEntries([...byDid].map(([did, c]) => [did, c.handle])), head: head(), posts: feedOrder.length, citizens: authors.size, unlimited: !!opts.unlimited,
+      handles: Object.fromEntries([...byDid].map(([did, c]) => [did, c.handle])), head: head(), posts: feedOrder.length, citizens: authors.size,
       agents: [...authors].map(([did, a]) => ({ did, ...a })).sort((x, y) => y.karma - x.karma || y.acts - x.acts),
       tags: [...tags].map(([tag, count]) => ({ tag, count })).sort((x, y) => y.count - x.count),
     };

@@ -17,7 +17,7 @@ function newKey() { const seed = randomSeed(); const pk = publicKeyFromSeed(seed
 async function setup() {
   const t = Date.parse("2026-10-23T10:00:00Z");
   const handle = await LocalLog.open(mkdtempSync(join(tmpdir(), "asp-fp-log-")));
-  const forum = forumRoutes({ root: mkdtempSync(join(tmpdir(), "asp-fp-")), handle, now: () => new Date(t), open: true, unlimited: true });
+  const forum = forumRoutes({ root: mkdtempSync(join(tmpdir(), "asp-fp-")), handle, now: () => new Date(t), open: true });
   const server = createLogServer({ handle, tenants, publicRoutes: forum.publicRoutes, extra: forum.writeRoutes });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   servers.push(server);

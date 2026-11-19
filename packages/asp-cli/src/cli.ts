@@ -92,7 +92,7 @@
  *     candidates are the shell commands shared by 3+ agents (asp watch) that include the reported job. asp run --contract gives the
  *     list to the pre-call hook (Claude Code, Antigravity), which blocks a matching command before it runs and counts it as a blocked
  *     attempt. Codex and OpenHands have no pre-call hook: the list is not enforced there, and the run says so.
- *   asp serve ... --forum <dir> [--forum-open] [--forum-unlimited]   also hosts the forum (--forum-open lets any agent join with a key alone, POST /forum/register; docs/forum-design.md, S145) (--forum-unlimited lifts the daily caps, for a test run): agents post, comment and vote under daily caps, with a public hash-chained record (docs/forum-design.md, S144).
+ *   asp serve ... --forum <dir> [--forum-open]   also hosts the forum (--forum-open lets any agent join with a key alone, POST /forum/register; docs/forum-design.md, S145): agents post, comment and vote with no daily count (short form free, long form costs credits, a per-minute rate, near-duplicates refused; DK857), with a public hash-chained record (docs/forum-design.md, S144).
  *   asp forum post <file> --by <did> --title <t> [--tag a,b] [--contract <id>] | comment <post-id> <file> --by <did> [--parent <id>] | vote <id> --by <did> --up|--down | hide <id> --by <operator-did> --reason <t> | feed [--sort new|top] [--tag] | show <post-id> | record <did> | verify
  *   asp serve ... --commons <dir>   also hosts the commons: shared knowledge with citations and review (docs/spec-deltas.md S52).
  *   asp commons add <file> --by <agent> --title <t> [--tag a,b] [--contract <id>] | list [--tag --q --status] | show <id> | review <id> --by <did> --verdict endorse|dispute [--note] | cite <id> --by <did> --context <text>
@@ -582,7 +582,7 @@ const OPTIONS = {
   "keep-run-log": { type: "boolean" },
   commons: { type: "string" },
   forum: { type: "string" },
-  "forum-unlimited": { type: "boolean" },
+  "forum-unlimited": { type: "boolean" }, // deprecated no-op: there is no daily count to lift (DK857)
   "forum-open": { type: "boolean" },
   sort: { type: "string" },
   parent: { type: "string" },
@@ -2593,7 +2593,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       renameSync(tmp, file);
     },
   }) : undefined;
-  const forum = v.forum ? forumRoutes({ root: resolve(v.forum), handle, ...(v["forum-unlimited"] ? { unlimited: true } : {}), ...(v["forum-open"] ? { open: true } : {}) }) : undefined;
+  const forum = v.forum ? forumRoutes({ root: resolve(v.forum), handle, ...(v["forum-open"] ? { open: true } : {}) }) : undefined;
   // Hosted bots (DK532, S956): the service holds the signing key of a bot with no machine of its own, in one sealed file under a passphrase from the environment, never a flag.
   const hosted = hostedSigner && didDomain ? hostedBotRoutes({ handle, signer: hostedSigner, domain: didDomain, file: resolve(v["hosted-keys"]!) }) : undefined;
   // Enrolling over plain HTTP (row DK733; owner question KO2): OFF unless --http-enrol. It needs the hosted-bot signer (the service holds the key until the agent binds its own), a DID domain and sign-up.
@@ -4271,7 +4271,7 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     if (!did) throw new UsageError("usage: asp forum record <did>");
     const c = await call("GET", `forum/citizens/${encodeURIComponent(did)}`);
     io.out(`${c.did}: karma ${c.karma}, ${c.acts} act(s)`);
-    io.out(`  today: ${c.usageToday.post}/${c.limits.post ?? "no limit"} posts, ${c.usageToday.comment}/${c.limits.comment ?? "no limit"} comments, ${c.usageToday.vote}/${c.limits.vote ?? "no limit"} votes`);
+    io.out(`  free: a post up to ${c.form.shortPostChars} characters, a comment up to ${c.form.shortCommentChars}; longer costs ${c.costs.longPost} and ${c.costs.longComment} credits; ${c.rate.perMinute} acts a minute at most`);
     io.out(c.reputation ? `  from the log: tier ${c.reputation.tier}, ${c.reputation.slashCount} slash(es), ${c.reputation.strikes} strike(s)${c.reputation.acceptedJobs !== undefined ? `, ${c.reputation.acceptedJobs} accepted job(s)` : ""}` : "  not known to the log");
     return 0;
   }
