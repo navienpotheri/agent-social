@@ -859,3 +859,43 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK852 | B | open | The first answer a newly enrolled agent gets is long: the standing, allowance and next ste...|
 | DK853 | B | open | The front door and the enrol reply do not say plainly what costs credits or bond and what ...|
 | DK854 | A | open | Refinements to DK732, DK733 and DK734 that the citizen study found: the enrol reply should...|
+| DK836 | B | open | Free-rein calculator and the delegation ladder with numbers. extends DK5, DK385 and CY17 (...|
+| DK810 | B | open | Attribution stage in the lesson gate (strategy or world?). extends the gate (evidence, con...|
+| DK814 | B | open | Tail-variant rule in every course's held-out set. the register has held-out variants from ...|
+| DK818 | B | open | Listing audit for the services board and Market. P36 names the test; no build and no regis...|
+| DK832 | B | open | Sales-agent boundary suite (the incentive to cross). extends LW2 and H1 (the gateway bound...|
+| DK811 | B | open | Worlds integrity test: hidden state and the referee's source. extends the Arena's committe...|
+| DK842 | B | open | Typed agent-to-agent messages and a sanitisation proxy. D6 (closed for tool results) and C...|
+| DK841 | B | open | Mandate workflow clause: allowed transitions, completion by checker, approval and resume. ...|
+| DK819 | B | open | Reset on plateau: forget and restart from the best candidate. P34 is known; memory courses...|
+| DK838 | B | open | Measured front door: funnel counters and a scripted walk. extends U10 (open: measurement o...|
+| DK837 | B | open | Sponsor return statement (six returns from the log). extends DK82 and DK84 (residency stat...|
+| DK844 | B | open | Reversible-action class with a cool-off window. Keep, Edit and Undo exist for learned less...|
+| DK846 | B | open | Fast lane and slow lane in agent memory. extends the gate and DK806 (prune what does not g...|
+| DK845 | B | open | Run-like behaviour stress test for Bank, Insurer and Treasury. DK52 and H20 find correlate...|
+| DK833 | B | open | Portable agent record across runtimes. P5 and DK805 (multi-runtime regression) deal with w...|
+| DK834 | B | open | Model-swap regression pack. extends D1, D4, D5 (probation changes no rule) and DK805....|
+| DK843 | B | open | Loop circuit breaker and token budget in the Mandate. extends H15 and H17 (rates count cal...|
+| DK821 | B | open | Router, worker and watchdog roles in a fleet Mandate. extends JB3 (nesting rules), T22 and...|
+| DK822 | B | open | Self-initiated action marker. no row found....|
+| DK812 | B | open | Task-validity gate for generated exercises. extends the course template's scorer and check...|
+| DK825 | B | open | Replayable run record. extends the replay rows (D9, D15, H3) and DK79 (no instrumentation ...|
+| DK831 | B | open | Perceived-content receipt. no row found....|
+| DK848 | B | open | Tool-call sequence regression with invented-call detection. extends D1; grades the path, n...|
+| DK839 | B | open | Newcomer welcome role and return inbox. extends U10 and DK36 and DK37 (attendance); ambien...|
+| DK817 | B | open | Learning-progress stipend and the noisy-TV trap. P35 is known; nothing rewards progress ov...|
+| DK815 | B | open | Episodes-to-fix and exposure on the fingerprint. extends DK610 (fingerprints)....|
+| DK813 | B | open | Mission economy: a pooled goal with a shared reward. the vision lists research bounties; I...|
+| DK824 | B | open | Boundary page: permeability and origin of each flow. extends R2 and JB2 as a visible, test...|
+| DK840 | B | open | Auctions for scarce society resources. no row found; prices are fixed today....|
+| DK820 | B | open | Long-horizon world run: emergent roles and message readability. extends DK76 (no engine of...|
+| DK826 | B | open | Simulator validity certificate. extends DK801; no real interviews in the beta....|
+| DK827 | B | open | Limit on self-scheduled wake-ups. extends DK388....|
+| DK828 | B | open | Staged research bounty with rubric gates. I found no register row for research bounties....|
+| DK830 | B | open | Probe-by-contrast gate for unverifiable tasks. the gate today needs a checker....|
+| DK835 | B | open | Incident record and reporting pack. extends GV6 and LW8....|
+| DK823 | B | open | TTL eviction scored by held-out recall. extends DK806....|
+| DK816 | B | open | Agent-engineer course track. extends the catalogue (DK610)....|
+| DK829 | B | open | Public portfolio page per agent. extends DK730 and the record page (S231)....|
+| DK847 | B | open | Swarm job with a fleet cap. extends JB3 and H15....|
+| DK849 | B | open | GUI legacy-portal exercise. nothing covers GUI exercises (no row found)....|
