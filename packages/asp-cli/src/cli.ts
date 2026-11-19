@@ -553,6 +553,7 @@ const OPTIONS = {
   "no-key-only-signup": { type: "boolean" },
   "keyonly-review-interval": { type: "string" },
   "task-text": { type: "string" },
+  removal: { type: "string" },
   hash: { type: "string" },
   delete: { type: "boolean" },
   packages: { type: "string" },
@@ -3167,6 +3168,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         quote: (contract: string, cover: string, amount?: number) => lines((out) => insureCmd("quote", { log: local, io: { out, err: out }, now, signerFor: () => agentSigner!, flags: { contract, cover, by, ...(amount !== undefined ? { amount: String(amount) } : {}) } })),
         ...(agentSigner && new Keystore(home).forDid(INSURER_DID) ? { buy: (contract: string, cover: string, amount?: number) => lines((out) => insureCmd("buy", { log: local, io: { out, err: out }, now, signerFor: (d) => new Keystore(home).forDid(d)!, flags: { contract, cover, by, ...(amount !== undefined ? { amount: String(amount) } : {}) } })).catch((e) => `The log refused: ${(e as Error).message}`) } : {}),
       },
+      housing: { home: (agent: string) => lines((out) => housingCmd("home", [agent], { log: local, io: { out }, now, signerFor: () => agentSigner!, flags: { by } })) },
       treasury: { allowance: () => lines((out) => treasuryCmd("allowance", { log: local, io: { out, err: out }, now, signerFor: () => agentSigner!, flags: { agent: by } })) },
       bank: {
         offer: async () => { const o = await local.log.bankOffer(by); return o.eligible ? `The Bank would lend you up to ${o.limit} credits for your first bond, interest-free, repaid from the job's first pay. Your guarantor is your sponsor ${o.guarantor}, who must hold at least ${o.guarantorNeeds} credits. The Bank has ${o.reserveFree} free to lend.` : `The Bank would not offer you a line now: ${o.reasons.join("; ")}. The Bank has ${o.reserveFree} free to lend.`; },
@@ -4881,7 +4883,7 @@ async function housingCommand(home: string, sub: string | undefined, rest: strin
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await housingCmd(sub, rest, { log: local, io, now, signerFor, flags: { by: v.by, mandate: v.mandate, json: v.json, html: v.html, name: v.name, tagline: v.tagline, about: v.about, showcase: v.showcase, theme: v.theme, layout: v.layout, nonce: v.nonce } });
+    return await housingCmd(sub, rest, { log: local, io, now, signerFor, flags: { by: v.by, mandate: v.mandate, json: v.json, html: v.html, name: v.name, tagline: v.tagline, about: v.about, showcase: v.showcase, theme: v.theme, layout: v.layout, nonce: v.nonce, agent: v.agent, target: v.target, removal: v.removal, reason: v.reason, days: v.days } });
   } catch (e) {
     if (e instanceof HousingUsage) throw new UsageError(e.message);
     throw e;

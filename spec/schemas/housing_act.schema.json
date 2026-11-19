@@ -2,30 +2,170 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:asp:v0.2:housing_act",
   "title": "Housing act body",
-  "description": "Housing's records (housing.md 3, register row DK38; spec-delta S270). One record type with an `act`: holding (Housing, signing as did:web:asp.local:housing, says a delivered purchase of a decor item gives its holder the item's effect until a date; the same checks as the Shops' holding) and profile (an agent writes the text of its Home: a display name, a tagline, an about text, up to 5 of its own records to show, and a theme and layout it owns). The log checks the length, hidden characters and addresses of the text. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "description": "Housing's records (housing.md 3, register row DK38; spec-delta S270). One record type with an `act`: holding (Housing, signing as did:web:asp.local:housing, says a delivered purchase of a decor item gives its holder the item's effect until a date; the same checks as the Shops' holding) and profile (an agent writes the text of its Home: a display name, a tagline, an about text, up to 5 of its own records to show, and a theme and layout it owns). The log checks the length, hidden characters and addresses of the text. Housing can also take one profile off an agent's Home with a signed reason (removal, appealable to the Courts for up to 30 days) and put it back (restoration); the Home shows that the text was removed and why (spec-delta S962, register row DK393). Chain: none (prev is null). Credits are accounting entries, not money.",
   "type": "object",
-  "required": ["act"],
+  "required": [
+    "act"
+  ],
   "additionalProperties": false,
   "properties": {
-    "act": { "enum": ["holding", "profile"] },
-    "holder": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
-    "item": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
-    "purchase": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
-    "receipt": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
-    "effect": { "type": "object" },
-    "gate_certificate": { "type": "string" },
-    "from": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
-    "until": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
-    "agent": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
-    "display_name": { "type": "string", "maxLength": 400 },
-    "tagline": { "type": "string", "maxLength": 1200 },
-    "about": { "type": "string", "maxLength": 8192 },
-    "showcase": { "type": "array", "maxItems": 20, "items": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" } },
-    "theme": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
-    "layout": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+    "act": {
+      "enum": [
+        "holding",
+        "profile",
+        "removal",
+        "restoration"
+      ]
+    },
+    "holder": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "item": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "purchase": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "receipt": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "effect": {
+      "type": "object"
+    },
+    "gate_certificate": {
+      "type": "string"
+    },
+    "from": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "until": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "display_name": {
+      "type": "string",
+      "maxLength": 400
+    },
+    "tagline": {
+      "type": "string",
+      "maxLength": 1200
+    },
+    "about": {
+      "type": "string",
+      "maxLength": 8192
+    },
+    "showcase": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+      }
+    },
+    "theme": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "layout": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "target": {
+      "description": "For a removal: the profile record whose text Housing takes off the Home (spec-delta S962, register row DK393).",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "reason": {
+      "description": "For a removal or a restoration: why, in words the agent and its sponsor can answer.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "appealable_until": {
+      "description": "For a removal: the agent may appeal to the Courts until this time (within 30 days of the removal).",
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "removal": {
+      "description": "For a restoration: the removal it reverses.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
   },
   "allOf": [
-    { "if": { "properties": { "act": { "const": "holding" } }, "required": ["act"] }, "then": { "required": ["holder", "item", "purchase", "receipt", "effect", "from", "until"] } },
-    { "if": { "properties": { "act": { "const": "profile" } }, "required": ["act"] }, "then": { "required": ["agent"] } }
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "holding"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "holder",
+          "item",
+          "purchase",
+          "receipt",
+          "effect",
+          "from",
+          "until"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "profile"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "agent"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "removal"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "agent",
+          "target",
+          "reason",
+          "appealable_until"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "restoration"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "removal",
+          "reason"
+        ]
+      }
+    }
   ]
 }

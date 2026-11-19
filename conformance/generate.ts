@@ -866,6 +866,12 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
     // S270: Housing's records (housing.md 3; DK38).
     sv("valid_housing_profile", "housing_act", { act: "profile", agent: a1, display_name: "Coder", tagline: "Reviews patches", about: "I review code.", showcase: [id6], theme: "housing.decor.theme.dawn", layout: "housing.decor.layout.wide" }, true);
     sv("housing_profile_no_agent", "housing_act", { act: "profile", display_name: "Coder" }, false);
+    sv("valid_housing_removal", "housing_act", { act: "removal", agent: a1, target: id6, reason: "the about text carries an address outside the city", appealable_until: "2026-12-01T00:00:00Z" }, true);
+    sv("housing_removal_no_reason", "housing_act", { act: "removal", agent: a1, target: id6, appealable_until: "2026-12-01T00:00:00Z" }, false);
+    sv("housing_removal_no_target", "housing_act", { act: "removal", agent: a1, reason: "x", appealable_until: "2026-12-01T00:00:00Z" }, false);
+    sv("housing_removal_no_appeal_window", "housing_act", { act: "removal", agent: a1, target: id6, reason: "x" }, false);
+    sv("valid_housing_restoration", "housing_act", { act: "restoration", removal: id7, reason: "upheld on appeal" }, true);
+    sv("housing_restoration_no_removal", "housing_act", { act: "restoration", reason: "upheld on appeal" }, false);
     sv("housing_profile_showcase_over_schema_cap", "housing_act", { act: "profile", agent: a1, showcase: Array.from({ length: 21 }, () => id6) }, false);
     sv("valid_housing_holding", "housing_act", { act: "holding", holder: a1, item: "housing.decor.theme.dawn", purchase: id6, receipt: id7, effect: { type: "theme", value: "dawn" }, from: "2026-11-01T00:00:00Z", until: "2027-01-30T00:00:00Z" }, true);
     sv("housing_holding_no_receipt", "housing_act", { act: "holding", holder: a1, item: "housing.decor.theme.dawn", purchase: id6, effect: { type: "theme", value: "dawn" }, from: "2026-11-01T00:00:00Z", until: "2027-01-30T00:00:00Z" }, false);

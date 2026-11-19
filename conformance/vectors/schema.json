@@ -6102,6 +6102,70 @@
       "valid": false
     },
     {
+      "name": "valid_housing_removal",
+      "schema": "housing_act",
+      "instance": {
+        "act": "removal",
+        "agent": "did:web:example.com:agents:a",
+        "target": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "reason": "the about text carries an address outside the city",
+        "appealable_until": "2026-12-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "housing_removal_no_reason",
+      "schema": "housing_act",
+      "instance": {
+        "act": "removal",
+        "agent": "did:web:example.com:agents:a",
+        "target": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "appealable_until": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "housing_removal_no_target",
+      "schema": "housing_act",
+      "instance": {
+        "act": "removal",
+        "agent": "did:web:example.com:agents:a",
+        "reason": "x",
+        "appealable_until": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "housing_removal_no_appeal_window",
+      "schema": "housing_act",
+      "instance": {
+        "act": "removal",
+        "agent": "did:web:example.com:agents:a",
+        "target": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_housing_restoration",
+      "schema": "housing_act",
+      "instance": {
+        "act": "restoration",
+        "removal": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "reason": "upheld on appeal"
+      },
+      "valid": true
+    },
+    {
+      "name": "housing_restoration_no_removal",
+      "schema": "housing_act",
+      "instance": {
+        "act": "restoration",
+        "reason": "upheld on appeal"
+      },
+      "valid": false
+    },
+    {
       "name": "housing_profile_showcase_over_schema_cap",
       "schema": "housing_act",
       "instance": {
