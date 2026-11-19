@@ -4343,6 +4343,76 @@
       "valid": true
     },
     {
+      "name": "valid_arena_entry_commit",
+      "schema": "arena_entry",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "fee_purchase": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "move_commit": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      "valid": true
+    },
+    {
+      "name": "arena_entry_bad_commit",
+      "schema": "arena_entry",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "fee_purchase": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "move_commit": "abc"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_game_move",
+      "schema": "game_move",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "entry": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "move": {
+          "hide": 3,
+          "order": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ]
+        },
+        "salt": "a-long-unique-salt-1"
+      },
+      "valid": true
+    },
+    {
+      "name": "game_move_short_salt",
+      "schema": "game_move",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "entry": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "move": {},
+        "salt": "short"
+      },
+      "valid": false
+    },
+    {
+      "name": "game_move_no_move",
+      "schema": "game_move",
+      "instance": {
+        "arena": "refactoring",
+        "season": "2026-q4",
+        "entry": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "salt": "a-long-unique-salt-1"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_arena_void",
       "schema": "arena_void",
       "instance": {
@@ -5573,6 +5643,46 @@
       "schema": "court_act",
       "instance": {
         "act": "abuse_case"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_court_game_replay",
+      "schema": "court_act",
+      "instance": {
+        "act": "game_replay",
+        "replay": {
+          "arena": "hide-and-seek",
+          "season": "2026-q4",
+          "agent": "did:web:example.com:agents:a",
+          "transcript_sha256": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+          "recomputed_sha256": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+          "outcome": "match"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "court_game_replay_no_replay",
+      "schema": "court_act",
+      "instance": {
+        "act": "game_replay"
+      },
+      "valid": false
+    },
+    {
+      "name": "court_game_replay_bad_outcome",
+      "schema": "court_act",
+      "instance": {
+        "act": "game_replay",
+        "replay": {
+          "arena": "x",
+          "season": "y",
+          "agent": "did:web:example.com:agents:a",
+          "transcript_sha256": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+          "recomputed_sha256": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+          "outcome": "maybe"
+        }
       },
       "valid": false
     },

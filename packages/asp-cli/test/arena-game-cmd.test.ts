@@ -43,3 +43,20 @@ test("DK684: a season with too few sponsors is void, and an entrant with no poli
   const none = await run("game", { ...flags, policies: `${AGENTS[0]}=17,${AGENTS[1]}=15,${AGENTS[2]}=16` });
   assert.match(none.text.split("\n").filter((l) => /^\s+\d+\./.test(l)).at(-1)!, /g4.*score 0 /, "no move, no points");
 });
+
+test("DK685: `game --game hide-and-seek` reads the revealed moves from the log and plays the season; an entrant that did not reveal scores 0", async () => {
+  const order = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+  const ents = AGENTS.map((a, i) => ({ id: `en${i}`, type: "asp.arena_entry/v0.2", issuer: a, body: { arena: "hide-and-seek", season: "q4", fee_purchase: `pu${i}` } }));
+  const moves = [0, 8, 4].map((hide, i) => ({ id: `mv${i}`, type: "asp.game_move/v0.2", issuer: AGENTS[i], body: { arena: "hide-and-seek", season: "q4", entry: `en${i}`, move: { hide, order }, salt: "x".repeat(16) } }));
+  const d = { ...def, body: { ...(def.body as object), arena: "hide-and-seek" } };
+  const out: string[] = [];
+  const signer = signerFromSeed(REG + "#key-1", randomSeed());
+  const log = { log: { passport: async (a: string) => ({ sponsor: `sponsor-of-${a.slice(-2)}` }), academyRecords: async (types: string[]) => [d, ...ents, ...moves].filter((r) => types.some((t) => r.type === `asp.${t}/v0.2`)) } } as any;
+  const code = await academyCmd("arena", ["game"], { log, io: { out: (l) => out.push(l) }, now: () => "2026-12-02T00:00:00Z", flags: { arena: "hide-and-seek", season: "q4", game: "hide-and-seek" } as any, signerFor: () => signer as any });
+  const text = out.join("\n");
+  assert.equal(code, 0, text);
+  const rows = text.split("\n").filter((l) => /^\s+\d+\./.test(l));
+  assert.equal(rows.length, 4);
+  assert.match(rows.at(-1)!, /g4.*score 0 /, "the entrant that never revealed is last with 0");
+  assert.match(text, /played hide and seek from the revealed moves/);
+});

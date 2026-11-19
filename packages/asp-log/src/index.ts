@@ -2,6 +2,8 @@ export { PLATFORM_DID } from "./economy.ts";
 export { EventLog, SPONSOR_PASSPORTS_PER_DAY, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
 export { auditLedger, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type LedgerRows, type StarterPoolState } from "./credit-audit.ts";
+export { moveCommit, stableJson } from "./game-moves.ts";
+export { HS_CELLS, HS_NAME, hsScore, hsTranscriptHash, matchesFor, recomputeHsHash, movesFromRecords, probesToFind, runHideSeek, validHsMove, type HsEntrant, type HsMatch, type HsMove, type HsResult, type HsRun } from "./game-hide-seek.ts";
 export { dailyOf, storyOf, leaderboardsOf, growthOf, STAGES, nameOf, type StoryInput, type StoredRec, type Daily, type Story, type Leaderboards, type Growth } from "./society-story.ts";
 export { breadthProblem, RECOMMENDED_TIER_BREADTH, type TierBreadth } from "./tier-breadth.ts";
 export { handoutPlanFromLog, isoWeekOf, isoWeekStart, HandoutUsage } from "./handout-view.ts";

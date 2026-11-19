@@ -19,6 +19,11 @@
     },
     "fee_purchase": {
       "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "move_commit": {
+      "description": "A hash of the entrant's move and a salt, published with the entry (S985, DK685): sha256 of `game-move|<salt>|<the move as sorted-key JSON>`. The move itself is revealed after the season closes in a `game_move` record, which the log checks against this hash, so nothing can change a move after the seed or an opponent's move is known.",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
     }
   }
 }

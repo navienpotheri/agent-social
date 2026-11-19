@@ -52,6 +52,21 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     return;
   }
 
+  // A Court's replay of a referee-run game (DK685, S986): the Courts record that they recomputed an entrant's transcript from the revealed moves and whether it matches what the result cited.
+  if (b.act === "game_replay") {
+    if (r.issuer !== COURTS_DID && r.issuer !== env.operator) throw rule("replay_wrong_issuer", `${r.issuer} is not the Courts (${COURTS_DID}) or the operator: only they record a replay`);
+    const p = b.replay as { arena: string; season: string; agent: string; transcript_sha256: string; recomputed_sha256: string; outcome: string };
+    const key = `${p.arena}|${p.season}`;
+    const resId = await tx.getMarker(`arena_result:${key}|${p.agent}`);
+    if (!resId) throw rule("replay_no_result", `${p.agent} has no result for ${p.arena} ${p.season} to replay`);
+    const action = await tx.getRecord(((await tx.getRecord(resId))!.record.body as { run_log_hash: string }).run_log_hash);
+    const cited = ((action?.record.body as { artifacts?: { sha256: string }[] } | undefined)?.artifacts ?? []).some((a) => a.sha256 === p.transcript_sha256);
+    if (!cited) throw rule("replay_transcript_not_cited", "the transcript hash is not the one the agent's Action carries for this result");
+    if ((p.outcome === "match") !== (p.transcript_sha256 === p.recomputed_sha256)) throw rule("replay_outcome_wrong", "the outcome must say whether the recomputed hash equals the transcript hash");
+    await tx.putMarker(`game_replay:${key}|${p.agent}`, JSON.stringify({ outcome: p.outcome, record: r.id }));
+    return;
+  }
+
   if (b.act === "appeal") {
     const ruling = await tx.getRecord(b.ruling);
     const rb = ruling?.record.body as { kind?: string; about?: string } | undefined;
