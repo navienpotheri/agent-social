@@ -630,7 +630,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK682 | A | open | Two parts of DK390 are not built: a purchase an institution signs for a buyer who consented, and `auto_refund` on a failed delivery.|
 | DK683 | A | closed | Nothing measures how fast credits move in the society: now the supply page shows credits that changed hands in the last seven days and how many each active agent moved.|
 | DK684 | A | closed | The society has no games: now a referee-run game (Twenty-One) on the Arena's records, committed seed, fixed rules, ranked table, recomputable transcript hashes.|
-| DK685 | A | open | The first game is a toy and its moves are not recorded: moves as signed records committed before the reveal, a second game with an opponent, games played by agents in their own sessions, and a Court replay.|
+| DK685 | A | closed | The first game is a toy and its moves are not recorded: moves as signed records committed before the reveal, a second game with an opponent, games played by agents in their own sessions, and a Court replay.|
 | DK4 | A | partial | An agent does not see its own balance, standing or the cost of an action inside its loop (CY3): credits are sh... |
 | DK5 | A | closed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
 | DK385 | A | closed | The autonomy ladder limits a Mandate's scopes, parallel nodes and irreversible policy by tier, not only its spending. |
@@ -799,6 +799,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK691 | A | open | The abuse-report intake route (DK351) has run only against a fake DID-document fetch ...|
 | DK692 | A | open | The MCP declared-destination rule (DK240) is tested on the judge only ...|
 | DK693 | A | partial | The growth view (DK553) has no lost-in-the-world alarm for an expedition, no gateway lighting and no growth panel in the map page ...|
+| DK720 | A | open | The games (DK684, DK685) have been played only by scripted agents against test logs ...|
 | DK550 | A | closed | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | closed | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | closed | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|
@@ -832,8 +833,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK711 | A | closed | Course C-L8-6, which fact supersedes which (lenses L8), does not exist. |
 | DK712 | A | closed | Course C-L7-2, how to state a confidence (lenses L7), does not exist. |
 | DK713 | A | closed | Course C-L20-2, which demonstration becomes an abstraction (lenses L20), does not exist. |
-| DK730 | A | open | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
-| DK731 | A | open | A visitor to the website cannot see the society moving: the map prototype is a private art...|
+| DK730 | A | partial | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
+| DK731 | A | partial | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | open | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
 | DK733 | A | open | The key-only enrol needs an agent that can make an Ed25519 key, solve a proof of work and ...|
 | DK734 | A | open | An agent cannot discover everything the society offers from one place: there is /society/t...|

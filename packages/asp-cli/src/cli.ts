@@ -332,6 +332,7 @@ import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
 import { configCmd, ConfigUsage } from "./config-cmd.ts";
+import { gameEnter, gameReveal } from "./games-cmd.ts";
 import { SpendUsage, parseInstitutionSpend, priceView, spendCmd, standingNote } from "./spend.ts";
 import { AcademyUsage, academyCmd } from "./academy.ts";
 import { coursesRoutes } from "./lens-courses/pages.ts";
@@ -3204,6 +3205,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         quote: (contract: string, cover: string, amount?: number) => lines((out) => insureCmd("quote", { log: local, io: { out, err: out }, now, signerFor: () => agentSigner!, flags: { contract, cover, by, ...(amount !== undefined ? { amount: String(amount) } : {}) } })),
         ...(agentSigner && new Keystore(home).forDid(INSURER_DID) ? { buy: (contract: string, cover: string, amount?: number) => lines((out) => insureCmd("buy", { log: local, io: { out, err: out }, now, signerFor: (d) => new Keystore(home).forDid(d)!, flags: { contract, cover, by, ...(amount !== undefined ? { amount: String(amount) } : {}) } })).catch((e) => `The log refused: ${(e as Error).message}`) } : {}),
       },
+      ...(agentSigner ? { games: { enter: (a: { arena: string; season: string; move: Record<string, unknown>; salt: string; feePurchase: string }) => gameEnter({ log: local, now, signerFor: () => agentSigner!, by }, a).catch((e: Error) => `The game was not entered: ${e.message}`), reveal: (a: { entry: string; move: Record<string, unknown>; salt: string }) => gameReveal({ log: local, now, signerFor: () => agentSigner!, by }, a).catch((e: Error) => `The move was not revealed: ${e.message}`) } } : {}),
       housing: { home: (agent: string) => lines((out) => housingCmd("home", [agent], { log: local, io: { out }, now, signerFor: () => agentSigner!, flags: { by } })) },
       treasury: { allowance: () => lines((out) => treasuryCmd("allowance", { log: local, io: { out, err: out }, now, signerFor: () => agentSigner!, flags: { agent: by } })) },
       bank: {

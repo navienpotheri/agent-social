@@ -13,7 +13,7 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { cosign, createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
-import { GAME_HANDS, STAND_MAX, STAND_MIN, commitSeed, runGame, type GameEntrant, REGISTRAR_DID, examSeed, examVariant, institutionDid, prizeFor, splitParts, inTopHalf } from "@agent-social/asp-log";
+import { GAME_HANDS, STAND_MAX, STAND_MIN, commitSeed, runGame, movesFromRecords, runHideSeek, type HsEntrant, type GameEntrant, REGISTRAR_DID, examSeed, examVariant, institutionDid, prizeFor, splitParts, inTopHalf } from "@agent-social/asp-log";
 import { admitToMemory, type HeldOutTask, type LessonCandidate, type LogHandle } from "@agent-social/asp-package";
 import { buildSitting, foundationsDefinition, scoreSitting, tasksOf, POOL_SIZE, type Transcript } from "./exam.ts";
 import { loadCatalogue } from "./lens-courses/catalogue.ts";
@@ -281,6 +281,21 @@ export async function academyCmd(sub: string | undefined, rest: string[], o: Aca
       // The referee plays the season's game (row DK684): Twenty-One, each entrant's policy against the same dealer, hand by hand from the revealed seed alone. Prints the table and each entrant's transcript hash; the entrant
       // reports its game in an Action carrying that hash and the Registrar's result cites the Action (`asp academy arena result`).
       if (!arena || !season) throw new AcademyUsage(usage);
+      if (str(o, "game") === "hide-and-seek") {
+        // The second game (DK685, S985): the entrants' moves were committed in their entries and revealed after the season closed; the referee reads them from the log and plays the season by fixed rules.
+        const rs = await records(o, ["arena", "arena_entry", "game_move"]);
+        const d = rs.find((r) => r.type === "asp.arena/v0.2" && bodyOf<{ arena: string; season: string }>(r).arena === arena && bodyOf<{ season: string }>(r).season === season);
+        if (!d) throw new AcademyUsage(`${arena} ${season} is not a defined season`);
+        const moves = movesFromRecords(arena, season, rs as never);
+        const entrants: HsEntrant[] = [];
+        for (const [agent, move] of moves) { const pass = await o.log.log.passport(agent); entrants.push({ agent, sponsor: pass?.sponsor ?? agent, move }); }
+        const hs = runHideSeek({ entrants, minDistinctSponsors: bodyOf<{ min_distinct_sponsors: number }>(d).min_distinct_sponsors, tieSeed: str(o, "seed") ?? `${arena}|${season}` });
+        if (json) { out(JSON.stringify(hs, null, 2)); return 0; }
+        if (hs.void) { out(`${arena} ${season} is void: ${hs.reason}; the Academy gives the entry fees back (asp academy arena void)`); return 0; }
+        for (const r of hs.results) out(`  ${r.rank}. ${r.agent}  score ${r.score}  points ${r.points}  transcript ${r.transcript_hash}`);
+        out(`played hide and seek from the revealed moves; an entrant that did not reveal a valid move scores 0`);
+        return 0;
+      }
       const seed = need(o, "seed", usage), salt = need(o, "salt", usage), commit = need(o, "commit", usage);
       const all = await records(o, ["arena", "arena_entry"]);
       const def = all.find((r) => r.type === "asp.arena/v0.2" && bodyOf<{ arena: string; season: string }>(r).arena === arena && bodyOf<{ season: string }>(r).season === season);

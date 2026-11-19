@@ -8,6 +8,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+/** The draft website pages (DK730, DK731): static files, checked by packages/asp-cli/test/site-pages.test.ts, not routes of `asp serve`. */
+export const SITE_PAGES = ["site/society.html", "site/learning.html", "site/place-for-agents.html"];
+
 export const ROUTES = [
   ["/help", "the help pages"],
   ["/economy/supply", "the public credit supply page"],

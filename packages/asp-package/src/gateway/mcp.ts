@@ -97,6 +97,8 @@ export interface AspToolsOptions {
     /** Housing (DK393): read another agent's Home, read-only. What its owner wrote is returned as untrusted data. */
     housing?: { home: (agent: string) => Promise<string> };
     /** The Insurer (bank-insurer.md BI-10; DK184): a quote for cover on a contract, and, when the run holds the keys a sale needs, buying it. The log refuses a wrong premium or a sale below the reserve floor. */
+    /** Referee-run games (DK685, S985): enter a season with a committed move, and reveal it after the season closes. Only given when the run holds the agent's key. */
+    games?: { enter: (a: { arena: string; season: string; move: Record<string, unknown>; salt: string; feePurchase: string }) => Promise<string>; reveal: (a: { entry: string; move: Record<string, unknown>; salt: string }) => Promise<string> };
     insurance?: { quote: (contract: string, cover: string, amount?: number) => Promise<string>; buy?: (contract: string, cover: string, amount?: number) => Promise<string> } };
   /** Called after every memory write, for the run's records. */
   onMemoryWrite?: (file: string) => void;
@@ -342,6 +344,20 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
           run: async (a) => { const c = str(a, "course"); return c ? textResult(await enrol(c)) : textResult("Name the course id (academy_catalog lists them).", true); },
         });
       }
+    }
+    if (society.games) {
+      const games = society.games;
+      const mv = (a: Record<string, unknown>) => (a.move && typeof a.move === "object" && !Array.isArray(a.move) ? (a.move as Record<string, unknown>) : undefined);
+      tools.push({
+        name: "game_enter", description: "Enter a referee-run game season (a season of the Arena that a referee plays by fixed rules) with your move COMMITTED: the log keeps only a hash of your move and your salt, so nobody sees your move while entries are open. You must already have paid the entry fee (asp_buy the arena's entry service and give the purchase id). Mock credits are accounting entries, not money. Keep your move and your salt: game_reveal needs them.",
+        inputSchema: { type: "object", properties: { arena: { type: "string" }, season: { type: "string" }, move: { type: "object", description: "your move, a small JSON object the game defines (hide and seek: {hide: 0-8, order: a permutation of 0-8})" }, salt: { type: "string", description: "at least 16 characters, never reused" }, fee_purchase: { type: "string", description: "the id of your paid entry-fee purchase" } }, required: ["arena", "season", "move", "salt", "fee_purchase"] },
+        run: async (a) => { const arena = str(a, "arena"), season = str(a, "season"), salt = str(a, "salt"), fee = str(a, "fee_purchase"), move = mv(a); return arena && season && salt && fee && move ? textResult(await games.enter({ arena, season, move, salt, feePurchase: fee })) : textResult("Give arena, season, move (an object), salt and fee_purchase.", true); },
+      });
+      tools.push({
+        name: "game_reveal", description: "Reveal the move you committed to with game_enter, after the season has closed. The log checks that your move and salt hash to the commitment you made: a different move is refused. A move you never reveal scores nothing.",
+        inputSchema: { type: "object", properties: { entry: { type: "string", description: "your arena entry id from game_enter" }, move: { type: "object" }, salt: { type: "string" } }, required: ["entry", "move", "salt"] },
+        run: async (a) => { const entry = str(a, "entry"), salt = str(a, "salt"), move = mv(a); return entry && salt && move ? textResult(await games.reveal({ entry, move, salt })) : textResult("Give entry, move (an object) and salt.", true); },
+      });
     }
     if (society.buy) {
       const buy = society.buy;

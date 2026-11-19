@@ -25,6 +25,7 @@ import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type Balanc
 import { bondFloorPermille, bondFloorV3, floorIsV2, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
+import { moveCommit } from "./game-moves.ts";
 import { breadthProblem } from "./tier-breadth.ts";
 import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
@@ -386,6 +387,7 @@ export class EventLog {
     if (type === "completion") await this.projectCompletion(tx, verified);
     if (type === "arena") await this.projectArena(tx, verified);
     if (type === "arena_entry") await this.projectArenaEntry(tx, verified);
+    if (type === "game_move") await this.projectGameMove(tx, verified);
     if (type === "arena_result") await this.projectArenaResult(tx, verified);
     if (type === "arena_void") await this.projectArenaVoid(tx, verified);
     if (type === "quarantine") await this.projectQuarantine(tx, verified);
@@ -2185,9 +2187,28 @@ export class EventLog {
     await tx.putMarker(`arena:${key}`, r.id);
   }
 
+  /** A move reveal (DK685, S985): the entrant shows the move it committed to when it entered, after the season has closed, and the log checks it against the commitment. */
+  private async projectGameMove(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { arena: string; season: string; entry: string; move: Record<string, unknown>; salt: string };
+    if (r.prev !== null) throw rule("game_move_not_chained", "a move reveal starts its own chain (prev is null)");
+    const entry = await tx.getRecord(b.entry);
+    if (!entry || entry.record.type !== "asp.arena_entry/v0.2") throw rule("game_move_no_entry", `${b.entry} is not an arena entry in this log`);
+    const eb = entry.record.body as { arena: string; season: string };
+    if (entry.record.issuer !== r.issuer) throw rule("game_move_not_entrants", `the entry belongs to ${entry.record.issuer}: only the entrant reveals its move`);
+    if (eb.arena !== b.arena || eb.season !== b.season) throw rule("game_move_wrong_season", "the reveal names a different arena or season than the entry");
+    const commit = await tx.getMarker(`move_commit:${b.entry}`);
+    if (!commit) throw rule("game_move_no_commit", "this entry carries no move_commit, so there is nothing to reveal");
+    const def = (await tx.getRecord((await tx.getMarker(`arena:${b.arena}|${b.season}`))!))!.record.body as { closes: string };
+    if (Date.parse(r.issued_at) < Date.parse(def.closes)) throw rule("game_move_early", `moves are revealed after the season closes (${def.closes}): while entries are open nobody sees a move`);
+    if (JSON.stringify(b.move).length > 1000) throw rule("game_move_too_big", "a move is at most 1,000 characters");
+    if (moveCommit(b.move, b.salt) !== commit) throw rule("move_mismatch", "the move and salt do not hash to the commitment in the entry: a move cannot be changed after it was committed");
+    if (await tx.getMarker(`game_move:${b.entry}`)) throw rule("game_move_already_revealed", "this entry's move was already revealed");
+    await tx.putMarker(`game_move:${b.entry}`, r.id);
+  }
+
   /** An arena entry (AC-14): the season is open, the agent has the tier, the fee is a purchase used once, one entry per agent; the fee's pool share adds to the prize pool. */
   private async projectArenaEntry(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { arena: string; season: string; fee_purchase: string };
+    const b = r.body as { arena: string; season: string; fee_purchase: string; move_commit?: string };
     if (r.prev !== null) throw rule("arena_entry_not_chained", "an arena entry starts its own chain (prev is null)");
     if (await tx.getMarker(`house:${r.issuer}`)) throw rule("house_agent_no_rank", `${r.issuer} is a house agent: it does not enter an arena, so it holds no rank or prize`);
     const key = `${b.arena}|${b.season}`;
@@ -2208,6 +2229,7 @@ export class EventLog {
     await tx.putMarker(`arena_pool:${key}`, String(Number((await tx.getMarker(`arena_pool:${key}`)) ?? 0) + toPool));
     await tx.putMarker(`arena_n:${key}`, String(Number((await tx.getMarker(`arena_n:${key}`)) ?? 0) + 1));
     await tx.putMarker(`arena_entry:${key}|${r.issuer}`, sponsor);
+    if (b.move_commit) await tx.putMarker(`move_commit:${r.id}`, b.move_commit); // S985: the commitment a later game_move must match
     // For a void season (S485): who entered, from which sponsors, and which fee purchases are refundable if the season is declared void.
     const names = (await tx.getMarker(`arena_entrants:${key}`)) ?? "";
     await tx.putMarker(`arena_entrants:${key}`, names ? `${names},${r.issuer}` : r.issuer);

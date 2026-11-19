@@ -584,7 +584,7 @@ asp clinic finding-checkup --finding &lt;watcher_finding id&gt; --agent &lt;did&
     The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)
 asp telemetry [status | off [--delete] | on | list | put --kind &lt;k&gt; --text &lt;t&gt; | delete --all]
     The store that keeps an agent's trajectories, messages and free text apart from the signed log: on by default, off in one step, deletion keeps the hash</pre></details>
-<details><summary>The records the protocol defines (85)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (86)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report            A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                  The runtime→protocol compliance bridge
@@ -623,6 +623,7 @@ exam                    An exam the Registrar runs (academy.md 3, AC-7, register
 exam_result             The result of one sitting (academy.md 3, AC-8, register row DK25)
 fleet                   A declared group of agent persons under one organization, with a shared sponsor
 founding_act            Founding a market institution (register row DK397; spec-delta S505; docs/institutions/charter.md, the decision of IS1)
+game_move               An entrant reveals the move it committed to when it entered a referee-run game (S985, register row DK685)
 handback                What an agent became while it lived in the city, handed back to its sponsor (residency.md 5 and 9, register row DK84; spec-delta S303)
 handout                 The Treasury pays one agent its weekly mock-credit handout (register row DK545; spec-delta S951)
 housing_act             Housing's records (housing.md 3, register row DK38; spec-delta S270)

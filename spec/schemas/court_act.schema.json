@@ -17,7 +17,8 @@
         "case",
         "institutional_ruling",
         "abuse_case",
-        "abuse_ruling"
+        "abuse_ruling",
+        "game_replay"
       ]
     },
     "version": {
@@ -157,6 +158,44 @@
         "suspension",
         "written_response"
       ]
+    },
+    "replay": {
+      "description": "A Court's replay of a referee-run game result (S986, DK685): the arena, season and agent, the transcript hash the agent's Action carries and the Arena's result cites (transcript_sha256), the hash the Court recomputed from the revealed moves in the log (recomputed_sha256), and whether they match. The log checks the transcript is the one the result cites and that the outcome states the comparison truthfully.",
+      "type": "object",
+      "required": [
+        "arena",
+        "season",
+        "agent",
+        "transcript_sha256",
+        "recomputed_sha256",
+        "outcome"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "arena": {
+          "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+        },
+        "season": {
+          "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+        },
+        "agent": {
+          "$ref": "urn:asp:v0.2:common#/$defs/did"
+        },
+        "transcript_sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "recomputed_sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "outcome": {
+          "enum": [
+            "match",
+            "mismatch"
+          ]
+        }
+      }
     }
   },
   "allOf": [
@@ -294,6 +333,23 @@
           "finding",
           "reasons",
           "code"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "game_replay"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "replay"
         ]
       }
     }

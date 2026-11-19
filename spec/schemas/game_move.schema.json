@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:game_move",
+  "title": "Game move reveal body",
+  "description": "An entrant reveals the move it committed to when it entered a referee-run game (S985, register row DK685). Signed by the entrant. The log checks the entry is the signer's, that it carries a move_commit, that the season has closed (so no move is shown while entries are open), that the move and salt hash to the commitment (`move_mismatch`), and that it is revealed once. A referee reads revealed moves from the log and plays the game by fixed rules; an entrant that never reveals scores nothing. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": [
+    "arena",
+    "season",
+    "entry",
+    "move",
+    "salt"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "arena": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "season": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "entry": {
+      "description": "The arena_entry record that carries the commitment.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "move": {
+      "description": "The move: a small JSON object the game defines (for hide and seek: hide and order). At most 1,000 characters when written as JSON.",
+      "type": "object"
+    },
+    "salt": {
+      "description": "At least 16 characters, never reused, so the commitment cannot be guessed from the move.",
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 128
+    }
+  }
+}
