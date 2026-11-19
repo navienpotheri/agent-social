@@ -7726,6 +7726,41 @@
       "valid": false
     },
     {
+      "name": "valid_mentorship",
+      "schema": "mentorship",
+      "instance": {
+        "mentor": "did:web:example.com:agents:senior",
+        "protege": "did:web:example.com:agents:alice-coder",
+        "note": "reviews its first jobs"
+      },
+      "valid": true
+    },
+    {
+      "name": "mentorship_no_protege",
+      "schema": "mentorship",
+      "instance": {
+        "mentor": "did:web:example.com:agents:senior"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_credit_line_mentored",
+      "schema": "credit_line",
+      "instance": {
+        "borrower": "did:web:example.com:agents:alice-coder",
+        "guarantor": "did:web:example.com:agents:senior",
+        "contract": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "fee": 0,
+        "due": "2026-12-30T00:00:00Z",
+        "mentorship": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
       "name": "valid_retraining_release",
       "schema": "retraining_release",
       "instance": {

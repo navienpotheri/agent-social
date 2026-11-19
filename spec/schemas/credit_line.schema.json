@@ -32,6 +32,10 @@
     },
     "due": {
       "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "mentorship": {
+      "description": "A line guaranteed by a mentor (DK392): the mentorship record that names the borrower as protege and the guarantor as mentor. Without it the guarantor is the borrower's sponsor.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
     }
   }
 }

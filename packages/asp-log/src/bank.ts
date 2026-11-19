@@ -14,6 +14,34 @@ export const BANK_DID = institutionDid("bank");
 export const LINE_LIMIT: Record<number, number> = { 1: 60, 2: 300 };
 /** A line is for the first jobs: fewer than this many counted accepted jobs (credits.md 5.4). */
 export const LINE_MAX_COUNTED_JOBS = 3;
+/** Mentor-guaranteed lines (bank-insurer.md 13.1, DK392, S1202; owner decision DK392-MENTOR): a mentor is tier 2 or above, has no slash in MENTOR_CLEAN_DAYS days, has a different sponsor from the protege and mentors at most MENTOR_MAX_PROTEGES newcomers at once. */
+export const MENTOR_MIN_TIER = 2;
+export const MENTOR_CLEAN_DAYS = 90;
+export const MENTOR_MAX_PROTEGES = 3;
+
+/** A mentorship (13.1): the protege signs, the mentor countersigns; the mentor guarantees the protege's line in place of a sponsor. */
+export async function projectMentorship(tx: LogTx, r: AspRecord, env: BankEnv): Promise<void> {
+  const b = r.body as { mentor: string; protege: string };
+  if (r.prev !== null) throw rule("mentorship_not_chained", "a mentorship starts its own chain (prev is null)");
+  if (r.issuer !== b.protege) throw rule("mentorship_wrong_issuer", `the protege (${b.protege}) signs a mentorship and the mentor countersigns it`);
+  if (!signedBy(r, b.mentor)) throw rule("mentorship_needs_mentor", `the mentor (${b.mentor}) countersigns a mentorship`);
+  if (b.mentor === b.protege) throw rule("mentorship_self", "an agent does not mentor itself");
+  const [pm, pp] = [await tx.getPassport(b.mentor), await tx.getPassport(b.protege)];
+  if (!pm?.sponsor || !pp?.sponsor) throw rule("mentorship_not_agents", "a mentor and a protege are agents with a passport in this log");
+  const [rm, rp] = [await env.reputation(tx, b.mentor), await env.reputation(tx, b.protege)];
+  if (!rm || rm.tier < MENTOR_MIN_TIER) throw rule("mentor_tier", `${b.mentor} is at tier ${rm?.tier ?? "none"}: a mentor is tier ${MENTOR_MIN_TIER} or above`);
+  if (!rp || rp.tier > 1 || rp.qualifyingJobs >= LINE_MAX_COUNTED_JOBS) throw rule("protege_not_new", `${b.protege} is not a newcomer: a protege is at tier 1 with fewer than ${LINE_MAX_COUNTED_JOBS} counted jobs`);
+  const slashed = await tx.getMarker(`slashed_at:${b.mentor}`);
+  if (slashed && Date.parse(r.issued_at) - Date.parse(slashed) < MENTOR_CLEAN_DAYS * 86_400_000) throw rule("mentor_recent_slash", `${b.mentor} was slashed at ${slashed}: a mentor has no slash in ${MENTOR_CLEAN_DAYS} days`);
+  if (pm.sponsor === pp.sponsor || pm.sponsor === b.protege || pp.sponsor === b.mentor || (pm.fleet && pm.fleet === pp.fleet)) throw rule("mentor_not_independent", "a mentor and its protege have different sponsors and are not in one fleet: the guarantee must come from someone the protege does not control");
+  if (await tx.getMarker(`bank_debt:${b.mentor}`) || await tx.getMarker(`bank_default:${b.protege}`)) throw rule("mentor_blocked_by_default", "a default on an earlier line blocks a mentorship until it is cleared");
+  if (await tx.getMarker(`mentor_of:${b.protege}`)) throw rule("protege_has_mentor", `${b.protege} already has a mentor: one at a time`);
+  const mentees = ((await tx.getMarker(`mentees:${b.mentor}`)) ?? "").split(",").filter(Boolean);
+  if (mentees.length >= MENTOR_MAX_PROTEGES) throw rule("mentor_full", `${b.mentor} already mentors ${mentees.length} newcomers: at most ${MENTOR_MAX_PROTEGES} at a time`);
+  await tx.putMarker(`mentorship:${r.id}`, JSON.stringify({ mentor: b.mentor, protege: b.protege, at: r.issued_at }));
+  await tx.putMarker(`mentor_of:${b.protege}`, r.id);
+  await tx.putMarker(`mentees:${b.mentor}`, [...mentees, b.protege].join(","));
+}
 /** The guarantor must hold at least this share of the line (permille). */
 export const GUARANTOR_PERMILLE = 250;
 /** An undrawn line lapses this long after it is issued. */
@@ -35,13 +63,18 @@ const signedBy = (r: AspRecord, did: string) => r.issuer === did || (r.cosigs ??
 
 /** A credit line (bank-insurer.md 3, 5): the Bank issues it, the borrower and the guarantor countersign. */
 export async function projectCreditLine(tx: LogTx, r: AspRecord, env: BankEnv): Promise<void> {
-  const b = r.body as { borrower: string; guarantor: string; contract: string; amount: { value: number }; due: string };
+  const b = r.body as { borrower: string; guarantor: string; contract: string; amount: { value: number }; due: string; mentorship?: string };
   if (r.prev !== null) throw rule("line_not_chained", "a credit line starts its own chain (prev is null)");
   if (r.issuer !== BANK_DID) throw rule("line_wrong_issuer", `${r.issuer} is not the Bank (${BANK_DID}): only the Bank issues a line`);
   if (!signedBy(r, b.borrower) || !signedBy(r, b.guarantor)) throw rule("line_needs_countersigns", "a credit line is countersigned by the borrower and the guarantor");
   const passport = await tx.getPassport(b.borrower);
   if (!passport?.sponsor) throw rule("line_not_an_agent", `${b.borrower} is not an agent with a sponsor in this log`);
-  if (b.guarantor !== passport.sponsor) throw rule("line_no_guarantor", `the guarantor is the agent's sponsor (${passport.sponsor}); without the sponsor's guarantee there is no line (asp bank line names it)`);
+  if (b.mentorship) {
+    // A mentor guarantees the line in place of the sponsor (13.1): the mentorship names this borrower and this guarantor; the mentor's balance and default liability are the guarantee's, as for a sponsor.
+    const m = JSON.parse((await tx.getMarker(`mentorship:${b.mentorship}`)) ?? "null") as { mentor: string; protege: string } | null;
+    if (!m) throw rule("line_mentorship_unknown", `${b.mentorship} is not a mentorship in this log`);
+    if (m.protege !== b.borrower || m.mentor !== b.guarantor || (await tx.getMarker(`mentor_of:${b.borrower}`)) !== b.mentorship) throw rule("line_mentorship_mismatch", `the mentorship is ${m.mentor} for ${m.protege}, not ${b.guarantor} for ${b.borrower}`);
+  } else if (b.guarantor !== passport.sponsor) throw rule("line_no_guarantor", `the guarantor is the agent's sponsor (${passport.sponsor}); without the sponsor's guarantee there is no line (asp bank line names it), or a mentor's (a mentorship)`);
   const rep = await env.reputation(tx, b.borrower);
   const limit = rep ? LINE_LIMIT[rep.tier] : undefined;
   if (!rep || limit === undefined) throw rule("line_tier_not_eligible", `${b.borrower} is at tier ${rep?.tier ?? "none"}: a line is for tier 1 and 2 (tier 3 has a balance of its own, tier 0 is excluded)`);

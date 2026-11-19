@@ -14,7 +14,7 @@ import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./d
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
 import { jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
-import { projectCreditLine, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
+import { projectCreditLine, projectMentorship, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
   AspError, Job, isNetworkScope, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
@@ -349,6 +349,7 @@ export class EventLog {
     if (type === "starter_claim") await this.projectStarterClaim(tx, verified);
     if (type === "internal_transfer") await this.projectInternalTransfer(tx, verified);
     if (type === "revouch") await this.projectRevouch(tx, verified);
+    if (type === "mentorship") await projectMentorship(tx, verified, this.bankEnv);
     if (type === "retraining_release") await this.projectRetrainingRelease(tx, verified);
     if (type === "clinic_diagnosis") await this.projectClinicDiagnosis(tx, verified);
     if (type === "clinic_order") await this.projectClinicOrder(tx, verified);
