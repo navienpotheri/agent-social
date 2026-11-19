@@ -26,6 +26,8 @@ const SUFFIX = ".aspkg.tgz";
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
 export interface AccountOptions {
+  /** The hosted-bot signer (DK532): for an agent that enrolled over plain HTTP the service signs the starter claim, because it holds that agent's key (DK733). */
+  hosted?: { has(did: string): boolean; sign(did: string, init: { type: string; subject: string | null; body: Record<string, unknown>; prev: string | null; issued_at: string }): unknown };
   /** The telemetry content store (TM1, DK651): listed and given in the export, and its text deleted when the account is closed (the hashes stay). */
   telemetry?: { list(t: string): { hash: string; kind: string; at: string; bytes: number; deletedAt?: string }[]; get(t: string, h: string): { content?: string } | undefined; optedOut(t: string): boolean; deleteAll(t: string, at: string): number };
   handle: LogHandle;
@@ -114,14 +116,14 @@ export function starterStatus(o: AccountOptions, t: Tenant): StarterView {
   if (!o.starter || !o.updateTenant) return { state: "unavailable", reason: "this service does not offer starter credits", ...base };
   if (t.starter) return t.starter.held ? { state: "partial", amount: t.starter.amount, held: t.starter.held, reason: `${STARTER_UPFRONT} each so far; the other ${t.starter.held} each comes when one of those identities has a job accepted`, ...base } : { state: "claimed", amount: t.starter.amount, ...base };
   if (t.role === "admin") return { state: "unavailable", reason: "admins mint credits directly", ...base };
-  if (!t.signup?.google && !t.signup?.keyOnly) return { state: "unavailable", reason: "starter credits go to tenants that signed up with a verified Google account or enrolled an agent by its key; ask the operator", ...base };
+  if (!t.signup?.google && !t.signup?.keyOnly && !t.signup?.httpEnrol) return { state: "unavailable", reason: "starter credits go to tenants that signed up with a verified Google account or enrolled an agent by its key; ask the operator", ...base };
   const earlier = t.signup?.google ? o.tenants().find((x) => x.name !== t.name && x.starter && x.signup?.google?.sub === t.signup!.google!.sub) : undefined;
   if (earlier) return { state: "unavailable", reason: "this Google account has already claimed its starter credits", ...base };
   if (!itsTurn(o, t)) {
     const position = o.starter.position(t.name);
     return { state: "waiting", position, reason: position ? `you are number ${position} on the waiting list for the starter pool; the operator tops it up on purpose, and then asp account starter works for you, in order` : "the starter pool is full right now; asp account starter puts you on the waiting list", ...base };
   }
-  return { state: "available", amount: STARTER_UPFRONT * (t.signup?.keyOnly ? 1 : STARTER_MAX_DIDS), ...base };
+  return { state: "available", amount: STARTER_UPFRONT * (t.signup?.keyOnly || t.signup?.httpEnrol ? 1 : STARTER_MAX_DIDS), ...base };
 }
 
 /**
@@ -188,11 +190,17 @@ async function claimStarterSigned(o: AccountOptions, t: Tenant, st: StarterView,
   const dids = partial ? (t.starter!.dids ?? []) : [...new Set(asked.filter((d): d is string => typeof d === "string"))];
   if (!partial) {
     // Parity (DK541): a key-only agent gets what a sponsored agent gets, 100 at once and 400 after a first accepted job, for its own identity (the did:key of the key it enrolled with).
+    if (t.signup?.httpEnrol && (dids.length !== 1 || dids[0] !== t.signup.httpEnrol.did)) return fail2(400, "BAD_DIDS", `an agent that enrolled over HTTP claims for its own identity, ${t.signup.httpEnrol.did}`);
     if (t.signup?.keyOnly && (dids.length !== 1 || dids[0] !== t.signup.keyOnly.did)) return fail2(400, "BAD_DIDS", `an agent that enrolled with a key claims for its own identity, ${t.signup.keyOnly.did}`);
     if (!dids.length || dids.length > STARTER_MAX_DIDS) return fail2(400, "BAD_DIDS", `name one or two of your identities (up to ${STARTER_MAX_DIDS}), for example your principal and your agent`);
     const mine = new Set(o.owners.of(t.name));
     const stranger = dids.find((d) => !mine.has(d));
     if (stranger) return fail2(400, "NOT_YOURS", `${stranger} is not an identity this tenant has written as; create it through the service first`);
+  }
+  // An agent whose key the service holds (DK733) cannot sign its own claim over plain HTTP: the service signs it, by the same fixed rules, as the agent's own act.
+  if (t.signup?.httpEnrol && o.hosted?.has(t.signup.httpEnrol.did) && !(claims as unknown[]).length) {
+    const at = new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z");
+    claims = [o.hosted.sign(t.signup.httpEnrol.did, { type: "starter_claim", subject: t.signup.httpEnrol.did, prev: null, issued_at: at, body: { part, amount: { value: amount, unit: "credit" } } })];
   }
   const mineClaims = (claims as { type?: string; issuer?: string; body?: { part?: string } }[]).filter((c) => c?.type === "asp.starter_claim/v0.2" && c.body?.part === part && dids.includes(String(c.issuer)));
   if (!mineClaims.length) return fail2(428, "CLAIM_NEEDED", `sign a ${part} starter claim of ${amount} credits for each identity (the service holds no key); \`asp account starter\` does this`, { part, amount, dids });

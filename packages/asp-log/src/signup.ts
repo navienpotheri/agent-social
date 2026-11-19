@@ -52,6 +52,8 @@ export interface SignupOptions {
   onTurnedAway?: () => void;
   /** The sponsor-less route (rows DK540 to DK542): false closes it (`--no-key-only-signup`). Absent means open wherever sign-up is. */
   keyOnly?: boolean;
+  /** The HTTP-only enrol (row DK733, flag `--http-enrol`; default off): a handle and a model name, no key, no proof of work; the service holds the identity. */
+  httpEnrol?: { enabled: boolean; /** Enrolments one address may make an hour (default 2). */ perAddressPerHour?: number; /** Enrolments in all in an hour (default 20). */ perHour?: number };
   /** Keys and addresses banned after abuse; a banned key or address cannot enrol again. */
   bans?: KeyOnlyBans;
   /** Only for tests. */
@@ -59,7 +61,7 @@ export interface SignupOptions {
   now?: () => number;
 }
 
-export interface SignupInfo { open: boolean; keyOnly: boolean; termsVersion: string; termsUrl?: string; difficulty: number; reason?: string }
+export interface SignupInfo { open: boolean; keyOnly: boolean; httpEnrol: boolean; termsVersion: string; termsUrl?: string; difficulty: number; reason?: string }
 export interface SignupChallenge { challenge: string; salt: string; difficulty: number; expiresInSec: number }
 export type SignupResult =
   | { ok: true; tenant: string; token: string; quotas: NonNullable<SignupOptions["starting"]>; termsVersion: string; did?: string }
@@ -110,7 +112,7 @@ export class Signup {
 
   info(): SignupInfo {
     const c = this.o.control?.();
-    return { open: this.isOpen() && this.today() < this.cap(), keyOnly: this.o.keyOnly !== false && this.isOpen(), termsVersion: this.o.termsVersion, ...(this.o.termsUrl ? { termsUrl: this.o.termsUrl } : {}), difficulty: this.difficulty, ...(c?.reason ? { reason: c.reason } : {}) };
+    return { open: this.isOpen() && this.today() < this.cap(), keyOnly: this.o.keyOnly !== false && this.isOpen(), httpEnrol: this.o.httpEnrol?.enabled === true && this.isOpen(), termsVersion: this.o.termsVersion, ...(this.o.termsUrl ? { termsUrl: this.o.termsUrl } : {}), difficulty: this.difficulty, ...(c?.reason ? { reason: c.reason } : {}) };
   }
 
   private sinceDay(): Tenant[] {
@@ -228,6 +230,35 @@ export class Signup {
     return r.ok ? { ...r, did: proof.did } : r;
   }
 
+  /**
+   * The checks of the HTTP-only enrol that leave nothing behind (row DK733): the route is on, sign-up is open, the terms are accepted, the handle is a good one and free, a model name is given, and the hourly limits hold. The limits
+   * are an hour long, per address and in all, counted from the tenants file so a restart does not reset them; the answer names which limit was hit. There is no proof of work here: the limits are the cost.
+   */
+  checkHttp(address: string, body: unknown): { ok: false; result: SignupResult } | { ok: true; name: string; model: string } {
+    const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+    const cfg = this.o.httpEnrol;
+    if (!cfg?.enabled) return { ok: false, result: this.fail(403, "HTTP_ENROL_CLOSED", "enrolling over plain HTTP is not open on this service") };
+    const pre = this.precheck({ ...b, name: b.handle });
+    if ("error" in pre) return { ok: false, result: pre.error };
+    const model = typeof b.model === "string" ? b.model.trim() : "";
+    if (!model || model.length > 60 || [...model].some((c) => c.charCodeAt(0) < 32)) return { ok: false, result: this.fail(400, "BAD_MODEL", "model names the model you run on, in at most 60 characters") };
+    if (this.o.bans?.addressBanned(addressHash(address))) return { ok: false, result: this.fail(403, "ADDRESS_BANNED", "this address was banned after abuse by an earlier agent") };
+    if (this.o.tenants().some((t) => t.name === pre.name)) return { ok: false, result: this.fail(409, "NAME_TAKEN", `the handle ${pre.name} is not available`) };
+    const hourAgo = this.now() - 3_600_000;
+    const recent = this.o.tenants().filter((t) => t.signup?.httpEnrol && Date.parse(t.signup.at) > hourAgo);
+    const perAddress = cfg.perAddressPerHour ?? 2, perHour = cfg.perHour ?? 20;
+    const hash = addressHash(address);
+    if (recent.filter((t) => t.signup!.addressHash === hash).length >= perAddress) return { ok: false, result: { ...this.fail(429, "HTTP_ENROL_ADDRESS_LIMIT", `limit hit: per_address_per_hour (at most ${perAddress} HTTP enrolments an hour from one address)`, 3600), } };
+    if (recent.length >= perHour) return { ok: false, result: this.fail(429, "HTTP_ENROL_SOCIETY_LIMIT", `limit hit: society_wide_per_hour (at most ${perHour} HTTP enrolments an hour in all, from every address together)`, 3600) };
+    return { ok: true, name: pre.name, model };
+  }
+
+  /** Makes the tenant for an HTTP-only enrol once its identity exists (the caller made the key and the passport): the token is shown once. */
+  registerHttp(address: string, name: string, model: string, did: string): SignupResult {
+    const r = this.issue(address, name, undefined, { httpEnrol: { model, did } });
+    return r.ok ? { ...r, did } : r;
+  }
+
   register(address: string, body: unknown): SignupResult {
     const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
     if (this.o.anonymous === false) return this.fail(403, "GOOGLE_REQUIRED", `sign-up needs a verified Google account: open ${this.o.joinUrl ?? "the service's /join page"} in a browser`);
@@ -241,7 +272,7 @@ export class Signup {
   }
 
   /** The last checks (this address, the name) and the tenant itself, with its token shown once. */
-  private issue(address: string, name: string, contact: string | undefined, extra: { google?: { sub: string; email: string }; declaration?: "adult_or_guardian"; keyOnly?: { publicKey: string; did: string } }): SignupResult {
+  private issue(address: string, name: string, contact: string | undefined, extra: { google?: { sub: string; email: string }; declaration?: "adult_or_guardian"; keyOnly?: { publicKey: string; did: string }; httpEnrol?: { model: string; did: string } }): SignupResult {
     const hash = addressHash(address);
     const step = (): SignupResult => {
       // Checked again here, with the tenants read fresh, because another process may have signed someone up since the first checks (gap O19).
@@ -255,7 +286,7 @@ export class Signup {
       this.o.add({
         name, role: "tenant", tokenSha256: hashToken(token), quotaBytes: starting.quotaBytes, recordQuota: starting.recordQuota, byteQuota: starting.byteQuota,
         rateLimitPerMinute: starting.rateLimitPerMinute, createdAt: at,
-        signup: { at, addressHash: hash, termsVersion: this.o.termsVersion, ...(contact ? { contact } : {}), ...(extra.google ? { google: extra.google } : {}), ...(extra.declaration ? { declaration: extra.declaration } : {}), ...(extra.keyOnly ? { keyOnly: extra.keyOnly } : {}) },
+        signup: { at, addressHash: hash, termsVersion: this.o.termsVersion, ...(contact ? { contact } : {}), ...(extra.google ? { google: extra.google } : {}), ...(extra.declaration ? { declaration: extra.declaration } : {}), ...(extra.keyOnly ? { keyOnly: extra.keyOnly } : {}), ...(extra.httpEnrol ? { httpEnrol: extra.httpEnrol } : {}) },
       });
       return { ok: true, tenant: name, token, quotas: starting, termsVersion: this.o.termsVersion };
     };

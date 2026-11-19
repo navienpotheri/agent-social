@@ -335,6 +335,7 @@ import { configCmd, ConfigUsage } from "./config-cmd.ts";
 import { SpendUsage, parseInstitutionSpend, priceView, spendCmd, standingNote } from "./spend.ts";
 import { AcademyUsage, academyCmd } from "./academy.ts";
 import { RegistryUsage, registryCmd } from "./registry.ts";
+import { httpEnrol } from "@agent-social/asp-package";
 import { WatcherUsage, watcherCmd } from "./watcher-cmd.ts";
 import { serveMcpStdio, type McpContext } from "./mcp-society.ts";
 import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes, watchQuarantine } from "./clinic.ts";
@@ -561,6 +562,8 @@ const OPTIONS = {
   "keyonly-review-interval": { type: "string" },
   "task-text": { type: "string" },
   "http-enrol": { type: "boolean" },
+  "http-enrol-per-address": { type: "string" },
+  "http-enrol-per-hour": { type: "string" },
   salt: { type: "string" },
   policies: { type: "string" },
   commit: { type: "string" },
@@ -2532,6 +2535,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       termsVersion: v["signup-terms-version"] ?? "2026-10", termsUrl: v["signup-terms-url"],
       difficulty: num("signup-difficulty", 20), perAddressPerDay: num("signup-per-address", 3), dailyCap: num("signup-daily-cap", 200),
       keyOnly: !v["no-key-only-signup"], bans: keyOnlyBans,
+      httpEnrol: { enabled: !!v["http-enrol"], perAddressPerHour: num("http-enrol-per-address", 2), perHour: num("http-enrol-per-hour", 20) },
       anonymous: !v["signup-require-google"], ...(v["public-url"] ? { joinUrl: `${v["public-url"]}/join` } : {}),
       // Two service processes sharing one tokens file must not both take the last place of the day, or one name (gap O19): the checks and the add are one locked step.
       exclusive: (fn) => withFileLock(tokensFile, fn),
@@ -2564,8 +2568,11 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const starter = !noAuth ? new StarterPool(`${v.tokens}.starter.json`, num("starter-pool", STARTER_POOL)) : undefined;
   const didDomain = v["did-domain"] ?? (v["public-url"] ? new URL(v["public-url"]).host : undefined);
   const telemetryStore = !noAuth && v.tokens ? new TelemetryStore(`${v.tokens}.telemetry`) : undefined;
+  if (v["hosted-keys"] && !(io.env.ASP_HOSTED_PASSPHRASE ?? process.env.ASP_HOSTED_PASSPHRASE)) throw new UsageError("--hosted-keys needs the passphrase in ASP_HOSTED_PASSPHRASE (at least 12 characters)");
+  if (v["hosted-keys"] && !didDomain) throw new UsageError("--hosted-keys needs --did-domain or --public-url: a hosted bot's identity lives in the service's namespace");
+  const hostedSigner = v["hosted-keys"] && didDomain && !noAuth ? new HostedSigner(resolve(v["hosted-keys"]), (io.env.ASP_HOSTED_PASSPHRASE ?? process.env.ASP_HOSTED_PASSPHRASE)!) : undefined;
   const accountRoute = !noAuth ? accountRoutes({
-    handle, owners, usage, ...(telemetryStore ? { telemetry: telemetryStore } : {}), ...(didDomain ? { didDomain } : {}), ...(starter ? { starter } : {}),
+    handle, owners, usage, ...(telemetryStore ? { telemetry: telemetryStore } : {}), ...(hostedSigner ? { hosted: hostedSigner } : {}), ...(didDomain ? { didDomain } : {}), ...(starter ? { starter } : {}),
     updateTenant: (name, patch) => {
       const file = v.tokens!;
       const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];
@@ -2583,9 +2590,13 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   }) : undefined;
   const forum = v.forum ? forumRoutes({ root: resolve(v.forum), handle, ...(v["forum-unlimited"] ? { unlimited: true } : {}), ...(v["forum-open"] ? { open: true } : {}) }) : undefined;
   // Hosted bots (DK532, S956): the service holds the signing key of a bot with no machine of its own, in one sealed file under a passphrase from the environment, never a flag.
-  if (v["hosted-keys"] && !(io.env.ASP_HOSTED_PASSPHRASE ?? process.env.ASP_HOSTED_PASSPHRASE)) throw new UsageError("--hosted-keys needs the passphrase in ASP_HOSTED_PASSPHRASE (at least 12 characters)");
-  if (v["hosted-keys"] && !didDomain) throw new UsageError("--hosted-keys needs --did-domain or --public-url: a hosted bot's identity lives in the service's namespace");
-  const hosted = v["hosted-keys"] && didDomain && !noAuth ? hostedBotRoutes({ handle, signer: new HostedSigner(resolve(v["hosted-keys"]), (io.env.ASP_HOSTED_PASSPHRASE ?? process.env.ASP_HOSTED_PASSPHRASE)!), domain: didDomain, file: resolve(v["hosted-keys"]) }) : undefined;
+  const hosted = hostedSigner && didDomain ? hostedBotRoutes({ handle, signer: hostedSigner, domain: didDomain, file: resolve(v["hosted-keys"]!) }) : undefined;
+  // Enrolling over plain HTTP (row DK733; owner question KO2): OFF unless --http-enrol. It needs the hosted-bot signer (the service holds the key until the agent binds its own), a DID domain and sign-up.
+  if (v["http-enrol"] && (!hostedSigner || !didDomain || !signup)) throw new UsageError("--http-enrol needs --signup, --hosted-keys (with ASP_HOSTED_PASSPHRASE) and --did-domain or --public-url: the service holds the agent's key until it binds its own");
+  const httpEnrolApi = v["http-enrol"] && hostedSigner && didDomain && signup ? httpEnrol({
+    handle, signup, signer: hostedSigner, domain: didDomain, owners,
+    updateTenant: (name, patch) => { const file = v.tokens!; const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []; const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n"); renameSync(tmp, file); },
+  }) : undefined;
   // The abuse-report intake (DK351): an outsider files a signed report with no account; the operator's key, held by this process, countersigns what the domain-key check admits.
   let abuseIntake: ReturnType<typeof abuseIntakeRoutes> | undefined;
   if (v["abuse-intake"]) {
@@ -2597,6 +2608,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   }
   const routes = [
     ...(hosted ? [hosted] : []),
+    ...(httpEnrolApi ? [httpEnrolApi.route] : []),
     ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
     ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}) })] : []),
@@ -2655,7 +2667,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   });
   const publicList = [helpRoutes(), frontDoorRoutes({ flags: () => ({ forum: !!v.forum, "known-bad": !!v["known-bad"], commons: !!v.commons, "hosted-bots": !!v["hosted-keys"], "http-enrol": !!v["http-enrol"] }), keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend(), velocity: () => handle.log.velocity() as never }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), storyRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never, balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; }, ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now }), ...(abuseIntake ? [abuseIntake] : []), handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(handle.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => isoWeekOf(Date.now() - 7 * 86_400_000) }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
-  const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  const server = createLogServer({ ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   // The sponsor-less review (rows DK542, DK546): every --keyonly-review-interval seconds (default 300) the slashes of each key-only tenant are counted from the log; two ban its key and address and suspend the tenant,
   // one asks the Clinic for a quarantine, which the service cannot sign (the Clinic's key is the owner's): the request waits in <tokens>.keyonly-pending.json for `asp clinic keyonly-freeze`.
   if (signup && keyOnlyPending && !v["no-key-only-signup"]) {
