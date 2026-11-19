@@ -7143,6 +7143,15 @@
       "valid": true
     },
     {
+      "name": "valid_config_tier_breadth_from",
+      "schema": "config",
+      "instance": {
+        "key": "tier_breadth_from",
+        "value": "2026-12-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
       "name": "config_unknown_key",
       "schema": "config",
       "instance": {

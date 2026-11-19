@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:asp:v0.2:config",
   "title": "Log configuration body",
-  "description": "A setting that changes how the log judges later records, written into the log so the value travels with it and a replay needs no deployment option (register row DK312; spec-delta S972). Signed by the operator and co-signed by the owner. bond_floor_from: the time from which the bond floor of the deployment's mode (v2 or v3) applies; it is set once, at or after the record's own time, and never changed. Chain: none (prev is null).",
+  "description": "A setting that changes how the log judges later records, written into the log so the value travels with it and a replay needs no deployment option (register row DK312; spec-delta S972). Signed by the operator and co-signed by the owner. bond_floor_from: the time from which the bond floor of the deployment's mode (v2 or v3) applies; it is set once, at or after the record's own time, and never changed. Chain: none (prev is null). tier_breadth_from (S973, DK385): the time from which a Mandate's scopes and irreversible policy are limited by the agent's tier (tier-breadth.ts).",
   "type": "object",
   "required": [
     "key",
@@ -12,7 +12,8 @@
   "properties": {
     "key": {
       "enum": [
-        "bond_floor_from"
+        "bond_floor_from",
+        "tier_breadth_from"
       ]
     },
     "value": {

@@ -204,6 +204,7 @@
  *   asp credits fund --from <did> --to <did> --amount <n> [--memo <text>]   a sponsor funds its own agent, or an agent returns credits to its sponsor (the only free transfer; any other pair is refused)
  *   asp society invite --agent <did> --institutions market,academy --per-day <n> [--days 90] | revoke --agent <did>   a sponsor lets its agent spend in the society (a separate Mandate with only institution_spend; nothing else widened) and ends it at once
  *   asp services list [--json] | post --by <agent> --service <kind> --price <n> --deposit <id> | bid --by <agent> --posting <id>   the society services board: agents hire agents for in-society services in mock credits
+ *   asp log-config set --key bond_floor_from|tier_breadth_from --value <time> --by <operator> --cosign-by <owner>   write a setting into the log (once), so every copy and replay judges alike
  *   asp credits guard [--json]   the monetary guard measures (issuance rate, starter pool use, hoarding, Treasury share, audit mismatch) with the action each names; exit 1 when one is over its threshold; nothing is changed
  *   asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>   the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs, certificates), the summary a governed run gives the agent; --sign signs it with the agent's key, --verify refuses a tampered or stale one
  *   asp credits balance <did>
@@ -330,6 +331,7 @@ import { WorldUsage, worldCmd } from "./world.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
+import { configCmd, ConfigUsage } from "./config-cmd.ts";
 import { SpendUsage, parseInstitutionSpend, priceView, spendCmd, standingNote } from "./spend.ts";
 import { AcademyUsage, academyCmd } from "./academy.ts";
 import { RegistryUsage, registryCmd } from "./registry.ts";
@@ -475,6 +477,7 @@ const OPTIONS = {
   institution: { type: "string" },
   institutions: { type: "string" },
   "hosted-keys": { type: "string" },
+  key: { type: "string" },
   funding: { type: "string" },
   officers: { type: "string" },
   effective: { type: "string" },
@@ -1066,6 +1069,11 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     }
     if (cmd === "prices") return await pricesCommand(home, sub, rest, v, io);
     if (cmd === "spend") return await spendCommand(home, sub, rest, v, io);
+    if (cmd === "log-config") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return x; };
+      try { return await configCmd(sub, { log: local, io, now, signerFor, flags: { key: v.key, value: v.value, by: v.by, "cosign-by": v["cosign-by"]?.[0] } }); } catch (e) { if (e instanceof ConfigUsage) throw new UsageError(e.message); throw e; }
+    }
     if (cmd === "services") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return x; };

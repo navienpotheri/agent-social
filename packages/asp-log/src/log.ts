@@ -24,6 +24,7 @@ import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type Balanc
 import { bondFloorPermille, bondFloorV3, floorIsV2, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
+import { breadthProblem } from "./tier-breadth.ts";
 import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
@@ -232,6 +233,7 @@ export class EventLog {
 
   private readonly bondFloor: "legacy" | "v2" | "v3";
   private bondFloorFrom?: string;
+  private tierBreadthFrom?: string;
   private configLoaded = false;
   private readonly panelV2From?: string;
   private readonly operator?: string;
@@ -273,7 +275,7 @@ export class EventLog {
 
   private async appendIn(tx: LogTx, r: AspRecord, appendedAt: string): Promise<AppendResult> {
     // The cutover of the bond floor travels with the log (DK312, S972): a `config` record already in the store sets it, so a restart or a replay without the deployment option judges the same way.
-    if (!this.configLoaded) { const v = await tx.getMarker("config:bond_floor_from"); if (v) this.bondFloorFrom = v; this.configLoaded = true; }
+    if (!this.configLoaded) { const v = await tx.getMarker("config:bond_floor_from"); if (v) this.bondFloorFrom = v; const t = await tx.getMarker("config:tier_breadth_from"); if (t) this.tierBreadthFrom = t; this.configLoaded = true; }
     const existing = await tx.getRecord(r.id);
     if (existing) {
       const chain = await tx.getChain(existing.chain);
@@ -943,6 +945,11 @@ export class EventLog {
     const rate = (r.body as { network?: { rate?: { per_host_per_minute?: number } } }).network?.rate;
     if (rep.tier < 3 && (granted.scopes ?? []).some(isNetworkScope) && rate?.per_host_per_minute === undefined) {
       throw rule("network_rate_required", `${r.subject} is tier ${rep.tier}: a Mandate that grants a network scope (${(granted.scopes ?? []).filter(isNetworkScope).join(", ")}) must limit the rate (network.rate.per_host_per_minute)`);
+    }
+    // Breadth by tier (DK385, S973): from the time a config record names, a Mandate's scopes and irreversible policy depend on the tier (tier-breadth.ts).
+    if (this.tierBreadthFrom && Date.parse(r.issued_at) >= Date.parse(this.tierBreadthFrom)) {
+      const bad = breadthProblem(rep.tier, r.body as { scopes?: string[]; irreversible?: { policy?: string } });
+      if (bad) throw rule(bad.rule, `${r.subject}: ${bad.message}`);
     }
     const parallelLimit = TIER_PARALLEL_LIMIT[rep.tier];
     if (parallelLimit !== undefined && nodes.max_parallel > parallelLimit) {
@@ -1803,7 +1810,7 @@ export class EventLog {
   }
 
   /** The bond floor cutover this log judges by: the signed configuration record, or the deployment option when the log has none (DK312). */
-  async bondFloorCutover(): Promise<string | undefined> { await this.store.transaction(async (tx) => { if (!this.configLoaded) { const v = await tx.getMarker("config:bond_floor_from"); if (v) this.bondFloorFrom = v; this.configLoaded = true; } }); return this.bondFloorFrom; }
+  async bondFloorCutover(): Promise<string | undefined> { await this.store.transaction(async (tx) => { if (!this.configLoaded) { const v = await tx.getMarker("config:bond_floor_from"); if (v) this.bondFloorFrom = v; const t = await tx.getMarker("config:tier_breadth_from"); if (t) this.tierBreadthFrom = t; this.configLoaded = true; } }); return this.bondFloorFrom; }
 
   /** A configuration record (DK312, S972): the operator, with the owner, sets the bond floor cutover once, at or after the record's own time. The value then travels with the log. */
   private async projectConfig(tx: LogTx, r: AspRecord): Promise<void> {
@@ -1813,9 +1820,9 @@ export class EventLog {
     if (!this.cosignedBy(r, this.owner)) throw rule("config_needs_cosign", "a configuration record needs the owner's co-signature");
     if (Date.parse(b.value) < Date.parse(r.issued_at)) throw rule("config_cutover_past", "the cutover is at or after the record's own time, so no earlier record is judged differently");
     if (await tx.getMarker(`config:${b.key}`)) throw rule("config_already_set", `${b.key} is already set in this log: it is set once and never changed`);
-    if (this.bondFloorFrom !== undefined && Date.parse(this.bondFloorFrom) !== Date.parse(b.value)) throw rule("config_conflicts_option", `the deployment's own option names ${this.bondFloorFrom}: remove it or write the same time`);
+    if (b.key === "bond_floor_from" && this.bondFloorFrom !== undefined && Date.parse(this.bondFloorFrom) !== Date.parse(b.value)) throw rule("config_conflicts_option", `the deployment's own option names ${this.bondFloorFrom}: remove it or write the same time`);
     await tx.putMarker(`config:${b.key}`, b.value);
-    this.bondFloorFrom = b.value;
+    if (b.key === "bond_floor_from") this.bondFloorFrom = b.value; else this.tierBreadthFrom = b.value;
   }
 
   /**

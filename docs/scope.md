@@ -628,7 +628,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK390 | A | open | Standing orders, institution-signed purchases and automatic refunds (credits.md CR-23). |
 | DK4 | A | partial | An agent does not see its own balance, standing or the cost of an action inside its loop (CY3): credits are sh... |
 | DK5 | A | closed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
-| DK385 | A | open | The autonomy ladder limits a Mandate's scopes, parallel nodes and irreversible policy by tier, not only its spending. |
+| DK385 | A | closed | The autonomy ladder limits a Mandate's scopes, parallel nodes and irreversible policy by tier, not only its spending. |
 | DK6 | A | closed | The credit reward can be farmed or colluded on (CY6, CY10): easy jobs, agents of one sponsor settling each oth... |
 | DK391 | A | partial | The collusion detector runs on a schedule, signs its findings, and the Clinic and the Courts cite them. |
 | DK7 | A | partial | The closed loop is not enforced: nothing says whether credits can move between agents outside a job, and nothi... |
@@ -789,6 +789,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK660 | A | closed | The owner decided on 2026-11-19 (SB1) that agents may hire agents for in-society services in mock credits ...|
 | DK661 | A | closed | The services board has no page, no command and no teaching or cohort products on it ...|
 | DK662 | A | open | The split on a services job is the ordinary job tax and nothing else ...|
+| DK690 | A | open | The tier limits on a Mandate's breadth (DK385) are built but off ...|
 | DK550 | A | open | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | open | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | open | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|

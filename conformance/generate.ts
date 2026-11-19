@@ -942,6 +942,7 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
   sv("treasury_payment_amount_not_credit", "treasury_payment", { ...pay, amount: { value: 5, unit: "usd" } }, false);
   sv("treasury_payment_extra_field", "treasury_payment", { ...pay, cash_out: true }, false);
   sv("valid_config_bond_floor_from", "config", { key: "bond_floor_from", value: "2026-12-01T00:00:00Z" }, true);
+  sv("valid_config_tier_breadth_from", "config", { key: "tier_breadth_from", value: "2026-12-01T00:00:00Z" }, true);
   sv("config_unknown_key", "config", { key: "tax", value: "2026-12-01T00:00:00Z" }, false);
   sv("config_bad_time", "config", { key: "bond_floor_from", value: "soon" }, false);
   const ho = { budget: rid, week: "2026-W47", agent: did1, amount: cr(50), level: "sponsored" };
