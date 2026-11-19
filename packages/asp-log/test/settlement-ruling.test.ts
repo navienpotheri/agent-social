@@ -87,6 +87,11 @@ for (const h of [memory, postgres] as Harness[]) {
       assert.equal(await log.balance(jurors[0].did), 400 + 25);
       assert.equal(await log.balance(jurors[1].did), 400 + 25);
       assert.equal(await log.balance(jurors[2].did), 400, "a drawn juror who did not sign earns nothing");
+      // DK365 (S1200): the parties who paid the jurors are their funding sources; a juror who earned nothing has none.
+      const store = (log as unknown as { store: { transaction<T>(f: (tx: { getMarker(k: string): Promise<string | undefined> }) => Promise<T>): Promise<T> } }).store;
+      const funders = async (d: string) => JSON.parse((await store.transaction((tx) => tx.getMarker(`funders:${d}`))) ?? "[]") as string[];
+      assert.deepEqual((await funders(jurors[0].did)).sort(), [alice.did, coder.did].sort());
+      assert.deepEqual(await funders(jurors[2].did), []);
     });
 
     test("a loser with nothing left over still pays: the fee reserve covers it (principal loses after the whole price was released)", async () => {

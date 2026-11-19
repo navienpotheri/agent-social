@@ -17,8 +17,22 @@ export const PANEL_DRAW_V2_FROM = "2026-12-15T00:00:00Z";
 /** New jurors one sponsor (or one person) may register in a day from the v2 draw date (DK365, S1012). */
 export const JUROR_NEW_PER_DAY = 3;
 export const panelDrawIsV2 = (from: string | undefined, issuedAt: string): boolean => Date.parse(issuedAt) >= Date.parse(from ?? PANEL_DRAW_V2_FROM);
+/** The stake rule (DK365, S1200; owner decision DK365-stake in docs/owner-decisions.md): from the v2 draw a juror must hold at least JUROR_STAKE_PER_CASE credits of stake for every case it has sat on in the last JUROR_CASE_WINDOW_DAYS days, and one more for the case it is drawn for. */
+export const JUROR_STAKE_PER_CASE = 20;
+export const JUROR_CASE_WINDOW_DAYS = 30;
+const casesKey = (did: string) => `juror_cases:${did}`;
 const FUNDER_CAP = 50;
 const funderKey = (did: string) => `funders:${did}`;
+
+/** Records that these jurors sat on a ruling at `at` (a case they signed as members of the drawn panel): the load the stake rule counts. */
+export async function noteJurorService(tx: { getMarker(k: string): Promise<string | undefined>; putMarker(k: string, v: string): Promise<void> }, jurors: readonly string[], at: string): Promise<void> {
+  for (const d of new Set(jurors)) {
+    const raw = await tx.getMarker(casesKey(d));
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    list.push(at);
+    await tx.putMarker(casesKey(d), JSON.stringify(list.slice(-FUNDER_CAP)));
+  }
+}
 
 /** Records that `payer` paid `recipient` (a settlement payout, a bounty): the counterparties an account has been funded by. Not recorded when they are one control (the recipient's sponsor or the payer's) or the payer is an account of the society. */
 export async function noteFunder(tx: { getMarker(k: string): Promise<string | undefined>; putMarker(k: string, v: string): Promise<void>; getPassport(d: string): Promise<PassportRow | undefined> }, recipient: string, payer: string, isReserved: (d: string) => boolean): Promise<void> {
@@ -57,7 +71,7 @@ export async function findRejection(source: PanelSource, from: string | null): P
  * fixed once it does. One seat for each control: two jurors with the same sponsor never sit together (BM11). The same inputs always produce the same panel, so anyone (including
  * EventLog.verify()'s replay) can recompute and check it without the draw itself being a record.
  */
-export async function drawPanel(source: PanelSource, opts: { principal: string; performer: string; seed: string; size?: number; also?: string[]; exclude?: string[]; /** Draw by v2: one seat for each funding source, and no juror funded by a party. */ v2?: boolean }): Promise<string[]> {
+export async function drawPanel(source: PanelSource, opts: { principal: string; performer: string; seed: string; /** The time of the record that asks for the draw: the stake rule counts the cases a juror sat on before it (v2 only). */ at?: string; size?: number; also?: string[]; exclude?: string[]; /** Draw by v2: one seat for each funding source, and no juror funded by a party. */ v2?: boolean }): Promise<string[]> {
   const parties = new Set([opts.principal, opts.performer, ...(opts.also ?? [])]);
   // Conflicts (courts.md 5, CT-4): a juror is out if it is a party, is sponsored by a party, IS the sponsor of a party, shares a sponsor with a party, or is in a party's fleet.
   const partySponsors = new Set<string>(), partyFleets = new Set<string>();
@@ -88,6 +102,18 @@ export async function drawPanel(source: PanelSource, opts: { principal: string; 
       const fs = new Set<string>([...(await read(d)), ...(sp ? await read(sp) : [])].filter((f) => !own.has(f)));
       if ([...fs].some((f) => partyControl.has(f) || partyFunders.has(f))) continue;
       funders.set(d, fs); kept.push(d);
+    }
+    remaining.splice(0, remaining.length, ...kept);
+  }
+  // v2 stake rule (DK365): a juror's stake covers every case it sat on in the window and one more.
+  if (opts.v2 && source.getMarker && opts.at) {
+    const staked = new Map((await source.activeJurors()).map((j) => [j.did, j.staked]));
+    const since = Date.parse(opts.at) - JUROR_CASE_WINDOW_DAYS * 86_400_000;
+    const kept: string[] = [];
+    for (const d of remaining) {
+      const raw = await source.getMarker(casesKey(d));
+      const load = (raw ? (JSON.parse(raw) as string[]) : []).filter((t) => Date.parse(t) > since && Date.parse(t) <= Date.parse(opts.at!)).length;
+      if ((staked.get(d) ?? 0) >= JUROR_STAKE_PER_CASE * (1 + load)) kept.push(d);
     }
     remaining.splice(0, remaining.length, ...kept);
   }
