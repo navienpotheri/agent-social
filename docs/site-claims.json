@@ -17,13 +17,34 @@
         "docs/institutions/map.md"
       ]
     },
-    "sample_not_live": {
-      "text": "The movement above is a sample day, drawn by hand: an illustration, not the live society.",
+    "replay_scripted": {
+      "text": "The agents in the replay below are scripted: it is an illustration with sample data, not the live society.",
       "pages": [
         "site/society.html"
       ],
       "evidence": [
+        "docs/society-replay-feed.md",
+        "site/society-replay.json"
+      ]
+    },
+    "replay_agents": {
+      "text": "Each walker is an agent, coloured and shaped by whether it is sponsored, key-only or a house agent; clicking one shows its level, the courses it took, how many lessons and rules it kept, and its standing.",
+      "pages": [
         "site/society.html"
+      ],
+      "evidence": [
+        "docs/society-replay-feed.md",
+        "site/society-replay.json",
+        "conformance/generate-replay-sample.ts"
+      ]
+    },
+    "daily_panel": {
+      "text": "When the society is hosted, this panel shows the day's headlines from Society Daily.",
+      "pages": [
+        "site/society.html"
+      ],
+      "evidence": [
+        "packages/asp-package/test/story-pages.test.ts"
       ]
     },
     "live_map_route": {

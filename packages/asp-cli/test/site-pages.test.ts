@@ -67,12 +67,12 @@ test("nothing is loaded from another host, the map script reads only public feed
     }
   }
   const map = read("site/society.html");
-  const script = map.slice(map.indexOf("<script>") + 8, map.indexOf("</script>"));
+  const script = map.slice(map.indexOf("<script>") + 8, map.lastIndexOf("</script>"));
   assert.doesNotMatch(script, /\b(balance|sponsor|private|secret|token|password|\.key\b|public_key|email)\b/i, "the map reads no private field");
-  assert.match(script, /fetch\("\/society\/map\/feed/, "it reads the public feed at the same address");
+  assert.match(script, /fetch\("\/society\/daily\?format=json/, "it reads the public Society Daily at the same address");
   assert.equal([...script.matchAll(/fetch\(\s*["']([^"']+)/g)].every((m) => m[1]!.startsWith("/")), true, "only same-address fetches");
-  assert.match(script, /a\.name/);
-  assert.match(script, /a\.place/);
+  assert.match(script, /h\.text/);
+  assert.doesNotMatch(script, /innerHTML|document\.write|eval\(/, "text only: nothing from a feed is written as markup");
   assert.doesNotThrow(() => new Function(script), "the script parses");
 });
 
@@ -82,4 +82,51 @@ test("the pages are in the sitemap only once the owner has approved the wording;
     const loc = `/${p.replace(/^site\//, "")}`;
     assert.equal(sitemap.includes(`<loc>https://agentsocial.thedeeptransformation.com${loc}</loc>`), claims.approved, `${p} is in the sitemap exactly when approved is ${claims.approved}`);
   }
+});
+
+const KINDS = new Set(["sponsored", "key_only", "house"]);
+const EVENT_KINDS = new Set(["settlement", "purchase", "prize", "lesson", "ruling", "event", "award"]);
+const FORBIDDEN = /\b(key|keys|private|secret|token|password|email|balance|sponsor|purpose|summary|text|description)\b/i;
+function problems(feed: any): string[] {
+  const out: string[] = [];
+  if (feed.schema !== "asp.society-replay/v1") out.push("schema");
+  if (typeof feed.scripted !== "boolean") out.push("scripted must say whether the feed is scripted");
+  const places = new Set((feed.places ?? []).map((p: { id: string }) => p.id));
+  const names = new Set<string>();
+  for (const a of feed.agents ?? []) {
+    names.add(a.name);
+    if (!KINDS.has(a.kind)) out.push(`kind of ${a.name}`);
+    if (!places.has(a.home)) out.push(`home of ${a.name}`);
+    if (!Number.isInteger(a.lessons?.kept) || !Number.isInteger(a.lessons?.rules)) out.push(`lesson counts of ${a.name} are numbers`);
+    if (!Array.isArray(a.courses) || a.courses.some((c: unknown) => typeof c !== "string")) out.push(`courses of ${a.name}`);
+    for (const k of Object.keys(a)) if (FORBIDDEN.test(k)) out.push(`forbidden field ${k}`);
+  }
+  for (const e of feed.events ?? []) {
+    if (!names.has(e.agent)) out.push(`event agent ${e.agent}`);
+    if (!places.has(e.place)) out.push(`event place ${e.place}`);
+    if (!EVENT_KINDS.has(e.kind)) out.push(`event kind ${e.kind}`);
+    if (!Number.isInteger(e.t) || e.t < 0) out.push("event time");
+    for (const k of Object.keys(e)) if (FORBIDDEN.test(k)) out.push(`forbidden field ${k}`);
+  }
+  return out;
+}
+
+test("the replay feed the page embeds is the generated sample, follows the schema in docs/society-replay-feed.md, is labelled scripted, and carries no private field or free text; a bad feed is refused", async () => {
+  const { replaySample } = await import("../../../conformance/generate-replay-sample.ts");
+  const file = JSON.parse(read("site/society-replay.json"));
+  assert.deepEqual(file, JSON.parse(JSON.stringify(replaySample())), "site/society-replay.json is what npm run replay-sample makes");
+  assert.deepEqual(problems(file), []);
+  assert.equal(file.scripted, true);
+  assert.match(file.note, /scripted replay/);
+  assert.deepEqual(new Set(file.agents.map((a: { kind: string }) => a.kind)), KINDS, "all three kinds are on the map");
+  const html = read("site/society.html");
+  const embedded = JSON.parse(/<script type="application\/json" id="replay">([\s\S]*?)<\/script>/.exec(html)![1]!.replaceAll("<\\/", "</"));
+  assert.deepEqual(embedded, file, "the page embeds the same feed");
+  assert.match(html, /scripted/);
+  // A feed with a private field, an unknown kind, or an event for nobody is refused.
+  assert.ok(problems({ ...file, agents: [{ ...file.agents[0], sponsor: "did:web:x" }] }).some((p) => /forbidden field sponsor/.test(p)));
+  assert.ok(problems({ ...file, agents: [{ ...file.agents[0], kind: "robot" }] }).some((p) => /kind of/.test(p)));
+  assert.ok(problems({ ...file, events: [{ t: 1, agent: "nobody", place: "academy", kind: "purchase" }] }).some((p) => /event agent nobody/.test(p)));
+  assert.ok(problems({ ...file, scripted: undefined }).some((p) => /scripted must say/.test(p)));
+  assert.match(read("docs/society-replay-feed.md"), /asp\.society-replay\/v1/);
 });

@@ -11,6 +11,7 @@
     "test": "npm test --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "vectors": "node conformance/generate.ts",
+    "replay-sample": "node conformance/generate-replay-sample.ts",
     "spec": "node conformance/generate-spec-doc.ts",
     "commands": "node conformance/generate-command-reference.ts",
     "ai-files": "node conformance/generate-ai-files.ts",
