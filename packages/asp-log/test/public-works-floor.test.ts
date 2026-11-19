@@ -22,7 +22,8 @@ function mk(type: RecordType, by: Party, body: Record<string, unknown>, opts: { 
 const keys = (p: Party) => [{ id: p.kid, type: "Ed25519", public_key: b64urlEncode(p.publicKey) }];
 
 async function world() {
-  const log = new EventLog(new MemoryStore(), { operator: operator.did, owner: owner.did, fallbackResolver: resolver });
+  const store = new MemoryStore();
+  const log = new EventLog(store, { operator: operator.did, owner: owner.did, fallbackResolver: resolver });
   await registerParties(log);
   await log.append(mk("passport", sponsor, { did: sponsor.did, kind: "human", keys: keys(sponsor) }, { subject: sponsor.did, at: "2026-10-01T00:00:00Z" }));
   await log.append(mk("passport", operator, { did: house.did, kind: "agent", sponsor: operator.did, house: true, tier: 1, shape: {}, keys: keys(house) }, { subject: house.did, at: "2026-10-01T00:00:00Z" }));
@@ -31,7 +32,7 @@ async function world() {
   const budget = (purpose: string, amount: number, at = "2026-11-10T00:00:00Z", period = at.slice(0, 7), cosigners: Party[] = [owner]) => log.append(mk("budget", treasury, { institution: TREASURY_DID, period, amount: credit(amount), purpose }, { at, cosigners }));
   const pay = (budgetId: string, to: string, amount: number, at = "2026-11-10T00:00:00Z") => mk("treasury_payment", treasury, { budget: budgetId, to, amount: credit(amount) }, { at });
   const claim = (by: Party, budgetId: string, at: string, over: Record<string, unknown> = {}) => mk("allowance", by, { amount: credit(ALLOWANCE_AMOUNT), trigger: "no_job_30d", budget: budgetId, ...over }, { subject: by.did, at });
-  return { log, budget, pay, claim };
+  return { log, store, budget, pay, claim };
 }
 
 test("S997: a public-works budget pays a house agent that escrows the seed jobs, and nobody else; the owner co-signs it and it is never passed", async () => {
@@ -60,4 +61,15 @@ test("S997: the unemployment floor tops up a newcomer with no accepted job after
   assert.equal(await refused(w.log.append(w.claim(second, allowance, "2026-12-31T00:00:00Z"))), "allowance_already_paid", "once for each sponsor");
   assert.equal((await w.log.creditAudit()).verdict, "balanced");
   assert.equal((await w.log.verify()).ok, true);
+});
+
+test("S997 (DK761, TRL-21): an identity that has had a job accepted is refused the unemployment floor, with the reason allowance_floor_has_job", async () => {
+  const w = await world();
+  const allowance = (await w.budget("allowance", 200, "2026-12-01T00:00:00Z")).id;
+  // newbie is 30 days old at the claim, but its reputation row records an accepted job (set directly: the job path is tested elsewhere).
+  await w.store.transaction(async (tx) => { await tx.putReputation({ did: newbie.did, tier: 1, slashCount: 0, strikeLog: [], acceptedJobs: 1, qualifyingJobs: 1 }); });
+  const before = await w.log.balance(newbie.did);
+  assert.equal(await refused(w.log.append(w.claim(newbie, allowance, "2026-12-05T00:00:00Z"))), "allowance_floor_has_job");
+  assert.equal(await w.log.balance(newbie.did), before, "nothing was paid");
+  assert.equal((await w.log.creditAudit()).verdict, "balanced");
 });
