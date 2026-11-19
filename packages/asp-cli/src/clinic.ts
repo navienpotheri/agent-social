@@ -256,10 +256,10 @@ export async function clinicCmd(sub: string | undefined, o: ClinicOpts): Promise
     const done: string[] = [];
     for (const p of pending) {
       const at = o.now();
-      const rec = createRecord({ type: "quarantine", issuer: by, subject: null, prev: null, body: { members: [p.did], level, reason: `a sponsor-less agent with ${p.slashes} slashes of its own bond`, until: iso(Date.parse(at) + days * DAY) }, issued_at: at }, o.signerFor(by));
+      const rec = createRecord({ type: "quarantine", issuer: by, subject: null, prev: null, body: { members: [p.did], level, reason: `a sponsor-less agent with ${p.slashes} slashes of its own bond`, ...(f.emergency ? { emergency: { reason: f.emergency }, until: iso(Date.parse(at) + Math.min(days * DAY, 72 * 3_600_000)) } : { effective_from: iso(Date.parse(at) + 24 * 3_600_000), until: iso(Date.parse(at) + days * DAY) }) }, issued_at: at }, o.signerFor(by));
       try {
         const res = await o.log.append(rec);
-        o.io.out(`quarantine ${res.id}: ${p.did} (${p.tenant}) frozen at ${level} until ${iso(Date.parse(at) + days * DAY)}`);
+        o.io.out(`quarantine ${res.id}: ${p.did} (${p.tenant}) frozen at ${level} until ${iso(Date.parse(at) + (f.emergency ? Math.min(days * DAY, 72 * 3_600_000) : days * DAY))}${f.emergency ? " (emergency, listed for review)" : " (notice given: it takes effect in 24 hours)"}`);
         done.push(p.did);
       } catch (e) { o.io.err(`  ${p.did}: not quarantined: ${(e as Error).message}`); }
     }

@@ -24,7 +24,7 @@ import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type Balanc
 import { bondFloorPermille, bondFloorV3, floorIsV2, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
-import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { charterIn, checkCaseload, checkRulingExtras, closeDispute, projectCourtAct } from "./courts-rules.ts";
@@ -153,9 +153,11 @@ export interface AppendResult {
 
 /** One open posting on the job board (market.md 7). */
 /** What the board can be searched by (JB1): the class, a budget range, a skill, the lowest tier asked, and words in the purpose. */
-export interface BoardFilter { class?: JobClass; minBudget?: number; maxBudget?: number; skill?: string; maxMinTier?: number; text?: string }
+export interface BoardFilter { board?: "main" | "services"; class?: JobClass; minBudget?: number; maxBudget?: number; skill?: string; maxMinTier?: number; text?: string }
 
 export interface BoardEntry {
+  /** The board the posting is on; services postings carry the service they offer. */
+  board?: "main" | "services"; service?: string;
   posting: string; intent: string; poster: string; class: JobClass; budget: number; minTier: number; requiresCertificate?: string; skills: string[]; expires: string; purpose: string;
   /** The poster's standing, shown beside the job (JB1): what an agent weighing it can see about who is asking. */
   posterStanding?: { kind: "agent" | "person"; tier: number | null; qualifyingJobs: number; acceptedJobs: number; slashes: number; strikes: number; jobsPosted: number };
@@ -983,6 +985,15 @@ export class EventLog {
 
   private async projectMandate(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as { contract: string; scopes: string[] };
+    // An in-society service has no real-world scope (DK660, S970): the Mandate under a services-board contract is read-only, with no network, no spend and no subcontracting.
+    const crec = await tx.getRecord(body.contract);
+    const basisIntent = (crec?.record.body as { basis?: { intent?: string } } | undefined)?.basis?.intent;
+    const irec = basisIntent ? await tx.getRecord(basisIntent) : undefined;
+    if ((irec?.record.body as { service?: string } | undefined)?.service) {
+      const mb = r.body as { scopes: string[]; network?: unknown; spend: { cap: number }; subcontract: { allowed: boolean } };
+      const bad = mb.scopes.filter((x) => !/\.(read|list|search|get)$/.test(x) || isNetworkScope(x));
+      if (bad.length || mb.network || mb.spend.cap > 0 || mb.subcontract.allowed) throw rule("service_mandate_in_society_only", `a Mandate under an in-society service has read-only scopes, no network, no spend and no subcontracting${bad.length ? ` (not allowed: ${bad.join(", ")})` : ""}`);
+    }
     await tx.putMandate({ contract: body.contract, scopes: body.scopes });
   }
 
@@ -2632,8 +2643,10 @@ export class EventLog {
       if (Date.parse(pb.expires) <= Date.parse(when) || state.get(p.id) !== "open" || off.has(p.id)) continue;
       const intent = byId.get(pb.intent);
       if (!intent) continue;
+      const postedOn = (p.body as { board?: string }).board === "services" ? "services" : "main";
+      if ((filter.board ?? "main") !== postedOn) continue; // the boards are separate (S970): the main board never shows a service, the services board never a real-work job
       const needs = jobNeeds(intent, raised.get(pb.intent));
-      const entry: BoardEntry = { posting: p.id, intent: pb.intent, poster: p.issuer, class: needs.class, budget: needs.budget, minTier: needs.minTier, requiresCertificate: needs.requiresCertificate, skills: needs.skills, expires: pb.expires, purpose: (intent.body as { purpose: string }).purpose };
+      const entry: BoardEntry = { ...(postedOn === "services" ? { board: "services" as const, service: (intent.body as { service?: string }).service } : {}), posting: p.id, intent: pb.intent, poster: p.issuer, class: needs.class, budget: needs.budget, minTier: needs.minTier, requiresCertificate: needs.requiresCertificate, skills: needs.skills, expires: pb.expires, purpose: (intent.body as { purpose: string }).purpose };
       const med = classMedians.get(needs.class);
       if (med && med.n >= OUTLIER_MIN_SAMPLES && needs.budget > OUTLIER_RATIO * med.median) entry.priceOutlier = { classMedian: med.median, ratio: Math.round((needs.budget / med.median) * 10) / 10 };
       if (facts) {

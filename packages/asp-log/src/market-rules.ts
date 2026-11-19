@@ -3,6 +3,7 @@
  * and an assignment valid, and the facts about an agent the ranking reads. Called from `EventLog`; it keeps its state in markers, written inside the
  * append, so a refused record leaves none.
  */
+import { SERVICE_PRICE_MAX } from "./economy.ts";
 import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { bondFloorPermille, floorIsV2 } from "./bond-floor.ts";
 import { EMPTY_POSTER_RECORD, depositMultiplier, type PosterRecord, rotateAgents, MAX_OPEN_POSTINGS_TIER1, POSTING_BAR_DAYS, POSTING_BAR_REMOVALS, POSTING_HOLD_REPORTS, POSTING_REPORTS_PER_DAY, lawProblem, MARKET_DID, POSTING_DEPOSIT_SERVICE, CLASS_WEIGHT, JOB_CLASSES, classPriceProblem, eligibility, higherClass, rankAgents, type AgentFacts, type JobClass, type JobNeeds } from "./market.ts";
@@ -85,6 +86,14 @@ export async function projectMarketAct(tx: LogTx, r: AspRecord, env: MarketEnv):
     if (!intent || intent.record.type !== "asp.intent/v0.2") throw rule("posting_intent_unknown", `${b.intent} is not an intent in this log`);
     if (intent.record.issuer !== r.issuer) throw rule("posting_not_posters", `the intent ${b.intent} was signed by ${intent.record.issuer}: only its poster lists it`);
     if ((intent.record.body as { listed?: string }).listed === "private") throw rule("posting_private", "this intent is marked private: it is not listed on the board");
+    // The two boards are separate (DK660, S970; owner decision SB1): an in-society service goes only on the services board and a real-work job only on the main one; a service is at most SERVICE_PRICE_MAX credits.
+    {
+      const sb = intent.record.body as { service?: string; budget?: { value: number } };
+      const onServices = (b.board ?? "main") === "services";
+      if (onServices && !sb.service) throw rule("services_board_needs_service", "the services board lists in-society services only: the intent names a service (teaching, study_partner, peer_review, cohort_slot or drill)");
+      if (!onServices && sb.service) throw rule("service_on_wrong_board", "an in-society service is listed on the services board (board: services), not on the real-work job board");
+      if (onServices && (sb.budget?.value ?? 0) > SERVICE_PRICE_MAX) throw rule("service_price_cap", `an in-society service costs at most ${SERVICE_PRICE_MAX} credits (this one ${sb.budget?.value})`);
+    }
     const ib = intent.record.body as { purpose?: string; acceptance_criteria?: string[] };
     const unlawful = lawProblem(ib.purpose, ...(ib.acceptance_criteria ?? []));
     if (unlawful) throw rule("posting_unlawful", `${unlawful.message}: a job that breaks the Code is not listed (the poster may change the job and post again)`);
