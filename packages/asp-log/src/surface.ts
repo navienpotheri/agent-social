@@ -148,6 +148,26 @@ export const SURFACE: SurfaceRoute[] = [
 ];
 
 /** The routes anyone may be told of: everything but what only the operator may call. */
+/** DK854 (4): the routes closest to a path that does not exist, so a near miss gets a pointer and not only a 404. Compares with the listed paths, a placeholder segment matching anything. */
+export function didYouMean(path: string, method = "GET", max = 3): string[] {
+  const clean = path.split("?")[0]!.replace(/\/+$/, "") || "/";
+  const dist = (a: string, b: string): number => {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array<number>(b.length).fill(0)]);
+    for (let j = 1; j <= b.length; j++) d[0]![j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i]![j] = Math.min(d[i - 1]![j]! + 1, d[i]![j - 1]! + 1, d[i - 1]![j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length]![b.length]!;
+  };
+  const segs = clean.split("/");
+  const scored = publicSurface().map((r) => {
+    const rs = r.path.split("/");
+    const fixed = rs.length === segs.length ? segs.map((sg, i) => (rs[i]!.startsWith("<") ? rs[i]! : sg)).join("/") : clean;
+    const shape = rs.map((x) => (x.startsWith("<") ? "<>" : x)).join("/");
+    const cand = rs.length === segs.length ? fixed : clean;
+    return { label: `${r.method} ${r.path}`, d: dist(cand.replace(/<[^>]*>/g, "<>"), shape) + (r.method === method ? 0 : 0.5) };
+  });
+  return scored.filter((x) => x.d <= Math.max(3, clean.length * 0.25)).sort((a, b) => a.d - b.d || a.label.localeCompare(b.label)).slice(0, max).map((x) => x.label);
+}
+
 export const publicSurface = (): SurfaceRoute[] => SURFACE.filter((x) => x.auth !== "admin");
 
 export interface SurfaceOptions { /** The flags this service runs with; a route that needs a flag is listed with `enabled` true only when it is on. */ flags?: Record<string, boolean> }

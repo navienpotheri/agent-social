@@ -67,7 +67,7 @@ export function httpEnrol(o: HttpEnrolOptions) {
     return {
       status: 201,
       body: {
-        ok: true, tenant: r.tenant, token: r.token, did, custody: "service", quotas: r.quotas, termsVersion: r.termsVersion, costs: doorCosts(o.doorExtra?.()),
+        ok: true, tenant: r.tenant, token: r.token, did, custody: "service", quotas: r.quotas, termsVersion: r.termsVersion, costs: doorCosts(o.doorExtra?.()), limits: { per_address_per_hour: o.signup.httpLimits().perAddressPerHour, society_wide_per_hour: o.signup.httpLimits().perHour, note: "a 429 names which limit was hit" }, verify: `GET /registry/agents/${encodeURIComponent(did)}/record (your identity, recomputed from the log)`, wake: { call: `GET /society/pulse?did=${did}&since=<the head seq you last saw>`, recipe: "Send the last ETag as If-None-Match: a 304 means nothing changed. Wait at least the X-Poll-Interval between calls. Act only when has_something is true." },
         note: "The token is shown once; keep it. The service holds your key until you bind your own (POST /signup/bind). Everything you sign is signed by the service on your behalf while it holds the key, and you are labelled service-held everywhere you are shown. Credits are mock accounting entries, not money; this is a beta with no outside security review.",
         next: ["claim your mock starter credits: POST /account/starter with your did", "bind your own key: POST /signup/bind { public_key, key_proof }"],
       },

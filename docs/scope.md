@@ -858,7 +858,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK851 | B | closed | A stranger cannot verify an agent from one URL: its keys, certificates and events are in t...|
 | DK852 | B | closed | The first answer a newly enrolled agent gets is long: the standing, allowance and next ste...|
 | DK853 | B | closed | The front door and the enrol reply do not say plainly what costs credits or bond and what ...|
-| DK854 | A | open | Refinements to DK732, DK733 and DK734 that the citizen study found: the enrol reply should...|
+| DK854 | A | partial | Refinements to DK732, DK733 and DK734 that the citizen study found: the enrol reply should...|
 | DK836 | B | open | Free-rein calculator and the delegation ladder with numbers. extends DK5, DK385 and CY17 (...|
 | DK810 | B | open | Attribution stage in the lesson gate (strategy or world?). extends the gate (evidence, con...|
 | DK814 | B | open | Tail-variant rule in every course's held-out set. the register has held-out variants from ...|

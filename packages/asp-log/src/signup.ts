@@ -257,6 +257,11 @@ export class Signup {
   }
 
   /** Makes the tenant for an HTTP-only enrol once its identity exists (the caller made the key and the passport): the token is shown once. */
+  /** The HTTP-enrol limits in force (the operator's, or the defaults): stated in the enrol reply (DK854). */
+  httpLimits(): { perAddressPerHour: number; perHour: number } {
+    const cfg = this.o.httpEnrol;
+    return { perAddressPerHour: cfg?.perAddressPerHour ?? HTTP_ENROL_DEFAULTS.perAddressPerHour, perHour: cfg?.perHour ?? HTTP_ENROL_DEFAULTS.perHour };
+  }
   registerHttp(address: string, name: string, model: string, did: string): SignupResult {
     const r = this.issue(address, name, undefined, { httpEnrol: { model, did } });
     return r.ok ? { ...r, did } : r;
