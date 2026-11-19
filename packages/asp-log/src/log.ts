@@ -22,7 +22,7 @@ import {
 import { starterSpendOf, type StarterSpendReport } from "./starter-spend.ts";
 import { velocityOf, type VelocityReport } from "./velocity.ts";
 import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type StarterPoolState } from "./credit-audit.ts";
-import { bondFloorPermille, bondFloorV3, floorIsV2, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
+import { bondFloorPermille, bondFloorV3, floorIsV2, floorMeasuredActive, measuredTerms, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
 import { moveCommit } from "./game-moves.ts";
@@ -132,6 +132,8 @@ export interface EventLogOptions {
    * ran under `legacy` replays under `v2` with the same result everywhere (the rule reads the record's time, never the clock). Without it `v2` applies from the first record, as before: for a new log or a test. A log must be replayed with the same value.
    */
   bondFloorFrom?: string;
+  /** The time from which a bond's floor reads the decayed job count and the Clinic's measured terms (DK313, S1201). Default `FLOOR_MEASURED_FROM`. */
+  floorMeasuredFrom?: string;
   /** The time from which a record's panel is drawn by v2 (one seat for each funding source); before it, v1. Default `PANEL_DRAW_V2_FROM`. */
   panelV2From?: string;
   /**
@@ -237,6 +239,7 @@ export class EventLog {
 
   private readonly bondFloor: "legacy" | "v2" | "v3";
   private bondFloorFrom?: string;
+  private floorMeasuredFrom?: string;
   private tierBreadthFrom?: string;
   private configLoaded = false;
   private readonly panelV2From?: string;
@@ -256,6 +259,8 @@ export class EventLog {
     this.bondFloorFrom = opts.bondFloorFrom;
     if (opts.panelV2From !== undefined && !Number.isFinite(Date.parse(opts.panelV2From))) throw new Error(`panelV2From must be an ISO time, got ${opts.panelV2From}`);
     this.panelV2From = opts.panelV2From;
+    if (opts.floorMeasuredFrom !== undefined && !Number.isFinite(Date.parse(opts.floorMeasuredFrom))) throw new Error(`floorMeasuredFrom must be an ISO time, got ${opts.floorMeasuredFrom}`);
+    this.floorMeasuredFrom = opts.floorMeasuredFrom;
     this.operator = opts.operator;
     this.allowUnsignedMint = opts.allowUnsignedMint === true;
     this.owner = opts.owner;
@@ -263,7 +268,7 @@ export class EventLog {
 
   /** The options a replay needs to judge the same records the same way. */
   private replayOptions(): EventLogOptions {
-    return { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor, ...(this.bondFloorFrom ? { bondFloorFrom: this.bondFloorFrom } : {}), ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}), operator: this.operator, owner: this.owner };
+    return { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor, ...(this.bondFloorFrom ? { bondFloorFrom: this.bondFloorFrom } : {}), ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}), ...(this.floorMeasuredFrom ? { floorMeasuredFrom: this.floorMeasuredFrom } : {}), operator: this.operator, owner: this.owner };
   }
 
   append(raw: unknown): Promise<AppendResult> {
@@ -872,6 +877,24 @@ export class EventLog {
     if ((bond.record.body as { backer?: string }).backer !== passport.sponsor) throw rule("remedial_bond_backer", `the Bond under a remedial Mandate is backed by the agent's sponsor (${passport.sponsor}): a tier 0 agent cannot back its own`);
   }
 
+  /** The dated facts the measured terms read (DK313, S1201): the counted jobs with their weights and times, and the Clinic's measured checkups with the change in the held-out mean. */
+  private async measuredFloorTerms(tx: LogTx, backer: string, at: string): Promise<{ acceptedCleanJobs: number; verifiedImprovements: number; regressions: number; probation: boolean }> {
+    const feed = JSON.parse((await tx.getMarker(`qual_feed:${backer}`)) ?? "[]") as { at: string; weight: number }[];
+    const series = JSON.parse((await tx.getMarker(`checkup_series:${backer}`)) ?? "[]") as { at: string; delta: number | null }[];
+    return measuredTerms(feed, series, at, (await tx.getMarker(`retrained_at:${backer}`)) ?? undefined);
+  }
+
+  /** What the floor reads for an agent now (a read-only view of the recorded inputs, the measured terms included once they are active). */
+  async floorTerms(backer: string, at?: string): Promise<{ ownSlashes: number; fleetSlashes: number; recentStrikes: number; verifiedImprovements: number; acceptedCleanJobs: number; regressions: number; probation: boolean; measured: boolean }> {
+    const when = at ?? this.now().toISOString();
+    return this.store.transaction(async (tx) => {
+      const rep = (await this.reputation(tx, backer)) ?? { slashCount: 0, strikeLog: [] as StrikeEntry[], qualifyingJobs: 0 };
+      const measured = floorMeasuredActive(this.floorMeasuredFrom, when);
+      const terms = measured ? await this.measuredFloorTerms(tx, backer, when) : { acceptedCleanJobs: rep.qualifyingJobs, verifiedImprovements: 0, regressions: 0, probation: false };
+      return { ownSlashes: rep.slashCount, fleetSlashes: 0, recentStrikes: recentStrikes(rep.strikeLog, when), ...terms, measured };
+    });
+  }
+
   /**
    * The recorded inputs of the v3 floor for a backer and a contract at a time (DK43, S506): the v2 record (slashes, fleet slashes, strikes, accepted clean jobs), the valid certificates, the latest Clinic
    * diagnosis in the last 30 days, the class the Intent declared, and the scopes of the Mandate when it is known. Nothing here is a person's say-so.
@@ -898,7 +921,8 @@ export class EventLog {
     const intent = cb?.basis?.intent ? await tx.getRecord(cb.basis.intent) : undefined;
     const cls = (intent?.record.body as { class?: string } | undefined)?.class;
     const taskClass: TaskClass = cls === "trivial" || cls === "skilled" || cls === "critical" ? cls : "routine";
-    return { ownSlashes: rep.slashCount, fleetSlashes, recentStrikes: strikes, verifiedImprovements: 0, acceptedCleanJobs: rep.qualifyingJobs, regressions: 0, certificates, drift, taskClass, scopes };
+    const terms = floorMeasuredActive(this.floorMeasuredFrom, at) ? await this.measuredFloorTerms(tx, backer, at) : { acceptedCleanJobs: rep.qualifyingJobs, verifiedImprovements: 0, regressions: 0 };
+    return { ownSlashes: rep.slashCount, fleetSlashes, recentStrikes: strikes, ...terms, certificates, drift, taskClass, scopes };
   }
 
   /** The threat matrix at the Mandate (DK43, S506): under floor v3 the bond locked for the job must cover the floor that the Mandate's own scopes imply; the Bond came first, so this is checked when the Mandate arrives. */
@@ -1100,7 +1124,7 @@ export class EventLog {
       const riskFloorPermille = floorIsV2(this.bondFloor, this.bondFloorFrom, r.issued_at) && this.bondFloor === "v3"
         ? bondFloorV3(await this.floorInputsV3(tx, body.backer, body.contract, r.issued_at, []))
         : floorIsV2(this.bondFloor, this.bondFloorFrom, r.issued_at)
-        ? bondFloorPermille({ ownSlashes: backerRep.slashCount, fleetSlashes, recentStrikes: strikes, verifiedImprovements: 0, acceptedCleanJobs: backerRep.qualifyingJobs, regressions: 0 })
+        ? bondFloorPermille({ ownSlashes: backerRep.slashCount, fleetSlashes, recentStrikes: strikes, ...(floorMeasuredActive(this.floorMeasuredFrom, r.issued_at) ? await this.measuredFloorTerms(tx, body.backer, r.issued_at) : { verifiedImprovements: 0, acceptedCleanJobs: backerRep.qualifyingJobs, regressions: 0 }) })
         : Math.min(1000, backerRep.slashCount * RISK_PERMILLE_PER_OWN_SLASH + fleetSlashes * RISK_PERMILLE_PER_FLEET_SLASH + strikePermille);
       if (riskFloorPermille > 0) {
         const contract = await tx.getRecord(body.contract);
@@ -2534,6 +2558,7 @@ export class EventLog {
     if (Date.parse(v.record.issued_at) <= Date.parse(slashed)) throw rule("retraining_revouch_before_slash", "the sponsor's re-vouching must come after the slash");
     await this.saveReputation(tx, b.agent, { ...rep, tier: 1 });
     await tx.putMarker(`retrained:${b.agent}`, String(retrained + 1));
+    await tx.putMarker(`retrained_at:${b.agent}`, r.issued_at); // the probation of the bond floor starts here (DK313, S1201)
   }
 
   /**
@@ -2671,6 +2696,12 @@ export class EventLog {
     await tx.putMarker(`runlog_used:${b.run_log_hash}`, "used");
     await tx.putMarker(`checkup_done:${b.order}`, r.id);
     await tx.putMarker(`checkup_last:${b.agent}`, r.id);
+    // The Clinic's measure for the bond floor (DK313, S1201): a measured result (a gateway observed the run) adds its held-out mean and its change from the measured result before it.
+    if (flag !== "unmeasured") {
+      const series = JSON.parse((await tx.getMarker(`checkup_series:${b.agent}`)) ?? "[]") as { at: string; id: string; heldout: number; delta: number | null }[];
+      const prev = series.at(-1);
+      await tx.putMarker(`checkup_series:${b.agent}`, JSON.stringify([...series, { at: r.issued_at, id: r.id, heldout: Math.round(heldout), delta: prev ? Math.round(heldout) - prev.heldout : null }].slice(-40)));
+    }
   }
 
   /** A receipt (credits.md 4.3): the purchase's institution closes it; a refund comes back by the split in reverse and never includes the burned part. */

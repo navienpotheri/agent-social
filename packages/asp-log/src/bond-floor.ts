@@ -14,6 +14,8 @@ export interface FloorRecord {
   acceptedCleanJobs: number;
   /** Lineage edges in the last 30 days whose canary replay was worse than the edge before. */
   regressions: number;
+  /** On probation after the Clinic returned the agent from tier 0 (DK313, S1201): the floor carries FLOOR_PROBATION.surchargePermille. Absent for every record that is not. */
+  probation?: boolean;
 }
 
 export interface FloorParams {
@@ -42,7 +44,7 @@ export function legacyFloorPermille(r: Pick<FloorRecord, "ownSlashes" | "fleetSl
 /** The floor in permille of the price: the bond must be at least ceil(price * floor / 1000). */
 export function bondFloorPermille(r: FloorRecord, p: FloorParams = DEFAULT_FLOOR): number {
   const credit = Math.min(p.gainCap, r.verifiedImprovements * p.gain) + Math.min(p.tenureCap, r.acceptedCleanJobs * p.tenure);
-  const penalty = legacyFloorPermille(r, p) + r.regressions * p.perRegression;
+  const penalty = legacyFloorPermille(r, p) + r.regressions * p.perRegression + (r.probation ? FLOOR_PROBATION.surchargePermille : 0);
   return Math.max(p.min, Math.min(1000, p.base - credit + penalty));
 }
 
@@ -104,4 +106,33 @@ export function bondFloorV3(i: FloorInputsV3, p: FloorParams = DEFAULT_FLOOR): n
   const adjusted = Math.max(p.min, v2 - certCredit + drift);
   const classed = Math.round((adjusted * FLOOR_TABLE.classPermille[i.taskClass]) / 1000);
   return Math.max(p.min, Math.min(1000, classed + threatPermille(i.scopes)));
+}
+
+// ---- The measured terms and the decay (register row DK313; spec-delta S1201; owner decision DK313-MEASURE in docs/owner-decisions.md) ----
+
+/** From this time a bond's floor reads the decayed job count and the Clinic's measured terms (an `EventLog` takes `floorMeasuredFrom` to move it). A bond issued before it is checked as before, always, so a log replays unchanged. */
+export const FLOOR_MEASURED_FROM = "2026-12-15T00:00:00Z";
+/** An accepted clean job counts in full for `fullDays`, then less and less, and not at all from `endDays`. */
+export const FLOOR_DECAY = { fullDays: 90, endDays: 270 } as const;
+/** The Clinic's checkup results (held-out rates the Clinic signed) are the measure: a held-out mean `marginPermille` above the checkup before is a verified improvement (decayed like a job), and one that far below it in the last `regressionWindowDays` days is a regression. */
+/** The probation after a return from tier 0 (the Clinic's retraining release, DK29): for `days` the floor carries a surcharge, and only jobs and improvements made after the return count. Owner decision DK313-MEASURE. */
+export const FLOOR_PROBATION = { days: 60, surchargePermille: 150 } as const;
+export const FLOOR_MEASURE = { marginPermille: 100, regressionWindowDays: 30 } as const;
+/** How much of its credit a job or improvement of this age (in days) still carries. */
+export const decayWeight = (ageDays: number): number => (ageDays <= FLOOR_DECAY.fullDays ? 1 : ageDays >= FLOOR_DECAY.endDays ? 0 : (FLOOR_DECAY.endDays - ageDays) / (FLOOR_DECAY.endDays - FLOOR_DECAY.fullDays));
+export const floorMeasuredActive = (from: string | undefined, issuedAt: string): boolean => Date.parse(issuedAt) >= Date.parse(from ?? FLOOR_MEASURED_FROM);
+
+/** The three inputs the measured terms change, from the dated facts: counted jobs (a weight and a time each) and the Clinic's checkup series (a held-out mean and its change from the one before). */
+export function measuredTerms(jobs: { at: string; weight: number }[], series: { at: string; delta: number | null }[], at: string, returnedAt?: string): { acceptedCleanJobs: number; verifiedImprovements: number; regressions: number; probation: boolean } {
+  const probation = !!returnedAt && Date.parse(at) - Date.parse(returnedAt) <= FLOOR_PROBATION.days * 86_400_000;
+  if (probation) { jobs = jobs.filter((j) => Date.parse(j.at) > Date.parse(returnedAt!)); series = series.filter((c) => Date.parse(c.at) > Date.parse(returnedAt!) || (c.delta !== null && c.delta < 0)); }
+  const age = (t: string) => (Date.parse(at) - Date.parse(t)) / 86_400_000;
+  const before = (t: string) => Date.parse(t) <= Date.parse(at);
+  const round = (x: number) => Math.round(x * 1000) / 1000;
+  return {
+    acceptedCleanJobs: round(jobs.filter((j) => before(j.at)).reduce((n, j) => n + j.weight * decayWeight(age(j.at)), 0)),
+    verifiedImprovements: round(series.filter((c) => before(c.at) && c.delta !== null && c.delta >= FLOOR_MEASURE.marginPermille).reduce((n, c) => n + decayWeight(age(c.at)), 0)),
+    regressions: series.filter((c) => before(c.at) && c.delta !== null && c.delta <= -FLOOR_MEASURE.marginPermille && age(c.at) <= FLOOR_MEASURE.regressionWindowDays).length,
+    probation,
+  };
 }
