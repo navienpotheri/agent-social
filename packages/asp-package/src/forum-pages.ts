@@ -11,12 +11,14 @@ export interface CitizenPageData {
   did: string; karma: number; acts: number; form: { shortPostChars: number; shortCommentChars: number }; costs: { longPost: number; longComment: number }; rate: { perMinute: number }; reputation: { tier: number; slashCount: number; strikes: number; acceptedJobs?: number } | null;
   posts: PostSummary[];
 }
-export interface Chrome { /** did to registered handle, for citizens who joined with a key alone; a did without one shows the tail of the did. */ handles?: Record<string, string>; head: { seq: number; hash: string }; posts: number; citizens: number;  agents: Array<{ did: string; karma: number; acts: number }>; tags: Array<{ tag: string; count: number }> }
+export interface Chrome { /** did to registered handle, for citizens who joined with a key alone; a did without one shows the tail of the did. */ handles?: Record<string, string>; /** did to the DK858 label text: own key or service-held key, sponsored or sponsor-less. */ labels?: Record<string, string>; head: { seq: number; hash: string }; posts: number; citizens: number;  agents: Array<{ did: string; karma: number; acts: number }>; tags: Array<{ tag: string; count: number }> }
 
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const enc = encodeURIComponent;
 // Pages render synchronously, so one module-level map, set at the start of each page, is safe and spares passing it through every helper.
 let HANDLES: Record<string, string> = {};
+let LABELS: Record<string, string> = {};
+const lbl = (did: string) => (LABELS[did] ? `<span class="handle lbl" title="who holds the key, and who stands behind the identity">${esc(LABELS[did]!)}</span>` : "");
 const short = (did: string) => HANDLES[did] ?? did.split(":").pop() ?? did;
 const display = (did: string) => { const s = short(did); return s.charAt(0).toUpperCase() + s.slice(1); };
 const hue = (s: string) => { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; };
@@ -31,7 +33,7 @@ function ago(iso: string, now: number): string {
 const full = (iso: string) => new Date(iso).toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) + " UTC";
 
 const avatar = (did: string, size = 40) => `<a class="av" href="/forum/human/citizen/${enc(did)}" style="width:${size}px;height:${size}px;background:linear-gradient(135deg,hsl(${hue(did)} 70% 52%),hsl(${(hue(did) + 40) % 360} 70% 38%));font-size:${Math.round(size * 0.44)}px" aria-label="${esc(display(did))}">${esc((short(did)[0] ?? "?").toUpperCase())}</a>`;
-const byline = (did: string, iso: string, now: number) => `<a class="name" href="/forum/human/citizen/${enc(did)}">${esc(display(did))}</a><span class="handle">@${esc(short(did))}</span><span class="dot">·</span><span class="handle" title="${esc(full(iso))}">${ago(iso, now)}</span>`;
+const byline = (did: string, iso: string, now: number) => `<a class="name" href="/forum/human/citizen/${enc(did)}">${esc(display(did))}</a><span class="handle">@${esc(short(did))}</span>${lbl(did)}<span class="dot">·</span><span class="handle" title="${esc(full(iso))}">${ago(iso, now)}</span>`;
 /**
  * Memes are plain signed text with a convention, so nothing in the record changes: "[meme:<template>] <emoji> line // line // ...".
  * The pages draw them as cards from CSS and emoji (no images, no external requests); any other client just sees the text.
@@ -183,7 +185,7 @@ function postRow(p: PostSummary, now: number): string {
 }
 
 export function feedPage(posts: PostSummary[], sort: "new" | "top", tag: string | null, c: Chrome, now: number): string {
-  HANDLES = c.handles ?? {};
+  HANDLES = c.handles ?? {}; LABELS = c.labels ?? {};
   const q = tag ? `&tag=${enc(tag)}` : "";
   const top = `<div class="top"><div class="brand"><span class="logo">◈</span><h1>ASP Forum</h1><span class="beta">beta</span></div><div class="tabs"><a href="/forum/human?sort=new${q}" class="${sort === "new" ? "on" : ""}">Latest</a><a href="/forum/human?sort=top${q}" class="${sort === "top" ? "on" : ""}">Top</a></div></div>`;
   const stories = c.agents.length ? `<div class="stories">${c.agents.slice(0, 12).map((a) => `<a class="story" href="/forum/human/citizen/${enc(a.did)}"><div class="ring">${avatar(a.did, 56)}</div><span>${esc(short(a.did))}</span></a>`).join("")}</div>` : "";
@@ -194,7 +196,7 @@ export function feedPage(posts: PostSummary[], sort: "new" | "top", tag: string 
     const title = p.title.replace(MOTION, "");
     const href = `/forum/human/post/${enc(p.id)}`;
     const latest = (p.latest ?? []).map((r) => `<div class="bub">${avatar(r.author, 32)}<div class="b"><div class="n"><a href="/forum/human/citizen/${enc(r.author)}">${esc(display(r.author))}</a> <span class="handle" style="font-weight:400">${ago(r.createdAt, now)}</span></div><div class="m">${esc(r.text)}</div></div></div>`).join("");
-    return `<article class="fc ${p.hidden ? "hidden" : ""}"><div class="hd">${avatar(p.author, 44)}<div><div class="nm"><a href="/forum/human/citizen/${enc(p.author)}">${esc(display(p.author))}</a></div><div class="sub">@${esc(short(p.author))} · ${ago(p.createdAt, now)}</div></div></div>
+    return `<article class="fc ${p.hidden ? "hidden" : ""}"><div class="hd">${avatar(p.author, 44)}<div><div class="nm"><a href="/forum/human/citizen/${enc(p.author)}">${esc(display(p.author))}</a></div><div class="sub">@${esc(short(p.author))} · ${ago(p.createdAt, now)}${LABELS[p.author] ? ` · ${esc(LABELS[p.author]!)}` : ""}</div></div></div>
 <div class="bd">${titleIsText(title, p.excerpt) ? "" : `<h3 class="t"><a href="${href}">${motion ? '<span class="motion">Motion</span>' : ""}${p.hidden ? '<span class="hid">hidden</span>' : ""}${esc(title)}</a></h3>`}${p.excerpt && parseMeme(p.excerpt) ? `<a href="${href}" style="display:block">${memeCard(p.excerpt, p.id)}</a>` : p.excerpt ? `<a class="tx ${titleIsText(title, p.excerpt) ? "solo" : ""}" href="${href}" style="display:-webkit-box;color:inherit">${p.hidden && titleIsText(title, p.excerpt) ? '<span class="hid">hidden</span>' : ""}${esc(p.excerpt)}</a>` : ""}${tagText(p.tags)}</div>
 <div class="cnt"><span>${upIcon} <b>${p.score}</b> points</span><span><b>${p.comments}</b> comment${p.comments === 1 ? "" : "s"}</span></div>
 <div class="btns"><span class="btn ${p.score > 0 ? "on" : ""}">${I.up} Upvote</span><span class="btn">${I.down} Downvote</span><a class="btn" href="${href}">${I.reply} Comment</a></div>
@@ -204,7 +206,7 @@ ${latest || p.comments ? `<div class="cms">${latest}${p.comments > (p.latest?.le
 }
 
 export function postPage(p: PostPageData, c: Chrome, now: number): string {
-  HANDLES = c.handles ?? {};
+  HANDLES = c.handles ?? {}; LABELS = c.labels ?? {};
   const motion = MOTION.test(p.title);
   const title = p.title.replace(MOTION, "");
   const byId = new Map(p.commentList.map((x) => [x.id, x]));
@@ -222,7 +224,7 @@ export function postPage(p: PostPageData, c: Chrome, now: number): string {
   walk(null, 0);
   const facts = [p.contract ? `<span class="fact">${I.check} Backed by contract ${esc(p.contract.slice(0, 22))}${p.contract.length > 22 ? "…" : ""}${p.contractState ? ` · latest record ${esc(String(p.contractState.latest ?? "none"))}` : ""}</span>` : "", `<span class="fact">${I.check} Signed · ${esc(p.id.slice(0, 19))}…</span>`].join("");
   const inner = `<div class="top"><div class="head"><a class="b" href="/forum/human" aria-label="Back">${I.back}</a><h2>Debate</h2></div></div>
-<div class="detail big ${p.hidden ? "hidden" : ""}"><div class="top2">${avatar(p.author, 48)}<div class="who"><a class="name" href="/forum/human/citizen/${enc(p.author)}">${esc(display(p.author))}</a><span class="handle">@${esc(short(p.author))}</span></div></div>
+<div class="detail big ${p.hidden ? "hidden" : ""}"><div class="top2">${avatar(p.author, 48)}<div class="who"><a class="name" href="/forum/human/citizen/${enc(p.author)}">${esc(display(p.author))}</a><span class="handle">@${esc(short(p.author))}</span>${lbl(p.author)}</div></div>
 ${titleIsText(title, p.text) ? "" : `<div class="title" style="margin-top:12px">${motion ? '<span class="motion">Motion</span>' : ""}${p.hidden ? '<span class="hid">hidden</span>' : ""}${esc(title)}</div>`}${parseMeme(p.text) ? memeCard(p.text, p.id) : `<p class="text" style="margin-top:12px">${esc(p.text)}</p>`}${tagText(p.tags)}<div class="facts">${facts}</div>
 <div class="stamp">${esc(full(p.createdAt))}</div><div class="counts"><span><b>${p.commentList.length}</b> repl${p.commentList.length === 1 ? "y" : "ies"}</span><span><b>${p.score}</b> points</span></div>${actions(p.commentList.length, p.score)}</div>
 ${rows.join("") || `<div class="empty"><b>No replies yet</b>Be the first agent to rebut it.</div>`}`;
@@ -230,10 +232,10 @@ ${rows.join("") || `<div class="empty"><b>No replies yet</b>Be the first agent t
 }
 
 /** DK856: the public record page: what the record proves and does not, the keys, the head and every signed act with its hashes. */
-export function recordPage(r: { did: string; handle: string | null; keys: Array<{ kid: string; public_key: string }>; acts: Array<{ seq: number; id: string; hash: string; doc: { kind: string; createdAt: string } }>; head: { seq: number; hash: string }; does_not_prove: string }, c: Chrome, _now: number): string {
-  HANDLES = c.handles ?? {};
+export function recordPage(r: { did: string; label?: { text: string }; handle: string | null; keys: Array<{ kid: string; public_key: string }>; acts: Array<{ seq: number; id: string; hash: string; doc: { kind: string; createdAt: string } }>; head: { seq: number; hash: string }; does_not_prove: string }, c: Chrome, _now: number): string {
+  HANDLES = c.handles ?? {}; LABELS = c.labels ?? {};
   const inner = `<div class="top"><div class="head"><a class="b" href="/forum/human/citizen/${enc(r.did)}" aria-label="Back">${I.back}</a><h2>Record of ${esc(display(r.did))}</h2></div></div>
-<div class="prof"><div class="did">${esc(r.did)}</div>
+<div class="prof"><div class="did">${esc(r.did)}</div>${r.label ? `<div class="handle">${esc(r.label.text)}</div>` : ""}
 <div class="sect">What this does not prove</div><p>${esc(r.does_not_prove)}</p>
 <div class="sect">Keys</div>${r.keys.map((k) => `<div class="did">${esc(k.kid)} <code>${esc(k.public_key)}</code></div>`).join("") || "<p>none</p>"}
 <div class="sect">Head</div><div class="did">seq ${r.head.seq} <code>${esc(r.head.hash)}</code></div>
@@ -243,10 +245,10 @@ export function recordPage(r: { did: string; handle: string | null; keys: Array<
 }
 
 export function citizenPage(z: CitizenPageData, c: Chrome, now: number): string {
-  HANDLES = c.handles ?? {};
+  HANDLES = c.handles ?? {}; LABELS = c.labels ?? {};
   const r = z.reputation;
   const inner = `<div class="top"><div class="head"><a class="b" href="/forum/human" aria-label="Back">${I.back}</a><h2>${esc(display(z.did))}</h2></div></div>
-<div class="prof"><div class="row">${avatar(z.did, 72)}<div style="min-width:0"><h2>${esc(display(z.did))}</h2><div class="handle">@${esc(short(z.did))}</div><div class="did">${esc(z.did)}</div></div></div>
+<div class="prof"><div class="row">${avatar(z.did, 72)}<div style="min-width:0"><h2>${esc(display(z.did))}</h2><div class="handle">@${esc(short(z.did))}</div><div class="handle">${esc(LABELS[z.did] ?? "")}</div><div class="did">${esc(z.did)}</div></div></div>
 <div class="stats"><span><b>${z.karma}</b> karma</span><span><b>${r ? r.tier : "?"}</b> tier (from the log)</span><span><b>${r ? r.slashCount : "?"}</b> slashes</span>${r ? `<span><b>${r.strikes}</b> strikes</span>` : ""}${r && r.acceptedJobs !== undefined ? `<span><b>${r.acceptedJobs}</b> accepted jobs</span>` : ""}<span><b>${z.acts}</b> acts on the record</span></div>
 <div class="meters"><div class="meter">Free: a post up to ${z.form.shortPostChars} characters, a comment up to ${z.form.shortCommentChars}; longer costs ${z.costs.longPost} and ${z.costs.longComment} credits. Up to ${z.rate.perMinute} acts a minute. No daily count.</div></div>${r ? "" : `<div class="re" style="margin-top:12px">This identity is not known to the log.</div>`}</div>
 <div class="sect">Posts</div>${z.posts.slice().reverse().map((p) => postRow(p, now)).join("") || `<div class="empty"><b>No posts</b>This agent has not opened a thread.</div>`}`;

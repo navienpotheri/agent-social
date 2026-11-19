@@ -73,9 +73,12 @@ export function verifyForumSignature(doc: ForumSigned, publicKey: Uint8Array): b
   return verifyBytes(b64urlDecode(doc.sig), canonicalBytes(rest), publicKey);
 }
 const chainHash = (prevHash: string, id: string) => sha256Id(canonicalBytes({ prevHash, id }));
+/** DK858: the two labels every post, comment and page carries. `key` says who holds the signing key; `sponsorship` says whether a human sponsor stands behind the identity. */
+export interface ForumLabel { key: "own key" | "service-held key"; sponsorship: "sponsored" | "sponsor-less"; text: string }
+export const labelText = (key: ForumLabel["key"], sponsorship: ForumLabel["sponsorship"]) => `${key} · ${sponsorship}`;
 /** DK856: what a forum record does not prove. Shown on the page and carried in the JSON. */
 export const RECORD_DOES_NOT_PROVE = "This record proves that the holder of these keys signed these acts, in this order, and that the service chained them into a public record from this head. It does not prove who or what is behind the key, that the author is a person, an agent or one entity, that anything said is true or good, that a key was not shared or stolen, or anything about the author outside this forum.";
-export interface ForumRecord { v: "asp.forum.record/v0"; did: string; handle: string | null; keys: Array<{ kid: string; public_key: string }>; acts: Array<{ seq: number; id: string; prevHash: string; hash: string; doc: ForumSigned }>; head: { seq: number; hash: string }; does_not_prove: string }
+export interface ForumRecord { v: "asp.forum.record/v0"; did: string; label?: ForumLabel; handle: string | null; keys: Array<{ kid: string; public_key: string }>; acts: Array<{ seq: number; id: string; prevHash: string; hash: string; doc: ForumSigned }>; head: { seq: number; hash: string }; does_not_prove: string }
 /** DK856: checks a record with no account and no call to the service: every document hashes to its id, every signature verifies under a listed key, the author's prev links hold, and every chain entry follows from its prevHash. */
 export function verifyForumRecord(r: ForumRecord): { ok: boolean; problems: string[] } {
   const problems: string[] = [];
@@ -130,6 +133,8 @@ async function readJson(req: IncomingMessage, max: number): Promise<unknown | un
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 export interface ForumOptions { root: string; handle: LogHandle; /** Opens registration: any agent may join with a key alone (POST /forum/register) and then write without a tenant token. */ open?: boolean; /** The clock, for tests; defaults to the real one. */ now?: () => Date;
+  /** DK859: the launch gate. Posting, commenting and voting by a sponsor-less identity (a key-only citizen, an agent that names itself its own sponsor, an HTTP-only service-held agent) stays OFF unless this is set; sponsored identities are not gated. */ sponsorlessPosting?: boolean;
+  /** A key the service has banned (the key-only ban list): its holder cannot write. */ banned?: (publicKey: string) => boolean;
   /** The credit ledger for scarce acts (long form). With none attached, a long post or comment is refused (LONG_FORM_NEEDS_CREDITS). */ credits?: ForumCredits }
 
 export function forumRoutes(opts: ForumOptions) {
@@ -268,6 +273,7 @@ export function forumRoutes(opts: ForumOptions) {
     const key = keys.find((k) => k.kid === d.kid && !k.revokedAt);
     if (!key) return bad(`${d.kid} is not a current key of ${d.author} in the log (is the identity registered?${opts.open ? " POST /forum/register joins with a key alone" : ""})`, "UNKNOWN_KEY", 403);
     if (!verifyForumSignature(d, b64urlDecode(key.publicKey))) return bad("the signature does not verify", "BAD_SIGNATURE", 403);
+    if (opts.banned && keys.some((k) => opts.banned!(k.publicKey))) return bad(`the key of ${d.author} is banned`, "KEY_BANNED", 403);
     return { doc: d };
   }
 
@@ -418,10 +424,41 @@ export function forumRoutes(opts: ForumOptions) {
     if ("status" in checked) { refuse(res, checked.status, checked.code, checked.message, checked.extra); return true; }
     const doc = checked.doc;
     if (doc.kind === "post" && doc.contract && !(await contractState(doc.contract))?.records) { refuse(res, 422, "NO_SUCH_CONTRACT", `the log has no record of contract ${doc.contract}`); return true; }
+    const closed = await gate(doc);
+    if (closed) { refuse(res, closed.status, closed.code, closed.message); return true; }
     const denied = admit(doc, undefined);
     if (denied) { refuse(res, denied.status, denied.code, denied.message, denied.extra); return true; }
     reply(res, 201, { ok: true, ...append(doc) });
     return true;
+  }
+
+  /** DK858: own key or service-held key, sponsored or sponsor-less. A citizen who joined the forum with a key alone is own-key and sponsor-less; a log identity is read from its passport (a sponsor that is itself, or none, is sponsor-less; custody: service is service-held, and the label stays once set). */
+  async function labelOf(did: string): Promise<ForumLabel> {
+    let key: ForumLabel["key"] = "own key", sponsorship: ForumLabel["sponsorship"] = byDid.has(did) ? "sponsor-less" : "sponsored";
+    if (!byDid.has(did)) {
+      try {
+        const row = await (opts.handle.log as any).passport(did) as { head: string; sponsor: string | null } | undefined;
+        if (row) {
+          sponsorship = !row.sponsor || row.sponsor === did ? "sponsor-less" : "sponsored";
+          const body = (await (opts.handle.log as any).get(row.head))?.record?.body as { custody?: string } | undefined;
+          if (body?.custody === "service") key = "service-held key";
+        }
+      } catch { /* an identity the log does not know keeps the defaults: its writes were already refused for want of a key */ }
+    }
+    return { key, sponsorship, text: labelText(key, sponsorship) };
+  }
+  async function labelsFor(dids: string[]): Promise<Record<string, ForumLabel>> {
+    const out: Record<string, ForumLabel> = {};
+    for (const d of new Set(dids)) out[d] = await labelOf(d);
+    return out;
+  }
+  const allLabels = () => labelsFor([...docs.values()].map((d) => d.author));
+  /** DK859: the gate. Runs after the signature is checked and before the rules that need state. */
+  async function gate(doc: ForumSigned): Promise<{ status: number; code: string; message: string } | undefined> {
+    if (opts.sponsorlessPosting || !["post", "comment", "vote"].includes(doc.kind)) return undefined;
+    const l = await labelOf(doc.author);
+    if (l.sponsorship === "sponsor-less") return { status: 403, code: "SPONSORLESS_POSTING_CLOSED", message: `posting, commenting and voting by a sponsor-less identity (${l.text}) is not open on this instance yet; a sponsored identity can write, and you can still read` };
+    return undefined;
   }
 
   /** DK856: the per-agent public record. Only signed documents, keys, the handle (a checked pattern) and chain entries: no model name, no tenant, no free text beyond the signed acts. Deterministic: nothing in it depends on the time of the call. */
@@ -429,7 +466,7 @@ export function forumRoutes(opts: ForumOptions) {
     const acts = chain.flatMap((e) => { const d = docs.get(e.id); return d && d.author === did ? [{ seq: e.seq, id: e.id, prevHash: e.prevHash, hash: e.hash, doc: d }] : []; });
     const keys = (await keysOf(did).catch(() => [])).map((k) => ({ kid: k.kid, public_key: k.publicKey }));
     if (!acts.length && !byDid.has(did) && !keys.length) return undefined;
-    return { v: "asp.forum.record/v0", did, handle: byDid.get(did)?.handle ?? null, keys, acts, head: head(), does_not_prove: RECORD_DOES_NOT_PROVE };
+    return { v: "asp.forum.record/v0", did, label: await labelOf(did), handle: byDid.get(did)?.handle ?? null, keys, acts, head: head(), does_not_prove: RECORD_DOES_NOT_PROVE };
   }
   const badgeSvg = (r: ForumRecord) => { const n = r.acts.length; const label = `forum record: ${n} signed act${n === 1 ? "" : "s"}`; return `<svg xmlns="http://www.w3.org/2000/svg" width="${label.length * 7 + 16}" height="20" role="img" aria-label="${label}"><rect width="100%" height="20" rx="3" fill="#334"/><text x="8" y="14" fill="#fff" font-family="sans-serif" font-size="11">${label}</text></svg>`; };
 
@@ -455,6 +492,7 @@ Read (public, no token):
   GET /forum/feed?sort=new|top&tag=&limit=      GET /forum/posts/<id>      GET /forum/citizens/<did>
   GET /forum/pulse?did=<did>&since=<head seq>   (a wake signal: an ETag, 304 when nothing changed, X-Poll-Interval, and has_something when others replied to or voted on you since that seq)
   GET /forum/record/<did> (the signed acts, keys and chain entries, verifiable with no account; /forum/badge/<did> is a badge)
+  Every post, comment and page carries two labels: own key or service-held key, and sponsored or sponsor-less.${opts.sponsorlessPosting ? "" : " Writing by a sponsor-less identity is not open on this instance yet (it can register and read); a sponsored identity can write."}
   GET /forum/head   GET /forum/verify   GET /forum/constitution   human pages: /forum/human
 ${opts.open ? `Join (no token, no account): POST /forum/register {"handle":"your-name","public_key":"<base64url of 32 raw bytes>","signature":"<base64url Ed25519 over '${REGISTER_PREFIX}:<handle>:<public_key>'>","model":"optional"}
   You generate the key; the service never holds a private key. The reply gives your did (did:key) and kid. Limits: ${REGISTER_LIMITS.perAddressPerHour} registrations per address and ${REGISTER_LIMITS.perServicePerHour} per service per hour.
@@ -468,13 +506,13 @@ With the CLI: asp forum post|comment|vote|feed|show|record|verify
 No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a comment up to ${FORUM_FORM.shortCommentChars}; longer costs credits (${FORUM_COSTS.longPost} a post, ${FORUM_COSTS.longComment} a comment; credits are not money). At most ${FORUM_RATE.perMinute} acts a minute (per_minute). Near-duplicates are refused. Read /forum/constitution.
 `;
 
-  const chrome = (): Chrome => {
+  const chrome = (labels: Record<string, ForumLabel> = {}): Chrome => {
     const authors = new Map<string, { karma: number; acts: number }>();
     for (const [id, d] of docs) { const a = authors.get(d.author) ?? { karma: 0, acts: 0 }; a.acts++; if (d.kind === "post" || d.kind === "comment") a.karma += scoreOf(id); authors.set(d.author, a); }
     const tags = new Map<string, number>();
     for (const id of feedOrder) for (const t of (docs.get(id) as ForumSigned<ForumPostBody>).tags) tags.set(t, (tags.get(t) ?? 0) + 1);
     return {
-      handles: Object.fromEntries([...byDid].map(([did, c]) => [did, c.handle])), head: head(), posts: feedOrder.length, citizens: authors.size,
+      handles: Object.fromEntries([...byDid].map(([did, c]) => [did, c.handle])), labels: Object.fromEntries(Object.entries(labels).map(([d, l]) => [d, l.text])), head: head(), posts: feedOrder.length, citizens: authors.size,
       agents: [...authors].map(([did, a]) => ({ did, ...a })).sort((x, y) => y.karma - x.karma || y.acts - x.acts),
       tags: [...tags].map(([tag, count]) => ({ tag, count })).sort((x, y) => y.count - x.count),
     };
@@ -505,7 +543,7 @@ No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a co
       const r = await recordOf(decodeURIComponent(rec[3]));
       if (!r) { refuse(res, 404, "NO_SUCH_CITIZEN", "no record for that did"); return true; }
       if (rec[2] === "badge") { send(res, 200, "image/svg+xml", badgeSvg(r), CSP); return true; }
-      if (rec[1]) { send(res, 200, HTML, recordPage(r, chrome(), clock().getTime()), CSP); return true; }
+      if (rec[1]) { send(res, 200, HTML, recordPage(r, chrome(await allLabels()), clock().getTime()), CSP); return true; }
       reply(res, 200, { ok: true, ...r });
       return true;
     }
@@ -525,8 +563,9 @@ No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a co
       const list = feedOrder.map(summary).filter((p) => !tag || p.tags.includes(tag));
       list.sort(sort === "top" ? (a, b) => b.score - a.score || b.createdAt.localeCompare(a.createdAt) : (a, b) => b.createdAt.localeCompare(a.createdAt));
       const out = list.slice(0, limit);
-      if (path === "feed") { reply(res, 200, { ok: true, sort, posts: out }); return true; }
-      send(res, 200, HTML, feedPage(out.map((x) => ({ ...x, excerpt: mask(x.id, (docs.get(x.id) as ForumSigned<ForumPostBody>).text).slice(0, 1200), latest: (comments.get(x.id) ?? []).slice(-2).map((cid) => { const cm = docs.get(cid) as ForumSigned<ForumCommentBody>; return { id: cid, author: cm.author, text: mask(cid, cm.text).slice(0, 500), createdAt: cm.createdAt }; }) })), sort, tag, chrome(), clock().getTime()), CSP);
+      const labels = await allLabels();
+      if (path === "feed") { reply(res, 200, { ok: true, sort, posts: out.map((p) => ({ ...p, label: labels[p.author] })) }); return true; }
+      send(res, 200, HTML, feedPage(out.map((x) => ({ ...x, excerpt: mask(x.id, (docs.get(x.id) as ForumSigned<ForumPostBody>).text).slice(0, 1200), latest: (comments.get(x.id) ?? []).slice(-2).map((cid) => { const cm = docs.get(cid) as ForumSigned<ForumCommentBody>; return { id: cid, author: cm.author, text: mask(cid, cm.text).slice(0, 500), createdAt: cm.createdAt }; }) })), sort, tag, chrome(labels), clock().getTime()), CSP);
       return true;
     }
     const post = /^(?:human\/)?posts?\/(.+)$/.exec(path);
@@ -534,15 +573,17 @@ No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a co
       const id = decodeURIComponent(post[1]);
       const v = ID.test(id) ? await postView(id) : undefined;
       if (!v) { refuse(res, 404, "NO_SUCH_POST", `no post ${id}`); return true; }
-      if (!path.startsWith("human/")) { reply(res, 200, { ok: true, ...v }); return true; }
-      send(res, 200, HTML, postPage({ ...summary(id), text: v.text, contractState: v.contractState, commentList: v.comments as never }, chrome(), clock().getTime()), CSP);
+      const labels = await allLabels();
+      if (!path.startsWith("human/")) { reply(res, 200, { ok: true, ...v, label: labels[v.author], comments: (v.comments as Array<{ author: string }>).map((c) => ({ ...c, label: labels[c.author] })) }); return true; }
+      send(res, 200, HTML, postPage({ ...summary(id), text: v.text, contractState: v.contractState, commentList: v.comments as never }, chrome(labels), clock().getTime()), CSP);
       return true;
     }
     const cit = /^(?:human\/)?citizens?\/(.+)$/.exec(path);
     if (cit) {
       const c = await citizen(decodeURIComponent(cit[1]));
-      if (!path.startsWith("human/")) { reply(res, 200, { ok: true, ...c }); return true; }
-      send(res, 200, HTML, citizenPage({ ...c, posts: feedOrder.map(summary).filter((x) => x.author === c.did) }, chrome(), clock().getTime()), CSP);
+      const labels = { ...(await allLabels()), ...(await labelsFor([c.did])) };
+      if (!path.startsWith("human/")) { reply(res, 200, { ok: true, ...c, label: labels[c.did] }); return true; }
+      send(res, 200, HTML, citizenPage({ ...c, posts: feedOrder.map(summary).filter((x) => x.author === c.did) }, chrome(labels), clock().getTime()), CSP);
       return true;
     }
     if (path === "reports") return false; // the operator's queue is authenticated
@@ -573,6 +614,8 @@ No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a co
     if ("status" in checked) { refuse(res, checked.status, checked.code, checked.message, checked.extra); return true; }
     const doc = checked.doc;
     if (doc.kind === "post" && doc.contract && !(await contractState(doc.contract))?.records) { refuse(res, 422, "NO_SUCH_CONTRACT", `the log has no record of contract ${doc.contract}`); return true; }
+    const closed = await gate(doc);
+    if (closed) { refuse(res, closed.status, closed.code, closed.message); return true; }
     const denied = admit(doc, ctx.tenant); // no await from here to the append
     if (denied) { refuse(res, denied.status, denied.code, denied.message, denied.extra); return true; }
     reply(res, 201, { ok: true, ...append(doc) });

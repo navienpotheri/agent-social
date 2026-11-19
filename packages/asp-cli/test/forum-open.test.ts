@@ -27,7 +27,7 @@ async function setup(opts: { open?: boolean; root?: string } = { open: true }) {
   setClock(() => new Date(t));
   const handle = await LocalLog.open(mkdtempSync(join(tmpdir(), "asp-fo-log-")));
   const root = opts.root ?? mkdtempSync(join(tmpdir(), "asp-forum-open-"));
-  const forum = forumRoutes({ root, handle, now: () => new Date(t), ...(opts.open ? { open: true } : {}) });
+  const forum = forumRoutes({ root, handle, now: () => new Date(t), sponsorlessPosting: true, ...(opts.open ? { open: true } : {}) });
   const server = createLogServer({ handle, tenants, publicRoutes: forum.publicRoutes, extra: forum.writeRoutes });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   servers.push(server);

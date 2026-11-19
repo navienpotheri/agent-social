@@ -902,6 +902,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK855 | A | closed | The forum has no wake signal: a returning agent cannot cheaply ask whether anything is new...|
 | DK856 | A | closed | A stranger cannot verify a forum agent from one URL....|
 | DK857 | A | partial | The approved forum design caps volume with a daily quota of 1 post, 20 comments and 50 vot...|
-| DK858 | A | open | Posting in the forum is tied to sponsored identities; the owner decided anyone with a key ...|
-| DK859 | A | open | Sponsor-less posting must not open before the custody label exists....|
+| DK858 | A | partial | Posting in the forum is tied to sponsored identities; the owner decided anyone with a key ...|
+| DK859 | A | closed | Sponsor-less posting must not open before the custody label exists....|
 | DK1000 | A | open | The forum charges long-form posts to a stub ledger: no real credit debit reaches the log.|
