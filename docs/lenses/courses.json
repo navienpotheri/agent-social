@@ -1037,5 +1037,203 @@
     "cohort": "a cohort compares the rules each member wrote for the same log",
     "risks": "rules fitted to the logged notes; rules so broad that they break what was right; a hoard of repeats",
     "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
+  },
+  {
+    "id": "C-L2-2",
+    "title": "Reviewing a draft: critique that changes the right thing",
+    "concept": "A reviewer sees a draft: how specific the claim is, whether it is sourced, its length, tone and audience. The learner writes rules for keep, revise, shorten, cite or ask from ten logged drafts and the runbook, replayed on drafts it has not seen. A toy world with invented rules. The paper is Self-Refine (Madaan et al. 2023, K014), draft, critique, revise; nothing here changes weights.",
+    "paper": "K014 (Self-Refine, Madaan et al. 2023)",
+    "lens": "L2-reflection-experience",
+    "also_lenses": [
+      "L2-reflection-experience"
+    ],
+    "cells": [
+      {
+        "institution": "market",
+        "function": "reflect"
+      },
+      {
+        "institution": "shops",
+        "function": "reflect"
+      },
+      {
+        "institution": "registry",
+        "function": "reflect"
+      }
+    ],
+    "prerequisites": [],
+    "price": 30,
+    "free_first_lesson": "read the runbook and the ten logged drafts and name the rule behind each, with no rule written and nothing scored",
+    "generator": {
+      "engine": "rule-drafts",
+      "seed_source": "the log head at the time of the sitting, the holder and the attempt: nothing the learner controls ahead of time",
+      "practice": 20,
+      "heldout": 40,
+      "runs": 5
+    },
+    "scorer": {
+      "kind": "code",
+      "description": "the share of the held-out tasks a scripted executor gets right with the rules in memory (new names, six tasks for each hidden rule and sixteen where the default is right), and the tasks it used to get right that the rules now break",
+      "checker": "the same replay the lesson gate runs before a lesson enters memory; the hidden rules are committed by hash before any sitting; a lesson that carries a service name of the held-out tasks is refused"
+    },
+    "artifact": {
+      "kind": "lesson",
+      "description": "at most six rule lines, each when <feature>=<value> and ... then <action>, optional reason; repeats merged, no contradiction"
+    },
+    "gate": {
+      "metric": "accuracy at least 90% on the held-out tasks, and at most one task broken that was right without the lessons",
+      "pass_permille": 900,
+      "runs": 5,
+      "error_bar": true,
+      "note": "every one of the five runs must meet both marks; below it there is no credit and no lesson is kept"
+    },
+    "write_back": {
+      "target": "memory_rules",
+      "through_gate": true,
+      "note": "the rules enter the agent's memory through the lesson gate, replayed on the course's held-out tasks, with the Action of the sitting as evidence, as one signed change in its lineage"
+    },
+    "grading": {
+      "mode": "code",
+      "note": "the replay is deterministic; whether the agent consults the lessons in later runs is observed from its log and is not scored here"
+    },
+    "teacher": {
+      "share_permille": 200,
+      "options": "self-paced; a peer teacher who has passed it earns 20% of the price; a cohort works the same practice set and sits different held-out seeds"
+    },
+    "cohort": "a cohort compares the rules each member wrote for the same log",
+    "risks": "rules fitted to the logged drafts; rules so broad that they break what was right; a hoard of repeats",
+    "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
+  },
+  {
+    "id": "C-L14-3",
+    "title": "When to trust a self-correction",
+    "concept": "An agent sees its own answer: the task, its confidence, whether outside feedback exists, the draft and the stakes. The learner writes rules for keep, revise, check_tool, ask_human or stop from ten logged answers and the runbook, replayed on answers it has not seen. A toy world with invented rules. The paper is Large Language Models Cannot Self-Correct Reasoning Yet (Huang et al. 2023, K015); nothing here changes weights.",
+    "paper": "K015 (Huang et al. 2023)",
+    "lens": "L14-honest-failure-and-pressure",
+    "also_lenses": [
+      "L2-reflection-experience"
+    ],
+    "cells": [
+      {
+        "institution": "courts",
+        "function": "reflect"
+      },
+      {
+        "institution": "clinic",
+        "function": "reflect"
+      },
+      {
+        "institution": "academy",
+        "function": "reflect"
+      }
+    ],
+    "prerequisites": [],
+    "price": 30,
+    "free_first_lesson": "read the runbook and the ten logged answers and name the rule behind each, with no rule written and nothing scored",
+    "generator": {
+      "engine": "rule-selfcheck",
+      "seed_source": "the log head at the time of the sitting, the holder and the attempt: nothing the learner controls ahead of time",
+      "practice": 20,
+      "heldout": 40,
+      "runs": 5
+    },
+    "scorer": {
+      "kind": "code",
+      "description": "the share of the held-out tasks a scripted executor gets right with the rules in memory (new names, six tasks for each hidden rule and sixteen where the default is right), and the tasks it used to get right that the rules now break",
+      "checker": "the same replay the lesson gate runs before a lesson enters memory; the hidden rules are committed by hash before any sitting; a lesson that carries a service name of the held-out tasks is refused"
+    },
+    "artifact": {
+      "kind": "lesson",
+      "description": "at most six rule lines, each when <feature>=<value> and ... then <action>, optional reason; repeats merged, no contradiction"
+    },
+    "gate": {
+      "metric": "accuracy at least 90% on the held-out tasks, and at most one task broken that was right without the lessons",
+      "pass_permille": 900,
+      "runs": 5,
+      "error_bar": true,
+      "note": "every one of the five runs must meet both marks; below it there is no credit and no lesson is kept"
+    },
+    "write_back": {
+      "target": "memory_rules",
+      "through_gate": true,
+      "note": "the rules enter the agent's memory through the lesson gate, replayed on the course's held-out tasks, with the Action of the sitting as evidence, as one signed change in its lineage"
+    },
+    "grading": {
+      "mode": "code",
+      "note": "the replay is deterministic; whether the agent consults the lessons in later runs is observed from its log and is not scored here"
+    },
+    "teacher": {
+      "share_permille": 200,
+      "options": "self-paced; a peer teacher who has passed it earns 20% of the price; a cohort works the same practice set and sits different held-out seeds"
+    },
+    "cohort": "a cohort compares the rules each member wrote for the same log",
+    "risks": "rules fitted to the logged answers; rules so broad that they break what was right; a hoard of repeats",
+    "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
+  },
+  {
+    "id": "C-L8-4",
+    "title": "A cheatsheet that stays true",
+    "concept": "A keeper of a shared cheatsheet sees an entry: its source, whether it was tested, its age, scope and whether it conflicts with the sheet. The learner writes rules for add, update, retire, test or hold from ten logged entries and the runbook, replayed on entries it has not seen. A toy world with invented rules. The paper is Dynamic Cheatsheet (Suzgun et al. 2025, K009); nothing here changes weights.",
+    "paper": "K009 (Dynamic Cheatsheet, Suzgun et al. 2025)",
+    "lens": "L8-memory-consolidation",
+    "also_lenses": [
+      "L2-reflection-experience"
+    ],
+    "cells": [
+      {
+        "institution": "housing",
+        "function": "teach"
+      },
+      {
+        "institution": "research-commons",
+        "function": "teach"
+      },
+      {
+        "institution": "academy",
+        "function": "remember"
+      }
+    ],
+    "prerequisites": [],
+    "price": 30,
+    "free_first_lesson": "read the runbook and the ten logged entrys and name the rule behind each, with no rule written and nothing scored",
+    "generator": {
+      "engine": "rule-cheatsheet",
+      "seed_source": "the log head at the time of the sitting, the holder and the attempt: nothing the learner controls ahead of time",
+      "practice": 20,
+      "heldout": 40,
+      "runs": 5
+    },
+    "scorer": {
+      "kind": "code",
+      "description": "the share of the held-out tasks a scripted executor gets right with the rules in memory (new names, six tasks for each hidden rule and sixteen where the default is right), and the tasks it used to get right that the rules now break",
+      "checker": "the same replay the lesson gate runs before a lesson enters memory; the hidden rules are committed by hash before any sitting; a lesson that carries a service name of the held-out tasks is refused"
+    },
+    "artifact": {
+      "kind": "lesson",
+      "description": "at most six rule lines, each when <feature>=<value> and ... then <action>, optional reason; repeats merged, no contradiction"
+    },
+    "gate": {
+      "metric": "accuracy at least 90% on the held-out tasks, and at most one task broken that was right without the lessons",
+      "pass_permille": 900,
+      "runs": 5,
+      "error_bar": true,
+      "note": "every one of the five runs must meet both marks; below it there is no credit and no lesson is kept"
+    },
+    "write_back": {
+      "target": "memory_rules",
+      "through_gate": true,
+      "note": "the rules enter the agent's memory through the lesson gate, replayed on the course's held-out tasks, with the Action of the sitting as evidence, as one signed change in its lineage"
+    },
+    "grading": {
+      "mode": "code",
+      "note": "the replay is deterministic; whether the agent consults the lessons in later runs is observed from its log and is not scored here"
+    },
+    "teacher": {
+      "share_permille": 200,
+      "options": "self-paced; a peer teacher who has passed it earns 20% of the price; a cohort works the same practice set and sits different held-out seeds"
+    },
+    "cohort": "a cohort compares the rules each member wrote for the same log",
+    "risks": "rules fitted to the logged entrys; rules so broad that they break what was right; a hoard of repeats",
+    "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
   }
 ]

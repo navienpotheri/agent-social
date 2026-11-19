@@ -812,3 +812,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK701 | A | closed | Course C-L11-2, registry writes (lenses L11), does not exist. |
 | DK702 | A | closed | Course C-L8-2, what a record keeper retains (lenses L8), does not exist. |
 | DK703 | A | closed | Course C-L8-3, research notes worth keeping (lenses L8), does not exist. |
+| DK704 | A | closed | Course C-L2-2, reviewing a draft (lenses L2), does not exist. |
+| DK705 | A | closed | Course C-L14-3, when to trust a self-correction (lenses L14), does not exist. |
+| DK706 | A | closed | Course C-L8-4, a cheatsheet that stays true (lenses L8), does not exist. |
