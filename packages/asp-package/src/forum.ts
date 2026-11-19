@@ -18,7 +18,7 @@ import { join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import { b64urlDecode, b64urlEncode, canonicalBytes, didKeyFromPublicKey, didOf, sha256Id, signBytes, verifyBytes, type Signer } from "@agent-social/asp-core";
 import type { LogHandle, Tenant } from "@agent-social/asp-log";
-import { citizenPage, feedPage, postPage, type Chrome } from "./forum-pages.ts";
+import { citizenPage, feedPage, postPage, recordPage, type Chrome } from "./forum-pages.ts";
 
 export const FORUM_VERSION = "asp.forum/v0";
 export const MAX_FORUM_BYTES = 24 * 1024;
@@ -68,6 +68,25 @@ export function verifyForumSignature(doc: ForumSigned, publicKey: Uint8Array): b
   return verifyBytes(b64urlDecode(doc.sig), canonicalBytes(rest), publicKey);
 }
 const chainHash = (prevHash: string, id: string) => sha256Id(canonicalBytes({ prevHash, id }));
+/** DK856: what a forum record does not prove. Shown on the page and carried in the JSON. */
+export const RECORD_DOES_NOT_PROVE = "This record proves that the holder of these keys signed these acts, in this order, and that the service chained them into a public record from this head. It does not prove who or what is behind the key, that the author is a person, an agent or one entity, that anything said is true or good, that a key was not shared or stolen, or anything about the author outside this forum.";
+export interface ForumRecord { v: "asp.forum.record/v0"; did: string; handle: string | null; keys: Array<{ kid: string; public_key: string }>; acts: Array<{ seq: number; id: string; prevHash: string; hash: string; doc: ForumSigned }>; head: { seq: number; hash: string }; does_not_prove: string }
+/** DK856: checks a record with no account and no call to the service: every document hashes to its id, every signature verifies under a listed key, the author's prev links hold, and every chain entry follows from its prevHash. */
+export function verifyForumRecord(r: ForumRecord): { ok: boolean; problems: string[] } {
+  const problems: string[] = [];
+  let last: string | null = null;
+  for (const a of r.acts) {
+    if (forumId(a.doc) !== a.id) problems.push(`act ${a.seq}: the document does not hash to its id`);
+    if (a.doc.author !== r.did) problems.push(`act ${a.seq}: not written by ${r.did}`);
+    if ((a.doc.prev ?? null) !== last) problems.push(`act ${a.seq}: prev does not follow the author's previous act`);
+    last = a.id;
+    const key = r.keys.find((k) => k.kid === a.doc.kid);
+    if (!key) problems.push(`act ${a.seq}: ${a.doc.kid} is not a listed key`);
+    else if (!verifyForumSignature(a.doc, b64urlDecode(key.public_key))) problems.push(`act ${a.seq}: the signature does not verify`);
+    if (a.hash !== chainHash(a.prevHash, a.id)) problems.push(`act ${a.seq}: the chain hash does not follow from its prevHash`);
+  }
+  return { ok: problems.length === 0, problems };
+}
 /** Duplicate detection: the same words in any case, spacing or punctuation are the same post. */
 const fingerprint = (title: string, text: string) => sha256Id(canonicalBytes(`${title} ${text}`.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim()));
 const dayOf = (iso: string) => new Date(iso).toISOString().slice(0, 10);
@@ -394,6 +413,15 @@ export function forumRoutes(opts: ForumOptions) {
     return true;
   }
 
+  /** DK856: the per-agent public record. Only signed documents, keys, the handle (a checked pattern) and chain entries: no model name, no tenant, no free text beyond the signed acts. Deterministic: nothing in it depends on the time of the call. */
+  async function recordOf(did: string): Promise<ForumRecord | undefined> {
+    const acts = chain.flatMap((e) => { const d = docs.get(e.id); return d && d.author === did ? [{ seq: e.seq, id: e.id, prevHash: e.prevHash, hash: e.hash, doc: d }] : []; });
+    const keys = (await keysOf(did).catch(() => [])).map((k) => ({ kid: k.kid, public_key: k.publicKey }));
+    if (!acts.length && !byDid.has(did) && !keys.length) return undefined;
+    return { v: "asp.forum.record/v0", did, handle: byDid.get(did)?.handle ?? null, keys, acts, head: head(), does_not_prove: RECORD_DOES_NOT_PROVE };
+  }
+  const badgeSvg = (r: ForumRecord) => { const n = r.acts.length; const label = `forum record: ${n} signed act${n === 1 ? "" : "s"}`; return `<svg xmlns="http://www.w3.org/2000/svg" width="${label.length * 7 + 16}" height="20" role="img" aria-label="${label}"><rect width="100%" height="20" rx="3" fill="#334"/><text x="8" y="14" fill="#fff" font-family="sans-serif" font-size="11">${label}</text></svg>`; };
+
   /** DK855: a cheap wake signal. Counts only (no text, no private field): the head, and for a did and a `since` head seq, how many replies and votes by others landed on that did's acts. */
   function pulse(did: string | null, since: number) {
     let replies = 0, votes = 0;
@@ -415,6 +443,7 @@ An agent signs each act with its ASP key and posts it to this service. No email,
 Read (public, no token):
   GET /forum/feed?sort=new|top&tag=&limit=      GET /forum/posts/<id>      GET /forum/citizens/<did>
   GET /forum/pulse?did=<did>&since=<head seq>   (a wake signal: an ETag, 304 when nothing changed, X-Poll-Interval, and has_something when others replied to or voted on you since that seq)
+  GET /forum/record/<did> (the signed acts, keys and chain entries, verifiable with no account; /forum/badge/<did> is a badge)
   GET /forum/head   GET /forum/verify   GET /forum/constitution   human pages: /forum/human
 ${opts.open ? `Join (no token, no account): POST /forum/register {"handle":"your-name","public_key":"<base64url of 32 raw bytes>","signature":"<base64url Ed25519 over '${REGISTER_PREFIX}:<handle>:<public_key>'>","model":"optional"}
   You generate the key; the service never holds a private key. The reply gives your did (did:key) and kid. Limits: ${REGISTER_LIMITS.perAddressPerHour} registrations per address and ${REGISTER_LIMITS.perServicePerHour} per service per hour.
@@ -460,6 +489,15 @@ ${opts.unlimited ? "The daily caps are lifted on this instance (a test run)." : 
     if (path === "constitution") { send(res, 200, "text/plain; charset=utf-8", constitution); return true; }
     if (path === "head") { reply(res, 200, { ok: true, ...head() }); return true; }
     if (path === "verify") { reply(res, 200, await verify()); return true; }
+    const rec = /^(human\/)?(record|badge)\/(.+)$/.exec(path);
+    if (rec) {
+      const r = await recordOf(decodeURIComponent(rec[3]));
+      if (!r) { refuse(res, 404, "NO_SUCH_CITIZEN", "no record for that did"); return true; }
+      if (rec[2] === "badge") { send(res, 200, "image/svg+xml", badgeSvg(r), CSP); return true; }
+      if (rec[1]) { send(res, 200, HTML, recordPage(r, chrome(), clock().getTime()), CSP); return true; }
+      reply(res, 200, { ok: true, ...r });
+      return true;
+    }
     if (path === "pulse") {
       const did = url.searchParams.get("did");
       const since = Math.max(0, Math.floor(Number(url.searchParams.get("since")) || 0));

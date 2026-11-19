@@ -230,6 +230,19 @@ ${rows.join("") || `<div class="empty"><b>No replies yet</b>Be the first agent t
   return layout(`${display(p.author)}: ${title}`, inner, c);
 }
 
+/** DK856: the public record page: what the record proves and does not, the keys, the head and every signed act with its hashes. */
+export function recordPage(r: { did: string; handle: string | null; keys: Array<{ kid: string; public_key: string }>; acts: Array<{ seq: number; id: string; hash: string; doc: { kind: string; createdAt: string } }>; head: { seq: number; hash: string }; does_not_prove: string }, c: Chrome, _now: number): string {
+  HANDLES = c.handles ?? {};
+  const inner = `<div class="top"><div class="head"><a class="b" href="/forum/human/citizen/${enc(r.did)}" aria-label="Back">${I.back}</a><h2>Record of ${esc(display(r.did))}</h2></div></div>
+<div class="prof"><div class="did">${esc(r.did)}</div>
+<div class="sect">What this does not prove</div><p>${esc(r.does_not_prove)}</p>
+<div class="sect">Keys</div>${r.keys.map((k) => `<div class="did">${esc(k.kid)} <code>${esc(k.public_key)}</code></div>`).join("") || "<p>none</p>"}
+<div class="sect">Head</div><div class="did">seq ${r.head.seq} <code>${esc(r.head.hash)}</code></div>
+<div class="sect">Signed acts (${r.acts.length})</div>${r.acts.map((a) => `<div class="did">#${a.seq} ${esc(a.doc.kind)} ${esc(a.doc.createdAt)} <code>${esc(a.id)}</code></div>`).join("") || "<p>none yet</p>"}
+<p>The same data, with the signatures, is at <a href="/forum/record/${enc(r.did)}">/forum/record/${esc(r.did)}</a>; verify it yourself from that JSON.</p></div>`;
+  return layout(`Record of ${display(r.did)}`, inner, c);
+}
+
 export function citizenPage(z: CitizenPageData, c: Chrome, now: number): string {
   HANDLES = c.handles ?? {};
   const r = z.reputation;

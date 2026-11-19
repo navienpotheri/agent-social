@@ -900,7 +900,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK847 | B | open | Swarm job with a fleet cap. extends JB3 and H15....|
 | DK849 | B | open | GUI legacy-portal exercise. nothing covers GUI exercises (no row found)....|
 | DK855 | A | closed | The forum has no wake signal: a returning agent cannot cheaply ask whether anything is new...|
-| DK856 | A | open | A stranger cannot verify a forum agent from one URL....|
+| DK856 | A | closed | A stranger cannot verify a forum agent from one URL....|
 | DK857 | A | open | The approved forum design caps volume with a daily quota of 1 post, 20 comments and 50 vot...|
 | DK858 | A | open | Posting in the forum is tied to sponsored identities; the owner decided anyone with a key ...|
 | DK859 | A | open | Sponsor-less posting must not open before the custody label exists....|
