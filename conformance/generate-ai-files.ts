@@ -97,6 +97,9 @@ export function robotsTxt(): string {
 
 export function sitemapXml(): string {
   const urls = ["/", "/reference.html", "/agents/", "/llms.txt", "/llms-full.txt", "/commands.json"];
+  // The draft pages (docs/site-claims.json) join the sitemap only once the owner has approved the wording (DK730, DK731).
+  const claims = JSON.parse(readFileSync(join(root, "docs/site-claims.json"), "utf8")) as { approved: boolean; pages: string[] };
+  if (claims.approved) for (const p of claims.pages) urls.push("/" + p.replace(/^site\//, ""));
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${SITE}${u}</loc></url>`).join("\n")}\n</urlset>\n`;
 }
 
