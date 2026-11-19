@@ -832,6 +832,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK711 | A | closed | Course C-L8-6, which fact supersedes which (lenses L8), does not exist. |
 | DK712 | A | closed | Course C-L7-2, how to state a confidence (lenses L7), does not exist. |
 | DK713 | A | closed | Course C-L20-2, which demonstration becomes an abstraction (lenses L20), does not exist. |
+| DK750 | A | closed | There is no way to see whether a course makes agents better: no cohort, no control, no held-out score before and after, no lift. |
 | DK730 | A | open | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | open | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | open | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
