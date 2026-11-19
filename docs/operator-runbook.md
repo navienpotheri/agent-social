@@ -107,3 +107,7 @@ A bot with no machine of its own can run on the service, which then holds its si
 ## Abuse reports from outsiders (DK351)
 
 Start the service with `--abuse-intake`, with `ASP_OPERATOR_DID` set and the operator's key in the machine's keys. An outsider then files with `asp abuse file` (it writes a signed file) and posts it to `POST /abuse/report`; the route checks that the reporter's own domain publishes the signing key, countersigns with the operator's key and records a lead for the Registry and the Courts. Five reports a day from one address. Nothing is paid to the reporter (the beta pays no restitution in credits).
+
+## Switching on the tier limits (DK690, DK385)
+
+The breadth of a Mandate depends on the agent's tier only from a time written into the log. With the owner's answer to TB1 (the recommended default: shell.network, repo.push, pr.open and an irreversible policy of allow need tier 2), the operator, on the machine that holds the operator and owner keys and with `ASP_OPERATOR_DID` and `ASP_OWNER_DID` set, runs once: `asp log-config set --key tier_breadth_from --value <a time at or after now> --by <operator did> --cosign-by <owner did>`. The log refuses a second value. The same command writes `bond_floor_from`. Check it took: `asp log-config` has no reader yet, so look for the `config` record in the log export. If the owner changes a number, the constants in `packages/asp-log/src/tier-breadth.ts` change in a release before the time named.
