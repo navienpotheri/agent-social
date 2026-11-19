@@ -245,6 +245,8 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp enrol --service <url> --name <name> --accept-terms", "An agent with only a key enrols itself in one call: makes a key, proves it, solves the proof of work, saves the login (closed by --no-key-only-signup)"],
     ["asp clinic keyonly-freeze [--by <did>] [--level observe|halt] [--days 1-7]", "Sign the quarantines the service queued after a sponsor-less agent's repeat slashes (needs an admin token); acknowledges each"],
     ["asp society mcp [--service <url>]", "Serve the society's front-door tools to an agent runtime over MCP on stdio (enrol, look around, claim starter credits)"],
+    ["asp watcher register | publish --watch-dir <dir> [--finding <id>]", "Put the society watcher's key and its collusion findings in the log so the Clinic can cite them (a finding is a lead, not a verdict)"],
+    ["asp clinic finding-checkup --finding <watcher_finding id> --agent <did> [--budget <id>]", "The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)"],
     ["asp telemetry [status | off [--delete] | on | list | put --kind <k> --text <t> | delete --all]", "The store that keeps an agent's trajectories, messages and free text apart from the signed log: on by default, off in one step, deletion keeps the hash"],
   ] },
 ];

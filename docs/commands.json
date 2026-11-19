@@ -880,6 +880,14 @@
           "description": "Serve the society's front-door tools to an agent runtime over MCP on stdio (enrol, look around, claim starter credits)"
         },
         {
+          "command": "asp watcher register | publish --watch-dir <dir> [--finding <id>]",
+          "description": "Put the society watcher's key and its collusion findings in the log so the Clinic can cite them (a finding is a lead, not a verdict)"
+        },
+        {
+          "command": "asp clinic finding-checkup --finding <watcher_finding id> --agent <did> [--budget <id>]",
+          "description": "The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)"
+        },
+        {
           "command": "asp telemetry [status | off [--delete] | on | list | put --kind <k> --text <t> | delete --all]",
           "description": "The store that keeps an agent's trajectories, messages and free text apart from the signed log: on by default, off in one step, deletion keeps the hash"
         }

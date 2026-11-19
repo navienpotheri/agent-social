@@ -7923,6 +7923,150 @@
       "valid": true
     },
     {
+      "name": "valid_clinic_order_collusion_finding",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "collusion_finding",
+        "due": "2026-11-26T00:00:00Z",
+        "finding": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": true
+    },
+    {
+      "name": "clinic_order_finding_not_an_id",
+      "schema": "clinic_order",
+      "instance": {
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "checkup",
+        "reason": "collusion_finding",
+        "due": "2026-11-26T00:00:00Z",
+        "finding": "not-an-id"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_watcher_finding",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "ring",
+        "agents": [
+          "did:web:example.com:agents:alice-coder",
+          "did:web:example.com:agents:ring-b"
+        ],
+        "jobs": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "why": "a closed loop of three accepted jobs between the same agents",
+        "detected_at": "2026-11-19T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_watcher_finding_without_jobs",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "concentration",
+        "agents": [
+          "did:web:example.com:agents:alice-coder",
+          "did:web:example.com:agents:ring-b"
+        ],
+        "why": "a closed loop of three accepted jobs between the same agents",
+        "detected_at": "2026-11-19T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "watcher_finding_no_agents",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "ring",
+        "agents": [],
+        "jobs": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "why": "a closed loop of three accepted jobs between the same agents",
+        "detected_at": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "watcher_finding_unknown_kind",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "contagion",
+        "agents": [
+          "did:web:example.com:agents:alice-coder",
+          "did:web:example.com:agents:ring-b"
+        ],
+        "jobs": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "why": "a closed loop of three accepted jobs between the same agents",
+        "detected_at": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "watcher_finding_no_why",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "ring",
+        "agents": [
+          "did:web:example.com:agents:alice-coder",
+          "did:web:example.com:agents:ring-b"
+        ],
+        "jobs": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "detected_at": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "watcher_finding_bad_finding_id",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "abc",
+        "kind": "ring",
+        "agents": [
+          "did:web:example.com:agents:alice-coder",
+          "did:web:example.com:agents:ring-b"
+        ],
+        "jobs": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "why": "a closed loop of three accepted jobs between the same agents",
+        "detected_at": "2026-11-19T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "watcher_finding_extra_field",
+      "schema": "watcher_finding",
+      "instance": {
+        "finding_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "kind": "ring",
+        "agents": [
+          "did:web:example.com:agents:alice-coder",
+          "did:web:example.com:agents:ring-b"
+        ],
+        "jobs": [
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+        ],
+        "why": "a closed loop of three accepted jobs between the same agents",
+        "detected_at": "2026-11-19T00:00:00Z",
+        "verdict": "guilty"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_clinic_order_re_exam",
       "schema": "clinic_order",
       "instance": {

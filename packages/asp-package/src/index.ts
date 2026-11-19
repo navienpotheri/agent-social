@@ -37,7 +37,7 @@ export { COMMONS_VERSION, commonsId, commonsRoutes, signCommons, verifyCommonsSi
 export { addKnownBad, fetchKnownBad, isKnownBadFingerprint, knownBadPublicRoutes, knownBadRoutes, postKnownBad, postSignedKnownBad, readKnownBad, signedFileFor, trustFileFor, type KnownBadEntry } from "./known-bad.ts";
 export { SCENARIOS as TEMPTATION_SCENARIOS, VARIANT_COUNT as TEMPTATION_VARIANTS, draw as drawTemptation, lawAbidingEvidence, runTemptation, resultHash as temptationResultHash, type Move as TemptationMove, type ScriptedAgent, type TemptationResult } from "./temptation.ts";
 export { trippedBy } from "./gateway/judge.ts";
-export { SocietyWatcher, WATCHER_KID, describe as describeFinding, toWatchAction, toWatchPurchase, findPurchaseBursts, verifyFinding, watchPublicRoutes, type PurchaseBurst, type SignedFinding, type WatchFinding, type WatchPurchase } from "./society-watch.ts";
+export { SocietyWatcher, WATCHER_KID, describe as describeFinding, toWatchAction, toWatchPurchase, findPurchaseBursts, verifyFinding, watcherFindingBody, watchPublicRoutes, type PurchaseBurst, type SignedFinding, type WatchFinding, type WatchPurchase } from "./society-watch.ts";
 export { addSigned, addTrust, effectiveEntries, itemProblem, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, syncKnownBad, type SignedItem, type Trust } from "./known-bad-signed.ts";
 export * from "./gateway/index.ts";
 export { RUNTIMES, runtimeByName, supportMatrix, type RuntimeDescriptor, type RuntimeReach, type RuntimeWire, type RuntimeAssurance, type RuntimeEvidence } from "./runtimes.ts";

@@ -27,7 +27,8 @@
         "scheduled",
         "requested",
         "post_change",
-        "post_diagnosis"
+        "post_diagnosis",
+        "collusion_finding"
       ]
     },
     "due": {
@@ -50,6 +51,10 @@
     "change": {
       "description": "For a checkup after a change: the memory change or runtime change it follows (one free checkup for each).",
       "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "finding": {
+      "description": "For a checkup ordered after a collusion finding of the society watcher (reason collusion_finding; spec-delta S961, register row DK520): the watcher_finding record in the log, which names this agent. A checkup is a look, not a penalty.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
     }
   }
 }

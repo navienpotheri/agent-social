@@ -6,6 +6,8 @@ import { isNetworkScope } from "@agent-social/asp-core";
 
 /** The Treasury account (credits.md A9). The operator holds its key in the beta. */
 export const TREASURY_DID = "did:web:asp.local:treasury";
+/** The society watcher (DK391, DK520): a software process of the service with a key of its own, registered in the log by a passport so its findings can be checked. */
+export const WATCHER_DID = "did:web:asp.local:watcher";
 /** The Burn account (A11): no key, accepts credits, refuses every debit (`burn_account_locked`). The burned total is its balance. */
 export const BURN_DID = "did:web:asp.local:burn";
 /** The old fees account. It now resolves to the Treasury (credits.md 3.2): new fees land in the Treasury; a balance left in an old platform row is still counted. */

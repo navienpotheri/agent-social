@@ -24,7 +24,7 @@ import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type Balanc
 import { bondFloorPermille, bondFloorV3, floorIsV2, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
-import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { charterIn, checkCaseload, checkRulingExtras, closeDispute, projectCourtAct } from "./courts-rules.ts";
@@ -338,6 +338,7 @@ export class EventLog {
     if (type === "retraining_release") await this.projectRetrainingRelease(tx, verified);
     if (type === "clinic_diagnosis") await this.projectClinicDiagnosis(tx, verified);
     if (type === "clinic_order") await this.projectClinicOrder(tx, verified);
+    if (type === "watcher_finding") await this.projectWatcherFinding(tx, verified);
     if (type === "checkup_result") await this.projectCheckupResult(tx, verified);
     if (type === "credit_line") await projectCreditLine(tx, verified, this.bankEnv);
     if (type === "credit_default") await projectCreditDefault(tx, verified, this.bankEnv);
@@ -1785,6 +1786,19 @@ export class EventLog {
   }
 
   /**
+   * A collusion finding of the society watcher (DK520, S961), put in the log so the Clinic can cite it. Only the watcher (its key is the one in its passport), every named agent has a passport, and a finding is in the
+   * log once (`watcher_finding_known`). It changes no balance, tier or standing: it is a lead.
+   */
+  private async projectWatcherFinding(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { finding_id: string; agents: string[] };
+    if (r.prev !== null) throw rule("watcher_finding_not_chained", "a watcher finding starts its own chain (prev is null)");
+    if (r.issuer !== WATCHER_DID) throw rule("watcher_finding_wrong_issuer", `${r.issuer} is not the society watcher (${WATCHER_DID}): only the watcher files a finding`);
+    for (const a of b.agents) if (!(await tx.getPassport(a))) throw rule("watcher_finding_unknown_agent", `${a} has no passport in this log`);
+    if (await tx.getMarker(`watcher_finding:${b.finding_id}`)) throw rule("watcher_finding_known", `the finding ${b.finding_id} is already in the log`);
+    await tx.putMarker(`watcher_finding:${b.finding_id}`, r.id);
+  }
+
+  /**
    * A Treasury statement (DK381, S960): the Treasury signs what the log says about its flows for a month. The log checks what it can recompute (the Treasury's balance now) and holds one statement for each month
    * (`treasury_statement_period_taken`); the hash is of the full statement the Treasury's command computed, so a published page is checked against it outside the log.
    */
@@ -2436,7 +2450,7 @@ export class EventLog {
    * diagnosis of the same agent and names the skill.
    */
   private async projectClinicOrder(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { agent: string; kind: string; reason: string; due: string; diagnosis?: string; skill?: string; purchase?: string; budget?: string; change?: string };
+    const b = r.body as { agent: string; kind: string; reason: string; due: string; diagnosis?: string; skill?: string; purchase?: string; budget?: string; change?: string; finding?: string };
     if (r.prev !== null) throw rule("order_not_chained", "an order starts its own chain (prev is null)");
     if (r.issuer !== CLINIC_DID) throw rule("order_wrong_issuer", `${r.issuer} is not the Clinic (${CLINIC_DID}): only the Clinic orders a checkup, a re-exam or a course`);
     if (!(await tx.getPassport(b.agent))) throw rule("order_not_an_agent", `${b.agent} has no passport in this log`);
@@ -2448,6 +2462,14 @@ export class EventLog {
       const d = await tx.getRecord(b.diagnosis);
       if (!d || d.record.type !== "asp.clinic_diagnosis/v0.2" || (d.record.body as { agent?: string }).agent !== b.agent) throw rule("order_diagnosis_unknown", `${b.diagnosis} is not a diagnosis of ${b.agent} in this log`);
     } else if (b.reason === "post_diagnosis") throw rule("order_needs_diagnosis", "a checkup is scheduled, requested or after a change; after a diagnosis the order is a re-exam or a course");
+    if (b.reason === "collusion_finding") {
+      // A watcher finding is a lead: the Clinic may look (a checkup), never penalise on it (DK520, S961).
+      if (b.kind !== "checkup") throw rule("order_finding_only_checkup", "a collusion finding leads to a checkup, not to a re-exam or a course: a finding is a lead, not a verdict");
+      const f = b.finding ? await tx.getRecord(b.finding) : undefined;
+      const fb = f?.record.body as { agents?: string[] } | undefined;
+      if (!f || f.record.type !== "asp.watcher_finding/v0.2" || f.record.issuer !== WATCHER_DID) throw rule("order_finding_unknown", `${b.finding ?? "no finding"} is not a finding signed by the society watcher in this log: cite the watcher_finding record`);
+      if (!fb?.agents?.includes(b.agent)) throw rule("order_finding_not_about_agent", `the finding does not name ${b.agent}`);
+    } else if (b.finding) throw rule("order_finding_without_reason", "a finding is cited only by an order whose reason is collusion_finding");
     const key = `clinic_order:${b.agent}|${b.kind}`;
     const open = await tx.getMarker(key);
     if (open && Date.parse(open) > at) throw rule("order_already_open", `${b.agent} already has a ${b.kind} order that is due ${open}: one open order of each kind`);
@@ -2460,7 +2482,7 @@ export class EventLog {
    * change to the agent's runtime or memory, once for each change), paid for by the Treasury's budget line `free_checkups`, or requested and paid for by a purchase of `clinic.checkup` by the agent or its sponsor, used
    * once. Before the list carries the item the Clinic orders as it did. A free checkup moves the price from the Treasury to the Clinic out of the budget (never beyond it).
    */
-  private async payForCheckup(tx: LogTx, r: AspRecord, b: { agent: string; reason: string; purchase?: string; budget?: string; change?: string }): Promise<void> {
+  private async payForCheckup(tx: LogTx, r: AspRecord, b: { agent: string; reason: string; purchase?: string; budget?: string; change?: string; finding?: string }): Promise<void> {
     const list = await this.priceListInForce(tx, Date.parse(r.issued_at));
     if (!(list?.record.body as unknown as PriceListBody | undefined)?.items.some((i) => i.service === CLINIC_CHECKUP_SERVICE)) return;
     if (b.reason === "requested") {
@@ -2474,7 +2496,7 @@ export class EventLog {
       return;
     }
     const q = `${r.issued_at.slice(0, 4)}-Q${Math.floor((Number(r.issued_at.slice(5, 7)) - 1) / 3) + 1}`;
-    const freeKey = b.reason === "post_change" ? `free_change:${b.agent}|${b.change ?? ""}` : `free_scheduled:${b.agent}|${q}`;
+    const freeKey = b.reason === "post_change" ? `free_change:${b.agent}|${b.change ?? ""}` : b.reason === "collusion_finding" ? `free_finding:${b.agent}|${b.finding ?? ""}` : `free_scheduled:${b.agent}|${q}`;
     if (b.reason === "post_change" && !b.change) throw rule("order_needs_change", "a checkup after a change names the change (the memory change or runtime change it follows)");
     if (await tx.getMarker(freeKey)) throw rule("order_free_used", `${b.agent} has had its free checkup for ${b.reason === "post_change" ? `the change ${b.change}` : `${q}`}: request one for ${CLINIC_CHECKUP_PRICE} credits (${CLINIC_CHECKUP_SERVICE})`);
     const bud = b.budget ? await tx.getRecord(b.budget) : undefined;

@@ -20,7 +20,7 @@ export interface ClinicOpts {
   now: () => string;
   signerFor: (did: string) => Signer;
   actions: () => Promise<WatchAction[]>;
-  flags: { by?: string; report?: string; level?: string; days?: string; "min-agents"?: string; window?: string; all?: boolean; emergency?: string; quarantine?: string; member?: string; evidence?: string; agent?: string; json?: boolean; reason?: string; exam?: string; revouch?: string; skill?: string; issue?: boolean; order?: string; kind?: string; contract?: string; passed?: string; violations?: string; slot?: string; seed?: string; "probe-task"?: string };
+  flags: { finding?: string; budget?: string; by?: string; report?: string; level?: string; days?: string; "min-agents"?: string; window?: string; all?: boolean; emergency?: string; quarantine?: string; member?: string; evidence?: string; agent?: string; json?: boolean; reason?: string; exam?: string; revouch?: string; skill?: string; issue?: boolean; order?: string; kind?: string; contract?: string; passed?: string; violations?: string; slot?: string; seed?: string; "probe-task"?: string };
 }
 
 const DAY = 86_400_000;
@@ -235,6 +235,16 @@ export async function clinicCmd(sub: string | undefined, o: ClinicOpts): Promise
       o.io.out(`    order ${ores.id}: ${kind.replace("_", " ")} of ${f.skill ?? "foundations"}, due within 14 days${d.severity === "quarantine_recommended" ? "; a quarantine at level observe is recommended while the cause is found" : ""}`);
     }
     return sub === "checkup" && flagged ? 1 : 0;
+  }
+  if (sub === "finding-checkup") {
+    // A checkup after a collusion finding of the society watcher (DK520, S961): the finding is in the log (asp watcher publish), the Clinic cites it. A lead leads to a look, never to a penalty.
+    if (!f.finding || !f.agent) throw new ClinicUsage("asp clinic finding-checkup --finding <watcher_finding record id> --agent <did> [--budget <free checkups budget id>] [--by <clinic did>]");
+    const by = f.by ?? CLINIC_DID;
+    const at = o.now();
+    const rec = createRecord({ type: "clinic_order", issuer: by, subject: f.agent, prev: null, body: { agent: f.agent, kind: "checkup", reason: "collusion_finding", due: iso(Date.parse(at) + 7 * DAY), finding: f.finding, ...(f.budget ? { budget: f.budget } : {}) }, issued_at: at }, o.signerFor(by));
+    const res = await o.log.append(rec);
+    o.io.out(`order ${res.id}: a checkup for ${f.agent}, due within 7 days, after the watcher finding ${f.finding.slice(0, 19)} (log seq ${res.seq}); a finding is a lead, not a verdict`);
+    return 0;
   }
   if (sub === "keyonly-freeze") {
     // The quarantines the service asked for after a sponsor-less agent's repeat slashes (rows DK542, DK546). The service holds no Clinic key: the Clinic signs here, on the owner's machine, one interim quarantine
