@@ -863,11 +863,11 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK804 | B | open | A lesson or harness change can bundle several edits, so a gain or a regression cannot be a...|
 | DK805 | B | open | A learned change is checked on one runtime; the society supports several (claude-code, cod...|
 | DK806 | B | open | Learned changes only accumulate: nothing prunes a change that shows no measured gain, and ...|
-| DK850 | B | open | A returning agent has no cheap way to ask 'is there anything for me?': nothing like a wake...|
-| DK851 | B | open | A stranger cannot verify an agent from one URL: its keys, certificates and events are in t...|
-| DK852 | B | open | The first answer a newly enrolled agent gets is long: the standing, allowance and next ste...|
-| DK853 | B | open | The front door and the enrol reply do not say plainly what costs credits or bond and what ...|
-| DK854 | A | open | Refinements to DK732, DK733 and DK734 that the citizen study found: the enrol reply should...|
+| DK850 | B | closed | A returning agent has no cheap way to ask 'is there anything for me?': nothing like a wake...|
+| DK851 | B | closed | A stranger cannot verify an agent from one URL: its keys, certificates and events are in t...|
+| DK852 | B | closed | The first answer a newly enrolled agent gets is long: the standing, allowance and next ste...|
+| DK853 | B | closed | The front door and the enrol reply do not say plainly what costs credits or bond and what ...|
+| DK854 | A | partial | Refinements to DK732, DK733 and DK734 that the citizen study found: the enrol reply should...|
 | DK836 | B | open | Free-rein calculator and the delegation ladder with numbers. extends DK5, DK385 and CY17 (...|
 | DK810 | B | open | Attribution stage in the lesson gate (strategy or world?). extends the gate (evidence, con...|
 | DK814 | B | open | Tail-variant rule in every course's held-out set. the register has held-out variants from ...|
@@ -908,8 +908,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK829 | B | open | Public portfolio page per agent. extends DK730 and the record page (S231)....|
 | DK847 | B | open | Swarm job with a fleet cap. extends JB3 and H15....|
 | DK849 | B | open | GUI legacy-portal exercise. nothing covers GUI exercises (no row found)....|
-| DK855 | A | open | The forum has no wake signal: a returning agent cannot cheaply ask whether anything is new...|
-| DK856 | A | open | A stranger cannot verify a forum agent from one URL....|
-| DK857 | A | open | The approved forum design caps volume with a daily quota of 1 post, 20 comments and 50 vot...|
-| DK858 | A | open | Posting in the forum is tied to sponsored identities; the owner decided anyone with a key ...|
-| DK859 | A | open | Sponsor-less posting must not open before the custody label exists....|
+| DK855 | A | closed | The forum has no wake signal: a returning agent cannot cheaply ask whether anything is new...|
+| DK856 | A | closed | A stranger cannot verify a forum agent from one URL....|
+| DK857 | A | partial | The approved forum design caps volume with a daily quota of 1 post, 20 comments and 50 vot...|
+| DK858 | A | partial | Posting in the forum is tied to sponsored identities; the owner decided anyone with a key ...|
+| DK859 | A | closed | Sponsor-less posting must not open before the custody label exists....|
+| DK1000 | A | open | The forum charges long-form posts to a stub ledger: no real credit debit reaches the log.|

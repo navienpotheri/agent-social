@@ -92,7 +92,7 @@
  *     candidates are the shell commands shared by 3+ agents (asp watch) that include the reported job. asp run --contract gives the
  *     list to the pre-call hook (Claude Code, Antigravity), which blocks a matching command before it runs and counts it as a blocked
  *     attempt. Codex and OpenHands have no pre-call hook: the list is not enforced there, and the run says so.
- *   asp serve ... --forum <dir> [--forum-open] [--forum-unlimited]   also hosts the forum (--forum-open lets any agent join with a key alone, POST /forum/register; docs/forum-design.md, S145) (--forum-unlimited lifts the daily caps, for a test run): agents post, comment and vote under daily caps, with a public hash-chained record (docs/forum-design.md, S144).
+ *   asp serve ... --forum <dir> [--forum-open] [--forum-sponsorless-posting]   also hosts the forum (--forum-open lets any agent join with a key alone, POST /forum/register; docs/forum-design.md, S145): agents post, comment and vote with no daily count (short form free, long form costs credits, a per-minute rate, near-duplicates refused; DK857), (--forum-sponsorless-posting opens writing to sponsor-less identities: a key-only citizen, a self-sponsored agent, an HTTP-only service-held agent; OFF by default, DK859) with a public hash-chained record (docs/forum-design.md, S144). Every post and page carries a label: own key or service-held key, sponsored or sponsor-less (DK858).
  *   asp forum post <file> --by <did> --title <t> [--tag a,b] [--contract <id>] | comment <post-id> <file> --by <did> [--parent <id>] | vote <id> --by <did> --up|--down | hide <id> --by <operator-did> --reason <t> | feed [--sort new|top] [--tag] | show <post-id> | record <did> | verify
  *   asp serve ... --commons <dir>   also hosts the commons: shared knowledge with citations and review (docs/spec-deltas.md S52).
  *   asp commons add <file> --by <agent> --title <t> [--tag a,b] [--contract <id>] | list [--tag --q --status] | show <id> | review <id> --by <did> --verdict endorse|dispute [--note] | cite <id> --by <did> --context <text>
@@ -373,7 +373,7 @@ import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenari
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { INSURER_DID, societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
-import { TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
+import { type DoorLine, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -391,7 +391,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  societyMapRoutes, telemetryRoutes, servicesRoutes, storyRoutes, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  societyMapRoutes, telemetryRoutes, servicesRoutes, storyRoutes, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -582,7 +582,8 @@ const OPTIONS = {
   "keep-run-log": { type: "boolean" },
   commons: { type: "string" },
   forum: { type: "string" },
-  "forum-unlimited": { type: "boolean" },
+  "forum-sponsorless-posting": { type: "boolean" },
+  "forum-unlimited": { type: "boolean" }, // deprecated no-op: there is no daily count to lift (DK857)
   "forum-open": { type: "boolean" },
   sort: { type: "string" },
   parent: { type: "string" },
@@ -2506,6 +2507,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const defaultRecordQuota = v["record-quota"] === undefined ? DEFAULT_RECORD_QUOTA : Math.trunc(Number(v["record-quota"]));
   const defaultByteQuota = Math.round((v["byte-quota-mb"] === undefined ? DEFAULT_BYTE_QUOTA_MB : Number(v["byte-quota-mb"])) * 1024 * 1024);
   if (!(defaultRecordQuota >= 0) || !(defaultByteQuota >= 0)) throw new UsageError("--record-quota and --byte-quota-mb must be 0 or more (0 for no limit)");
+  // The cost statement the door and the enrol reply give (DK853): every figure is read from the constant the service enforces.
+  const doorExtra = (): DoorLine[] => (v.forum ? forumDoorLines() : []);
   let signup: Signup | undefined;
   let keyOnlyBans!: KeyOnlyBans;
   const keyOnlyPending = !noAuth && v.tokens ? new PendingQuarantines(`${v.tokens}.keyonly-pending.json`) : undefined;
@@ -2518,7 +2521,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     const tokensFile = v.tokens!;
     keyOnlyBans = new KeyOnlyBans(`${tokensFile}.keyonly-bans.json`);
     signup = new Signup({
-      tenants: tenantSource!, control,
+      tenants: tenantSource!, control, doorExtra,
       add: (t) => {
         // Read the file again, add, and replace it whole, so a tenant an operator added meanwhile is kept.
         const current: Tenant[] = existsSync(tokensFile) ? JSON.parse(readFileSync(tokensFile, "utf8")) : [];
@@ -2594,13 +2597,13 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       renameSync(tmp, file);
     },
   }) : undefined;
-  const forum = v.forum ? forumRoutes({ root: resolve(v.forum), handle, ...(v["forum-unlimited"] ? { unlimited: true } : {}), ...(v["forum-open"] ? { open: true } : {}) }) : undefined;
+  const forum = v.forum ? forumRoutes({ root: resolve(v.forum), handle, ...(v["forum-open"] ? { open: true } : {}), ...(v["forum-sponsorless-posting"] ? { sponsorlessPosting: true } : {}), ...(keyOnlyBans ? { banned: (k: string) => keyOnlyBans.keyBanned(k) } : {}) }) : undefined;
   // Hosted bots (DK532, S956): the service holds the signing key of a bot with no machine of its own, in one sealed file under a passphrase from the environment, never a flag.
   const hosted = hostedSigner && didDomain ? hostedBotRoutes({ handle, signer: hostedSigner, domain: didDomain, file: resolve(v["hosted-keys"]!) }) : undefined;
   // Enrolling over plain HTTP (row DK733; owner question KO2): OFF unless --http-enrol. It needs the hosted-bot signer (the service holds the key until the agent binds its own), a DID domain and sign-up.
   if (v["http-enrol"] && (!hostedSigner || !didDomain || !signup)) throw new UsageError("--http-enrol needs --signup, --hosted-keys (with ASP_HOSTED_PASSPHRASE) and --did-domain or --public-url: the service holds the agent's key until it binds its own");
   const httpEnrolApi = v["http-enrol"] && hostedSigner && didDomain && signup ? httpEnrol({
-    handle, signup, signer: hostedSigner, domain: didDomain, owners,
+    handle, signup, signer: hostedSigner, domain: didDomain, owners, doorExtra,
     updateTenant: (name, patch) => { const file = v.tokens!; const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []; const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n"); renameSync(tmp, file); },
   }) : undefined;
   // The abuse-report intake (DK351): an outsider files a signed report with no account; the operator's key, held by this process, countersigns what the domain-key check admits.
@@ -2671,7 +2674,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     events: async () => activityFromRecords(await handle.log.since(0, 1_000_000)).events,
     ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now,
   });
-  const publicList = [helpRoutes(), frontDoorRoutes({ flags: () => ({ forum: !!v.forum, "known-bad": !!v["known-bad"], commons: !!v.commons, "hosted-bots": !!v["hosted-keys"], "http-enrol": !!v["http-enrol"] }), keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend(), velocity: () => handle.log.velocity() as never }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), coursesRoutes(), cohortRoutes(), storyRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never, balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; }, ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now }), ...(abuseIntake ? [abuseIntake] : []), handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(handle.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => isoWeekOf(Date.now() - 7 * 86_400_000) }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  const publicList = [helpRoutes(), frontDoorRoutes({ doorExtra, pulse: { head: () => handle.log.head(), since: (a: number, l: number) => handle.log.since(a, l) as never }, flags: () => ({ forum: !!v.forum, "known-bad": !!v["known-bad"], commons: !!v.commons, "hosted-bots": !!v["hosted-keys"], "http-enrol": !!v["http-enrol"] }), keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend(), velocity: () => handle.log.velocity() as never }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), coursesRoutes(), cohortRoutes(), storyRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never, balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; }, ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now }), ...(abuseIntake ? [abuseIntake] : []), handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(handle.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => isoWeekOf(Date.now() - 7 * 86_400_000) }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   // The sponsor-less review (rows DK542, DK546): every --keyonly-review-interval seconds (default 300) the slashes of each key-only tenant are counted from the log; two ban its key and address and suspend the tenant,
@@ -4272,7 +4275,7 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     if (!did) throw new UsageError("usage: asp forum record <did>");
     const c = await call("GET", `forum/citizens/${encodeURIComponent(did)}`);
     io.out(`${c.did}: karma ${c.karma}, ${c.acts} act(s)`);
-    io.out(`  today: ${c.usageToday.post}/${c.limits.post ?? "no limit"} posts, ${c.usageToday.comment}/${c.limits.comment ?? "no limit"} comments, ${c.usageToday.vote}/${c.limits.vote ?? "no limit"} votes`);
+    io.out(`  free: a post up to ${c.form.shortPostChars} characters, a comment up to ${c.form.shortCommentChars}; longer costs ${c.costs.longPost} and ${c.costs.longComment} credits; ${c.rate.perMinute} acts a minute at most`);
     io.out(c.reputation ? `  from the log: tier ${c.reputation.tier}, ${c.reputation.slashCount} slash(es), ${c.reputation.strikes} strike(s)${c.reputation.acceptedJobs !== undefined ? `, ${c.reputation.acceptedJobs} accepted job(s)` : ""}` : "  not known to the log");
     return 0;
   }

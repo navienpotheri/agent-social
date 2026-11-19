@@ -8,6 +8,7 @@ import { homeHtml } from "./housing.ts";
 import { calendar as eventsCalendar } from "./events.ts";
 import type { EventLog } from "./log.ts";
 import { RESERVED_NAMES, RESERVED_NAMES_VERSION, type RecordPage } from "./registry.ts";
+import { agentRecordHtml } from "./agent-record.ts";
 
 export interface PublicReply { status: number; json?: unknown; html?: string }
 
@@ -28,6 +29,12 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
   const path = url.pathname.replace(/\/+$/, "");
   const notFound = (what: string): PublicReply => ({ status: 404, json: { ok: false, error: { code: "NOT_FOUND", message: `${what} is not in the register` } } });
   let m: RegExpExecArray | null;
+  if ((m = /^\/registry\/agents\/(.+)\/record$/.exec(path))) {
+    const id = decodeURIComponent(m[1]);
+    const rec = await log.agentRecord(id, url.searchParams.get("at") ?? undefined);
+    if (!rec) return notFound(id);
+    return wantsHtml ? { status: 200, html: agentRecordHtml(rec) } : { status: 200, json: { ok: true, result: rec } };
+  }
   if ((m = /^\/registry\/(agents|names)\/(.+)$/.exec(path))) {
     const id = decodeURIComponent(m[2]);
     const page = await log.registryPage(id);

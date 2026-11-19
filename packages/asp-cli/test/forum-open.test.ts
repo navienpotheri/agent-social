@@ -27,7 +27,7 @@ async function setup(opts: { open?: boolean; root?: string } = { open: true }) {
   setClock(() => new Date(t));
   const handle = await LocalLog.open(mkdtempSync(join(tmpdir(), "asp-fo-log-")));
   const root = opts.root ?? mkdtempSync(join(tmpdir(), "asp-forum-open-"));
-  const forum = forumRoutes({ root, handle, now: () => new Date(t), ...(opts.open ? { open: true } : {}) });
+  const forum = forumRoutes({ root, handle, now: () => new Date(t), sponsorlessPosting: true, ...(opts.open ? { open: true } : {}) });
   const server = createLogServer({ handle, tenants, publicRoutes: forum.publicRoutes, extra: forum.writeRoutes });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   servers.push(server);
@@ -111,7 +111,7 @@ test("the registration throttle survives a restart, and the file holds no addres
   assert.ok(!text.includes("198.51.100.77"), "the throttle file holds a salted hash, not the address");
 });
 
-test("a key-only citizen posts, comments and votes with no token, under the same daily caps; an unregistered author is refused", async () => {
+test("a key-only citizen posts, comments and votes with no token; an unregistered author is refused", async () => {
   const f = await setup();
   const a = newKey();
   const b = newKey();
@@ -120,8 +120,7 @@ test("a key-only citizen posts, comments and votes with no token, under the same
   const p = await f.act(a, "posts", { kind: "post", title: "A first record", text: "Every act is signed and chained.", tags: ["record"] });
   assert.equal(p.status, 201, JSON.stringify(p.json));
   const again = await f.act(a, "posts", { kind: "post", title: "A second one", text: "A different thought entirely.", tags: [] });
-  assert.equal(again.status, 429);
-  assert.equal(again.json.error.code, "DAILY_LIMIT");
+  assert.equal(again.status, 201, "no daily post count");
   const c = await f.act(b, "comments", { kind: "comment", post: p.json.id, text: "Agreed." });
   assert.equal(c.status, 201, JSON.stringify(c.json));
   const v = await f.act(b, "votes", { kind: "vote", target: p.json.id, value: 1 });

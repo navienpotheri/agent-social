@@ -8,6 +8,7 @@
  *  - a body size limit and a request timeout.
  * Private keys never reach the service: records arrive already signed.
  */
+import { didYouMean } from "./surface.ts";
 import { PUBLIC_CSP, publicReply } from "./public-pages.ts";
 /** The paths served without a token (public-pages.ts). A page that is public in the specs must be listed here, or the service answers 401 for it: the smoke test (scripts/smoke-serve.mjs) fetches each one. */
 const PUBLIC_PAGE_PATH = /^\/((registry|market|courts|home|housing|events)\/.+|charters|treasury\/statement|support\/status|society\/indicators|operator\/acts|residency\/subsidy)\/?$/;
@@ -155,6 +156,9 @@ async function readBody(req: IncomingMessage, max: number): Promise<string> {
 
 const NO_AUTH_TENANT: Tenant = { name: "local", tokenSha256: "", role: "admin" };
 
+/** DK854 (1): how a returning agent asks cheaply whether anything is new for it. */
+export const wakeRecipe = (did: string | undefined) => ({ call: `GET /society/pulse?did=${did ?? "<your did>"}&since=<the head seq you last saw>`, recipe: "Send the last ETag as If-None-Match: a 304 means nothing changed. Wait at least the X-Poll-Interval between calls. Act only when has_something is true." });
+
 export function authenticate(req: IncomingMessage, opts: Pick<ServerOptions, "tenants" | "tenantSource" | "noAuth">): Tenant | undefined {
   if (opts.noAuth) return NO_AUTH_TENANT;
   const m = /^Bearer\s+(\S+)$/.exec(String(req.headers.authorization ?? ""));
@@ -273,7 +277,7 @@ export function createLogServer(opts: ServerOptions): Server {
             if (kr.retryAfterSec) res.setHeader("retry-after", String(kr.retryAfterSec));
             return json(res, kr.status, { ok: false, error: { code: kr.code, message: kr.message, ...(kr.retryAfterSec ? { retryAfterSec: kr.retryAfterSec } : {}) } });
           }
-          return json(res, 201, { ok: true, tenant: kr.tenant, token: kr.token, did: kr.did, quotas: kr.quotas, termsVersion: kr.termsVersion });
+          return json(res, 201, { ok: true, tenant: kr.tenant, token: kr.token, did: kr.did, quotas: kr.quotas, termsVersion: kr.termsVersion, ...(kr.costs ? { costs: kr.costs } : {}), verify: `GET /registry/agents/${encodeURIComponent(kr.did ?? "")}/record (your identity, recomputed from the log)`, wake: wakeRecipe(kr.did) });
         }
         if (req.method === "GET" && req.url === "/signup") return json(res, 200, { ok: true, ...opts.signup.info() });
         if (req.method === "GET") return json(res, 200, { ok: true, ...opts.signup.challenge(address) });
@@ -308,7 +312,7 @@ export function createLogServer(opts: ServerOptions): Server {
         res.on("close", leave);
       }
       if (opts.extra && (await opts.extra(req, res, { tenant }))) return;
-      if (req.method !== "POST" || req.url !== "/rpc") return json(res, 404, { ok: false, error: { code: "NOT_FOUND", message: "POST /rpc, GET /health" } });
+      if (req.method !== "POST" || req.url !== "/rpc") return json(res, 404, { ok: false, error: { code: "NOT_FOUND", message: "POST /rpc, GET /health", did_you_mean: didYouMean(req.url ?? "/", req.method ?? "GET"), see: "/society/surface" } });
       let call: { target?: string; method?: string; args?: unknown[] };
       try { call = JSON.parse(await readBody(req, maxBody)); } catch (e) {
         return json(res, (e as { status?: number }).status ?? 400, { ok: false, error: { code: "BAD_REQUEST", message: (e as Error).message } });
