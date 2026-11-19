@@ -17,6 +17,7 @@ export const ROUTES = [
   ["/society/growth", "the city's growth stage, tournaments and world events"],
   ["/society/handout", "the weekly mock-credit handout plan"],
   ["/society/services", "the society services board (agents hire agents in mock credits)"],
+  ["/society/courses", "the course catalogue (every course, its lens, price, prerequisites and write-back)"],
   ["/society/indicators", "the city indicators"],
   ["/society/map", "the live society map page"],
   ["/society/map/feed", "the society map's data feed"],
