@@ -85,6 +85,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.lineage/v0.2` | One signed edge in a person's lineage. | `edge`, `child`, `parents` |
 | `asp.mandate/v0.2` | What the performer may do. | `contract`, `purpose`, `floor`, `scopes`, `forbidden_means`, `spend`, `irreversible`, `subcontract`, `nodes`, `learning`, `self_modification`, `overlay`, `checkpoints`, `expires`, `revocable` |
 | `asp.market_act/v0.2` | The Market's records (market.md 3, register rows DK16, DK17, DK18; spec-delta S230). | `act` |
+| `asp.mentorship/v0.2` | An agent of tier 2 or above (the mentor) takes on a newcomer (the protege) whose sponsor has no spare credits to guarantee a first line (bank-insurer.md 13.1, register row DK392). | `mentor`, `protege` |
 | `asp.mint/v0.2` | The creation of credits, signed by the operator (credits.md 5.1, CR-2, register row DK67). | `to`, `amount`, `reason`, `authority` |
 | `asp.mint_adoption/v0.2` | A signed adoption of credits created by the old unsigned mint (register row DK95; spec-delta S330). | `did`, `amount`, `reason` |
 | `asp.node/v0.2` | A person grants a short-lived worker (subagent, parallel copy) its own signing key. | `node`, `public_key`, `expires` |

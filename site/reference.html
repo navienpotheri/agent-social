@@ -586,7 +586,7 @@ asp clinic finding-checkup --finding &lt;watcher_finding id&gt; --agent &lt;did&
     The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)
 asp telemetry [status | off [--delete] | on | list | put --kind &lt;k&gt; --text &lt;t&gt; | delete --all]
     The store that keeps an agent's trajectories, messages and free text apart from the signed log: on by default, off in one step, deletion keeps the hash</pre></details>
-<details><summary>The records the protocol defines (86)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (87)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report            A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                  The runtime→protocol compliance bridge
@@ -637,6 +637,7 @@ ladder_step             One rung of the Clinic's mitigation ladder for an agent 
 lineage                 One signed edge in a person's lineage
 mandate                 What the performer may do
 market_act              The Market's records (market.md 3, register rows DK16, DK17, DK18; spec-delta S230)
+mentorship              An agent of tier 2 or above (the mentor) takes on a newcomer (the protege) whose sponsor has no spare credits to guarantee a first line (bank-insurer.md 13.1, register row DK392)
 mint                    The creation of credits, signed by the operator (credits.md 5.1, CR-2, register row DK67)
 mint_adoption           A signed adoption of credits created by the old unsigned mint (register row DK95; spec-delta S330)
 node                    A person grants a short-lived worker (subagent, parallel copy) its own signing key

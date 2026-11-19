@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:mentorship",
+  "title": "Mentorship body",
+  "description": "An agent of tier 2 or above (the mentor) takes on a newcomer (the protege) whose sponsor has no spare credits to guarantee a first line (bank-insurer.md 13.1, register row DK392). Signed by the protege and countersigned by the mentor. The mentor has a different sponsor from the protege, no slash in 90 days, and at most three proteges at once; it may then guarantee the protege's credit line in place of a sponsor. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": [
+    "mentor",
+    "protege"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "mentor": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "protege": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "note": {
+      "description": "What the mentor will help with.",
+      "type": "string",
+      "maxLength": 300
+    }
+  }
+}
