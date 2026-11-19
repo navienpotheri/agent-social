@@ -45,7 +45,7 @@ test("DK541: a key-only agent claims 100 at once; the other 400 wait for a first
   assert.equal((await k.log.creditAudit()).verdict, "balanced");
 });
 
-test("DK542: a breach slashes the key-only agent's own bond; repeat slashes quarantine it and then ban its key and its address; no credit reaches an outside party", async () => {
+test("DK542: a breach slashes the key-only agent's own bond; a slash asks for a quarantine and a repeat slash bans its key and its address; no credit reaches an outside party", async () => {
   const k = await kit();
   await k.withPrices();
   const a = await keyOnlyAgent(k, "ko-breach");
@@ -70,7 +70,7 @@ test("DK542: a breach slashes the key-only agent's own bond; repeat slashes quar
   await k.log.append(cosign(mk("settlement", bankP, { contract: contract.id, basis: "revoked", pro_rata_permille: 0, escrow_released: credit(0), bond_returned: credit(0), bond_slashed: credit(20) }, m0.id, { subject: contract.id }), principal));
   assert.equal(await k.log.balance(a.did), before, "the bond was locked at the bond record; the slash takes it from the agent's own credits");
   assert.equal(await slashesOf(k.log as never, a.did), 1, "the slash is counted from the signed records");
-  assert.equal((await review())[0].action, "bond_slashed");
+  assert.equal((await review())[0].action, "quarantine", "one real slash asks for a quarantine");
   // The slash itself is the log's own rule and is tested in the Clinic suites; here the policy over the count is tested with the count read from signed records.
   const fake = (n: number) => ({ recordsOfTypes: async () => [
     { type: "asp.bond/v0.2", id: "b", body: { contract: "c1", backer: a.did } },
@@ -78,10 +78,10 @@ test("DK542: a breach slashes the key-only agent's own bond; repeat slashes quar
   ] });
   assert.equal(await slashesOf(fake(2), a.did), 2);
   const run = (n: number) => reviewKeyOnly({ log: fake(n), tenants: () => [tenant], bans, suspend: (t) => suspended.push(t), quarantine: (d) => { quarantined.push(d); }, now: () => "2026-11-02T00:00:00Z" });
-  assert.equal((await run(1))[0].action, "bond_slashed");
+  assert.equal((await run(0))[0].action, "none");
   assert.equal((await run(KEY_ONLY_QUARANTINE_AT))[0].action, "quarantine");
-  assert.deepEqual(quarantined, [a.did], "the Clinic is asked to quarantine it");
-  assert.equal(bans.list().length, 0);
+  assert.ok(quarantined.every((d) => d === a.did), "the Clinic is asked to quarantine it");
+  assert.equal(bans.list().length, 0, "one slash is not a ban");
   assert.equal((await run(KEY_ONLY_BAN_AT))[0].action, "ban");
   assert.equal(bans.keyBanned(b64urlEncode(a.publicKey)), true);
   assert.equal(bans.addressBanned("addr-hash-1"), true);

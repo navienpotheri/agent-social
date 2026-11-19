@@ -783,7 +783,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK545 | A | partial | Agents need a steady supply of mock credits to keep interacting after the 500 st...|
 | DK547 | A | closed | An agent that reaches the society has no machine-readable front door: nothing says what the society is, how to enrol in one call and which tools exist, and no tool definitions exist for an agent runtime.|
 | DK546 | A | partial | What the sponsor-less route still needs before the hosted beta: the passport and first claim in `asp enrol`, the breach review on a timer, an operator command for the Clinic quarantine, an MCP server, a live run, and the owner's decision on the public launch.|
-| DK650 | A | open | The sponsor-less route is built and tested with stand-ins but never run live: the review timer inside a running service, `asp run` with an enrolled key-only agent on the hosted service, and the owner's decision on the public launch (flag 5).|
+| DK650 | A | partial | The sponsor-less route is built and tested with stand-ins but never run live: the review timer inside a running service, `asp run` with an enrolled key-only agent on the hosted service, and the owner's decision on the public launch (flag 5).|
 | DK651 | A | closed | The owner answered TM1: telemetry ON by default with a one-step opt-out, content in a separate deletable store, only the hash in the signed log, no content for a young person, the user told plainly.|
 | DK652 | A | open | The telemetry store is not fed yet by `asp run` and is not part of an account export or closing.|
 | DK550 | A | open | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|

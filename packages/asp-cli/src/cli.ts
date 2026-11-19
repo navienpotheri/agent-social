@@ -2591,8 +2591,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const publicList = [helpRoutes(), frontDoorRoutes({ keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend() }), academyRoutes({ log: () => handle.log as never }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
-  // The sponsor-less review (rows DK542, DK546): every --keyonly-review-interval seconds (default 300) the slashes of each key-only tenant are counted from the log; three ban its key and address and suspend the tenant,
-  // two ask the Clinic for a quarantine, which the service cannot sign (the Clinic's key is the owner's): the request waits in <tokens>.keyonly-pending.json for `asp clinic keyonly-freeze`.
+  // The sponsor-less review (rows DK542, DK546): every --keyonly-review-interval seconds (default 300) the slashes of each key-only tenant are counted from the log; two ban its key and address and suspend the tenant,
+  // one asks the Clinic for a quarantine, which the service cannot sign (the Clinic's key is the owner's): the request waits in <tokens>.keyonly-pending.json for `asp clinic keyonly-freeze`.
   if (signup && keyOnlyPending && !v["no-key-only-signup"]) {
     const every = Math.max(1, num("keyonly-review-interval", 300)) * 1000;
     const pass = async () => {
@@ -2605,6 +2605,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
             if (!live && keyOnlyPending.add({ did, tenant: name, slashes, at: now() })) io.out(`  sponsor-less review: ${name} has ${slashes} slashes; a Clinic quarantine is waiting for asp clinic keyonly-freeze`);
           },
         });
+        if (process.env.ASP_DEBUG_KEYONLY) io.out(`  sponsor-less review: ${JSON.stringify(rows)}`);
         for (const r of rows) if (r.action === "ban") io.out(`  sponsor-less review: ${r.tenant} banned by key and address after ${r.slashes} slashes`);
       } catch (e) { io.out(`  sponsor-less review failed: ${(e as Error).message}`); }
     };

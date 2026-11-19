@@ -20,9 +20,12 @@ export function checkKeyProof(publicKey: unknown, signature: unknown, challenge:
   } catch { return undefined; }
 }
 
-/** What the log shows of a key-only identity: its slashes. A first slash takes the bond; the second quarantines; the third bans by key and address. */
-export const KEY_ONLY_QUARANTINE_AT = 2;
-export const KEY_ONLY_BAN_AT = 3;
+/**
+ * What the log shows of a key-only identity: its slashes. The first slash takes the bond (the log does that, and demotes the agent to tier 0, which excludes it from new bonds) and the Clinic is asked to quarantine it; a second slash,
+ * which an agent can only reach after it has been returned from tier 0 or from a bond made before the first slash, is repeat abuse and bans its key and its address.
+ */
+export const KEY_ONLY_QUARANTINE_AT = 1;
+export const KEY_ONLY_BAN_AT = 2;
 
 export interface BanEntry { kind: "key" | "address"; value: string; at: string; reason: string; tenant?: string }
 
@@ -73,7 +76,7 @@ export async function slashesOf(log: { recordsOfTypes(types: string[]): Promise<
 }
 
 /**
- * One pass over the key-only tenants: counts each one's slashes and acts. At KEY_ONLY_QUARANTINE_AT the Clinic is asked to quarantine it (the Clinic's key is the owner's, so the service calls `quarantine` and does not sign);
+ * One pass over the key-only tenants: counts each one's slashes and acts. At KEY_ONLY_QUARANTINE_AT (one) the Clinic is asked to quarantine it (the Clinic's key is the owner's, so the service calls `quarantine` and does not sign);
  * at KEY_ONLY_BAN_AT the key and the address are banned and the tenant suspended. A tenant already banned is left as it is. No credit moves to anyone in either step (H4).
  */
 export async function reviewKeyOnly(o: {
@@ -89,7 +92,7 @@ export async function reviewKeyOnly(o: {
     const k = t.signup?.keyOnly;
     if (!k || t.closed) continue;
     const slashes = await slashesOf(o.log, k.did);
-    let action: KeyOnlyAction = slashes >= KEY_ONLY_BAN_AT ? "ban" : slashes >= KEY_ONLY_QUARANTINE_AT ? "quarantine" : slashes > 0 ? "bond_slashed" : "none";
+    let action: KeyOnlyAction = slashes >= KEY_ONLY_BAN_AT ? "ban" : slashes >= KEY_ONLY_QUARANTINE_AT ? "quarantine" : "none";
     if (action === "ban") {
       const added = o.bans.ban({ publicKey: k.publicKey, addressHash: t.signup!.addressHash, reason: `${slashes} slashes of its own bond`, tenant: t.name, at: o.now() });
       if (!added.length) action = "none"; // already banned in an earlier pass
