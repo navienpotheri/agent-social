@@ -2,7 +2,7 @@
 
 Status: proposal and notes, written by a side session on 2026-11-19. No register row, no scope row and no gaps-register edit is made here; the candidate ids DK810 to DK849 are proposals only. The images are the owner's private material and are neither copied nor quoted at length: every note is in my own words. Credits are mock accounting entries, not money; the service is a beta; no outside security review has happened; continual learning here means memory, skill and harness, never weights.
 
-Folder read: `D by dt\agent social\11th NOv,2026` (49 PNG screenshots IMG_6464 to IMG_6510 plus one dated screenshot, and a 88 MB zip not opened), then `agent core concepts` (3 PNG plus a zip not opened) and `agent-social` (2 PNG). Notes below are in file-name order.
+Folder read: the owner's Desktop folder "agent social", subfolder "11th NOv,2026" (49 files: 47 screenshots IMG_6464 to IMG_6510, one dated screenshot of 12 Nov, and one 88 MB zip), then the subfolder "agent core concepts" (3 screenshots and one 42 MB zip) and the subfolder "agent-social" (2 screenshots). **53 images read, every one with the Read tool in file-name order, none unreadable** (some are cropped by the phone's own menus or are only a fragment; each note says what was cut). **Two zip archives were not unpacked or read image by image**: I only listed their entry names (the 11 Nov zip holds 68 files named IMG_68xx and IMG_69xx, which are the 68 screenshots already covered by docs/lenses/papers.md; the core-concepts zip holds 47 files with the same names as items in the 11 Nov folder, so they are copies). Where an item is already in docs/lenses/papers.md I give its P-number; the earlier scrape's image numbers are IMG_69xx.
 
 ## PART 1. Per-item notes
 
@@ -335,7 +335,7 @@ Folder read: `D by dt\agent social\11th NOv,2026` (49 PNG screenshots IMG_6464 t
 - **Mechanism / evidence:** none. **For us:** no. It is a copy of our own framework (docs/lenses/matrix.md); useful only as evidence of how the grid reads to a newcomer: three short sentences were enough, so the **front-door explainer for the grid** can be that short (a content note for the site, not a build).
 
 ## Second folder: `agent core concepts`
-Contents: three screenshots and `Photos-1-001.zip` (42 MB). I listed the zip's entry names without extracting: it holds 47 files named IMG_6466 to IMG_65xx, the same names as the 11 Nov folder, so they are copies of items already read in Part 1. The 11 Nov folder's own zip holds 68 files named IMG_68xx and IMG_69xx, which are the 68 screenshots already covered by docs/lenses/papers.md. Neither zip was unpacked or read image by image; I say so rather than claim they were read.
+Contents: three screenshots (all read) and `Photos-1-001.zip` (42 MB, not unpacked; see the note at the top).
 
 ### Screenshot 2026-10-27 133343.png
 - **What it is:** a chat-style text note (dark theme), 27 Oct 2026; an assistant's list item "LW8, the lawyer and sponsor liability".
