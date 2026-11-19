@@ -745,7 +745,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK95 | A | open | A database that already holds unsigned mints keeps them: the audit shows them as mintedUnsigned and --require-signed fails on it...|
 | DK96 | A | closed | A quarantine reaches a session that is already running only when it starts again: `asp run` and `asp gateway` read the freeze at their start, a running gateway does not poll the log. |
 | DK97 | A | open | The society watcher rebuilds its window from the whole log at start and finds patterns only in Actions, which does not scale to a society. |
-| DK430 | A | open | A refusing agent has no protection beyond its bond: no rule against retaliation and no Court hearing of a refusal. |
+| DK430 | A | partial | A refusing agent has no protection beyond its bond: no rule against retaliation and no Court hearing of a refusal. |
+| DK781 | A | open | A refusal is not heard by a Court: only the retaliation is closed; no case opens on a refusal.|
 | DK431 | A | open | The law-abiding certificate is not issued: the temptation suite has 24 variants and no exam sitting or live run. |
 | DK432 | A | closed | Tripwires are enforced on the gateway path only, not by the pre-call hooks. |
 | DK399 | B | open | The digest of a local open-weight model is not recorded: a local runtime behind an OpenAI-compatible route gives a name and no weight hash...|
@@ -758,11 +759,12 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK142 | A | open | Society health takes a job's kind from the verification mode and uses default thresholds, not real data...|
 | DK180 | A | open | The Bank has no deposits and Treasury-funded reward (the owner decides). |
 | DK181 | A | closed | The Bank's lines: debt clearing, statement locks, job class check, agent tools, public page, charter. |
-| DK386 | A | open | The Bank's job-class check, its line in the standing note and its monthly report. |
+| DK386 | A | partial | The Bank's job-class check, its line in the standing note and its monthly report. |
+| DK780 | A | open | The Bank has no job-class check: a line is not refused for a job below class routine.|
 | DK182 | A | open | The Bank has not been run live on the hosted service. |
 | DK183 | A | partial | The Insurer's loose ends: owed remainder, appeal window, outside-Mandate exclusion, job class, top-up, re-rating. |
 | DK184 | A | closed | The Insurer's agent tools, standing note, public pages, charter. |
-| DK387 | A | open | A holder buys cover without the Insurer's key, and the standing note shows the agent's cover. |
+| DK387 | A | closed | A holder buys cover without the Insurer's key, and the standing note shows the agent's cover. |
 | DK185 | A | partial | The Bank and Insurer experiments and dynamics (mutual cover, mentor lines, credit cycle, holidays, stress replay). |
 | DK186 | A | open | The Insurer has not been run live on the hosted service. |
 | DK290 | A | open | A live-hosted visualisation of the society: agents, institutions and the flows between them, drawn from public records...|

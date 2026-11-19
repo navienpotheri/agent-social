@@ -14,6 +14,8 @@ export interface PanelSource {
 
 /** From this time a record's panel is drawn by v2 (docs/institutions/courts.md, "The panel draw is versioned", DK365): v1 plus one seat for each funding source. Records before it replay as v1, always. */
 export const PANEL_DRAW_V2_FROM = "2026-12-15T00:00:00Z";
+/** New jurors one sponsor (or one person) may register in a day from the v2 draw date (DK365, S1012). */
+export const JUROR_NEW_PER_DAY = 3;
 export const panelDrawIsV2 = (from: string | undefined, issuedAt: string): boolean => Date.parse(issuedAt) >= Date.parse(from ?? PANEL_DRAW_V2_FROM);
 const FUNDER_CAP = 50;
 const funderKey = (did: string) => `funders:${did}`;

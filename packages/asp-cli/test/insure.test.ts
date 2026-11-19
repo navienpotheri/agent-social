@@ -76,3 +76,27 @@ test("cover is bought before the job and a covered failure is paid by the terms 
     assert.match(late.err, /first Action|already has an Action/);
   } finally { setClock(undefined); }
 });
+
+test("DK387: an agent without the Insurer's key buys cover with its own signature at the published premium; the policy is the agent's record, not the Insurer's", async () => {
+  const f = makeFixture();
+  setClock(() => new Date(clockMs));
+  try {
+    for (const d of [PRINCIPAL, SPONSOR, BANK]) await ok(f, ["identity", "new", "--kind", "human", "--did", d]); // no identity for the Insurer: its key is not on this machine
+    await ok(f, ["identity", "new", "--kind", "agent", "--did", AGENT, "--sponsor", SPONSOR, "--purpose", "A job"]);
+    await ok(f, ["credits", "grant", "--to", AGENT, "--amount", "100"]);
+    await ok(f, ["credits", "grant", "--to", PRINCIPAL, "--amount", "300"]);
+    await ok(f, ["credits", "grant", "--to", INSURER_DID, "--amount", "600"]);
+    tick();
+    const intent = /^intent (\S+)/.exec((await ok(f, ["market", "intent", "--by", PRINCIPAL, "--purpose", "Solve a task", "--budget", "100", "--deadline", "2027-01-01T00:00:00Z"])).out)![1];
+    const offer = /^offer (\S+)/.exec((await ok(f, ["market", "offer", "--by", AGENT, "--intent", intent, "--price", "100", "--plan", "go", "--eta", "2026-12-01T00:00:00Z"])).out)![1];
+    const contract = /^contract (\S+):/.exec((await ok(f, ["market", "contract", "--principal", PRINCIPAL, "--bank", BANK, "--intent", intent, "--offer", offer])).out)![1];
+    tick();
+    const bought = await ok(f, ["insure", "buy", "--contract", contract, "--cover", "bond_slash", "--by", AGENT, "--amount", "20"]);
+    const policy = /^policy (\S+):/.exec(bought.out)![1];
+    const log = await openLog(f.aspHome, {});
+    const rec = (await log.log.get(policy))!.record;
+    assert.equal(rec.issuer, AGENT, "signed by the holder alone");
+    assert.match(bought.out, /premium 2 paid/);
+    assert.match((await ok(f, ["insure", "reserve"])).out, /reserve: 602 credits/);
+  } finally { setClock(undefined); }
+});

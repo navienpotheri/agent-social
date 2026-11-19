@@ -56,9 +56,9 @@ export const PRICES = [
   { service: "clinic.restore", institution: institutionDid("clinic"), price: 5, split: { treasury_permille: 200, burn_permille: 0, payees: [{ account: institutionDid("clinic"), permille: 800 }] }, class: "remedial" },
 ];
 
-export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean } = {}) {
+export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean; panelV2From?: string } = {}) {
   clockMs = Date.parse("2026-11-01T00:00:00Z"); // every log is new, so each test starts its own clock
-  const log = new EventLog(new MemoryStore(), { operator: operator.did, owner: owner.did, fallbackResolver: resolver, now: () => new Date(clockMs), ...(extra.bondFloor ? { bondFloor: extra.bondFloor } : {}) });
+  const log = new EventLog(new MemoryStore(), { operator: operator.did, owner: owner.did, fallbackResolver: resolver, now: () => new Date(clockMs), ...(extra.bondFloor ? { bondFloor: extra.bondFloor } : {}), ...(extra.panelV2From ? { panelV2From: extra.panelV2From } : {}) });
   await registerParties(log); // alice (a sponsor), the coder agent, the bank
   let n = 0;
   const holderParty = new Map<string, Party>();

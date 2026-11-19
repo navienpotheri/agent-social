@@ -327,3 +327,17 @@ test("DK183: the Treasury tops the reserve up by a budget line (owner co-signed,
   assert.equal(await refused(w.kit.put(w.kit.mk("treasury_payment", treasury, { budget, to: INSURER_DID, amount: credit(81) }, null, { at }))), "over_budget", "the top-up is capped by the budget");
   assert.equal((await w.kit.log.creditAudit()).verdict, "balanced");
 });
+
+test("DK387: a holder buys cover without the Insurer's key: its own signed policy is accepted at the published premium and nowhere else", async () => {
+  const w = await world();
+  const j = await w.job();
+  const premium = premiumFor("bond_slash", 20, 100, 0, 0);
+  const own = (over: Record<string, unknown> = {}, by: Party = j.agent) => w.kit.mk("policy", by, { holder: j.agent.did, contract: j.contract, cover: "bond_slash", insured_amount: credit(20), premium: credit(premium), valid_from: w.kit.now(), valid_to: iso(Date.parse(w.kit.now()) + 60 * DAY), ...over }, null, { subject: j.agent.did });
+  const before = await w.bal(j.agent.did);
+  assert.equal(await refused(w.kit.put(own({ premium: credit(premium - 1) }))), "premium_mismatch", "not below the published premium");
+  assert.equal(await refused(w.kit.put(own({}, w.principal))), "policy_wrong_issuer", "neither the Insurer nor the holder");
+  await w.kit.put(own());
+  assert.equal(await w.bal(j.agent.did), before - premium, "the holder paid the premium by the rule");
+  assert.equal(await refused(w.kit.put(own())), "policy_exists", "one policy for a contract and cover");
+  assert.equal((await w.kit.log.creditAudit()).verdict, "balanced");
+});

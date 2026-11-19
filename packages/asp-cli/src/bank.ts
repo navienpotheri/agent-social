@@ -13,7 +13,7 @@ export interface BankOpts {
   io: { out: (l: string) => void; err: (l: string) => void };
   now: () => string;
   signerFor: (did: string) => Signer;
-  flags: { deposit?: string; budget?: string; contract?: string; agent?: string; amount?: string; guarantor?: string; line?: string; holder?: string; by?: string; days?: string };
+  flags: { deposit?: string; budget?: string; contract?: string; agent?: string; amount?: string; guarantor?: string; line?: string; holder?: string; by?: string; days?: string; month?: string };
 }
 
 const DAY = 86_400_000;
@@ -114,6 +114,13 @@ export async function bankCmd(sub: string | undefined, o: BankOpts): Promise<num
     const rec = createRecord({ type: "debt_payment" as never, issuer: payer, subject: payer, prev: null, body: { line: f.line, amount: { value: amount, unit: "credit" } }, issued_at: o.now() }, o.signerFor(payer));
     const res = await o.log.append(rec);
     o.io.out(`payment ${res.id}: ${amount} credits from ${payer} to the Bank against the debt on ${f.line} (log seq ${res.seq}); new lines for its agents are open again once nothing is owed`);
+    return 0;
+  }
+  if (sub === "report") {
+    // The Bank's monthly report (DK386): lines opened, where they stand, defaults, what is owed and the reserve against what is promised.
+    const month = f.month ?? o.now().slice(0, 7);
+    const r = await o.log.log.bankMonthly(month);
+    o.io.out(`the Bank, ${r.month}: ${r.opened} line(s) opened for ${r.amountOpened} credits (${Object.entries(r.byStatus).map(([k, v]) => `${v} ${k}`).join(", ") || "none"}); ${r.defaultsInMonth} default(s) recorded; ${r.owedToTheBank} credits owed to the Bank; reserve ${r.reserve}, promised ${r.promised}, free ${r.reserveFree}`);
     return 0;
   }
   if (sub === "offer") {
