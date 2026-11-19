@@ -5,6 +5,7 @@
  * owes and when it goes dormant, the state of every resident read from the records, and the runner the Shops (the operator, in the beta) calls to deliver purchases and charge upkeep.
  * The log's own rules for the records are in shops-rules.ts. Credits are accounting entries, not money.
  */
+import { buyerOf } from "./purchase-buyer.ts";
 import { createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
 import { institutionDid, type Split } from "./economy.ts";
 
@@ -99,6 +100,9 @@ export const HOUSING_CATALOGUE: CatalogueItem[] = [
   { service: "housing.decor.theme.dawn", institution: HOUSING_DID, price: 20, split: hsplit(), class: "standard", effect: { type: "theme", value: "dawn" }, duration_days: 90, gate: { min_tier: 1 } },
   { service: "housing.decor.theme.slate", institution: HOUSING_DID, price: 20, split: hsplit(), class: "standard", effect: { type: "theme", value: "slate" }, duration_days: 90, gate: { min_tier: 1 } },
   { service: "housing.decor.layout.wide", institution: HOUSING_DID, price: 30, split: hsplit(), class: "standard", effect: { type: "layout", value: "wide" }, duration_days: 90, gate: { min_tier: 1 } },
+  // Plot rent (DK681, S996): a week of rent, bought once a week by a standing order its buyer signed (Housing signs each delivery, DK682). While an agent that has ever paid rent has no week paid, its theme and layout
+  // fall back to the plain page; a payment brings them back. Nothing else about its Home changes.
+  { service: "housing.rent.plot", institution: HOUSING_DID, price: 5, split: hsplit(), class: "standard", effect: { type: "profile_feature", value: "plot_rent" }, duration_days: 7, gate: { min_tier: 1 } },
 ];
 
 // ---- days --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -214,19 +218,19 @@ export async function runShops(io: ShopsIo, shops: Signer, now: string, only?: s
   const answered = new Set(records.filter((r) => r.type === "asp.receipt/v0.2").map((r) => (r.body as { purchase: string }).purchase));
   const held = new Set(records.filter((r) => (r.type === "asp.shops_act/v0.2" || r.type === "asp.housing_act/v0.2") && (r.body as { act: string }).act === "holding").map((r) => (r.body as { purchase: string }).purchase));
   for (const p of records.filter((r) => r.type === "asp.purchase/v0.2" && (r.body as { institution: string }).institution === seller)) {
-    if (only && p.issuer !== only) continue;
+    if (only && buyerOf(p) !== only) continue;
     const pb = p.body as { service: string; price_list: string };
     let receiptId: string | undefined = answered.has(p.id) ? records.find((r) => r.type === "asp.receipt/v0.2" && r.prev === p.id)?.id : undefined;
     if (!receiptId) {
       const rc = sign({ purchase: p.id, status: "delivered", delivered_ref: pb.service }, "receipt", p.id);
-      try { await io.append(rc); run.receipts.push(rc.id); receiptId = rc.id; } catch (e) { run.refused.push({ what: "receipt", agent: p.issuer, rule: ruleOf(e) }); continue; }
+      try { await io.append(rc); run.receipts.push(rc.id); receiptId = rc.id; } catch (e) { run.refused.push({ what: "receipt", agent: buyerOf(p), rule: ruleOf(e) }); continue; }
     }
     if (held.has(p.id)) continue;
     const item = itemsOf(records.find((r) => r.id === pb.price_list)).find((i) => i.service === pb.service);
     if (!item?.effect || !item.duration_days || pb.service === UPKEEP_SERVICE) continue;
     const from = p.issued_at;
-    const h = sign({ act: "holding", holder: p.issuer, item: pb.service, purchase: p.id, receipt: receiptId, effect: item.effect, from, until: isoAt(Date.parse(from) + item.duration_days * DAY_MS), ...(item.gate?.certificate ? { gate_certificate: item.gate.certificate } : {}) }, seller === HOUSING_DID ? "housing_act" : "shops_act");
-    try { await io.append(h); run.holdings.push(h.id); } catch (e) { run.refused.push({ what: "holding", agent: p.issuer, rule: ruleOf(e) }); }
+    const h = sign({ act: "holding", holder: buyerOf(p), item: pb.service, purchase: p.id, receipt: receiptId, effect: item.effect, from, until: isoAt(Date.parse(from) + item.duration_days * DAY_MS), ...(item.gate?.certificate ? { gate_certificate: item.gate.certificate } : {}) }, seller === HOUSING_DID ? "housing_act" : "shops_act");
+    try { await io.append(h); run.holdings.push(h.id); } catch (e) { run.refused.push({ what: "holding", agent: buyerOf(p), rule: ruleOf(e) }); }
   }
 
   if (seller !== SHOPS_DID) return run;

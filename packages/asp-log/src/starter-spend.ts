@@ -42,7 +42,7 @@ export function starterSpendOf(records: AspRecord[], nowMs: number): StarterSpen
   for (const r of records) {
     const at = Date.parse(r.issued_at);
     if (!Number.isFinite(at)) continue;
-    const who = r.actor || r.issuer;
+    const who = (r.body as { buyer?: string }).buyer ?? (r.actor || r.issuer);
     if (r.type === "asp.starter_claim/v0.2") { const f = claimAt.get(who); if (f === undefined || at < f) claimAt.set(who, at); }
     else if (r.type === "asp.purchase/v0.2") (spends.get(who) ?? spends.set(who, []).get(who)!).push({ at, v: (r.body as { amount: { value: number } }).amount.value });
   }

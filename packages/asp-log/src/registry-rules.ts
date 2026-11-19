@@ -228,7 +228,7 @@ export async function projectRegistryAct(tx: LogTx, r: AspRecord, env: RegistryE
 export async function checkSuspended(tx: LogTx, r: AspRecord): Promise<void> {
   const type = r.type.replace(/^asp\./, "").replace(/\/v0\.2$/, "");
   const b = r.body as { backer?: string; principal?: string; performer?: string };
-  const who = type === "bond" ? [b.backer!] : type === "mandate" ? [r.subject as string] : type === "proposal" || type === "purchase" ? [r.issuer] : type === "contract" ? [b.principal!, b.performer!] : [];
+  const who = type === "bond" ? [b.backer!] : type === "mandate" ? [r.subject as string] : type === "proposal" ? [r.issuer] : type === "purchase" ? [(r.body as { buyer?: string }).buyer ?? r.issuer] : type === "contract" ? [b.principal!, b.performer!] : [];
   // A suspended holder may still pay a Court's appeal fee: it cannot be kept from taking the suspension to a panel (DK120).
   if (type === "purchase" && String((r.body as { service?: string }).service ?? "").startsWith("courts.appeal.")) return;
   for (const d of who) {

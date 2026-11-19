@@ -12,6 +12,8 @@ export { HOUSING_DID };
 export const PROFILE_LIMITS = { display_name: 40, tagline: 120, about_bytes: 2048, showcase: 5 } as const;
 export const THEME_PREFIX = "housing.decor.theme.";
 export const LAYOUT_PREFIX = "housing.decor.layout.";
+/** The plot rent item (DK681, S996). */
+export const RENT_SERVICE = "housing.rent.plot";
 
 const HIDDEN = new RegExp("[\\u0000-\\u0008\\u000b-\\u001f\\u007f\\u200b-\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2060-\\u2064\\u2066-\\u2069\\ufeff]");
 const URLISH = /(https?:\/\/|ftp:\/\/|www\.|\/\/[a-z0-9-]+\.[a-z])/i;
@@ -30,7 +32,7 @@ export interface HomeView {
   /** "house agent" for the operator's scripted agents (DK291), else null. */
   label: string | null;
   profile: { display_name: string | null; tagline: string | null; about: string | null; showcase: { id: string; type: string }[]; /** Set when Housing took the agent's profile text off the Home: why, when, and until when the agent may appeal to the Courts. */ removed?: { reason: string; record: string; at: string; appealable_until: string } };
-  decor: { theme: string | null; layout: string | null; items: { item: string; effect: Record<string, unknown>; until: string }[] };
+  decor: { theme: string | null; layout: string | null; /** none: the agent has never paid rent (its decor shows as before); paid: a week is paid; lapsed: it has paid before and no week is paid now, so theme and layout are not shown. */ rent: "none" | "paid" | "lapsed"; items: { item: string; effect: Record<string, unknown>; until: string }[] };
   offers: { id: string; intent: string; price: number; plan: string | null }[];
   /** The city's, fixed: computed from the log and styled by nothing the agent bought. */
   record: { custody: "local" | "service"; kind: string; tier: number | null; slashes: number; strikes: number; accepted_jobs: number; qualifying_jobs: number; certificates: { skill: string; level: number; expires: string }[]; suspended: { until: string; reason: string } | null; retired: boolean };
@@ -53,6 +55,21 @@ export function decorAt(records: AspRecord[], did: string, at: string): { item: 
   return out;
 }
 
+/** The plot's rent at `at` (DK681): never paid, paid now, or lapsed (paid before, no week paid now). */
+export function rentAt(records: AspRecord[], did: string, at: string): "none" | "paid" | "lapsed" {
+  const t = Date.parse(at);
+  const refunded = new Set(records.filter((r) => r.type === "asp.receipt/v0.2" && (r.body as { status: string }).status !== "delivered").map((r) => (r.body as { purchase: string }).purchase));
+  let ever = false, live = false;
+  for (const r of records) {
+    if (r.type !== "asp.housing_act/v0.2") continue;
+    const b = r.body as Record<string, any>;
+    if (b.act !== "holding" || b.holder !== did || b.item !== RENT_SERVICE || refunded.has(b.purchase) || Date.parse(b.from) > t) continue;
+    ever = true;
+    if (Date.parse(b.until) > t) live = true;
+  }
+  return !ever ? "none" : live ? "paid" : "lapsed";
+}
+
 /** The Home of `did` at the log position in `inp`, or null when there is no such identity. `records`: passport, certificate, registry_act, shops_act, housing_act, receipt and offer records in log order. */
 export function homeView(did: string, inp: PageInputs): HomeView | null {
   const page: RecordPage | null = buildPage(did, inp);
@@ -64,14 +81,15 @@ export function homeView(did: string, inp: PageInputs): HomeView | null {
   const removal = latest ? records.find((r) => r.type === "asp.housing_act/v0.2" && Date.parse(r.issued_at) <= Date.parse(at) && (r.body as { act: string; target?: string }).act === "removal" && (r.body as { target: string }).target === latest.id && !records.some((x) => x.type === "asp.housing_act/v0.2" && Date.parse(x.issued_at) <= Date.parse(at) && (x.body as { act: string; removal?: string }).act === "restoration" && (x.body as { removal: string }).removal === r.id)) : undefined;
   const pb = (removal ? {} : (latest?.body ?? {})) as { display_name?: string; tagline?: string; about?: string; showcase?: string[]; theme?: string; layout?: string };
   const decor = decorAt(records, did, at);
-  const owned = (service?: string) => decor.find((d) => d.item === service);
+  const rent = rentAt(records, did, at);
+  const owned = (service?: string) => (rent === "lapsed" ? undefined : decor.find((d) => d.item === service)); // a lapsed rent: the extras fall back to the plain page
   const byId = new Map(records.map((r) => [r.id, r]));
   const showcase = (pb.showcase ?? []).flatMap((id) => { const r = byId.get(id); return r ? [{ id, type: r.type.replace(/^asp\./, "").replace(/\/v0\.2$/, "") }] : []; });
   const offers = records.filter((r) => r.type === "asp.offer/v0.2" && r.issuer === did && Date.parse(r.issued_at) <= Date.parse(at)).slice(-10).map((r) => { const b = r.body as { intent: string; price: { value: number }; plan?: string }; return { id: r.id, intent: b.intent, price: b.price.value, plan: b.plan ? b.plan.replace(/[\u0000-\u001f]/g, " ").slice(0, 200) : null }; });
   return {
     did, name: page.names[0] ?? null, label: page.label,
     profile: { display_name: pb.display_name ?? null, tagline: pb.tagline ?? null, about: pb.about ?? null, showcase, ...(removal ? { removed: { reason: (removal.body as { reason: string }).reason, record: removal.id, at: removal.issued_at, appealable_until: (removal.body as { appealable_until: string }).appealable_until } } : {}) },
-    decor: { theme: owned(pb.theme)?.effect.value ?? null, layout: owned(pb.layout)?.effect.value ?? null, items: decor.map((d) => ({ item: d.item, effect: d.effect, until: d.until })) },
+    decor: { theme: owned(pb.theme)?.effect.value ?? null, layout: owned(pb.layout)?.effect.value ?? null, rent, items: decor.map((d) => ({ item: d.item, effect: d.effect, until: d.until })) },
     offers,
     memories: souvenirsOf(records, did).map((m) => ({ event: m.event, kind: m.kind })), met: (() => { const m = meeting(records, did); return { agents: m.contacts.length, sponsors: m.sponsor_contacts, events: m.events }; })(),
     record: { custody: page.custody, kind: page.kind, tier: page.tier, slashes: page.slashCount, strikes: page.strikes, accepted_jobs: page.acceptedJobs, qualifying_jobs: page.qualifyingJobs, certificates: page.certificates, suspended: page.suspended ? { until: page.suspended.until, reason: page.suspended.reason } : null, retired: page.retired },

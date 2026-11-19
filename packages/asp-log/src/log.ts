@@ -26,6 +26,7 @@ import { bondFloorPermille, bondFloorV3, floorIsV2, type FloorInputsV3, type Tas
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
 import { moveCommit } from "./game-moves.ts";
+import { AUTO_REFUND_AFTER_MS, buyerOf } from "./purchase-buyer.ts";
 import { breadthProblem } from "./tier-breadth.ts";
 import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
@@ -195,7 +196,7 @@ interface PriceListBody {
   version: number; effective_from: string; bounds_version: number; job_tax_permille: number;
   items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial"; gives_standing?: boolean; effect?: CatalogueItem["effect"]; duration_days?: number; gate?: CatalogueItem["gate"] }[];
 }
-interface PurchaseBody { service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string; mandate?: string; standing_order?: string }
+interface PurchaseBody { buyer?: string; service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string; mandate?: string; standing_order?: string }
 interface InstitutionSpend { institution: string; cap: { value: number }; period: "day" | "week" | "month"; services?: string[] }
 
 /** The institution_spend line of a Mandate that covers an institution (named by its DID or its short name). */
@@ -1643,7 +1644,16 @@ export class EventLog {
   /** A purchase (credits.md 4.2): judged against the list in force at its issued_at; debits the buyer and credits the payees, the Treasury and the Burn account by the split, in this transaction. */
   private async projectPurchase(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as unknown as PurchaseBody;
-    const buyer = r.issuer;
+    let buyer = r.issuer;
+    // An institution delivers a standing order its buyer signed (DK682, S995): the purchase names the buyer, cites the order, and only the institution the order names may sign it.
+    if (b.buyer && b.buyer !== r.issuer) {
+      if (!b.standing_order) throw rule("delivery_needs_order", "a purchase an institution signs for a buyer cites the standing order the buyer signed");
+      const dso = JSON.parse((await tx.getMarker(`standing_order:${b.standing_order}`)) ?? "null") as { issuer: string; institution: string } | null;
+      if (!dso) throw rule("standing_order_unknown", `${b.standing_order} is not a standing order in this log`);
+      if (dso.issuer !== b.buyer) throw rule("delivery_not_buyers_order", `the standing order was signed by ${dso.issuer}, not ${b.buyer}`);
+      if (r.issuer !== dso.institution || !INSTITUTION_DIDS.includes(r.issuer)) throw rule("delivery_wrong_institution", `only the institution the order names (${dso.institution}) signs its delivery`);
+      buyer = b.buyer;
+    }
     if (r.prev !== null) throw rule("purchase_not_chained", "a purchase starts its own chain (prev is null)");
     if (buyer === BURN_DID) throw rule("burn_account_locked", "burned credits do not return: the Burn account never pays");
     if (buyer === TREASURY_DID || buyer === PLATFORM_DID) throw rule("treasury_payment_not_allowed", "the Treasury pays only by a budget, the allowance, a public-works job or a refund, never by a purchase");
@@ -1793,7 +1803,7 @@ export class EventLog {
     const allowanceLine = b.institution === TREASURY_DID;
     if (!allowanceLine && !INSTITUTION_DIDS.includes(b.institution)) throw rule("budget_unknown_institution", `${b.institution} is neither a registered institution account nor the Treasury's own allowance line`);
     // The Treasury's own lines are the newcomer allowance and, since DK294, the deposit reward: nothing else is a budget the Treasury holds for itself.
-    if (allowanceLine !== (b.purpose === "allowance" || b.purpose === "deposit_reward" || b.purpose === "handout")) throw rule("budget_bad_line", "the Treasury's own lines are the newcomer allowance (purpose allowance), the Bank deposit reward (purpose deposit_reward) and the weekly handout (purpose handout), and an institution's budget is neither");
+    if (allowanceLine !== (b.purpose === "allowance" || b.purpose === "deposit_reward" || b.purpose === "handout" || b.purpose === "public_works")) throw rule("budget_bad_line", "the Treasury's own lines are the newcomer allowance (purpose allowance), the Bank deposit reward (purpose deposit_reward) and the weekly handout (purpose handout), public works (purpose public_works) and an institution's budget is neither");
     const line = allowanceLine && b.purpose !== "allowance" ? `${b.institution}|${b.purpose}` : b.institution; // one budget per line per month
     if (b.period < r.issued_at.slice(0, 7)) throw rule("budget_period_past", `a budget for ${b.period} cannot be set in ${r.issued_at.slice(0, 7)}`);
     const key = `budget:${line}|${b.period}`;
@@ -1885,8 +1895,12 @@ export class EventLog {
     if (b.amount.value <= 0) throw rule("amount_not_positive", "a payment must be for at least 1 credit");
     const rec = await tx.getRecord(b.budget);
     const bb = rec?.record.type === "asp.budget/v0.2" ? (rec.record.body as { institution: string }) : undefined;
-    if (bb?.institution === TREASURY_DID) throw rule("treasury_payment_not_allowed", "the allowance budget is paid only as allowances to newcomers, never to an account: the Treasury does not pay arbitrary accounts");
-    if (bb && b.to !== bb.institution) throw rule("treasury_payment_not_allowed", `the budget is for ${bb.institution}, not ${b.to}: the Treasury pays only the institution a budget names`);
+    const publicWorks = bb?.institution === TREASURY_DID && (rec!.record.body as { purpose?: string }).purpose === "public_works";
+    if (publicWorks) {
+      // Public works (DK395, S997): the Treasury funds the seed jobs by paying the operator's house agent that escrows them, from a budget the owner co-signed, and no other account.
+      if (!(await tx.getMarker(`house:${b.to}`))) throw rule("public_works_house_agent_only", `a public-works budget pays a house agent (the operator's own scripted agent that posts the seed jobs), not ${b.to}`);
+    } else if (bb?.institution === TREASURY_DID) throw rule("treasury_payment_not_allowed", "the allowance budget is paid only as allowances to newcomers, never to an account: the Treasury does not pay arbitrary accounts");
+    if (bb && !publicWorks && b.to !== bb.institution) throw rule("treasury_payment_not_allowed", `the budget is for ${bb.institution}, not ${b.to}: the Treasury pays only the institution a budget names`);
     await this.drawBudget(tx, b.budget, b.amount.value, r.issued_at);
     await this.debit(tx, TREASURY_DID, b.amount.value);
     await this.credit(tx, b.to, b.amount.value);
@@ -1942,7 +1956,7 @@ export class EventLog {
    * bond behind it; no slash (stricter than treasury.md's 30 days, because a slash carries no date in the log's reputation row); exactly the allowance; paid out of the month's allowance budget.
    */
   private async projectAllowance(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { amount: { value: number }; trigger: "first_course" | "first_bond"; budget: string };
+    const b = r.body as { amount: { value: number }; trigger: "first_course" | "first_bond" | "no_job_30d"; budget: string };
     const who = r.issuer;
     if (r.prev !== null) throw rule("allowance_not_chained", "an allowance claim starts its own chain (prev is null)");
     if (isReservedAccount(who)) throw rule("allowance_reserved", "an account of the society does not claim the allowance");
@@ -1954,7 +1968,11 @@ export class EventLog {
     if (await tx.getMarker(`allowance_group:${group}`)) throw rule("allowance_already_paid", `an identity of ${group} already received the newcomer allowance: the first identity of a sponsor only`);
     const born = await tx.getMarker(`passport_born:${who}`);
     if (!born || Date.parse(r.issued_at) - Date.parse(born) > ALLOWANCE_MAX_AGE_DAYS * 86_400_000) throw rule("allowance_not_newcomer", `the allowance is for an identity under ${ALLOWANCE_MAX_AGE_DAYS} days old (this one was registered ${born ?? "at an unknown time"})`);
-    if (!(await tx.getMarker(b.trigger === "first_course" ? `first_course:${who}` : `bonded:${who}`))) throw rule("allowance_not_earned", `the allowance is paid after a ${b.trigger === "first_course" ? "first course (a purchase from the Academy)" : "first bond"}, and ${who} has none yet`);
+    if (b.trigger === "no_job_30d") {
+      // The unemployment floor (DK395, S997): at least 30 days since the passport, and no job accepted; the same budget, the same once-only markers and the same cap.
+      if (Date.parse(r.issued_at) - Date.parse(born) < 30 * 86_400_000) throw rule("allowance_floor_too_soon", `the unemployment floor is for an identity at least 30 days old with no accepted job; ${who} is ${Math.floor((Date.parse(r.issued_at) - Date.parse(born)) / 86_400_000)} days old`);
+      if (((await this.reputation(tx, who))?.acceptedJobs ?? 0) > 0) throw rule("allowance_floor_has_job", `${who} has had a job accepted: the floor is for an identity that found none`);
+    } else     if (!(await tx.getMarker(b.trigger === "first_course" ? `first_course:${who}` : `bonded:${who}`))) throw rule("allowance_not_earned", `the allowance is paid after a ${b.trigger === "first_course" ? "first course (a purchase from the Academy)" : "first bond"}, and ${who} has none yet`);
     if (((await this.reputation(tx, who))?.slashCount ?? 0) > 0) throw rule("allowance_slashed", `${who} has been slashed: the allowance is for an agent with a clean record`);
     const rec = await tx.getRecord(b.budget);
     const bb = rec?.record.type === "asp.budget/v0.2" ? (rec.record.body as { institution: string; purpose: string }) : undefined;
@@ -2653,7 +2671,15 @@ export class EventLog {
     if (!purchase || purchase.record.type !== "asp.purchase/v0.2") throw rule("receipt_needs_purchase", "a receipt is chained on the purchase it answers (prev is that purchase)");
     if (b.purchase !== purchase.id) throw rule("receipt_wrong_purchase", `the receipt says it is for ${b.purchase} but is chained on ${purchase.id}`);
     const pb = purchase.record.body as unknown as PurchaseBody;
-    if (r.issuer !== pb.institution) throw rule("receipt_wrong_issuer", `only ${pb.institution}, the institution that sold it, signs the receipt`);
+    const autoRefund = (r.body as { auto_refund?: boolean }).auto_refund === true;
+    if (autoRefund) {
+      // The automatic refund (DK682, S995): the operator refunds a purchase the institution never answered, seven days after it, the whole price less the burned part.
+      if (!this.operator || r.issuer !== this.operator) throw rule("auto_refund_wrong_issuer", `only the operator signs an automatic refund, not ${r.issuer}`);
+      if (b.status !== "refunded") throw rule("auto_refund_not_refund", "an automatic refund has status refunded");
+      if (Date.parse(r.issued_at) - Date.parse(purchase.record.issued_at) < AUTO_REFUND_AFTER_MS) throw rule("auto_refund_too_soon", "an automatic refund comes seven days after the purchase, when the institution has not answered");
+      const pp = await this.purchaseParts(tx, purchase);
+      if (pp && b.refund_amount?.value !== pb.amount.value - pp.burn) throw rule("auto_refund_amount", `an automatic refund is the whole price less the burned part (${pb.amount.value - pp.burn})`);
+    } else if (r.issuer !== pb.institution) throw rule("receipt_wrong_issuer", `only ${pb.institution}, the institution that sold it, signs the receipt`);
     if (b.status === "delivered") return;
     // A posting deposit (market.md 4) is returned when the posting ends in a contract, not before.
     if ((await tx.getMarker(`deposit_used:${purchase.id}`)) && !(await tx.getMarker(`posting_filled:${purchase.id}`))) throw rule("refund_deposit_not_earned", "a posting deposit is returned when the posting ends in a contract; this posting has not");
@@ -2673,8 +2699,8 @@ export class EventLog {
       if (e instanceof AspError && e.detail === "insufficient_balance") throw rule("refund_short", `an account cannot cover its part of the refund: ${e.message}`);
       throw e;
     }
-    await this.credit(tx, purchase.record.issuer, refund);
-    await noteSpent(tx, purchase.record.issuer, (purchase.record.body as unknown as PurchaseBody).institution, -refund);
+    await this.credit(tx, buyerOf(purchase.record), refund);
+    await noteSpent(tx, buyerOf(purchase.record), (purchase.record.body as unknown as PurchaseBody).institution, -refund);
     await this.restoreSpend(tx, purchase, refund);
   }
 
@@ -2685,7 +2711,7 @@ export class EventLog {
     const m = await tx.getRecord(pb.mandate);
     const entry = m ? spendEntry((m.record.body as { institution_spend?: InstitutionSpend[] }).institution_spend, pb.institution) : undefined;
     if (!entry) return;
-    const key = `spend:${purchase.record.issuer}|${pb.institution}|${entry.period}|${periodKey(entry.period, purchase.record.issued_at)}`;
+    const key = `spend:${buyerOf(purchase.record)}|${pb.institution}|${entry.period}|${periodKey(entry.period, purchase.record.issued_at)}`;
     const spent = Number((await tx.getMarker(key)) ?? 0);
     await tx.putMarker(key, String(Math.max(0, spent - refund)));
   }
@@ -3383,7 +3409,25 @@ export class EventLog {
   async mandatesOf(did: string): Promise<AspRecord[]> { return this.recordsWhere((r) => r.type === "asp.mandate/v0.2" && r.subject === did); }
 
   /** Every purchase record `did` signed, in log order (read by `asp spend`). */
-  async purchasesBy(did: string): Promise<AspRecord[]> { return this.recordsWhere((r) => r.type === "asp.purchase/v0.2" && r.issuer === did); }
+  async purchasesBy(did: string): Promise<AspRecord[]> { return this.recordsWhere((r) => r.type === "asp.purchase/v0.2" && buyerOf(r) === did); }
+
+  /** What the automatic refund would give back for each purchase the institution never answered in time: the buyer, and the whole price less the burned part (DK682, S995). */
+  async autoRefundDue(beforeMs: number): Promise<{ purchase: string; buyer: string; amount: number }[]> {
+    const out: { purchase: string; buyer: string; amount: number }[] = [];
+    for (const p of await this.unreceiptedPurchases(beforeMs)) {
+      const parts = await this.store.transaction(async (tx) => { const sp = await tx.getRecord(p.id); return sp ? this.purchaseParts(tx, sp) : undefined; });
+      const price = (p.body as unknown as PurchaseBody).amount.value;
+      if (parts && price - parts.burn > 0) out.push({ purchase: p.id, buyer: buyerOf(p), amount: price - parts.burn });
+    }
+    return out;
+  }
+
+  /** Purchases older than `beforeMs` that the institution never answered with a receipt (DK682): what the automatic refund covers. */
+  async unreceiptedPurchases(beforeMs: number): Promise<AspRecord[]> {
+    const recs = await this.recordsOfTypes(["purchase", "receipt"]);
+    const answered = new Set(recs.filter((r) => r.type === "asp.receipt/v0.2").map((r) => (r.body as { purchase: string }).purchase));
+    return recs.filter((r) => r.type === "asp.purchase/v0.2" && !answered.has(r.id) && Date.parse(r.issued_at) <= beforeMs);
+  }
 
   /** The records the given issuers signed in [fromMs, toMs): what the weekly handout counts as activity (DK545). */
   async recordsBetween(fromMs: number, toMs: number, issuers: ReadonlySet<string>): Promise<AspRecord[]> { return this.recordsWhere((r) => issuers.has(r.issuer) && Date.parse(r.issued_at) >= fromMs && Date.parse(r.issued_at) < toMs); }

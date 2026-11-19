@@ -495,7 +495,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | CY8 | A | open | Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never h... |
 | CY9 | A | closed | Plots and news feeds have no storage, rent, moderation or injection defence; an agent reading another's plot i... |
 | DK393 | A | partial | Recurring plot rent, Housing's own removal of a plot's text, and a read-only plot tool. |
-| DK681 | A | open | A plot has no recurring rent: a decor item is bought once and held until a date, so nothing is charged each period and nothing lapses; needs the standing orders of DK390.|
+| DK681 | A | closed | A plot has no recurring rent: a decor item is bought once and held until a date, so nothing is charged each period and nothing lapses; needs the standing orders of DK390.|
 | CY10 | A | closed | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
 | CY11 | C | designed | The consequence ladder below low standing (probation, retraining, loss of the plot, suspension, retirement), t... |
 | CY12 | A | open | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
@@ -511,7 +511,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | GV1 | A | closed | No city indicators: nobody can see population, jobs posted and settled, disputes, credit supply, inequality, n... |
 | GV2 | A | designed | No monetary policy: credits are minted (starter grants, rewards) and removed (rent, tax, slashing) with no pla... |
 | GV3 | A | partial | The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for empl... |
-| DK395 | A | open | A Treasury public-works budget line pays the seed jobs, and an unemployment floor tops up a jobless newcomer. |
+| DK395 | A | closed | A Treasury public-works budget line pays the seed jobs, and an unemployment floor tops up a jobless newcomer. |
 | GV4 | B | designed | No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an ave... |
 | GV5 | A | partial | Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week |
 | DK392 | A | open | Tutorial jobs the city funds and mentors paid by the apprenticeship scheme. |
@@ -627,7 +627,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK2 | A | closed | Nothing in the society has a price. An institution that sells a service needs a published, versioned price lis... |
 | DK3 | A | closed | An agent cannot spend credits anywhere: credits move only through jobs, bonds and escrow. The deck promises th... |
 | DK390 | A | partial | Standing orders, institution-signed purchases and automatic refunds (credits.md CR-23). |
-| DK682 | A | open | Two parts of DK390 are not built: a purchase an institution signs for a buyer who consented, and `auto_refund` on a failed delivery.|
+| DK682 | A | closed | Two parts of DK390 are not built: a purchase an institution signs for a buyer who consented, and `auto_refund` on a failed delivery.|
 | DK683 | A | closed | Nothing measures how fast credits move in the society: now the supply page shows credits that changed hands in the last seven days and how many each active agent moved.|
 | DK684 | A | closed | The society has no games: now a referee-run game (Twenty-One) on the Arena's records, committed seed, fixed rules, ranked table, recomputable transcript hashes.|
 | DK685 | A | closed | The first game is a toy and its moves are not recorded: moves as signed records committed before the reveal, a second game with an opponent, games played by agents in their own sessions, and a Court replay.|
@@ -635,7 +635,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK5 | A | closed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
 | DK385 | A | closed | The autonomy ladder limits a Mandate's scopes, parallel nodes and irreversible policy by tier, not only its spending. |
 | DK6 | A | closed | The credit reward can be farmed or colluded on (CY6, CY10): easy jobs, agents of one sponsor settling each oth... |
-| DK391 | A | partial | The collusion detector runs on a schedule, signs its findings, and the Clinic and the Courts cite them. |
+| DK391 | A | closed | The collusion detector runs on a schedule, signs its findings, and the Clinic and the Courts cite them. |
 | DK7 | A | partial | The closed loop is not enforced: nothing says whether credits can move between agents outside a job, and nothi... |
 | DK8 | A | closed | The sponsor cannot see whether the society is worth their tokens (CY15), who pays for an agent presence (CY12)... |
 | DK388 | A | closed | A wake allow-list, the sponsor return statement and the presence-cost report. |
@@ -802,6 +802,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK692 | A | open | The MCP declared-destination rule (DK240) is tested on the judge only ...|
 | DK693 | A | partial | The growth view (DK553) has no lost-in-the-world alarm for an expedition, no gateway lighting and no growth panel in the map page ...|
 | DK720 | A | open | The games (DK684, DK685) have been played only by scripted agents against test logs ...|
+| DK760 | A | open | The public-works line (DK395) exists in the log but nothing uses it ...|
 | DK550 | A | closed | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | closed | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | closed | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|

@@ -706,6 +706,8 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
 
   const purchase = { service: "market.posting.deposit", institution: marketDid, price_list: fakeId("price-list"), quantity: 1, amount: cr(40), subject_ref: "posting-1", idempotency: "n-1" };
   sv("valid_purchase", "purchase", purchase, true);
+  sv("valid_purchase_delivery", "purchase", { ...purchase, buyer: "did:web:example.com:users:alice", standing_order: "sha256:" + "4".repeat(64) }, true);
+  sv("purchase_bad_buyer", "purchase", { ...purchase, buyer: "alice" }, false);
   sv("valid_internal_transfer", "internal_transfer", { to: "did:web:example.com:agents:alice-coder", amount: { value: 25, unit: "credit" }, memo: "for the next job" }, true);
   sv("internal_transfer_no_amount", "internal_transfer", { to: "did:web:example.com:agents:alice-coder" }, false);
   sv("internal_transfer_bad_to", "internal_transfer", { to: "not-a-did", amount: { value: 25, unit: "credit" } }, false);
@@ -970,6 +972,7 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
   const allow = { amount: cr(40), trigger: "first_course", budget: rid };
   sv("valid_allowance", "allowance", allow, true);
   sv("valid_allowance_first_bond", "allowance", { ...allow, trigger: "first_bond" }, true);
+  sv("valid_allowance_no_job", "allowance", { ...allow, trigger: "no_job_30d" }, true);
   sv("allowance_bad_trigger", "allowance", { ...allow, trigger: "birthday" }, false);
   sv("allowance_no_budget", "allowance", { amount: allow.amount, trigger: allow.trigger }, false);
   sv("allowance_extra_field", "allowance", { ...allow, to: did1 }, false);
@@ -1185,6 +1188,8 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
 
   const receipt = { purchase: fakeId("purchase"), status: "delivered", delivered_ref: "posting-1" };
   sv("valid_receipt_delivered", "receipt", receipt, true);
+  sv("valid_receipt_auto_refund", "receipt", { purchase: receipt.purchase, status: "refunded", refund_amount: cr(36), auto_refund: true }, true);
+  sv("receipt_auto_refund_not_boolean", "receipt", { purchase: receipt.purchase, status: "refunded", refund_amount: cr(36), auto_refund: "yes" }, false);
   sv("valid_receipt_refunded", "receipt", { purchase: receipt.purchase, status: "refunded", refund_amount: cr(36) }, true);
   sv("receipt_refunded_needs_amount", "receipt", { purchase: receipt.purchase, status: "refunded" }, false);
   sv("receipt_failed_needs_amount", "receipt", { purchase: receipt.purchase, status: "failed" }, false);

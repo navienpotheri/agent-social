@@ -205,6 +205,7 @@
  *   asp society invite --agent <did> --institutions market,academy --per-day <n> [--days 90] | revoke --agent <did>   a sponsor lets its agent spend in the society (a separate Mandate with only institution_spend; nothing else widened) and ends it at once
  *   asp services list [--json] | post --by <agent> --service <kind> --price <n> --deposit <id> | bid --by <agent> --posting <id>   the society services board: agents hire agents for in-society services in mock credits
  *   asp log-config set --key bond_floor_from|tier_breadth_from --value <time> --by <operator> --cosign-by <owner>   write a setting into the log (once), so every copy and replay judges alike
+ *   asp credits auto-refund [--yes]   the purchases an institution never answered in seven days, and the refund each buyer is owed (the operator signs them with --yes)
  *   asp credits guard [--json]   the monetary guard measures (issuance rate, starter pool use, hoarding, Treasury share, audit mismatch) with the action each names; exit 1 when one is over its threshold; nothing is changed
  *   asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>   the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs, certificates), the summary a governed run gives the agent; --sign signs it with the agent's key, --verify refuses a tampered or stale one
  *   asp credits balance <did>
@@ -344,7 +345,7 @@ import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
-import { SEED_JOBS, SEED_PREFIX, handoutPlanFromLog, isoWeekOf } from "@agent-social/asp-log";
+import { SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
@@ -1058,6 +1059,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "credits" && sub === "fund") return await creditsFund(home, v, need, io);
     if (cmd === "credits" && sub === "audit") return await creditsAudit(home, v, io, rest[0]);
     if (cmd === "credits" && sub === "guard") return await creditsGuard(home, v, io);
+    if (cmd === "credits" && sub === "auto-refund") return await creditsAutoRefund(home, v, io);
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
     if (cmd === "world") return await worldCommand(home, sub, rest, v, io);
     if (cmd === "society" && (sub === "invite" || sub === "revoke")) {
@@ -4617,6 +4619,28 @@ async function historyCommand(home: string, sub: string | undefined, v: Values, 
   }
   if (v.json) io.out(JSON.stringify(summary, null, 2)); else io.out(historyText(summary));
   return 0;
+}
+
+/**
+ * asp credits auto-refund [--yes] (register row DK682; spec-delta S995): the purchases an institution never answered with a receipt, seven days after they were made, and what each buyer is owed (the whole price less the
+ * burned part). Without --yes it only lists them; with --yes the operator signs one refund receipt for each (the operator's key; the log checks the time and the amount again). Nothing is paid to anyone but the buyer.
+ */
+async function creditsAutoRefund(home: string, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const due = await local.log.autoRefundDue(Date.parse(now()) - AUTO_REFUND_AFTER_MS);
+  if (!due.length) { io.out("no purchase is waiting more than seven days for an institution's receipt"); return 0; }
+  for (const d of due) io.out(`  ${d.purchase}  owed to ${d.buyer}: ${d.amount} credits`);
+  if (!v.yes) { io.out(`${due.length} automatic refund(s) due; run again with --yes to sign them with the operator's key`); return 0; }
+  const op = io.env.ASP_OPERATOR_DID ?? process.env.ASP_OPERATOR_DID;
+  const signer = op ? new Keystore(home).forDid(op) : undefined;
+  if (!op || !signer) throw new UsageError("signing automatic refunds needs ASP_OPERATOR_DID and the operator's key on this machine");
+  let n = 0;
+  for (const d of due) {
+    const rec = createRecord({ type: "receipt" as never, issuer: op, subject: null, prev: d.purchase, issued_at: now(), body: { purchase: d.purchase, status: "refunded", refund_amount: { value: d.amount, unit: "credit" }, auto_refund: true } }, signer);
+    try { await local.append(rec); n++; } catch (e) { io.out(`  refused ${d.purchase}: ${(e as Error).message}`); }
+  }
+  io.out(`${n}/${due.length} automatic refund(s) signed and recorded`);
+  return n === due.length ? 0 : 1;
 }
 
 async function creditsGuard(home: string, v: Values, io: Io): Promise<number> {

@@ -4012,6 +4012,43 @@
       "valid": true
     },
     {
+      "name": "valid_purchase_delivery",
+      "schema": "purchase",
+      "instance": {
+        "service": "market.posting.deposit",
+        "institution": "did:web:asp.local:market",
+        "price_list": "sha256:e5a625cee1046fa54b8b08e451b47447dd6512009de54c6cacf716653440d742",
+        "quantity": 1,
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "subject_ref": "posting-1",
+        "idempotency": "n-1",
+        "buyer": "did:web:example.com:users:alice",
+        "standing_order": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "valid": true
+    },
+    {
+      "name": "purchase_bad_buyer",
+      "schema": "purchase",
+      "instance": {
+        "service": "market.posting.deposit",
+        "institution": "did:web:asp.local:market",
+        "price_list": "sha256:e5a625cee1046fa54b8b08e451b47447dd6512009de54c6cacf716653440d742",
+        "quantity": 1,
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "subject_ref": "posting-1",
+        "idempotency": "n-1",
+        "buyer": "alice"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_internal_transfer",
       "schema": "internal_transfer",
       "instance": {
@@ -7475,6 +7512,19 @@
       "valid": true
     },
     {
+      "name": "valid_allowance_no_job",
+      "schema": "allowance",
+      "instance": {
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "trigger": "no_job_30d",
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
       "name": "allowance_bad_trigger",
       "schema": "allowance",
       "instance": {
@@ -10541,6 +10591,34 @@
         "delivered_ref": "posting-1"
       },
       "valid": true
+    },
+    {
+      "name": "valid_receipt_auto_refund",
+      "schema": "receipt",
+      "instance": {
+        "purchase": "sha256:7048dc8aa7663e713097535171b4ed72ab015705a885de9636e66d4b1fa18804",
+        "status": "refunded",
+        "refund_amount": {
+          "value": 36,
+          "unit": "credit"
+        },
+        "auto_refund": true
+      },
+      "valid": true
+    },
+    {
+      "name": "receipt_auto_refund_not_boolean",
+      "schema": "receipt",
+      "instance": {
+        "purchase": "sha256:7048dc8aa7663e713097535171b4ed72ab015705a885de9636e66d4b1fa18804",
+        "status": "refunded",
+        "refund_amount": {
+          "value": 36,
+          "unit": "credit"
+        },
+        "auto_refund": "yes"
+      },
+      "valid": false
     },
     {
       "name": "valid_receipt_refunded",
