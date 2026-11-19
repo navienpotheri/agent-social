@@ -115,7 +115,7 @@ test("DK535 (S971): a retirement a Court ordered rests on its ruling, states its
   const c = w.refer();
   await log.append(c);
   jump(20 * DAY);
-  const rulingRec = await w.rule(c.id, { remedy: "suspension" });
+  const rulingRec = await w.rule(c.id, { remedy: "retire_identity" });
   await log.append(rulingRec);
   const retire = (over: Record<string, unknown>, by: Party | Signer & { did: string } = registrar) => mk("registry_act", by, { act: "identity_retirement", holder: w.agent.did, ...over }, null);
   const soon = (hours: number) => new Date(Date.parse(nowIso()) + hours * 3_600_000).toISOString().replace(/\.\d+Z$/, "Z");

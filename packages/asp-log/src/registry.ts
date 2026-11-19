@@ -41,7 +41,7 @@ export function nameProblem(name: string): string | null {
 /** Two names are confusable when their skeletons are equal: lowercase, 0 to o, 1 to l, rn to m, vv to w, hyphens removed (registry.md 5). */
 export const skeleton = (name: string): string => name.toLowerCase().replace(/0/g, "o").replace(/1/g, "l").replace(/rn/g, "m").replace(/vv/g, "w").replace(/-/g, "");
 
-export interface NameClaim { name: string; holder: string; claim: string; from: string; until: string; released?: boolean; removedBy?: string }
+export interface NameClaim { name: string; holder: string; claim: string; from: string; until: string; released?: boolean; removedBy?: string; hiddenUntil?: string }
 
 /** The state of every name at `at`, derived from the registry acts in log order: claims, releases and takedowns. */
 export function namesAt(acts: AspRecord[], at: string): Map<string, NameClaim> {
@@ -52,12 +52,15 @@ export function namesAt(acts: AspRecord[], at: string): Map<string, NameClaim> {
     const b = r.body as Record<string, any>;
     if (b.act === "name_claim") names.set(b.name, { name: b.name, holder: b.holder, claim: r.id, from: r.issued_at, until: b.valid_until });
     else if (b.act === "name_release") { const c = names.get(b.name); if (c && c.claim === b.claim) names.set(b.name, { ...c, released: true }); }
-    else if (b.act === "name_takedown") { const c = names.get(b.name); if (c) names.set(b.name, { ...c, removedBy: r.id }); }
+    else if (b.act === "name_takedown" || b.act === "court_takedown") { const c = names.get(b.name); if (c) names.set(b.name, { ...c, removedBy: r.id }); }
+    else if (b.act === "name_hide") { const c = names.get(b.name); if (c) names.set(b.name, { ...c, hiddenUntil: b.until }); }
     else if (b.act === "name_restore") { const c = names.get(b.name); if (c && c.removedBy === b.takedown) { const { removedBy: _x, ...rest } = c; names.set(b.name, rest); } }
   }
   return names;
 }
 export const isLive = (c: NameClaim, at: string): boolean => !c.released && !c.removedBy && Date.parse(c.until) > Date.parse(at);
+/** Shown on a page and in a search: live and not hidden for a 7-day hearing (DK389). The claim itself is unchanged while it is hidden. */
+export const isVisible = (c: NameClaim, at: string): boolean => isLive(c, at) && !(c.hiddenUntil && Date.parse(c.hiddenUntil) > Date.parse(at));
 
 export interface RecordPage {
   did: string; names: string[]; kind: string; sponsor: string | null; fleet: string | null; lineage: { edge: string; parent: string }[];
@@ -105,7 +108,7 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
   const pb = head.body as { kind: string; sponsor?: string; fleet?: { org?: string; name?: string } | string; lineage?: { edge: string; parent: string }[]; purpose?: string; temperament?: string; house?: boolean; custody?: "local" | "service" };
   const acts = records.filter((r) => r.type === "asp.registry_act/v0.2");
   const t = Date.parse(at);
-  const names = [...namesAt(acts, at).values()].filter((c) => c.holder === did && isLive(c, at)).map((c) => c.name).sort();
+  const names = [...namesAt(acts, at).values()].filter((c) => c.holder === did && isVisible(c, at)).map((c) => c.name).sort();
   const certificates = records.filter((r) => r.type === "asp.certificate/v0.2" && (r.body as { holder: string }).holder === did && Date.parse((r.body as { expires: string }).expires) > t)
     .map((r) => { const b = r.body as { skill: string; level: number; expires: string }; return { skill: b.skill, level: b.level, expires: b.expires }; });
   const first = passports[0];
@@ -117,8 +120,8 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
   // A Court's extension (DK120) moves the end of a suspension to the date its ruling set.
   const untilOf = (sid: string, own: string): number => acts.filter((r) => { const x = r.body as { act: string; suspension?: string }; return x.act === "suspension_extend" && x.suspension === sid && Date.parse(r.issued_at) <= t; }).reduce((m, r) => Math.max(m, Date.parse((r.body as { until: string }).until)), Date.parse(own));
   const live = suspensions.filter((s) => !lifted.has(s.id) && untilOf(s.id, (s.body as { until: string }).until) > t).at(-1);
-  const takedowns = acts.filter((r) => { const b = r.body as { act: string; holder?: string }; return b.act === "name_takedown" && b.holder === did && Date.parse(r.issued_at) <= t; })
-    .map((r) => { const b = r.body as { name: string; reason: string; code: { articles: string[] }; appealable_until: string }; return { name: b.name, reason: b.reason, articles: b.code.articles, record: r.id, appealable_until: b.appealable_until }; });
+  const takedowns = acts.filter((r) => { const b = r.body as { act: string; holder?: string }; return (b.act === "name_takedown" || b.act === "court_takedown") && b.holder === did && Date.parse(r.issued_at) <= t; })
+    .map((r) => { const b = r.body as { name: string; reason: string; code?: { articles: string[] }; appealable_until: string }; return { name: b.name, reason: b.reason, articles: b.code?.articles ?? [], record: r.id, appealable_until: b.appealable_until }; });
   const holdings = holdingsAt(records, did, at);
   const resident = residentStates(records.filter((r) => r.type === "asp.shops_act/v0.2"), at).get(did);
   return {
