@@ -8368,6 +8368,105 @@
       "valid": false
     },
     {
+      "name": "valid_standing_order",
+      "schema": "standing_order",
+      "instance": {
+        "act": "order",
+        "service": "academy.course.foundations",
+        "institution": "did:web:asp.local:academy",
+        "quantity": 1,
+        "period": "week",
+        "until": "2027-01-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_standing_order_cancel",
+      "schema": "standing_order",
+      "instance": {
+        "act": "cancel",
+        "order": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
+    },
+    {
+      "name": "standing_order_no_period",
+      "schema": "standing_order",
+      "instance": {
+        "act": "order",
+        "service": "academy.course.foundations",
+        "institution": "did:web:asp.local:academy",
+        "quantity": 1,
+        "until": "2027-01-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_order_period_year",
+      "schema": "standing_order",
+      "instance": {
+        "act": "order",
+        "service": "academy.course.foundations",
+        "institution": "did:web:asp.local:academy",
+        "quantity": 1,
+        "period": "year",
+        "until": "2027-01-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_order_quantity_zero",
+      "schema": "standing_order",
+      "instance": {
+        "act": "order",
+        "service": "academy.course.foundations",
+        "institution": "did:web:asp.local:academy",
+        "quantity": 0,
+        "period": "week",
+        "until": "2027-01-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_order_cancel_no_order",
+      "schema": "standing_order",
+      "instance": {
+        "act": "cancel"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_order_extra_field",
+      "schema": "standing_order",
+      "instance": {
+        "act": "order",
+        "service": "academy.course.foundations",
+        "institution": "did:web:asp.local:academy",
+        "quantity": 1,
+        "period": "week",
+        "until": "2027-01-01T00:00:00Z",
+        "price": 10
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_purchase_run_of_standing_order",
+      "schema": "purchase",
+      "instance": {
+        "service": "academy.course.foundations",
+        "institution": "did:web:asp.local:academy",
+        "price_list": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "quantity": 1,
+        "amount": {
+          "value": 10,
+          "unit": "credit"
+        },
+        "idempotency": "week-1",
+        "standing_order": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
+    },
+    {
       "name": "valid_treasury_statement",
       "schema": "treasury_statement",
       "instance": {

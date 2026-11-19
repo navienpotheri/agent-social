@@ -192,7 +192,7 @@ interface PriceListBody {
   version: number; effective_from: string; bounds_version: number; job_tax_permille: number;
   items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial"; gives_standing?: boolean; effect?: CatalogueItem["effect"]; duration_days?: number; gate?: CatalogueItem["gate"] }[];
 }
-interface PurchaseBody { service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string; mandate?: string }
+interface PurchaseBody { service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string; mandate?: string; standing_order?: string }
 interface InstitutionSpend { institution: string; cap: { value: number }; period: "day" | "week" | "month"; services?: string[] }
 
 /** The institution_spend line of a Mandate that covers an institution (named by its DID or its short name). */
@@ -339,6 +339,7 @@ export class EventLog {
     if (type === "clinic_diagnosis") await this.projectClinicDiagnosis(tx, verified);
     if (type === "clinic_order") await this.projectClinicOrder(tx, verified);
     if (type === "watcher_finding") await this.projectWatcherFinding(tx, verified);
+    if (type === "standing_order") await this.projectStandingOrder(tx, verified);
     if (type === "checkup_result") await this.projectCheckupResult(tx, verified);
     if (type === "credit_line") await projectCreditLine(tx, verified, this.bankEnv);
     if (type === "credit_default") await projectCreditDefault(tx, verified, this.bankEnv);
@@ -1630,6 +1631,18 @@ export class EventLog {
     if (!item) throw rule("unknown_service", `${b.service} is not in the price list in force`);
     if (item.institution !== b.institution) throw rule("institution_mismatch", `${b.service} is sold by ${item.institution}, not ${b.institution}`);
     if (b.amount.value !== item.price * b.quantity) throw rule("price_mismatch", `${b.service} costs ${item.price} each, so ${b.quantity} cost ${item.price * b.quantity}, not ${b.amount.value}: a price is a published record`);
+    // One run of a standing order (DK390, S963): the buyer's own live order, for exactly this, and one run in each period.
+    let standingRun: string | undefined;
+    if (b.standing_order) {
+      const so = JSON.parse((await tx.getMarker(`standing_order:${b.standing_order}`)) ?? "null") as { issuer: string; service: string; institution: string; quantity: number; period: "day" | "week" | "month"; until: string; cancelled?: string } | null;
+      if (!so) throw rule("standing_order_unknown", `${b.standing_order} is not a standing order in this log`);
+      if (so.issuer !== buyer) throw rule("standing_order_not_buyers", "a standing order is run only by the buyer who signed it");
+      if (so.cancelled) throw rule("standing_order_cancelled", `the standing order was cancelled at ${so.cancelled}`);
+      if (Date.parse(so.until) <= Date.parse(r.issued_at)) throw rule("standing_order_expired", `the standing order ended at ${so.until}`);
+      if (so.service !== b.service || so.institution !== b.institution || so.quantity !== b.quantity) throw rule("standing_order_mismatch", `the standing order is for ${so.quantity} of ${so.service} from ${so.institution}; this purchase is something else`);
+      standingRun = `standing_run:${b.standing_order}|${periodKey(so.period, r.issued_at)}`;
+      if (await tx.getMarker(standingRun)) throw rule("standing_order_period_used", `the standing order already ran for this ${so.period}`);
+    }
     const key = `purchase:${buyer}|${b.service}|${b.idempotency}`;
     if (await tx.getMarker(key)) throw rule("purchase_replay", `${buyer} already made a purchase of ${b.service} with the nonce ${b.idempotency}`);
     if (item.split.payees.some((p) => p.account === buyer)) throw rule("self_dealing", "a buyer cannot be a payee of its own purchase");
@@ -1657,6 +1670,7 @@ export class EventLog {
     await this.credit(tx, TREASURY_DID, parts.treasury);
     await this.credit(tx, BURN_DID, parts.burn);
     await tx.putMarker(key, r.id);
+    if (standingRun) await tx.putMarker(standingRun, r.id);
     if (item.institution === institutionDid("academy")) await tx.putMarker(`first_course:${buyer}`, r.id);
   }
 
@@ -1783,6 +1797,32 @@ export class EventLog {
     if (drawn + amount > bb.amount.value) throw rule("over_budget", `the budget is ${bb.amount.value} credits and ${drawn} are drawn: ${amount} more would be ${drawn + amount}`);
     await tx.putMarker(`budget_drawn:${id}`, String(drawn + amount));
     await tx.putMarker("budget_open", String(Number((await tx.getMarker("budget_open")) ?? 0) - amount));
+  }
+
+  /**
+   * A standing order or its cancellation (DK390, S963). The buyer signs it once; the log keeps it as state and lets one purchase through for each period (see projectPurchase). At most 20 orders for one buyer in all
+   * (`standing_orders_full`) and none for more than a year (`standing_order_too_long`). A cancel ends it at once and only by its buyer.
+   */
+  private async projectStandingOrder(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { act: "order" | "cancel"; service?: string; institution?: string; quantity?: number; period?: string; until?: string; order?: string };
+    if (r.prev !== null) throw rule("standing_order_not_chained", "a standing order starts its own chain (prev is null)");
+    if (isReservedAccount(r.issuer)) throw rule("standing_order_reserved", "an account of the society does not place a standing order");
+    if (b.act === "cancel") {
+      const key = `standing_order:${b.order}`;
+      const so = JSON.parse((await tx.getMarker(key)) ?? "null") as { issuer: string; cancelled?: string } | null;
+      if (!so) throw rule("standing_order_unknown", `${b.order} is not a standing order in this log`);
+      if (so.issuer !== r.issuer) throw rule("standing_cancel_not_owner", "only the buyer cancels its standing order");
+      if (so.cancelled) throw rule("standing_cancel_already", `the standing order was already cancelled at ${so.cancelled}`);
+      await tx.putMarker(key, JSON.stringify({ ...so, cancelled: r.issued_at }));
+      return;
+    }
+    const at = Date.parse(r.issued_at), until = Date.parse(b.until!);
+    if (until <= at) throw rule("standing_order_ends_before_it_starts", "a standing order ends after it is signed");
+    if (until - at > 366 * 86_400_000) throw rule("standing_order_too_long", "a standing order lasts at most a year: sign a new one to go on");
+    const count = Number((await tx.getMarker(`standing_count:${r.issuer}`)) ?? 0);
+    if (count >= 20) throw rule("standing_orders_full", "at most 20 standing orders for one buyer in all: cancel one and sign it again if it must go on");
+    await tx.putMarker(`standing_count:${r.issuer}`, String(count + 1));
+    await tx.putMarker(`standing_order:${r.id}`, JSON.stringify({ issuer: r.issuer, service: b.service, institution: b.institution, quantity: b.quantity, period: b.period, until: b.until }));
   }
 
   /**

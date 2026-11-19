@@ -4912,7 +4912,7 @@ async function spendCommand(home: string, sub: string | undefined, rest: string[
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await spendCmd(sub, rest, { log: local, io, now, signerFor, flags: { mandate: v.mandate, json: v.json, by: v.by, quantity: v.quantity, nonce: v.nonce } });
+    return await spendCmd(sub, rest, { log: local, io, now, signerFor, flags: { mandate: v.mandate, json: v.json, by: v.by, quantity: v.quantity, nonce: v.nonce, period: v.period, until: v.until, order: v.order } });
   } catch (e) {
     if (e instanceof SpendUsage) throw new UsageError(e.message);
     throw e;
