@@ -7,6 +7,7 @@ import "./rule-courses-2.ts";
 import "./rule-courses-3.ts";
 import "./rule-courses-4.ts";
 import "./rule-courses-5.ts";
+import "./rule-courses-6.ts";
 export { ENGINES, attestation, engineIds, sit, type CourseRun, type Engine, type Sitting } from "./engines.ts";
 export * from "./catalogue.ts";
 export { writeBack, REPLAY_TASKS } from "./writeback.ts";

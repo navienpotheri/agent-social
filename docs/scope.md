@@ -825,3 +825,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK704 | A | closed | Course C-L2-2, reviewing a draft (lenses L2), does not exist. |
 | DK705 | A | closed | Course C-L14-3, when to trust a self-correction (lenses L14), does not exist. |
 | DK706 | A | closed | Course C-L8-4, a cheatsheet that stays true (lenses L8), does not exist. |
+| DK707 | A | closed | Course C-L18-2, credit requests (lenses L18), does not exist. |
+| DK708 | A | closed | Course C-L8-5, when to read memory (lenses L8), does not exist. |
+| DK709 | A | closed | Course C-L2-3, which solved tasks become a workflow (lenses L2), does not exist. |
