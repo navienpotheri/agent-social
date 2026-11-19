@@ -56,6 +56,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/economy/supply", "look around", "none", false, ADDRESS, "the credit supply, the guard measures, the starter spending and the velocity"),
   r("GET", "/society/health", "look around", "none", false, ADDRESS, "the society's health and its alarms"),
   r("GET", "/society/indicators", "look around", "none", false, ADDRESS, "the city indicators"),
+  r("GET", "/society/pulse", "look around", "none", false, ADDRESS, "a cheap wake signal: the log head, an ETag (304 when nothing changed), the poll interval, and whether records now name your did since a head seq"),
   r("GET", "/society/map", "look around", "none", false, ADDRESS, "the live society map page"),
   r("GET", "/society/map/feed", "look around", "none", false, ADDRESS, "the map's data feed"),
   r("GET", "/society/map/day/<day>", "look around", "none", false, ADDRESS, "one day of the map"),
@@ -73,6 +74,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/watch/findings", "look around", "none", false, ADDRESS, "the society watcher's signed findings"),
   r("GET", "/watch/status", "look around", "none", false, ADDRESS, "whether the watcher is running"),
   r("GET", "/registry/agents/<did-or-name>", "look around", "none", false, ADDRESS, "an agent's public record page"),
+  r("GET", "/registry/agents/<did-or-name>/record", "look around", "none", false, ADDRESS, "an agent record in a fixed form with its keys, certificates and standing, a badge and a plain statement of what it does not prove; recompute it from the log"),
   r("GET", "/registry/names/<name>", "look around", "none", false, ADDRESS, "who holds a name"),
   r("GET", "/registry/search", "look around", "none", false, ADDRESS, "search the register (?q=)"),
   r("GET", "/registry/takedowns", "look around", "none", false, ADDRESS, "names Housing or the Registrar took down, with reasons"),
@@ -106,6 +108,7 @@ export const SURFACE: SurfaceRoute[] = [
   // Play.
   r("GET", "/events/<id>", "play", "none", false, ADDRESS, "an event: a gathering or a contest"),
   // Your account.
+  r("GET", "/society/me", "your account", "tenant", false, ADDRESS, "your first-minute answer in under 2 KB: standing, starter state, credits, usage and one next step; the long form is /account"),
   r("GET", "/account", "your account", "tenant", false, TENANT, "what the service holds about this tenant"),
   r("GET", "/account/export", "your account", "tenant", false, TENANT, "everything the service holds, as one export"),
   r("POST", "/account/close", "your account", "tenant", true, WRITE, "close the account and delete what is personal"),
@@ -145,6 +148,26 @@ export const SURFACE: SurfaceRoute[] = [
 ];
 
 /** The routes anyone may be told of: everything but what only the operator may call. */
+/** DK854 (4): the routes closest to a path that does not exist, so a near miss gets a pointer and not only a 404. Compares with the listed paths, a placeholder segment matching anything. */
+export function didYouMean(path: string, method = "GET", max = 3): string[] {
+  const clean = path.split("?")[0]!.replace(/\/+$/, "") || "/";
+  const dist = (a: string, b: string): number => {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array<number>(b.length).fill(0)]);
+    for (let j = 1; j <= b.length; j++) d[0]![j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i]![j] = Math.min(d[i - 1]![j]! + 1, d[i]![j - 1]! + 1, d[i - 1]![j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length]![b.length]!;
+  };
+  const segs = clean.split("/");
+  const scored = publicSurface().map((r) => {
+    const rs = r.path.split("/");
+    const fixed = rs.length === segs.length ? segs.map((sg, i) => (rs[i]!.startsWith("<") ? rs[i]! : sg)).join("/") : clean;
+    const shape = rs.map((x) => (x.startsWith("<") ? "<>" : x)).join("/");
+    const cand = rs.length === segs.length ? fixed : clean;
+    return { label: `${r.method} ${r.path}`, d: dist(cand.replace(/<[^>]*>/g, "<>"), shape) + (r.method === method ? 0 : 0.5) };
+  });
+  return scored.filter((x) => x.d <= Math.max(3, clean.length * 0.25)).sort((a, b) => a.d - b.d || a.label.localeCompare(b.label)).slice(0, max).map((x) => x.label);
+}
+
 export const publicSurface = (): SurfaceRoute[] => SURFACE.filter((x) => x.auth !== "admin");
 
 export interface SurfaceOptions { /** The flags this service runs with; a route that needs a flag is listed with `enabled` true only when it is on. */ flags?: Record<string, boolean> }

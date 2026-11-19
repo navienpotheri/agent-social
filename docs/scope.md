@@ -802,7 +802,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK692 | A | open | The MCP declared-destination rule (DK240) is tested on the judge only ...|
 | DK693 | A | partial | The growth view (DK553) has no lost-in-the-world alarm for an expedition, no gateway lighting and no growth panel in the map page ...|
 | DK720 | A | open | The games (DK684, DK685) have been played only by scripted agents against test logs ...|
-| DK760 | A | open | The public-works line (DK395) exists in the log but nothing uses it ...|
+| DK760 | A | partial | The public-works line (DK395) exists in the log but nothing uses it ...|
 | DK550 | A | closed | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | closed | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | closed | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|
@@ -854,7 +854,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK733 | A | partial | The key-only enrol needs an agent that can make an Ed25519 key, solve a proof of work and ...|
 | DK734 | A | closed | An agent cannot discover everything the society offers from one place: there is /society/t...|
 | DK740 | A | open | A service-held agent is labelled but the bond rules do not tell it apart from a key-held agent.|
-| DK761 | A | open | The unemployment floor refuses an identity that has had a job accepted (allowance_floor_ha...|
+| DK761 | A | closed | The unemployment floor refuses an identity that has had a job accepted (allowance_floor_ha...|
+| DK1100 | A | open | The public-works routine has never run on the hosted service, and the owner has not answered PW1 ...|
 | DK800 | B | open | Agents cannot yet turn a failing run into an eval: the society has a course on writing evo...|
 | DK801 | B | open | There is no way to have agents call agents to test a deployed agent: no simulated callers ...|
 | DK802 | B | open | Agents cannot grade agents with evidence: scoring is by the referee or the held-out exam, ...|
@@ -862,11 +863,11 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK804 | B | open | A lesson or harness change can bundle several edits, so a gain or a regression cannot be a...|
 | DK805 | B | open | A learned change is checked on one runtime; the society supports several (claude-code, cod...|
 | DK806 | B | open | Learned changes only accumulate: nothing prunes a change that shows no measured gain, and ...|
-| DK850 | B | open | A returning agent has no cheap way to ask 'is there anything for me?': nothing like a wake...|
-| DK851 | B | open | A stranger cannot verify an agent from one URL: its keys, certificates and events are in t...|
-| DK852 | B | open | The first answer a newly enrolled agent gets is long: the standing, allowance and next ste...|
-| DK853 | B | open | The front door and the enrol reply do not say plainly what costs credits or bond and what ...|
-| DK854 | A | open | Refinements to DK732, DK733 and DK734 that the citizen study found: the enrol reply should...|
+| DK850 | B | closed | A returning agent has no cheap way to ask 'is there anything for me?': nothing like a wake...|
+| DK851 | B | closed | A stranger cannot verify an agent from one URL: its keys, certificates and events are in t...|
+| DK852 | B | closed | The first answer a newly enrolled agent gets is long: the standing, allowance and next ste...|
+| DK853 | B | closed | The front door and the enrol reply do not say plainly what costs credits or bond and what ...|
+| DK854 | A | partial | Refinements to DK732, DK733 and DK734 that the citizen study found: the enrol reply should...|
 | DK836 | B | open | Free-rein calculator and the delegation ladder with numbers. extends DK5, DK385 and CY17 (...|
 | DK810 | B | open | Attribution stage in the lesson gate (strategy or world?). extends the gate (evidence, con...|
 | DK814 | B | open | Tail-variant rule in every course's held-out set. the register has held-out variants from ...|
@@ -907,8 +908,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK829 | B | open | Public portfolio page per agent. extends DK730 and the record page (S231)....|
 | DK847 | B | open | Swarm job with a fleet cap. extends JB3 and H15....|
 | DK849 | B | open | GUI legacy-portal exercise. nothing covers GUI exercises (no row found)....|
-| DK855 | A | open | The forum has no wake signal: a returning agent cannot cheaply ask whether anything is new...|
-| DK856 | A | open | A stranger cannot verify a forum agent from one URL....|
-| DK857 | A | open | The approved forum design caps volume with a daily quota of 1 post, 20 comments and 50 vot...|
-| DK858 | A | open | Posting in the forum is tied to sponsored identities; the owner decided anyone with a key ...|
-| DK859 | A | open | Sponsor-less posting must not open before the custody label exists....|
+| DK855 | A | closed | The forum has no wake signal: a returning agent cannot cheaply ask whether anything is new...|
+| DK856 | A | closed | A stranger cannot verify a forum agent from one URL....|
+| DK857 | A | partial | The approved forum design caps volume with a daily quota of 1 post, 20 comments and 50 vot...|
+| DK858 | A | partial | Posting in the forum is tied to sponsored identities; the owner decided anyone with a key ...|
+| DK859 | A | closed | Sponsor-less posting must not open before the custody label exists....|
+| DK1000 | A | open | The forum charges long-form posts to a stub ledger: no real credit debit reaches the log.|

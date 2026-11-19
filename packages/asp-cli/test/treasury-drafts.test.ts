@@ -38,7 +38,7 @@ test("the drafts cover every institution, the allowance and the deposit reward; 
     const dir = mkdtempSync(join(tmpdir(), "asp-drafts-"));
     const file = join(dir, "budgets.json");
     const drafted = await ok(f, ["treasury", "draft", "--period", "2026-12", "--out", file]);
-    assert.match(drafted.out, /13 unsigned budget draft\(s\) for 2026-12/);
+    assert.match(drafted.out, /14 unsigned budget draft\(s\) for 2026-12/);
     assert.match(drafted.out, /nothing is signed or recorded/);
     assert.equal(await budgetsIn(f), before, "writing the drafts recorded nothing");
     const parsed = JSON.parse(readFileSync(file, "utf8")) as DraftFile;
@@ -72,7 +72,7 @@ test("the drafts cover every institution, the allowance and the deposit reward; 
       const r = await ok(f, ["treasury", "sign", "--draft", file, "--id", d.id, "--cosign-by", OWNER]);
       assert.match(r.out, new RegExp(`budget \\S+: ${d.id}, ${d.amount} credits`));
     }
-    assert.equal(await budgetsIn(f), before + 13);
+    assert.equal(await budgetsIn(f), before + 14);
 
     // The growth rule for the next month: up to 125 % of this month's needs no co-signature, more does.
     const log = await openLog(f.aspHome, {});

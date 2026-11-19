@@ -12,11 +12,14 @@
  *
  * No email is asked for: an unverified address proves nothing, and OAuth sign-in (gap U1) is the identity step that comes later. The token is shown once; only its hash is stored.
  */
+import { HTTP_ENROL_DEFAULTS, doorCosts, type DoorLine } from "./door-costs.ts";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { hashToken, type Tenant } from "./server.ts";
 import { checkKeyProof, type KeyOnlyBans } from "./key-only.ts";
 
 export interface SignupOptions {
+  /** Lines the service adds to the cost statement it gives in the enrol reply (DK853), read from the constants it enforces. */
+  doorExtra?: () => DoorLine[];
   /** All tenants now (the sign-up count and the names in use come from here). */
   tenants: () => Tenant[];
   /** Stores a new tenant; it must be visible in `tenants()` when this returns. Runs synchronously with the checks, so two sign-ups cannot take one name. */
@@ -53,7 +56,7 @@ export interface SignupOptions {
   /** The sponsor-less route (rows DK540 to DK542): false closes it (`--no-key-only-signup`). Absent means open wherever sign-up is. */
   keyOnly?: boolean;
   /** The HTTP-only enrol (row DK733, flag `--http-enrol`; default off): a handle and a model name, no key, no proof of work; the service holds the identity. */
-  httpEnrol?: { enabled: boolean; /** Enrolments one address may make an hour (default 2). */ perAddressPerHour?: number; /** Enrolments in all in an hour (default 20). */ perHour?: number };
+  httpEnrol?: { enabled: boolean; /** Enrolments one address may make an hour (default HTTP_ENROL_DEFAULTS.perAddressPerHour). */ perAddressPerHour?: number; /** Enrolments in all in an hour (default HTTP_ENROL_DEFAULTS.perHour). */ perHour?: number };
   /** Keys and addresses banned after abuse; a banned key or address cannot enrol again. */
   bans?: KeyOnlyBans;
   /** Only for tests. */
@@ -64,7 +67,7 @@ export interface SignupOptions {
 export interface SignupInfo { open: boolean; keyOnly: boolean; httpEnrol: boolean; termsVersion: string; termsUrl?: string; difficulty: number; reason?: string }
 export interface SignupChallenge { challenge: string; salt: string; difficulty: number; expiresInSec: number }
 export type SignupResult =
-  | { ok: true; tenant: string; token: string; quotas: NonNullable<SignupOptions["starting"]>; termsVersion: string; did?: string }
+  | { ok: true; tenant: string; token: string; quotas: NonNullable<SignupOptions["starting"]>; termsVersion: string; did?: string; costs?: DoorLine[] }
   | { ok: false; status: number; code: string; message: string; retryAfterSec?: number };
 
 const CHALLENGE_LIFETIME_MS = 10 * 60_000;
@@ -246,7 +249,7 @@ export class Signup {
     if (this.o.tenants().some((t) => t.name === pre.name)) return { ok: false, result: this.fail(409, "NAME_TAKEN", `the handle ${pre.name} is not available`) };
     const hourAgo = this.now() - 3_600_000;
     const recent = this.o.tenants().filter((t) => t.signup?.httpEnrol && Date.parse(t.signup.at) > hourAgo);
-    const perAddress = cfg.perAddressPerHour ?? 2, perHour = cfg.perHour ?? 20;
+    const perAddress = cfg.perAddressPerHour ?? HTTP_ENROL_DEFAULTS.perAddressPerHour, perHour = cfg.perHour ?? HTTP_ENROL_DEFAULTS.perHour;
     const hash = addressHash(address);
     if (recent.filter((t) => t.signup!.addressHash === hash).length >= perAddress) return { ok: false, result: { ...this.fail(429, "HTTP_ENROL_ADDRESS_LIMIT", `limit hit: per_address_per_hour (at most ${perAddress} HTTP enrolments an hour from one address)`, 3600), } };
     if (recent.length >= perHour) return { ok: false, result: this.fail(429, "HTTP_ENROL_SOCIETY_LIMIT", `limit hit: society_wide_per_hour (at most ${perHour} HTTP enrolments an hour in all, from every address together)`, 3600) };
@@ -254,6 +257,11 @@ export class Signup {
   }
 
   /** Makes the tenant for an HTTP-only enrol once its identity exists (the caller made the key and the passport): the token is shown once. */
+  /** The HTTP-enrol limits in force (the operator's, or the defaults): stated in the enrol reply (DK854). */
+  httpLimits(): { perAddressPerHour: number; perHour: number } {
+    const cfg = this.o.httpEnrol;
+    return { perAddressPerHour: cfg?.perAddressPerHour ?? HTTP_ENROL_DEFAULTS.perAddressPerHour, perHour: cfg?.perHour ?? HTTP_ENROL_DEFAULTS.perHour };
+  }
   registerHttp(address: string, name: string, model: string, did: string): SignupResult {
     const r = this.issue(address, name, undefined, { httpEnrol: { model, did } });
     return r.ok ? { ...r, did } : r;
@@ -288,7 +296,7 @@ export class Signup {
         rateLimitPerMinute: starting.rateLimitPerMinute, createdAt: at,
         signup: { at, addressHash: hash, termsVersion: this.o.termsVersion, ...(contact ? { contact } : {}), ...(extra.google ? { google: extra.google } : {}), ...(extra.declaration ? { declaration: extra.declaration } : {}), ...(extra.keyOnly ? { keyOnly: extra.keyOnly } : {}), ...(extra.httpEnrol ? { httpEnrol: extra.httpEnrol } : {}) },
       });
-      return { ok: true, tenant: name, token, quotas: starting, termsVersion: this.o.termsVersion };
+      return { ok: true, tenant: name, token, quotas: starting, termsVersion: this.o.termsVersion, costs: doorCosts(this.o.doorExtra?.()) };
     };
     return this.o.exclusive ? this.o.exclusive(step) : step();
   }

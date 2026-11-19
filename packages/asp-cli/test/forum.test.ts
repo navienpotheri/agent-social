@@ -26,12 +26,12 @@ after(() => { setClock(undefined); for (const s of servers) s.close(); });
 
 const DAY = 86_400_000;
 
-async function setup(opts: { unlimited?: boolean } = {}) {
+async function setup() {
   let t = Date.parse("2026-10-21T10:00:00Z");
   setClock(() => new Date(t));
   const handle = await LocalLog.open(mkdtempSync(join(tmpdir(), "asp-fm-log-")));
   const root = mkdtempSync(join(tmpdir(), "asp-forum-"));
-  const forum = forumRoutes({ root, handle, now: () => new Date(t), ...(opts.unlimited ? { unlimited: true } : {}) });
+  const forum = forumRoutes({ root, handle, now: () => new Date(t) });
   const server = createLogServer({ handle, tenants, publicRoutes: forum.publicRoutes, extra: forum.writeRoutes });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   servers.push(server);
@@ -61,15 +61,14 @@ async function setup(opts: { unlimited?: boolean } = {}) {
 
 const idOf = (out: string) => /(?:posted|commented|voted \w+|hidden): (sha256:[0-9a-f]{64})/.exec(out)![1];
 
-test("the daily caps name the limit and reset at the next UTC day; duplicates, self-votes and wrong prev are refused", async () => {
+test("duplicates, self-votes and wrong prev are refused; a second post the same day is no longer capped (DK857)", async () => {
   const f = await setup();
   const p1 = await f.asp(["forum", "post", f.file("a.md", "Agents should cite the page they fetched."), "--by", A, "--title", "Cite your sources", "--tag", "method,web"]);
   assert.equal(p1.code, 0, p1.err);
   const post = idOf(p1.out);
 
   const second = await f.asp(["forum", "post", f.file("b.md", "A different thought entirely."), "--by", A, "--title", "Another"]);
-  assert.notEqual(second.code, 0);
-  assert.match(second.err, /1 post allowed per UTC day; resets at 2026-10-22T00:00:00Z/);
+  assert.equal(second.code, 0, "no daily post count");
 
   const dup = await f.asp(["forum", "post", f.file("c.md", "agents should CITE the page they fetched!!"), "--by", B, "--title", "cite your sources"]);
   assert.notEqual(dup.code, 0);
@@ -82,39 +81,15 @@ test("the daily caps name the limit and reset at the next UTC day; duplicates, s
   assert.equal((await f.asp(["forum", "vote", post, "--by", B, "--up"])).code, 0);
   assert.match((await f.asp(["forum", "vote", post, "--by", B, "--up"])).err, /already stands/);
   assert.equal((await f.asp(["forum", "vote", post, "--by", C, "--down"])).code, 0);
-  assert.match((await f.asp(["forum", "record", A])).out, /karma 0, 1 act/);
+  assert.match((await f.asp(["forum", "record", A])).out, /karma 0, 2 act/);
   assert.equal((await f.asp(["forum", "vote", post, "--by", C, "--up"])).code, 0); // a changed vote replaces the standing one
   assert.match((await f.asp(["forum", "record", A])).out, /karma 2/);
 
-  // The next UTC day the post allowance is back.
-  f.advance(DAY);
-  assert.equal((await f.asp(["forum", "post", f.file("b2.md", "A different thought entirely."), "--by", A, "--title", "Another"])).code, 0);
 
   // A stale prev (a fork) is refused with the id that was expected.
   const stale = await f.act(B, "comments", { kind: "comment", post, text: "hi", prev: null });
   assert.equal(stale.status, 409);
   assert.equal(stale.json.error.code, "BAD_PREV");
-});
-
-test("20 comments and 50 votes per day, then the next refusal names the limit", async () => {
-  const f = await setup();
-  const post = idOf((await f.asp(["forum", "post", f.file("a.md", "root"), "--by", A, "--title", "Root"])).out);
-  const comments: string[] = [];
-  for (let day = 0; day < 3; day++) {
-    for (let i = 0; i < 20 && comments.length < 51; i++) {
-      const r = await f.act(A, "comments", { kind: "comment", post, text: `comment ${comments.length}` });
-      assert.equal(r.status, 201, JSON.stringify(r.json));
-      comments.push(r.json.id);
-    }
-    if (day === 0) { const over = await f.act(A, "comments", { kind: "comment", post, text: "one too many" }); assert.equal(over.status, 429); assert.match(over.json.error.message, /20 comments/); }
-    f.advance(DAY);
-  }
-  for (const id of comments.slice(0, 50)) assert.equal((await f.act(B, "votes", { kind: "vote", target: id, value: 1 })).status, 201);
-  const over = await f.act(B, "votes", { kind: "vote", target: comments[50], value: 1 });
-  assert.equal(over.status, 429);
-  assert.equal(over.json.error.code, "DAILY_LIMIT");
-  assert.match(over.json.error.message, /50 votes/);
-  assert.equal((await f.get(`/forum/citizens/${encodeURIComponent(A)}`)).karma, 50);
 });
 
 test("the service rejects unknown keys, the wrong DID's key, tampering, and a hide from a non-operator", async () => {
@@ -158,7 +133,7 @@ test("the record verifies, and an edited document or a cut chain is caught; citi
   assert.match(html, /tier/);
   const page = await (await fetch(`${f.url}/forum/human/post/${encodeURIComponent(post)}`)).text();
   assert.match(page, /a reply to the reply/);
-  assert.match(await (await fetch(`${f.url}/forum/constitution`)).text(), /1 post, 20 comments, 50 votes/);
+  assert.match(await (await fetch(`${f.url}/forum/constitution`)).text(), /no daily count/);
   assert.match(await (await fetch(`${f.url}/forum/llms.txt`)).text(), /POST \/forum\/posts/);
 
   const file = join(f.root, "docs", readdirSync(join(f.root, "docs")).find((n) => n.startsWith(post.replace(":", "-")))!);
@@ -174,20 +149,6 @@ test("html pages escape what agents wrote", async () => {
   const html = await (await fetch(`${f.url}/forum/human/post/${encodeURIComponent(post)}`)).text();
   assert.doesNotMatch(html, /<script>alert/);
   assert.match(html, /&lt;script&gt;/);
-});
-
-test("with the daily caps lifted a citizen can post and comment past the usual limits, and every other rule still holds", async () => {
-  const f = await setup({ unlimited: true });
-  const first = await f.act(A, "posts", { kind: "post", tags: [], title: "One", text: "first words" });
-  assert.equal(first.status, 201);
-  assert.equal((await f.act(A, "posts", { kind: "post", tags: [], title: "Two", text: "second, different words" })).status, 201, "a second post on the same day");
-  for (let i = 0; i < 25; i++) assert.equal((await f.act(B, "comments", { kind: "comment", post: first.json.id, text: `comment ${i}` })).status, 201);
-  assert.equal((await f.act(A, "posts", { kind: "post", tags: [], title: "One", text: "first words" })).json.error.code, "DUPLICATE");
-  assert.equal((await f.act(A, "votes", { kind: "vote", target: first.json.id, value: 1 })).json.error.code, "OWN_TARGET");
-  const c = await f.get(`/forum/citizens/${encodeURIComponent(B)}`);
-  assert.equal(c.limits.comment, null);
-  assert.match(await (await fetch(`${f.url}/forum/constitution`)).text(), /test run with the daily caps lifted/);
-  assert.match((await f.asp(["forum", "record", B])).out, /25 of no limit comments|25.no limit comments/);
 });
 
 test("a post written in the meme convention is drawn as a meme card, escaped, and other posts are not", async () => {
