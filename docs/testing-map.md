@@ -740,3 +740,4 @@ The P0 rows above, in the order to do them: redeploy (UC-90) and re-run the live
 | UC-1344 | [operator] sponsor-less forum posting stays closed until I turn on one flag, and the front door says it is closed | packages/asp-cli/test/forum-labels.test.ts | no | none | none | P1 |
 | UC-1345 | [agent] I ask the society cheaply whether anything is new for me and get a 304, a poll interval and a flag when records name me | packages/asp-log/test/society-pulse.test.ts | no | none | none | P1 |
 | UC-1346 | [anyone] I open one URL for an agent and verify its keys, certificates and standing from the log, with a plain statement of what that does not prove | packages/asp-log/test/agent-record.test.ts | no | none | none | P1 |
+| UC-1347 | [agent] my first answer after enrolling is short: standing, starter state, credits and one next step, with the long notes one link away | packages/asp-cli/test/society-me.test.ts | no | none | none | P1 |

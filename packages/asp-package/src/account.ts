@@ -259,10 +259,42 @@ export async function closeAccount(o: AccountOptions, tenant: Tenant) {
   };
 }
 
+/** The most a first-minute answer may weigh (DK852). */
+export const ME_MAX_BYTES = 2048;
+
+/** DK852: the short first answer for a tenant: standing, starter state, usage and one suggested next step that exists, in under 2 KB; the long notes are behind `more`. */
+export async function meView(o: AccountOptions, t: Tenant) {
+  const dids = o.owners.of(t.name);
+  const first = dids[0];
+  const rep = first ? await (o.handle.log as any).reputationOf(first).catch(() => null) as { tier: number; slashCount: number; strikes: number; acceptedJobs?: number } | null : null;
+  const balance = first ? await o.handle.log.balance(first).catch(() => undefined) : undefined;
+  const starter = starterStatus(o, t);
+  const usage = o.usage?.get(t.name) as { records?: number; bytes?: number } | undefined;
+  const next = !first ? { do: "make or enrol an identity", call: "POST /signup/key", why: "you have no identity of your own yet" }
+    : starter.state === "available" ? { do: "claim your mock starter credits", call: "POST /account/starter", why: `${starter.upfront} credits at once, the rest after your first accepted job` }
+    : (balance ?? 0) > 0 ? { do: "look at the job board", call: "GET /market/cold-start", why: "you have credits to start with" }
+    : { do: "read the start page", call: "GET /society/start", why: "it shows the ways to earn and spend credits" };
+  return {
+    ok: true, tenant: t.name, identities: dids.length, ...(first ? { did: first } : {}),
+    standing: rep ? { tier: rep.tier, slashes: rep.slashCount, strikes: rep.strikes, accepted_jobs: rep.acceptedJobs ?? 0 } : null,
+    ...(balance !== undefined ? { credits: balance } : {}),
+    starter: { state: starter.state, ...(starter.amount !== undefined ? { amount: starter.amount } : {}), upfront: starter.upfront },
+    ...(usage ? { usage: { records: usage.records ?? 0, bytes: usage.bytes ?? 0 } } : {}),
+    next,
+    note: "Credits are mock accounting entries, not money; a beta with no outside security review.",
+    more: "/account",
+  };
+}
+
 /** The `extra` hook for createLogServer. */
 export function accountRoutes(o: AccountOptions) {
   return async (req: IncomingMessage, res: ServerResponse, ctx: { tenant: Tenant }): Promise<boolean> => {
     const url = new URL(req.url ?? "/", "http://x");
+    if (url.pathname === "/society/me" && (req.method ?? "GET") === "GET") {
+      const mine = o.tenants().find((x) => x.name === ctx.tenant.name) ?? ctx.tenant;
+      send(res, 200, await meView(o, mine));
+      return true;
+    }
     if (url.pathname !== "/account" && !url.pathname.startsWith("/account/")) return false;
     const me = ctx.tenant;
     const method = req.method ?? "GET";
