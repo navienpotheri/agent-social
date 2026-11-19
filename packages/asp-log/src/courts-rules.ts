@@ -3,8 +3,8 @@
  * (precedents, departures, route), and the caseload cap. State is kept in markers written inside the append, so a refused record leaves none.
  */
 import { AspError, didOf, type AspRecord } from "@agent-social/asp-core";
-import { REGISTRAR_DID, institutionDid } from "./economy.ts";
-import { drawPanel, panelDrawIsV2 } from "./panel.ts";
+import { REGISTRAR_DID, institutionDid, isReservedAccount } from "./economy.ts";
+import { drawPanel, noteFunder, noteJurorService, panelDrawIsV2 } from "./panel.ts";
 import { APPEAL_SERVICE_SMALL, APPEAL_SERVICE_STANDARD, CHARTER_NOTICE_MS, DEFAULT_ROUTES, ROUTE_KEYS, routeFor, type CourtRoutes } from "./courts.ts";
 import type { LogTx } from "./store.ts";
 
@@ -124,11 +124,12 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     const conflicted = [...signers].filter((x) => x === info.holder || x === REGISTRAR_DID);
     if (conflicted.length) throw rule("case_panel_conflict", `${conflicted.join(", ")} is the holder or the Registrar: the panel is jurors who are neither`);
     const routes = await routesOrDefault(tx, now);
-    const panel = await drawPanel(tx, { principal: info.holder, performer: REGISTRAR_DID, seed: b.case, size: routes.standard_panel, v2: panelDrawIsV2(env.panelV2From, now) });
+    const panel = await drawPanel(tx, { principal: info.holder, performer: REGISTRAR_DID, seed: b.case, size: routes.standard_panel, at: now, v2: panelDrawIsV2(env.panelV2From, now) });
     if (panel.length > 0) {
       const onPanel = panel.filter((p) => signers.has(p));
       const quorum = Math.ceil(panel.length / 2);
       if (onPanel.length < quorum) throw rule("panel_quorum", `a ruling on a case needs ${quorum} of the drawn panel (${panel.join(", ")}) to sign; only ${onPanel.length} did`);
+      await noteJurorService(tx, onPanel, now);
     }
     await tx.putMarker(`case:${b.case}`, JSON.stringify({ ...info, state: b.order }));
     await tx.putMarker(`order:${r.id}`, JSON.stringify({ case: b.case, order: b.order, subject: info.subject, holder: info.holder, ...(b.until ? { until: b.until } : {}) }));
@@ -165,11 +166,12 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     const conflicted = [...signers].filter((x) => x === info.accused || x === sponsor || x === info.reporter || x === REGISTRAR_DID);
     if (conflicted.length) throw rule("abuse_panel_conflict", `${conflicted.join(", ")} is the accused, its sponsor, the reporter or the Registrar: the panel is jurors who are none of them`);
     const routes = await routesOrDefault(tx, now);
-    const panel = await drawPanel(tx, { principal: sponsor ?? info.accused, performer: info.accused, seed: b.case, size: routes.standard_panel, v2: panelDrawIsV2(env.panelV2From, now) });
+    const panel = await drawPanel(tx, { principal: sponsor ?? info.accused, performer: info.accused, seed: b.case, size: routes.standard_panel, at: now, v2: panelDrawIsV2(env.panelV2From, now) });
     if (panel.length > 0) {
       const onPanel = panel.filter((p) => signers.has(p));
       const quorum = Math.ceil(panel.length / 2);
       if (onPanel.length < quorum) throw rule("panel_quorum", `a ruling on an abuse case needs ${quorum} of the drawn panel (${panel.join(", ")}) to sign; only ${onPanel.length} did`);
+      await noteJurorService(tx, onPanel, now);
     }
     // Restitution: the accused's free balance first, then its sponsor's (the sponsor answers for the agent). What is not there is not paid, and the shortfall is on the record. A transfer: supply does not change.
     const asked = b.restitution?.amount.value ?? 0;
@@ -181,7 +183,7 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
       const take = Math.min(acct?.balance ?? 0, asked - paid);
       if (take > 0) { await tx.putAccount({ did: payer, balance: (acct?.balance ?? 0) - take }); from.push({ account: payer, amount: take }); paid += take; }
     }
-    if (paid > 0) { const to = await tx.getAccount(info.reporter); await tx.putAccount({ did: info.reporter, balance: (to?.balance ?? 0) + paid }); }
+    if (paid > 0) { const to = await tx.getAccount(info.reporter); await tx.putAccount({ did: info.reporter, balance: (to?.balance ?? 0) + paid }); for (const f of from) await noteFunder(tx, info.reporter, f.account, isReservedAccount); }
     await tx.putMarker(`abuse_case:${b.case}`, JSON.stringify({ ...info, state: b.finding }));
     await tx.putMarker(`abuse_outcome:${info.report}`, JSON.stringify({ case: b.case, ruling: r.id, finding: b.finding, requested: asked, paid, shortfall: asked - paid, from, ...(b.remedy ? { remedy: b.remedy } : {}), ...(b.bad_faith ? { bad_faith: true } : {}), at: now }));
     return;
@@ -201,11 +203,12 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     const signers = new Set([r.sig.kid, ...(r.cosigs ?? []).map((c) => c.kid)].map(didOf));
     const conflicted = [...signers].filter((s) => s === cb.principal || s === cb.performer || firstSigners.includes(s));
     if (conflicted.length) throw rule("appeal_panel_conflict", `${conflicted.join(", ")} is a party or sat on the first panel: an appeal is heard by jurors who did not hear the first ruling`);
-    const panel = await drawPanel(tx, { principal: cb.principal, performer: cb.performer, seed: b.appeal, size: routes.appeal_panel, exclude: firstSigners, v2: panelDrawIsV2(env.panelV2From, now) });
+    const panel = await drawPanel(tx, { principal: cb.principal, performer: cb.performer, seed: b.appeal, size: routes.appeal_panel, exclude: firstSigners, at: now, v2: panelDrawIsV2(env.panelV2From, now) });
     if (panel.length > 0) {
       const onPanel = panel.filter((p) => signers.has(p));
       const quorum = Math.ceil(panel.length / 2);
       if (onPanel.length < quorum) throw rule("panel_quorum", `an appeal ruling needs ${quorum} of the drawn appeal panel (${panel.join(", ")}) to sign; only ${onPanel.length} did`);
+      await noteJurorService(tx, onPanel, now);
     }
     await tx.putMarker(`appeal:${b.appeal}`, JSON.stringify({ ...info, state: b.outcome }));
     if (b.outcome === "reversed" || b.outcome === "varied") await tx.putMarker(`appeal_refundable:${info.fee}`, r.id);

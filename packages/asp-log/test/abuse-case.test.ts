@@ -62,6 +62,9 @@ test("LW5 and DK350: the Registrar refers a report, a quorum of the panel uphold
   assert.equal(await log.balance(w.sponsor.did), before.sponsor - 70);
   assert.equal(await log.balance(site.did), before.site + 120);
   assert.equal((await log.creditAudit()).verdict, "balanced");
+  // DK365 (S1200): the reporter was funded by the accused and by its sponsor: the funding sources the v2 draw reads.
+  const raw = (log as unknown as { store: { transaction<T>(f: (tx: { getMarker(k: string): Promise<string | undefined> }) => Promise<T>): Promise<T> } }).store;
+  assert.deepEqual(JSON.parse((await raw.transaction((tx) => tx.getMarker(`funders:${site.did}`))) ?? "[]").sort(), [w.agent.did, w.sponsor.did].sort());
 
   const out = (await log.registryPage(w.agent.did))!.abuse![0].outcome!;
   assert.deepEqual([out.state, out.finding, out.requested, out.paid, out.shortfall], ["ruled", "upheld", 120, 120, 0]);

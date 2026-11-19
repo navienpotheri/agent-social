@@ -50,7 +50,7 @@ import { buildPage, namesAt, isLive, isVisible, skeleton, verifyPage, lapsedIden
 import { EMPTY_POSTER_RECORD, OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, depositMultiplier, medianOf, type PosterRecord, classWeight, effectiveClass, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
-import { DEFAULT_PANEL_SIZE, JUROR_NEW_PER_DAY, drawPanel, findRejection, noteFunder, panelDrawIsV2 } from "./panel.ts";
+import { DEFAULT_PANEL_SIZE, JUROR_NEW_PER_DAY, drawPanel, findRejection, noteFunder, noteJurorService, panelDrawIsV2 } from "./panel.ts";
 import { ledgerSince, noteEarned, noteRevoked, noteSpent } from "./agent-ledger.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
 
@@ -1221,7 +1221,7 @@ export class EventLog {
       const route = croutes ? routeFor(price, croutes) : null;
       const fee = route?.flatFee ?? Math.floor((price * PANEL_FEE_PERMILLE) / 1000);
       const seed = ruling ? await findRejection(tx, ruling.record.prev) : undefined;
-      const panel = fee > 0 && ruling && seed ? await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: route?.panel ?? this.panelSize, v2: panelDrawIsV2(this.panelV2From, ruling?.record.issued_at ?? r.issued_at) }) : [];
+      const panel = fee > 0 && ruling && seed ? await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: route?.panel ?? this.panelSize, at: ruling?.record.issued_at ?? r.issued_at, v2: panelDrawIsV2(this.panelV2From, ruling?.record.issued_at ?? r.issued_at) }) : [];
       const signers = ruling ? [ruling.record.sig.kid, ...(ruling.record.cosigs ?? []).map((c) => c.kid)].map(didOf) : [];
       const paid = [...new Set(signers.filter((d) => panel.includes(d)))];
       if (fee > 0 && paid.length > 0) {
@@ -1244,6 +1244,8 @@ export class EventLog {
         escrowLeftover -= fromEscrow - fromPrincipalReserve;
         const each = Math.floor(total / paid.length);
         for (const [i, d] of paid.entries()) await this.credit(tx, d, each + (i === 0 ? total - each * paid.length : 0));
+        // The parties paid these jurors (DK365, S1200): the funding sources the v2 draw reads.
+        for (const d of paid) { await noteFunder(tx, d, cbody.principal, isReservedAccount); await noteFunder(tx, d, escrow.backer, isReservedAccount); }
       }
     }
 
@@ -1375,27 +1377,30 @@ export class EventLog {
     if (report.status !== "open") throw rule("report_already_ruled", `report ${reportId} was already ${report.status}`);
     const contract = (await tx.getRecord(report.contract))!;
     const cbody = contract.record.body as { principal: string; performer: string; price?: { value: number } };
-    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed: reportId, size: this.panelSize, also: [report.reporter], v2: panelDrawIsV2(this.panelV2From, r.issued_at) });
+    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed: reportId, size: this.panelSize, also: [report.reporter], at: r.issued_at, v2: panelDrawIsV2(this.panelV2From, r.issued_at) });
     if (panel.length === 0) throw rule("no_panel_for_report", "no staked, conflict-free juror is registered, so no panel can rule on a report");
     const signers = new Set([r.sig.kid, ...(r.cosigs ?? []).map((c) => c.kid)].map(didOf));
     const paid = panel.filter((p) => signers.has(p));
     const quorum = Math.ceil(panel.length / 2);
+    await noteJurorService(tx, paid, r.issued_at);
     if (paid.length < quorum) throw rule("panel_quorum", `a report ruling needs ${quorum} of the drawn panel (${panel.join(", ")}) to sign; only ${paid.length} did`);
     const price = cbody.price?.value ?? 0;
     const fee = Math.floor((price * PANEL_FEE_PERMILLE) / 1000);
-    const pay = async (total: number) => {
+    const pay = async (total: number, payer: string) => {
       const each = Math.floor(total / paid.length);
       for (const [i, d] of paid.entries()) await this.credit(tx, d, each + (i === 0 ? total - each * paid.length : 0));
+      if (total > 0) for (const d of paid) await noteFunder(tx, d, payer, isReservedAccount);
     };
     if (verdict === "dismissed") {
-      await pay(report.deposit);
+      await pay(report.deposit, report.reporter);
     } else {
       const escrow = (await tx.getEscrow(report.contract))!;
       await this.credit(tx, report.reporter, report.deposit);
       const feeFromBond = Math.min(escrow.bondLocked, fee);
-      await pay(feeFromBond);
+      await pay(feeFromBond, escrow.backer);
       const reward = Math.floor(((escrow.bondLocked - feeFromBond) * REPORT_REWARD_PERMILLE) / 1000);
       await this.credit(tx, report.reporter, reward);
+      if (reward > 0) await noteFunder(tx, report.reporter, escrow.backer, isReservedAccount);
       await tx.putEscrow({ ...escrow, bondLocked: escrow.bondLocked - feeFromBond - reward, forcedFault: true });
       await noteLock(tx, escrow.backer, report.contract, escrow.bondLocked - feeFromBond - reward);
     }
@@ -1412,7 +1417,7 @@ export class EventLog {
     if (!seed) return; // defensive; the lifecycle's own guards already require a prior rejection
     const croutes = await charterIn(tx, r.issued_at);
     const cprice = (contract.record.body as { price?: { value: number } }).price?.value ?? 0;
-    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: croutes ? routeFor(cprice, croutes).panel : this.panelSize, v2: panelDrawIsV2(this.panelV2From, r.issued_at) });
+    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: croutes ? routeFor(cprice, croutes).panel : this.panelSize, at: r.issued_at, v2: panelDrawIsV2(this.panelV2From, r.issued_at) });
     // No staked, conflict-free juror is registered anywhere: Courts hasn't been bootstrapped in
     // this log, so fall back to the pre-Courts mocked behavior (any neutral DID may rule) rather
     // than blocking every dispute — this is what keeps the `dispute_ruled`/`ruling_by_party`
@@ -1421,6 +1426,7 @@ export class EventLog {
     const signers = new Set([r.sig.kid, ...(r.cosigs ?? []).map((c) => c.kid)].map(didOf));
     const onPanel = panel.filter((p) => signers.has(p));
     const quorum = Math.ceil(panel.length / 2);
+    if (onPanel.length >= quorum) await noteJurorService(tx, onPanel, r.issued_at);
     if (onPanel.length < quorum) {
       throw rule("panel_quorum", `a ruling needs ${quorum} of the drawn panel (${panel.join(", ")}) to sign; only ${onPanel.length} did`);
     }
@@ -2015,6 +2021,8 @@ export class EventLog {
       throw e;
     }
     await this.credit(tx, b.agent, b.amount.value);
+    // The entrants' fees made the pool (DK365, S1200): they are the winner's funding sources for the v2 draw.
+    for (const e of ((await tx.getMarker(`arena_entrants:${season}`)) ?? "").split(",").filter((x) => x && x !== b.agent)) await noteFunder(tx, b.agent, e, isReservedAccount);
     await tx.putMarker(key, r.id);
   }
 
@@ -3337,6 +3345,20 @@ export class EventLog {
    * replays this log independently up to `at.seq` and checks the resulting hash matches `at.logHash`,
    * rather than trusting the stored value at that row.
    */
+  /**
+   * The log replayed into a fresh store from its own records (DK365, S1200: the backfill). Every marker the rules write, the funders of an account and the cases a juror sat on included, is derived from the
+   * records alone, so a store whose markers are missing or older than the rule that writes them is rebuilt by this replay and the draw reads the same sources a log built under the rule would.
+   */
+  async replayed(): Promise<EventLog> {
+    const replay = new EventLog(new MemoryStore(await this.store.allMints()), this.replayOptions());
+    for (let afterSeq = 0; ; ) {
+      const page = await this.store.since(afterSeq, 500);
+      if (!page.length) break;
+      for (const s of page) { await replay.appendAt(s.record, s.appendedAt); afterSeq = s.seq; }
+    }
+    return replay;
+  }
+
   async verifyCheckpoint(at: { seq: number; logHash: string }): Promise<boolean> {
     const replay = new EventLog(new MemoryStore(await this.store.allMints()), this.replayOptions());
     for (let afterSeq = 0; ; ) {

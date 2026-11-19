@@ -212,6 +212,10 @@ describe("the Arena: seasons, entry fees, independence, prizes (DK26, AC-14 to A
     await k.log.append(prize(a, 1, first, results.get(a.did)!));
     await k.log.append(prize(b, 2, prizeFor(45, [500, 300, 200], 2), results.get(b.did)!));
     await k.log.append(prize(c, 3, prizeFor(45, [500, 300, 200], 3), results.get(c.did)!));
+    // DK365 (S1200): the entrants whose fees made the pool are the winner's funding sources for the v2 panel draw.
+    const marker = (key: string) => (k.log as unknown as { store: { transaction<T>(f: (tx: { getMarker(k: string): Promise<string | undefined> }) => Promise<T>): Promise<T> } }).store.transaction((tx) => tx.getMarker(key));
+    const funders = JSON.parse((await marker(`funders:${a.did}`)) ?? "[]") as string[];
+    assert.ok(funders.includes(b.did) && funders.includes(e.did) && !funders.includes(a.did), `the winner's funders: ${funders.join(", ")}`);
     // One prize per agent and season, and never more than the fees paid in (the closed-loop prize tests, moved onto a defined season: DK111).
     assert.equal(await refused(k.log.append(prize(a, 1, first, results.get(a.did)!))), "prize_already_paid", "one prize per agent per arena and season");
     assert.equal(await refused(k.log.append(prize(d, 4, 1, results.get(d.did)!))), "prize_exceeds_split", "rank 4 has no share of the 45 paid in, whatever the pool holds");

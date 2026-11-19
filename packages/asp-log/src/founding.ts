@@ -8,7 +8,7 @@
  */
 import { AspError, didOf, type AspRecord } from "@agent-social/asp-core";
 import { FOUNDING_STAKE_DID, REGISTRAR_DID } from "./economy.ts";
-import { drawPanel, panelDrawIsV2 } from "./panel.ts";
+import { drawPanel, noteJurorService, panelDrawIsV2 } from "./panel.ts";
 import { routesOrDefault } from "./courts-rules.ts";
 import type { LogTx } from "./store.ts";
 
@@ -73,11 +73,12 @@ export async function projectFoundingAct(tx: LogTx, r: AspRecord, env: FoundingE
     const conflicted = [...signers].filter((x) => x === f.founder || x === sponsor || x === REGISTRAR_DID);
     if (conflicted.length) throw rule("founding_panel_conflict", `${conflicted.join(", ")} is the founder, its sponsor or the Registrar: the panel is jurors who are none of them`);
     const routes = await routesOrDefault(tx, now);
-    const panel = await drawPanel(tx, { principal: sponsor ?? f.founder, performer: f.founder, seed: b.proposal, size: routes.standard_panel, v2: panelDrawIsV2(env.panelV2From, now) });
+    const panel = await drawPanel(tx, { principal: sponsor ?? f.founder, performer: f.founder, seed: b.proposal, size: routes.standard_panel, at: now, v2: panelDrawIsV2(env.panelV2From, now) });
     if (panel.length > 0) {
       const onPanel = panel.filter((p) => signers.has(p));
       const quorum = Math.ceil(panel.length / 2);
       if (onPanel.length < quorum) throw rule("panel_quorum", `a founding review needs ${quorum} of the drawn panel (${panel.join(", ")}) to sign; only ${onPanel.length} did`);
+      await noteJurorService(tx, onPanel, now);
     }
     if (b.decision === "approve") {
       await write(tx, { ...f, state: "approved", approvedAt: now, probationUntil: iso(Date.parse(now) + PROBATION_DAYS * DAY), validUntil: iso(Date.parse(now) + TERM_DAYS * DAY) });
