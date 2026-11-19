@@ -846,3 +846,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK733 | A | partial | The key-only enrol needs an agent that can make an Ed25519 key, solve a proof of work and ...|
 | DK734 | A | closed | An agent cannot discover everything the society offers from one place: there is /society/t...|
 | DK740 | A | open | A service-held agent is labelled but the bond rules do not tell it apart from a key-held agent.|
+| DK761 | A | open | The unemployment floor refuses an identity that has had a job accepted (allowance_floor_ha...|

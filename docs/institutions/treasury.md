@@ -249,6 +249,8 @@ Every rule of this document is a numbered rule with a named test, or this table 
 | TRL-17 | Budgets are shares of the income actually received, not fixed amounts | 4 | not built | **not built**: a budget is capped by the Treasury's balance (TRL-5); a share of income needs the monthly income by source, which the statement (TRL-18) carries (row DK231) |
 | TRL-18 | A monthly treasury statement whose arithmetic and sums over the log reconcile, and that is refused when one credit is off | 3, 5, 9 | not built | **not built**: the `treasury_statement` record and its schema do not exist; the nightly audit (credits audit) checks the supply rule over the whole log in the meantime (row DK232) |
 | TRL-19 | The reserve is never below one month of approved budgets (guard G6, drained side) | 4 | not built | **not built**: needs the statement (TRL-18) and a month of approved budgets in the log; the Treasury-to-circulation ratio (G6, high side) is measured (row DK232) |
+| TRL-20 | The unemployment floor tops up a newcomer with no accepted job only after 30 days, once, from the allowance budget | 3, 5 | tested | test `public-works-floor.test.ts`: "S997: the unemployment floor tops up a newcomer with no accepted job after 30 days" |
+| TRL-21 | An identity that has had a job accepted is refused the unemployment floor | 3, 5 | not built | **not built**: the rule is in the log (`allowance_floor_has_job`) but no test yet builds an identity with an accepted job and shows the refusal (row DK761) |
 
 
 ## Lens coverage (register row DK78)
