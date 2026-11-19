@@ -8,6 +8,7 @@
  * (for example /v1/responses) pass through unjudged and are counted as unjudged requests.
  * P2: MCP at /mcp/<name>: the `asp` server (memory and commons tools) and a judging proxy for each of the agent's MCP servers.
  */
+import type { SecondCheck } from "./second-check.ts";
 import { targetsOf } from "./targets.ts";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -31,6 +32,8 @@ import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayO
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
 
 export interface GatewayOptions {
+  /** The second check on risky calls (DK531, S955): a small model that may only make an allowed call stricter. Absent or off, the rules answer alone. */
+  secondCheck?: SecondCheck;
   /** Base URL of the OpenAI-compatible API, up to and including /v1 (for example https://api.openai.com/v1). */
   openaiUpstream?: string;
   /** Ask the OpenAI-compatible upstream, when it is on this machine, for the digest of each model it serves (DK96). On by default for Ollama's port 11434; set it for a runtime on another port. */
@@ -308,6 +311,11 @@ export function createGateway(opts: GatewayOptions): Gateway {
     let allow = j.allow;
     let reason = j.reason;
     let strike = true;
+    // The second check (DK531): only on a call the rules allowed, only stricter, never a strike (it is advisory); an error, "unsure" or a spent budget leaves the rules' answer.
+    if (allow && opts.secondCheck) {
+      const r = await opts.secondCheck.review(call, j);
+      if (!r.allow) { allow = false; strike = false; reason = `[ASP] ${r.reason}`; rec?.event("second_check_block", { scope: j.scope }); }
+    }
     // Text another author wrote has just been in the agent's context (the forum): for the next few calls, one that reaches outward is not run. Not a violation: no strike (DK34).
     if (untrustedLeft > 0) {
       untrustedLeft--;

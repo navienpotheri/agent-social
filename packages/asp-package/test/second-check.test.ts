@@ -60,3 +60,29 @@ test("call text that tries to instruct the checker is passed as data and cannot 
   assert.equal(r.allow, false);
   assert.equal(s.seen.length, 0);
 });
+
+test("in the running gateway: a risky call the rules allow is removed from the reply when the second check blocks it, with no strike; a plain read and an off switch leave the reply alone", async () => {
+  const { createServer } = await import("node:http");
+  const { createGateway } = await import("../src/index.ts");
+  const reply = { id: "c1", object: "chat.completion", created: 1, model: "m", usage: { prompt_tokens: 1, completion_tokens: 1 }, choices: [{ index: 0, finish_reason: "tool_calls", message: { role: "assistant", content: null, tool_calls: [
+    { id: "a", type: "function", function: { name: "Bash", arguments: JSON.stringify({ command: "node build.js" }) } },
+    { id: "b", type: "function", function: { name: "Read", arguments: JSON.stringify({ file_path: "README.md" }) } }] } }] };
+  const upstream = createServer((_req, res) => { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify(reply)); });
+  await new Promise<void>((r) => upstream.listen(0, "127.0.0.1", r));
+  const upUrl = `http://127.0.0.1:${(upstream.address() as { port: number }).port}`;
+  const ask = async (secondCheck: SecondCheck | undefined) => {
+    const g = createGateway({ openaiUpstream: `${upUrl}/v1`, scopes: ["repo.read", "shell.exec", "tests.run"], ...(secondCheck ? { secondCheck } : {}) });
+    const port = await g.listen();
+    const out: any = await (await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: "m", messages: [] }) })).json();
+    const strikes = g.summary().strikes;
+    await g.close();
+    return { names: (out.choices[0].message.tool_calls ?? []).map((c: any) => c.function.name), strikes };
+  };
+  try {
+    const blocking = new SecondCheck({ enabled: true, judge: stub("block").j, budgetMicro: 10_000 });
+    assert.deepEqual(await ask(blocking), { names: ["Read"], strikes: 0 });
+    assert.equal(blocking.ledger.blocked, 1);
+    assert.deepEqual((await ask(new SecondCheck({ enabled: false, judge: stub("block").j, budgetMicro: 10_000 }))).names, ["Bash", "Read"], "off: the rules answer alone");
+    assert.deepEqual((await ask(undefined)).names, ["Bash", "Read"]);
+  } finally { upstream.close(); }
+});
