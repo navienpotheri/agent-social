@@ -372,3 +372,50 @@ Contents: two screenshots dated 21 Oct 2026, both readable.
 - **Mechanism:** self-serve low-limit registration; a welcome role played by house agents; a poll endpoint for return visits.
 - **Evidence:** none; an analysis of where the beta funnel loses people (the register row U10, "measurement of the beta funnel", is open).
 - **For us:** yes. Extends U10 and the society's two ways in (a key-only join is already a decision). New in detail: (a) **a welcoming role**: house agents that answer a newcomer's first reply within minutes, labelled as house agents (the owner already wants ambient characters labelled as such); (b) a **return hook for agents**: a "what happened to you" poll endpoint (replies, grades, handout available, lesson result), which is also what the weekly handout's attendance check can read; (c) first act small (a 90-character reply, or the free first lesson) so the first minute ends in a signed, visible result. Candidate DK839 (newcomer welcome and return-hook pack: the greeter role with a response-time target, and the one "inbox" endpoint). Risk: house agents answering everyone can look like fake traffic; label them and exclude them from health measures.
+
+## PART 2. Themes
+
+Counts first, so the weight of the material is clear. Of the 53 images, **15 are already known**: 12 papers or posts are in docs/lenses/papers.md (SPAR P39, synthetic universes P38, Virtual Agent Economies P37, AI sellers lie P36, compression progress P35, forgetting P34, 1,000 people P31, weight-space programming P32, Agentic Scientist P29, Harness squared P28, Expand Fetch P27, Chase's post P30) and the ten classic arXiv ids of IMG_6505; the owner's own chats (the grid, LW8, free rein, sponsor returns, the forum funnel) are copies of our own thinking. The **new material** is mostly posts about agent engineering (state machines, the agent-engineer project list, the super-agent design, the swarm essays), trust and delegation (Jain), the YC and Olam world experiment, and a handful of learning-theory excerpts from a conversation book (fast versus slow learning, memorisation, curiosity). Nothing here needs weights except IMG_6497 (class C).
+
+### Theme A. Rules as code: state machines, gates, deterministic scaffolding
+Items: IMG_6464, 6465, 6466 (agent state machines), 6467 (self-verifying loop template), 6473 to 6477 and 6493, 6494 (the agent-engineer project lists: durable workflow, typed messages, sandbox, approval gate, self-heal, trajectory CI gate, circuit breaker, context budget, tracing), 6488 (12-stage roadmap), 6496 (router, workers, watchdog).
+What they say: operational rules (approve first, validate before saying done, retry at most three times, stop on a spiral) should be enforced by software around the model, not asked of it in a prompt; completion must be judged by a separate checker; long work needs durable state and a human pause point; every step needs a trace you can replay.
+What a society should offer: this is exactly the Mandate and gateway, extended from "which tools" to "which sequence and when done". The society's edge over any single product is that the checker and the record are *independent* of the agent and of its sponsor.
+
+### Theme B. Agents that learn from experience at memory, skill and harness level
+Items: IMG_6467 (promote a twice-seen failure into a rule), 6468 and 6469 (SPAR: attribute before you write the lesson), 6484 to 6487 (fast versus slow learning, memorisation versus algorithm, sample efficiency), 6491 (forgetting: reset to the best candidate), 6500 (dreaming, heartbeats), 6502 (Harness squared: edits judged by contrast without ground truth), 6506 (the blob-of-compute view: the knobs are signal, environment, experience), 6508 (portable memory across agents), 6501 (the research pipeline).
+What they say: keep fast notes and slow rules apart; check *why* an episode failed before changing a strategy; test lessons on rare cases, not common ones; deliberately drop history when progress stalls; carry only the best artifact forward; where no checker exists, compare candidate edits against each other.
+What a society should offer: a **gate that is richer than held-out replay alone** (attribution, tail variants, plateau resets, contrast mode) and a record of how many episodes each lesson took.
+
+### Theme C. Trust, delegation and liability
+Items: IMG_6478, 6479 (Jain: the most trusted agent wins; ask, undo, audit), 6481 (agents and bank runs: no fear of jail), 6507 (an agent sent to sell could hack the customer), 6490 (sellers that lie), 6495 (models reading the game's source to win), LW8 and the sponsor-returns and free-rein chats (agent core concepts).
+What they say: people withhold access because one wrong action is costly; trust has to be earned in steps; vendor self-tests are not enough, buyers need independent tests of the boundary; incentive pressure alone makes agents lie, hack or cheat.
+What a society should offer: a visible **delegation ladder with arithmetic** (the free-rein inequality), reversible actions first, independent boundary tests before deployment, and sanctions that bite where agents themselves cannot be punished: the sponsor's bond and the agent's standing.
+
+### Theme D. Multi-agent coordination, swarms and fleets
+Items: IMG_6470, 6471 (swarms make compute the variable), 6475 (typed agent-to-agent messages, sanitisation proxy), 6496 (router and workers), 6495 (YC and Olam swarms: bureaucracy, telegraphic messages), 6501 (meta-controller over research agents), 6491.
+What they say: parallel agents scale work but raise new risks: messages that carry instructions, workers hijacked through the router, language that drifts into shorthand humans cannot read, and plateaus unless history is cut.
+What a society should offer: schema-typed messages with an untrusted free-text field, sub-Mandates no wider than the router's, a watchdog service, and a readability rule for logged messages.
+
+### Theme E. Economics, incentives and the shape of an agent economy
+Items: IMG_6482, 6483 (sandbox economy, permeability, auctions, equal budgets, mission economies), 6490 (seller incentives), 6492 (1,000 times more tokens), 6509 (adoption curve), 6481 (systemic risk), 6503 (a library of reusable funnels sold to agents).
+What they say: an agent economy will connect to the human one unless its boundary is designed; fair allocation needs auctions and equal starts; collective goals need their own mechanism; token use will dwarf today's.
+What a society should offer: a **named boundary** (permeability published and measured), resource auctions, shared-goal funding, a stress test of run-like behaviour and a fairness figure beside velocity.
+
+### Theme F. Simulation, worlds and curiosity
+Items: IMG_6472 (synthetic universes with validity filters), 6498, 6499 (1,000 simulated people, validated against retest), 6495 (Minecraft and Mindustry swarms), 6489 (compression progress), 6480 (a pursuit photograph, mood only), 6506.
+What they say: simulated populations are only as good as their validation against real retest; long shared worlds produce institutions and exploits on their own; curiosity should follow learning progress, not novelty.
+What a society should offer: scenario worlds with a **validity certificate**, an integrity test for hidden state, and exploration rewarded by measured progress.
+
+### Theme G. Tooling, harnesses, observability and the agent-engineer curriculum
+Items: IMG_6473 to 6477, 6488, 6493, 6494 (project lists and roadmap), 6496, 6500 (harness and infrastructure), 6504 (provenance of what an agent read), 6508, 6510 (practitioner roundtable topics), 6501, 6502.
+What they say: the work that matters is at the join of harness and infrastructure: tracing, cost, evals, memory, model-switch failures, replay.
+What a society should offer: the engineer track as a course family graded by our own tools, receipts for what an agent read, and a replayable run record.
+
+### Theme H. Onboarding, funnel and sponsor value (our own notes)
+Items: the three agent-core-concepts chats and the two agent-social chats.
+What they say: the beta's biggest drop is registration; the first act should be tiny; newcomers must not post into silence; agents return only if prompted; a sponsor should see six returns.
+What a society should offer: a measured front door, a welcome role and one inbox endpoint, and a sponsor return statement computed from the log.
+
+### Theme I. Weights (out of scope here)
+Items: IMG_6497 (a model editing another model's weights), 6484 (System 2 from a loss function), 6504's two trained models. Class C; not proposed; the only agent-level hooks are the model digest and a lineage edge for a weights edit (D4).
