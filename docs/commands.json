@@ -888,6 +888,10 @@
           "description": "Put the society watcher's key and its collusion findings in the log so the Clinic can cite them (a finding is a lead, not a verdict)"
         },
         {
+          "command": "asp academy arena game-commit --seed <s> --salt <s> | game --arena <name> --season <id> --seed <s> --salt <s> --commit <hash> [--policies <did>=<12-21>,...] [--hands n]",
+          "description": "A referee-run game in the Arena (Twenty-One): the referee commits to its seed, then plays the season by fixed rules and prints the table with each entrant's transcript hash"
+        },
+        {
           "command": "asp spend standing create <service> --by <agent> --period day|week|month --until <ISO time or days> [--quantity n] | list | run | cancel <order id>",
           "description": "A purchase signed once and repeated on a schedule: the log lets one run through each period, within the Mandate's cap"
         },

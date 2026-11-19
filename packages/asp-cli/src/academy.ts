@@ -13,7 +13,7 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { cosign, createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
-import { REGISTRAR_DID, examSeed, examVariant, institutionDid, prizeFor, splitParts, inTopHalf } from "@agent-social/asp-log";
+import { GAME_HANDS, STAND_MAX, STAND_MIN, commitSeed, runGame, type GameEntrant, REGISTRAR_DID, examSeed, examVariant, institutionDid, prizeFor, splitParts, inTopHalf } from "@agent-social/asp-log";
 import { admitToMemory, type HeldOutTask, type LessonCandidate, type LogHandle } from "@agent-social/asp-package";
 import { buildSitting, foundationsDefinition, scoreSitting, tasksOf, POOL_SIZE, type Transcript } from "./exam.ts";
 import { loadCatalogue } from "./lens-courses/catalogue.ts";
@@ -216,7 +216,7 @@ export async function academyCmd(sub: string | undefined, rest: string[], o: Aca
   // ---------------------------------------------------------------- the Arena
   if (sub === "arena") {
     const action = rest[0];
-    const usage = "asp academy arena define --arena <name> --season <id> --by <registrar> [--min-tier n] [--sponsors n] [--opens t] [--closes t] [--split 500,300,200] | enter --arena <name> --season <id> --by <agent> [--mandate <id>] | result --arena --season --agent <did> --rank n --score n --field n --opponents a,b,c --run-log <Action> --by <registrar> | payout --arena --season --by <registrar> | board --arena <name> [--season <id>]";
+    const usage = "asp academy arena define --arena <name> --season <id> --by <registrar> [--min-tier n] [--sponsors n] [--opens t] [--closes t] [--split 500,300,200] | enter --arena <name> --season <id> --by <agent> [--mandate <id>] | game-commit --seed <s> --salt <s> | game --arena <name> --season <id> --seed <s> --salt <s> --commit <hash> [--policies <did>=<12-21>,...] [--hands n] [--json] | result --arena --season --agent <did> --rank n --score n --field n --opponents a,b,c --run-log <Action> --by <registrar> | payout --arena --season --by <registrar> | board --arena <name> [--season <id>]";
     const arena = str(o, "arena"), season = str(o, "season");
     if (action === "define") {
       if (!arena || !season) throw new AcademyUsage(usage);
@@ -269,6 +269,35 @@ export async function academyCmd(sub: string | undefined, rest: string[], o: Aca
         out(`  rank ${b.rank}: ${b.agent} receives ${amount} credits`);
       }
       out(`${arena} ${season}: ${n} prize(s) paid, ${total} of the ${pool} credits paid in; the rest stays in the Academy account`);
+      return 0;
+    }
+    if (action === "game-commit") {
+      // The referee commits to its seed before entries close (row DK684): publish the hash, keep the seed and the salt, reveal them after the policies are in.
+      const seed = need(o, "seed", usage), salt = need(o, "salt", usage);
+      out(`commit ${commitSeed(seed, salt)}  (publish this now; reveal the seed and the salt after entries close; a seed that does not hash to it is refused)`);
+      return 0;
+    }
+    if (action === "game") {
+      // The referee plays the season's game (row DK684): Twenty-One, each entrant's policy against the same dealer, hand by hand from the revealed seed alone. Prints the table and each entrant's transcript hash; the entrant
+      // reports its game in an Action carrying that hash and the Registrar's result cites the Action (`asp academy arena result`).
+      if (!arena || !season) throw new AcademyUsage(usage);
+      const seed = need(o, "seed", usage), salt = need(o, "salt", usage), commit = need(o, "commit", usage);
+      const all = await records(o, ["arena", "arena_entry"]);
+      const def = all.find((r) => r.type === "asp.arena/v0.2" && bodyOf<{ arena: string; season: string }>(r).arena === arena && bodyOf<{ season: string }>(r).season === season);
+      if (!def) throw new AcademyUsage(`${arena} ${season} is not a defined season`);
+      const policies = new Map(String(str(o, "policies") ?? "").split(",").filter(Boolean).map((x) => { const [d, n] = x.split("="); return [d, Number(n)] as const; }));
+      const entrants: GameEntrant[] = [];
+      for (const e of all.filter((r) => r.type === "asp.arena_entry/v0.2" && bodyOf<{ arena: string; season: string }>(r).arena === arena && bodyOf<{ season: string }>(r).season === season)) {
+        const agent = e.issuer;
+        const pass = await o.log.log.passport(agent);
+        entrants.push({ agent, sponsor: pass?.sponsor ?? agent, ...(policies.has(agent) ? { policy: { stand_at: policies.get(agent)! } } : {}) });
+      }
+      const hands = str(o, "hands") === undefined ? undefined : Math.trunc(Number(str(o, "hands")));
+      const run = runGame({ commit, seed, salt, entrants, minDistinctSponsors: bodyOf<{ min_distinct_sponsors: number }>(def).min_distinct_sponsors, ...(hands ? { hands } : {}) });
+      if (json) { out(JSON.stringify(run, null, 2)); return 0; }
+      if (run.void) { out(`${arena} ${season} is void: ${run.reason}; the Academy gives the entry fees back (asp academy arena void)`); return 0; }
+      for (const r of run.results) out(`  ${r.rank}. ${r.agent}  score ${r.score}  points ${r.points}  transcript ${r.transcript_hash}`);
+      out(`played ${hands ?? GAME_HANDS} hands each from the revealed seed; an entrant with no valid policy (a whole number from ${STAND_MIN} to ${STAND_MAX}) scores 0`);
       return 0;
     }
     if (action === "board" || action === "list") {

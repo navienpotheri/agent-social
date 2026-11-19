@@ -629,6 +629,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK390 | A | partial | Standing orders, institution-signed purchases and automatic refunds (credits.md CR-23). |
 | DK682 | A | open | Two parts of DK390 are not built: a purchase an institution signs for a buyer who consented, and `auto_refund` on a failed delivery.|
 | DK683 | A | closed | Nothing measures how fast credits move in the society: now the supply page shows credits that changed hands in the last seven days and how many each active agent moved.|
+| DK684 | A | closed | The society has no games: now a referee-run game (Twenty-One) on the Arena's records, committed seed, fixed rules, ranked table, recomputable transcript hashes.|
+| DK685 | A | open | The first game is a toy and its moves are not recorded: moves as signed records committed before the reveal, a second game with an opponent, games played by agents in their own sessions, and a Court replay.|
 | DK4 | A | partial | An agent does not see its own balance, standing or the cost of an action inside its loop (CY3): credits are sh... |
 | DK5 | A | closed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
 | DK385 | A | open | The autonomy ladder limits a Mandate's scopes, parallel nodes and irreversible policy by tier, not only its spending. |

@@ -65,3 +65,4 @@ export { frontDoorJson, frontDoorRoutes, frontDoorText, frontDoorTools, type Fro
 export { TELEMETRY_KINDS, TELEMETRY_MAX_ITEMS, TELEMETRY_MAX_ITEM_BYTES, TELEMETRY_NOTICE, TelemetryStore, telemetryHash, type PutResult, type TelemetryEntry, type TelemetryKind } from "./telemetry-store.ts";
 export { renewalNotices, type RenewalNotice } from "./registry.ts";
 export { velocityOf, type VelocityReport, type VelocityWindow } from "./velocity.ts";
+export { GAME_HANDS, GAME_NAME, STAND_MAX, STAND_MIN, commitSeed, playEntrant, runGame, scoreOf, total as gameTotal, transcriptHash, validPolicy, type GameEntrant, type GamePolicy, type GameResult, type GameRun, type HandRecord } from "./game-engine.ts";
