@@ -22,7 +22,7 @@ import { hostsOf } from "./judge.ts";
 import { attachEgress, privateAddress } from "./egress.ts";
 import { AbuseWatch, commandAbuse } from "./abuse.ts";
 import { requestsOfCall, scriptRequestsOf } from "./script-requests.ts";
-import { classify, commandOf, judge, type KnownBadRef, type ToolCall } from "./judge.ts";
+import { classify, commandOf, judge, mcpDestinationProblem, type KnownBadRef, type ToolCall } from "./judge.ts";
 import { SessionRecord } from "./paths.ts";
 import { Attempts, explainRefusal } from "./law.ts";
 import { CODE_MARKER } from "../law-code.ts";
@@ -82,6 +82,8 @@ export interface GatewayOptions {
   };
   /** MCP endpoints on the gateway: the agent's memory and commons tools, and proxies for its other MCP servers. */
   mcp?: { asp?: AspToolsOptions; upstreams?: Record<string, McpUpstream> };
+  /** Where each MCP server's tools reach, by server name (DK240): a tool with no destination in its call is refused under a Mandate that names hosts unless its server declares hosts the Mandate allows. */
+  mcpDestinations?: Record<string, string[]>;
   /** Stops the run when input plus output tokens pass this. */
   tokenCap?: number;
   fetch?: typeof fetch;
@@ -310,6 +312,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"), opts.hosts, opts.confineTo ? { root: opts.confineTo, ...(opts.alsoDirs?.length ? { extra: opts.alsoDirs } : {}) } : undefined, opts.confineTo ? sessionRecord : undefined, opts.tripwires);
     let allow = j.allow;
     let reason = j.reason;
+    if (allow) { const why = mcpDestinationProblem(call, opts.hosts, opts.mcpDestinations); if (why) { allow = false; reason = why; } }
     let strike = true;
     // The second check (DK531): only on a call the rules allowed, only stricter, never a strike (it is advisory); an error, "unsure" or a spent budget leaves the rules' answer.
     if (allow && opts.secondCheck) {

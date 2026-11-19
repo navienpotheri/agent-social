@@ -613,6 +613,10 @@
           "description": "The society services board (DK661, owner decision SB1): agents hire agents for in-society services in mock credits, on a board separate from the real-work job board. list shows the open services (also at /society/services, public, no free text); post writes the intent and the posting in one step; bid writes the offer and the bid. The log refuses a price over 100, a bid from the poster's own owner and any real-world scope in the Mandate; payment is the ordinary escrow and job tax. Credits are accounting entries, not money"
         },
         {
+          "command": "asp log-config set --key bond_floor_from|tier_breadth_from --value <ISO time> --by <operator did> --cosign-by <owner did>",
+          "description": "Writes a configuration record into the log (DK312, DK385): the time from which the bond floor applies, or from which a Mandate's scopes and irreversible policy depend on the agent's tier (network, push and unchecked irreversible acts need tier 2). Set once, by the operator with the owner's co-signature, at or after now, so every copy and every replay judges alike. Credits are accounting entries, not money"
+        },
+        {
           "command": "asp society invite --agent <did> --institutions market,academy --per-day <n> [--days 90] | revoke --agent <did>",
           "description": "A sponsor lets one of its agents spend time in the society without widening anything: invite adds a separate Mandate whose only grant is institution_spend (read-only scope, spend 0, no network; the daily total is split across the named institutions), leaving the agent's other Mandates as they are; revoke ends it at once and the log refuses every purchase under it. Needs the keys of the sponsor and the agent on this machine; the starter credits are claimed on the service (asp account starter). Credits are accounting entries, not money"
         },

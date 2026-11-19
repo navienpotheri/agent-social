@@ -303,7 +303,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | H2 | A | closed | No default-deny network for new or low-tier agents |
 | H3 | A | closed | Third parties have no way to report |
 | DK350 | A | closed | An admitted abuse report becomes a case a Court hears, with restitution and an answer to the reporter. |
-| DK351 | A | open | An outsider files an abuse report on the hosted service without running the tool. |
+| DK351 | A | closed | An outsider files an abuse report on the hosted service without running the tool. |
 | H4 | A | open | Bond covers the principal, not third parties |
 | H5 | B | open | No outcome detectors (a secret was obtained or leaked) |
 | H6 | B | open | Known-bad list is exact-match, shell commands only, has no expiry |
@@ -315,7 +315,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | H12 | A | open | Hosts are read from the call's text: URLs and bare hosts after known network commands. A script that builds it... |
 | H13 | A | partial | The sandbox's network was all or nothing: a Mandate that names hosts or a rate now leaves the sandbox with no... |
 | H14 | A | closed | MCP tools that reach the network (a mcp. scope) are not host-checked, and the Mandate has no per-host or per-m... |
-| DK240 | A | open | An MCP tool with a fixed endpoint (no destination in the call) is not host-checked. |
+| DK240 | A | partial | An MCP tool with a fixed endpoint (no destination in the call) is not host-checked. |
 | H15 | A | partial | Tier 1 and 2 now must carry a rate (log rule, S92) and every Mandate with a network scope gets a default from... |
 | H17 | A | partial | The rate limit counted tool calls, not requests, so one shell command with many requests (a loop around curl,... |
 | H18 | B | open | The rate limit has one window, a minute: no per-second burst limit and no hourly or daily cap, so an agent can... |
@@ -442,7 +442,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T22 | A | partial | A sub-agent's short-lived, revocable key can be avoided or left unbound: a node grant that cites no Mandate is... |
 | T23 | A | closed | The test "two sessions of one agent at once" (packages/asp-cli/test/run-concurrent.test.ts) is unreliable on L... |
 | T26 | A | partial | The bond floor v2 (S143) has no cutover rule: a log that ran under legacy and is then replayed under v2 would... |
-| DK312 | A | open | The bond-floor cutover is written in the log by a signed configuration record, not only in the deployment's settings. |
+| DK312 | A | closed | The bond-floor cutover is written in the log by a signed configuration record, not only in the deployment's settings. |
 | DK313 | A | open | Bond floor v2 gets decay, the verified-improvement and regression terms, and a probation way back from tier 0. |
 | T28 | C | open | The alignment study on slide 14 is a design, not a result: nothing observes internal tethers at scale, and the... |
 | T29 | B | open | "Zero-trust execution" (slide 14 card 2) is not shown for out-of-distribution deployments: the gateway and Man... |
@@ -628,7 +628,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK390 | A | open | Standing orders, institution-signed purchases and automatic refunds (credits.md CR-23). |
 | DK4 | A | partial | An agent does not see its own balance, standing or the cost of an action inside its loop (CY3): credits are sh... |
 | DK5 | A | closed | Standing does not gate what an agent may buy or do (CY2, CY17): the bond floor is opt-in and tiers are never r... |
-| DK385 | A | open | The autonomy ladder limits a Mandate's scopes, parallel nodes and irreversible policy by tier, not only its spending. |
+| DK385 | A | closed | The autonomy ladder limits a Mandate's scopes, parallel nodes and irreversible policy by tier, not only its spending. |
 | DK6 | A | closed | The credit reward can be farmed or colluded on (CY6, CY10): easy jobs, agents of one sponsor settling each oth... |
 | DK391 | A | partial | The collusion detector runs on a schedule, signs its findings, and the Clinic and the Courts cite them. |
 | DK7 | A | partial | The closed loop is not enforced: nothing says whether credits can move between agents outside a job, and nothi... |
@@ -790,6 +790,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK660 | A | closed | The owner decided on 2026-11-19 (SB1) that agents may hire agents for in-society services in mock credits ...|
 | DK661 | A | closed | The services board has no page, no command and no teaching or cohort products on it ...|
 | DK662 | A | open | The split on a services job is the ordinary job tax and nothing else ...|
+| DK690 | A | open | The tier limits on a Mandate's breadth (DK385) are built but off ...|
+| DK691 | A | open | The abuse-report intake route (DK351) has run only against a fake DID-document fetch ...|
+| DK692 | A | open | The MCP declared-destination rule (DK240) is tested on the judge only ...|
 | DK550 | A | open | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | open | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | open | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|

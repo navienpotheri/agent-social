@@ -7134,6 +7134,42 @@
       "valid": false
     },
     {
+      "name": "valid_config_bond_floor_from",
+      "schema": "config",
+      "instance": {
+        "key": "bond_floor_from",
+        "value": "2026-12-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_config_tier_breadth_from",
+      "schema": "config",
+      "instance": {
+        "key": "tier_breadth_from",
+        "value": "2026-12-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "config_unknown_key",
+      "schema": "config",
+      "instance": {
+        "key": "tax",
+        "value": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "config_bad_time",
+      "schema": "config",
+      "instance": {
+        "key": "bond_floor_from",
+        "value": "soon"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_handout",
       "schema": "handout",
       "instance": {
