@@ -332,3 +332,26 @@ test("(T13) property: over 40 seeded random lines, accepted jobs, failed jobs an
   assert.ok(rounds >= 10, `${rounds} rounds went through`);
   assert.equal((await kit.log.verify()).ok, true);
 });
+
+test("DK386: the Bank's monthly report counts the lines opened in a month and where they stand, the defaults, what is owed and the reserve against what is promised; an agent's standing note can say what it owes", async () => {
+  const w = await world();
+  const { kit } = w;
+  const month = kit.now().slice(0, 7);
+  const empty = await kit.log.bankMonthly(month);
+  assert.deepEqual([empty.opened, empty.defaultsInMonth, empty.owedToTheBank], [0, 0, 0]);
+  assert.equal(empty.reserve, 500);
+  const agent = await w.newcomer("report-newcomer");
+  const c = await w.contract(agent);
+  await kit.put(w.line(agent, c));
+  const bondId = await kit.put(w.bond(agent, c));
+  const r = await kit.log.bankMonthly(month);
+  assert.equal(r.opened, 1);
+  assert.equal(r.amountOpened, 20);
+  assert.equal(Object.values(r.byStatus).reduce((n, v) => n + v, 0), 1);
+  assert.equal(r.reserve - r.promised, r.reserveFree);
+  assert.equal(await kit.log.bankOwedBy(agent.did), 20, "the agent owes the line it drew for its bond");
+  assert.equal(await kit.log.bankOwedBy(w.sponsor.did), 0, "nobody else owes it");
+  assert.equal((await kit.log.bankMonthly("2020-01")).opened, 0, "another month is empty");
+  await assert.rejects(() => kit.log.bankMonthly("November"), /YYYY-MM/);
+  void bondId;
+});

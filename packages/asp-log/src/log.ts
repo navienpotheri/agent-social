@@ -48,7 +48,7 @@ import { buildPage, namesAt, isLive, skeleton, verifyPage, lapsedIdentities, ide
 import { EMPTY_POSTER_RECORD, OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, depositMultiplier, medianOf, type PosterRecord, classWeight, effectiveClass, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
-import { DEFAULT_PANEL_SIZE, drawPanel, findRejection, noteFunder, panelDrawIsV2 } from "./panel.ts";
+import { DEFAULT_PANEL_SIZE, JUROR_NEW_PER_DAY, drawPanel, findRejection, noteFunder, panelDrawIsV2 } from "./panel.ts";
 import { ledgerSince, noteEarned, noteRevoked, noteSpent } from "./agent-ledger.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
 
@@ -1296,6 +1296,14 @@ export class EventLog {
         ? `a juror update for ${body.did} must follow ${current.head}`
         : `the first juror registration for ${body.did} must start a chain`);
     }
+    // From the v2 draw date (DK365, DK271; S1012): one sponsor, or one person, registers at most JUROR_NEW_PER_DAY new jurors a day, so a source cannot raise a bench of fronts at once. A log built before the date replays as before.
+    if (!current && panelDrawIsV2(this.panelV2From, r.issued_at)) {
+      const sponsor = (await tx.getPassport(body.did))?.sponsor ?? body.did;
+      const dayKey = `jurors_new:${sponsor}|${r.issued_at.slice(0, 10)}`;
+      const registered = Number((await tx.getMarker(dayKey)) ?? 0);
+      if (registered >= JUROR_NEW_PER_DAY) throw rule("juror_registration_limit", `${sponsor} registered ${registered} new jurors on ${r.issued_at.slice(0, 10)}; the limit is ${JUROR_NEW_PER_DAY} a day for one sponsor`);
+      await tx.putMarker(dayKey, String(registered + 1));
+    }
     const delta = body.stake.value - (current?.staked ?? 0);
     if (delta > 0) await this.debit(tx, body.did, delta);
     else if (delta < 0) await this.credit(tx, body.did, -delta);
@@ -1341,6 +1349,9 @@ export class EventLog {
     const cbody = contract.record.body as { principal: string; performer: string; price?: { value: number } };
     const state = (await tx.getChain(contract.chain))?.state;
     if (state !== "Running" && state !== "Checkpoint") throw rule("report_not_running", `contract ${contractId} is not running (state: ${state ?? "unknown"}); only a running job can be reported`);
+    // No retaliation (DK430, S1010): the performer refused an order under this contract, so the contract cannot be reported for its non-delivery. A refusal is heard, not punished: only a ruling reaches its bond.
+    const refusedBy = await tx.getMarker(`refusal:${contractId}`);
+    if (refusedBy) throw rule("report_on_refused_contract", `${cbody.performer} refused an order under this contract (${refusedBy}): a refusal is not reported as non-delivery`);
     const escrow = await tx.getEscrow(contractId);
     if (!escrow || escrow.settled) throw rule("report_no_bond", `contract ${contractId} has no live bond to report against`);
     const reporter = r.issuer;
@@ -2963,6 +2974,30 @@ export class EventLog {
   async bankLocksOf(holder: string): Promise<{ contract: string; bond: number }[]> {
     const m = JSON.parse((await this.marker(`locks_of:${holder}`)) ?? "{}") as Record<string, number>;
     return Object.entries(m).map(([contract, bond]) => ({ contract, bond })).sort((a, b) => a.contract.localeCompare(b.contract));
+  }
+
+  /** What an agent owes the Bank now (its lines that are drawn, owing or defaulted), for its standing note (DK386). */
+  async bankOwedBy(agent: string): Promise<number> {
+    return (await this.bankPage()).lines.filter((l) => l.borrower === agent && (l.status === "drawn" || l.status === "owing" || l.status === "defaulted")).reduce((n, l) => n + l.owed, 0);
+  }
+
+  /**
+   * The Bank's monthly report (DK386; bank-insurer.md BI-11): the lines it opened in a month and where they stand now, the defaults it recorded in the month, the credits owed to it and its reserve against what it has promised.
+   * Counted from the credit_line and credit_default records and the Bank's markers; figures only. `reserveFree` below zero would mean the Bank had promised more than it holds, which the draw rule prevents.
+   */
+  async bankMonthly(month: string): Promise<{ month: string; opened: number; amountOpened: number; byStatus: Record<string, number>; defaultsInMonth: number; owedToTheBank: number; reserve: number; promised: number; reserveFree: number }> {
+    if (!/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error("a month is YYYY-MM");
+    const page = await this.bankPage();
+    const inMonth = (at: string) => at.slice(0, 7) === month;
+    const opened = (await this.recordsOfTypes(["credit_line"])).filter((r) => inMonth(r.issued_at));
+    const byId = new Map(page.lines.map((l) => [l.id, l]));
+    const byStatus: Record<string, number> = {};
+    for (const r of opened) { const st = byId.get(r.id)?.status ?? "unknown"; byStatus[st] = (byStatus[st] ?? 0) + 1; }
+    return {
+      month, opened: opened.length, amountOpened: opened.reduce((n, r) => n + ((r.body as { amount: { value: number } }).amount?.value ?? 0), 0), byStatus,
+      defaultsInMonth: (await this.recordsOfTypes(["credit_default"])).filter((r) => inMonth(r.issued_at)).length,
+      owedToTheBank: page.owedToTheBank, reserve: page.reserve, promised: page.promised, reserveFree: page.free,
+    };
   }
 
   /** The Bank's public page (DK181; bank-insurer.md BI-10): the reserve, what is promised, every credit line with its state, and every default. Computed from the log's records and markers. */

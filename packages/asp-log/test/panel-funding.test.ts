@@ -75,3 +75,22 @@ test("a settlement writes the funder marker, a funding from the account's own sp
     assert.equal((await k.log.verify()).ok, true, `verify with panelV2From ${from ?? "default"}`);
   }
 });
+
+test("DK365: from the v2 date one sponsor registers at most three new jurors a day, so a source cannot raise a bench of fronts at once; before the date a log replays as it always did", async () => {
+  const { kit: mkKit } = await import("./society-kit.ts");
+  const { JUROR_NEW_PER_DAY } = await import("../src/index.ts");
+  const { credit, mk, refusedBy } = await import("./society-kit.ts");
+  const k = await mkKit({ panelV2From: "2026-10-01T00:00:00Z" });
+  const sponsor = await k.person("juror-sponsor", 10), otherSponsor = await k.person("other-juror-sponsor", 10);
+  const agents = [];
+  for (let i = 0; i < JUROR_NEW_PER_DAY + 1; i++) agents.push(await k.agent(`juror-${i}`, sponsor, { funds: 100 }));
+  const outsider = await k.agent("juror-other", otherSponsor, { funds: 100 });
+  const register = (a: { did: string } & Parameters<typeof mk>[1]) => k.log.append(mk("juror", a, { did: a.did, stake: credit(50) }, null, { subject: a.did }));
+  for (let i = 0; i < JUROR_NEW_PER_DAY; i++) await register(agents[i]);
+  assert.equal(await refusedBy(register(agents[JUROR_NEW_PER_DAY])), "juror_registration_limit", "the fourth new juror of one sponsor in a day");
+  await register(outsider);
+  // Before the date (the default for a log with no override is 2026-12-15) the limit does not exist.
+  const old = await mkKit();
+  const s2 = await old.person("old-sponsor", 10);
+  for (let i = 0; i < JUROR_NEW_PER_DAY + 2; i++) { const a = await old.agent(`old-juror-${i}`, s2, { funds: 100 }); await old.log.append(mk("juror", a, { did: a.did, stake: credit(50) }, null, { subject: a.did })); }
+});

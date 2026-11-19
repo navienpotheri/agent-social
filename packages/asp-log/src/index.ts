@@ -73,3 +73,4 @@ export { velocityOf, type VelocityReport, type VelocityWindow } from "./velocity
 export { GAME_HANDS, GAME_NAME, STAND_MAX, STAND_MIN, commitSeed, playEntrant, runGame, scoreOf, total as gameTotal, transcriptHash, validPolicy, type GameEntrant, type GamePolicy, type GameResult, type GameRun, type HandRecord } from "./game-engine.ts";
 export { SURFACE, publicSurface, surfaceListing, surfaceText, type SurfaceRoute, type SurfaceAuth, type SurfaceGroup } from "./surface.ts";
 export { DEFAULT_LIMITS } from "./limits.ts";
+export { JUROR_NEW_PER_DAY } from "./panel.ts";

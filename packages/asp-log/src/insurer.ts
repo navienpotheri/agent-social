@@ -84,8 +84,9 @@ const signedBy = (r: AspRecord, did: string) => r.issuer === did || (r.cosigs ??
 export async function projectPolicy(tx: LogTx, r: AspRecord, env: InsurerEnv): Promise<void> {
   const b = r.body as { holder: string; contract: string; cover: Cover; insured_amount: { value: number }; premium: { value: number }; valid_from: string; valid_to: string };
   if (r.prev !== null) throw rule("policy_not_chained", "a policy starts its own chain (prev is null)");
-  if (r.issuer !== INSURER_DID) throw rule("policy_wrong_issuer", `${r.issuer} is not the Insurer (${INSURER_DID}): only the Insurer sells a policy`);
-  if (!signedBy(r, b.holder)) throw rule("policy_needs_holder", "a policy is countersigned by its holder");
+  // A sale is a rule, not a signature (DK387, S1011): the Insurer signs a policy and the holder countersigns it, or the holder signs the policy alone, which the log accepts only at the published premium, the reserve floor and every other rule below.
+  if (r.issuer !== INSURER_DID && r.issuer !== b.holder) throw rule("policy_wrong_issuer", `${r.issuer} is neither the Insurer (${INSURER_DID}) nor the holder ${b.holder}: a policy is signed by the Insurer and countersigned by the holder, or signed by the holder alone`);
+  if (r.issuer === INSURER_DID && !signedBy(r, b.holder)) throw rule("policy_needs_holder", "a policy the Insurer signs is countersigned by its holder");
   if (b.holder === INSURER_DID) throw rule("policy_self_dealing", "the Insurer's account may not buy its own policies");
   if (Date.parse(b.valid_to) <= Date.parse(b.valid_from)) throw rule("policy_dates", "a policy ends after it starts");
   const contract = await tx.getRecord(b.contract);

@@ -1,7 +1,8 @@
 /** Conscientious refusal (register row AG4; spec-delta S500). Fake keys only. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cosign } from "@agent-social/asp-core";
+import { randomBytes } from "node:crypto";
+import { b64urlEncode, cosign, signerFromSeed } from "@agent-social/asp-core";
 import { EventLog } from "../src/index.ts";
 import { alice, bank, codeOf, coder, memory, rec, registerParties } from "./harness.ts";
 
@@ -55,4 +56,18 @@ test("without a refusal the same settlement may slash the bond: the protection i
   const log = new EventLog(await memory.make());
   const { contract, mandate } = await runningJob(log);
   assert.equal(await codeOf(log.append(settle(contract.id, mandate.id, 20))), undefined);
+});
+
+test("DK430: a contract the performer refused an order under cannot be reported for its non-delivery; a contract with no refusal can", async () => {
+  const log = new EventLog(await memory.make());
+  const { contract } = await runningJob(log);
+  const reporter = { did: "did:web:example.com:users:retaliator", ...signerFromSeed("did:web:example.com:users:retaliator#key-1", new Uint8Array(randomBytes(32))) };
+  const pass = rec("passport", reporter as never, { did: reporter.did, kind: "human", keys: [{ id: `${reporter.did}#key-1`, type: "Ed25519", public_key: b64urlEncode((reporter as unknown as { publicKey: Uint8Array }).publicKey) }] }, null, reporter.did);
+  await log.append(pass);
+  await log.mint(reporter.did, 50);
+  const report = () => rec("attestation", reporter as never, { kind: "report", about: contract.id, reasons: ["the agent did not deliver"] }, null, contract.id);
+  await log.append(refusal(contract.id));
+  assert.equal(await codeOf(log.append(report())), "GUARD_FAILED");
+  const why = await (async () => { try { await log.append(report()); return ""; } catch (e) { return (e as { detail?: string }).detail ?? ""; } })();
+  assert.equal(why, "report_on_refused_contract", "the refusal protects the performer from a report on the same contract");
 });

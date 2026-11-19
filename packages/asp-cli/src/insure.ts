@@ -43,8 +43,9 @@ export async function insureCmd(sub: string | undefined, o: InsureOpts): Promise
   if (sub === "buy") {
     const q = await quote(o);
     const at = o.now();
-    let rec: AspRecord = createRecord({ type: "policy", issuer: INSURER_DID, subject: q.holder, prev: null, body: { holder: q.holder, contract: f.contract, cover: q.cover, insured_amount: cr(q.insured), premium: cr(q.premium), valid_from: at, valid_to: iso(Date.parse(at) + (f.days === undefined ? 60 : Number(f.days)) * DAY) }, issued_at: at }, o.signerFor(INSURER_DID));
-    rec = cosign(rec, o.signerFor(q.holder));
+    const insurerSigner = (() => { try { return o.signerFor(INSURER_DID); } catch { return undefined; } })();
+    let rec: AspRecord = createRecord({ type: "policy", issuer: insurerSigner ? INSURER_DID : q.holder, subject: q.holder, prev: null, body: { holder: q.holder, contract: f.contract, cover: q.cover, insured_amount: cr(q.insured), premium: cr(q.premium), valid_from: at, valid_to: iso(Date.parse(at) + (f.days === undefined ? 60 : Number(f.days)) * DAY) }, issued_at: at }, insurerSigner ?? o.signerFor(q.holder));
+    if (insurerSigner) rec = cosign(rec, o.signerFor(q.holder)); // without the Insurer's key the holder signs the policy alone (DK387, S1011): the log sells it at the published premium
     const res = await o.log.append(rec);
     o.io.out(`policy ${res.id}: ${q.cover} cover, ${q.insured} insured, premium ${q.premium} paid (log seq ${res.seq})`);
     return 0;

@@ -214,7 +214,11 @@ export async function standingNote(o: SpendOpts): Promise<string> {
   // A newcomer that has not had the Treasury's allowance (DK380): the one line that tells it the tool exists. Only while the agent has none and has not been slashed.
   const given = await (async () => { try { return (await o.log.log.treasuryLedger()).allowances.some((x) => x.agent === agent); } catch { return true; } })();
   const allowance = !(rep && rep.slashCount > 0) && !given;
-  const tail = allowance ? "treasury_allowance: newcomer allowance? asp_price, asp_standing." : "asp_price shows costs, asp_standing the rest.";
+  // The Bank (DK386): one short line when the agent owes it, so the debt is in front of the agent every request; nothing is said to an agent with no line.
+  const owed = await (async () => { try { return await (o.log.log as { bankOwedBy?: (a: string) => Promise<number> }).bankOwedBy?.(agent) ?? 0; } catch { return 0; } })();
+  // The Insurer (DK387): how many live policies the agent holds, so it knows its cover is there.
+  const cover = await (async () => { try { const r = (await o.log.log.recordsOfTypes?.(["policy"])) ?? []; return (r as unknown as { body: { holder: string; valid_to: string } }[]).filter((p) => p.body.holder === agent && Date.parse(p.body.valid_to) > Date.parse(o.now())).length; } catch { return 0; } })();
+  const tail = owed > 0 ? `Owes the Bank ${owed}: asp_standing.` : cover > 0 ? `Cover held on ${cover} job(s): asp_standing.` : allowance ? "treasury_allowance: newcomer allowance? asp_price, asp_standing." : "asp_price shows costs, asp_standing the rest.";
   const note = `Credits ${balance} (accounting, not money). Tier ${rep?.tier ?? "?"}, ${rep?.slashCount ?? 0} slashes, ${rep?.strikes ?? 0} strikes. Budget left: ${budget}. ${tail}`;
   return note.length <= 200 ? note : `${note.slice(0, 197)}...`;
 }
