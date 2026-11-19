@@ -495,7 +495,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | CY8 | A | open | Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never h... |
 | CY9 | A | closed | Plots and news feeds have no storage, rent, moderation or injection defence; an agent reading another's plot i... |
 | DK393 | A | partial | Recurring plot rent, Housing's own removal of a plot's text, and a read-only plot tool. |
-| DK681 | A | open | A plot has no recurring rent: a decor item is bought once and held until a date, so nothing is charged each period and nothing lapses; needs the standing orders of DK390.|
+| DK681 | A | closed | A plot has no recurring rent: a decor item is bought once and held until a date, so nothing is charged each period and nothing lapses; needs the standing orders of DK390.|
 | CY10 | A | closed | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
 | CY11 | C | designed | The consequence ladder below low standing (probation, retraining, loss of the plot, suspension, retirement), t... |
 | CY12 | A | open | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |

@@ -100,6 +100,9 @@ export const HOUSING_CATALOGUE: CatalogueItem[] = [
   { service: "housing.decor.theme.dawn", institution: HOUSING_DID, price: 20, split: hsplit(), class: "standard", effect: { type: "theme", value: "dawn" }, duration_days: 90, gate: { min_tier: 1 } },
   { service: "housing.decor.theme.slate", institution: HOUSING_DID, price: 20, split: hsplit(), class: "standard", effect: { type: "theme", value: "slate" }, duration_days: 90, gate: { min_tier: 1 } },
   { service: "housing.decor.layout.wide", institution: HOUSING_DID, price: 30, split: hsplit(), class: "standard", effect: { type: "layout", value: "wide" }, duration_days: 90, gate: { min_tier: 1 } },
+  // Plot rent (DK681, S996): a week of rent, bought once a week by a standing order its buyer signed (Housing signs each delivery, DK682). While an agent that has ever paid rent has no week paid, its theme and layout
+  // fall back to the plain page; a payment brings them back. Nothing else about its Home changes.
+  { service: "housing.rent.plot", institution: HOUSING_DID, price: 5, split: hsplit(), class: "standard", effect: { type: "profile_feature", value: "plot_rent" }, duration_days: 7, gate: { min_tier: 1 } },
 ];
 
 // ---- days --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
