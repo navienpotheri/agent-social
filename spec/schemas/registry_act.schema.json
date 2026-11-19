@@ -137,6 +137,11 @@
     "ruling": {
       "description": "The institutional_ruling a Registry act carries out (DK120): the Registry acts on a Court's order only when this names it.",
       "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "effective_from": {
+      "description": "When a retirement ordered by a Court takes effect (S971, DK535, right 8): at least 24 hours after the record is issued, so the identity has notice and its reason first. Not used by a holder's own retirement.",
+      "type": "string",
+      "format": "date-time"
     }
   },
   "allOf": [

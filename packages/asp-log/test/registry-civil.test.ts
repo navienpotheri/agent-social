@@ -283,7 +283,7 @@ describe("renewal, interim suspension and retirement (RG-10, RG-13)", () => {
 
   test("a retired identity takes no new Contract or purchase; only the holder retires itself; its page still reads", async () => {
     const w = await world();
-    assert.equal(await refusedBy(w.log.append(mk("registry_act", w.sponsorA, { act: "identity_retirement", holder: w.a.did, reason: "x" }))), "retirement_not_holders");
+    assert.equal(await refusedBy(w.log.append(mk("registry_act", w.sponsorA, { act: "identity_retirement", holder: w.a.did, reason: "x" }))), "registry_wrong_issuer");
     await w.log.append(mk("registry_act", w.a, { act: "identity_retirement", holder: w.a.did, reason: "the sponsor retired the agent" }));
     assert.equal(await refusedBy(w.buy(w.a, "market.posting.deposit", 2, { mandate: w.ma })), "identity_retired");
     assert.equal((await w.log.registryPage(w.a.did))!.retired, true);

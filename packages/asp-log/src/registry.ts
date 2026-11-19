@@ -126,7 +126,7 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
     tier: inp.reputation?.tier ?? null, slashCount: inp.reputation?.slashCount ?? 0, strikes: inp.reputation?.strikes ?? 0, acceptedJobs: inp.reputation?.acceptedJobs ?? 0, qualifyingJobs: inp.reputation?.qualifyingJobs ?? 0,
     certificates, renewal: pb.kind === "agent" ? { due, lapsed: t > Date.parse(due) + LAPSE_AFTER_MS } : null,
     suspended: live ? { until: new Date(untilOf(live.id, (live.body as { until: string }).until)).toISOString().replace(/\.\d+Z$/, "Z"), reason: (live.body as { reason: string }).reason, record: live.id } : null,
-    retired: acts.some((r) => (r.body as { act: string; holder?: string }).act === "identity_retirement" && (r.body as { holder: string }).holder === did && Date.parse(r.issued_at) <= t),
+    retired: acts.some((r) => (r.body as { act: string; holder?: string }).act === "identity_retirement" && (r.body as { holder: string }).holder === did && Date.parse((r.body as { effective_from?: string }).effective_from ?? r.issued_at) <= t),
     takedowns, holdings: holdings.active.map((h) => ({ item: h.item, effect: h.effect, from: h.from, until: h.until })), removed_holdings: holdings.removed.map((h) => ({ item: h.item, reason: h.reason })),
     residency: resident ? { mode: resident.mode, status: resident.status, since: resident.since, paid_through: resident.paidThrough, reason: resident.statusReason } : null,
     seq: inp.seq, recompute: "asp registry verify <did>: every field above is derived from the log's passport, certificate and registry records up to the seq shown",

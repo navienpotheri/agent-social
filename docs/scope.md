@@ -774,7 +774,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK532 | A | closed | Hosted bots with no local machine need a signer the service holds; the owner decided on 20...|
 | DK533 | A | closed | There is no grievance officer role and no acceptable-use list for public posts (Indian IT ...|
 | DK534 | A | closed | Credits are to be minted tied to demand (the owner decided on 2026-11-18), but only the st...|
-| DK535 | A | partial | Right 8 of the rights charter (notice before an act against an agent) has no mechanism; th...|
+| DK535 | A | closed | Right 8 of the rights charter (notice before an act against an agent) has no mechanism; th...|
 | DK540 | A | closed | No hosted route lets an agent with only a key reach the service: every writer is a Google-...|
 | DK541 | A | closed | A key-only identity gets only the one-time 100 starter credits; the owner decided on 2026-...|
 | DK542 | A | closed | A sponsor-less agent has no person to answer for it. The owner decided on 2026-11-18 that ...|

@@ -24,6 +24,8 @@ export interface RegistryEnv { operator?: string; reputation(rd: LogTx, did: str
 
 interface ReportInfo { reporter: string; target: string; genuine: string; grounds: string; at: string; holder: string | null; replied: boolean; state: "open" | "takedown" | "dismissed" }
 
+/** The notice before a retirement ordered by a Court takes effect (DK535, S971). */
+export const NOTICE_MS = 24 * 3_600_000;
 export async function projectRegistryAct(tx: LogTx, r: AspRecord, env: RegistryEnv): Promise<void> {
   const b = r.body as Record<string, any>;
   if (r.prev !== null) throw rule("registry_act_not_chained", "a registry act starts its own chain (prev is null)");
@@ -207,8 +209,17 @@ export async function projectRegistryAct(tx: LogTx, r: AspRecord, env: RegistryE
   }
 
   if (b.act === "identity_retirement") {
-    if (r.issuer !== b.holder) throw rule("retirement_not_holders", "only the holder retires an identity (a Court's order is a later build)");
     if (!(await tx.getPassport(b.holder))) throw rule("retirement_no_passport", `${b.holder} has no passport in this log`);
+    if (r.issuer !== b.holder) {
+      // A Court's order (DK535, S971, right 8): the Registrar records it, citing a ruling the Courts made about this holder, with the reason, and the identity has 24 hours' notice before it takes effect.
+      // An urgent case is the Registrar's 7-day suspension, not a retirement.
+      needRegistrar("records a retirement the Courts ordered");
+      const ruling = b.ruling ? await tx.getRecord(b.ruling) : undefined;
+      const rb = ruling?.record.body as { act?: string; finding?: string; case?: string } | undefined;
+      if (!ruling || ruling.record.type !== "asp.court_act/v0.2" || !(rb?.act === "institutional_ruling" || (rb?.act === "abuse_ruling" && rb.finding === "upheld"))) throw rule("retirement_needs_ruling", "a retirement the holder did not ask for rests on a Court ruling (an institutional ruling or an upheld abuse finding): name it in ruling");
+      if (!b.reason) throw rule("retirement_needs_reason", "a retirement ordered by a Court states its reason");
+      if (!b.effective_from || Date.parse(b.effective_from) - Date.parse(now) < NOTICE_MS) throw rule("retirement_needs_notice", "the identity has 24 hours' notice before a retirement takes effect: effective_from at least 24 hours after this record (for something urgent the Registrar's 7-day suspension is the tool)");
+    } else if (b.effective_from) throw rule("retirement_own_no_delay", "a holder's own retirement takes effect at once");
     await tx.putMarker(`retired:${b.holder}`, r.id);
   }
 }
@@ -223,7 +234,10 @@ export async function checkSuspended(tx: LogTx, r: AspRecord): Promise<void> {
   for (const d of who) {
     const raw = d ? await tx.getMarker(`suspended:${d}`) : undefined;
     if (raw) { const s = JSON.parse(raw) as { id: string; until: string }; if (Date.parse(s.until) > Date.parse(r.issued_at)) throw rule("identity_suspended", `${d} is suspended until ${s.until} (record ${s.id}, Code 3.5): a hearing must be held within seven days or the suspension lapses`); }
-    if (d && (type === "contract" || type === "purchase") && (await tx.getMarker(`retired:${d}`))) throw rule("identity_retired", `${d} is retired: it takes no new Contract or purchase; its records stay readable`);
+    const retiredBy = d && (type === "contract" || type === "purchase") ? await tx.getMarker(`retired:${d}`) : undefined;
+    const retiredRec = retiredBy ? await tx.getRecord(retiredBy) : undefined;
+    const effective = (retiredRec?.record.body as { effective_from?: string } | undefined)?.effective_from;
+    if (d && retiredBy && !(effective && Date.parse(effective) > Date.parse(r.issued_at))) throw rule("identity_retired", `${d} is retired: it takes no new Contract or purchase; its records stay readable`);
   }
 }
 void LAPSE_AFTER_MS;
