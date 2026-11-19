@@ -13,12 +13,13 @@ import { attestation, courseSeeds, courseService, engineIds, loadCatalogue, sit,
 import { introduction, spending, triage } from "../src/lens-courses/rule-courses.ts";
 import { claims, filings, intake, listings } from "../src/lens-courses/rule-courses-2.ts";
 import { bookings, orders, requests } from "../src/lens-courses/rule-courses-3.ts";
+import { notes, retention, writes } from "../src/lens-courses/rule-courses-4.ts";
 
 const cat = loadCatalogue(engineIds());
 const ANCHOR = "sha256:" + "d".repeat(64);
-const worlds = [["C-L19-1", triage], ["C-L21-1", introduction], ["C-L18-1", spending], ["C-L7-1", claims], ["C-L14-1", intake], ["C-L14-2", filings], ["C-L8-1", listings], ["C-L20-1", requests], ["C-L12-1", bookings], ["C-L16-1", orders]] as const;
+const worlds = [["C-L19-1", triage], ["C-L21-1", introduction], ["C-L18-1", spending], ["C-L7-1", claims], ["C-L14-1", intake], ["C-L14-2", filings], ["C-L8-1", listings], ["C-L20-1", requests], ["C-L12-1", bookings], ["C-L16-1", orders], ["C-L11-2", writes], ["C-L8-2", retention], ["C-L8-3", notes]] as const;
 
-test("the catalogue is whole with the ten new cards, each priced 30 with a lesson write-back", () => {
+test("the catalogue is whole with the thirteen new cards, each priced 30 with a lesson write-back", () => {
   assert.deepEqual(cat.problems, []);
   for (const [id, w] of worlds) {
     const card = cat.courses.find((c) => c.id === id)!;
