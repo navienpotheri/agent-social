@@ -972,6 +972,7 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
   const allow = { amount: cr(40), trigger: "first_course", budget: rid };
   sv("valid_allowance", "allowance", allow, true);
   sv("valid_allowance_first_bond", "allowance", { ...allow, trigger: "first_bond" }, true);
+  sv("valid_allowance_no_job", "allowance", { ...allow, trigger: "no_job_30d" }, true);
   sv("allowance_bad_trigger", "allowance", { ...allow, trigger: "birthday" }, false);
   sv("allowance_no_budget", "allowance", { amount: allow.amount, trigger: allow.trigger }, false);
   sv("allowance_extra_field", "allowance", { ...allow, to: did1 }, false);

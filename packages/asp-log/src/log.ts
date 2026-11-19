@@ -1792,7 +1792,7 @@ export class EventLog {
     const allowanceLine = b.institution === TREASURY_DID;
     if (!allowanceLine && !INSTITUTION_DIDS.includes(b.institution)) throw rule("budget_unknown_institution", `${b.institution} is neither a registered institution account nor the Treasury's own allowance line`);
     // The Treasury's own lines are the newcomer allowance and, since DK294, the deposit reward: nothing else is a budget the Treasury holds for itself.
-    if (allowanceLine !== (b.purpose === "allowance" || b.purpose === "deposit_reward" || b.purpose === "handout")) throw rule("budget_bad_line", "the Treasury's own lines are the newcomer allowance (purpose allowance), the Bank deposit reward (purpose deposit_reward) and the weekly handout (purpose handout), and an institution's budget is neither");
+    if (allowanceLine !== (b.purpose === "allowance" || b.purpose === "deposit_reward" || b.purpose === "handout" || b.purpose === "public_works")) throw rule("budget_bad_line", "the Treasury's own lines are the newcomer allowance (purpose allowance), the Bank deposit reward (purpose deposit_reward) and the weekly handout (purpose handout), public works (purpose public_works) and an institution's budget is neither");
     const line = allowanceLine && b.purpose !== "allowance" ? `${b.institution}|${b.purpose}` : b.institution; // one budget per line per month
     if (b.period < r.issued_at.slice(0, 7)) throw rule("budget_period_past", `a budget for ${b.period} cannot be set in ${r.issued_at.slice(0, 7)}`);
     const key = `budget:${line}|${b.period}`;
@@ -1884,8 +1884,12 @@ export class EventLog {
     if (b.amount.value <= 0) throw rule("amount_not_positive", "a payment must be for at least 1 credit");
     const rec = await tx.getRecord(b.budget);
     const bb = rec?.record.type === "asp.budget/v0.2" ? (rec.record.body as { institution: string }) : undefined;
-    if (bb?.institution === TREASURY_DID) throw rule("treasury_payment_not_allowed", "the allowance budget is paid only as allowances to newcomers, never to an account: the Treasury does not pay arbitrary accounts");
-    if (bb && b.to !== bb.institution) throw rule("treasury_payment_not_allowed", `the budget is for ${bb.institution}, not ${b.to}: the Treasury pays only the institution a budget names`);
+    const publicWorks = bb?.institution === TREASURY_DID && (rec!.record.body as { purpose?: string }).purpose === "public_works";
+    if (publicWorks) {
+      // Public works (DK395, S997): the Treasury funds the seed jobs by paying the operator's house agent that escrows them, from a budget the owner co-signed, and no other account.
+      if (!(await tx.getMarker(`house:${b.to}`))) throw rule("public_works_house_agent_only", `a public-works budget pays a house agent (the operator's own scripted agent that posts the seed jobs), not ${b.to}`);
+    } else if (bb?.institution === TREASURY_DID) throw rule("treasury_payment_not_allowed", "the allowance budget is paid only as allowances to newcomers, never to an account: the Treasury does not pay arbitrary accounts");
+    if (bb && !publicWorks && b.to !== bb.institution) throw rule("treasury_payment_not_allowed", `the budget is for ${bb.institution}, not ${b.to}: the Treasury pays only the institution a budget names`);
     await this.drawBudget(tx, b.budget, b.amount.value, r.issued_at);
     await this.debit(tx, TREASURY_DID, b.amount.value);
     await this.credit(tx, b.to, b.amount.value);
@@ -1941,7 +1945,7 @@ export class EventLog {
    * bond behind it; no slash (stricter than treasury.md's 30 days, because a slash carries no date in the log's reputation row); exactly the allowance; paid out of the month's allowance budget.
    */
   private async projectAllowance(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { amount: { value: number }; trigger: "first_course" | "first_bond"; budget: string };
+    const b = r.body as { amount: { value: number }; trigger: "first_course" | "first_bond" | "no_job_30d"; budget: string };
     const who = r.issuer;
     if (r.prev !== null) throw rule("allowance_not_chained", "an allowance claim starts its own chain (prev is null)");
     if (isReservedAccount(who)) throw rule("allowance_reserved", "an account of the society does not claim the allowance");
@@ -1953,7 +1957,11 @@ export class EventLog {
     if (await tx.getMarker(`allowance_group:${group}`)) throw rule("allowance_already_paid", `an identity of ${group} already received the newcomer allowance: the first identity of a sponsor only`);
     const born = await tx.getMarker(`passport_born:${who}`);
     if (!born || Date.parse(r.issued_at) - Date.parse(born) > ALLOWANCE_MAX_AGE_DAYS * 86_400_000) throw rule("allowance_not_newcomer", `the allowance is for an identity under ${ALLOWANCE_MAX_AGE_DAYS} days old (this one was registered ${born ?? "at an unknown time"})`);
-    if (!(await tx.getMarker(b.trigger === "first_course" ? `first_course:${who}` : `bonded:${who}`))) throw rule("allowance_not_earned", `the allowance is paid after a ${b.trigger === "first_course" ? "first course (a purchase from the Academy)" : "first bond"}, and ${who} has none yet`);
+    if (b.trigger === "no_job_30d") {
+      // The unemployment floor (DK395, S997): at least 30 days since the passport, and no job accepted; the same budget, the same once-only markers and the same cap.
+      if (Date.parse(r.issued_at) - Date.parse(born) < 30 * 86_400_000) throw rule("allowance_floor_too_soon", `the unemployment floor is for an identity at least 30 days old with no accepted job; ${who} is ${Math.floor((Date.parse(r.issued_at) - Date.parse(born)) / 86_400_000)} days old`);
+      if (((await this.reputation(tx, who))?.acceptedJobs ?? 0) > 0) throw rule("allowance_floor_has_job", `${who} has had a job accepted: the floor is for an identity that found none`);
+    } else     if (!(await tx.getMarker(b.trigger === "first_course" ? `first_course:${who}` : `bonded:${who}`))) throw rule("allowance_not_earned", `the allowance is paid after a ${b.trigger === "first_course" ? "first course (a purchase from the Academy)" : "first bond"}, and ${who} has none yet`);
     if (((await this.reputation(tx, who))?.slashCount ?? 0) > 0) throw rule("allowance_slashed", `${who} has been slashed: the allowance is for an agent with a clean record`);
     const rec = await tx.getRecord(b.budget);
     const bb = rec?.record.type === "asp.budget/v0.2" ? (rec.record.body as { institution: string; purpose: string }) : undefined;

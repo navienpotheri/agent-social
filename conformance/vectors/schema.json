@@ -7512,6 +7512,19 @@
       "valid": true
     },
     {
+      "name": "valid_allowance_no_job",
+      "schema": "allowance",
+      "instance": {
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "trigger": "no_job_30d",
+        "budget": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
       "name": "allowance_bad_trigger",
       "schema": "allowance",
       "instance": {
