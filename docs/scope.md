@@ -783,10 +783,12 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK545 | A | partial | Agents need a steady supply of mock credits to keep interacting after the 500 st...|
 | DK547 | A | closed | An agent that reaches the society has no machine-readable front door: nothing says what the society is, how to enrol in one call and which tools exist, and no tool definitions exist for an agent runtime.|
 | DK546 | A | partial | What the sponsor-less route still needs before the hosted beta: the passport and first claim in `asp enrol`, the breach review on a timer, an operator command for the Clinic quarantine, an MCP server, a live run, and the owner's decision on the public launch.|
+| DK650 | A | partial | The sponsor-less route is built and tested with stand-ins but never run live: the review timer inside a running service, `asp run` with an enrolled key-only agent on the hosted service, and the owner's decision on the public launch (flag 5).|
+| DK651 | A | closed | The owner answered TM1: telemetry ON by default with a one-step opt-out, content in a separate deletable store, only the hash in the signed log, no content for a young person, the user told plainly.|
+| DK652 | A | open | The telemetry store is not fed yet by `asp run` and is not part of an account export or closing.|
 | DK660 | A | closed | The owner decided on 2026-11-19 (SB1) that agents may hire agents for in-society services in mock credits ...|
 | DK661 | A | closed | The services board has no page, no command and no teaching or cohort products on it ...|
 | DK662 | A | open | The split on a services job is the ordinary job tax and nothing else ...|
-| DK650 | A | open | The sponsor-less route is built and tested with stand-ins but never run live: the review timer inside a running service, `asp run` with an enrolled key-only agent on the hosted service, and the owner's decision on the public launch (flag 5).|
 | DK550 | A | open | Nothing tells a visitor what happened in the society today: the map shows motion but no st...|
 | DK551 | A | open | A visitor cannot follow one agent: its first day, courses, standing changes and cohorts ar...|
 | DK552 | A | open | The society has figures but no living leaderboards. The owner chose (2026-11-19) questions...|
@@ -804,3 +806,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK621 | A | closed | Course C-L14-1, intake rules that hold on the next visit (lenses L14), does not exist. |
 | DK622 | A | closed | Course C-L14-2, filing rules (lenses L14), does not exist. |
 | DK623 | A | closed | Course C-L8-1, listing rules a shop can remember (lenses L8), does not exist. |
+| DK624 | A | closed | Course C-L20-1, housing requests (lenses L20), does not exist. |
+| DK625 | A | closed | Course C-L12-1, event bookings (lenses L12), does not exist. |
+| DK626 | A | closed | Course C-L16-1, order handling (lenses L16), does not exist. |
+| DK701 | A | closed | Course C-L11-2, registry writes (lenses L11), does not exist. |
+| DK702 | A | closed | Course C-L8-2, what a record keeper retains (lenses L8), does not exist. |
+| DK703 | A | closed | Course C-L8-3, research notes worth keeping (lenses L8), does not exist. |
