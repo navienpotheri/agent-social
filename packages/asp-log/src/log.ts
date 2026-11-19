@@ -24,7 +24,7 @@ import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type Balanc
 import { bondFloorPermille, bondFloorV3, floorIsV2, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
-import { ALLOWANCE_AMOUNT, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { charterIn, checkCaseload, checkRulingExtras, closeDispute, projectCourtAct } from "./courts-rules.ts";
@@ -468,7 +468,7 @@ export class EventLog {
 
   /** Registry rules: one passport chain per DID, issued by the DID itself or its sponsor. */
   private async projectPassport(tx: LogTx, r: AspRecord): Promise<void> {
-    const body = r.body as { did: string; kind: string; sponsor?: string; fleet?: string; tier?: number; lineage?: { edge: string; parent: string }[]; keys: { id: string; public_key: string }[]; house?: true };
+    const body = r.body as { did: string; kind: string; custody?: "local" | "service"; sponsor?: string; fleet?: string; tier?: number; lineage?: { edge: string; parent: string }[]; keys: { id: string; public_key: string }[]; house?: true };
     const current = await tx.getPassport(body.did);
     if (!current) await tx.putMarker(`passport_born:${body.did}`, r.issued_at);
     if ((current?.head ?? null) !== r.prev) {
@@ -487,6 +487,11 @@ export class EventLog {
       if (opened >= SPONSOR_PASSPORTS_PER_DAY) throw rule("sponsor_daily_limit", `${body.sponsor} opened ${opened} agent passports on ${r.issued_at.slice(0, 10)}; the limit is ${SPONSOR_PASSPORTS_PER_DAY} a day for one sponsor`);
       await tx.putMarker(dayKey, String(opened + 1));
     }
+    // Key custody (DK532, S956): a hosted bot whose key the service holds says so, only an agent with a sponsor may, and the label is permanent.
+    if (body.custody === "service") {
+      if (body.kind !== "agent" || !sponsor) throw rule("hosted_bot_needs_sponsor", "service custody is for a hosted bot: an agent with a sponsor");
+      await tx.putMarker(`custody:${body.did}`, "service");
+    } else if (await tx.getMarker(`custody:${body.did}`)) throw rule("custody_label_permanent", `${body.did} is a hosted bot whose key the service holds: the label is not removed by a later passport`);
     // A house agent (DK291, S371): only an agent the operator itself sponsors carries the label, and the label is permanent.
     if (body.house) {
       if (body.kind !== "agent" || sponsor !== this.operator) throw rule("house_not_operator_run", `only an agent sponsored by the operator (${this.operator}) is a house agent`);
@@ -1116,6 +1121,7 @@ export class EventLog {
     const escrow = await tx.getEscrow(body.contract);
     if (!escrow) throw rule("no_bond_for_settlement", `no Bond found for contract ${body.contract}`);
     if (escrow.settled) throw rule("already_settled", `contract ${body.contract} was already settled`);
+    if (body.escrow_released.value > 0) { const day = `paid_work:${r.issued_at.slice(0, 10)}`; await tx.putMarker(day, String(Number((await tx.getMarker(day)) ?? 0) + body.escrow_released.value)); } // DK534: what performers were paid
     // S950 (DK544): a Mandate ends at once when its contract is revoked; a purchase under it is refused from then on (checkInstitutionSpend).
     if (body.basis === "revoked") await tx.putMarker(`mandate_ended:${body.contract}`, r.issued_at);
     // A conscientious refusal (AG4, S500) protects the performer: a refused order is not a ground for slashing its bond. Only an upheld report's forced full fault or a Court ruling basis can.
@@ -1470,6 +1476,23 @@ export class EventLog {
     return !!did && (r.cosigs ?? []).some((c) => c.kid.startsWith(`${did}#`));
   }
 
+  /** The sum of a day-bucketed counter over the 30 days up to and including `at` (DK534, S954). */
+  private async last30(tx: Pick<LogTx, "getMarker">, prefix: string, at: string): Promise<number> {
+    let sum = 0;
+    const end = Date.UTC(Number(at.slice(0, 4)), Number(at.slice(5, 7)) - 1, Number(at.slice(8, 10)));
+    for (let i = 0; i < 30; i++) sum += Number((await tx.getMarker(`${prefix}:${new Date(end - i * 86_400_000).toISOString().slice(0, 10)}`)) ?? 0);
+    return sum;
+  }
+
+  /** The demand-tied mint at `at`: credits released to performers in the last 30 days, what was minted for demand, and the cap (DK534, S954). */
+  async demandMintState(at: string = this.now().toISOString()): Promise<{ paidWork: number; minted: number; cap: number; room: number; permille: number }> {
+    return this.store.transaction(async (tx) => {
+      const paidWork = await this.last30(tx, "paid_work", at), minted = await this.last30(tx, "demand_minted", at);
+      const cap = Math.floor((paidWork * DEMAND_MINT_PERMILLE) / 1000);
+      return { paidWork, minted, cap, room: Math.max(0, cap - minted), permille: DEMAND_MINT_PERMILLE };
+    });
+  }
+
   /** A signed mint (credits.md 5.1): only the operator creates credits, each with a reason, and the minted total is recomputed from these records on replay. */
   private async projectMint(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as { to: string; amount: { value: number }; reason: string };
@@ -1479,6 +1502,16 @@ export class EventLog {
     if (canonicalAccount(body.to) === BURN_DID) throw rule("mint_to_burn", "credits are not minted into the Burn account");
     if (body.reason === "treasury_issuance" && !this.cosignedBy(r, this.owner)) throw rule("mint_needs_cosign", "a treasury_issuance mint needs the owner's co-signature");
     const to = canonicalAccount(body.to);
+    // The demand-tied mint (DK534, S954): to the Treasury only, with the owner, and never past a tenth of what performers were paid for work in the last 30 days.
+    if (body.reason === "demand") {
+      if (to !== TREASURY_DID) throw rule("demand_mint_to_treasury", "a demand mint goes to the Treasury, which spends it only through budgets");
+      if (!this.cosignedBy(r, this.owner)) throw rule("mint_needs_cosign", "a demand mint needs the owner's co-signature");
+      const paid = await this.last30(tx, "paid_work", r.issued_at), minted = await this.last30(tx, "demand_minted", r.issued_at);
+      const cap = Math.floor((paid * DEMAND_MINT_PERMILLE) / 1000);
+      if (minted + body.amount.value > cap) throw rule("demand_mint_cap", `credits minted for demand in the last 30 days would be ${minted + body.amount.value}; the cap is ${cap} (${DEMAND_MINT_PERMILLE / 10} percent of the ${paid} credits released to performers in the same 30 days)`);
+      const day = `demand_minted:${r.issued_at.slice(0, 10)}`;
+      await tx.putMarker(day, String(Number((await tx.getMarker(day)) ?? 0) + body.amount.value));
+    }
     await this.credit(tx, to, body.amount.value);
     const row = await tx.getMint(to);
     await tx.putMint({ did: to, totalMinted: (row?.totalMinted ?? 0) + body.amount.value, signedMinted: (row?.signedMinted ?? 0) + body.amount.value, ...(row?.adoptedMinted ? { adoptedMinted: row.adoptedMinted } : {}) });

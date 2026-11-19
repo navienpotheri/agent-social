@@ -669,6 +669,46 @@
       "valid": false
     },
     {
+      "name": "valid_passport_hosted_custody",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:hosted-1",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:users:alice",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:hosted-1#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ],
+        "custody": "service"
+      },
+      "valid": true
+    },
+    {
+      "name": "passport_custody_unknown",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:hosted-1",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:users:alice",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:hosted-1#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ],
+        "custody": "cloud"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_passport_house",
       "schema": "passport",
       "instance": {
@@ -3611,6 +3651,20 @@
           "unit": "credit"
         },
         "reason": "treasury_issuance",
+        "authority": "operator"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_mint_demand",
+      "schema": "mint",
+      "instance": {
+        "to": "did:web:example.com:users:alice",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        },
+        "reason": "demand",
         "authority": "operator"
       },
       "valid": true

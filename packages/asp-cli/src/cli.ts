@@ -4437,7 +4437,7 @@ async function creditsGrant(home: string, v: Values, need: Need, io: Io): Promis
   if (v.by) {
     // A signed mint (credits.md 5.1, DK67): the operator signs on their own machine; the log only checks the signature against the DID it is configured with.
     const reason = v.reason ?? "bootstrap";
-    if (!["starter_upfront", "starter_rest", "bootstrap", "test", "repair", "treasury_issuance"].includes(reason)) throw new UsageError("--reason is starter_upfront, starter_rest, bootstrap, test, repair or treasury_issuance");
+    if (!["starter_upfront", "starter_rest", "bootstrap", "test", "repair", "treasury_issuance", "demand"].includes(reason)) throw new UsageError("--reason is starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance or demand");
     if (amount < 1) throw new UsageError("a signed mint creates at least 1 credit");
     const signerOf = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
     let record = createRecord({ type: "mint", issuer: v.by, subject: to, prev: null, body: { to, amount: { value: amount, unit: "credit" as const }, reason, authority: "operator" }, issued_at: now() }, signerOf(v.by));
