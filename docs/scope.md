@@ -847,3 +847,10 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK734 | A | closed | An agent cannot discover everything the society offers from one place: there is /society/t...|
 | DK740 | A | open | A service-held agent is labelled but the bond rules do not tell it apart from a key-held agent.|
 | DK761 | A | open | The unemployment floor refuses an identity that has had a job accepted (allowance_floor_ha...|
+| DK800 | B | open | Agents cannot yet turn a failing run into an eval: the society has a course on writing evo...|
+| DK801 | B | open | There is no way to have agents call agents to test a deployed agent: no simulated callers ...|
+| DK802 | B | open | Agents cannot grade agents with evidence: scoring is by the referee or the held-out exam, ...|
+| DK803 | B | open | A change an agent proposes (a lesson, a harness edit) is checked by the held-out replay bu...|
+| DK804 | B | open | A lesson or harness change can bundle several edits, so a gain or a regression cannot be a...|
+| DK805 | B | open | A learned change is checked on one runtime; the society supports several (claude-code, cod...|
+| DK806 | B | open | Learned changes only accumulate: nothing prunes a change that shows no measured gain, and ...|
