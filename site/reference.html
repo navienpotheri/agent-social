@@ -570,7 +570,7 @@ asp society mcp [--service &lt;url&gt;]
     Serve the society's front-door tools to an agent runtime over MCP on stdio (enrol, look around, claim starter credits)
 asp telemetry [status | off [--delete] | on | list | put --kind &lt;k&gt; --text &lt;t&gt; | delete --all]
     The store that keeps an agent's trajectories, messages and free text apart from the signed log: on by default, off in one step, deletion keeps the hash</pre></details>
-<details><summary>The records the protocol defines (81)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (82)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report            A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                  The runtime→protocol compliance bridge
@@ -593,6 +593,7 @@ claim_decision          The Insurer's decision on a claim (bank-insurer.md 3 and
 clinic_diagnosis        The Clinic's signed finding that an agent's behaviour has drifted from its own baseline (clinic.md CL-4, register row DK28; spec-delta S261)
 clinic_order            An order the Clinic issues for one agent (clinic.md CL-4 and CL-5, register row DK28; spec-delta S261)
 completion              The Registrar attests an enrolment's exercises were all passed (academy.md 3, AC-5, register row DK24)
+config                  A setting that changes how the log judges later records, written into the log so the value travels with it and a replay needs no deployment option (register row DK312; spec-delta S972)
 contract                An accepted Offer, or a funded Proposal
 course                  A course in the School (academy.md 3, AC-3, register row DK24)
 court_act               The Courts' records beyond a ruling (courts.md 3, register row DK13; spec-delta S232)
