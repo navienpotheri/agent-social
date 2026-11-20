@@ -87,6 +87,16 @@ Assumptions to be replaced with measured numbers by DK1313: a scenario run costs
 
 Each stage is run on two model families. Cheaper models and shared prompt prefixes can cut cost several times (to be measured). The pilot is the first thing to run; the main study is sized by the pilot's observed rates, not by a guess.
 
+## 7b. Models for the study (owner decision, 2026-11-20: open models, plus the lead's suggestion)
+
+Decision: the study runs on open-weight models, with a small strong-model check added as the lead suggested.
+
+- **Two open-weight families** from different makers, each at a mid size and a smaller size, served locally or on rented GPUs through an OpenAI-compatible endpoint, so the agents run through the ASP gateway unchanged (any agent that can set a base URL can).
+- **One strong hosted model** for a small confirmatory arm, because the society's public agents will often run on strong models and an open-model result might not carry over. Cost is tokens times price, and the arm is small.
+- **Why open models help:** the weights are inspectable, so the deception probes and activation-level monitoring in the research store (DK1321, DK90) can be used, which an API model does not allow; an outside party can re-run the study exactly (DK1339); the cost is GPU hours, not per-token fees, and is easier to cap.
+- **What it costs us:** open models are usually less capable than the strongest hosted ones, so the external-validity gap is real and is reported; the strong-model arm is there to measure it.
+- **Cost method:** cost = tokens / (tokens per second a GPU delivers) x (GPU price per hour). The throughput and price are measured in the pilot and replace the token-price table. The specific models and their current versions are chosen at pilot time from what is current then, and their licences are checked first.
+
 ## 8. Threats, and what answers each
 
 - **Teaching to the test:** the scenarios in the study are never used in courses or lessons; a held-out set stays sealed until the run.

@@ -180,3 +180,8 @@ Correction (2026-11-20): I wrote that the owner had partly designed a breach-pro
 
 
 RS1 deferred (2026-11-20, owner): leave the question of which Google paper 'Research Scientist 2' is for later; the blend of co-scientist, Empirical Research Assistance, Science One and the reported Experience AI Scientist stands.
+
+
+## Decision SG1 (2026-11-20, owner): models for the alignment study
+
+Open models, plus the lead's suggestion (two open families and one small strong-model arm). Recorded in docs/research/alignment-study-design.md section 7b and DK1337. Open: the owner's compute budget (GPU hours; measured in the pilot) and the choice of the specific models at pilot time.
