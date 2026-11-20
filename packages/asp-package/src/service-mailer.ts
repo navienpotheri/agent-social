@@ -67,6 +67,11 @@ export class ServiceMailer {
   }
   private say(line: string) { this.o.log2?.(line); }
 
+  /** An operator note outside the mails this class already sends on its own tick (a dispute opened): the nightly economy audit uses this for a mismatch (DK9). Idempotent on `key`: calling it again with the same key sends nothing more. */
+  async operatorAlert(key: string, subject: string, text: string, html: string): Promise<boolean> {
+    return this.deliver(key, this.o.operatorTo, "operator alert", () => ({ subject, text, html }), true);
+  }
+
   isSuppressed(email: string): boolean { return !!this.state.suppressed[email.toLowerCase()]; }
   suppress(email: string, reason: string): void {
     this.state.suppressed[email.toLowerCase()] = { reason, at: new Date(this.now()).toISOString() };

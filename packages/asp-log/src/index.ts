@@ -1,7 +1,9 @@
 export { PLATFORM_DID } from "./economy.ts";
 export { EventLog, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
-export { auditLedger, type CreditAudit, type CreditFlows, type LedgerRows } from "./credit-audit.ts";
+export { auditLedger, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type LedgerRows } from "./credit-audit.ts";
+export { computeGuardReport, type GuardMeasure, type GuardReport, type GuardUnavailable } from "./guard-monitor.ts";
+export { economySupplyRoutes, runNightlyAudit, type NightlyAuditRecord, type NightlyAuditResult } from "./economy-supply.ts";
 export { PostgresStore, migrate } from "./postgres.ts";
 export { DEFAULT_PANEL_SIZE, drawPanel, findRejection, type PanelSource } from "./panel.ts";
 export {

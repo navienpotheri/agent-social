@@ -317,7 +317,7 @@ import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCan
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
+import { courtGuard, createLogServer, economySupplyRoutes, GoogleSignIn, hashToken, OwnerStore, postgresHandle, runNightlyAudit, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -554,6 +554,7 @@ const OPTIONS = {
   "mail-interval": { type: "string" },
   "mail-dry-run": { type: "boolean" },
   "mail-resend-url": { type: "string" },
+  "economy-audit-interval": { type: "string" },
   jurors: { type: "string" },
   "juror-min-stake": { type: "string" },
   base: { type: "string" },
@@ -2115,7 +2116,11 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   // given, or --public-url names a host.
   const guards = !noAuth ? [courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain }), agentCapGuard({ domain: didDomain, max: num("max-agents", 20), owners })] : [])] : [];
   const guard = guards.length ? async (c: Parameters<typeof guards[0]>[0]) => { for (const g of guards) { const r = await g(c); if (r) return r; } return undefined; } : undefined;
-  const publicList = [helpRoutes(), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  // The public supply page (credits.md 6.4, CR-18, DK9): GET /economy/supply and /economy/supply.json, always on, local or hosted. The history
+  // file (the nightly audit's past runs) lives beside the tenants file; with --no-auth there is no tokens file, so the page still works, just
+  // with no history until one is given.
+  const economyAuditPath = v.tokens ? `${v.tokens}.economy-audit.json` : undefined;
+  const publicList = [helpRoutes(), economySupplyRoutes({ handle, ...(economyAuditPath ? { historyPath: economyAuditPath } : {}) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
@@ -2127,10 +2132,31 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     mailTimer = setInterval(() => { mailer!.tick().catch((e) => io.err(`  mail pass failed: ${(e as Error).message}`)); }, every);
     mailTimer.unref?.();
   }
+  // The nightly economy audit (credits.md 6.4, CR-18, DK9): off unless --economy-audit-interval is given. On a mismatch it alerts the
+  // operator through the same mailer and address as other service alerts (credits.md 8, decision 8), once per break, not on every pass.
+  let economyAuditTimer: NodeJS.Timeout | undefined;
+  if (v["economy-audit-interval"]) {
+    const every = Math.max(1, num("economy-audit-interval", 86_400)) * 1000;
+    const pass = async () => {
+      try {
+        const { record, isNewMismatch } = await runNightlyAudit({ handle, ...(economyAuditPath ? { path: economyAuditPath } : {}) });
+        io.out(`  economy audit  ${record.verdict}${record.verdict === "mismatch" ? `: ${record.problems.join("; ")}` : ""} at log head ${record.head.seq}`);
+        if (isNewMismatch && mailer && v["mail-operator"]) {
+          const subject = `Economy audit mismatch: ${record.problems.join("; ")}`;
+          const text = [subject, "", `Log head ${record.head.seq} (${record.head.hash}) at ${record.at}.`, "", "The public supply page: " + (v["public-url"] ? `${v["public-url"]}/economy/supply` : "/economy/supply"), "", "asp credits audit --json", ""].join("\n");
+          const html = `<!doctype html><html><body style="font-family:sans-serif"><p><strong>${subject.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</strong></p><p>Log head ${record.head.seq} at ${record.at}.</p><p><code>asp credits audit --json</code> against this log.</p></body></html>`;
+          await mailer.operatorAlert(`economy-audit-mismatch:${record.head.seq}`, subject, text, html);
+        }
+      } catch (e) { io.err(`  economy audit pass failed: ${(e as Error).message}`); }
+    };
+    economyAuditTimer = setInterval(() => { pass().catch(() => {}); }, every);
+    economyAuditTimer.unref?.();
+  }
   io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
   io.out(`  limits per minute: ${limits.tenantPerMinute || "no limit"} requests and ${limits.appendPerMinute || "no limit"} writes per tenant, ${limits.addressPerMinute || "no limit"} per address; ${limits.maxInFlight || "no"} in flight; lockout after ${limits.failedAuthMax || "never"} failed sign-ins`);
   io.out(`  quota per tenant (admins have none): ${defaultRecordQuota || "no limit"} records, ${defaultByteQuota ? `${Math.round(defaultByteQuota / 1048576)} MB` : "no limit"} of records; suspend, resume, block and unblock take effect without a restart (asp serve usage shows the counts)`);
   if (mailer) io.out(`  mail      ${io.env.RESEND_API_KEY && !v["mail-dry-run"] ? "sending through Resend" : "DRY RUN: no RESEND_API_KEY, so mail is written to " + v.tokens + ".outbox and not sent"}; from ${v["mail-from"]}${v["mail-operator"] ? `; operator notes to ${v["mail-operator"]}` : ""}; a pass every ${num("mail-interval", 60)} s`);
+  io.out(`  economy   the public supply page is at /economy/supply (and /economy/supply.json)${economyAuditTimer ? `; a nightly audit pass every ${num("economy-audit-interval", 86_400)} s${mailer && v["mail-operator"] ? `, alerting ${v["mail-operator"]} on a mismatch` : " (give --mail-from and --mail-operator to alert the operator on a mismatch)"}` : "; give --economy-audit-interval <seconds> to run the nightly audit and keep its history"}`);
   if (google) io.out(`  sign-in   Google: the sign-up page is /join${v["signup-require-google"] ? " and it is the only way to sign up" : ", and the proof-of-work route stays open too"}`);
   if (signup) io.out(`  sign-up   open at /signup: proof of work (${num("signup-difficulty", 20)} bits), ${num("signup-per-address", 3)} per address and ${num("signup-daily-cap", 200)} a day, terms ${v["signup-terms-version"] ?? "2026-10"} at ${v["signup-terms-url"]}; close it with: asp serve signup-close --tokens ${v.tokens}`);
   if (!tls && !loopback) io.out("  warning  plain HTTP on a network address: TLS must be terminated in front of this service");
