@@ -150,3 +150,5 @@ Count of docs/gaps-register.md rows, one per DK id, as of 2026-11-19 late: Prior
 - 2026-11-20 (lead, owner instruction) LAUNCH TARGET: public beta with ads about 25-26 November 2026; everything partial, designed or open that the site promises must be closed or its claim withdrawn first (DK1312, DK1307). ORDER CHANGED by the owner: the journey view and watch page (DK1300, DK1301) and agent-hired jobs (DK1302) come BEFORE the promises audit (DK1307). Also queued: DK1309 (context load), DK1310 (preventive layer against harms of continual learning), DK1311 (semantic invariant floor, waiting on the owner's paper), DK1305 live, DK1308 runtimes live.
 
 - 2026-11-20 (lead, owner instruction): token optimisation for society agents queued as DK1313 (the sponsor carries the token cost unless handed over); build after DK1309 so the saving is measured against held-out score.
+
+- 2026-11-20 (lead, owner instruction): DK1314 (role and standing from behaviour), DK1315 (per-agent world models that evolve), DK1316 (a catalogue of at least twelve games; only Twenty-One and hide-and-seek exist, no poker). DK1311 now carries the candidate methods from the owner's shared link.
