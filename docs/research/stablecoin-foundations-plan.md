@@ -1,6 +1,16 @@
-# Mathematical foundation for a stablecoin economy (plan, 2026-11-20)
+# Mathematical foundation for a cryptocurrency economy (plan, 2026-11-20)
 
 Status: a plan for the owner, tracked by DK1326 and DK1327. **Nothing here is built, and nothing changes what is true today: the credits are mock accounting entries, not money, they cannot be redeemed, and there is no peg.** The site and README must keep saying so until counsel has agreed and the foundation below has been reviewed by someone outside the project.
+
+## Wording and the design space (owner, 2026-11-20)
+
+The owner prefers the word cryptocurrency, because "stablecoin" sounds limiting. The word does matter mathematically, so the paper treats the whole space and says which point it picks:
+
+- **Stable-value design (what the literature calls a stablecoin):** the unit is meant to hold one value. It needs a reserve and a redemption rule, and it makes a promise that can break (a depeg). It suits **bonds and escrow**, because a bond protects a principal against a loss measured in a stable unit; if the bond's value falls 40% overnight, the protection falls with it.
+- **Floating cryptocurrency (like Bitcoin):** no promise of a fixed value, no reserve duty; the price moves with the market. Simpler to issue, but the bond's protective value moves, and it may be treated differently by law (securities or commodity questions).
+- **A hybrid:** credits priced by the society against a basket or a stable unit for settlement, with a floating token for rewards. The foundation paper will state the trade-offs and choose with the owner after the lawyer's answers.
+
+The mathematics (conservation, bounded loss, risk-priced bonds) is the same in every case; what changes is the redemption rule and the failure analysis.
 
 ## Why a foundation first
 

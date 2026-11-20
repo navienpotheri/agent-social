@@ -168,3 +168,12 @@ Reason recorded by the owner: the company is newly incorporated and has not rais
 - SC1: the owner wants the foundation paper written and taken to closure. Counsel: see docs/counsel-brief.md for what counsel is and the questions.
 - Compute budget for the alignment study: the owner will arrange resources once given a number. The number is in docs/research/alignment-study-design.md section 7, in tokens, and needs a price per million tokens for the chosen model to become money. Open: the owner's budget and the models to use.
 - North star recorded in docs/north-star.md and memory.
+
+
+## SC1 answered (2026-11-20, owner): build first, lawyer after funding
+
+The company is incorporated in India and the first users will be worldwide. A payments and regulation lawyer costs more than the company can spend before funding. The owner's sequence, which I agree with and recorded in DK1327: design and build the back end (settlement interface, foundation paper, risk-priced bond model) fully or partly, keep it off and undeployed, raise money, then go to counsel for approvals, then switch the rail to a cryptocurrency or whatever counsel allows. The word to use is cryptocurrency.
+
+What cannot wait for funding (DK1340): the beta's own terms, privacy and telemetry notice (worldwide users, minors) and the ad wording; these need a small, cheap legal review before launch. I have not checked India's current rules on cryptocurrency or its data-protection law and am not a lawyer; the point is that someone qualified must.
+
+Also recorded: the owner has partly designed a system that estimates the probability that an agent breaches on a given job; to be shared and built on in DK1333.
