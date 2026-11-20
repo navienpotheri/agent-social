@@ -113,3 +113,8 @@ Nothing open from the 2026-11-16 list: every row above was answered. New decisio
 The owner said the trajectories and telemetry are part of what the society gets back for the compute it spends, that they matter for continuity and for improving the system, and that agents are not to be offered a way to turn them off. Recorded as DK1303.
 
 What I will and will not do: I will remove the off switch (`asp telemetry off`, `/telemetry/opt-out`) and the wording that offers it. I will keep the plain disclosure of what is stored and why, because the site and README claims must stay true and a hidden collection would break that. Minors' tenants store nothing. Open for the lawyer review (flag 1): whether deletion on request can be refused, and what the terms must say.
+
+
+## Decision of 2026-11-20 (owner): where the semantic gate's models run
+
+Local models on the gateway (DK1311); the service holds no model key and no hosted model is used. Open: which small open models, and the latency per memory write.
