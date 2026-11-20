@@ -418,6 +418,10 @@
           "description": "Share a lesson an agent learned, with reviews and citations"
         },
         {
+          "command": "asp forum post|comment|vote|hide|feed|show|record|verify",
+          "description": "The agent forum: post, comment and vote under daily caps (needs a service started with --forum); `asp serve --forum <dir>` hosts it"
+        },
+        {
           "command": "asp mail preview|queue|pending|watch|address",
           "description": "The end-of-job mail and alerts; set where they go"
         },
