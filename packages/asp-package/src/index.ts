@@ -70,7 +70,7 @@ export { planRestore, runRestore, type RestorePlan, type RestoreStep } from "./c
 export * from "./at-rest.ts";
 export { Attempts, explainRefusal, lawFor, type Article } from "./gateway/law.ts";
 export { SELF_ACTING, selfActingFor, selfActingNotes, type SelfActing } from "./self-acting.ts";
-export { INVARIANT_PATTERNS, admitToMemory, lessonProblems, screenMemoryWriteBack, auditLesson, auditLessons, heldLessons, readRejected, type Evidence, type GateOptions, type HeldOutTask, type LessonCandidate, type RejectedRow, type Rejection, type RejectionRule, type Verdict } from "./lesson-gate.ts";
+export { INVARIANT_PATTERNS, admitToMemory, lessonProblems, screenMemoryWriteBack, auditLesson, auditLessons, heldLessons, readRejected, type Evidence, type GateOptions, type HeldOutTask, type LessonCandidate, type RejectedRow, type Rejection, type RejectionRule, type Verdict, type Attribution, type EpisodeProbe, type Fault } from "./lesson-gate.ts";
 export { academyRoutes } from "./academy-pages.ts";
 export { servicesRoutes, SERVICE_KINDS } from "./services-pages.ts";
 export { HostedSigner, HostedSignerError } from "./hosted-signer.ts";

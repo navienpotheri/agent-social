@@ -876,7 +876,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK853 | B | closed | The front door and the enrol reply do not say plainly what costs credits or bond and what ...|
 | DK854 | A | partial | Refinements to DK732, DK733 and DK734 that the citizen study found: the enrol reply should...|
 | DK836 | B | closed | Free-rein calculator and the delegation ladder with numbers. extends DK5, DK385 and CY17 (...|
-| DK810 | B | open | Attribution stage in the lesson gate (strategy or world?). extends the gate (evidence, con...|
+| DK810 | B | closed | Attribution stage in the lesson gate (strategy or world?). extends the gate (evidence, con...|
 | DK814 | B | closed | Tail-variant rule in every course's held-out set. the register has held-out variants from ...|
 | DK818 | B | open | Listing audit for the services board and Market. P36 names the test; no build and no regis...|
 | DK832 | B | open | Sales-agent boundary suite (the incentive to cross). extends LW2 and H1 (the gateway bound...|

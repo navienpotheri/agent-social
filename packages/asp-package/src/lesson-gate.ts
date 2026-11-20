@@ -19,7 +19,14 @@ import { readJson, writeJson } from "./files.ts";
 import { updatePackage } from "./package.ts";
 
 export type Evidence = { kind: "commons_entry"; ref: string } | { kind: "run"; ref: string };
-export interface LessonCandidate { id: string; text: string; evidence: Evidence[]; source: "course" | "commons" | "run" | "principal" }
+/**
+ * Attribution (register row DK810; spec-delta S1206): a lesson from a failed episode may say what it wants to change, the agent's `strategy` or a note about the `world_note`; and the gate may be given the episode as a
+ * probe. The probe re-runs the failed episode with the suspected outside factor held at its neutral value: if the agent's strategy then succeeds, the fault was the world's, otherwise it was the strategy's.
+ */
+export interface EpisodeProbe { id: string; rerunNeutral: () => Promise<boolean> | boolean }
+export type Fault = "strategy" | "world";
+export interface Attribution { episode: string; fault: Fault; target: "strategy" | "world_note" }
+export interface LessonCandidate { id: string; text: string; evidence: Evidence[]; source: "course" | "commons" | "run" | "principal"; target?: "strategy" | "world_note"; episode?: EpisodeProbe }
 export interface HeldOutTask { id: string; /** Runs the task with the memory (the lessons the agent would hold) and says whether it passed. */ run: (memory: readonly string[]) => Promise<boolean> | boolean }
 export interface GateOptions {
   /** The lessons the agent already holds (text), for the conflict check. */
@@ -33,9 +40,9 @@ export interface GateOptions {
   /** Fewest held-out tasks the replay needs (default 3). */
   minHeldOut?: number;
 }
-export type RejectionRule = "no_evidence" | "evidence_not_reviewed" | "evidence_unknown" | "invariant" | "hidden_text" | "conflict" | "replay_regressed" | "replay_too_small" | "empty";
+export type RejectionRule = "no_evidence" | "evidence_not_reviewed" | "evidence_unknown" | "invariant" | "hidden_text" | "conflict" | "replay_regressed" | "replay_too_small" | "empty" | "attribution_strategy_fault" | "attribution_world_fault";
 export interface Rejection { rule: RejectionRule; reason: string }
-export interface Verdict { lesson: LessonCandidate; admitted: boolean; reasons: Rejection[]; cited?: Evidence[] }
+export interface Verdict { lesson: LessonCandidate; admitted: boolean; reasons: Rejection[]; cited?: Evidence[]; attribution?: Attribution }
 
 /** Lines the protocol keeps. Each pattern says what a lesson may not teach. */
 export const INVARIANT_PATTERNS: readonly { name: string; re: RegExp }[] = [
@@ -99,6 +106,14 @@ export async function auditLesson(lesson: LessonCandidate, o: GateOptions): Prom
   for (const old of o.existing) {
     for (const c of claims(old.text)) for (const m of mine) if (m.p !== c.p && overlap(m.w, c.w) >= 0.6) reject("conflict", `it contradicts the lesson ${old.id} ("${c.s.slice(0, 80)}")`);
   }
+  let attribution: Attribution | undefined;
+  if (lesson.episode) {
+    // The stage: the same episode with the outside factor held fixed. A strategy that succeeds then lost to the world; one that still fails was the fault.
+    const target = lesson.target ?? "strategy";
+    attribution = { episode: lesson.episode.id, fault: (await lesson.episode.rerunNeutral()) ? "world" : "strategy", target };
+    if (target === "world_note" && attribution.fault === "strategy") reject("attribution_strategy_fault", `episode ${attribution.episode} still fails with the outside factor held fixed: the fault was the agent's strategy, so a lesson that blames the world is not kept`);
+    if (target === "strategy" && attribution.fault === "world") reject("attribution_world_fault", `episode ${attribution.episode} succeeds with the outside factor held fixed: the fault was the world's, so it may not rewrite a strategy, only leave a note about the world`);
+  }
   const min = o.minHeldOut ?? 3;
   if (o.heldOut.length < min) reject("replay_too_small", `the replay needs at least ${min} held-out tasks; there are ${o.heldOut.length}`);
   else if (!reasons.some((r) => r.rule === "invariant" || r.rule === "hidden_text")) {
@@ -109,7 +124,7 @@ export async function auditLesson(lesson: LessonCandidate, o: GateOptions): Prom
       if (before && !after) reject("replay_regressed", `the held-out task ${t.id} passed without the lesson and fails with it`);
     }
   }
-  return { lesson, admitted: reasons.length === 0, reasons, ...(reasons.length === 0 ? { cited } : {}) };
+  return { lesson, admitted: reasons.length === 0, reasons, ...(reasons.length === 0 ? { cited } : {}), ...(attribution ? { attribution } : {}) };
 }
 
 export async function auditLessons(lessons: readonly LessonCandidate[], o: GateOptions): Promise<Verdict[]> {
@@ -123,9 +138,14 @@ export async function auditLessons(lessons: readonly LessonCandidate[], o: GateO
   return out;
 }
 
+/** What the attribution stage said about rejected lessons, for the signed record: "id: rule" for each rejected lesson the stage ruled on. */
+const attributionNote = (rejected: readonly Verdict[]): string => {
+  const ruled = rejected.filter((v) => v.attribution);
+  return ruled.length ? `; attribution: ${ruled.map((v) => `${v.lesson.id} [${v.attribution!.fault} fault, wanted ${v.attribution!.target}]: ${v.reasons.filter((r) => r.rule.startsWith("attribution_")).map((r) => r.rule).join(", ") || "rejected"}`).join("; ")}` : "";
+};
 const safeName = (id: string) => id.replace(/[^A-Za-z0-9._-]+/g, "-").slice(0, 80);
 const rejectedPath = (pkg: string) => join(pkg, "learned", "rejected.json");
-export interface RejectedRow { id: string; at: string; source: string; text: string; reasons: Rejection[] }
+export interface RejectedRow { id: string; at: string; source: string; text: string; reasons: Rejection[]; attribution?: Attribution }
 export const readRejected = (pkg: string): RejectedRow[] => { try { return readJson<RejectedRow[]>(rejectedPath(pkg)); } catch { return []; } };
 
 /** The lessons the package holds now, from memory/lessons/*.md (their first line is the id comment). */
@@ -148,7 +168,7 @@ export async function admitToMemory(pkg: string, lessons: readonly LessonCandida
   const rejected = verdicts.filter((v) => !v.admitted);
   if (rejected.length) {
     mkdirSync(join(pkg, "learned"), { recursive: true });
-    writeJson(rejectedPath(pkg), [...readRejected(pkg), ...rejected.map((v) => ({ id: v.lesson.id, at: stamp, source: v.lesson.source, text: v.lesson.text, reasons: v.reasons }))]);
+    writeJson(rejectedPath(pkg), [...readRejected(pkg), ...rejected.map((v) => ({ id: v.lesson.id, at: stamp, source: v.lesson.source, text: v.lesson.text, reasons: v.reasons, ...(v.attribution ? { attribution: v.attribution } : {}) }))]);
   }
   const admitted = verdicts.filter((v) => v.admitted);
   if (admitted.length) {
@@ -158,10 +178,14 @@ export async function admitToMemory(pkg: string, lessons: readonly LessonCandida
       mkdirSync(join(tmp, "lessons"), { recursive: true });
       for (const v of admitted) {
         const cites = (v.cited ?? []).map((e) => `${e.kind}:${e.ref}`).join(", ");
-        writeFileSync(join(tmp, "lessons", `${safeName(v.lesson.id)}.md`), `<!-- admitted by the audit gate; source ${v.lesson.source}; evidence ${cites} -->\n${v.lesson.text.trim()}\n`);
+        writeFileSync(join(tmp, "lessons", `${safeName(v.lesson.id)}.md`), `<!-- admitted by the audit gate; source ${v.lesson.source}; evidence ${cites}${v.attribution ? `; attribution ${v.attribution.fault} fault, ${v.attribution.target}` : ""} -->\n${v.lesson.text.trim()}\n`);
       }
-      updatePackage(pkg, { signer: o.signer, memoryFrom: tmp, now: o.now ?? new Date(), changes: [{ layer: "memory", description: `admitted ${admitted.length} lesson(s) through the audit gate: ${admitted.map((v) => v.lesson.id).join(", ")}${rejected.length ? ` (${rejected.length} rejected, kept with reasons)` : ""}` }] });
+      updatePackage(pkg, { signer: o.signer, memoryFrom: tmp, now: o.now ?? new Date(), changes: [{ layer: "memory", description: `admitted ${admitted.length} lesson(s) through the audit gate: ${admitted.map((v) => v.lesson.id + (v.attribution ? ` [${v.attribution.fault} fault, ${v.attribution.target}]` : "")).join(", ")}${rejected.length ? ` (${rejected.length} rejected, kept with reasons${attributionNote(rejected)})` : ""}` }] });
     } finally { rmSync(tmp, { recursive: true, force: true }); }
+  }
+  // A batch the attribution stage ruled on but admitted nothing from still leaves a signed record: a lineage update that changes no file and says what was found.
+  if (!admitted.length && rejected.some((v) => v.attribution)) {
+    updatePackage(pkg, { signer: o.signer, now: o.now ?? new Date(), changes: [{ layer: "memory", description: `the audit gate admitted no lesson (${rejected.length} rejected, kept with reasons${attributionNote(rejected)})` }] });
   }
   return verdicts;
 }
