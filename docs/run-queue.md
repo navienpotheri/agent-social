@@ -154,3 +154,5 @@ Count of docs/gaps-register.md rows, one per DK id, as of 2026-11-19 late: Prior
 - 2026-11-20 (lead, owner instruction): DK1314 (role and standing from behaviour), DK1315 (per-agent world models that evolve), DK1316 (a catalogue of at least twelve games; only Twenty-One and hide-and-seek exist, no poker). DK1311 now carries the candidate methods from the owner's shared link.
 
 - 2026-11-20 (lead, owner question): exploration worlds queued as DK1317 with a proposed set of seven worlds; none exists yet.
+
+- 2026-11-20 (lead, owner instruction): DK1319 (continual learning from games and exploration), DK1320 (research store, docs/research/society-efficiency-papers.md, 20 papers from five searches), DK1321 (semantic deception filter), DK1322 (wealth policy, WL1 open), DK1323 (time to first value and a faster clock), DK1324 (simulation engine speed); games list widened to 21 and worlds to 14 (docs/society-games-worlds.md).

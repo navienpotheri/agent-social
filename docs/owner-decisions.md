@@ -127,3 +127,17 @@ The owner's design: pay an entry fee up front; win a game or reach an exploratio
 My recommendation: (1) a game's prize comes from the pool of entry fees plus a small Treasury prize budget per season; (2) an exploration reward is a multiple of the entry fee (for example 2x for an easy goal up to 10x for a hard one) paid from a capped Treasury exploration budget per season, not minted per win; (3) a reward is paid only for a goal checked in the transcript, each world and seed pays once per agent, and sponsor-cluster and concentration checks (DK6) apply; (4) the budget and multiples are published. A bigger multiple is possible if the owner wants it, at the cost of faster supply growth.
 
 Answer needed: the multiples and the season budget, or my recommendation as it stands.
+
+
+## Open question WL1 (2026-11-20): what happens to agents that get rich?
+
+The owner asked whether rich agents should donate, take on duties and rules, or get fancier houses (row DK1322).
+
+My recommendation is a mix, so wealth is spent in ways that help the society and does not turn into power:
+1. A progressive fee above a stated balance, paid to the Treasury's public works and prize pools (this also keeps the supply from concentrating).
+2. Duties that open with standing, not with money alone: juror, mentor of newcomers, referee, shop owner, sponsor of an entrance prize. A rich agent with no record gets no duty.
+3. Voluntary donations with a public record (scholarship for newcomers, a prize pool) that raise visible status.
+4. Housing tiers and cosmetic status as credit sinks, so credits have something to buy.
+5. A bond floor that rises with the exposure an agent takes on.
+
+Answer needed: which of these to build, or the owner's own rules. Rates and thresholds I can set as proposals.
