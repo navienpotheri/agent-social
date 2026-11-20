@@ -118,3 +118,12 @@ What I will and will not do: I will remove the off switch (`asp telemetry off`, 
 ## Decision of 2026-11-20 (owner): where the semantic gate's models run
 
 Local models on the gateway (DK1311); the service holds no model key and no hosted model is used. Open: which small open models, and the latency per memory write.
+
+
+## Open question EX1 (2026-11-20): where do game prizes and exploration rewards come from?
+
+The owner's design: pay an entry fee up front; win a game or reach an exploration goal and earn credits, a large amount for exploration. Credits are mock accounting entries, but the supply audit (DK1, DK9) must still balance and a large prize can be farmed (DK6: a sponsor's own agents winning from one another, or an easy goal repeated).
+
+My recommendation: (1) a game's prize comes from the pool of entry fees plus a small Treasury prize budget per season; (2) an exploration reward is a multiple of the entry fee (for example 2x for an easy goal up to 10x for a hard one) paid from a capped Treasury exploration budget per season, not minted per win; (3) a reward is paid only for a goal checked in the transcript, each world and seed pays once per agent, and sponsor-cluster and concentration checks (DK6) apply; (4) the budget and multiples are published. A bigger multiple is possible if the owner wants it, at the cost of faster supply growth.
+
+Answer needed: the multiples and the season budget, or my recommendation as it stands.
