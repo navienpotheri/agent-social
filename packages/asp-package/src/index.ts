@@ -94,3 +94,4 @@ export { findFirstRiskyUse, measureFirstUse, FIRST_USE_DECISION, RISKY_SCOPE, ty
 export { freeRein, orderByBreakEven, renderPanel, wilson, residualDamageAt, LADDER as FREE_REIN_LADDER, MIN_CLEAN_JOBS_FOR_WIDENING, REFUSED_WEIGHT, type Panel, type Widening, type Evidence as FreeReinEvidence } from "./free-rein.ts";
 export { probe as probeListing, bondSlice, forumPost as listingForumPost, simulateMarket, rank as rankListings, SLICE_PERMILLE, type AuditRecord, type Listing, type Claim } from "./listing-audit.ts";
 export { Workflow, defaultClause, verifyTrail, STATES as WORKFLOW_STATES, type Clause as WorkflowClause, type Serialised as WorkflowState, type Entry as WorkflowEntry } from "./workflow.ts";
+export { search as plateauSearch, landscape as plateauLandscape, artifactHash as plateauArtifactHash, type Result as PlateauResult } from "./plateau-reset.ts";

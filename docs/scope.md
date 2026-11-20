@@ -858,6 +858,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1207 | B | open | The listing audit is not on the services board or the Market: no job runs the probe on a real listing, no bond slice is taken in the log and nothing is posted in the Forum. |
 | DK1208 | B | open | The Arena runner does not keep its rules and seeds behind the referee world and does not record a refused read as a `world_event`: the integrity test runs on a toy game. |
 | DK1209 | B | open | The workflow clause is not part of the Mandate and its trail is not in the log: the Mandate record has no `workflow` field, the gateway does not enforce it and the transitions are not records. |
+| DK1210 | B | open | The reset on plateau is not in the harness or taught: no gateway rule detects a plateau in a real agent's run, and no course (lenses L8, L12) teaches the deliberate reset. |
 | DK730 | A | partial | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | partial | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | closed | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
@@ -886,7 +887,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK811 | B | closed | Worlds integrity test: hidden state and the referee's source. extends the Arena's committe...|
 | DK842 | B | open | Typed agent-to-agent messages and a sanitisation proxy. D6 (closed for tool results) and C...|
 | DK841 | B | closed | Mandate workflow clause: allowed transitions, completion by checker, approval and resume. ...|
-| DK819 | B | open | Reset on plateau: forget and restart from the best candidate. P34 is known; memory courses...|
+| DK819 | B | closed | Reset on plateau: forget and restart from the best candidate. P34 is known; memory courses...|
 | DK838 | B | open | Measured front door: funnel counters and a scripted walk. extends U10 (open: measurement o...|
 | DK837 | B | open | Sponsor return statement (six returns from the log). extends DK82 and DK84 (residency stat...|
 | DK844 | B | open | Reversible-action class with a cool-off window. Keep, Edit and Undo exist for learned less...|
