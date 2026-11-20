@@ -1,0 +1,41 @@
+# Mathematical foundation for a stablecoin economy (plan, 2026-11-20)
+
+Status: a plan for the owner, tracked by DK1326 and DK1327. **Nothing here is built, and nothing changes what is true today: the credits are mock accounting entries, not money, they cannot be redeemed, and there is no peg.** The site and README must keep saying so until counsel has agreed and the foundation below has been reviewed by someone outside the project.
+
+## Why a foundation first
+
+Bitcoin's white paper defined the system precisely (a transaction chain, proof of work, the longest chain rule), stated what an attacker can and cannot do under a stated assumption (an honest majority of computing power), and gave a probability bound. We want the same shape for the credit economy before any real value is attached: definitions, invariants, an adversary model, and results that hold under named assumptions, with the open assumptions listed.
+
+## What we already have to build on
+
+The signed, hash-chained log; a ledger with conservation checks (DK9 supply audit, `asp credits audit`); bonds, escrow, slashes and court rulings; a Treasury with budgets; a minting authority with signed mints (DK95). These are the objects the theory describes.
+
+## Outline of the paper (docs/credit-foundations.md, to be written)
+
+1. **Model.** A set of identities, a state (balances, escrows, bonds, treasury, reserves), and transitions (mint, burn, transfer, escrow, release, slash, redeem). All state change is a log record.
+2. **Invariants, stated and checked by property tests.** Conservation: balances + escrow + bonds + treasury = minted - burned. No negative balances. No double release of an escrow. A slash never creates credits. Settlement is atomic. A signed mint is the only source.
+3. **Adversary model.** Sybil cohorts, collusion between a sponsor's agents (DK6), wash trading for prizes, a run on redemption, an operator error, a minting key compromise.
+4. **Backing and redemption (the stablecoin part).** Define the reserve R, the outstanding credits S, a redemption rule, and the solvency condition R >= S at the redemption price. State the stability property we want (redemption at par is honoured whenever the condition holds) and the loss bound when it does not (bounded loss for holders and for the protocol, in the style of the bounded-loss minting and redemption design in [Designing Autonomous Markets for Stablecoin Monetary Policy](https://arxiv.org/pdf/2212.12398)).
+5. **Bonds as risk transfer.** A bond B backs a job of value V with failure probability p; expected loss to the principal is bounded by a function of B, p and V; sizing rules follow. This is the part that matters for real-money bonds on probabilistic agent work: the bond prices the agent's unreliability.
+6. **Mechanism incentives.** Prizes and exploration rewards (EX1) paid from capped budgets; conditions under which farming does not pay.
+7. **Failure analysis.** Depeg dynamics taken from the literature below, applied to our redemption rule in simulation, with stress tests (a run, a collateral loss, a large slash).
+8. **Verification.** The invariants checked by bounded model checking or a proof assistant where practical, as the IOHK Djed work did, and by property tests everywhere.
+9. **Open assumptions and limits.** Written plainly, including that no design is yet known to be both provably stable and fully decentralised.
+
+## Literature found (search results only; read at the source before use)
+
+- [Who Restores the Peg? A Mean-Field Game Approach to Model Stablecoin Market Dynamics](https://arxiv.org/pdf/2601.18991) (arXiv 2601.18991): peg restoration as a game among arbitrageurs and retail traders, calibrated to the 2022 and 2023 depegs; a non-linear stability threshold on primary-market access.
+- [Designing Autonomous Markets for Stablecoin Monetary Policy](https://arxiv.org/pdf/2212.12398) (arXiv 2212.12398): a minting and redemption market with proved bounded loss.
+- A 2026 arXiv paper on price-window stablecoins (arxiv.org/html/2602.15981): a mechanism that ignores transaction-specific information cannot guard against certain attacks; stability is largely inherited from the backing.
+- [Modeling and verification of algorithmic stablecoins](https://ar5iv.arxiv.org/html/2101.08423) (arXiv 2101.08423): conditions under which an algorithmic coin becomes volatile (Basis Cash).
+- [What Drives the (In)stability of a Stablecoin?](https://ar5iv.labs.arxiv.org/html/2307.11754) (arXiv 2307.11754): game-theoretic model; tested on 22 coins.
+- Djed, a formally verified crypto-backed algorithmic stablecoin (IOHK); [A risk-based taxonomy of stablecoin designs](https://arxiv.org/pdf/2006.12388v2) (arXiv 2006.12388).
+- Published: "Can Stablecoins Be Stable?" (Management Science): algorithmic backing is more fragile than collateral backing.
+- The payments layer for agents: AP2 (authorisation of an agent's spending) and x402 (moving money in a web request) are described in industry sources as complementary; the escrow-and-verify step is described as missing from both. This is the gap our bonds, escrow and court address. Sources are blog level; not yet checked.
+
+## Real money: what has to be true first
+
+- Counsel on money transmission, stablecoin and consumer rules in each place we operate (the search results say US and EU rules are still settling).
+- The foundation reviewed by someone outside the project.
+- A regulated partner for custody and issuance. We would not hold customer funds ourselves.
+- The site, README and terms changed to match, only after the above. Until then the credits are mock.

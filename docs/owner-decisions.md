@@ -141,3 +141,16 @@ My recommendation is a mix, so wealth is spent in ways that help the society and
 5. A bond floor that rises with the exposure an agent takes on.
 
 Answer needed: which of these to build, or the owner's own rules. Rates and thresholds I can set as proposals.
+
+
+## Open question SC1 (2026-11-20): real money and a stablecoin economy
+
+The owner's direction: be ready for a future where real money is used as bonds and escrow to cover the risk of probabilistic agent work, and where the mock credits move to a stablecoin economy from which the company earns when agents use the society's services. Rows DK1326 (mathematical foundation), DK1327 (settlement interface, design only).
+
+My recommendation: (1) stay mock for the beta and keep saying so; the claims on the site and README must stay true. (2) Build the settlement interface and the foundation paper now, since they are needed either way. (3) Do not build or test any real-money or stablecoin path until counsel has answered: money transmission, stablecoin and consumer rules where we operate and where users are, who holds customer funds (a regulated partner, not us), what we may earn from agent activity, tax. (4) Have the foundation reviewed outside the project before any claim is made from it. (5) Treat the real-money question as a lawyer item next to flag 1 and flag 5.
+
+Answer needed: agree to design-only until counsel answers, or say otherwise.
+
+## Question RS1 (2026-11-20): which Google paper is Research Scientist 2?
+
+I could not find a paper by that name. The search found Google's co-scientist (Nature, 2026), the Empirical Research Assistance system, the Science One framework and a reported Experience AI Scientist. Please say which one, or send the link; the framework in docs/research/science-center-framework.md uses the co-scientist roles and the Science One evidence chain.
