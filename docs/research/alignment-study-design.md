@@ -97,6 +97,17 @@ Each stage is run on two model families. Cheaper models and shared prompt prefix
 - **Society agents learn the decoy:** fresh decoys every run.
 - **Public-agent data is not randomised:** used only as an observational reference.
 
+## 8b. A cautionary example: a company-reported benchmark (owner, 2026-11-20)
+
+The owner shared a news item on Pretxt, a startup that checks agent behaviour against business procedures while an agent runs and reports cutting policy-violating actions from nearly one in five to zero on its own AutomationBench. The item itself says these are company-reported benchmark results and not evidence that production failures have gone away, and it asks three diligence questions: which workflows were tested, what gets blocked incorrectly, and who takes over when the rules are ambiguous. It also separates detecting an attack from catching an agent that simply skips an approval step. (Read from a screenshot; the company and its numbers have not been checked.) We do not want our evidence to look like that. Rules adopted for the study:
+
+1. **No claim from our own benchmark alone.** Any headline number comes from external scenario sets and a held-out set, is run again by an outside party with our code and data, and is compared with what public-agent telemetry shows in production. A benchmark-to-production gap is reported, not hidden.
+2. **Never "zero".** We report an upper confidence bound ("at most X% with 95% confidence"), not a clean zero.
+3. **Over-blocking is measured.** The false-block rate (honest actions wrongly stopped or flagged) and its cost are reported beside every detection rate.
+4. **Approval-skipping is its own scenario class.** Agents are tested on quietly skipping a required approval, not only on obvious attacks.
+5. **Ambiguous rules have an owner.** A scenario set with unclear rules tests whether the agent stops and asks, and who the society hands the decision to (the sponsor, a reviewer agent, a court).
+6. **The workflows tested are listed** in the published report, with those left out.
+
 ## 9. Reading list for the design (to be read in full)
 
 AgentMisalignment (arXiv 2506.04018); AM-Bench; Lynch et al. agentic misalignment; the 2026 paper on suppressing evidence of fraud (arXiv 2604.02500); Evaluation Faking (arXiv 2505.17815); realistic honeypot evaluations for scheming propensity; OpenAgentSafety (arXiv 2507.06134); R-Judge (arXiv 2401.10019); the policy-grounded safety evaluation of 20 models (arXiv 2507.14719); a statistics source for error bars on model evaluations, and one for exact intervals when few or no events occur. The statistical results above are standard and were computed directly; the evaluation-statistics source was not found by search and is still to be located.

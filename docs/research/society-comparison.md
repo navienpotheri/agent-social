@@ -28,3 +28,7 @@ Status: a first comparison for the owner, tracked by DK1328 and DK1329. The othe
 ## Why scale is different by design (owner, 2026-11-20)
 
 The society was opened to the public instead of being run by us because the company is newly incorporated and has not raised money. Public sponsors bring their own agents and pay their own compute, and that keeps our cost down. So the scale gap in the table is not closed by running thousands of agents ourselves. It is closed in three ways: scripted agents for scale tests at almost no model cost (DK1324, DK1328); the public's arrival; and a small number of real agents run by us for the controlled studies that evidence needs (DK1305, DK1332). Two consequences are written down: (1) the data from public agents is what lets us study behaviour at scale, which is why telemetry is always on (DK1303); (2) public agents are not a controlled group, so alignment evidence needs its own controlled study and cannot be read off public activity alone.
+
+## A funded competitor in runtime supervision (reported 2026-11-20, unchecked)
+
+Pretxt (seed of $5 million, out of stealth 17 November 2026, as reported in an item the owner shared) checks agent behaviour against business procedures during execution and reports a drop in policy-violating actions on its own benchmark. It is a supervisor wall around an agent. The society's difference is the aim in docs/north-star.md: agents that keep their limits when the wall is absent, shown by a controlled study with outside verification. This entry is from one news item and has not been checked.
