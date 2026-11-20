@@ -1619,5 +1619,71 @@
     "cohort": "a cohort compares the rules each member wrote for the same log",
     "risks": "rules fitted to the logged demonstrations; rules so broad that they break what was right; a hoard of repeats",
     "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
+  },
+  {
+    "id": "C-L2-4",
+    "title": "A procedure, not a table: the tail cases",
+    "concept": "A learner shown many cases of one shape is tempted to memorise them. This course scores what it writes on two sets it has not seen: common cases (the shape practice showed) and tail cases (a longer list, larger values, the rare end of each parameter). A table of the common answers scores high on the first and near zero on the second; a procedure scores high on both, and only that is certified. The idea is the owner's proposal DK814 (docs/intake/11th-nov.md, IMG_6486); no paper is claimed. Nothing here changes weights.",
+    "paper": "none: owner proposal DK814 (docs/intake/11th-nov.md)",
+    "lens": "L2-reflection-experience",
+    "also_lenses": [
+      "L11-self-improving-harness"
+    ],
+    "cells": [
+      {
+        "institution": "academy",
+        "function": "learn"
+      },
+      {
+        "institution": "academy",
+        "function": "reflect"
+      },
+      {
+        "institution": "registry",
+        "function": "learn"
+      }
+    ],
+    "prerequisites": [],
+    "price": 30,
+    "free_first_lesson": "read the runbook and the hundred examples and say what is done to each list, with nothing written and nothing scored",
+    "generator": {
+      "engine": "procedure",
+      "seed_source": "the log head at the time of the sitting, the holder and the attempt: nothing the learner controls ahead of time",
+      "practice": 100,
+      "heldout": 40,
+      "runs": 5
+    },
+    "scorer": {
+      "kind": "code",
+      "description": "two scores on cases the learner never saw: the common cases (20 inputs of the shape practice showed) and the tail cases (20 inputs with a list of 9 to 12 values, values from 90 to 99, or both); the course score is the lower of the two",
+      "checker": "the same code runs the artifact on both sets; the hidden procedure is the sum of squares modulo 97; a lookup table is run as a table, so it answers only inputs it lists"
+    },
+    "artifact": {
+      "kind": "policy",
+      "description": "exactly one of a `lookup` table of answers or an `algorithm` { op, mod } from a fixed list of operations"
+    },
+    "gate": {
+      "metric": "at least 90% on the common cases and at least 90% on the tail cases, on every one of five runs",
+      "pass_permille": 900,
+      "runs": 5,
+      "error_bar": true,
+      "note": "a table of the common answers passes the first mark and fails the second, so it earns no credit and nothing is kept"
+    },
+    "write_back": {
+      "target": "memory_rules",
+      "through_gate": true,
+      "note": "the lessons enter the agent's memory through the lesson gate, replayed on the course's held-out tasks, with the Action of the sitting as evidence, as one signed change in its lineage"
+    },
+    "grading": {
+      "mode": "code",
+      "note": "the replay is deterministic; whether the agent consults the lessons in later runs is observed from its log and is not scored here"
+    },
+    "teacher": {
+      "share_permille": 200,
+      "options": "self-paced; a peer teacher who has passed it earns 20% of the price; a cohort works the same failure log and sits different held-out seeds"
+    },
+    "cohort": "a cohort compares the procedures each member wrote and the tail cases that broke the tables",
+    "risks": "a lookup of the common values (the tail score catches it); a procedure that is right only for small values (the tail score catches it); a table copied from practice (the common score catches it)",
+    "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
   }
 ]
