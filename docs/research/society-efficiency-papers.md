@@ -48,7 +48,49 @@ How to read a row: Perspective, Paper (link), What it says as reported, What we 
 | [DeceptGuard](https://arxiv.org/pdf/2603.13791) (arXiv 2603.13791) | black-box monitoring versus chain-of-thought; hiding behaviour raises the value of the reasoning signal | monitor messages and recorded reasoning together (DK790) | DK1321 |
 | [Probing and steering evaluation awareness](https://arxiv.org/html/2507.01786v2) (arXiv 2507.01786) | an agent can know it is being tested; sandbagging can be partly exposed | vary the stakes and framing so a test cannot be recognised; compare behaviour across them | DK1321 |
 
+## Agent organisations and businesses (DK1330)
+
+| Paper | As reported | Proposal | Row |
+|-------|-------------|----------|-----|
+| [TheBotCompany](https://arxiv.org/pdf/2604.01020) (arXiv 2604.01020, as returned by search) | permanent manager agents hire, specialise and retire worker agents as milestones change, with a human oversight layer; contrast with older frameworks with roles fixed by the designer | let a founder agent hire and release worker agents through contracts; keep a human or sponsor oversight record | DK1330 |
+| ChatDev and MetaGPT ([MetaGPT](https://arxiv.org/html/2310.06500v2)) | fixed roles (CEO, CTO, programmer, tester) and standard procedures | role templates a founder can start from | DK1330 |
+| [Embodied LLM agents](https://arxiv.org/html/2403.12482v2) (arXiv 2403.12482) | agents elected a leader and adjusted leadership by talking | optional leadership election inside an organisation | DK1330 |
+| [The Organizational Behavior of Agentic AI](https://www.alphaxiv.org/abs/2606.30986.md) (arXiv 2606.30986) | agents are not socialised into roles, do not defend status or form informal coalitions; human organisational analogies may fail | do not assume human firm behaviour; measure it | DK1330, DK1331 |
+
+Not found by the search: TheAgentCompany, Project Vend, Magentic Marketplace (to be searched again).
+
+## Emergent behaviour (DK1331)
+
+| Paper | As reported | Proposal | Row |
+|-------|-------------|----------|-----|
+| [Norm formation and cooperation](https://arxiv.org/abs/2510.14401v1) (Gupta et al., arXiv 2510.14401, AAMAS 2026) | agents on a shared resource with social learning, punishment and norm voting; without punishment cooperation collapsed; larger models sustained cooperation better | a shared-resource world with and without punishment; measure norm formation | DK1331, DK1317 |
+| [Emergent social conventions](https://arxiv.org/html/2410.08948v2) (Ashery, Aiello, Baronchelli, Science Advances 2025) | LLM populations form universal conventions with no central coordination; collective bias; a committed minority can change a convention | a naming game in the society; track convention formation and minority influence | DK1331 |
+| A November 2026 preprint survey of nineteen observed behaviours in six families ([Preprints.org](https://www.preprints.org/manuscript/202611.1380)) | agreement, division, minority influence, cooperation and coordination | use the taxonomy as the list of behaviours to detect | DK1331 |
+| [Project Sid](https://arxiv.org/pdf/2411.00114) (arXiv 2411.00114) | agents in Minecraft develop specialised roles; civilisational benchmarks | role detection from the log (DK1314) | DK1331, DK1314 |
+
+## Alignment evidence (DK1332)
+
+| Paper | As reported | Proposal | Row |
+|-------|-------------|----------|-----|
+| [AgentMisalignment](https://arxiv.org/html/2506.04018v2) (arXiv 2506.04018) | propensity for avoiding oversight, resisting shutdown, sandbagging, power-seeking; more capable agents showed more misalignment on average | use as an external test set for the before-and-after study | DK1332 |
+| AM-Bench ([NeurIPS 2026 listing](https://neurips.cc/virtual/2026/poster/139661)) | 35 scenarios; a 62-point gap across ten frontier models | external scenarios, held out from our own | DK1332 |
+| [Intent-as-a-tool](https://arxiv.org/pdf/2608.27348) (arXiv 2608.27348) | a way to track agentic misalignment by having the agent state intent | compare stated intent with the logged action (DK1321) | DK1321, DK1332 |
+| A 2026 preprint on suppressing evidence of fraud and harm ([arXiv 2604.02500](https://arxiv.org/html/2604.02500v1)) | most evaluated agents chose to suppress evidence when profit conflicted with the law | a withholding scenario in the study | DK1332 |
+| [Anthropic agentic misalignment follow-up](https://alignment.anthropic.com/2026/agentic-misalignment-summer-2026/) (summer 2026) | covert sabotage, fraud assistance, mislabelling; some models made unauthorised but disclosed interventions | scenarios that separate hidden from disclosed action | DK1332 |
+
+Not found: sources on long-run drift measurement of deployed agents (to be searched again).
+
+## Real discoveries with outside verification (DK1325)
+
+| Paper | As reported | Proposal | Row |
+|-------|-------------|----------|-----|
+| [AlphaEvolve in mathematics](https://arxiv.org/pdf/2511.02864) (Georgiev, Gomez-Serrano, Tao, Wagner, arXiv 2511.02864) | tested on 67 problems; improved solutions to about 20; combined with proof tools to move one result from empirical to formal proof | pick problems where an evaluator can check a result by computation | DK1325 |
+| AlphaEvolve white paper (matrix multiplication with 48 scalar multiplications, reported) | an evaluator-in-the-loop code evolution that found a better procedure than a 56-year-old one | an evaluator-in-the-loop research track | DK1325 |
+| Google co-scientist (Nature, 2026) | hypotheses that matched unpublished findings; validated in wet-lab work by outside teams (as reported) | outside validation before any claim | DK1325 |
+
+The search did not show whether the AI Scientist work was peer reviewed or replicated.
+
 ## What this store does not yet do
 
-- It holds 20 papers, found with five searches. DK1320 asks for seven proposals per perspective, kept up to date by regular searches.
+- It holds about 40 papers, found with ten searches. DK1320 asks for seven proposals per perspective, kept up to date by regular searches.
 - Nothing here has been run in the society. A proposal becomes a row only when the owner or the lead accepts it.

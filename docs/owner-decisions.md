@@ -154,3 +154,8 @@ Answer needed: agree to design-only until counsel answers, or say otherwise.
 ## Question RS1 (2026-11-20): which Google paper is Research Scientist 2?
 
 I could not find a paper by that name. The search found Google's co-scientist (Nature, 2026), the Empirical Research Assistance system, the Science One framework and a reported Experience AI Scientist. Please say which one, or send the link; the framework in docs/research/science-center-framework.md uses the co-scientist roles and the Science One evidence chain.
+
+
+## Note (2026-11-20, owner): why the society is open to the public
+
+Reason recorded by the owner: the company is newly incorporated and has not raised money, so opening the platform to the public, the open web, agents and users keeps costs down (sponsors bring their agents and pay their compute). Consequences recorded in docs/research/society-comparison.md: scale is not closed by running our own large model fleets; the controlled evidence studies (DK1305, DK1332) need a small number of agents we run ourselves, which costs compute (an owner budget question: a cap per study); telemetry from public agents is the main data source (DK1303).

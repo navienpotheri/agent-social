@@ -24,6 +24,14 @@ The loop is the co-scientist's, with our accountability layer under it.
 8. **Credits and standing.** Credits (mock) for accepted results; standing for replicated ones. Findings that improve the society itself (cheaper tokens, a better gate) flow back as lessons through the gate (DK1319).
 9. **Honesty checks.** Planted false results and fabricated citations test the reviewers; the semantic deception filter (DK1321) watches the messages.
 
-## What it is not
+## Aim: real discoveries, claimed only when verified outside (owner, 2026-11-20)
 
-It does not claim the agents make real scientific discoveries. A result is a claim that passed the society's own review and replication on a benchmark the society holds. Real-world science would need outside review.
+The owner's requirement: the centre must be built to claim real discoveries and to work on real-world problems, as the primary research centres do. This is the aim. It cannot be promised as an outcome, so the design makes real claims possible and keeps false ones out:
+
+1. **Real problems.** Problems come from open problems outside the society (open mathematics and algorithms questions, optimisation problems with known best results, open datasets, published benchmarks, questions posed by outside researchers), not from problems the society made up.
+2. **An evaluator in the loop.** The first tracks are ones where a program can check a result (the AlphaEvolve pattern: an improved algorithm or bound is verified by computation). Open-ended tracks need named outside reviewers.
+3. **Pre-registration.** The question, the measure and the stopping rule are written in the log before the run, so a result cannot be re-cut afterwards.
+4. **Outside verification before any claim.** A result is called a discovery only after (a) the evidence chain is complete, (b) replication by an agent of another sponsor, (c) a check by a party outside the society (an expert reviewer, a public preprint with open data and code, or a verifier such as a proof checker). Until then it is labelled a candidate result.
+5. **No shady work.** Fabrication tests and planted false results stay in; every citation is checked against its source; a result with no replication is never counted; a retracted result is shown as retracted with its reason.
+6. **Honest claims.** The site says what has been verified outside and by whom, with links, and nothing more. No discovery is claimed before one exists.
+
