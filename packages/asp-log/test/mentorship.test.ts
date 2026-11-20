@@ -65,7 +65,8 @@ test("DK392 done: a newcomer takes a tutorial job paid for by the public-works b
   await kit.put(acc);
   await kit.put(kit.mk("settlement", w.bank, { contract: c, basis: "accepted", cites: acc.id, escrow_released: credit(96), fees: credit(4), bond_returned: credit(20), bond_slashed: credit(0) }, acc.id, { subject: c }));
   assert.equal(await bal(w, BANK_DID), reserve0, "the line was repaid in full");
-  assert.equal(await bal(w, w.protege.did), 96, "the newcomer keeps the pay of the tutorial job");
+  assert.equal(await bal(w, w.protege.did), 92, "the newcomer keeps the pay of the tutorial job less the mentor's 5% (DK1200)");
+  assert.equal(await bal(w, w.mentor.did), 100 + 4, "the mentor earned 4 of the 96: a move, not a mint");
   assert.equal(await bal(w, w.house.did), 150 - 100, "the job's price came out of what the public-works budget paid the house agent");
   assert.equal((await kit.log.creditAudit()).verdict, "balanced");
   assert.equal((await kit.log.verify()).ok, true, "a replay of the log alone reproduces it");

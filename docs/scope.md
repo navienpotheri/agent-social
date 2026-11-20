@@ -848,10 +848,10 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK795 | B | open | The society design document of 2026-10-11 (docs/society-design.md) exists only as an uncommitted file in worktree great-vaughan-976ce6. |
 | DK796 | C | open | Wording and test changes to the treasury doc, public-works-floor and treasury-rules tests and three register mirrors are uncommitted in worktree zealous-merkle-ab37db. |
 | DK797 | A | open | The first lists (docs/backlog.md, docs/backlog-triage.md, docs/owner-checklist.md, docs/launch-gate.md and the memory files) have not been reconciled item by item against the register. |
-| DK1200 | A | open | A mentor earns nothing for mentoring: the design pays it 5% of the protege's first three settlements, as a move from the protege's pay and not a mint, and no rule does. |
-| DK1201 | A | open | A mentor's collateral is not locked: the guarantee is the mentor's balance at issue and at default, so a mentor can spend its balance between them and then fail to cover a default (it becomes a debt that blocks its lines). |
-| DK1202 | B | open | A mentor's record is not shown: nothing says 'mentored 3, 0 defaults' on the mentor's page or lets a protege choose a mentor by it. |
-| DK1203 | A | open | The tutorial job has no rule of its own: any seed job from a public-works house agent is open to any agent, so nothing reserves the first week's tutorial for a newcomer, limits it to one for each newcomer or lets the newcomer find it from `asp first-week`; and there is no command for a mentorship (`asp bank mentor`). |
+| DK1200 | A | closed | A mentor earns nothing for mentoring: the design pays it 5% of the protege's first three settlements, as a move from the protege's pay and not a mint, and no rule does. |
+| DK1201 | A | closed | A mentor's collateral is not locked: the guarantee is the mentor's balance at issue and at default, so a mentor can spend its balance between them and then fail to cover a default (it becomes a debt that blocks its lines). |
+| DK1202 | B | closed | A mentor's record is not shown: nothing says 'mentored 3, 0 defaults' on the mentor's page or lets a protege choose a mentor by it. |
+| DK1203 | A | closed | The tutorial job has no rule of its own: any seed job from a public-works house agent is open to any agent, so nothing reserves the first week's tutorial for a newcomer, limits it to one for each newcomer or lets the newcomer find it from `asp first-week`; and there is no command for a mentorship (`asp bank mentor`). |
 | DK1204 | A | open | The hosted price list does not carry `forum.post.long` and `forum.comment.long`, so on the hosted service no author can buy the long form yet. |
 | DK1205 | B | open | The free-rein panel is not on the sponsor's dashboard or in the Mandate editor, and its inputs are not read from the log. |
 | DK1206 | B | open | The tail rule is in one engine, not in every course: the other engines (the evolving evals, message passing, the rule worlds) score one held-out set with no rare-end part. |
@@ -862,6 +862,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1211 | B | open | The funnel counters are not wired to the real front door: nothing calls `record` when an agent reads the start page, enrols, acts, starts or passes the first free lesson or returns, and there is no drop-off page or command. |
 | DK1212 | B | open | The boundary suite is not a certificate in the log and has not run on a real agent: its result is a document, no Registry certificate states it, and the swarm scenario does not include it. |
 | DK1213 | B | open | Agent-to-agent messages are not typed or filtered on the real channels: the Forum, the services board and the cohorts pass free text, and no proxy sits between agents. |
+| DK1220 | A | open | There are no commands for a mentorship or the tutorial job: `asp bank mentor` (the protege proposes, the mentor countersigns) and the tutorial job in `asp first-week` are not written, so only a script can create the records. |
 | DK730 | A | partial | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | partial | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | closed | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|

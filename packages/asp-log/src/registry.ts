@@ -84,6 +84,8 @@ export interface RecordPage {
   residency: { mode: string; status: string; since: string; paid_through: string; reason: string | null } | null;
   /** Third-party abuse reports against the agent and what became of each (H3, DK350): a lead, then a case, then a panel's finding with what was paid to the reporter. Absent for a page of a name that is not an agent. */
   abuse?: { id: string; kind: string; at: string; outcome?: { state: string; case: string; finding?: string; requested?: number; paid?: number; shortfall?: number; remedy?: string } }[];
+  /** What the agent has done as a mentor (DK1202, S1216): newcomers it took on, lines it guaranteed and defaults that fell on it, counted from the log's records. Null for an agent that never mentored. */
+  mentoring: { proteges: number; lines: number; defaults: number } | null;
   /** The log sequence number the page was computed at. */
   seq: number;
   recompute: string;
@@ -122,6 +124,10 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
   const live = suspensions.filter((s) => !lifted.has(s.id) && untilOf(s.id, (s.body as { until: string }).until) > t).at(-1);
   const takedowns = acts.filter((r) => { const b = r.body as { act: string; holder?: string }; return (b.act === "name_takedown" || b.act === "court_takedown") && b.holder === did && Date.parse(r.issued_at) <= t; })
     .map((r) => { const b = r.body as { name: string; reason: string; code?: { articles: string[] }; appealable_until: string }; return { name: b.name, reason: b.reason, articles: b.code?.articles ?? [], record: r.id, appealable_until: b.appealable_until }; });
+  const mentored = records.filter((r) => r.type === "asp.mentorship/v0.2" && (r.body as { mentor: string }).mentor === did && Date.parse(r.issued_at) <= t);
+  const mentoredLines = records.filter((r) => r.type === "asp.credit_line/v0.2" && (r.body as { guarantor: string; mentorship?: string }).guarantor === did && (r.body as { mentorship?: string }).mentorship && Date.parse(r.issued_at) <= t);
+  const lineIds = new Set(mentoredLines.map((r) => r.id));
+  const mentorDefaults = records.filter((r) => r.type === "asp.credit_default/v0.2" && lineIds.has((r.body as { line: string }).line) && Date.parse(r.issued_at) <= t);
   const holdings = holdingsAt(records, did, at);
   const resident = residentStates(records.filter((r) => r.type === "asp.shops_act/v0.2"), at).get(did);
   return {
@@ -134,6 +140,7 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
     retired: acts.some((r) => (r.body as { act: string; holder?: string }).act === "identity_retirement" && (r.body as { holder: string }).holder === did && Date.parse((r.body as { effective_from?: string }).effective_from ?? r.issued_at) <= t),
     takedowns, holdings: holdings.active.map((h) => ({ item: h.item, effect: h.effect, from: h.from, until: h.until })), removed_holdings: holdings.removed.map((h) => ({ item: h.item, reason: h.reason })),
     residency: resident ? { mode: resident.mode, status: resident.status, since: resident.since, paid_through: resident.paidThrough, reason: resident.statusReason } : null,
+    mentoring: mentored.length ? { proteges: new Set(mentored.map((r) => (r.body as { protege: string }).protege)).size, lines: mentoredLines.length, defaults: mentorDefaults.length } : null,
     seq: inp.seq, recompute: "asp registry verify <did>: every field above is derived from the log's passport, certificate and registry records up to the seq shown",
   };
 }

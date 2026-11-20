@@ -19,6 +19,46 @@ export const MENTOR_MIN_TIER = 2;
 export const MENTOR_CLEAN_DAYS = 90;
 export const MENTOR_MAX_PROTEGES = 3;
 
+/**
+ * The mentor's collateral (DK1201, S1215; owner decision DK392-MENTOR): while a mentor-guaranteed line is open, 25% of it is HELD on the mentor's account (`hold:<did>`): the credits stay there, counted by the audit as
+ * ever, and the log refuses any debit that would leave less than the hold (`collateral_held`). The hold is released when the line is repaid, lapses or is defaulted on (the default recovers from the whole balance, the
+ * held part included). A sponsor-guaranteed line holds nothing, as before.
+ */
+export const holdOf = async (tx: Pick<LogTx, "getMarker">, did: string): Promise<number> => Number((await tx.getMarker(`hold:${did}`)) ?? 0);
+async function placeHold(tx: LogTx, lineId: string, guarantor: string, amount: number): Promise<void> {
+  await tx.putMarker(`hold_line:${lineId}`, `${guarantor}|${amount}`);
+  await tx.putMarker(`hold:${guarantor}`, String((await holdOf(tx, guarantor)) + amount));
+}
+export async function releaseHold(tx: LogTx, lineId: string): Promise<void> {
+  const raw = await tx.getMarker(`hold_line:${lineId}`);
+  if (!raw) return;
+  const [who, amount] = raw.split("|");
+  await tx.putMarker(`hold_line:${lineId}`, "");
+  await tx.putMarker(`hold:${who}`, String(Math.max(0, (await holdOf(tx, who)) - Number(amount))));
+}
+
+/** The mentor's reward (DK1200, S1214; owner decision DK392-MENTOR): 5% of the pay of the protege's first three accepted settlements, a move from the protege's balance to the mentor's in the same step (no mint). */
+export const MENTOR_REWARD_PERMILLE = 50;
+export const MENTOR_REWARD_SETTLEMENTS = 3;
+
+/** Called after a settlement credited `pay` to the performer and the Bank's line was repaid: moves the mentor's share if the performer has a mentor and has not yet paid for three settlements. Returns what moved. */
+export async function payMentor(tx: LogTx, performer: string, pay: number, env: BankEnv & { balanceOf?: never }): Promise<number> {
+  if (pay <= 0) return 0;
+  const mentorship = await tx.getMarker(`mentor_of:${performer}`);
+  if (!mentorship) return 0;
+  const paid = await num(tx, `mentor_paid:${performer}`);
+  if (paid >= MENTOR_REWARD_SETTLEMENTS) return 0;
+  const m = JSON.parse((await tx.getMarker(`mentorship:${mentorship}`)) ?? "null") as { mentor: string } | null;
+  if (!m) return 0;
+  const share = Math.min(Math.floor((pay * MENTOR_REWARD_PERMILLE) / 1000), await balanceOf(tx, performer));
+  await tx.putMarker(`mentor_paid:${performer}`, String(paid + 1));
+  if (share <= 0) return 0;
+  await env.debit(tx, performer, share);
+  await env.credit(tx, m.mentor, share);
+  await tx.putMarker(`mentor_earned:${m.mentor}`, String((await num(tx, `mentor_earned:${m.mentor}`)) + share));
+  return share;
+}
+
 /** A mentorship (13.1): the protege signs, the mentor countersigns; the mentor guarantees the protege's line in place of a sponsor. */
 export async function projectMentorship(tx: LogTx, r: AspRecord, env: BankEnv): Promise<void> {
   const b = r.body as { mentor: string; protege: string };
@@ -86,7 +126,7 @@ export async function projectCreditLine(tx: LogTx, r: AspRecord, env: BankEnv): 
     const prior = await readLine(tx, open);
     const lapsed = prior && prior.status === "open" && Date.parse(prior.due) <= Date.parse(r.issued_at);
     if (prior && !lapsed) throw rule("line_already_open", `${b.borrower} already has an open line (${open}): one at a time`);
-    if (lapsed) { await writeLine(tx, { ...prior, status: "repaid" }); await tx.putMarker("bank_committed", String((await num(tx, "bank_committed")) - prior.amount)); }
+    if (lapsed) { await releaseHold(tx, prior.id); await writeLine(tx, { ...prior, status: "repaid" }); await tx.putMarker("bank_committed", String((await num(tx, "bank_committed")) - prior.amount)); }
   }
   const contract = await tx.getRecord(b.contract);
   const cb = contract?.record.body as { performer?: string; principal?: string } | undefined;
@@ -96,13 +136,14 @@ export async function projectCreditLine(tx: LogTx, r: AspRecord, env: BankEnv): 
   if (cb?.principal === b.borrower || cb?.principal === b.guarantor || principalSponsor === b.guarantor) throw rule("line_self_dealt", "the job's principal must be independent of the borrower and the guarantor: a line for a job its own side posted is refused");
   if (Date.parse(b.due) <= Date.parse(r.issued_at) || Date.parse(b.due) - Date.parse(r.issued_at) > LINE_WINDOW_MS) throw rule("line_due_out_of_range", "an undrawn line lapses within 14 days of issue, and after it");
   const need = Math.ceil((b.amount.value * GUARANTOR_PERMILLE) / 1000);
-  if ((await balanceOf(tx, b.guarantor)) < need) throw rule("line_guarantor_balance", `the guarantor holds ${await balanceOf(tx, b.guarantor)} credits; a guarantee of ${b.amount.value} needs at least ${need} (25 %)`);
+  if ((await balanceOf(tx, b.guarantor)) - (b.mentorship ? await holdOf(tx, b.guarantor) : 0) < need) throw rule("line_guarantor_balance", `the guarantor holds ${await balanceOf(tx, b.guarantor)} credits; a guarantee of ${b.amount.value} needs at least ${need} (25 %)`);
   const committed = await num(tx, "bank_committed");
   if ((await balanceOf(tx, BANK_DID)) - committed < b.amount.value) throw rule("line_exceeds_reserve", `the Bank's reserve (${await balanceOf(tx, BANK_DID)}, ${committed} already promised) cannot cover ${b.amount.value}`);
   await tx.putMarker("bank_committed", String(committed + b.amount.value));
   await tx.putMarker(`line_open:${b.borrower}`, r.id);
   await tx.putMarker(`line_for:${b.contract}`, r.id);
   await writeLine(tx, { id: r.id, borrower: b.borrower, guarantor: b.guarantor, contract: b.contract, amount: b.amount.value, due: b.due, status: "open", drawn: 0, owed: 0 });
+  if (b.mentorship) await placeHold(tx, r.id, b.guarantor, need);
 }
 
 /** At Bond time: if the backer has an open line for this contract, the Bank's reserve funds the bond lock (the credits move from the Bank to the backer, then the bond debits the backer, in one step). */
@@ -129,6 +170,7 @@ export async function repayAtSettlement(tx: LogTx, contract: string, inflow: num
   await env.credit(tx, BANK_DID, repaid);
   const owed = line.owed - repaid;
   await writeLine(tx, { ...line, owed, status: owed === 0 ? "repaid" : "owing" });
+  if (owed === 0) await releaseHold(tx, line.id);
   if (owed === 0 && (await tx.getMarker(`line_open:${line.borrower}`)) === line.id) await tx.putMarker(`line_open:${line.borrower}`, "");
 }
 
@@ -142,6 +184,7 @@ export async function projectCreditDefault(tx: LogTx, r: AspRecord, env: BankEnv
   if (line.status !== "owing") throw rule("default_not_owed", `the line ${b.line} is ${line.status}: a default follows a settlement that left credits unpaid`);
   if (b.unpaid.value !== line.owed) throw rule("default_wrong_amount", `the settlement left ${line.owed} unpaid, not ${b.unpaid.value}`);
   if (b.against !== line.guarantor) throw rule("default_wrong_guarantor", `the loss is against the guarantor (${line.guarantor})`);
+  await releaseHold(tx, line.id);
   const paid = Math.min(line.owed, await balanceOf(tx, line.guarantor));
   await env.debit(tx, line.guarantor, paid);
   await env.credit(tx, BANK_DID, paid);
