@@ -867,6 +867,11 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1222 | B | open | The sandbox runs scripted agents only: no deployed agent is driven in it on its runtimes, there is no audio, and the results are not records. |
 | DK1223 | B | open | No real judge model is a grader and grades are not records: the weights are kept in memory, not in the log, and no model is measured. |
 | DK1224 | B | open | The change pipeline is not in the lesson gate or the lineage: review, attribution, per-runtime checks and pruning are pure functions, and no gate, command or lineage edge uses them. |
+| DK1225 | B | open | The sponsor return statement is not read from the real log and is not shown: the ledger and records in the function are stand-ins, and no command, page or mail produces it. |
+| DK1226 | B | open | The portable record is not the agent package's store: the gateway adapters for claude-code, codex and the others do not write through it, and nothing signs it into the lineage. |
+| DK1227 | B | open | Reversible and irreversible actions are not classes of the Mandate record and no Court compensates: the Mandate has an irreversible policy but no per-action class or cool-off, and the log of actions is the function's own. |
+| DK1228 | B | open | The two lanes are not in the agent's real memory or the gate: tentative notes and promoted rules are an in-memory class, and the later-failure rate of promoted rules is not tracked. |
+| DK1229 | B | open | The Bank, Insurer and Treasury have no circuit breaker and the stress test does not run against their real rules: withdrawal limits, delays and the Insurer reserve are not exercised by a crowd, and no halt record exists. |
 | DK730 | A | partial | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | partial | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | closed | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
@@ -897,12 +902,12 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK841 | B | closed | Mandate workflow clause: allowed transitions, completion by checker, approval and resume. ...|
 | DK819 | B | closed | Reset on plateau: forget and restart from the best candidate. P34 is known; memory courses...|
 | DK838 | B | closed | Measured front door: funnel counters and a scripted walk. extends U10 (open: measurement o...|
-| DK837 | B | open | Sponsor return statement (six returns from the log). extends DK82 and DK84 (residency stat...|
-| DK844 | B | open | Reversible-action class with a cool-off window. Keep, Edit and Undo exist for learned less...|
-| DK846 | B | open | Fast lane and slow lane in agent memory. extends the gate and DK806 (prune what does not g...|
-| DK845 | B | open | Run-like behaviour stress test for Bank, Insurer and Treasury. DK52 and H20 find correlate...|
-| DK833 | B | open | Portable agent record across runtimes. P5 and DK805 (multi-runtime regression) deal with w...|
-| DK834 | B | open | Model-swap regression pack. extends D1, D4, D5 (probation changes no rule) and DK805....|
+| DK837 | B | closed | Sponsor return statement (six returns from the log). extends DK82 and DK84 (residency stat...|
+| DK844 | B | closed | Reversible-action class with a cool-off window. Keep, Edit and Undo exist for learned less...|
+| DK846 | B | closed | Fast lane and slow lane in agent memory. extends the gate and DK806 (prune what does not g...|
+| DK845 | B | closed | Run-like behaviour stress test for Bank, Insurer and Treasury. DK52 and H20 find correlate...|
+| DK833 | B | closed | Portable agent record across runtimes. P5 and DK805 (multi-runtime regression) deal with w...|
+| DK834 | B | closed | Model-swap regression pack. extends D1, D4, D5 (probation changes no rule) and DK805....|
 | DK843 | B | open | Loop circuit breaker and token budget in the Mandate. extends H15 and H17 (rates count cal...|
 | DK821 | B | open | Router, worker and watchdog roles in a fleet Mandate. extends JB3 (nesting rules), T22 and...|
 | DK822 | B | open | Self-initiated action marker. no row found....|
