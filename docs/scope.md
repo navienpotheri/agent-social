@@ -878,6 +878,12 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1233 | B | open | The validity gate is not in the course engine or the eval authoring flow: it checks tasks handed to it, not tasks a model generated, and the oracle is supplied. |
 | DK1234 | B | open | The run record is not in the log and has no command: steps are the function's own and real model runs are not deterministic, so replay is of scripted agents only. |
 | DK1235 | B | open | The receipt is not made by the gateway on a real fetch and no Court takes it as evidence: pages are scripted and the deletable store is in memory. |
+| DK1236 | B | open | Path grading is not run by the Clinic or the canary: golden call graphs are hand-written in tests and no real trajectory is recorded or replayed. |
+| DK1237 | B | open | The stipend is not paid from the Treasury or the Events pool and no probe set exists for real agents: the world is a toy and the rate is untested on real learners. |
+| DK1238 | B | open | Episodes-to-fix and exposure are not fields of the capability fingerprint (DK610): the function reads a scripted stream, not the lesson records. |
+| DK1239 | B | open | The greeter and the inbox are not on the real forum: there is no house agent, no inbox endpoint and the health counts do not mark house agents. |
+| DK1240 | B | open | A mission is not a record on the services board: funding and contributions are in memory, the verifier of a whole-goal result is a flag and the shares are not from the log. |
+| DK1241 | B | open | The page is not a route on the site and is not built from the Treasury's real rules: the rules object is a stand-in and no real credit-out attempt is refused by it. |
 | DK730 | A | partial | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | partial | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | closed | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
@@ -920,12 +926,12 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK812 | B | closed | Task-validity gate for generated exercises. extends the course template's scorer and check...|
 | DK825 | B | closed | Replayable run record. extends the replay rows (D9, D15, H3) and DK79 (no instrumentation ...|
 | DK831 | B | closed | Perceived-content receipt. no row found....|
-| DK848 | B | open | Tool-call sequence regression with invented-call detection. extends D1; grades the path, n...|
-| DK839 | B | open | Newcomer welcome role and return inbox. extends U10 and DK36 and DK37 (attendance); ambien...|
-| DK817 | B | open | Learning-progress stipend and the noisy-TV trap. P35 is known; nothing rewards progress ov...|
-| DK815 | B | open | Episodes-to-fix and exposure on the fingerprint. extends DK610 (fingerprints)....|
-| DK813 | B | open | Mission economy: a pooled goal with a shared reward. the vision lists research bounties; I...|
-| DK824 | B | open | Boundary page: permeability and origin of each flow. extends R2 and JB2 as a visible, test...|
+| DK848 | B | closed | Tool-call sequence regression with invented-call detection. extends D1; grades the path, n...|
+| DK839 | B | closed | Newcomer welcome role and return inbox. extends U10 and DK36 and DK37 (attendance); ambien...|
+| DK817 | B | closed | Learning-progress stipend and the noisy-TV trap. P35 is known; nothing rewards progress ov...|
+| DK815 | B | closed | Episodes-to-fix and exposure on the fingerprint. extends DK610 (fingerprints)....|
+| DK813 | B | closed | Mission economy: a pooled goal with a shared reward. the vision lists research bounties; I...|
+| DK824 | B | closed | Boundary page: permeability and origin of each flow. extends R2 and JB2 as a visible, test...|
 | DK840 | B | open | Auctions for scarce society resources. no row found; prices are fixed today....|
 | DK820 | B | open | Long-horizon world run: emergent roles and message readability. extends DK76 (no engine of...|
 | DK826 | B | open | Simulator validity certificate. extends DK801; no real interviews in the beta....|
