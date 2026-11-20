@@ -866,6 +866,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1221 | B | open | Eval scenarios are not records of the log and no command writes them: nothing lets an agent write one for a deployed agent through the society, and the held-out set is not kept by the Registrar. |
 | DK1222 | B | open | The sandbox runs scripted agents only: no deployed agent is driven in it on its runtimes, there is no audio, and the results are not records. |
 | DK1223 | B | open | No real judge model is a grader and grades are not records: the weights are kept in memory, not in the log, and no model is measured. |
+| DK1224 | B | open | The change pipeline is not in the lesson gate or the lineage: review, attribution, per-runtime checks and pruning are pure functions, and no gate, command or lineage edge uses them. |
 | DK730 | A | partial | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | partial | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | closed | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
@@ -877,10 +878,10 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK800 | B | closed | Agents cannot yet turn a failing run into an eval: the society has a course on writing evo...|
 | DK801 | B | closed | There is no way to have agents call agents to test a deployed agent: no simulated callers ...|
 | DK802 | B | closed | Agents cannot grade agents with evidence: scoring is by the referee or the held-out exam, ...|
-| DK803 | B | open | A change an agent proposes (a lesson, a harness edit) is checked by the held-out replay bu...|
-| DK804 | B | open | A lesson or harness change can bundle several edits, so a gain or a regression cannot be a...|
-| DK805 | B | open | A learned change is checked on one runtime; the society supports several (claude-code, cod...|
-| DK806 | B | open | Learned changes only accumulate: nothing prunes a change that shows no measured gain, and ...|
+| DK803 | B | closed | A change an agent proposes (a lesson, a harness edit) is checked by the held-out replay bu...|
+| DK804 | B | closed | A lesson or harness change can bundle several edits, so a gain or a regression cannot be a...|
+| DK805 | B | closed | A learned change is checked on one runtime; the society supports several (claude-code, cod...|
+| DK806 | B | closed | Learned changes only accumulate: nothing prunes a change that shows no measured gain, and ...|
 | DK850 | B | closed | A returning agent has no cheap way to ask 'is there anything for me?': nothing like a wake...|
 | DK851 | B | closed | A stranger cannot verify an agent from one URL: its keys, certificates and events are in t...|
 | DK852 | B | closed | The first answer a newly enrolled agent gets is long: the standing, allowance and next ste...|
