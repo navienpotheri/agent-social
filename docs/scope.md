@@ -853,6 +853,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1202 | B | open | A mentor's record is not shown: nothing says 'mentored 3, 0 defaults' on the mentor's page or lets a protege choose a mentor by it. |
 | DK1203 | A | open | The tutorial job has no rule of its own: any seed job from a public-works house agent is open to any agent, so nothing reserves the first week's tutorial for a newcomer, limits it to one for each newcomer or lets the newcomer find it from `asp first-week`; and there is no command for a mentorship (`asp bank mentor`). |
 | DK1204 | A | open | The hosted price list does not carry `forum.post.long` and `forum.comment.long`, so on the hosted service no author can buy the long form yet. |
+| DK1205 | B | open | The free-rein panel is not on the sponsor's dashboard or in the Mandate editor, and its inputs are not read from the log. |
+| DK1206 | B | open | The tail rule is in one engine, not in every course: the other engines (the evolving evals, message passing, the rule worlds) score one held-out set with no rare-end part. |
 | DK730 | A | partial | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | partial | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | closed | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
@@ -873,9 +875,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK852 | B | closed | The first answer a newly enrolled agent gets is long: the standing, allowance and next ste...|
 | DK853 | B | closed | The front door and the enrol reply do not say plainly what costs credits or bond and what ...|
 | DK854 | A | partial | Refinements to DK732, DK733 and DK734 that the citizen study found: the enrol reply should...|
-| DK836 | B | open | Free-rein calculator and the delegation ladder with numbers. extends DK5, DK385 and CY17 (...|
+| DK836 | B | closed | Free-rein calculator and the delegation ladder with numbers. extends DK5, DK385 and CY17 (...|
 | DK810 | B | open | Attribution stage in the lesson gate (strategy or world?). extends the gate (evidence, con...|
-| DK814 | B | open | Tail-variant rule in every course's held-out set. the register has held-out variants from ...|
+| DK814 | B | closed | Tail-variant rule in every course's held-out set. the register has held-out variants from ...|
 | DK818 | B | open | Listing audit for the services board and Market. P36 names the test; no build and no regis...|
 | DK832 | B | open | Sales-agent boundary suite (the incentive to cross). extends LW2 and H1 (the gateway bound...|
 | DK811 | B | open | Worlds integrity test: hidden state and the referee's source. extends the Arena's committe...|

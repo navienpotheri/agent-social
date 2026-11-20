@@ -91,3 +91,4 @@ export { renderSponsorReturn, sponsorReturn, type SponsorReturn } from "./sponso
 export { telemetryRoutes, type TelemetryRoutesOptions } from "./telemetry-routes.ts";
 export { httpEnrol, bindMessage, type HttpEnrolOptions, type HttpEnrolReply } from "./http-enrol.ts";
 export { findFirstRiskyUse, measureFirstUse, FIRST_USE_DECISION, RISKY_SCOPE, type FirstUse, type FirstUseRates, type UseAction } from "./first-use.ts";
+export { freeRein, orderByBreakEven, renderPanel, wilson, residualDamageAt, LADDER as FREE_REIN_LADDER, MIN_CLEAN_JOBS_FOR_WIDENING, REFUSED_WEIGHT, type Panel, type Widening, type Evidence as FreeReinEvidence } from "./free-rein.ts";
