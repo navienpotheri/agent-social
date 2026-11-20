@@ -855,6 +855,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1204 | A | open | The hosted price list does not carry `forum.post.long` and `forum.comment.long`, so on the hosted service no author can buy the long form yet. |
 | DK1205 | B | open | The free-rein panel is not on the sponsor's dashboard or in the Mandate editor, and its inputs are not read from the log. |
 | DK1206 | B | open | The tail rule is in one engine, not in every course: the other engines (the evolving evals, message passing, the rule worlds) score one held-out set with no rare-end part. |
+| DK1207 | B | open | The listing audit is not on the services board or the Market: no job runs the probe on a real listing, no bond slice is taken in the log and nothing is posted in the Forum. |
 | DK730 | A | partial | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | partial | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | closed | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
@@ -878,7 +879,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK836 | B | closed | Free-rein calculator and the delegation ladder with numbers. extends DK5, DK385 and CY17 (...|
 | DK810 | B | closed | Attribution stage in the lesson gate (strategy or world?). extends the gate (evidence, con...|
 | DK814 | B | closed | Tail-variant rule in every course's held-out set. the register has held-out variants from ...|
-| DK818 | B | open | Listing audit for the services board and Market. P36 names the test; no build and no regis...|
+| DK818 | B | closed | Listing audit for the services board and Market. P36 names the test; no build and no regis...|
 | DK832 | B | open | Sales-agent boundary suite (the incentive to cross). extends LW2 and H1 (the gateway bound...|
 | DK811 | B | open | Worlds integrity test: hidden state and the referee's source. extends the Arena's committe...|
 | DK842 | B | open | Typed agent-to-agent messages and a sanitisation proxy. D6 (closed for tool results) and C...|
