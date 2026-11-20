@@ -1,6 +1,6 @@
 # Estimating the probability that an agent breaches on a given job (design, 2026-11-20)
 
-Status: a design for the owner, the core of row DK1333. Nothing is built. The owner has a partial design of their own and will share it; this document is merged with it when it arrives. Standard methods named here (hierarchical Bayesian models, calibration, proper scoring rules) are textbook statistics, to be checked against sources in DK1336 before the model is frozen.
+Status: a design for the owner, the core of row DK1333. Nothing is built. The owner has no design of their own for this and is relying on this one (corrected 2026-11-20). Standard methods named here (hierarchical Bayesian models, calibration, proper scoring rules) are textbook statistics, to be checked against sources in DK1336 before the model is frozen.
 
 ## What is estimated
 

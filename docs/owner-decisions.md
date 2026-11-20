@@ -176,4 +176,4 @@ The company is incorporated in India and the first users will be worldwide. A pa
 
 What cannot wait for funding (DK1340): the beta's own terms, privacy and telemetry notice (worldwide users, minors) and the ad wording; these need a small, cheap legal review before launch. I have not checked India's current rules on cryptocurrency or its data-protection law and am not a lawyer; the point is that someone qualified must.
 
-Also recorded: the owner has partly designed a system that estimates the probability that an agent breaches on a given job; to be shared and built on in DK1333.
+Correction (2026-11-20): I wrote that the owner had partly designed a breach-probability system. That was a misreading; the owner has no design of their own and is relying on the lead's (docs/research/breach-probability-model.md, DK1333).
