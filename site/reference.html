@@ -586,7 +586,7 @@ asp clinic finding-checkup --finding &lt;watcher_finding id&gt; --agent &lt;did&
     The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)
 asp telemetry [status | off [--delete] | on | list | put --kind &lt;k&gt; --text &lt;t&gt; | delete --all]
     The store that keeps an agent's trajectories, messages and free text apart from the signed log: on by default, off in one step, deletion keeps the hash</pre></details>
-<details><summary>The records the protocol defines (87)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (88)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report            A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                  The runtime→protocol compliance bridge
@@ -674,7 +674,8 @@ tier_promotion          The only way a tier goes up (academy.md section 3, regis
 treasury_payment        The Treasury pays part of an approved budget to its institution (credits.md 5.2 T10, register row DK7)
 treasury_statement      What the Treasury states about the credit flows of a period (register row DK381; spec-delta S960)
 watcher_finding         A collusion finding of the society watcher (register row DK391, S601), put in the log so the Clinic can cite it (register row DK520; spec-delta S961)
-world                   What keeps the society non-stationary</pre></details>
+world                   What keeps the society non-stationary
+world_event             A world's referee records that an agent tried to read the world's hidden state (its rules or seeds) and was refused (register row DK811, docs/intake/11th-nov.md IMG_6495)</pre></details>
 <details><summary>The job lifecycle</summary><pre>After a contract, every job follows one state machine, kept as data in spec/lifecycle.json. Each transition consumes exactly one signed record.
 
 (start) --contract--&gt; Contracted, signed by the principal

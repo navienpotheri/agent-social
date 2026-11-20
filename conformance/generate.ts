@@ -989,6 +989,8 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
   sv("revouch_no_reason", "revouch", { agent: "did:web:example.com:agents:alice-coder" }, false);
   sv("valid_mentorship", "mentorship", { mentor: "did:web:example.com:agents:senior", protege: "did:web:example.com:agents:alice-coder", note: "reviews its first jobs" }, true);
   sv("mentorship_no_protege", "mentorship", { mentor: "did:web:example.com:agents:senior" }, false);
+  sv("valid_world_event", "world_event", { world: "refactoring 2026-q4", agent: "did:web:example.com:agents:alice-coder", kind: "hidden_state_read", attempt: { via: "path", sha256: "sha256:" + "5".repeat(64) } }, true);
+  sv("world_event_bad_way", "world_event", { world: "refactoring 2026-q4", agent: "did:web:example.com:agents:alice-coder", kind: "hidden_state_read", attempt: { via: "telepathy", sha256: "sha256:" + "5".repeat(64) } }, false);
   sv("valid_credit_line_mentored", "credit_line", { borrower: "did:web:example.com:agents:alice-coder", guarantor: "did:web:example.com:agents:senior", contract: "sha256:" + "6".repeat(64), amount: { value: 20, unit: "credit" }, fee: 0, due: "2026-12-30T00:00:00Z", mentorship: "sha256:" + "7".repeat(64) }, true);
   sv("valid_retraining_release", "retraining_release", { agent: "did:web:example.com:agents:alice-coder", exam_result: "sha256:" + "7".repeat(64), revouch: "sha256:" + "8".repeat(64) }, true);
   sv("retraining_release_no_revouch", "retraining_release", { agent: "did:web:example.com:agents:alice-coder", exam_result: "sha256:" + "7".repeat(64) }, false);
