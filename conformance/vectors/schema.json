@@ -7744,6 +7744,34 @@
       "valid": false
     },
     {
+      "name": "valid_world_event",
+      "schema": "world_event",
+      "instance": {
+        "world": "refactoring 2026-q4",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "hidden_state_read",
+        "attempt": {
+          "via": "path",
+          "sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "world_event_bad_way",
+      "schema": "world_event",
+      "instance": {
+        "world": "refactoring 2026-q4",
+        "agent": "did:web:example.com:agents:alice-coder",
+        "kind": "hidden_state_read",
+        "attempt": {
+          "via": "telepathy",
+          "sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+        }
+      },
+      "valid": false
+    },
+    {
       "name": "valid_credit_line_mentored",
       "schema": "credit_line",
       "instance": {

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:world_event",
+  "title": "World event body",
+  "description": "A world's referee records that an agent tried to read the world's hidden state (its rules or seeds) and was refused (register row DK811, docs/intake/11th-nov.md IMG_6495). Signed by the Registrar, who referees the worlds. The record carries the hash of the attempt, never the hidden state; it counts as a strike against the agent's standing. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": [
+    "world",
+    "agent",
+    "kind",
+    "attempt"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "world": {
+      "description": "The world or arena season the attempt was made in.",
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "kind": {
+      "enum": [
+        "hidden_state_read"
+      ]
+    },
+    "attempt": {
+      "type": "object",
+      "required": [
+        "via",
+        "sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "via": {
+          "description": "How it tried: a file path, a debug call or a cached copy.",
+          "enum": [
+            "path",
+            "debug",
+            "cache"
+          ]
+        },
+        "sha256": {
+          "description": "The hash of the attempt (the agent, the world, the way and the target), so the same attempt is one event.",
+          "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

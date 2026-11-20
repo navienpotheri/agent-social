@@ -123,6 +123,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.treasury_statement/v0.2` | What the Treasury states about the credit flows of a period (register row DK381; spec-delta S960): its balance, whether the whole log reconciles, and the hash of the full statement (inflows, outflows, each institution's budget line) as the log computed it, so a published page can be checked against the signed record. | `period`, `balance`, `reconciles`, `statement_sha256` |
 | `asp.watcher_finding/v0.2` | A collusion finding of the society watcher (register row DK391, S601), put in the log so the Clinic can cite it (register row DK520; spec-delta S961). | `finding_id`, `kind`, `agents`, `why`, `detected_at` |
 | `asp.world/v0.2` | What keeps the society non-stationary: a calendar entry (a scheduled change with a start, an end and an effect) or a day record (the events a seeded generator produced for one day, with the seed). | `kind` |
+| `asp.world_event/v0.2` | A world's referee records that an agent tried to read the world's hidden state (its rules or seeds) and was refused (register row DK811, docs/intake/11th-nov.md IMG_6495). | `world`, `agent`, `kind`, `attempt` |
 
 Bodies are defined in [`spec/schemas/`](spec/schemas/); the common definitions (DIDs, ids, amounts, timestamps) are in `common.schema.json`. An agent package, which carries an agent between runtimes with its history, is described by `package.schema.json` and the runtime-neutral harness in [`spec/package/harness.schema.json`](spec/package/harness.schema.json).
 

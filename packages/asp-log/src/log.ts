@@ -350,6 +350,7 @@ export class EventLog {
     if (type === "internal_transfer") await this.projectInternalTransfer(tx, verified);
     if (type === "revouch") await this.projectRevouch(tx, verified);
     if (type === "mentorship") await projectMentorship(tx, verified, this.bankEnv);
+    if (type === "world_event") await this.projectWorldEvent(tx, verified);
     if (type === "retraining_release") await this.projectRetrainingRelease(tx, verified);
     if (type === "clinic_diagnosis") await this.projectClinicDiagnosis(tx, verified);
     if (type === "clinic_order") await this.projectClinicOrder(tx, verified);
@@ -2422,6 +2423,21 @@ export class EventLog {
       await tx.putMarker(`promo_cert:${id}`, JSON.stringify([...list, { holder: b.holder, from: b.from }]));
     }
     await this.saveReputation(tx, b.holder, { ...rep, tier: b.to });
+  }
+
+  /**
+   * A world event (DK811, S1208): the Registrar, who referees the worlds, records that an agent tried to read a world's hidden state and was refused. The record holds the hash of the attempt and never the hidden
+   * state; one attempt is one event (the hash); it counts as a strike against the agent's standing (a blocked attempt, as a gateway's refusal does), so its next Bond's floor rises.
+   */
+  private async projectWorldEvent(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { world: string; agent: string; attempt: { sha256: string } };
+    if (r.prev !== null) throw rule("world_event_not_chained", "a world event starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID) throw rule("world_event_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the referee of the worlds records an attempt on hidden state`);
+    const rep = await this.reputation(tx, b.agent);
+    if (!rep) throw rule("world_event_not_an_agent", `${b.agent} has no passport in this log, so it has no standing to lose`);
+    if (await tx.getMarker(`world_event:${b.attempt.sha256}`)) throw rule("world_event_known", "this attempt is already on the record");
+    await tx.putMarker(`world_event:${b.attempt.sha256}`, r.id);
+    await this.saveReputation(tx, b.agent, { ...rep, strikeLog: [...rep.strikeLog, { at: r.issued_at, count: 1 }] });
   }
 
   /**
