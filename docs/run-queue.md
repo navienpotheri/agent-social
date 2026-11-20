@@ -152,3 +152,5 @@ Count of docs/gaps-register.md rows, one per DK id, as of 2026-11-19 late: Prior
 - 2026-11-20 (lead, owner instruction): token optimisation for society agents queued as DK1313 (the sponsor carries the token cost unless handed over); build after DK1309 so the saving is measured against held-out score.
 
 - 2026-11-20 (lead, owner instruction): DK1314 (role and standing from behaviour), DK1315 (per-agent world models that evolve), DK1316 (a catalogue of at least twelve games; only Twenty-One and hide-and-seek exist, no poker). DK1311 now carries the candidate methods from the owner's shared link.
+
+- 2026-11-20 (lead, owner question): exploration worlds queued as DK1317 with a proposed set of seven worlds; none exists yet.
