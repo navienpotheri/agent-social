@@ -355,3 +355,24 @@ test("DK386: the Bank's monthly report counts the lines opened in a month and wh
   await assert.rejects(() => kit.log.bankMonthly("November"), /YYYY-MM/);
   void bondId;
 });
+
+test("DK780: a line for a job below class routine is refused and one at or above is accepted; a contract with no posting reads as routine", async () => {
+  const w = await world(600);
+  const { kit } = w;
+  const classed = async (agent: Party, cls: string, price = 100) => {
+    const intent = kit.mk("intent", w.principal, { purpose: `A ${cls} job`, acceptance_criteria: ["done"], budget: credit(price), class: cls, deadline: "2027-12-03T18:00:00Z", verification: { mode: "principal" } }, null, { subject: w.principal.did });
+    await kit.put(intent);
+    const c = cosign(kit.mk("contract", w.principal, { principal: w.principal.did, performer: agent.did, bank: bankP.did, purpose: `A ${cls} job`, price: credit(price), verification: "deterministic", deadline: "2027-12-03T18:00:00Z", basis: { intent: intent.id, offer: hashOf("1") } }, null, { subject: agent.did }), agent);
+    await kit.put(c);
+    return c.id;
+  };
+  const trivialAgent = await w.newcomer("trivial-agent");
+  const trivial = await classed(trivialAgent, "trivial", 5);
+  assert.equal(await kit.log.jobClassOf(trivial), "trivial");
+  assert.equal(await refused(kit.put(w.line(trivialAgent, trivial))), "line_job_below_routine");
+  const routineAgent = await w.newcomer("routine-agent");
+  const routine = await classed(routineAgent, "routine", 100);
+  assert.ok(await kit.put(w.line(routineAgent, routine)), "routine is accepted");
+  const noPostingAgent = await w.newcomer("no-posting-agent");
+  assert.ok(await kit.put(w.line(noPostingAgent, await w.contract(noPostingAgent))), "no posting reads as routine");
+});

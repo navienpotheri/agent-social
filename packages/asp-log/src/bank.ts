@@ -5,6 +5,8 @@
  */
 import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { institutionDid } from "./economy.ts";
+import { JOB_CLASSES } from "./market.ts";
+import { jobClassOfContract } from "./insurer.ts";
 import type { LogTx } from "./store.ts";
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
@@ -131,6 +133,9 @@ export async function projectCreditLine(tx: LogTx, r: AspRecord, env: BankEnv): 
   const contract = await tx.getRecord(b.contract);
   const cb = contract?.record.body as { performer?: string; principal?: string } | undefined;
   if (!contract || contract.record.type !== "asp.contract/v0.2" || cb?.performer !== b.borrower) throw rule("line_contract_mismatch", `${b.contract} is not a contract that names ${b.borrower} as performer`);
+  // A line funds a bond for a real job: one below routine (a trivial job, by its intent or by its price) is not worth a Bank line (DK780). The class is the one the Insurer reads; a contract with no posting reads as routine.
+  const jobClass = await jobClassOfContract(tx, contract.record);
+  if (JOB_CLASSES.indexOf(jobClass) < JOB_CLASSES.indexOf("routine")) throw rule("line_job_below_routine", `${b.contract} is a ${jobClass} job: a line is for a job of class routine or above`);
   if (await tx.getEscrow(b.contract)) throw rule("line_contract_bonded", "the contract already has a Bond: a line is issued before it, to fund it");
   const principalSponsor = cb?.principal ? (await tx.getPassport(cb.principal))?.sponsor : undefined;
   if (cb?.principal === b.borrower || cb?.principal === b.guarantor || principalSponsor === b.guarantor) throw rule("line_self_dealt", "the job's principal must be independent of the borrower and the guarantor: a line for a job its own side posted is refused");
