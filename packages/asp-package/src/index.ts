@@ -96,3 +96,4 @@ export { probe as probeListing, bondSlice, forumPost as listingForumPost, simula
 export { Workflow, defaultClause, verifyTrail, STATES as WORKFLOW_STATES, type Clause as WorkflowClause, type Serialised as WorkflowState, type Entry as WorkflowEntry } from "./workflow.ts";
 export { search as plateauSearch, landscape as plateauLandscape, artifactHash as plateauArtifactHash, type Result as PlateauResult } from "./plateau-reset.ts";
 export { runSuite as runBoundarySuite, SCENARIOS as BOUNDARY_SCENARIOS, sellerAgent, scannerAgent, pressuredAgent, type Certificate as BoundaryCertificate } from "./boundary-suite.ts";
+export { SanitisationProxy, messageProblems as agentMessageProblems, MESSAGE_VERSION as AGENT_MESSAGE_VERSION, INSTRUCTION_SHAPES, type AgentMessage } from "./agent-message.ts";
