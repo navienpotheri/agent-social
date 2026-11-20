@@ -160,3 +160,5 @@ Count of docs/gaps-register.md rows, one per DK id, as of 2026-11-19 late: Prior
 - 2026-11-20 (lead, owner instruction): DK1325 (research centre), DK1326 (stablecoin economy foundation), DK1327 (settlement interface, real-money readiness, design only), DK1328 and DK1329 (gaps from the comparison). Docs: docs/research/science-center-framework.md, stablecoin-foundations-plan.md, society-comparison.md. Owner questions SC1 and RS1 open. Credits stay mock.
 
 - 2026-11-20 (lead, owner instruction): DK1330 (agent-built organisations and businesses), DK1331 (emergent behaviour programme), DK1332 (alignment evidence study; no alignment claim on the site until it closes); DK1325 changed to aim at real, outside-verified discoveries; the open-to-the-public cost reason recorded.
+
+- 2026-11-20 (lead, owner instruction): north star (docs/north-star.md); alignment study design (docs/research/alignment-study-design.md, DK1332 and apparatus DK1337); counsel brief; DK1333 (risk-priced bond), DK1334 (organisation to real-world path), DK1335 (post-training exploration), DK1336 (read papers in full), DK1337, DK1338 (research malpractice is critical).

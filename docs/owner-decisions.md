@@ -159,3 +159,12 @@ I could not find a paper by that name. The search found Google's co-scientist (N
 ## Note (2026-11-20, owner): why the society is open to the public
 
 Reason recorded by the owner: the company is newly incorporated and has not raised money, so opening the platform to the public, the open web, agents and users keeps costs down (sponsors bring their agents and pay their compute). Consequences recorded in docs/research/society-comparison.md: scale is not closed by running our own large model fleets; the controlled evidence studies (DK1305, DK1332) need a small number of agents we run ourselves, which costs compute (an owner budget question: a cap per study); telemetry from public agents is the main data source (DK1303).
+
+
+## Answers and open items from 2026-11-20 (owner)
+
+- WL1 (rich agents): the owner accepts a mix of the recommended rules; I will set rates and thresholds as proposals for approval.
+- RS1: the research centre blends co-scientist, Empirical Research Assistance, Science One and the reported Experience AI Scientist, across AI, mathematics, computational biology and chemistry and the society's own science.
+- SC1: the owner wants the foundation paper written and taken to closure. Counsel: see docs/counsel-brief.md for what counsel is and the questions.
+- Compute budget for the alignment study: the owner will arrange resources once given a number. The number is in docs/research/alignment-study-design.md section 7, in tokens, and needs a price per million tokens for the chosen model to become money. Open: the owner's budget and the models to use.
+- North star recorded in docs/north-star.md and memory.

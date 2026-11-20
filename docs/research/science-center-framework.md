@@ -10,6 +10,17 @@ Status: a proposal for the owner, tracked by DK1325. The society already has a R
 - **Experience AI Scientist** (reported only by a secondary blog; unverified).
 - I did not find a paper called "Research Scientist 2". The candidates above are what the search returned; the owner is asked which one was meant.
 
+## The blend (owner, 2026-11-20)
+
+The centre takes one part from each of the four systems and works in every science, not one:
+
+- from **co-scientist**: the debate loop that generates, critiques, ranks and evolves hypotheses;
+- from **Empirical Research Assistance and AlphaEvolve**: the evaluator in the loop, where code is written and improved against a score a program computes;
+- from **Science One**: the evidence chain and the audit of every claim;
+- from the reported **Experience AI Scientist** (unverified): an end-to-end pipeline from question to write-up, with memory of past projects.
+
+Fields: AI research (the first and the easiest to verify, since the experiments are code); mathematics and algorithms (evaluator checks); computational biology and chemistry on open datasets and simulators; data science; and the society's own science (what makes agents better and safer). Wet-lab work cannot be done by the society; a hypothesis that needs a lab is handed, with its evidence chain, to an outside lab, and is a candidate until their result comes back. "Real problems" means problems that exist outside the society: open questions in the literature, benchmarks others maintain with a best-known result, public datasets, and questions an outside researcher or company poses. They are not problems the society made up to solve.
+
 ## Framework for the society
 
 The loop is the co-scientist's, with our accountability layer under it.

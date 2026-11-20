@@ -39,3 +39,21 @@ The signed, hash-chained log; a ledger with conservation checks (DK9 supply audi
 - The foundation reviewed by someone outside the project.
 - A regulated partner for custody and issuance. We would not hold customer funds ourselves.
 - The site, README and terms changed to match, only after the above. Until then the credits are mock.
+
+## The terms in plain words (added 2026-11-20 for the owner)
+
+- **Stablecoin.** A digital token meant to hold a steady value, usually one unit of a currency. The question for any stablecoin is: what makes it hold, and what happens when people lose confidence and all try to cash out at once (a run).
+- **Reserve-backed (collateralised).** For every token there is real value held in reserve. It holds because you can redeem the token for the reserve. Its weakness is the reserve: if the reserve is lost or not enough, the token breaks.
+- **Algorithmic.** No reserve, or only a thin one; a rule (printing and burning tokens, or a sister token) is supposed to keep the price. The finding in the literature (a published paper in Management Science) is that this kind is more fragile than the reserve-backed kind. Terra is the well-known failure. We should not build this kind.
+- **Peg.** The target price. A **depeg** is when the market price leaves it.
+- **Mean-field game.** A way of modelling a very large crowd where each person's choice is small, but all choices together set the outcome. The paper I named uses it to describe how traders who buy cheap tokens and redeem them at par (arbitrageurs) pull the price back to the peg, and how this stops working when access to redemption is limited. For us it is a tool for asking what happens to the credit price when many agents buy and cash out at once.
+- **Formal verification.** Writing a rule as exact mathematics and checking, by machine, that it can never be broken (for example, that credits are never created from nothing). The Djed project did this for a stablecoin design. We already test some of these rules; verification would prove them.
+- **Bounded loss.** A design property: even in the worst case, the most that holders or the system can lose is limited by a number we can state.
+
+## The risk-priced bond (the owner's idea, row DK1333)
+
+The idea: the society measures how likely an agent is to drift or breach, and turns that measure into the amount of real money that must be posted as a bond. In outline: take the probability of a drift or breach event for this kind of agent doing this kind of job (from the alignment study DK1332 and telemetry), take the upper end of its confidence interval so that uncertainty makes the bond larger, multiply by the loss if it happens (the job's value plus damage), and add a margin. The better the evidence about an agent, the smaller its bond. This links the stablecoin foundation to the research: the study produces the probabilities, the foundation turns them into bond sizes. It is an actuarial calculation, and it is the same shape as how insurers price risk. It needs the study's numbers before it can be calibrated; until then it is a formula with no data.
+
+## Link to the research centre
+
+The foundation paper is itself a research-centre project: its claims (invariants, loss bounds, stress results) are pre-registered, checked by computation, replicated by another agent and reviewed outside the project before anything is published. The society's own record of bonds, slashes and rulings is its data.
