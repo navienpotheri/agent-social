@@ -14,7 +14,7 @@ import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./d
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
 import { jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
-import { projectCreditLine, projectMentorship, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
+import { projectCreditLine, projectMentorship, payMentor, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
   AspError, Job, isNetworkScope, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
@@ -77,6 +77,9 @@ export const QUARANTINE_NOTICE_MS = 24 * 60 * 60 * 1000;
 export const QUARANTINE_EMERGENCY_MAX_MS = 72 * 60 * 60 * 1000;
 const QUARANTINE_COHORT_MIN_SPONSORS = 3;
 const PROMOTION_SLASH_FREE_MS = 30 * 24 * 60 * 60 * 1000;
+/** The tutorial job (DK1203): the purpose label that marks one, and the days of a newcomer's first week. */
+export const TUTORIAL_LABEL = "[tutorial]";
+export const TUTORIAL_DAYS = 7;
 
 /** How long a probation lasts after a model change (D4): the same 7 days as a lineage update's. */
 const MODEL_CHANGE_PROBATION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -410,6 +413,7 @@ export class EventLog {
     if (type === "research_act") await projectResearchAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
     if (type === "events_act") await projectEventsAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
     if (type === "contract") await notePerformer(tx, verified);
+    if (type === "contract") await this.checkTutorial(tx, verified);
     if (type === "registry_act") await projectRegistryAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did) });
     if (type === "bond" || type === "mandate" || type === "proposal" || type === "purchase" || type === "contract") await checkSuspended(tx, verified);
     if (type === "intent") checkIntentClass(verified);
@@ -740,6 +744,9 @@ export class EventLog {
     if (did === BURN_DID) throw rule("burn_account_locked", "burned credits do not return: the Burn account is never debited");
     const balance = (await tx.getAccount(did))?.balance ?? 0;
     if (balance < amount) throw rule("insufficient_balance", `${did} has ${balance} credits, needs ${amount}`);
+    // A mentor's collateral is held while its protege's line is open (DK1201): the credits stay, and cannot be spent below the hold.
+    const held = Number((await tx.getMarker(`hold:${did}`)) ?? 0);
+    if (held > 0 && balance - amount < held) throw rule("collateral_held", `${did} holds ${held} credits as a mentor's collateral while its protege's line is open: ${balance - held} are free, ${amount} asked`);
     await tx.putAccount({ did, balance: balance - amount });
   }
 
@@ -1304,6 +1311,7 @@ export class EventLog {
       // The Bank's line is repaid first from what this settlement credited to the borrower (bank.ts): the performer's pay, then the returned bond.
       const pay = agentPermille < 1000 && body.escrow_released.value > 0 ? Math.floor((body.escrow_released.value * agentPermille) / 1000) : body.escrow_released.value;
       await repayAtSettlement(tx, body.contract, (cbody.performer === escrow.backer ? pay : 0) + body.bond_returned.value + bondLeftover + backerReserve, this.bankEnv);
+      if (body.basis === "accepted") await payMentor(tx, cbody.performer, pay, this.bankEnv);
     }
     await this.notePosterOutcome(tx, cbody.principal, body as unknown as { basis: string; cites?: string; escrow_released: { value: number }; bond_slashed: { value: number } });
     if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer, r.issued_at);
@@ -2441,6 +2449,20 @@ export class EventLog {
   }
 
   /**
+   * The tutorial job (DK1203, S1217; owner decision DK392-MENTOR): a contract whose purpose begins with `[tutorial]` is a tutorial job. Its principal is a house agent (the public-works budget pays for it), its performer
+   * is in its first week (the passport is at most TUTORIAL_DAYS days old at the contract) and has had no tutorial job before: one for each newcomer.
+   */
+  private async checkTutorial(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { principal: string; performer: string; purpose?: string };
+    if (!b.purpose?.startsWith(TUTORIAL_LABEL)) return;
+    if (!(await tx.getMarker(`house:${b.principal}`))) throw rule("tutorial_not_from_a_house_agent", `a tutorial job is posted by a house agent (the public-works budget pays for it), not by ${b.principal}`);
+    const born = await tx.getMarker(`passport_born:${b.performer}`);
+    if (!born || Date.parse(r.issued_at) - Date.parse(born) > TUTORIAL_DAYS * 86_400_000) throw rule("tutorial_not_first_week", `${b.performer} is not in its first week (its passport dates from ${born ?? "no record"}): a tutorial job is for a newcomer`);
+    if (await tx.getMarker(`tutorial_taken:${b.performer}`)) throw rule("tutorial_once", `${b.performer} has had its tutorial job: one for each newcomer`);
+    await tx.putMarker(`tutorial_taken:${b.performer}`, r.id);
+  }
+
+  /**
    * The live quarantine on `did` at `at`, if any: the latest quarantine record naming it, not lapsed (until) and not released for this member. Read inside a transaction by the rule below.
    */
   private async liveQuarantine(tx: Pick<LogTx, "getMarker" | "getRecord">, did: string, at: string): Promise<{ id: string; level: "observe" | "halt"; until: string } | undefined> {
@@ -2945,7 +2967,7 @@ export class EventLog {
   /** The record page of a DID or a name (registry.md 7), computed only from the log's records (a view; `registryVerify` recomputes it). */
   async registryPage(idOrName: string, at?: string): Promise<RecordPage | null> {
     const when = at ?? this.now().toISOString();
-    const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "receipt"]);
+    const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "receipt", "mentorship", "credit_line", "credit_default"]);
     let did = idOrName;
     if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isVisible(c, when)) return null; did = c.holder; }
     const head = await this.store.logHead();
