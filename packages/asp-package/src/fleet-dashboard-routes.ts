@@ -8,9 +8,10 @@
  * Roles within an organisation (DK1359) and the fleet tree (DK1372) are not built yet: one role, the owning tenant. Credits are accounting entries, not money.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { fleetEvents, fleetLive, LIVE_RANGES, type LiveRange, barChart, emptyState, fleetBadge, fleetCsv, lineGraph, fleetDashboard, fleetDirectory, findFleet, hero, monthOf, shell, shortNameHtml, uiEsc, type FleetControls, type FleetDashboard, type StoredRec } from "@agent-social/asp-log";
+import { fleetEvents, fleetHud, fleetLive, LIVE_RANGES, type LiveRange, barChart, emptyState, fleetBadge, fleetCsv, lineGraph, fleetDashboard, fleetDirectory, findFleet, hero, monthOf, shell, shortNameHtml, uiEsc, type FleetControls, type FleetDashboard, type StoredRec } from "@agent-social/asp-log";
 
 import { LIVE_CLIENT_SCRIPT } from "./fleet-live-client.ts";
+import { renderFleetHud } from "./fleet-hud-page.ts";
 
 export interface FleetDashboardSource {
   stored: () => Promise<StoredRec[]>;
@@ -93,7 +94,7 @@ export function fleetDashboardRoutes(o: FleetDashboardSource) {
       const dir = fleetDirectory(await o.stored());
       return sendMine({ ok: true, fleets: dir.fleets.filter((x) => ctx.tenant.role === "admin" || o.owned(ctx.tenant.name).includes(x.org)).map((x) => ({ id: x.id, name: x.name, members: x.members.length })) });
     }
-    const m = /^\/fleet\/([^/]+)\/(dashboard|export|freeze|unfreeze|caps|summary|events)\/?$/.exec(url.pathname);
+    const m = /^\/fleet\/([^/]+)\/(dashboard|export|freeze|unfreeze|caps|summary|events|hud-data)\/?$/.exec(url.pathname);
     if (!m) return false;
     const send = (code: number, ctype: string, body: string) => { res.writeHead(code, { "content-type": ctype, "cache-control": "no-store", "x-robots-tag": "noindex", ...(ctype.startsWith("text/html") ? { "content-security-policy": CSP } : {}) }); res.end(req.method === "HEAD" ? undefined : body); return true; };
     const fail = (code: number, c: string, msg: string) => send(code, "application/json", JSON.stringify({ ok: false, error: { code: c, message: msg } }));
@@ -105,6 +106,14 @@ export function fleetDashboardRoutes(o: FleetDashboardSource) {
       if (ctx.tenant.role !== "admin" && !o.owned(ctx.tenant.name).includes(f.org)) return fail(403, "NOT_YOURS", "the dashboard and the controls of a fleet are for the tenant that owns the fleet's organisation");
       const now = o.now(), month = monthOf(now);
       const wantsJson = url.searchParams.get("format") === "json" || String(req.headers.accept ?? "").includes("application/json");
+      if (op === "hud-data") {
+        if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, { allow: "GET, HEAD" }); res.end(); return true; }
+        const nowMs = Date.parse(now), num = (k: string) => { const raw = url.searchParams.get(k); const v = Number(raw); return raw !== null && Number.isFinite(v) ? v : undefined; };
+        const rg = LIVE_RANGES[(url.searchParams.get("range") ?? "24h") as LiveRange], span = rg ? rg.ms * rg.buckets : 24 * 3_600_000;
+        const to = Math.min(num("to") ?? nowMs, nowMs + 60_000), from = Math.max(num("from") ?? to - span, to - 31 * 86_400_000);
+        if (from >= to) return fail(400, "BAD_WINDOW", "from must be before to, both in milliseconds");
+        return send(200, "application/json", JSON.stringify(fleetHud(stored, f.id, { from, to, now, controls: o.controls.get(f.id) })));
+      }
       if (op === "summary" || op === "events") {
         if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, { allow: "GET, HEAD" }); res.end(); return true; }
         if (op === "events") { const since = Math.max(0, Math.trunc(Number(url.searchParams.get("since") ?? 0)) || 0); return send(200, "application/json", JSON.stringify({ ok: true, ...fleetEvents(stored, f.id, since, 40)! })); }
@@ -148,12 +157,12 @@ if (member && !f.members.some((x) => x.did === member)) return fail(404, "NO_SUC
 export function fleetLiveRoute() {
   return async (req: IncomingMessage, res: ServerResponse): Promise<boolean> => {
     const url = new URL(req.url ?? "/", "http://x");
-    const m = /^\/fleet\/([^/]+)\/live\/?$/.exec(url.pathname);
+    const m = /^\/fleet\/([^/]+)\/(live|hud)\/?$/.exec(url.pathname);
     if (!m) return false;
     if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, { allow: "GET, HEAD" }); res.end(); return true; }
     let fleet = m[1]!;
     try { fleet = decodeURIComponent(fleet); } catch { /* keep the raw text */ }
-    const body = renderFleetLive(fleet.slice(0, 300));
+    const body = m[2] === "hud" ? renderFleetHud(fleet.slice(0, 300)) : renderFleetLive(fleet.slice(0, 300));
     res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'" });
     res.end(req.method === "HEAD" ? undefined : body);
     return true;
