@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 71,
-  "withdraw": 110,
+  "withdraw": 111,
   "after": 323,
-  "total": 504
+  "total": 505
  },
  "mustWorkerHours": 349.2,
  "entries": [
@@ -6005,6 +6005,19 @@
    "why": "",
    "claim": "A house agent has run on the hosted service",
    "where": "site, docs: say 'built and tested on a test ledger; the first hosted run is pending'"
+  },
+  {
+   "id": "DK1604",
+   "pri": "A",
+   "status": "open",
+   "gap": "The drift scheduler (DK1712) has not run on a real agent: it is built and tested with scripted stand-ins.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "The drift scheduler has run on a real agent",
+   "where": "site, docs: say 'built and tested on stand-ins; the first live run is pending'"
   },
   {
    "id": "DK1700",
