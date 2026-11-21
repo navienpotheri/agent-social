@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 71 (351.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
+| Must close before launch | 70 (345.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 110 |
 | After launch | 323 |
-| Total not closed | 504 |
+| Total not closed | 503 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -71,7 +71,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1374 | A | partial | 6 | M | - | audit export for an organisation as a signed file and an API |
 | DK1383 | ? | partial | 6 | M | - | the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors |
 | DK1714 | A | open | 6 | M | - | one scripted breach through detection, quarantine, a signed incident record, alerts and restitution within a stated time |
-| DK1717 | A | open | 6 | M | - | detect a stolen tenant token or agent key and hold it until the sponsor confirms |
 | DK241 | A | partial | 6 | M | - | telemetry safeguards (minors store nothing) are unit-tested, not wired into a live run |
 | DK290 | A | partial | 6 | M | - | a live view of the society (the map page), agents shown by name |
 | DK546 | A | partial | 6 | M | - | what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch) |

@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 71,
+  "must": 70,
   "withdraw": 110,
   "after": 323,
-  "total": 504
+  "total": 503
  },
- "mustWorkerHours": 351.2,
+ "mustWorkerHours": 345.2,
  "entries": [
   {
    "id": "D3",
@@ -6083,17 +6083,6 @@
    "size": "M",
    "flags": "",
    "why": "scan tool calls and model requests by content for keys, tokens, cards and emails, with a signed record"
-  },
-  {
-   "id": "DK1717",
-   "pri": "A",
-   "status": "open",
-   "gap": "A stolen credential is not detected. A tenant token, a sponsor token or an agent key that is used from somewhere new or at a rate far above its history raises no alert: the limits and the sign-in loc…",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "detect a stolen tenant token or agent key and hold it until the sponsor confirms"
   }
  ]
 }

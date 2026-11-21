@@ -1103,4 +1103,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1714 | A | open | Breach response is not tested end to end: detection, quarantine of the agent and its node, a signed incident record, alerts and the restitution path within a stated time. |
 | DK1715 | A | open | The starter Mandate has no default per-run and daily spend ceilings, alerts at 50, 80 and 100 percent, or a hard stop at the model call. |
 | DK1716 | A | open | Tool calls and model requests are not scanned by content for keys, tokens, card numbers and emails (the run log redacts what it writes; secret files are refused). |
-| DK1717 | A | open | A stolen tenant token or agent key is not detected: nothing notices use from a new place or at a rate far above its history. |
+| DK1717 | A | closed | A stolen tenant token or agent key is not detected: nothing notices use from a new place or at a rate far above its history. |
