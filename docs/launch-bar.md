@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 85 (316.2 worker-hours; 12 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 100 |
+| Must close before launch | 83 (305.2 worker-hours; 12 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Withdraw the claim until done | 107 |
 | After launch | 307 |
-| Total not closed | 492 |
+| Total not closed | 497 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -66,7 +66,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK740 | A | open | 3 | M | - | a service-held agent must be labelled (owner decision KO2) |
 | DK791 | A | open | 3 | M | - | the forum head is not signed or witnessed |
 | DK792 | A | open | 3 | M | - | forum wake signal and replies-to-you route are unfinished |
-| T26 | A | partial | 3 | M | - | bond floor v2 has no cutover rule; a replayed legacy log would be refused |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
 | U10 | B | open | 3 | M | - | no measurement of where people stop; ads without a funnel are blind |
 | DK1220 | A | open | 4 | M | - | no commands for a mentorship or the tutorial job |
@@ -97,7 +96,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | GV3 | A | partial | 6 | M | - | newcomers may find no jobs (cold start) |
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
-| DK121 | A | open | 8 | L | - | Code 3.8 promises a 72-hour hold so an appeal can change the money; the log must do it |
 | DK34 | A | partial | 8 | L | - | the forum is not public and has no moderation, rent or injection defence |
 | DK76 | A | partial | 16 | L | - | engine of change: the halt record and kill switch, the daily tick on the service (the safety slice) |
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
@@ -236,6 +234,13 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1400 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | SO9 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | SO13 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1452 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1453 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1454 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1455 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1456 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1457 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1458 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 
 ### Bucket 3: after launch
 

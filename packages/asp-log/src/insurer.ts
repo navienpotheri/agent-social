@@ -7,6 +7,7 @@ import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { TREASURY_DID, BURN_DID, institutionDid, splitParts } from "./economy.ts";
 import { effectiveClass, higherClass, type JobClass } from "./market.ts";
 import type { LogTx } from "./store.ts";
+import { effectiveFault } from "./courts-rules.ts";
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
 
@@ -173,8 +174,7 @@ export async function projectClaimDecision(tx: LogTx, r: AspRecord, env: Insurer
   const slashed = sb.bond_slashed.value;
   let fault = escrow && escrow.bondLocked > 0 ? Math.ceil((slashed * 1000) / escrow.bondLocked) : 0;
   if (sb.basis === "ruling" && sb.cites) {
-    const ruling = await tx.getRecord(sb.cites);
-    fault = (ruling?.record.body as { fault?: Record<string, number> } | undefined)?.fault?.[contract.performer] ?? fault;
+    fault = (await effectiveFault(tx, sb.cites))?.[contract.performer] ?? fault; // the corrected map after an appeal (S1400)
   }
   const terms = payoutFor(policy.cover, policy.insured, contract.price.value, slashed, fault);
   const reserve = await balanceOf(tx, INSURER_DID);

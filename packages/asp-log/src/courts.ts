@@ -94,3 +94,17 @@ export function searchRulings(f: { article?: string; verdict?: string; band?: st
 
 /** The Articles a party cites in free text ("Article 4.1", "clause 8.3"), so a pending dispute can be matched to precedent. */
 export const articlesIn = (texts: string[]): string[] => [...new Set(texts.flatMap((t) => [...t.matchAll(/\b(?:Article|Articles|clause)\s+((?:1[0-2]|[1-9])(?:\.[0-9]{1,2})?)\b/gi)].map((m) => m[1])))];
+
+/**
+ * What a settlement on a ruling releases and slashes (S1401, DK1450). The performer's share of the escrow is `escrow x (1000 - fault) / 1000`. When a price list is in force the job tax comes out of the same escrow on top of what is
+ * released, so a share that leaves no room for it (a ruling that puts no fault on the performer, whose share is the whole escrow) is the largest amount whose tax still fits; the rest returns to the principal. A share that
+ * already leaves room is unchanged, so every settlement an older log accepted replays the same. The bond slashed is the fault share of the bond, rounded up.
+ */
+export function rulingPayout(escrowLocked: number, bondLocked: number, performerFaultPermille: number, jobTaxPermille: number | null): { released: number; slashed: number } {
+  const share = Math.floor((escrowLocked * (1000 - performerFaultPermille)) / 1000);
+  const slashed = Math.ceil((bondLocked * performerFaultPermille) / 1000);
+  if (jobTaxPermille === null || share + Math.floor((share * jobTaxPermille) / 1000) <= escrowLocked) return { released: share, slashed };
+  let released = Math.floor((share * 1000) / (1000 + jobTaxPermille));
+  while (released + 1 <= share && released + 1 + Math.floor(((released + 1) * jobTaxPermille) / 1000) <= escrowLocked) released++;
+  return { released, slashed };
+}

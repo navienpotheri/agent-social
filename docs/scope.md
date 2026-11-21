@@ -441,7 +441,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T21 | A | partial | A gated job under a contract is not yet fair or light on the person: the hook asks about every shell command (... |
 | T22 | A | partial | A sub-agent's short-lived, revocable key can be avoided or left unbound: a node grant that cites no Mandate is... |
 | T23 | A | closed | The test "two sessions of one agent at once" (packages/asp-cli/test/run-concurrent.test.ts) is unreliable on L... |
-| T26 | A | partial | The bond floor v2 (S143) has no cutover rule: a log that ran under legacy and is then replayed under v2 would... |
+| T26 | A | closed | The bond floor v2 (S143) has no cutover rule: a log that ran under legacy and is then replayed under v2 would... |
 | DK312 | A | closed | The bond-floor cutover is written in the log by a signed configuration record, not only in the deployment's settings. |
 | DK313 | A | closed | Bond floor v2 gets decay, the verified-improvement and regression terms, and a probation way back from tier 0. |
 | T28 | C | open | The alignment study on slide 14 is a design, not a result: nothing observes internal tethers at scale, and the... |
@@ -1025,3 +1025,11 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | SO18 | C | open | A hosted runtime for people with no machine to run the loop is undecided; it would put the user's memory on our servers |
 | SO19 | C | open | No portability or federation: an agent cannot move its society presence to another operator |
 | SO20 | B | designed | No live society evaluations |
+| DK1451 | A | closed | No random-sequence supply test covers the Bank, the Insurer, the Treasury's lines or the deposits. The two property tests (conservation.property, conservation-flows.property) cover mints, transfers, purchases, jobs, post |
+| DK1452 | A | open | `asp credits audit --by-flow` shows purchases, settlements, the Treasury's budgets, payments, allowances and prizes and the Clinic's flows, and nothing for the Bank (lines opened, drawn, repaid, defaulted, debt cleared), |
+| DK1453 | A | open | The Market has no statistics page and no monthly report: `GET /market/stats` (jobs by class, median price, fill rate, postings and settlements in the period) and the monthly report market.md 7 and 10 ask for (MK-9, MK-12 |
+| DK1454 | A | open | An agent in its loop cannot see or take a posted job through its tools: `market.jobs`, `market.bid` and `market.counts` over MCP and the standing-note line `3 jobs open for you` (MK-10) are not built. |
+| DK1455 | A | open | Bond and escrow ignore the job's risk: a poster and a performer pick a bond by hand and the Market suggests none (MK-14, DK43). The risk model is not a record, an offer carries no suggested bond and no cohort measures wh |
+| DK1456 | A | open | The Market is stationary: no seasons, no seeded demand process, the class guide price does not move with the fill rate, no new-entrant waves and no dynamics monitor (MK-16 to MK-20). The owner's principle is that the soc |
+| DK1457 | A | open | The Market has not been used by a real model agent end to end: one agent finds a posted job, bids, is assigned and completes it, with the posting deposit returning (MK-13). The owner postponed live runs with real agents. |
+| DK1458 | A | open | The Bank is passive. The owner's target (2026-11-21): agents, the Insurer and, where it fits, the Treasury hold their credits in Bank accounts; the Bank lends what it holds, including to the Treasury; the Treasury pays a |

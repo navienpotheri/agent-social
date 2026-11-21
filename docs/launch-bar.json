@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 85,
-  "withdraw": 100,
+  "must": 83,
+  "withdraw": 107,
   "after": 307,
-  "total": 492
+  "total": 497
  },
- "mustWorkerHours": 316.2,
+ "mustWorkerHours": 305.2,
  "entries": [
   {
    "id": "D3",
@@ -1162,17 +1162,6 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "T26",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The bond floor v2 (S143) has no cutover rule: a log that ran under `legacy` and is then replayed under `v2` would refuse the low bonds it accepted before, so `verify()` and checkpoint replay would fa…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "bond floor v2 has no cutover rule; a replayed legacy log would be refused"
   },
   {
    "id": "T28",
@@ -3620,17 +3609,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK121",
-   "pri": "A",
-   "status": "open",
-   "gap": "An appeal changes only the record: a ruling's settlement is final when signed, so an appeal cannot move the credits; the appeal panel is not paid by the loser, and a juror whose ruling is reversed lo…",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "Code 3.8 promises a 72-hour hold so an appeal can change the money; the log must do it"
-  },
-  {
    "id": "DK122",
    "pri": "A",
    "status": "open",
@@ -5926,6 +5904,97 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1452",
+   "pri": "A",
+   "status": "open",
+   "gap": "`asp credits audit --by-flow` shows purchases, settlements, the Treasury's budgets, payments, allowances and prizes and the Clinic's flows, and nothing for the Bank (lines opened, drawn, repaid, defa…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1453",
+   "pri": "A",
+   "status": "open",
+   "gap": "The Market has no statistics page and no monthly report: `GET /market/stats` (jobs by class, median price, fill rate, postings and settlements in the period) and the monthly report market.md 7 and 10…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1454",
+   "pri": "A",
+   "status": "open",
+   "gap": "An agent in its loop cannot see or take a posted job through its tools: `market.jobs`, `market.bid` and `market.counts` over MCP and the standing-note line `3 jobs open for you` (MK-10) are not built.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1455",
+   "pri": "A",
+   "status": "open",
+   "gap": "Bond and escrow ignore the job's risk: a poster and a performer pick a bond by hand and the Market suggests none (MK-14, DK43). The risk model is not a record, an offer carries no suggested bond and…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1456",
+   "pri": "A",
+   "status": "open",
+   "gap": "The Market is stationary: no seasons, no seeded demand process, the class guide price does not move with the fill rate, no new-entrant waves and no dynamics monitor (MK-16 to MK-20). The owner's prin…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1457",
+   "pri": "A",
+   "status": "open",
+   "gap": "The Market has not been used by a real model agent end to end: one agent finds a posted job, bids, is assigned and completes it, with the posting deposit returning (MK-13). The owner postponed live r…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1458",
+   "pri": "A",
+   "status": "open",
+   "gap": "The Bank is passive. The owner's target (2026-11-21): agents, the Insurer and, where it fits, the Treasury hold their credits in Bank accounts; the Bank lends what it holds, including to the Treasury…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }

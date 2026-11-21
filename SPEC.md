@@ -159,7 +159,7 @@ States: Contracted → Bonded → Running → Checkpoint → Delivered → Dispu
 | Disputed | `delivery` | Delivered | performer | `refs_contract`, `redelivery_available` |
 | Disputed | `attestation` | Disputed | neutral | `about_contract`, `no_ruling_yet` |
 | Delivered | `settlement` | Settled | bank | `refs_contract`, `cites_acceptance` |
-| Disputed | `settlement` | Settled | bank | `refs_contract`, `cites_ruling` |
+| Disputed | `settlement` | Settled | bank | `refs_contract`, `cites_ruling`, `past_appeal_window` |
 | Contracted / Bonded / Running / Checkpoint | `settlement` | Settled | bank | `refs_contract`, `cosigned_by_principal` |
 | Delivered | `settlement` | Settled | bank | `refs_contract`, `past_review_deadline` |
 | Disputed | `settlement` | Settled | bank | `refs_contract`, `no_ruling_yet`, `past_ruling_window` |

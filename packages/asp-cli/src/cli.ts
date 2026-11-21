@@ -5608,13 +5608,16 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     }
     // A ruling's fault on the performer *is* the payout formula (asp-log's checkRulingPanel guard,
     // docs/spec-deltas.md S13) — derive it here rather than making the caller compute it by hand.
+    let rulingFees: number | undefined;
     if (basis === "ruling" && (escrowReleased === undefined || bondSlashed === undefined)) {
       const [rulingRec, escrow] = await Promise.all([local.log.get(cited!), local.log.escrow(contract)]);
       const contractRec = await local.log.get(contract);
       const performer = (contractRec!.record.body as any).performer;
-      const fault = (rulingRec?.record.body as any)?.fault?.[performer] ?? 0;
-      escrowReleased ??= Math.floor((escrow!.escrowLocked * (1000 - fault)) / 1000);
-      bondSlashed ??= Math.ceil((escrow!.bondLocked * fault) / 1000);
+      const fault = (await local.log.effectiveFault(cited!))?.[performer] ?? (rulingRec?.record.body as any)?.fault?.[performer] ?? 0; // the corrected map after an appeal (S1400)
+      const paid = await local.log.rulingSettlement(contract, cited!, now());
+      escrowReleased ??= paid?.escrow_released ?? Math.floor((escrow!.escrowLocked * (1000 - fault)) / 1000);
+      bondSlashed ??= paid?.bond_slashed ?? Math.ceil((escrow!.bondLocked * fault) / 1000);
+      if (v.fees === undefined && paid && paid.fees > 0) rulingFees = paid.fees; // the job tax of the price list in force, on top of what is released (S1401)
     }
 
     const body: Record<string, unknown> = {
@@ -5626,6 +5629,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     // Comes out of the same escrow, on top of escrow_released; credits to the local mock platform
     // account (EventLog.PLATFORM_DID) standing in for a real platform/Insurer recipient (MOCKS.md).
     if (v.fees) body.fees = { value: Math.trunc(Number(v.fees)), unit: "credit" };
+    else if (rulingFees) body.fees = { value: rulingFees, unit: "credit" };
     if (v["agent-permille"] !== undefined) body.earnings_split = { agent_permille: Math.trunc(Number(v["agent-permille"])) };
     if (basis === "revoked") body.pro_rata_permille =Math.trunc(Number(v["pro-rata"] ?? "0"));
     else if (basis === "accepted" || basis === "ruling") body.cites = cited;

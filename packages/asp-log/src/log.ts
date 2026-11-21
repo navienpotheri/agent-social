@@ -31,7 +31,8 @@ import { breadthProblem } from "./tier-breadth.ts";
 import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
-import { charterIn, checkCaseload, checkRulingExtras, closeDispute, projectCourtAct } from "./courts-rules.ts";
+import { rulingPayout } from "./courts.ts";
+import { charterIn, checkCaseload, checkRulingExtras, checkSettlementHold, closeDispute, effectiveFault, projectCourtAct } from "./courts-rules.ts";
 import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
 import { projectHousingAct } from "./housing-rules.ts";
@@ -1228,11 +1229,12 @@ export class EventLog {
       }
     }
     if (body.basis === "ruling") {
+      if (body.cites) await checkSettlementHold(tx, r, body.cites); // the 72-hour hold and an open appeal (S1400, DK121)
       const ruling = body.cites ? await tx.getRecord(body.cites) : undefined;
       const rbody = ruling?.record.body as { kind: string; fault?: Record<string, number> } | undefined;
-      const performerFault = rbody?.kind === "ruling" ? (rbody.fault?.[cbody.performer] ?? 0) : 0;
-      const expectedReleased = Math.floor((escrow.escrowLocked * (1000 - performerFault)) / 1000);
-      const expectedSlashed = Math.ceil((escrow.bondLocked * performerFault) / 1000);
+      // After an appeal that reversed or varied the ruling, the corrected fault map is the formula (S1400).
+      const performerFault = rbody?.kind === "ruling" ? ((await effectiveFault(tx, body.cites!))?.[cbody.performer] ?? 0) : 0;
+      const { released: expectedReleased, slashed: expectedSlashed } = rulingPayout(escrow.escrowLocked, escrow.bondLocked, performerFault, await this.jobTaxPermille(tx, r.issued_at));
       if (body.escrow_released.value !== expectedReleased || body.bond_slashed.value !== expectedSlashed) {
         throw rule("settlement_mismatches_ruling",
           `the ruling puts ${performerFault}‰ fault on the performer: escrow_released must be ${expectedReleased} (got ${body.escrow_released.value}), bond_slashed must be ${expectedSlashed} (got ${body.bond_slashed.value})`);
@@ -1260,7 +1262,7 @@ export class EventLog {
       const signers = ruling ? [ruling.record.sig.kid, ...(ruling.record.cosigs ?? []).map((c) => c.kid)].map(didOf) : [];
       const paid = [...new Set(signers.filter((d) => panel.includes(d)))];
       if (fee > 0 && paid.length > 0) {
-        const performerFault = (ruling!.record.body as { fault?: Record<string, number> }).fault?.[cbody.performer] ?? 0;
+        const performerFault = (await effectiveFault(tx, body.cites))?.[cbody.performer] ?? 0;
         // The performer's side pays from its fee reserve, then its bond left over, then the slashed part (which
         // would otherwise go to the principal); the principal's side from its reserve, then its escrow left over.
         const performerPool = backerReserve + bondLeftover + slashedToPrincipal;
@@ -3583,6 +3585,30 @@ export class EventLog {
     return out;
   }
 
+  /** The job tax in permille of the price list in force at `at`, or null when none is (credits.md CR-15). */
+  private async jobTaxPermille(tx: LogTx, at: string): Promise<number | null> {
+    const list = await this.priceListInForce(tx, Date.parse(at));
+    return list ? (list.record.body as unknown as PriceListBody).job_tax_permille : null;
+  }
+
+  /**
+   * What a settlement on a ruling must say for a contract, at `at` (S1401, DK1450): the performer's share of the escrow and the job tax on it, and the bond slashed, by the fault map the ruling stands on (the corrected one
+   * after an appeal). `undefined` when the contract has no Bond or the record is not a ruling.
+   */
+  async rulingSettlement(contract: string, ruling: string, at: string): Promise<{ escrow_released: number; fees: number; bond_slashed: number } | undefined> {
+    return this.store.transaction(async (tx) => {
+      const escrow = await tx.getEscrow(contract);
+      const cb = (await tx.getRecord(contract))?.record.body as { performer?: string } | undefined;
+      const fault = await effectiveFault(tx, ruling);
+      if (!escrow || !cb?.performer || !fault) return undefined;
+      const rate = await this.jobTaxPermille(tx, at);
+      const p = rulingPayout(escrow.escrowLocked, escrow.bondLocked, fault[cb.performer] ?? 0, rate);
+      return { escrow_released: p.released, fees: rate === null ? 0 : Math.floor((p.released * rate) / 1000), bond_slashed: p.slashed };
+    });
+  }
+
+  /** The fault map a ruling stands on: its own, or the corrected one when an appeal reversed or varied it (S1400, DK121). */
+  async effectiveFault(ruling: string): Promise<Record<string, number> | undefined> { return this.store.transaction((tx) => effectiveFault(tx, ruling)); }
   async creditAudit(): Promise<CreditAudit> { return auditLedger(await this.store.ledgerRows()); }
 
   /**
