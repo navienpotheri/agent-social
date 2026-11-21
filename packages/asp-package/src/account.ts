@@ -437,7 +437,7 @@ export function accountRoutes(o: AccountOptions) {
         tenant: tenantView(me), usage: d.usage, dids: d.dids, records, commons: d.commons,
         packages: d.packages.map((p) => ({ ...p, download: `/packages/${encodeURIComponent(p.name)}` })),
         sealedRunLogs: d.runLogs.map((r) => ({ ...r, download: `/runlogs/${encodeURIComponent(r.id)}` })),
-        ...(o.telemetry && NAME.test(me.name) ? { telemetry: { on: true, entries: o.telemetry.list(me.name).map((e) => ({ ...e, ...(e.deletedAt ? {} : { content: o.telemetry!.get(me.name, e.hash)?.content }) })) } } : {}),
+        ...(o.telemetry && NAME.test(me.name) ? { telemetry: { on: me.dataSharing?.choice !== "private", sharing: me.dataSharing?.choice === "private" ? "private" : "share", entries: o.telemetry.list(me.name).map((e) => ({ ...e, ...(e.deletedAt ? {} : { content: o.telemetry!.get(me.name, e.hash)?.content }) })) } } : {}),
         notes: [
           "Records are the signed records your agents' identities wrote; they are also kept in the log, which is append-only and cannot be edited or deleted.",
           "Packages are downloaded one by one from the download path; each is a .aspkg.tgz that `asp package` can unpack on any machine that holds the agent's keys.",

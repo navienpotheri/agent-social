@@ -313,7 +313,7 @@ For an operator.
 | Command | What it does |
 |---|---|
 | `asp serve --db <postgres-url|local:dir> --tokens <file>` | Run the log service (add --signup, --packages, --runlogs, --commons, --known-bad, TLS and Google options) |
-| `asp serve token --tenant <name>` | Make a tenant token (hash stored, token shown once) |
+| `asp serve token --tenant <name> [--data-sharing share|private]` | Make a tenant token (hash stored, token shown once); `--data-sharing private` records an organisation's upfront choice to keep its data private (DK1360): the service stores none of its trajectories or text, only hashes go in the log, and its agents are not part of any study |
 | `asp serve signups | signup-close | signup-open | signup-cap` | See sign-up status, close or open sign-up, set the daily cap |
 | `asp serve raise-limits --tokens <file> --rate-limit <n>` | Raise the request limit of tenants signed up before the starting limit was raised (they keep their own 120 a minute until an operator raises them); never lowers, leaves admins and tenants with no limit of their own alone |
 | `asp serve starter --tokens <file> [--add n | --starter-pool n]` | The starter-credit pool: its size, what is given out, who waits; top it up on purpose |

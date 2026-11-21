@@ -32,7 +32,7 @@ Written 2026-11-21 from docs/enterprise-fleets.md (the readiness checklist), the
 | # | Item | Status | Row(s) | Note |
 |---|---|---|---|---|
 | A1 | A fleet declaration command and bulk enrolment, invitations | planned | DK1353, DK1354, DK1371 | DK1353 is closed (the declaration); the rest are planned |
-| A2 | The enterprise's data-sharing choice (share or keep private) | planned | DK1360 | The text is drafted; the choice is not built |
+| A2 | The enterprise's data-sharing choice (share or keep private) | built | DK1360 | Set by the operator when the tenant is made (`asp serve token --data-sharing private`); a self-serve choice and a dashboard badge are coming |
 | A3 | A fleet dashboard and marking fleets in the society | planned | DK1361, DK1367 | The local dashboard shows copies; no fleet view |
 | A4 | Starter credits for every agent of a fleet | partial | DK1356 | Built in the log; the tenant claim form still says up to two identities (DK1470) |
 | A5 | Personal agents on a checked path per runtime | planned | DK1364 | |
