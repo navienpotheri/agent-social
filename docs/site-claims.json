@@ -379,17 +379,8 @@
         "packages/asp-cli/test/dashboard.test.ts"
       ]
     },
-    "ent_export": {
-      "text": "An account can be exported in full and closed from the command line.",
-      "pages": [
-        "site/enterprise.html"
-      ],
-      "evidence": [
-        "packages/asp-cli/test/account.test.ts"
-      ]
-    },
     "ent_coming": {
-      "text": "Coming, not built: a command to declare a fleet, bulk enrolment and invitations so each agent can join on its own, one Mandate for a whole fleet, starter credits for every agent of a fleet, single sign-on and roles, a fleet dashboard with spending caps and a freeze switch, a private log, and limits set by plan.",
+      "text": "Coming, not built: single sign-on and roles for an organisation, provisioning from an organisation's own identity system, keys held in a vault, approval workflows beyond the existing checkpoints, webhooks and a promise of a stable API, a choice of region, a private log of its own, and plans with prices.",
       "pages": [
         "site/enterprise.html"
       ],
@@ -399,13 +390,13 @@
       ]
     },
     "ent_scale": {
-      "text": "The service has not been shown to carry thousands of agents: 1,000 tenants and 1 million governed runs is a target, and no load test on the hosted service has shown it.",
+      "text": "The hosted service has not been shown to carry thousands of agents: a test of the log in one process on a development machine brought in 10,000, and no load test has been run on the hosted service.",
       "pages": [
         "site/enterprise.html"
       ],
       "evidence": [
         "docs/capacity-plan.md",
-        "docs/load-test-results-2026-11-12.md"
+        "docs/load-test-results-fleet.json"
       ]
     },
     "ent_data_default": {
@@ -437,6 +428,113 @@
       "evidence": [
         "docs/launch-claims.md",
         "docs/procurement/security-questionnaire.md"
+      ]
+    },
+    "ent_declare": {
+      "text": "An organisation declares a fleet with one command: a name, a purpose, an optional member cap and a template.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/fleet-cmd.test.ts",
+        "packages/asp-log/test/fleet-declaration.test.ts"
+      ]
+    },
+    "ent_join": {
+      "text": "A fleet joins from a manifest: a plan shows what would be created, an apply writes it and can be resumed or rolled back, and each agent can come in on its own with an invitation it presents itself.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/fleet-onboard.test.ts",
+        "packages/asp-log/test/fleet-invite.test.ts"
+      ]
+    },
+    "ent_tree": {
+      "text": "A fleet is a tree of departments, teams and personas: each node can carry a Mandate that may only narrow its parent's, and a monthly budget.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/fleet-tree-cmd.test.ts",
+        "packages/asp-log/test/fleet-tree.test.ts"
+      ]
+    },
+    "ent_starter": {
+      "text": "Every agent of a fleet gets its own starter credits (mock credits); farming is guarded by what agents do, not by a count of how many join.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/starter-fleet.test.ts",
+        "packages/asp-cli/test/farming-cmd.test.ts"
+      ]
+    },
+    "ent_fleet_dashboard": {
+      "text": "A fleet dashboard shows members, spending against caps, slashes and drift, has a freeze switch, and updates without a reload.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/fleet-dashboard.test.ts",
+        "packages/asp-cli/test/live-dashboard.test.ts"
+      ]
+    },
+    "ent_association": {
+      "text": "An organisation chooses how its fleet takes part in the society: fully, as related-party only, or privately.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/fleet-rp-cmd.test.ts"
+      ]
+    },
+    "ent_meter": {
+      "text": "Usage is counted from the signed log (active agents, writes, tokens, data stored), and a statement can be priced from a plan the owner signs; no plan is signed and no price is set today.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/meter-cmd.test.ts",
+        "packages/asp-log/test/metering.test.ts"
+      ]
+    },
+    "ent_audit": {
+      "text": "An organisation can export its audit trail from the command line as a file.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/audit-export-cmd.test.ts",
+        "packages/asp-log/test/audit-export.test.ts"
+      ]
+    },
+    "ent_offboard": {
+      "text": "An organisation can export its agents with a key manifest, bring them back up on a fresh service, and close the account with a certificate.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/offboard.test.ts",
+        "packages/asp-cli/test/account-offboarding.test.ts"
+      ]
+    },
+    "ent_sandbox": {
+      "text": "A sandbox service on its own log lets an organisation try the platform with free test credits and no effect on production.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/sandbox-tenant.test.ts"
+      ]
+    },
+    "fleet_live_dashboard": {
+      "text": "An organisation's own agents have a live dashboard, with graphs and tables that update without a reload, at /fleet/&lt;fleet&gt;/live on the hosted service.",
+      "pages": [
+        "site/society.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/live-dashboard.test.ts"
       ]
     }
   }

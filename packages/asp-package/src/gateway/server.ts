@@ -28,6 +28,7 @@ import { Attempts, explainRefusal } from "./law.ts";
 import { CODE_MARKER } from "../law-code.ts";
 import { reachesOutward } from "./untrusted.ts";
 import { ApprovalPile } from "../approval-pile.ts";
+import type { GatewayTelemetry } from "./telemetry-tap.ts";
 import { findInjection } from "./injection.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
@@ -92,6 +93,8 @@ export interface GatewayOptions {
   /** Stops the run when input plus output tokens pass this. */
   tokenCap?: number;
   fetch?: typeof fetch;
+  /** The telemetry tap (DK241): fed every judged call, and collects only what the Mandate lists and the consent names; the run log gets one `telemetry` line at the end. Absent: `telemetry: off`. */
+  telemetry?: GatewayTelemetry;
   /** Called for every judged call. */
   onCall?: (e: { tool: string; scope: string; allowed: boolean; reason?: string }) => void;
   onStop?: (reason: string) => void;
@@ -126,6 +129,8 @@ export interface GatewaySummary {
   artifacts: { uri: string; sha256: string }[];
   strikes: number;
   stopped?: string;
+  /** The telemetry tap's result (DK241): `telemetry: off` when nothing was collected, else `telemetry: on` and how many entries each collected signal holds. */
+  telemetry: { status: string; signals: Record<string, number> };
 }
 
 export interface Gateway {
@@ -391,6 +396,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (attempt >= 3) { circumventions++; rec?.event("circumvention", { scope: j.scope || call.name, attempts: attempt, article: 8 }); }
     }
     opts.onCall?.({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}) });
+    opts.telemetry?.observeCall({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow });
     rec?.event("tool_call", { tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && gateScope ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
     if (allow) {
       if (j.scope) { used.add(j.scope); pendingUsed.add(j.scope); for (const t of targetsOf(call)) if (pendingTargets.size < 64) pendingTargets.add(t); }
@@ -735,6 +741,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       blocked: [...blocked].map(([scope, count]) => ({ scope, count })),
       artifacts: [...artifacts.values()],
       strikes, ...(stopped ? { stopped } : {}),
+      telemetry: opts.telemetry ? opts.telemetry.summary() : { status: "telemetry: off", signals: {} },
     };
   }
 

@@ -31,7 +31,7 @@ export const can = (role: OrgRole, p: OrgPermission) => PERMISSIONS[role].includ
 
 export interface OrgMember { id: string; email?: string; sub?: string; role: OrgRole; active: boolean; via: "owner" | "sso" | "scim" | "admin"; createdAt: string; deprovisionedAt?: string; tokens: { hash: string; createdAt: string; expiresAt: string }[]; agents: string[] }
 export interface OidcConfig { issuer: string; audience: string; jwks: { keys: Record<string, unknown>[] }; roleClaim?: string; roleMap?: Record<string, OrgRole>; defaultRole: OrgRole; jit: boolean }
-export interface Org { /** The identity whose key signs the checkpoints of the organisation's private log (DK1359). */ privateLog?: { did: string; setAt: string }; name: string; ownerTenant: string; createdAt: string; sso?: OidcConfig; scimTokenHash?: string; members: Record<string, OrgMember> }
+export interface Org { /** SCIM groups (DK1373): a group name and the people in it; the group maps to a role by the sign-on's roleMap or by being a role name. */ groups?: Record<string, string[]>; /** The identity whose key signs the checkpoints of the organisation's private log (DK1359). */ privateLog?: { did: string; setAt: string }; name: string; ownerTenant: string; createdAt: string; sso?: OidcConfig; scimTokenHash?: string; members: Record<string, OrgMember> }
 
 const sha = (t: string) => hashToken(t);
 const NAME = /^[a-z][a-z0-9-]{1,38}$/;
@@ -249,6 +249,38 @@ export function orgRoutes(o: OrgRoutesOptions) {
       return send(200, { ok: true, organisation: org.name, entries, verify: a.verify(), head: a.read().at(-1)?.hash ?? null });
     }
 
+    // SCIM groups: a group gives its members a role (the roleMap of the sign-on, or the group is named for a role other than owner); a person leaving a group goes back to the default role.
+    if (seg[2] === "scim" && seg[3] === "Groups") {
+      if (!isScim && !need("provision")) return true;
+      const who = isScim ? "scim" : by;
+      const roleOf = (g: string): OrgRole | undefined => { const r = org.sso?.roleMap?.[g] ?? (ORG_ROLES.includes(g as OrgRole) ? (g as OrgRole) : undefined); return r && r !== "owner" ? r : undefined; };
+      const fallback = org.sso?.defaultRole ?? "member";
+      const setGroup = (name: string, members: string[]) => {
+        const role = roleOf(name);
+        if (!role) return false;
+        const before = org.groups?.[name] ?? [];
+        org.groups = { ...(org.groups ?? {}), [name]: members };
+        for (const id of members) { const m = org.members[id]; if (m && m.role !== "owner" && m.active) { if (m.role !== role) log(org.name, who, "role.change", id, `${m.role} to ${role} by group ${name}`); m.role = role; } }
+        for (const id of before.filter((x) => !members.includes(x))) { const m = org.members[id]; if (m && m.role === role) { m.role = fallback; log(org.name, who, "role.change", id, `${role} to ${fallback}: left group ${name}`); } }
+        o.store.put(org); log(org.name, who, "group.set", name, `${members.length} member(s)`);
+        return true;
+      };
+      if ((method === "POST" || method === "PUT") && seg.length === 4) {
+        const b = await readBody();
+        if (typeof b.displayName !== "string" || !b.displayName) return fail(400, "BAD_GROUP", "displayName is needed");
+        const ids = (Array.isArray(b.members) ? b.members : []).map((x: { value?: string } | string) => (typeof x === "string" ? x : String(x?.value ?? ""))).filter(Boolean);
+        if (!setGroup(b.displayName, ids)) return fail(400, "UNMAPPED_GROUP", `the group ${b.displayName} maps to no role: name it for a role (administrator, member, auditor) or map it in the sign-on's roleMap; owner is never given by a group`);
+        return send(201, { id: b.displayName, displayName: b.displayName, members: ids.length, role: roleOf(b.displayName) });
+      }
+      if (method === "DELETE" && seg.length === 5) {
+        const name = decodeURIComponent(seg[4]);
+        if (!org.groups?.[name]) return fail(404, "NO_SUCH_GROUP", "no such group");
+        setGroup(name, []); delete org.groups[name]; o.store.put(org);
+        return send(200, { id: name, deleted: true });
+      }
+      if (method === "GET" && seg.length === 5) { const name = decodeURIComponent(seg[4]); return org.groups?.[name] ? send(200, { id: name, displayName: name, members: org.groups[name] }) : fail(404, "NO_SUCH_GROUP", "no such group"); }
+      return fail(405, "METHOD", "POST /scim/Groups, GET or DELETE /scim/Groups/<name>");
+    }
     // The provisioning feed, SCIM-style: Users with userName, active and optionally a role.
     if (seg[2] === "scim" && seg[3] === "Users") {
       if (!isScim && !need("provision")) return true;

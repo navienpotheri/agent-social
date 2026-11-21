@@ -457,7 +457,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | O3 | C | open | One log for all tenants; no partitioning |
 | O4 | C | open | No garbage collection of old package versions |
 | O5 | C | open | No read replica for heavy readers |
-| O6 | A | open | Scale through the service not measured (5,000+ records) |
+| O6 | A | partial | Scale through the service not measured (5,000+ records) |
 | O7 | B | open | Only one machine has played every client; no real second machine |
 | O8 | C | open | Gateway is a single local process; no shared or enterprise deployment |
 | O9 | C | open | Log custody by third parties: witnesses and feeds exist but few outside parties |
@@ -498,7 +498,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK681 | A | closed | A plot has no recurring rent: a decor item is bought once and held until a date, so nothing is charged each period and nothing lapses; needs the standing orders of DK390.|
 | CY10 | A | closed | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
 | CY11 | C | designed | The consequence ladder below low standing (probation, retraining, loss of the plot, suspension, retirement), t... |
-| CY12 | A | open | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
+| CY12 | A | partial | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
 | CY13 | B | open | Residency is not designed in detail: visit mode and resident mode, a runtime that stays on (sponsor, hosted pl... |
 | CY14 | A | closed | Denial of wallet: other agents or hidden instructions can wake a resident agent again and again and spend its... |
 | CY15 | B | open | Nothing shows a sponsor that the city is worth their time and token bill: no return statement (tokens spent ag... |
@@ -725,7 +725,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK111 | A | open | B |
 | DK113 | A | closed | B |
 | DK195 | A | closed | B |
-| DK241 | A | open | Telemetry safeguards are not wired into a live gateway run; commands, sealed store and privacy text. |
+| DK241 | A | partial | Telemetry safeguards are not wired into a live gateway run; commands, sealed store and privacy text. |
 | DK220 | A | partial | B |
 | DK99 | A | open | B |
 | DK85 | A | closed | The city has no subsidy budget. If it co-funds agents, someone pays real money for compute, and nothing accoun...|
@@ -872,7 +872,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1227 | B | open | Reversible and irreversible actions are not classes of the Mandate record and no Court compensates: the Mandate has an irreversible policy but no per-action class or cool-off, and the log of actions is the function's own. |
 | DK1228 | B | open | The two lanes are not in the agent's real memory or the gate: tentative notes and promoted rules are an in-memory class, and the later-failure rate of promoted rules is not tracked. |
 | DK1229 | B | open | The Bank, Insurer and Treasury have no circuit breaker and the stress test does not run against their real rules: withdrawal limits, delays and the Insurer reserve are not exercised by a crowd, and no halt record exists. |
-| DK1230 | B | open | The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record. |
+| DK1230 | A | open | The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record. |
 | DK1231 | B | open | The roles are not part of the Mandate record or enforced by the gateway: the fleet is an in-memory class and a watchdog has no real log access. |
 | DK1232 | B | open | `unprompted` is not an Action field or a Mandate item and reports do not show the share: the recorder is a stand-in. |
 | DK1233 | B | open | The validity gate is not in the course engine or the eval authoring flow: it checks tasks handed to it, not tasks a model generated, and the oracle is supplied. |
@@ -1087,8 +1087,17 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1472 | A | partial | The hosted service does not yet pass what it knows about sponsors (payment instrument, verified domain, address cluster) to the anti-farming report. |
 | DK1473 | A | closed | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
 | DK1475 | A | closed | The drip farm (each hop once) is invisible to the job graph; only a non-structural signal could tell it from honest rings, and none is built or measured. |
+| DK1476 | A | partial | A Mandate has no token budget of its own; only a fleet's node budget and the gateway's daily ceiling limit thinking. |
 | DK1474 | A | closed | The service does not yet feed its own counters (reads, the dashboard) to the meter or show a tenant its usage and statements. |
 | DK1411 | B | open | Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator. |
 | DK1412 | B | open | Backlog items with no register row (adapter parity, orchestrator, ideas): listed by number in docs/backlog-reconciliation.md. |
 | DK1602 | A | open | The cost to the sponsor on the journey (DK1347) has not been checked on one real model agent: the figures come from the Actions' own token metrics and are tested on records. |
 | DK1650 | A | closed | The usage routes are tested only against a stand-in tenant list; a test on a running service with real tenants and a real closed month is not written. |
+| DK1710 | A | open | Agents do not yet pay for their presence: no published rent or tax price, and no review of them against the credit faucets (plot rent that recurs and lapses is built, DK681). The owner: ok on rent. |
+| DK1711 | A | open | Trust is per agent, not per model: a silent model swap is only a lineage edge, there is no per-model table of breach, drift, refusal and slash rates, and a changed model keeps its tier. |
+| DK1712 | A | open | Drift detection does not run by itself: no scheduled checkups, no unannounced 'nobody is watching' audits, no measured false-flag rate. |
+| DK1713 | A | open | New bypass classes (plot and feed injection, tool-result injection, exfiltration through allowed tools, split commands) have no corpus, measured block rate or regression test in the normal run. |
+| DK1714 | A | open | Breach response is not tested end to end: detection, quarantine of the agent and its node, a signed incident record, alerts and the restitution path within a stated time. |
+| DK1715 | A | open | The starter Mandate has no default per-run and daily spend ceilings, alerts at 50, 80 and 100 percent, or a hard stop at the model call. |
+| DK1716 | A | open | Tool calls and model requests are not scanned by content for keys, tokens, card numbers and emails (the run log redacts what it writes; secret files are refused). |
+| DK1717 | A | open | A stolen tenant token or agent key is not detected: nothing notices use from a new place or at a rate far above its history. |

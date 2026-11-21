@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 66,
-  "withdraw": 108,
+  "must": 72,
+  "withdraw": 109,
   "after": 323,
-  "total": 497
+  "total": 504
  },
- "mustWorkerHours": 305.2,
+ "mustWorkerHours": 361.2,
  "entries": [
   {
    "id": "D3",
@@ -1280,7 +1280,7 @@
   {
    "id": "O6",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Scale through the service not measured (5,000+ records)",
    "bucket": "must",
    "hours": 4,
@@ -1382,17 +1382,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "E2",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The mail and dashboard need a redacted runtime log, which does not exist yet",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "mail and dashboard need a redacted run log"
-  },
-  {
    "id": "E5",
    "pri": "A",
    "status": "partial",
@@ -1436,7 +1425,7 @@
    "hours": 2,
    "size": "S",
    "flags": "",
-   "why": "the mail exists (S70) but the row stays partial until E11 (links), E5 (a run log for every runtime) and E12 are done: close it with them, not alone"
+   "why": "the mail exists (S70) but E11 and E12 are closed; the row stays partial until E5 (a run log for every runtime, needs a live run of each) is done"
   },
   {
    "id": "E9",
@@ -1448,28 +1437,6 @@
    "size": "S",
    "flags": "LO",
    "why": "live send of the end mail and an alert from the deployed service"
-  },
-  {
-   "id": "E10",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Nothing triggers the mail when a Mandate ends (`asp mail pending` is run by hand), an expired Mandate is not a state of its own, and a kill or an upheld report does not get its immediate mail",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "nothing triggers the mail when a Mandate ends"
-  },
-  {
-   "id": "E11",
-   "pri": "A",
-   "status": "open",
-   "gap": "The mail has no links: no run page, full report or hosted run log exist, so it names the run log's path on the machine that ran the job, or uses `--link-base` blindly",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "the mail names a path on a machine; say plainly it is local"
   },
   {
    "id": "E13",
@@ -1890,7 +1857,7 @@
   {
    "id": "CY12",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the sponsor to their own provider, and not priced into credits, M7), the city's own costs (lo…",
    "bucket": "must",
    "hours": 6,
@@ -3869,7 +3836,7 @@
   {
    "id": "DK241",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The telemetry safeguards are tested as units, not yet wired into a live run: the gateway does not yet read the Mandate's `telemetry` field and feed the Collector from real model replies and tool call…",
    "bucket": "must",
    "hours": 6,
@@ -4453,15 +4420,14 @@
   },
   {
    "id": "DK1230",
-   "pri": "B",
+   "pri": "A",
    "status": "open",
    "gap": "The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
+   "bucket": "must",
+   "hours": 10,
+   "size": "L",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
+   "why": "loop prevention in the gateway: equivalent-call, depth and daily token limits from the Mandate, a signed run_halt record, a looping scripted agent halted at the cap (owner: must-close)"
   },
   {
    "id": "DK1231",
@@ -6002,6 +5968,19 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
+   "id": "DK1476",
+   "pri": "A",
+   "status": "partial",
+   "gap": "A Mandate has spend caps in credits but no token (compute) budget of its own: a single agent outside a fleet is limited by the gateway's daily ceiling only, and a sponsor without a fleet has no cap a…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
    "id": "DK1602",
    "pri": "A",
    "status": "open",
@@ -6013,6 +5992,106 @@
    "why": "",
    "claim": "The cost to the sponsor on the journey was checked on a real model agent",
    "where": "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"
+  },
+  {
+   "id": "DK1700",
+   "pri": "B",
+   "status": "open",
+   "gap": "The mail watcher (`asp mail watch`) must be kept running or scheduled by hand on a person's own machine: there is no installer or scheduled task, and it has never been run live for a day against a re…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1710",
+   "pri": "A",
+   "status": "open",
+   "gap": "Agents do not yet pay for their presence in the city. Plot rent that recurs and lapses is built (DK681, closed: `housing.rent.plot`, a weekly standing order, a missed week lapses the Home's theme and…",
+   "bucket": "must",
+   "hours": 6,
+   "size": "M",
+   "flags": "D",
+   "why": "agents pay no published rent or tax yet: the price and the tax rate are the owner's decision, with a review against the credit faucets"
+  },
+  {
+   "id": "DK1711",
+   "pri": "A",
+   "status": "open",
+   "gap": "Trust is kept per agent, not per model. Nothing records a model and its version as a thing that can be trusted or not: a silent model swap (a name that points to different weights) is only a lineage…",
+   "bucket": "must",
+   "hours": 8,
+   "size": "L",
+   "flags": "",
+   "why": "trust per model and version: a silent swap is detected and the tier held until a re-exam; a per-model table in the Registry"
+  },
+  {
+   "id": "DK1712",
+   "pri": "A",
+   "status": "open",
+   "gap": "Drift detection does not run by itself. The Clinic's checkups and the canary probes (DK28, CM1, DK210) are run by a person or on a hand-started schedule, probes have run only on scripted agents, and…",
+   "bucket": "must",
+   "hours": 10,
+   "size": "L",
+   "flags": "",
+   "why": "drift detection that runs by itself, with unannounced audits and a stated false-flag rate"
+  },
+  {
+   "id": "DK1713",
+   "pri": "A",
+   "status": "open",
+   "gap": "The containment benchmark is a benchmark, not a gate, and its coverage stops at the classes it has. DK1339 says no benchmark-only claim is made, but new bypass classes have no corpus: injection throu…",
+   "bucket": "must",
+   "hours": 10,
+   "size": "L",
+   "flags": "",
+   "why": "four new bypass classes with a corpus, a measured block rate and a regression test in the normal run"
+  },
+  {
+   "id": "DK1714",
+   "pri": "A",
+   "status": "open",
+   "gap": "Breach response is not tested end to end. Pieces exist (the quarantine path, the signed Clinic record, the incident runbook DK1341, the city-wide emergency stop GV6 as a partial, the alert mail E10),…",
+   "bucket": "must",
+   "hours": 6,
+   "size": "M",
+   "flags": "",
+   "why": "one scripted breach through detection, quarantine, a signed incident record, alerts and restitution within a stated time"
+  },
+  {
+   "id": "DK1715",
+   "pri": "A",
+   "status": "open",
+   "gap": "A sponsor can lose tokens to a runaway agent: the denial-of-wallet guard refuses a wake past a ceiling and a per-agent token budget exists (`asp budget`, US2), but the starter Mandate does not carry…",
+   "bucket": "must",
+   "hours": 3,
+   "size": "M",
+   "flags": "",
+   "why": "default spend ceilings in the starter Mandate, alerts at 50, 80, 100 percent and a hard stop"
+  },
+  {
+   "id": "DK1716",
+   "pri": "A",
+   "status": "open",
+   "gap": "Outbound secrets and personal data are not scanned at the gateway by content. What exists: the run log redacts the secrets it writes (`redactSecrets`, E2), the gateway refuses reading or sending a se…",
+   "bucket": "must",
+   "hours": 5,
+   "size": "M",
+   "flags": "",
+   "why": "scan tool calls and model requests by content for keys, tokens, cards and emails, with a signed record"
+  },
+  {
+   "id": "DK1717",
+   "pri": "A",
+   "status": "open",
+   "gap": "A stolen credential is not detected. A tenant token, a sponsor token or an agent key that is used from somewhere new or at a rate far above its history raises no alert: the limits and the sign-in loc…",
+   "bucket": "must",
+   "hours": 6,
+   "size": "M",
+   "flags": "",
+   "why": "detect a stolen tenant token or agent key and hold it until the sponsor confirms"
   }
  ]
 }

@@ -3756,7 +3756,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   if (soon) clearTimeout(soon);
   if (approvals) await approvals.stop();
   const sum0 = gw.summary();
-  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
+  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, telemetry: sum0.telemetry.status, tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
   const rc = await flushAction("exit");
   const sum = gw.summary();
   const beforeRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
