@@ -1476,6 +1476,18 @@ export class EventLog {
     if (outOfScope.length) {
       throw rule("scope_violation", `${r.issuer} used scope(s) not granted by the Mandate: ${outOfScope.join(", ")}`);
     }
+    // The approval wait an Action reports (S1440, S1441): it must be shown by the Checkpoints in the chain (raised, answered; or still open), within two seconds a report for rounding. A wait the log does not
+    // show is refused, so a claim cannot extend a binding deadline.
+    const claimedWait = (r.body as { metrics?: { approval_wait_seconds?: number } }).metrics?.approval_wait_seconds;
+    if (claimedWait) {
+      const snap = chain?.snapshot;
+      const shownMs = (snap?.approvalWaitMs ?? 0) + (snap?.openCheckpointAt ? Math.max(0, Date.parse(r.issued_at) - Date.parse(snap.openCheckpointAt)) : 0);
+      const prior = Number((await tx.getMarker(`waitclaimed:${body.contract}`)) ?? 0);
+      if (prior + claimedWait > Math.ceil(shownMs / 1000) + 2) {
+        throw rule("approval_wait_not_in_log", `the report claims ${prior + claimedWait} seconds of approval wait on ${body.contract}, and the Checkpoints in its chain show ${Math.ceil(shownMs / 1000)}: a wait the log does not show is not counted`);
+      }
+      await tx.putMarker(`waitclaimed:${body.contract}`, String(prior + claimedWait));
+    }
     if (body.late) {
       if ((mandate.lateActions ?? 0) >= MAX_LATE_ACTIONS) throw rule("late_action_limit", `contract ${body.contract} has already taken ${MAX_LATE_ACTIONS} late reports`);
       await tx.putMandate({ ...mandate, lateActions: (mandate.lateActions ?? 0) + 1 });

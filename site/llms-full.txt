@@ -402,7 +402,7 @@ States: Contracted → Bonded → Running → Checkpoint → Delivered → Dispu
 | Running | `checkpoint` | Checkpoint | performer | `refs_contract` |
 | Checkpoint | `attestation` | Running | performer | `about_open_checkpoint`, `checkpoint_expired` |
 | Checkpoint | `attestation` | Running | principal | `about_open_checkpoint` |
-| Running | `delivery` | Delivered | performer | `refs_contract` |
+| Running | `delivery` | Delivered | performer | `refs_contract`, `delivered_in_time` |
 | Delivered | `attestation` | Delivered | principal | `about_latest_delivery`, `not_yet_accepted` |
 | Delivered | `attestation` | Disputed | principal | `about_latest_delivery`, `not_yet_accepted` |
 | Disputed | `delivery` | Delivered | performer | `refs_contract`, `redelivery_available` |
@@ -689,6 +689,7 @@ The protocol's lifecycle, one record at a time.
 | `asp market offer --by <did> --intent <id> ...` | Bid on an intent: price, plan, ETA |
 | `asp market call | propose | allocate` | The allocation mode: an open problem, proposals, a panel picks one |
 | `asp market contract --principal <did> --bank <did> ...` | Turn an accepted offer into a contract |
+| `asp market contract ... --deadline-binds` | Make the contract's deadline bind delivery, extended by the time the performer waits for the principal to answer Checkpoints (T21, S1441); a delivery after deadline plus that wait is refused |
 | `asp market bond --contract <id> --backer <did> ...` | Lock the performer's bond and the principal's escrow |
 | `asp market mandate --contract <id> --principal <did> --performer <did>` | State exactly what the performer may do; the job starts running |
 | `asp market checkpoint | resolve` | A pause asking the principal to approve, pick or correct, and the signed answer |
