@@ -31,7 +31,7 @@ test("the choice is shown with the options and the terms, defaults to share, is 
     assert.equal(shown.json.choice, "share");
     assert.match(shown.json.options.private, /never stored here/);
     assert.match(shown.json.terms, /dpa-draft\.md section 3/);
-    assert.equal((await call({ ...base, machine: true } as Tenant, "POST", "/telemetry/sharing", { choice: "private" })).status, 403, "a machine token cannot change it");
+    assert.equal((await call(({ ...base, machine: true } as unknown as Tenant), "POST", "/telemetry/sharing", { choice: "private" })).status, 403, "a machine token cannot change it");
     assert.equal((await call(base, "POST", "/telemetry/sharing", { choice: "maybe" })).status, 400);
     const set = await call(base, "POST", "/telemetry/sharing", { choice: "private" });
     assert.equal(set.status, 200);
