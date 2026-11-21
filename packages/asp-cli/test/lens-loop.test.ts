@@ -133,3 +133,17 @@ test("DK1750: a small run says it is underpowered, and a plan that cannot be rea
   assert.ok(small.limits.some((x) => /underpowered/.test(x)));
   await assert.rejects(() => runLoop({ intake: { ...evalsIntake(), falsifier: "" } }), /the intake is refused/);
 });
+
+test("DK1750: the design document carries the simulated-learners sentence at the top of its worked example, says what a small live run can and cannot show, and no public page quotes the simulated figures", async () => {
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const doc = readFileSync(new URL("../../../docs/institutions/lens-learning-loop.md", import.meta.url), "utf8");
+  const at = doc.indexOf("## 2. The worked example");
+  assert.ok(at > 0 && doc.slice(at, at + 400).includes("SIMULATED learners: this shows the pipeline works, not that any lesson works on a real agent."));
+  assert.match(doc, /A small live run.*can show.*pipeline runs end to end on a real model agent/s);
+  assert.match(doc, /cannot show an effect size/);
+  const site = new URL("../../../site/", import.meta.url);
+  for (const f of readdirSync(site).filter((x) => /\.(html|txt|md)$/.test(x))) {
+    const t = readFileSync(new URL(f, site), "utf8");
+    assert.ok(!/804 permille|ablation \(the lesson removed\)|lens run/.test(t), `${f} quotes the simulated lens figures`);
+  }
+});

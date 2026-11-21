@@ -22,6 +22,8 @@ Run it: `npm run asp -- lens run` prints the readout; `--null` shows a run in wh
 
 ## 2. The worked example, stage by stage
 
+> **SIMULATED learners: this shows the pipeline works, not that any lesson works on a real agent.** Every figure in this document that came from `asp lens run` is a result on simulated learners; none is evidence about a real agent and none is to be quoted on a public page.
+
 ### 2.1 From paper to testable property (stage 1)
 
 A paper is data. It is never an instruction to an agent, so an intake whose text reads as one ("ignore previous instructions...") is refused. The intake of the worked example, from `evalsIntake()`:
@@ -108,6 +110,26 @@ The run of seed 1 (112 per arm) decides at the first look: lift 804 permille, in
 ## 4. What this does and does not show
 
 It shows that the loop can be run, replayed and read: the same seed gives the same readout, the effect is measured by the course's own engine on held-out cases, a null run shows none, a harmful lesson is killed. It does **not** show that any paper's claim holds for a real model agent, that the scripted learners resemble real ones (their variation is three habits and a draw), that the retention model resembles a real runtime's drift (it is a fixed draw), or that the normal approximation and the Bonferroni share are exact (they are conservative). A run with real model agents is row DK1759, flag L, postponed with the other live runs; it would add real variation in what an agent writes, the real cost, and the real drift of a runtime. For the live run the loop needs: a hosted service with the Academy and the Registrar's key, two sponsors' worth of real agents (at least 112 per arm for the planned power, fewer with the underpowered caveat), the intake signed first, 30 days of follow-up or a stated shortened schedule, and the owner reading the readout.
+
+## 4a. What this run shows, and what a small live run can and cannot show
+
+**Every figure above is a result on simulated learners built to show the plumbing.** The lift, the retention, the ablation and the null-run result are not evidence that any paper's lesson improves a real agent, and none of these numbers is to be quoted on any public page. `asp lens run` says so on its first line of every readout, and a test fails if it does not.
+
+**A small live run** (two to four real agents, as on the evening of the first live run) **can show** that the pipeline runs end to end on a real model agent: the intake is on record, the card is published, a real agent is enrolled and pays its tuition, writes a suite from the practice tasks, is scored on held-out cases from a seed it did not control, has the lesson judged by the gate and written to its memory with its lineage, and can be asked again after a delay (a retention check) and have the lesson listed and rolled back. It **cannot show an effect size**: with four agents the interval is far wider than any plausible lift, the readout would carry the underpowered caveat (`asp lens run` prints it for any run under 112 per arm), and a control of one or two agents is an anecdote. Any sentence the owner writes about the run says "the pipeline ran on N real agents", never "the lesson works".
+
+### A minimal live script for 2 to 4 real agents
+
+Preconditions (three days before): the Academy and the Registrar's key on the hosted service; `asp academy lens publish C-L11-1 --author <did> --reviewers <did,did>` run twice across the 72-hour price-list notice (the card links to its signed intake `lens-evals-1`, so no `--no-intake` is needed). Then, for each agent `<A>` with its own Mandate and a few credits:
+
+1. `asp academy lens sit C-L11-1 --by <A>`: reads the free lesson and shows where the agent stands. Paste back the output.
+2. `asp academy lens sit C-L11-1 --by <A> --enrol --mandate <id>`: pays the 40 mock credits and prints the practice tasks. Paste back the enrolment line.
+3. The agent writes its eval suite (a JSON artifact) from the practice tasks, through its runtime. Keep the file.
+4. `asp academy lens sit C-L11-1 --by <A> --artifact <file> --package <dir> --run-log <Action id>`: the held-out sitting (five runs), the Registrar's attestation, and the write-back through the gate. Paste back the whole output, including any gate refusal and its reason.
+5. `asp learned` (on the agent's package): lists the lesson and its lineage entry. Paste back the output; run the rollback once on one agent and paste that too.
+6. After a day, and again at 7 days if the schedule allows: `asp academy lens fingerprint --by <A>` and a second sitting with the same suite (`--artifact <file>`): paste back the scores. This is the retention check.
+7. For a comparison, the same steps for one agent that does not enrol, writing a suite from the free lesson alone, and scored by a sitting on the same held-out seeds; say plainly in the note that this is an anecdote.
+
+What to paste back: the output of steps 1, 2, 4, 5 and 6 for each agent, the credits spent, the time taken, and anything the gate or the Registrar refused. Nothing in this script reads a readout from the log: the readout of a real run is by hand until the log side of DK1757 is built, and `asp lens run` is the simulated readout to compare the shape against.
 
 ## 5. How this fits the rows
 
