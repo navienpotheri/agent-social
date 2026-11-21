@@ -87,9 +87,10 @@ export { FunnelTap, type FunnelTapOptions } from "./funnel-tap.ts";
 export { Funnel, STEPS as FUNNEL_STEPS, PERSON_STEPS as FUNNEL_PERSON_STEPS, type DropOffRow, type Step as FunnelStep } from "./funnel.ts";
 
 export { capFor, withBudget, type JourneyCost, type JourneyBudget } from "./journey.ts";
-export { fleetDashboard, fleetCsv, spendOf, monthOf, emptyControls, type FleetDashboard, type FleetControlState, type CapPair, type MemberRow } from "./fleet-dashboard.ts";
+export { fleetDashboard, fleetCsv, spendOf, monthOf, emptyControls, type FleetDashboard, type FleetSeries, type FleetMix, SERIES_DAYS, type FleetControlState, type CapPair, type MemberRow } from "./fleet-dashboard.ts";
 export { FleetControls, fleetGuard } from "./fleet-controls.ts";
 export { fleetDirectory, fleetOfAgent, findFleet, fleetNameOf, type FleetDirectory, type FleetMark, type FleetMember, type FleetView, type GroupRecord, type TemplateRecord, type PersonaRecord } from "./fleets.ts";
+export { lineGraph, barChart, type GraphSeries } from "./ui-kit.ts";
 export { fleetBadge, INSTITUTION_STYLE, NAV, UI_CSS, emptyState, errorState, esc as uiEsc, hero, institutionBadge, institutionName, pageClose, pageOpen, shell, shortAgentName, shortNameHtml, type Shell } from "./ui-kit.ts";
 export { analyseFarming, commonControl, controlMapOf, farmingFreezeBody, thresholdsFor, type Cluster as FarmingCluster, type ExternalFacts, type FarmingFinding, type FarmingReport } from "./farming.ts";
 export { AdaptiveDoor, type DoorOptions, type Admission } from "./adaptive-door.ts";
@@ -99,3 +100,4 @@ export { RP_RUNS_PER_JOB, RP_MAX_PROMOTION_JOBS, relatedEquivalentJobs, starterR
 export { fleetKind, standingOf, templateOf, type MemberFacts, type TemplateOf } from "./template-reputation.ts";
 export { lotsOf, outstanding, spendable, drawPlan, applyDraw, LOT_MAX_MS, type Lot } from "./credit-lots.ts";
 export { meterOf, priceStatement, creditsFor, type Plan as UsagePlan, type Usage as MeterUsage, type AgentUsage, type Priced } from "./metering.ts";
+export { buildAuditExport, verifyAuditExport, orgScope, type AuditManifest } from "./audit-export.ts";

@@ -36,9 +36,9 @@ export const NAV: { href: string; label: string }[] = [
 
 /** The stylesheet. One set of tokens; `data-theme` forces a scheme, otherwise the reader's setting decides. */
 export const UI_CSS = `
-:root{--bg:#f7f6f2;--fg:#1d2230;--mut:#555e70;--card:#ffffff;--line:#dcd9cf;--acc:#1b6a66;--acc-bg:#e3eeed;--warn:#8a3b12;--warn-bg:#fbeee6;--ok:#17603a;--shadow:0 1px 2px rgba(20,24,35,.06),0 4px 16px rgba(20,24,35,.05);--fleet-bg:#fdf1d8;--fleet-fg:#7a4b00;--r:12px;--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:40px;--fs-s:.8rem;--fs-b:1rem;--fs-l:1.2rem;--fs-xl:clamp(1.55rem,4.6vw,2.2rem)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10141b;--fg:#e8ebf1;--mut:#a3acbb;--card:#181e28;--line:#2a3240;--acc:#6fd0c8;--acc-bg:#1b2a2b;--warn:#f0b08a;--warn-bg:#2b1f18;--ok:#7bd9a2;--shadow:none;--fleet-bg:#33260d;--fleet-fg:#f2c777;color-scheme:dark}}
-:root[data-theme="dark"]{--fleet-bg:#33260d;--fleet-fg:#f2c777;--bg:#10141b;--fg:#e8ebf1;--mut:#a3acbb;--card:#181e28;--line:#2a3240;--acc:#6fd0c8;--acc-bg:#1b2a2b;--warn:#f0b08a;--warn-bg:#2b1f18;--ok:#7bd9a2;--shadow:none;color-scheme:dark}
+:root{--bg:#f7f6f2;--fg:#1d2230;--mut:#555e70;--card:#ffffff;--line:#dcd9cf;--acc:#1b6a66;--acc-bg:#e3eeed;--warn:#8a3b12;--warn-bg:#fbeee6;--ok:#17603a;--shadow:0 1px 2px rgba(20,24,35,.06),0 4px 16px rgba(20,24,35,.05);--fleet-bg:#fdf1d8;--fleet-fg:#7a4b00;--c1:#1b6a66;--c2:#9a4a14;--c3:#2f56a6;--c4:#7a4b00;--r:12px;--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:40px;--fs-s:.8rem;--fs-b:1rem;--fs-l:1.2rem;--fs-xl:clamp(1.55rem,4.6vw,2.2rem)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10141b;--fg:#e8ebf1;--mut:#a3acbb;--card:#181e28;--line:#2a3240;--acc:#6fd0c8;--acc-bg:#1b2a2b;--warn:#f0b08a;--warn-bg:#2b1f18;--ok:#7bd9a2;--shadow:none;--fleet-bg:#33260d;--fleet-fg:#f2c777;--c1:#6fd0c8;--c2:#f0a070;--c3:#8fb0f0;--c4:#f2c777;color-scheme:dark}}
+:root[data-theme="dark"]{--fleet-bg:#33260d;--fleet-fg:#f2c777;--c1:#6fd0c8;--c2:#f0a070;--c3:#8fb0f0;--c4:#f2c777;--bg:#10141b;--fg:#e8ebf1;--mut:#a3acbb;--card:#181e28;--line:#2a3240;--acc:#6fd0c8;--acc-bg:#1b2a2b;--warn:#f0b08a;--warn-bg:#2b1f18;--ok:#7bd9a2;--shadow:none;color-scheme:dark}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font:var(--fs-b)/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 a{color:var(--acc)}a:focus-visible,button:focus-visible,.chip:focus-visible{outline:3px solid var(--acc);outline-offset:2px;border-radius:6px}
@@ -70,6 +70,14 @@ small,.mut{color:var(--mut)}code{background:var(--acc-bg);color:var(--acc);borde
 ul.plain{list-style:none;margin:0;padding:0}ul.plain li{padding:var(--s2) 0;border-top:1px solid var(--line)}ul.plain li:first-child{border-top:0}
 .chips{display:flex;flex-wrap:wrap;gap:var(--s2);margin:var(--s3) 0}.chip{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;padding:4px 12px;font:inherit;font-size:.9rem;cursor:pointer;min-height:2rem}.chip.on{background:var(--acc-bg);border-color:var(--acc);color:var(--acc)}.chip small{color:var(--mut)}
 footer.stand{max-width:62rem;margin:0 auto;padding:var(--s4) max(var(--s4),env(safe-area-inset-left,0px)) var(--s6);color:var(--mut);font-size:var(--fs-s);border-top:1px solid var(--line)}
+.chart{margin:var(--s3) 0;padding:var(--s3);background:var(--card);border:1px solid var(--line);border-radius:var(--r)}.chart:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.chart svg{display:block;width:100%;height:auto}.chart .axis{stroke:var(--line);stroke-width:1}.chart .lab{fill:var(--mut);font-size:11px}.chart .ln{stroke-width:2.2}.chart .ref{stroke:var(--warn);stroke-width:1.5;stroke-dasharray:5 4}
+.chart .s1{stroke:var(--c1);fill:var(--c1)}.chart .s2{stroke:var(--c2);fill:var(--c2)}.chart .s3{stroke:var(--c3);fill:var(--c3)}.chart .s4{stroke:var(--c4);fill:var(--c4)}.chart polyline.ln{fill:none}
+.legend-k{display:flex;flex-wrap:wrap;gap:var(--s3);margin:var(--s2) 0;color:var(--mut);font-size:var(--fs-s)}.sw2{display:inline-block;width:.8rem;height:.25rem;margin-right:.3rem;vertical-align:middle;border-radius:2px;background:currentColor}.sw2.s1{background:var(--c1)}.sw2.s2{background:var(--c2)}.sw2.s3{background:var(--c3)}.sw2.s4{background:var(--c4)}.sw2.refsw{background:var(--warn)}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.chart-table summary{cursor:pointer;color:var(--acc);margin-top:var(--s2)}.chart-table summary:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.barcell{width:45%}.bar{display:block;height:.7rem;border-radius:4px;background:var(--c1)}.chart.bars .table-wrap{border:0}
+.livebar{display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center;color:var(--mut);margin:var(--s2) 0}.livebar button,.livebar input{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.35rem .7rem;min-height:2.4rem}
 @media (max-width:560px){main{padding-top:var(--s4)}.hero{padding:var(--s4)}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-reduced-motion:no-preference){.chip,.top nav a{transition:background .12s,border-color .12s,color .12s}}
 @media print{.top,.skip{display:none}body{background:#fff;color:#000}}
@@ -118,6 +126,37 @@ export function hero(o: { kicker?: string; title: string; badges?: string[]; sub
 
 /** The fleet mark: the same badge wherever an agent of a fleet is shown, linking to the fleet's page. The name is always in the badge; the colour never carries meaning alone. */
 export const fleetBadge = (m: { id: string; name: string; persona?: string }): string => `<a class="fleet" href="/society/fleets/${encodeURIComponent(m.id)}" title="${esc(`A member of the fleet ${m.name}${m.persona ? `, playing the persona ${m.persona}` : ""}`)}">fleet: ${esc(m.name.length > 24 ? `${m.name.slice(0, 23)}…` : m.name)}${m.persona ? ` &middot; ${esc(m.persona)}` : ""}</a>`;
+
+/**
+ * Graphs and charts in plain SVG and CSS (register row DK1601): no script, no outside origin, colours from the page's tokens so both schemes read, and for every one a table of the same numbers that a keyboard and a screen reader
+ * reach (`details`). A graph is a figure the keyboard can focus, named and described in words (its range and its last value), because a picture alone says nothing to a screen reader.
+ */
+export interface GraphSeries { name: string; values: number[] }
+const niceMax = (m: number): number => { if (m <= 0) return 1; const p = 10 ** Math.floor(Math.log10(m)); const f = m / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; };
+const chartId = (t: string): string => { let h = 5381; for (const c of t) h = ((h * 33) ^ c.charCodeAt(0)) >>> 0; return `g${h.toString(36)}`; };
+/** A line graph of one to four series over labelled steps (a day each), with a reference line when asked (a cap), and the table of the same numbers. `id` makes the ids unique on a page. */
+export function lineGraph(o: { title: string; labels: string[]; series: GraphSeries[]; unit?: string; reference?: { name: string; value: number }; hint?: string }): string {
+  const W = 640, H = 220, L = 46, R = 12, T = 12, B = 28, n = o.labels.length, uid = chartId(o.title + (o.labels[0] ?? ""));
+  const all = o.series.flatMap((s) => s.values).concat(o.reference ? [o.reference.value] : []);
+  const top = niceMax(Math.max(0, ...all));
+  const x = (i: number) => L + (n <= 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (n - 1));
+  const y = (v: number) => T + (H - T - B) * (1 - v / top);
+  const unit = o.unit ? ` ${o.unit}` : "";
+  const lines = o.series.map((s, k) => `<polyline class="ln s${k + 1}" fill="none" points="${s.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ")}"/>${s.values.map((v, i) => `<circle class="pt s${k + 1}" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.5"><title>${esc(s.name)}, ${esc(o.labels[i] ?? "")}: ${v}${esc(unit)}</title></circle>`).join("")}`).join("");
+  const ref = o.reference ? `<line class="ref" x1="${L}" x2="${W - R}" y1="${y(o.reference.value).toFixed(1)}" y2="${y(o.reference.value).toFixed(1)}"/><text class="lab" x="${W - R}" y="${(y(o.reference.value) - 4).toFixed(1)}" text-anchor="end">${esc(o.reference.name)} ${o.reference.value}</text>` : "";
+  const summary = `${o.title}. ${o.series.map((s) => `${s.name}: ${s.values.length ? `from ${s.values[0]} on ${o.labels[0]} to ${s.values[s.values.length - 1]} on ${o.labels[n - 1]}` : "no data"}${unit}`).join("; ")}.${o.reference ? ` ${o.reference.name}: ${o.reference.value}.` : ""}`;
+  const legend = o.series.length > 1 || o.reference ? `<p class="legend-k">${o.series.map((s, k) => `<span><i class="sw2 s${k + 1}"></i>${esc(s.name)}</span>`).join("")}${o.reference ? `<span><i class="sw2 refsw"></i>${esc(o.reference.name)}</span>` : ""}</p>` : "";
+  return `<figure class="chart" tabindex="0" aria-labelledby="${uid}-t" aria-describedby="${uid}-d"><figcaption id="${uid}-t"><b>${esc(o.title)}</b>${o.hint ? ` <small>${esc(o.hint)}</small>` : ""}</figcaption>`
+    + `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(summary)}" preserveAspectRatio="xMidYMid meet"><line class="axis" x1="${L}" x2="${L}" y1="${T}" y2="${H - B}"/><line class="axis" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/>`
+    + `<text class="lab" x="${L - 6}" y="${T + 8}" text-anchor="end">${top}</text><text class="lab" x="${L - 6}" y="${H - B}" text-anchor="end">0</text><text class="lab" x="${L}" y="${H - 8}">${esc(o.labels[0] ?? "")}</text><text class="lab" x="${W - R}" y="${H - 8}" text-anchor="end">${esc(o.labels[n - 1] ?? "")}</text>${ref}${lines}</svg>${legend}<p id="${uid}-d" class="vh">${esc(summary)}</p>`
+    + `<details class="chart-table"><summary>Table of the same numbers</summary><div class="table-wrap"><table><thead><tr><th>${n > 0 && /^\d{4}-\d{2}-\d{2}$/.test(o.labels[0] ?? "") ? "Day" : "Step"}</th>${o.series.map((s) => `<th class="num">${esc(s.name)}</th>`).join("")}</tr></thead><tbody>${o.labels.map((l, i) => `<tr><td>${esc(l)}</td>${o.series.map((s) => `<td class="num">${s.values[i] ?? 0}</td>`).join("")}</tr>`).join("")}</tbody></table></div></details></figure>`;
+}
+/** A bar chart of labelled counts: a table whose last column is the bar, so the chart is its own table. */
+export function barChart(o: { title: string; rows: { label: string; value: number }[]; unit?: string; empty?: string }): string {
+  const max = Math.max(1, ...o.rows.map((r) => r.value));
+  const body = o.rows.length ? `<table><thead><tr><th>${esc(o.title)}</th><th class="num">${esc(o.unit ?? "Count")}</th><th><span class="vh">Bar</span></th></tr></thead><tbody>${o.rows.map((r) => `<tr><td>${esc(r.label)}</td><td class="num">${r.value}</td><td class="barcell"><span class="bar" style="width:${Math.max(1, Math.round((r.value / max) * 100))}%"></span></td></tr>`).join("")}</tbody></table>` : `<p class="mut">${esc(o.empty ?? "Nothing to show yet.")}</p>`;
+  return `<figure class="chart bars" tabindex="0" aria-label="${esc(`${o.title}: ${o.rows.map((r) => `${r.label} ${r.value}`).join(", ") || "none"}`)}"><div class="table-wrap">${body}</div></figure>`;
+}
 
 /** An empty state: what is missing and what makes it fill. */
 export const emptyState = (title: string, hint: string): string => `<div class="empty" role="status"><b>${esc(title)}</b>${esc(hint)}</div>`;
