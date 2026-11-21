@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 72,
+  "must": 71,
   "withdraw": 109,
-  "after": 321,
+  "after": 322,
   "total": 502
  },
- "mustWorkerHours": 337.2,
+ "mustWorkerHours": 331.2,
  "entries": [
   {
    "id": "D3",
@@ -4247,17 +4247,6 @@
    "says": "agents use the start page"
   },
   {
-   "id": "DK797",
-   "pri": "A",
-   "status": "open",
-   "gap": "The first lists (docs/backlog.md, docs/backlog-triage.md, docs/owner-checklist.md, docs/launch-gate.md and the memory files) have not been reconciled item by item against the register.",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "reconcile the first lists (backlog, triage, owner checklist, gate) against the register"
-  },
-  {
    "id": "DK1204",
    "pri": "A",
    "status": "open",
@@ -5314,6 +5303,18 @@
    "pri": "B",
    "status": "open",
    "gap": "Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator: no check shows that the disk and the database are encrypted at rest, so the security…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1412",
+   "pri": "B",
+   "status": "open",
+   "gap": "Backlog items with no register row. The reconciliation of the first lists (DK797) found items in docs/backlog.md that no gap row carries: the Codex and OpenHands adapter parity notes (path-scoped rul…",
    "bucket": "after",
    "hours": 0,
    "size": "",

@@ -37,3 +37,8 @@ One line per audited row: id, builder commit, test, result (verified, fixed, reo
 | DK1355 | e2ad252 + bc6d7921 | packages/asp-log/test/mandate-template.test.ts (10,000 derived Mandates, amendment, narrowing), gateway-fleet-ceiling.test.ts | verified: the gateway part of its Done line is now built, so its closed status stands |
 | DK1348, DK1367, DK1361 | lead | owner approved the look on 2026-11-21 per the lead | closed by the owner's approval; my reopening of DK1361 is withdrawn |
 | DK1470, DK1472, DK1473 | e27b4f63, ce8ca09e | starter-fleet-claims, farming tests | DK1470 verified; DK1472 and DK1473 are partial by the builder (drip farm 0/50 stated) |
+| DK1347 | ad03ed33 | packages/asp-cli/test/journey-cost.test.ts (figures from the meter, step sums to summary, no cost on the public view, cap on the sponsor view) | verified on its tested flow; the Done line's live run on a real agent is DK1602 (same accepted split as DK1342) |
+| DK797 | 31565df0 | packages/asp-cli/test/backlog-reconciliation.test.ts (140 bullets mapped, 3 dropped with a reason, DK1412 for the rest) | verified |
+| GV3 | b7468aad | public-works-floor, cold-start, market-seed tests re-run green | verified |
+| DK1366 (society part), DK1367, DK1348 | 9082be67, ba09b4ff | journey and fleet page tests ran green; owner approved the look | verified |
+| sample of older closed rows: DK312, DK681, DK682, DK685 | S972, S996, S995, S985/6 | config-record, plot-rent, delivery-autorefund, game-hide-seek tests (8/8 green); the others cite tests by bare file name, all exist | verified; 35 older closed rows cite no test file at all (D4, DK351, M10, T16, DK312 list in this log's next audit round) |
