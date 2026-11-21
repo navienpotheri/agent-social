@@ -6,7 +6,7 @@
  * `asp market show` would show. The one thing it writes is the principal's answer to a waiting approval, signed with the principal's own key from the ASP home.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { timingSafeEqual } from "node:crypto";
 import { createRecord, type Signer } from "@agent-social/asp-core";
 import { fetchRetry, PackagesClient, scanPackages } from "@agent-social/asp-package";
@@ -141,6 +141,13 @@ export function createDashboard(opts: DashboardOptions): Server {
         const check = file ? readRunLog(file) : undefined;
         const view = await dashboardJob(log, id, check ? { path: file!, ok: check.ok, ...(check.problem ? { problem: check.problem } : {}), events: check.events, head: check.head } : undefined);
         return view ? send(res, 200, view) : send(res, 404, { error: `contract ${id} is not in the log` });
+      }
+      if (req.method === "GET" && url.pathname === "/api/run-log") {
+        // The principal's own redacted run log, as the file the gateway kept (already masked of secret-like values). Same token and host guard as the rest.
+        const file = opts.runLogFor(url.searchParams.get("id") ?? "");
+        if (!file || !existsSync(file)) return send(res, 404, { error: "no run log was kept for this job on this machine" });
+        res.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "content-disposition": 'attachment; filename="run-log.ndjson"', "cache-control": "no-store" });
+        return void res.end(readFileSync(file));
       }
       if (req.method === "POST" && url.pathname === "/api/resolve") {
         const body = await readJson(req);

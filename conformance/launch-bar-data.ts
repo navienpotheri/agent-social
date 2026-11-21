@@ -28,7 +28,7 @@ export const MUST: Record<string, Must> = {
   // mail and records
   E2: [2, "", "mail and dashboard need a redacted run log"],
   E5: [4, "", "`asp run` runtimes must keep a run log like `asp gateway`"],
-  E8: [2, "", "the mail exists (S70) but the row stays partial until E11 (links), E5 (a run log for every runtime) and E12 are done: close it with them, not alone"],
+  E8: [2, "", "the mail exists (S70) but E11 and E12 are closed; the row stays partial until E5 (a run log for every runtime, needs a live run of each) is done"],
   E9: [2, "LO", "live send of the end mail and an alert from the deployed service"],
   E10: [4, "", "nothing triggers the mail when a Mandate ends"],
   E16: [2, "LO", "run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343)"],

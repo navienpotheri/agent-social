@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 66,
+  "must": 63,
   "withdraw": 108,
-  "after": 323,
-  "total": 497
+  "after": 324,
+  "total": 495
  },
- "mustWorkerHours": 305.2,
+ "mustWorkerHours": 297.2,
  "entries": [
   {
    "id": "D3",
@@ -1382,17 +1382,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "E2",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The mail and dashboard need a redacted runtime log, which does not exist yet",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "mail and dashboard need a redacted run log"
-  },
-  {
    "id": "E5",
    "pri": "A",
    "status": "partial",
@@ -1436,7 +1425,7 @@
    "hours": 2,
    "size": "S",
    "flags": "",
-   "why": "the mail exists (S70) but the row stays partial until E11 (links), E5 (a run log for every runtime) and E12 are done: close it with them, not alone"
+   "why": "the mail exists (S70) but E11 and E12 are closed; the row stays partial until E5 (a run log for every runtime, needs a live run of each) is done"
   },
   {
    "id": "E9",
@@ -1448,28 +1437,6 @@
    "size": "S",
    "flags": "LO",
    "why": "live send of the end mail and an alert from the deployed service"
-  },
-  {
-   "id": "E10",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Nothing triggers the mail when a Mandate ends (`asp mail pending` is run by hand), an expired Mandate is not a state of its own, and a kill or an upheld report does not get its immediate mail",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "nothing triggers the mail when a Mandate ends"
-  },
-  {
-   "id": "E11",
-   "pri": "A",
-   "status": "open",
-   "gap": "The mail has no links: no run page, full report or hosted run log exist, so it names the run log's path on the machine that ran the job, or uses `--link-base` blindly",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "the mail names a path on a machine; say plainly it is local"
   },
   {
    "id": "E13",
@@ -6013,6 +5980,18 @@
    "why": "",
    "claim": "The cost to the sponsor on the journey was checked on a real model agent",
    "where": "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"
+  },
+  {
+   "id": "DK1700",
+   "pri": "B",
+   "status": "open",
+   "gap": "The mail watcher (`asp mail watch`) must be kept running or scheduled by hand on a person's own machine: there is no installer or scheduled task, and it has never been run live for a day against a re…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   }
  ]
 }
