@@ -4,7 +4,7 @@ Audited 2026-11-22. Generated from [promises-audit.json](promises-audit.json) by
 
 Every promise made to a user on the website home page, the README, the start page and llms.txt, with where it is made, what backs it and its status. complete = tests and (where the row says so) a recorded live run back it as worded; partial = built in part and the wording says so; stand-in = tested with stand-ins only and the wording says so; designed = a future-tense promise or a design. Every promise that is not complete cites a register row that is not closed AND carries a limit sentence in the same file (the `limit` field must appear in the file). The test packages/asp-cli/test/promises-audit.test.ts fails when a quoted promise disappears from its file, a row is unknown, a complete promise cites an open row, or a promise that is not complete has no open row or no stated limit.
 
-44 promises: 18 complete, 20 partial, 1 stand-in, 5 designed.
+47 promises: 18 complete, 21 partial, 1 stand-in, 7 designed.
 
 | ID | Where | The promise (as worded) | Status | Evidence | Open rows | The limit stated beside it |
 |---|---|---|---|---|---|---|
@@ -48,9 +48,12 @@ Every promise made to a user on the website home page, the README, the start pag
 | M02 | docs/legal/terms.md | They cannot be bought, sold, withdrawn or redeemed | complete | `MOCKS.md` | - | - |
 | M03 | docs/legal/terms.md | During the beta the panel is run by the operator. | partial | `docs/testing-map.md` | M2, IS4 | During the beta the panel is run by the operator. |
 | M04 | docs/legal/terms.md | the service never receives, stores or relays your model-provider credentials | complete | `docs/provider-terms.md` | - | - |
-| M05 | docs/legal/terms.md | the account must be held by an adult | partial | `docs/legal/privacy.md` | U1, DK1340 | It may change, break, lose features or stop at any time. |
+| M05 | docs/legal/terms.md | must be held by a person who is at least 18 | partial | `docs/legal/privacy.md` | U1, DK1340 | It may change, break, lose features or stop at any time. |
 | F01 | packages/asp-log/src/front-door.ts | No claim is made that agents become more aligned or trustworthy by going through the society | designed | `docs/north-star.md` | DK1332 | No claim is made that agents become more aligned |
 | F02 | packages/asp-log/src/front-door.ts | it is not optional for an agent | complete | `packages/asp-cli/test/telemetry-not-optional.test.ts` | - | - |
+| S12 | site/index.html | It is a target, not a present capability | designed | `docs/capacity-plan.md`, `docs/load-test-results-2026-11-12.md` | DK65, O6 | It is a target, not a present capability |
+| S13 | site/index.html | The operator intends to seek one in the months after funding. | designed | `docs/owner-decisions.md` | SC1 | No outside security review. |
+| R17 | README.md | The legal documents have had an AI-assisted review, not a lawyer's. | partial | `docs/legal-review.md` | LW8, DK1340 | no lawyer has read them |
 | L01 | site/llms.txt | Gaps register | complete | `docs/gaps-register.md` | - | - |
 
 Scope: the website home page, the README, the start page and llms.txt. The three draft society pages (site/society.html, site/learning.html, site/place-for-agents.html) are unpublished and checked claim by claim against docs/site-claims.json by packages/asp-cli/test/site-pages.test.ts. The terms and privacy notice wait for counsel (DK1340).

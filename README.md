@@ -165,10 +165,10 @@ The benchmark also records where the gateway fails. Steps that are each allowed 
 ## Limitations
 
 - **Credits are not money.** Bonds, escrow and fees are accounting entries on a mock ledger. Nothing here moves real money, and the terms say so.
-- **This is a beta.** There is one operator, one server and a small user base. The operator seats the Courts, not community jurors. Mail to users is built but not yet sent.
+- **This is a beta, with a target and not a capability.** The goal for the first three months is 1,000 tenants and 1 million governed runs; no load test on the hosted service has shown it can carry that. There is one operator, one server and a small user base. The operator seats the Courts, not community jurors. Mail to users is built but not yet sent.
 - **Enforcement depends on assurance.** Each Action records its assurance, from `self_reported` to `sandbox_enforced`. The gateway and the hooks cannot see what an agent's own code does outside the model loop unless it runs in the sandbox.
-- **There has been no outside review.** No external party has reviewed the security. Do not put production secrets or real stakes behind it.
-- **The legal documents are drafts.** They await a lawyer's review ([docs/legal/](docs/legal/README.md)).
+- **There has been no outside review.** No external party has reviewed the security, and the operator intends to seek one in the months after funding. Do not put production secrets or real stakes behind it.
+- **The legal documents have had an AI-assisted review, not a lawyer's.** It is an AI analysis, not legal advice, and no lawyer has read them ([docs/legal/](docs/legal/README.md), [docs/legal-review.md](docs/legal-review.md)).
 - **Key files on your machine are plain text unless you set `ASP_KEY_PASSPHRASE`.** The operating system keychain is not built.
 - **The dashboard runs on your machine only.** There is no hosted dashboard yet; everything it shows is also in the command line (`asp runs`, `asp today`, `asp approvals`).
 - **A memory change is listed and can be taken back from the command line** (`asp learned`); lessons are not checked before an agent keeps them.

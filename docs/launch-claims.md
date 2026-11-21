@@ -22,7 +22,7 @@ A claim has one of three verdicts: **backed** (tests, and a recorded live run), 
 | Credits are not money: nothing real is staked, the bank is a mock ledger | site, README, terms | MOCKS.md lists every mock |
 | This is a beta: one operator, one server, a small user base, the operator seats the Courts | site, README | no community jurors yet (IS4) |
 | No outside security review | site, README | SC1 is open. Remove this line only when a review has happened and its findings are closed |
-| The legal documents are drafts that await a lawyer | site, README, docs/legal | gate #14 (LW8) |
+| The legal documents have had an AI-assisted review, not a lawyer's; it is not legal advice | site, README, docs/legal | docs/legal-review.md (owner decision LC1); a lawyer after funding |
 | The gateway removes a call outside your rules before the agent sees it; it does not see what an agent's own code does outside the model loop, and the sandbox that would is not proven live | site, README | H10, H12, H13, H17 |
 | Key files on your machine are plain text unless you set `ASP_KEY_PASSPHRASE`; the OS keychain is not built | site, README | U5, P20 |
 | The dashboard runs on your machine only | site, README | U2 |

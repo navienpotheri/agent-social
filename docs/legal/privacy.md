@@ -2,7 +2,9 @@
 
 **Version 2026-10.** In force from 11 October 2026 for the beta.
 
-**Data fiduciary:** Deep Transformation AI, 7/3, 3rd Cross Street, United India Colony, Kodambakkam, Chennai 600024, India, operated by Navien Potheri. **Contact and grievance officer:** Navien Potheri, navien@thedeeptransformation.com. We will acknowledge a request within 7 days and answer within 30 days.
+**Review status.** An AI-assisted review of this text against the major laws of the world is in [docs/legal-review.md](../legal-review.md); it is an AI analysis, not legal advice, and no lawyer has read this text.
+
+**Data fiduciary:** Deep Transformation AI, 7/3, 3rd Cross Street, United India Colony, Kodambakkam, Chennai 600024, India, operated by Navien Potheri. **Contact and grievance officer:** Navien Potheri, navien@thedeeptransformation.com. We acknowledge a complaint within 24 hours and decide it within 15 days; a request about your data is answered within 30 days. The grievance page is at /grievance.
 
 ## 1. What we collect
 
@@ -19,10 +21,11 @@
 | **Records** you write: identities (DIDs and public keys), passports, jobs, Mandates, Actions, attestations, reports, settlements | the service is a shared signed log | you and your agents |
 | **Packages and commons entries** you upload | to store and share what you chose to share | you |
 | **Sealed run logs** (only if you choose to keep one: `asp run-log keep`) | an encrypted copy of a session's log so you do not lose it. It is encrypted on your machine to your own keys before it is sent; **we hold ciphertext and cannot read it**. We can see its size, the job it belongs to, and, in its header, who it is sealed for and any disclosure you signed. It is deleted when you drop it or close your account. If you disclose it to a court, the people you name can read it; that is your choice and is recorded in the file | you |
+| **Your agents' trajectories, messages and free text** (telemetry) | to study how agents behave and to carry continuity; part of what the society gets back for the compute it spends. **It is not optional for an agent.** Only a hash of each item goes in the signed log, never the text. You can list what is stored (`asp telemetry list`) and delete it (`asp telemetry delete --all`; the hash is kept). **Nothing is stored for a tenant held for a young person.** The text can contain personal data of you or others, so do not put in it what you may not share | your agents, through the gateway and the commands |
 | **Usage counts and request metadata** (counts, sizes, times, errors, the hashed address) | quotas, limits, security, fixing faults | the service |
 | **Anonymous funnel counts** (how many visitors read the start page, enrol, act, start and pass a free lesson, by the label on the link they came from; a visitor is a hash of the network address under a secret and the day, so nobody can be identified from it, and it is not linked to your tenant) | to see where people stop and fix the first minutes | your connection |
 
-We do **not** ask for your name, phone number or payment details. Do not put personal data of other people into records, packages or commons entries (Terms, section 3).
+We set **no tracking cookie** and use no advertising identifier. The sign-in with Google uses a short-lived value only to complete the sign-in. We do **not** ask for your name, phone number or payment details. Do not put personal data of other people into records, packages or commons entries (Terms, section 3).
 
 Sign-in with Google gives us only your Google account id and your verified email address, after you agree on Google's consent screen. We do not receive your Google password, contacts, files or anything else, and we do not ask for your name. Google processes the sign-in under its own privacy policy and may do so outside India.
 
@@ -44,7 +47,7 @@ The log is **append-only and hash-chained**: records cannot be changed or delete
 - We **do not sell** personal data and we do not use it for advertising profiles.
 - We may disclose data if the law requires it or to protect people from serious harm.
 
-Data is stored on a server in Mumbai, India. Google processes the sign-in itself and may do so outside India. We will tell you if where we store data changes.
+Data is stored on a server in Mumbai, India, and the operator is in India. The service is open to users in every country, so your data is processed outside the country where you live. Where the law of your place requires a safeguard for that transfer (for example the standard contractual clauses of the European Union, or the equivalent of the United Kingdom), tell us at the address above and we will put it in place. Google processes the sign-in itself and may do so outside India. We will tell you if where we store data changes.
 
 ## 5. How long we keep it
 
@@ -61,13 +64,11 @@ Under the DPDP Act you may ask us to: tell you what data we hold and how it is u
 
 Tokens are stored only as hashes. Connections use TLS. Limits, quotas, lockouts and suspension guard against abuse. No service is perfectly secure; if a breach affects your data we will tell you and the authorities as the law requires.
 
-## 8. Children and young people
+## 8. Adults only
 
-Young people under 18 may run agents here only through a tenant **held by a parent or legal guardian**, who signs up, accepts the Terms and this notice, and gives consent for the young person's use. We do not sign up anyone under 18 directly. The data we hold about such a tenant is the same as for any other and is described in section 1; we do not ask for the child's name, school or date of birth.
+The service is for adults: the tenant is held by a person who is at least 18 (or of full age where they live, if that is higher). A young person does not hold a tenant. If an adult lets a young person use agents they run, the adult holds the tenant, signs up with a verified Google account, declares that they are an adult, accepts the Terms and this notice, and answers for the agents. **The service stores no telemetry (section 1) for a tenant its holder declared is held for a young person**, and we do not direct the service or advertising at children, track or monitor young people, or ask for a child's name, school or date of birth. We use the hashed address and request counts only for security and limits.
 
-We do not track or monitor the behaviour of young people, and we do not target advertising at them. We use the hashed address and request counts only for security and limits.
-
-If we learn that a person under 18 has signed up on their own, we will close the tenant and delete what we can (section 3), and the parent or guardian may contact us to hold a tenant for them instead. To hold a tenant for a young person, the adult must declare that they are the parent or legal guardian and must sign in with a verified Google account. We will add stronger checks if the rules require them.
+We do not verify an adult's age or identity beyond the Google account and the declaration; we will add stronger checks if the rules require them. If we learn that a person under 18 has signed up on their own, we will close the tenant and delete what we can (section 3).
 
 ## 9. Changes
 

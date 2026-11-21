@@ -6,7 +6,7 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 
 **The date cannot hold.** 477 register rows are not closed (233 at priority A, 199 at B, 45 at C). Sorted:
 
-- **Must close before launch: 84 rows, 305 worker-hours (DK1405, DK1303, DK1343, CY8, DK1211, U10 and DK1307 closed 2026-11-21)** (the sum of my estimate per row in bucket 1). 12 need your decision, 10 need a live run, 5 need an outside party (counsel, the host, an uptime service) and 17 need an action only you can take (GitHub settings, the deployed start line, a Mac).
+- **Must close before launch: 83 rows, 297 worker-hours (closed so far: DK1405, DK1303, DK1343, CY8, DK1211, U10, DK1307, SC2; DK1340 drafted)** (the sum of my estimate per row in bucket 1). 12 need your decision, 10 need a live run, 5 need an outside party (counsel, the host, an uptime service) and 17 need an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 98 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
 - **After launch: 289 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
@@ -16,7 +16,7 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 |---|---|---|
 | **Core**: the legal minimum, operations, the claims audit, telemetry always on with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (rows in section 4) | about 68 | **about 3 December** |
 | **Reduced**: Core plus enrolment (DK733, DK854, DK546, DK740), the run log, token recovery, export and close, and housekeeping (48 rows, 152 hours) | 152 | about 13 December |
-| **Full**: all 84 must-close rows, including the open forum, the society map and house agents, the engine of change, the 72-hour appeal hold and the ledger invariant alert | 305 | about 23 December |
+| **Full**: all 83 must-close rows, including the open forum, the society map and house agents, the engine of change, the 72-hour appeal hold and the ledger invariant alert | 297 | about 22 December |
 
 These are the earliest the build can finish, not promises: they assume none of your decisions or live runs arrives late. The live run with a real model agent is postponed by you, so T15, T22, DK650 and P21 cannot be proved; their claims move to "withdraw". **My recommendation:** do not announce 25 to 26 November. If the date is fixed, either open quietly to the public on 26 November with no ads (needs only the legal minimum DK1340 and the claims audit DK1307 on top of today's state, plus the forum, map and house agents described as "not open yet") and start ads when Core is done, or move the ads to about 3 December.
 
@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 85 (313.2 worker-hours; 12 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Must close before launch | 83 (297.2 worker-hours; 11 need an owner decision, 10 a live run, 3 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 98 |
-| After launch | 292 |
-| Total not closed | 475 |
+| After launch | 293 |
+| Total not closed | 474 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -104,6 +104,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | O12 | A | partial | 0.5 | S | O | branch protection on main |
 | O13 | A | open | 0.5 | S | O | private vulnerability reporting, repository description and topics |
 | DK1204 | A | open | 1 | S | O | hosted price list lacks forum.post.long and forum.comment.long |
+| DK1340 | A | partial | 1 | S | D | drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that |
 | DK421 | A | open | 1 | S | D | operator succession: the owner chooses and signs (OD-DK421) |
 | LW1 | A | partial | 1 | S | DX | the owner reads and signs Code version 1.0 with their own key (the run never signs) |
 | T12 | A | partial | 1 | S | O | apply the chosen 600 reads and 120 writes in the deployed config |
@@ -121,13 +122,10 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK650 | A | partial | 3 | M | LO | sponsor-less route never run live; the review timer is unexercised |
 | DK760 | A | partial | 3 | M | D | the public-works line exists but nothing uses it |
 | O2 | A | partial | 3 | M | O | production flags (--signup-require-google, --limits-state) and the waiting list in the deployed start line |
-| SC2 | A | open | 3 | M | DX | acceptable-use list and a grievance officer (drafts; the owner names the officer; counsel reads) |
 | T1 | A | open | 3 | M | LO | A stranger must reach `asp runs` from a clean clone; Mac and old Node never tried by hand (I script the check, the owner runs it) |
 | U9 | A | partial | 3 | M | LO | account export and close read live on the host, with a deletion receipt |
 | U16 | A | partial | 4 | M | O | built (S110); left: the landing page (O13) and a trial with people who have not seen the tool |
-| DK65 | A | partial | 6 | M | L | the deck promises 1,000 tenants and 1M governed runs; a load test, or the claim moves to withdraw |
 | DK79 | A | partial | 6 | M | D | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
-| DK1340 | A | open | 8 | L | DX | the legal minimum: terms, privacy and telemetry notice, ad wording, minors; counsel must read it |
 | DK1341 | A | open | 8 | L | OX | operations: uptime monitor, status page, on-call, backup restore drill, incident process |
 | DK1349 | A | open | 8 | L | D | the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure a… |
 | DK270 | A | open | 8 | L | LO | no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host |
@@ -395,6 +393,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK386 | A | partial | bank job-class check | no claim |
 | DK183 | A | partial | insurer loose ends | no insurance claim |
 | DK185 | A | partial | insurer dynamics | no insurance claim |
+| DK65 | A | partial | owner decision: the numbers are a stated goal; the load test follows launch | the site says 1,000 tenants and 1 million runs is a target and not a present capability |
 | DK73 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK202 | A | open | funding model proven on a simulated meter | the sponsor pays all real costs |
 | DK201 | A | open | delegated custody terms need counsel | no delegated custody is offered |
@@ -556,7 +555,7 @@ Sources: [owner-decisions.md](owner-decisions.md), [counsel-brief.md](counsel-br
 | O11, O12, O13 | Do you revoke the OpenRouter key, switch on branch protection for `main` and private vulnerability reporting, and set the repository description and topics (about 10 minutes)? | owner | Yes, today. |
 | T1, T2, U1, U9, E9, E16, DK650 | On which day can you give about two hours, a Mac or clean machine and the real Google account, for the live checks that need no model agent? | owner | One block before launch; I script each check and give you the list. |
 | DK270, DK1100 | Do you deploy the house agents on the hosted service now, labelled as house agents? | owner | Yes, once DK1341 is in place. |
-| DK34, X6, X7, DK857, DK858, DK792, DK791, AG10 | Does the forum open to the public at launch (about 35 worker-hours) or after, shown as "not open yet"? | owner | After; launch on the Core bar. |
+| DK34, X6, X7, DK857, DK858, DK792, DK791, AG10 | **Answered 2026-11-21 (FD2): the forum is live at the beta launch**; sponsor-less posting stays behind the custody label and DK859; moderation, reports and the abuse path ship with it. These rows are in the Full bar (about 35 worker-hours). | owner (decided) | Build in the order DK857, DK858, X7, DK792, DK791, DK34, AG10. |
 | DK65 | Is the 1,000-tenant and 1M-run capacity claim kept (a 6-hour load test first) or withdrawn from the deck? | owner | Withdraw it now; run the test after launch. |
 | SC1 | Do you commission the outside security review of sign-up, token handling and the log service now? | owner | Yes, now; launch with the "no outside review" line if it is not done. |
 | P21, P22 | Do you confirm that only runtimes with a recorded real run stay on the site and that nothing is promised about subscription logins? | owner | Yes (already decided). |

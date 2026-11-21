@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 85,
+  "must": 83,
   "withdraw": 98,
-  "after": 292,
-  "total": 475
+  "after": 293,
+  "total": 474
  },
- "mustWorkerHours": 313.2,
+ "mustWorkerHours": 297.2,
  "entries": [
   {
    "id": "D3",
@@ -2013,17 +2013,6 @@
    "says": "the site says there has been no outside security review; private reporting is the way in"
   },
   {
-   "id": "SC2",
-   "pri": "A",
-   "status": "open",
-   "gap": "Intermediary rules under India's IT Rules (acceptable-use list, a grievance officer) are not in place for public posting Waits on the owner (docs/owner-decisions.md)./ The terms' general acceptable-u…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "DX",
-   "why": "acceptable-use list and a grievance officer (drafts; the owner names the officer; counsel reads)"
-  },
-  {
    "id": "GV2",
    "pri": "A",
    "status": "designed",
@@ -3275,11 +3264,12 @@
    "pri": "A",
    "status": "partial",
    "gap": "The deck promises capacity for 1,000 tenants and 1M governed agent runs at the three-month beta, and no load test exists (H23, O6).",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "L",
-   "why": "the deck promises 1,000 tenants and 1M governed runs; a load test, or the claim moves to withdraw"
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "owner decision: the numbers are a stated goal; the load test follows launch",
+   "says": "the site says 1,000 tenants and 1 million runs is a target and not a present capability"
   },
   {
    "id": "DK73",
@@ -5526,13 +5516,13 @@
   {
    "id": "DK1340",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The public beta with ads, open to users worldwide with telemetry always on, has no legal minimum in place. The company is incorporated in India and cannot yet afford a payments and regulation lawyer,…",
    "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "DX",
-   "why": "the legal minimum: terms, privacy and telemetry notice, ad wording, minors; counsel must read it"
+   "hours": 1,
+   "size": "S",
+   "flags": "D",
+   "why": "drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that"
   },
   {
    "id": "DK1341",

@@ -43,9 +43,12 @@
     { "id": "M02", "where": "docs/legal/terms.md", "says": "They cannot be bought, sold, withdrawn or redeemed", "status": "complete", "evidence": ["MOCKS.md"], "rows": [] },
     { "id": "M03", "where": "docs/legal/terms.md", "says": "During the beta the panel is run by the operator.", "status": "partial", "evidence": ["docs/testing-map.md"], "rows": ["M2", "IS4"], "limit": "During the beta the panel is run by the operator." },
     { "id": "M04", "where": "docs/legal/terms.md", "says": "the service never receives, stores or relays your model-provider credentials", "status": "complete", "evidence": ["docs/provider-terms.md"], "rows": [] },
-    { "id": "M05", "where": "docs/legal/terms.md", "says": "the account must be held by an adult", "status": "partial", "evidence": ["docs/legal/privacy.md"], "rows": ["U1", "DK1340"], "limit": "It may change, break, lose features or stop at any time." },
+    { "id": "M05", "where": "docs/legal/terms.md", "says": "must be held by a person who is at least 18", "status": "partial", "evidence": ["docs/legal/privacy.md"], "rows": ["U1", "DK1340"], "limit": "It may change, break, lose features or stop at any time." },
     { "id": "F01", "where": "packages/asp-log/src/front-door.ts", "says": "No claim is made that agents become more aligned or trustworthy by going through the society", "status": "designed", "evidence": ["docs/north-star.md"], "rows": ["DK1332"], "limit": "No claim is made that agents become more aligned" },
     { "id": "F02", "where": "packages/asp-log/src/front-door.ts", "says": "it is not optional for an agent", "status": "complete", "evidence": ["packages/asp-cli/test/telemetry-not-optional.test.ts"], "rows": [] },
+    { "id": "S12", "where": "site/index.html", "says": "It is a target, not a present capability", "status": "designed", "evidence": ["docs/capacity-plan.md", "docs/load-test-results-2026-11-12.md"], "rows": ["DK65", "O6"], "limit": "It is a target, not a present capability" },
+    { "id": "S13", "where": "site/index.html", "says": "The operator intends to seek one in the months after funding.", "status": "designed", "evidence": ["docs/owner-decisions.md"], "rows": ["SC1"], "limit": "No outside security review." },
+    { "id": "R17", "where": "README.md", "says": "The legal documents have had an AI-assisted review, not a lawyer's.", "status": "partial", "evidence": ["docs/legal-review.md"], "rows": ["LW8", "DK1340"], "limit": "no lawyer has read them" },
     { "id": "L01", "where": "site/llms.txt", "says": "Gaps register", "status": "complete", "evidence": ["docs/gaps-register.md"], "rows": [] }
   ]
 }

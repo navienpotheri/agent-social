@@ -474,7 +474,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 |---|---|---|---|
 | SC1 | A | open | There has been no outside security review of the protocol, gateway or service |
-| SC2 | A | open | Intermediary rules under India's IT Rules (acceptable-use list, a grievance officer) are not in place for publ... |
+| SC2 | A | closed | Intermediary rules under India's IT Rules (acceptable-use list, a grievance officer) are not in place for publ... |
 | X1 | B | open | Live runs so far are one person, one machine, a few models |
 | X2 | B | open | Conformance exists for the records, not for runtime support levels |
 | X3 | A | open | This register is only as good as its upkeep |
@@ -990,7 +990,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1337 | A | open | The alignment study needs apparatus that does not exist: a sealed scenario battery, a sandbox with decoy infrastructure, an enforcement-off test mode, validated detectors, a drift index and hazard model, and a pre-registration template. |
 | DK1338 | A | open | Malpractice in the research centre is not treated as critical: fabrication, fake or unchecked citations, planted false results, data tampering, plagiarism and hiding a failed replication carry no stated severity or automatic consequence. |
 | DK1339 | A | open | Evidence claims could end up like a company-reported benchmark: a headline number from our own tests, no false-block rate, no approval-skipping scenarios, no outside run, no check against production. The owner does not want that. |
-| DK1340 | A | open | The public beta with ads, open to users worldwide with telemetry always on, has no legal minimum in place. The company is incorporated in India and cannot yet afford a payments and regulation lawyer, but terms of use, a privacy policy and the telemetry notice, minors, and the wording of ads are needed before launch and cost far less than a real-money opinion. |
+| DK1340 | A | partial | The public beta with ads, open to users worldwide with telemetry always on, has no legal minimum in place. The company is incorporated in India and cannot yet afford a payments and regulation lawyer, but terms of use, a privacy policy and the telemetry notice, minors, and the wording of ads are needed before launch and cost far less than a real-money opinion. |
 | DK1341 | A | open | Running the public beta has no written operations plan: no uptime monitoring or status page, no one on call, no support channel for sponsors, no incident-response steps (a leaked key, a bad agent, an outage), and no ceiling on the compute the company itself pays. Ads would bring users before any of this exists. |
 | DK1342 | A | partial | An agent cannot sit a course. The lens catalogue is readable (`asp academy lens courses|show`) and the engine grades a sitting, but until now no command or front-door route let an agent enrol, get the practice tasks, submit its artifact and get the graded result with the lesson written back through the gate; the 2026-11-21 live run had to drive the engine from a script. |
 | DK1400 | A | open | No command publishes the lens catalogue into a log. A card becomes sittable only when the Treasury's price list carries its item (`courseItem`) and a course record exists (signed by an author, with two independent reviews from other sponsors and the Registrar's countersignature); the tests and the cohort demo build that by script, so on a real log `asp academy lens sit` refuses until an operator does it by hand. |
