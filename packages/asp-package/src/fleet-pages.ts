@@ -25,16 +25,16 @@ export function renderFleetList(fleets: FleetView[]): string {
 export function renderFleet(f: FleetView): string {
   const esc = uiEsc;
   const mark = { id: f.id, name: f.name };
-  const rows = f.members.map((m) => `<tr><td><a href="/agent/${encodeURIComponent(m.did)}/journey">${shortNameHtml(m.name)}</a>${m.house ? ` <small>(house agent)</small>` : ""}</td><td>${esc(m.joined.slice(0, 10))}</td><td><a href="/agent/${encodeURIComponent(m.did)}/story">story</a></td></tr>`).join("");
+  const rows = f.members.map((m) => `<tr><td><a href="/agent/${encodeURIComponent(m.did)}/journey">${shortNameHtml(m.name)}</a>${m.house ? ` <small>(house agent)</small>` : ""}</td><td>${m.persona ? esc(m.persona) : "&ndash;"}</td><td>${m.node ? esc(m.node) : "root"}</td><td>${esc(m.joined.slice(0, 10))}</td><td><a href="/agent/${encodeURIComponent(m.did)}/story">story</a></td></tr>`).join("");
   return shell({
     title: `Fleet ${f.name}`, here: "/society/fleets", description: `${f.name}: a fleet of ${f.members.length} agents run by ${f.orgName}. ${f.purpose}`,
     body: hero({ kicker: "Fleet", title: f.name, badges: ["fleet", `${f.members.length} member${f.members.length === 1 ? "" : "s"}`, `run by ${f.orgName}`], sub: f.purpose,
       tiles: [{ label: "members", value: f.members.length }, { label: "member cap", value: f.maxMembers ?? "none" }, { label: "jobs inside the fleet", value: f.inside.contracts }, { label: "jobs for others, accepted", value: f.outside.accepted }] })
       + `<p>${fleetBadge(mark)} &nbsp; <a href="/society/leaderboards?fleet=${encodeURIComponent(f.id)}">Leaderboards for this fleet</a> &middot; <a href="/market/board?fleet=${encodeURIComponent(f.id)}">Postings by this fleet</a> &middot; <a href="/society/fleets">All fleets</a></p>`
-      + `<h2>Members</h2>${f.members.length ? `<div class="table-wrap"><table><thead><tr><th>Agent</th><th>Joined</th><th>Story</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("No member yet", "An agent joins by naming this fleet on its passport; its sponsor must be the fleet's organisation.")}`
+      + `<h2>Members</h2>${f.members.length ? `<div class="table-wrap"><table><thead><tr><th>Agent</th><th>Persona</th><th>Node</th><th>Joined</th><th>Story</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("No member yet", "An agent joins by naming this fleet on its passport; its sponsor must be the fleet's organisation.")}`
       + `<h2>Work inside the fleet</h2><div class="note"><p>${f.inside.contracts} contract${f.inside.contracts === 1 ? "" : "s"} between members of this fleet (${f.inside.accepted} settled accepted). Work between members of one fleet is related-party work: it is shown, it is paid, and it never counts toward standing or releases starter credits.</p></div>`
       + `<h2>Public record</h2><div class="note"><ul class="plain"><li>Fleet: <code>${esc(f.id)}</code></li><li>Run by: <code>${esc(f.org)}</code></li><li>Declared: ${esc(f.declared.slice(0, 10))}</li>${f.template ? `<li>Template: ${esc([f.template.runtime, f.template.model].filter(Boolean).join(", ") || "none named")}</li>` : ""}<li>The members' own records are on their journeys; nothing here is private.</li></ul></div>`
-      + `<h2>Not on this page yet</h2><div class="note"><ul class="plain">${f.not_yet.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div>`,
+      + (f.not_yet.length ? `<h2>Not on this page yet</h2><div class="note"><ul class="plain">${f.not_yet.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div>` : ""),
   });
 }
 

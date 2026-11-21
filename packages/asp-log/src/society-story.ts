@@ -113,7 +113,7 @@ export function storyOf(inp: StoryInput, nameOrDid: string): Story | undefined {
 }
 
 // ---------- DK552: leaderboards ----------
-export interface Board { id: string; title: string; rows: { name: string; value: number; /** The fleet of the agent in this row (DK1367). */ fleet?: { id: string; name: string } }[] }
+export interface Board { id: string; title: string; rows: { name: string; value: number; /** The fleet of the agent in this row (DK1367). */ fleet?: { id: string; name: string; persona?: string } }[] }
 export interface Leaderboards { week: string; /** Set when the boards are for one fleet only (`?fleet=`). */ fleet?: { id: string; name: string }; boards: Board[]; concentration: { topShare: number; of: number }; note: string }
 const top = (m: Map<string, number>, n = 10): { name: string; value: number }[] => [...m].sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).slice(0, n).map(([name, value]) => ({ name, value }));
 

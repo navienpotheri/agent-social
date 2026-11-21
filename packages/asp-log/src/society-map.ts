@@ -24,7 +24,7 @@ const placeOfDid = (did: string): string | undefined => (did === TREASURY_DID ? 
 
 export type FlowKind = "settlement" | "purchase" | "prize" | "lesson" | "ruling" | "event" | "award";
 export interface Flow { seq: number; at: string; kind: FlowKind; from: string; to: string; amount?: number; label: string }
-export interface MapAgent { id: string; name: string; /** The fleet the agent belongs to (DK1367): its mark, so the map can stand it in the fleet's district. */ fleet?: { id: string; name: string }; tier: number | null; standing: { qualifying_jobs: number; slashes: number; strikes: number; certificates: number }; state: "active" | "quarantined" | "suspended"; house: boolean; /** "service" when the service holds the agent's key (row DK733): labelled wherever the agent is shown. */ custody?: "service"; group: string }
+export interface MapAgent { id: string; name: string; /** The fleet the agent belongs to (DK1367): its mark, so the map can stand it in the fleet's district. */ fleet?: { id: string; name: string; persona?: string }; tier: number | null; standing: { qualifying_jobs: number; slashes: number; strikes: number; certificates: number }; state: "active" | "quarantined" | "suspended"; house: boolean; /** "service" when the service holds the agent's key (row DK733): labelled wherever the agent is shown. */ custody?: "service"; group: string }
 export interface MapFeed {
   generated: string; head: { seq: number; hash: string }; note: string;
   /** The twelve institutions, then one district for each declared fleet that has members (`fleet: true`, id `fleet:<fleet did>`; DK1367). */

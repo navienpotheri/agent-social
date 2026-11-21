@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 88,
+  "must": 86,
   "withdraw": 107,
   "after": 318,
-  "total": 513
+  "total": 511
  },
- "mustWorkerHours": 414.2,
+ "mustWorkerHours": 404.2,
  "entries": [
   {
    "id": "D3",
@@ -5433,17 +5433,6 @@
    "says": "the sponsor sees cost in the run log"
   },
   {
-   "id": "DK1348",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The beta's pages do not yet look finished. The journey page (DK1300) works and reads well, but its first version is plain: a stock look, small type in the timeline, long key names, no sense of place,…",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "D",
-   "why": "a visual pass on the journey page, Society Daily, leaderboards, cohort dashboard, catalogue and map entry, with before and after screenshots; the row closes on the owner's approval of the look"
-  },
-  {
    "id": "SO1",
    "pri": "B",
    "status": "designed",
@@ -5903,17 +5892,6 @@
    "size": "M",
    "flags": "",
    "why": "copies and mixed-persona fleets both work, template reputation shown"
-  },
-  {
-   "id": "DK1367",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Fleets are not clearly demarcated in the society: the dashboard shows copies, but the map, the journey, the Registry, the leaderboards and the job board do not mark which agents belong to which fleet.",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "fleets are clearly marked in the society (owner request)"
   },
   {
    "id": "DK1368",

@@ -9,8 +9,8 @@ import type { StoredRec } from "./society-story.ts";
 const T = (s: string) => `asp.${s}/v0.2`;
 export const fleetNameOf = (did: string): string => did.split(":").pop() ?? did;
 
-export interface FleetMark { id: string; name: string }
-export interface FleetMember { did: string; name: string; joined: string; house: boolean }
+export interface FleetMark { id: string; name: string; /** The persona the agent plays in the fleet (its passport's `persona`), when it has one (DK1353, DK1366). */ persona?: string }
+export interface FleetMember { did: string; name: string; joined: string; house: boolean; persona: string | null; node: string | null }
 export interface FleetView {
   id: string;
   name: string;
@@ -31,12 +31,13 @@ export interface FleetView {
 
 export interface FleetDirectory { fleets: FleetView[]; byAgent: Map<string, FleetMark>; byId: Map<string, FleetView> }
 
-const NOT_YET = ["personas (a role such as developer or project manager within a fleet): DK1353, DK1366", "the fleet's spending caps and freeze switch: DK1361"];
+const NOT_YET: string[] = [];
 
 /** Reads the directory from the log's records, in log order. A fleet that was declared twice keeps its latest declaration; an agent whose latest passport names no fleet is in none. */
 export function fleetDirectory(stored: StoredRec[]): FleetDirectory {
   const decl = new Map<string, { rec: StoredRec; first: string }>();
-  const latestPassport = new Map<string, { fleet?: string; joined: string; house: boolean }>();
+  const latestPassport = new Map<string, { fleet?: string; joined: string; house: boolean; persona?: string; node?: string }>();
+  const moved = new Map<string, string>();
   const firstSeen = new Map<string, string>();
   for (const s of stored) {
     if (s.record.type === T("fleet")) {
@@ -44,20 +45,21 @@ export function fleetDirectory(stored: StoredRec[]): FleetDirectory {
       const prior = decl.get(b.did);
       decl.set(b.did, { rec: s, first: prior?.first ?? s.record.issued_at });
     } else if (s.record.type === T("passport")) {
-      const b = s.record.body as { did: string; kind: string; fleet?: string; house?: boolean };
+      const b = s.record.body as { did: string; kind: string; fleet?: string; house?: boolean; persona?: string; node?: string };
       if (b.kind !== "agent") continue;
       if (!firstSeen.has(b.did)) firstSeen.set(b.did, s.record.issued_at);
-      latestPassport.set(b.did, { ...(b.fleet ? { fleet: b.fleet } : {}), joined: firstSeen.get(b.did)!, house: !!b.house });
-    }
+      latestPassport.set(b.did, { ...(b.fleet ? { fleet: b.fleet } : {}), joined: firstSeen.get(b.did)!, house: !!b.house, ...(b.persona ? { persona: b.persona } : {}), ...(b.node ? { node: b.node } : {}) });
+      moved.delete(b.did);
+    } else if (s.record.type === T("fleet_move")) { const b = s.record.body as { member: string; to: string }; moved.set(b.member, b.to); }
   }
   const members = new Map<string, FleetMember[]>();
   const byAgent = new Map<string, FleetMark>();
   for (const [did, p] of latestPassport) {
     if (!p.fleet || !decl.has(p.fleet)) continue;
     const name = (decl.get(p.fleet)!.rec.record.body as { name: string }).name;
-    byAgent.set(did, { id: p.fleet, name });
+    byAgent.set(did, { id: p.fleet, name, ...(p.persona ? { persona: p.persona } : {}) });
     const list = members.get(p.fleet) ?? [];
-    list.push({ did, name: fleetNameOf(did), joined: p.joined, house: p.house });
+    list.push({ did, name: fleetNameOf(did), joined: p.joined, house: p.house, persona: p.persona ?? null, node: moved.get(did) ?? p.node ?? null });
     members.set(p.fleet, list);
   }
   // Contracts and settlements, for the work inside and outside each fleet.

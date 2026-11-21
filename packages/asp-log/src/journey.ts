@@ -104,7 +104,7 @@ export interface Journey {
   level: string;
   joined: string | null;
   /** The fleet the agent belongs to (DK1367), when its latest passport names a declared fleet. */
-  fleet?: { id: string; name: string };
+  fleet?: { id: string; name: string; persona?: string };
   steps: JourneyStep[];
   summary: JourneySummary;
   balance?: number;
