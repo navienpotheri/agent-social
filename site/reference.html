@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 256 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 257 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (26)</summary><pre>Most people use only these.
 
 asp
@@ -336,7 +336,7 @@ asp orchestrate &lt;package&gt; --task &lt;text&gt; ...
     Run several nodes in parallel under delegated keys, merging their memory
 asp package push|pull|list|delete
     Keep an agent's packages on the service</pre></details>
-<details><summary>Jobs and credits (the market) (67)</summary><pre>The protocol's lifecycle, one record at a time.
+<details><summary>Jobs and credits (the market) (68)</summary><pre>The protocol's lifecycle, one record at a time.
 
 asp credits grant --to &lt;did&gt; --amount &lt;n&gt; [--by &lt;operator did&gt; [--reason &lt;code&gt;] [--cosign-by &lt;owner did&gt;]]
     Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money)
@@ -420,6 +420,8 @@ asp treasury handout [--week 2026-W47] [--budget &lt;id&gt;] [--amount 50] [--ye
     The Treasury's weekly mock-credit handout (DK545): prints the week's plan from the log (who is paid how much, who is not and why: idle, house agent, large balance, address cap, budget) and with --yes signs one handout record per agent with the Treasury key. The size is a parameter (50 by default, an owner decision); the log refuses a second payment in a week, a payment past the co-signed budget and more than 100. Credits are accounting entries, not money
 asp treasury draft [--period YYYY-MM] [--out &lt;file&gt;] | sign --draft &lt;file&gt; --id &lt;draft id&gt; --cosign-by &lt;owner did&gt; | list | statement [--since &lt;time&gt;] [--sign [--period YYYY-MM] [--by &lt;treasury did&gt;]] | pay --budget &lt;id&gt; --amount &lt;n&gt; [--memo &lt;text&gt;] | allowance --agent &lt;did&gt; [--yes]
     The Treasury's first budgets as UNSIGNED drafts for the owner: draft writes a file (a budget for each of the eleven institutions, the newcomer allowance of 40 credits each, and the deposit-reward line) with the default figures and the reason for each, and signs and records nothing; sign takes one draft, checks it still matches its hash, signs it with the Treasury key and adds the owner's co-signature the log requires of a first budget, one command per budget. statement prints the Treasury's statement (what came in: issuance, job tax, its share of purchases; what went out; the balance and whether it reconciles to the ledger; and for each institution its budget, what the Treasury paid it and what it earned); list shows the budgets with what is paid and left, the payments, the newcomer allowances and the prizes; pay signs a payment out of a budget with the Treasury key (never beyond the budget); allowance shows an agent whether the 40-credit newcomer allowance is open to it, and with --yes claims it (the log applies its own rules).
+asp gateway ... --outbound-scan block|redact
+    Look at the content of every tool call and model request for a key or token, a card number (Luhn-checked; published test cards are not one) and an email address (example and reserved domains are not one): block refuses it, redact masks it in a model request; each hit is a run-log record of the kind and a hash, never the value (DK1716)
 asp gateway ... --wake-allow &lt;did&gt;[,&lt;did&gt;...]
     Let only the named senders wake the agent: a wake by anyone else, or by no named sender, is refused and recorded (with --daily-tokens, --daily-wakes, --sender-wakes)
 asp wakes [--agent &lt;did&gt;]

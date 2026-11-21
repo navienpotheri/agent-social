@@ -6076,7 +6076,7 @@
   {
    "id": "DK1716",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Outbound secrets and personal data are not scanned at the gateway by content. What exists: the run log redacts the secrets it writes (`redactSecrets`, E2), the gateway refuses reading or sending a se…",
    "bucket": "must",
    "hours": 5,
