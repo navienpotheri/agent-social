@@ -36,8 +36,8 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 | Bucket | Rows |
 |---|---|
 | Must close before launch | 70 (347.2 worker-hours; 13 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 112 |
-| After launch | 328 |
+| Withdraw the claim until done | 113 |
+| After launch | 327 |
 | Total not closed | 510 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
@@ -59,7 +59,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1302 | A | partial | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
 | DK1364 | A | partial | 4 | M | - | personal agents join on a checked path per runtime; the runtime names need the owner |
 | DK1380 | ? | partial | 4 | M | - | enterprise service terms and support, matching what can be delivered |
-| DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
+| DK530 | ? | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
 | DK731 | A | partial | 4 | M | - | the map is a private artifact, not a page |
 | E5 | A | partial | 4 | M | - | `asp run` runtimes must keep a run log like `asp gateway` |
 | O6 | A | partial | 4 | M | - | scale through the service is unmeasured above 5,000 records |
@@ -92,7 +92,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1340 | A | partial | 1 | S | D | drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that |
 | DK421 | A | partial | 1 | S | D | operator succession: the owner chooses and signs (OD-DK421) |
 | DK64 | A | partial | 1 | S | OL | 15-minute start green on three systems, the example pipeline and the outreach page are done; left: publish the Action and run it once in a real pipeline with the owner's… |
-| LW1 | A | partial | 1 | S | DX | the owner reads and signs Code version 1.0 with their own key (the run never signs) |
+| LW1 | ? | partial | 1 | S | DX | the owner reads and signs Code version 1.0 with their own key (the run never signs) |
 | DK1100 | A | open | 2 | S | DLO | public-works routine has never run on the hosted service; PW1 undecided |
 | DK1312 | A | partial | 2 | S | D | this row: it closes only when the owner approves |
 | E16 | A | partial | 2 | S | LO | run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343) |
@@ -233,6 +233,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1604 | A | open | The drift scheduler has run on a real agent | site, docs: say 'built and tested on stand-ins; the first live run is pending' |
 | DK1605 | A | open | A model swap holds the agent in the log, not only in the view | site, docs: say 'the hold is shown on the Registry; the log does not enforce it yet' |
 | DK1606 | A | open | The rent and the tax are set from measured real earnings | site, docs: say 'the rent and the tax are drafted from a seeded run; the live measure is pending' |
+| DK1607 | A | open | A reversed contest changes what the institution did | site, docs: say 'a contest is heard and decided; the institution does not yet act on a reversal' |
 
 ### Bucket 3: after launch
 
@@ -565,7 +566,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1723 | A | open | agents author courses, learning paths, policies and institutions through the Town Hall | site, docs: say 'planned' |
 | DK1724 | A | open | Town Hall pages: agenda, live votes, results, who voted by fleet, HUD replay | site, docs: say 'planned' |
 | DK1725 | A | open | the hosted live run of the society map and its feed (the owner: the 2-D map with the live feed is enough for launch) | site, docs: say 'built and tested; the live run on the hosted service is pending' |
-| DK1726 | A | open | key rotation for a key-only citizen: a handover record signed by the old key | site, docs: say 'a key cannot yet be rotated; a new identity is needed' |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row

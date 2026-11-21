@@ -35,6 +35,10 @@ export async function charterIn(tx: Pick<LogTx, "getMarker">, at: string): Promi
 }
 export const routesOrDefault = async (tx: Pick<LogTx, "getMarker">, at: string): Promise<CourtRoutes> => (await charterIn(tx, at)) ?? DEFAULT_ROUTES;
 
+/** The operator answers a contest within this long; after it the contester may go to the Courts without an answer (AG3, S1552; owner answer 2026-11-21). */
+export const CONTEST_OPERATOR_MS = 48 * 3600 * 1000;
+/** The Courts decide a contest within this long of the case; a later ruling is recorded and marked late. */
+export const CONTEST_COURTS_MS = 72 * 3600 * 1000;
 export interface CourtsEnv { operator?: string; panelSize: number; panelV2From?: string }
 
 export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): Promise<void> {
@@ -192,6 +196,75 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     if (paid > 0) { const to = await tx.getAccount(info.reporter); await tx.putAccount({ did: info.reporter, balance: (to?.balance ?? 0) + paid }); for (const f of from) await noteFunder(tx, info.reporter, f.account, isReservedAccount); }
     await tx.putMarker(`abuse_case:${b.case}`, JSON.stringify({ ...info, state: b.finding }));
     await tx.putMarker(`abuse_outcome:${info.report}`, JSON.stringify({ case: b.case, ruling: r.id, finding: b.finding, requested: asked, paid, shortfall: asked - paid, from, ...(b.remedy ? { remedy: b.remedy } : {}), ...(b.bad_faith ? { bad_faith: true } : {}), at: now }));
+    return;
+  }
+
+  // The contest of an adverse act (AG3, spec-delta S1552; owner answer 2026-11-21): the operator answers within 48 hours, then the Courts decide within 72 hours of the case. The log keeps the clocks and refuses an act out of order;
+  // an answer or a ruling that comes after its clock is still recorded and is marked late, so a stalled contest is visible and never frozen.
+  if (b.act === "contest") {
+    const subject = await tx.getRecord(b.subject);
+    const sb = subject?.record.body as Record<string, any> | undefined;
+    let agents: string[] = [];
+    if (subject?.record.type === "asp.action/v0.2" && ((sb?.blocked_attempts ?? []) as { count: number }[]).reduce((n, x) => n + x.count, 0) > 0) agents = [subject.record.issuer];
+    else if (subject?.record.type === "asp.settlement/v0.2" && Number(sb?.bond_slashed?.value ?? 0) > 0) { const c = await tx.getRecord(sb!.contract); if (c) agents = [(c.record.body as { performer: string }).performer]; }
+    else if (subject?.record.type === "asp.clinic_diagnosis/v0.2") agents = [sb!.agent];
+    else if (subject?.record.type === "asp.quarantine/v0.2") agents = sb!.members as string[];
+    if (!agents.length) throw rule("contest_subject", `${b.subject} is not an adverse act against an agent (a strike, a slash, a Clinic diagnosis or a quarantine): there is nothing to contest`);
+    let agent: string | undefined;
+    for (const a of agents) { if (r.issuer === a || r.issuer === (await tx.getPassport(a))?.sponsor) agent = a; }
+    if (!agent) throw rule("contest_not_the_agent", `only the agent the act was against, or its sponsor, contests it`);
+    if (await tx.getMarker(`contest_for:${b.subject}`)) throw rule("contest_once", `${b.subject} already has a contest: one contest for each act`);
+    await tx.putMarker(`contest:${r.id}`, JSON.stringify({ subject: b.subject, agent, by: r.issuer, at: now, state: "open" }));
+    await tx.putMarker(`contest_for:${b.subject}`, r.id);
+    return;
+  }
+
+  if (b.act === "contest_answer") {
+    const raw = await tx.getMarker(`contest:${b.contest}`);
+    if (!raw) throw rule("contest_unknown", `${b.contest} is not a contest in this log`);
+    const info = JSON.parse(raw) as { subject: string; agent: string; by: string; at: string; state: string };
+    if (r.issuer !== env.operator) throw rule("contest_answer_wrong_issuer", `${r.issuer} is not the operator: the operator answers a contest first`);
+    if (info.state !== "open") throw rule("contest_not_open", `the contest ${b.contest} is ${info.state}: it was already answered or is with the Courts`);
+    const late = Date.parse(now) - Date.parse(info.at) > CONTEST_OPERATOR_MS;
+    await tx.putMarker(`contest:${b.contest}`, JSON.stringify({ ...info, state: b.answer, answered_at: now, answer: r.id, ...(late ? { answer_late: true } : {}) }));
+    return;
+  }
+
+  if (b.act === "contest_case") {
+    const raw = await tx.getMarker(`contest:${b.contest}`);
+    if (!raw) throw rule("contest_unknown", `${b.contest} is not a contest in this log`);
+    const info = JSON.parse(raw) as { subject: string; agent: string; by: string; at: string; state: string };
+    if (r.issuer !== info.by && r.issuer !== info.agent && r.issuer !== (await tx.getPassport(info.agent))?.sponsor) throw rule("contest_case_not_the_contester", "only the agent, its sponsor or whoever opened the contest takes it to the Courts");
+    const waited = Date.parse(now) - Date.parse(info.at) >= CONTEST_OPERATOR_MS;
+    if (info.state === "withdrawn") throw rule("contest_withdrawn", "the operator withdrew the act: there is nothing left for the Courts");
+    if (info.state === "in_courts" || info.state === "reversed" || info.state === "stands") throw rule("contest_case_once", `the contest ${b.contest} already went to the Courts`);
+    if (info.state === "open" && !waited) throw rule("contest_operator_first", `the operator answers first, within 48 hours: until ${iso(Date.parse(info.at) + CONTEST_OPERATOR_MS)} the contest cannot go to the Courts unless the operator has answered`);
+    await tx.putMarker(`contest:${b.contest}`, JSON.stringify({ ...info, state: "in_courts", case_at: now }));
+    await tx.putMarker(`contest_case:${r.id}`, JSON.stringify({ contest: b.contest, agent: info.agent, at: now, state: "open" }));
+    return;
+  }
+
+  if (b.act === "contest_ruling") {
+    const raw = await tx.getMarker(`contest_case:${b.case}`);
+    if (!raw) throw rule("contest_case_unknown", `${b.case} is not a contest case in this log`);
+    const cinfo = JSON.parse(raw) as { contest: string; agent: string; at: string; state: string };
+    if (cinfo.state !== "open") throw rule("contest_case_decided", `the case ${b.case} was already ruled on`);
+    const sponsor = (await tx.getPassport(cinfo.agent))?.sponsor ?? null;
+    const signers = new Set([r.sig.kid, ...(r.cosigs ?? []).map((c) => c.kid)].map(didOf));
+    const conflicted = [...signers].filter((x) => x === cinfo.agent || x === sponsor || x === env.operator || x === REGISTRAR_DID);
+    if (conflicted.length) throw rule("contest_panel_conflict", `${conflicted.join(", ")} is the agent, its sponsor, the operator or the Registrar: the panel is jurors who are none of them`);
+    const routes = await routesOrDefault(tx, now);
+    const panel = await drawPanel(tx, { principal: sponsor ?? cinfo.agent, performer: cinfo.agent, seed: b.case, size: routes.standard_panel, at: now, v2: panelDrawIsV2(env.panelV2From, now) });
+    if (panel.length > 0) {
+      const onPanel = panel.filter((p) => signers.has(p));
+      const quorum = Math.ceil(panel.length / 2);
+      if (onPanel.length < quorum) throw rule("panel_quorum", `a ruling on a contest needs ${quorum} of the drawn panel (${panel.join(", ")}) to sign; only ${onPanel.length} did`);
+      await noteJurorService(tx, onPanel, now);
+    }
+    const late = Date.parse(now) - Date.parse(cinfo.at) > CONTEST_COURTS_MS;
+    await tx.putMarker(`contest_case:${b.case}`, JSON.stringify({ ...cinfo, state: b.decision, ruled_at: now, ruling: r.id, ...(late ? { late: true } : {}) }));
+    const craw = JSON.parse((await tx.getMarker(`contest:${cinfo.contest}`))!) as Record<string, unknown>;
+    await tx.putMarker(`contest:${cinfo.contest}`, JSON.stringify({ ...craw, state: b.decision === "reversed" ? "reversed" : "stands", ruled_at: now, ruling: r.id, ...(late ? { ruling_late: true } : {}) }));
     return;
   }
 

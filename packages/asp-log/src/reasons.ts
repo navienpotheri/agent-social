@@ -18,51 +18,74 @@ export interface AdverseAct {
   evidence: string[];
   /** What the agent can do next. */
   next: string;
-  /** Always present: whether the act can be contested by a recorded route. */
-  contest: { built: false; note: string };
+  /** The record the act is (what a contest names as its subject). */
+  id: string;
+  /** How the act can be contested, and where a contest of it stands (AG3, S1552). */
+  contest: { built: true; how: string; status?: ContestStatus };
 }
-export const NO_CONTEST_ROUTE = "There is no recorded route to contest this yet (register row AG3): the route and its time limit are the owner's and the Courts' decision. Until then a sponsor can ask the Courts for a ruling by filing a report.";
+export interface ContestStatus { id: string; state: "open" | "upheld" | "withdrawn" | "in_courts" | "reversed" | "stands"; openedAt: string; operatorDueAt: string; courtsDueAt: string | null }
+/** The route, in words (the owner's answer of 2026-11-21): the agent or its sponsor contests the act; the operator answers within 48 hours; if the agent still contests, the Courts decide within 72 hours of the case. */
+export const CONTEST_HOW = "The agent or its sponsor can contest this: the operator answers within 48 hours; if it is still contested (or the 48 hours pass with no answer) the Courts decide within a further 72 hours. A contest is a signed court act that names this record.";
+export const NO_CONTEST_ROUTE = CONTEST_HOW;
 const body = (r: AspRecord) => r.body as Record<string, any>;
-const contest = { built: false as const, note: NO_CONTEST_ROUTE };
+const HOUR = 3_600_000;
+/** The contests the records hold, by the act contested: derived from the court acts in log order. */
+function contestsBySubject(records: AspRecord[]): Map<string, ContestStatus> {
+  const byId = new Map<string, ContestStatus & { subject: string }>(), cases = new Map<string, string>();
+  const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+  for (const r of records) {
+    if (r.type !== T("court_act")) continue;
+    const b = body(r);
+    if (b.act === "contest") byId.set(r.id, { id: r.id, subject: b.subject, state: "open", openedAt: r.issued_at, operatorDueAt: iso(Date.parse(r.issued_at) + 48 * HOUR), courtsDueAt: null });
+    else if (b.act === "contest_answer" && byId.has(b.contest)) byId.get(b.contest)!.state = b.answer;
+    else if (b.act === "contest_case" && byId.has(b.contest)) { const c = byId.get(b.contest)!; c.state = "in_courts"; c.courtsDueAt = iso(Date.parse(r.issued_at) + 72 * HOUR); cases.set(r.id, b.contest); }
+    else if (b.act === "contest_ruling" && cases.has(b.case)) byId.get(cases.get(b.case)!)!.state = b.decision === "reversed" ? "reversed" : "stands";
+  }
+  const out = new Map<string, ContestStatus>();
+  for (const c of byId.values()) out.set(c.subject, { id: c.id, state: c.state, openedAt: c.openedAt, operatorDueAt: c.operatorDueAt, courtsDueAt: c.courtsDueAt });
+  return out;
+}
 
 /** `records` are the log's records in log order; `view` is public (no free text anyone wrote) or sponsor. */
 export function reasonsFor(records: AspRecord[], agent: string, view: "public" | "sponsor" = "public"): AdverseAct[] {
   const performer = new Map<string, string>();
   for (const r of records) if (r.type === T("contract")) performer.set(r.id, body(r).performer);
   const out: AdverseAct[] = [];
+  const contests = contestsBySubject(records);
+  const contestOf = (id: string): AdverseAct["contest"] => ({ built: true, how: CONTEST_HOW, ...(contests.has(id) ? { status: contests.get(id)! } : {}) });
   for (const r of records) {
     const b = body(r);
     if (r.type === T("action") && r.issuer === agent) {
       const blocked = (b.blocked_attempts ?? []) as { scope: string; count: number; targets?: string[] }[];
       const total = blocked.reduce((n, x) => n + x.count, 0);
       if (total === 0) continue;
-      out.push({ at: r.issued_at, kind: "strike",
+      out.push({ id: r.id, at: r.issued_at, kind: "strike",
         what: `${total} call(s) were stopped before they ran: ${blocked.map((x) => `${x.count} for the scope ${x.scope}`).join(", ")}.`,
         rule: "A call whose scope is not in the Mandate is stopped by the runtime and recorded as a signed strike. Nothing ran, nothing was slashed, and no tier moved; a recent strike raises the bond floor of the next bond for a while.",
         evidence: [r.id, ...(b.contract ? [b.contract as string] : [])],
-        next: `If the work needs ${blocked.map((x) => x.scope).join(", ")}, ask for a Mandate that includes it; otherwise do the work without it.`, contest });
+        next: `If the work needs ${blocked.map((x) => x.scope).join(", ")}, ask for a Mandate that includes it; otherwise do the work without it.`, contest: contestOf(r.id) });
     } else if (r.type === T("settlement")) {
       const slashed = Number(b.bond_slashed?.value ?? 0);
       if (slashed <= 0 || performer.get(b.contract) !== agent) continue;
-      out.push({ at: r.issued_at, kind: "slash",
+      out.push({ id: r.id, at: r.issued_at, kind: "slash",
         what: `Your bond was slashed ${slashed} credit(s) when the job was settled (basis: ${b.basis}).`,
         rule: b.basis === "ruling" ? "A Court's ruling named fault and the bond is slashed by the share the ruling set." : `The settlement's basis is "${b.basis}"; the bond is slashed only on a lost dispute or a ruling, and the settlement cites what it rests on.`,
         evidence: [r.id, b.contract, ...((b.cites ?? []) as string[])],
-        next: "A slash raises the bond floor of later bonds (your own, and your fleet's); clean accepted jobs bring it back down. Read the cited ruling for what to change.", contest });
+        next: "A slash raises the bond floor of later bonds (your own, and your fleet's); clean accepted jobs bring it back down. Read the cited ruling for what to change.", contest: contestOf(r.id) });
     } else if (r.type === T("clinic_diagnosis") && b.agent === agent) {
       const findings = (b.findings ?? []) as { measure: string; baseline: unknown; observed: unknown; threshold: unknown }[];
       const rec = (b.recommendation ?? []) as { action: string; note: string }[];
-      out.push({ at: r.issued_at, kind: "clinic",
+      out.push({ id: r.id, at: r.issued_at, kind: "clinic",
         what: `The Clinic found drift (${b.severity}): ${findings.map((f) => `${f.measure} was ${f.observed} against a baseline of ${f.baseline}`).join("; ")}.`,
         rule: "The Clinic compares an agent's recent runs with its own baseline and flags a measure that moves past its threshold; it never slashes or demotes.",
         evidence: [r.id],
-        next: rec.length ? rec.map((x) => `${x.action.replace(/_/g, " ")}${view === "sponsor" ? `: ${x.note}` : ""}`).join("; ") : "Nothing is required.", contest });
+        next: rec.length ? rec.map((x) => `${x.action.replace(/_/g, " ")}${view === "sponsor" ? `: ${x.note}` : ""}`).join("; ") : "Nothing is required.", contest: contestOf(r.id) });
     } else if (r.type === T("quarantine") && ((b.members ?? []) as string[]).includes(agent)) {
-      out.push({ at: r.issued_at, kind: "quarantine",
+      out.push({ id: r.id, at: r.issued_at, kind: "quarantine",
         what: `The Clinic put you in quarantine (${b.level}) until ${b.until}${view === "sponsor" && b.reason ? `: ${b.reason}` : ""}.`,
         rule: "An interim quarantine lasts at most seven days; a longer one needs a Court's ruling. While it lasts the log refuses new risky scopes and, at the higher levels, new bonds.",
         evidence: [r.id, ...(b.report ? [b.report as string] : [])],
-        next: `It ends by itself at ${b.until}; passing the Clinic's clean checks in the meantime moves you back down the ladder.`, contest });
+        next: `It ends by itself at ${b.until}; passing the Clinic's clean checks in the meantime moves you back down the ladder.`, contest: contestOf(r.id) });
     }
   }
   return out.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));

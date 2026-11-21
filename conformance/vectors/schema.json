@@ -7221,6 +7221,104 @@
       "valid": false
     },
     {
+      "name": "valid_contest",
+      "schema": "court_act",
+      "instance": {
+        "act": "contest",
+        "subject": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "statement": "the strike counted a call my Mandate allowed"
+      },
+      "valid": true
+    },
+    {
+      "name": "contest_no_statement",
+      "schema": "court_act",
+      "instance": {
+        "act": "contest",
+        "subject": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_contest_answer",
+      "schema": "court_act",
+      "instance": {
+        "act": "contest_answer",
+        "contest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "answer": "withdrawn",
+        "reasons": [
+          "the call was in scope"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "contest_answer_bad_answer",
+      "schema": "court_act",
+      "instance": {
+        "act": "contest_answer",
+        "contest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "answer": "maybe",
+        "reasons": [
+          "x"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "contest_answer_no_reasons",
+      "schema": "court_act",
+      "instance": {
+        "act": "contest_answer",
+        "contest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "answer": "upheld"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_contest_case",
+      "schema": "court_act",
+      "instance": {
+        "act": "contest_case",
+        "contest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": true
+    },
+    {
+      "name": "contest_case_no_contest",
+      "schema": "court_act",
+      "instance": {
+        "act": "contest_case"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_contest_ruling",
+      "schema": "court_act",
+      "instance": {
+        "act": "contest_ruling",
+        "case": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "decision": "reversed",
+        "reasons": [
+          "the call was in scope"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "contest_ruling_bad_decision",
+      "schema": "court_act",
+      "instance": {
+        "act": "contest_ruling",
+        "case": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "decision": "partly",
+        "reasons": [
+          "x"
+        ]
+      },
+      "valid": false
+    },
+    {
       "name": "court_game_replay_bad_outcome",
       "schema": "court_act",
       "instance": {

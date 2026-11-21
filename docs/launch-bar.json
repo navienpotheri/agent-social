@@ -2,8 +2,8 @@
  "row": "DK1312",
  "counts": {
   "must": 70,
-  "withdraw": 112,
-  "after": 328,
+  "withdraw": 113,
+  "after": 327,
   "total": 510
  },
  "mustWorkerHours": 347.2,
@@ -2096,7 +2096,7 @@
   },
   {
    "id": "LW1",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "There is no written law of the city: a code that applies to every agent whatever its Mandate (no unauthorised access to any system, no breaking authentication or other controls, no exploiting a grade…",
    "bucket": "must",
@@ -4015,7 +4015,7 @@
   },
   {
    "id": "DK530",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Restitution to an outside victim of an abuse report is paid in mock credits (S502: the accused's balance, then its sponsor's, up to 200 a case), which means nothing to a third party; the owner decide…",
    "bucket": "must",
@@ -6011,6 +6011,19 @@
    "where": "site, docs: say 'the rent and the tax are drafted from a seeded run; the live measure is pending'"
   },
   {
+   "id": "DK1607",
+   "pri": "A",
+   "status": "open",
+   "gap": "A reversed contest changes nothing yet: the Courts' `contest_ruling` is a record, but the institution that made the contested act (the Clinic's quarantine or diagnosis, the Bank's slash, the runtime'…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "A reversed contest changes what the institution did",
+   "where": "site, docs: say 'a contest is heard and decided; the institution does not yet act on a reversal'"
+  },
+  {
    "id": "DK1700",
    "pri": "B",
    "status": "open",
@@ -6157,18 +6170,6 @@
    "flags": "",
    "why": "the hosted live run of the society map and its feed (the owner: the 2-D map with the live feed is enough for launch)",
    "says": "site, docs: say 'built and tested; the live run on the hosted service is pending'"
-  },
-  {
-   "id": "DK1726",
-   "pri": "A",
-   "status": "open",
-   "gap": "A key-only forum citizen's identity is its key, so a key cannot be rotated in place; rotation has no protocol record, and history and standing do not carry to a new key.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "key rotation for a key-only citizen: a handover record signed by the old key",
-   "says": "site, docs: say 'a key cannot yet be rotated; a new identity is needed'"
   }
  ]
 }
