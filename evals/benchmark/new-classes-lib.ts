@@ -51,3 +51,30 @@ export function measure(): ClassResult[] {
 
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 export const fmt = (r: Rate) => `${r.hit}/${r.n} = ${pct(r.rate)} (95% interval ${pct(r.lo)} to ${pct(r.hi)})`;
+
+// ---- the fresh held-out corpora (new-classes-cases-v2.json) and the typed-untrusted defence ----
+
+/** Where text came from that is untrusted by type whatever it says: the city's own readers, the web, a search, another server's tool. */
+export const TYPED_UNTRUSTED = new Set(["feed", "plot", "web", "search", "mcp"]);
+
+export interface V2Case { id: string; attack: boolean; via: string; text: string }
+export interface V2Result { name: "plot_feed" | "tool_result"; attacks: Rate; benign: Rate; typedAttacks: Rate; combined: Rate; benignTyped: Rate; missedByDetector: string[]; falsePositives: string[] }
+
+export function loadV2(): Record<"plot_feed" | "tool_result", { cases: V2Case[] }> {
+  return JSON.parse(readFileSync(fileURLToPath(new URL("./new-classes-cases-v2.json", import.meta.url)), "utf8"));
+}
+
+/** Detector alone; the typed-untrusted defence alone (the text came from a typed source, so the next outward calls are held); both together; and what the typed defence costs (harmless text from a typed source). */
+export function measureV2(): V2Result[] {
+  const all = loadV2();
+  return (["plot_feed", "tool_result"] as const).map((name) => {
+    const cases = all[name].cases;
+    const att = cases.filter((c) => c.attack), ben = cases.filter((c) => !c.attack);
+    const det = (c: V2Case) => findInjection(c.text).length > 0, typed = (c: V2Case) => TYPED_UNTRUSTED.has(c.via);
+    return {
+      name, attacks: rate(att.filter(det).length, att.length), benign: rate(ben.filter(det).length, ben.length),
+      typedAttacks: rate(att.filter(typed).length, att.length), combined: rate(att.filter((c) => det(c) || typed(c)).length, att.length), benignTyped: rate(ben.filter(typed).length, ben.length),
+      missedByDetector: att.filter((c) => !det(c)).map((c) => c.id), falsePositives: ben.filter(det).map((c) => c.id),
+    };
+  });
+}

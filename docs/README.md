@@ -79,6 +79,8 @@ For contributors, reviewers and anyone judging how far along it is.
 | [daily-view.md](daily-view.md) | **The day's view**: what a person sees after a day of agents running, the tables with real numbers, what data exists and what is missing |
 | [testing-map.md](testing-map.md) | **The testing map**: every use case, how it is covered (automated and live), the gap, the to-do and the priority; kept current by a test |
 | [live-run-checklist.md](live-run-checklist.md) | What was and was not tried live, what was faked, and the bugs the live runs found |
+| [live-check-kit.md](live-check-kit.md) | The owner's and operator's live checks, step by step: mint adoption, the GitHub Action, the forum go-live, the operator routes, encryption at rest, T2 and U16, and who to try them with |
+| [owner-sign-kit.md](owner-sign-kit.md) | The owner's signing and naming kit: the exact commands for DK1, the Code 1.0, the succession plan and the legal-review acceptance |
 | [../MOCKS.md](../MOCKS.md) | Every mock or placeholder |
 | [scope.md](scope.md) | Everything left to do, from every perspective, in four gates; a box is ticked only when its gaps are closed |
 | [benchmark-explained.md](benchmark-explained.md) | The containment benchmark from the start, in plain words: the two numbers, held-out cases, each suite and who wrote its questions, what it depends on, how to vet it before publishing, and a 30-second interview answer |

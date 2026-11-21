@@ -3174,7 +3174,7 @@
    "bucket": "must",
    "hours": 6,
    "size": "M",
-   "flags": "D",
+   "flags": "",
    "why": "telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected"
   },
   {
@@ -5076,7 +5076,7 @@
   {
    "id": "DK1333",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The idea of a risk-priced bond has no model: nothing turns the measured chance that an agent drifts or breaches into the amount of real-money bond that mitigates the risk.",
    "bucket": "after",
    "hours": 0,
@@ -5559,17 +5559,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "DK1349",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The structure of credits among the agents, the Bank, the Treasury and the Insurer is not as the owner expects, and the Market is not complete in the owner's view. The owner (2026-11-21) expects agent…",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "D",
-   "why": "the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure after the audit (decision 2026-11-21)"
-  },
-  {
    "id": "DK1350",
    "pri": "A",
    "status": "open",
@@ -6028,7 +6017,7 @@
   {
    "id": "DK1700",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The mail watcher (`asp mail watch`) must be kept running or scheduled by hand on a person's own machine: there is no installer or scheduled task, and it has never been run live for a day against a re…",
    "bucket": "after",
    "hours": 0,
@@ -6154,13 +6143,24 @@
   {
    "id": "DK1727",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The documents the owner reads and the documents the public reads have not had an editorial pass. The owner (2026-11-21): they \"still need editing before they can go live, but they are ok for now, and…",
    "bucket": "must",
    "hours": 10,
    "size": "L",
    "flags": "D",
    "why": "an editorial pass by audience before any document goes live (clarity and tone, claims, links) and the owner's last read; the claims test fails on an unmarked public page"
+  },
+  {
+   "id": "DK1728",
+   "pri": "A",
+   "status": "open",
+   "gap": "There is no audit that the Market is complete: that every flow of the active Bank, the Insurer, the Treasury and the Market is built, tested and accounted for (every gap row closed is not the same as…",
+   "bucket": "must",
+   "hours": 8,
+   "size": "L",
+   "flags": "",
+   "why": "the Market completeness audit: every requirement mapped to a test or a row, and a seeded end-to-end test with the supply audit balanced"
   }
  ]
 }
