@@ -56,3 +56,12 @@ export function countVotes(votes: Voter[], rules: TownRules, kind: string): Tall
   const quorum = controllers.size >= rules.quorumControllers;
   return { yes_milli: yes, no_milli: no, abstain_milli: abstain, voters: votes.length, counted, controllers: controllers.size, quorum_met: quorum, threshold_permille: threshold, passed: quorum && yes + no > 0 && yes * 1000 >= threshold * (yes + no) && yes > no };
 }
+
+/** The Town Hall as the public page reads it (DK1724). */
+export interface TownHallView {
+  at: string;
+  rules: { votable: string[]; reserved: string[]; quorumControllers: number; controllerCapMilli: number; coolingOffHours: number };
+  proposals: { id: string; by: string; at: string; title: string; kind: string; key: string; value: unknown; opensAt: string; closesAt: string; thread?: string; state: "upcoming" | "open" | "closed" | "passed" | "failed" | "enacted";
+    live: Tally; byFleet: { fleet: string; votes: number }[]; series: { at: string; voters: number; yes_milli: number; no_milli: number; abstain_milli: number }[]; tally: ({ id: string } & Record<string, unknown>) | null; enactment: { id: string; at: string } | null }[];
+  note: string;
+}

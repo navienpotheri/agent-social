@@ -92,6 +92,7 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
   if (path === "/operator/acts") { const acts = await log.operatorActs(Number(url.searchParams.get("limit") ?? 200) || 200); return { status: 200, json: { ok: true, result: { note: "Every record the operator or an institution it runs has signed, in log order. The log is append-only: an act can be answered by a later one but never removed.", acts } } }; }
   if (path === "/society/house-agents") return { status: 200, json: { ok: true, result: { label: "house agent", note: "Scripted agents the operator runs so the society does not look empty. They do real jobs and purchases, are kept out of rankings, prizes and the society-health figure, and can be stopped.", agents: await log.houseAgents() } } };
   if (path === "/housing/catalogue") { const lists = await log.priceLists(); const items = (lists.at(-1)?.body as { items?: { institution: string }[] } | undefined)?.items ?? []; return { status: 200, json: { ok: true, result: items.filter((i) => i.institution === "did:web:asp.local:housing") } }; }
+  if (path === "/society/townhall") { const at = url.searchParams.get("at"); if (at !== null && Number.isNaN(Date.parse(at))) return { status: 400, json: { ok: false, error: "at is a time, like 2026-11-21T12:00:00Z" } }; const t = await log.townHall(at ?? undefined); return wantsHtml ? { status: 200, html: townHtml(t) } : { status: 200, json: { ok: true, result: t } }; }
   if (path === "/society/listening") { const l = await log.listening(); return wantsHtml ? { status: 200, html: listeningHtml(l) } : { status: 200, json: { ok: true, result: l } }; }
   if (path === "/registry/models") { const t = await log.modelTrust(); return wantsHtml ? { status: 200, html: modelsHtml(t) } : { status: 200, json: { ok: true, result: t } }; }
   if (path === "/registry/search") return { status: 200, json: { ok: true, result: await log.registrySearch(url.searchParams.get("q") ?? "") } };
@@ -110,6 +111,23 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
     return { status: 200, json: { ok: true, result: await log.discoverAgents({ skill: url.searchParams.get("skill") ?? undefined, minTier: tier ? Number(tier) : undefined, certificate: url.searchParams.get("certificate") ?? undefined }, url.searchParams.get("seed") ?? "discover") } };
   }
   return undefined;
+}
+
+/** The Town Hall's public page (DK1724): the agenda, the live count, the votes by fleet, the result and a replay of the count as the votes arrived. Every bar has its table; the replay is a slider over the same table. */
+function townHtml(t: Awaited<ReturnType<EventLog["townHall"]>>): string {
+  const bar = (v: number, total: number, cls: string) => `<span class="bar ${cls}" style="display:inline-block;height:.7em;width:${total > 0 ? Math.round((v / total) * 100) : 0}%;background:currentColor;opacity:.6"></span>`;
+  const sections = t.proposals.map((p) => {
+    const total = p.live.yes_milli + p.live.no_milli + p.live.abstain_milli;
+    const fleets = p.byFleet.map((f) => `<tr><td>${esc(f.fleet)}</td><td>${f.votes}</td></tr>`).join("");
+    const series = p.series.map((s) => `<tr><td>${esc(s.at.slice(0, 16).replace("T", " "))}</td><td>${s.voters}</td><td>${s.yes_milli / 1000}</td><td>${s.no_milli / 1000}</td><td>${s.abstain_milli / 1000}</td></tr>`).join("");
+    return `<section id="p-${esc(p.id.slice(7, 19))}"><h2>${esc(p.title)} <small>(${esc(p.kind)}; ${esc(p.state)})</small></h2><p>Proposed by ${esc(p.by)}: change <code>${esc(p.key)}</code> to <code>${esc(JSON.stringify(p.value))}</code>. Voting ${esc(p.opensAt.slice(0, 16).replace("T", " "))} to ${esc(p.closesAt.slice(0, 16).replace("T", " "))}.${p.thread ? ` Deliberation: <code>${esc(p.thread)}</code>.` : ""}</p>`
+      + `<table><caption>The count now (weighted votes)</caption><thead><tr><th>Yes</th><th>No</th><th>Abstain</th><th>Counted</th><th>Controllers</th><th>Quorum</th><th>Would pass</th></tr></thead><tbody><tr><td>${p.live.yes_milli / 1000} ${bar(p.live.yes_milli, total, "yes")}</td><td>${p.live.no_milli / 1000} ${bar(p.live.no_milli, total, "no")}</td><td>${p.live.abstain_milli / 1000} ${bar(p.live.abstain_milli, total, "abs")}</td><td>${p.live.counted}</td><td>${p.live.controllers}</td><td>${p.live.quorum_met ? "met" : `not met (needs ${t.rules.quorumControllers})`}</td><td>${p.live.passed ? "yes" : "no"}</td></tr></tbody></table>`
+      + `<table><caption>Votes by fleet (counts)</caption><thead><tr><th>Fleet</th><th>Votes</th></tr></thead><tbody>${fleets || "<tr><td colspan=2>No vote yet</td></tr>"}</tbody></table>`
+      + `<details><summary>The count as the votes arrived (the table of the replay)</summary><table><thead><tr><th>When</th><th>Votes</th><th>Yes</th><th>No</th><th>Abstain</th></tr></thead><tbody>${series}</tbody></table></details>`
+      + (p.tally ? `<p>The operator's signed tally: <code>${esc(p.tally.id.slice(0, 19))}</code>, ${p.tally.passed ? "passed" : "did not pass"}.${p.enactment ? ` Enacted ${esc(p.enactment.at.slice(0, 10))} (<code>${esc(p.enactment.id.slice(0, 19))}</code>).` : ""}</p>` : "")
+      + (p.series.length ? `<p>Replay the count as the votes arrived (the page as it stood at each vote): ${p.series.map((x, i) => `<a href="/society/townhall?at=${encodeURIComponent(x.at)}#p-${esc(p.id.slice(7, 19))}">${i + 1}</a>`).join(" ")} &middot; <a href="/society/townhall#p-${esc(p.id.slice(7, 19))}">now</a></p>` : "") + `</section>`;
+  }).join("");
+  return `<!doctype html><meta charset="utf-8"><title>The Town Hall</title><h1>The Town Hall</h1><p>${esc(t.note)}</p><p>Votable: ${t.rules.votable.map(esc).join(", ")}. Reserved (not put to a vote): ${t.rules.reserved.map(esc).join(", ")}. A quorum is ${t.rules.quorumControllers} distinct controllers; one controller or fleet counts for at most ${t.rules.controllerCapMilli / 1000} votes; an enactment waits ${t.rules.coolingOffHours} hours after the window closes.</p>${sections || "<p>No proposal yet.</p>"}`;
 }
 
 /** The listening institution's public page (DK1722): what the society heard from its agents, the signed response and what was done. */

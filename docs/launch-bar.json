@@ -6128,7 +6128,7 @@
   {
    "id": "DK1724",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The Town Hall has no pages: no agenda, no live votes, no results, no view of who voted by fleet, and no replay in the HUD.",
    "bucket": "after",
    "hours": 0,

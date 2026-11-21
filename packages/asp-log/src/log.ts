@@ -42,7 +42,7 @@ import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type L
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
-import { DEFAULT_TOWN_RULES, VOTABLE_KINDS, countVotes, type TownRules, type Voter } from "./town-hall.ts";
+import { DEFAULT_TOWN_RULES, VOTABLE_KINDS, countVotes, type TownHallView, type TownRules, type Voter } from "./town-hall.ts";
 import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
 import { subtreeMembers, chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
 import { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
@@ -2448,6 +2448,40 @@ export class EventLog {
     await tx.putMarker(`town_setting:${prop.key}`, JSON.stringify({ value: prop.value, proposal: b.proposal, enactment: r.id, at: r.issued_at }));
     const keys = ((await tx.getMarker("town_keys")) ?? "").split("\n").filter(Boolean);
     if (!keys.includes(prop.key)) await tx.putMarker("town_keys", [...keys, prop.key].join("\n"));
+  }
+
+
+  /** The Town Hall as the public sees it (DK1724; S1428): the agenda (each proposal: upcoming, open, closed, tallied or enacted), the live count, the votes by fleet (counts, not identities beyond what is public), the series of the count as the votes arrived (for the replay), the signed tally and enactment. Computed from the signed records and the log's own count. */
+  async townHall(at?: string): Promise<TownHallView> {
+    const now = Date.parse(at ?? this.now().toISOString());
+    const recs = await this.recordsOfTypes(["town_proposal", "town_vote", "town_tally", "town_enactment"]);
+    const votesOf = new Map<string, AspRecord[]>(), tallyOf = new Map<string, AspRecord>(), enactOf = new Map<string, AspRecord>();
+    for (const r of recs) {
+      const b = r.body as { proposal?: string };
+      if (r.type === "asp.town_vote/v0.2" && b.proposal) (votesOf.get(b.proposal) ?? votesOf.set(b.proposal, []).get(b.proposal)!).push(r);
+      else if (r.type === "asp.town_tally/v0.2" && b.proposal) tallyOf.set(b.proposal, r);
+      else if (r.type === "asp.town_enactment/v0.2" && b.proposal) enactOf.set(b.proposal, r);
+    }
+    const proposals: TownHallView["proposals"] = [];
+    for (const p of recs.filter((r) => r.type === "asp.town_proposal/v0.2")) {
+      const b = p.body as { title: string; kind: string; key: string; value: unknown; opens_at: string; closes_at: string; thread?: string };
+      const votes = (votesOf.get(p.id) ?? []).filter((v) => Date.parse(v.issued_at) <= now);
+      const detail = await this.store.transaction(async (tx) => {
+        const voters: Voter[] = [];
+        for (const v of votes) voters.push(await this.voterOf(tx, v.issuer, (v.body as { choice: "yes" | "no" | "abstain" }).choice));
+        return voters;
+      });
+      const series = detail.map((_, i) => { const t = countVotes(detail.slice(0, i + 1), this.townRules, b.kind); return { at: votes[i]!.issued_at, voters: i + 1, yes_milli: t.yes_milli, no_milli: t.no_milli, abstain_milli: t.abstain_milli }; });
+      const live = countVotes(detail, this.townRules, b.kind);
+      const byFleet = new Map<string, number>();
+      for (const d of detail) byFleet.set(d.fleet ?? "no fleet", (byFleet.get(d.fleet ?? "no fleet") ?? 0) + 1);
+      const tally = tallyOf.get(p.id), enact = enactOf.get(p.id);
+      const state: TownHallView["proposals"][number]["state"] = enact && Date.parse(enact.issued_at) <= now ? "enacted" : tally && Date.parse(tally.issued_at) <= now ? ((tally.body as { passed: boolean }).passed ? "passed" : "failed") : now < Date.parse(b.opens_at) ? "upcoming" : now < Date.parse(b.closes_at) ? "open" : "closed";
+      proposals.push({ id: p.id, by: p.issuer.split(":").pop() ?? p.issuer, at: p.issued_at, title: b.title, kind: b.kind, key: b.key, value: b.value, opensAt: b.opens_at, closesAt: b.closes_at, ...(b.thread ? { thread: b.thread } : {}), state, live, byFleet: [...byFleet].map(([fleet, n]) => ({ fleet, votes: n })).sort((x, y) => y.votes - x.votes || (x.fleet < y.fleet ? -1 : 1)), series, tally: tally ? { id: tally.id, ...(tally.body as object) } : null, enactment: enact ? { id: enact.id, at: enact.issued_at } : null });
+    }
+    proposals.sort((a, b) => (a.opensAt < b.opensAt ? 1 : -1));
+    const r = this.townRules;
+    return { at: new Date(now).toISOString().replace(/\.\d{3}Z$/, "Z"), rules: { votable: ["policy", "course", "learning_path", "institution", "setting", "rule_change"], reserved: [...r.reserved], quorumControllers: r.quorumControllers, controllerCapMilli: r.controllerCapMilli, coolingOffHours: r.coolingOffMs / 3_600_000 }, proposals, note: "Counts are the log's own count of the signed votes, weighted by standing and capped per controller and per fleet; a vote shows its fleet, never its identity beyond what is public. The replay shows the count as the votes arrived, weighted by each voter's standing now. Credits are accounting entries, not money." };
   }
 
   /** The live count of a proposal's votes (S1428), whether or not it was tallied yet. */

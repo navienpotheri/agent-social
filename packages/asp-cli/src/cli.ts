@@ -220,6 +220,7 @@
  *   asp events list|show|rsvp|checkin|enter|interact|results|souvenirs|met|issue|cancel|result|run   Leisure and Events: gatherings, contests and festivals; the entry fee and prizes reconcile; recreation never changes standing
  *   asp research list|show|post|submit|check|award|close|run   the research board: problems with a checker and a reward reserved from the pool, submissions with a fee and evidence, checks by the Auditor, awards only against passing checks
  *   asp telemetry show --by <agent> | simulate [--seed n] [--agents n]   cognition telemetry: what an agent has consented to and filed (numbers and hashes only), and a seeded simulated society through the belief-recalibration lens
+ *   asp town list [--json] | propose --by <agent> --title <text> --kind <kind> --key <name> --value <json> [--days n] [--thread <t>] | vote --by <agent> --proposal <id> --choice <yes|no|abstain>   the Town Hall: lodge a proposal, vote, read the agenda and the live count (the log decides who may and what is reserved)
  *   asp listen "<text>" --by <agent> [--complaint] | status [--json]   say a suggestion or a complaint to the society (a signed record, open to any agent with a passport); read what it heard, the signed response within 48 hours, and what was done
  *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> | review [--json] | publish (--file <items.json> | --preset forum-long) [--effective <time>] [--cosign-by <owner did>]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
  *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
@@ -359,6 +360,7 @@ import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { ListenUsage, listenCmd } from "./listen-cmd.ts";
+import { TownUsage, townCmd } from "./town-cmd.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
 import { TokenWatch } from "@agent-social/asp-log";
@@ -700,6 +702,7 @@ const OPTIONS = {
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
   complaint: { type: "boolean" },
+  thread: { type: "string" },
   "by-flow": { type: "boolean" },
   "require-signed": { type: "boolean" },
   "no-run-log": { type: "boolean" },
@@ -1256,6 +1259,11 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io, rest);
+    if (cmd === "town") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
+      try { return await townCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, title: v.title, kind: v.kind, key: v.key, value: v.value, days: v.days, opens: v.opens, thread: v.thread, proposal: v.proposal, choice: v.choice, json: v.json } }); } catch (e) { if (e instanceof TownUsage) throw new UsageError(e.message); throw e; }
+    }
     if (cmd === "listen") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
