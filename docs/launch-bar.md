@@ -68,8 +68,8 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | US7 | A | open | 4 | M | - | safe Mandate presets for coding, research and writing |
 | DK9 | A | partial | 5 | M | - | no ledger invariant check against the live service and no alert |
 | CY12 | A | open | 6 | M | - | the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built |
-| DK1373 | A | open | 6 | M | - | just-in-time provisioning and deprovisioning from single sign-on |
-| DK1374 | A | open | 6 | M | - | audit export for an organisation as a signed file and an API |
+| DK1373 | A | partial | 6 | M | - | just-in-time provisioning and deprovisioning from single sign-on |
+| DK1374 | A | partial | 6 | M | - | audit export for an organisation as a signed file and an API |
 | DK1383 | ? | partial | 6 | M | - | the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors |
 | DK1384 | A | partial | 6 | M | - | offboarding and export |
 | DK241 | A | open | 6 | M | - | telemetry safeguards (minors store nothing) are unit-tested, not wired into a live run |
@@ -84,7 +84,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1371 | A | partial | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
 | DK1379 | A | partial | 12 | L | - | metering, plan prices and invoicing |
 | DK1362 | A | partial | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
-| DK1359 | A | open | 30 | L | - | enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner) |
+| DK1359 | A | partial | 30 | L | - | enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner) |
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
 | O12 | A | partial | 0.5 | S | O | branch protection on main |
 | O13 | A | open | 0.5 | S | O | private vulnerability reporting, repository description and topics |

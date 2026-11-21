@@ -26,7 +26,7 @@ const RETENTION = "docs/legal/retention-and-erasure.md";
 interface Slot { seq: number; id: string; record: Record<string, unknown> }
 
 /** Every record the organisation or an agent it sponsors signed, in log order, and the identities found. */
-async function collect(log: LogHandle, org: string): Promise<{ records: Slot[]; dids: string[] }> {
+export async function collect(log: LogHandle, org: string, afterSeq = 0): Promise<{ records: Slot[]; dids: string[] }> {
   const dids = new Set<string>([org]);
   const records: Slot[] = [];
   for (let after = 0; ;) {
@@ -36,7 +36,7 @@ async function collect(log: LogHandle, org: string): Promise<{ records: Slot[]; 
       after = s.seq;
       const r = s.record as unknown as { type: string; issuer: string; body?: { did?: string; sponsor?: string } };
       if (r.type === "asp.passport/v0.2" && r.body?.did && (dids.has(String(r.body.sponsor)) || dids.has(r.issuer))) dids.add(r.body.did);
-      if (dids.has(r.issuer)) records.push({ seq: s.seq, id: s.id, record: s.record as unknown as Record<string, unknown> });
+      if (dids.has(r.issuer) && s.seq > afterSeq) records.push({ seq: s.seq, id: s.id, record: s.record as unknown as Record<string, unknown> });
     }
   }
   return { records, dids: [...dids] };

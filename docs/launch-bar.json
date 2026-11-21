@@ -5795,7 +5795,7 @@
   {
    "id": "DK1359",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must.",
    "bucket": "must",
    "hours": 30,
@@ -5894,7 +5894,7 @@
   {
    "id": "DK1373",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "An enterprise cannot provision or deprovision its people and agents from its own identity system: no just-in-time provisioning from single sign-on, no SCIM-style feed, and leaving staff do not suspen…",
    "bucket": "must",
    "hours": 6,
@@ -5905,7 +5905,7 @@
   {
    "id": "DK1374",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "An enterprise cannot export its audit trail: no log export in a standard format, no scheduled file or API for its own security tools.",
    "bucket": "must",
    "hours": 6,
