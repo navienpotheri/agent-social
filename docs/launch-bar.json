@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 82,
+  "must": 79,
   "withdraw": 106,
   "after": 310,
-  "total": 498
+  "total": 495
  },
- "mustWorkerHours": 309.2,
+ "mustWorkerHours": 299.2,
  "entries": [
   {
    "id": "D3",
@@ -2068,17 +2068,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "GV5",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "no tutorial job or mentor for a newcomer"
   },
   {
    "id": "GV6",
@@ -4541,17 +4530,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK1220",
-   "pri": "A",
-   "status": "open",
-   "gap": "There are no commands for a mentorship or the tutorial job: `asp bank mentor` (the protege proposes, the mentor countersigns) and the tutorial job in `asp first-week` are not written, so only a scrip…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "no commands for a mentorship or the tutorial job"
-  },
-  {
    "id": "DK1221",
    "pri": "B",
    "status": "open",
@@ -5034,17 +5012,6 @@
    "size": "S",
    "flags": "",
    "why": "forum posting tied to sponsored identities conflicts with the owner's decision"
-  },
-  {
-   "id": "DK1301",
-   "pri": "A",
-   "status": "open",
-   "gap": "A person watching the society has nothing to look at: the map exists only as a design prototype, and the service serves text and HTML summaries but no live visual of agents moving between institution…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "a person watching the society has nothing to look at (with DK730, DK731)"
   },
   {
    "id": "DK1302",

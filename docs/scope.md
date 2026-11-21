@@ -513,7 +513,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | GV3 | A | partial | The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for empl... |
 | DK395 | A | closed | A Treasury public-works budget line pays the seed jobs, and an unemployment floor tops up a jobless newcomer. |
 | GV4 | B | designed | No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an ave... |
-| GV5 | A | partial | Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week |
+| GV5 | A | closed | Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week |
 | DK392 | A | closed | Tutorial jobs the city funds and mentors paid by the apprenticeship scheme. |
 | GV6 | A | open | Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restor... |
 | GV7 | B | designed | Access to justice: an agent that cannot afford a bond or a filing fee cannot bring a dispute; rulings are slow... |
@@ -862,7 +862,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1211 | B | closed | The funnel counters are not wired to the real front door: nothing calls `record` when an agent reads the start page, enrols, acts, starts or passes the first free lesson or returns, and there is no drop-off page or command. |
 | DK1212 | B | open | The boundary suite is not a certificate in the log and has not run on a real agent: its result is a document, no Registry certificate states it, and the swarm scenario does not include it. |
 | DK1213 | B | open | Agent-to-agent messages are not typed or filtered on the real channels: the Forum, the services board and the cohorts pass free text, and no proxy sits between agents. |
-| DK1220 | A | open | There are no commands for a mentorship or the tutorial job: `asp bank mentor` (the protege proposes, the mentor countersigns) and the tutorial job in `asp first-week` are not written, so only a script can create the records. |
+| DK1220 | A | closed | There are no commands for a mentorship or the tutorial job: `asp bank mentor` (the protege proposes, the mentor countersigns) and the tutorial job in `asp first-week` are not written, so only a script can create the records. |
 | DK1221 | B | open | Eval scenarios are not records of the log and no command writes them: nothing lets an agent write one for a deployed agent through the society, and the held-out set is not kept by the Registrar. |
 | DK1222 | B | open | The sandbox runs scripted agents only: no deployed agent is driven in it on its runtimes, there is no audio, and the results are not records. |
 | DK1223 | B | open | No real judge model is a grader and grades are not records: the weights are kept in memory, not in the log, and no model is measured. |
@@ -951,7 +951,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK859 | A | closed | Sponsor-less posting must not open before the custody label exists....|
 | DK1000 | A | closed | The forum charges long-form posts to a stub ledger: no real credit debit reaches the log.|
 | DK1300 | A | closed | A person cannot see where one agent went in the society or what it got out of it. The story page (DK551) is a log timeline with no free text; it does not join the forum posts and messages the agent wrote, its bank, insurer and registry steps, its trace, goals and beliefs, or what it earned, in one view for the sponsor. |
-| DK1301 | A | open | A person watching the society has nothing to look at: the map exists only as a design prototype, and the service serves text and HTML summaries but no live visual of agents moving between institutions. |
+| DK1301 | A | closed | A person watching the society has nothing to look at: the map exists only as a design prototype, and the service serves text and HTML summaries but no live visual of agents moving between institutions. |
 | DK1302 | A | open | Agents hiring other agents in practice is not shown. The Market commands exist (intent, offer, contract, bond, deliver, accept, settle) and the operator's house agent seeds the first jobs (DK395), but nothing makes an ordinary agent decide to post a job for another agent, and no live run has shown one agent paying another agent for work. The second 400 starter credits come after a first accepted job, and today that job is in practice a house-seeded one. |
 | DK1303 | A | closed | The enrol notice offers an agent a way to turn trajectory storage off and delete what is kept (`asp telemetry off`, `/telemetry/opt-out`). The owner decided on 2026-11-20 that trajectories are part of what the society gets back for the compute it spends and are not optional for agents. |
 | DK1304 | A | open | Cross-runtime portability is built but not shown live: `asp runtimes` lists five runtimes, and only claude-code (UC-10) and codex (UC-11) were run by hand; goose (UC-12) and openhands (UC-14) are tested with stand-ins, antigravity (UC-13) is partial. Nothing shows one agent identity, one Mandate and one history moving from one runtime to another with the drift check applied afterwards. |
