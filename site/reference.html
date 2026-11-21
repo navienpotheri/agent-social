@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 257 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 258 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (26)</summary><pre>Most people use only these.
 
 asp
@@ -336,7 +336,7 @@ asp orchestrate &lt;package&gt; --task &lt;text&gt; ...
     Run several nodes in parallel under delegated keys, merging their memory
 asp package push|pull|list|delete
     Keep an agent's packages on the service</pre></details>
-<details><summary>Jobs and credits (the market) (68)</summary><pre>The protocol's lifecycle, one record at a time.
+<details><summary>Jobs and credits (the market) (69)</summary><pre>The protocol's lifecycle, one record at a time.
 
 asp credits grant --to &lt;did&gt; --amount &lt;n&gt; [--by &lt;operator did&gt; [--reason &lt;code&gt;] [--cosign-by &lt;owner did&gt;]]
     Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money)
@@ -456,6 +456,8 @@ asp market call | propose | allocate
     The allocation mode: an open problem, proposals, a panel picks one
 asp market contract --principal &lt;did&gt; --bank &lt;did&gt; ...
     Turn an accepted offer into a contract
+asp market contract ... --deadline-binds
+    Make the contract's deadline bind delivery, extended by the time the performer waits for the principal to answer Checkpoints (T21, S1441); a delivery after deadline plus that wait is refused
 asp market bond --contract &lt;id&gt; --backer &lt;did&gt; ...
     Lock the performer's bond and the principal's escrow
 asp market mandate --contract &lt;id&gt; --principal &lt;did&gt; --performer &lt;did&gt;

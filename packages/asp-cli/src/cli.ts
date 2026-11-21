@@ -592,6 +592,7 @@ const OPTIONS = {
   tenant: { type: "string" },
   role: { type: "string" },
   "no-auth": { type: "boolean" },
+  "deadline-binds": { type: "boolean" },
   "outbound-scan": { type: "string" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
@@ -5804,6 +5805,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
         price: offerBody.price, verification: intentBody.verification.mode, deadline: intentBody.deadline,
         basis: { intent: intentId, offer: offerId },
         ...(intentBody.verification.review_deadline ? { review_deadline: intentBody.verification.review_deadline } : {}),
+        // The deadline binds delivery, extended by the time the performer waits for approvals (S1441, T21).
+        ...(v["deadline-binds"] ? { deadline_binds: true } : {}),
         ...(intentBody.verification.verifier ? { verifier: intentBody.verification.verifier } : {}),
       };
     } else if (callId || proposalId) {

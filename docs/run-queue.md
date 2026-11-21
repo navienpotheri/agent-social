@@ -184,3 +184,4 @@ Areas (so lanes do not collide):
 - launch-bar-2: the website, README, llms.txt and docs claims, mail, the forum front end, the enterprise and legal documents, pricing, procurement, sandbox pages.
 - lane-verify: audits, integration, the gaps register itself, tests that are thin, the Python SDK parity, evals and the long-horizon driver.
 - 2026-11-21 held by lane-society (AG3 reasons for adverse acts: refusal, strike, slash, Clinic, quarantine in words for the agent), 15:10Z
+- 2026-11-21 held by lane-cli-2 (T21 deadline rule: extend a contract's deadline by the recorded approval wait, owner's answer; S1441), 17:00Z

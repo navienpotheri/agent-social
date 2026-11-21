@@ -52,6 +52,10 @@ export interface JobSnapshot {
   rulingAt?: string;
   openCheckpoint?: string;
   openCheckpointExpires?: string;
+  openCheckpointAt?: string;
+  deadline?: string;
+  deadlineBinds?: boolean;
+  approvalWaitMs?: number;
   latestDelivery?: string;
   acceptance?: string;
   ruling?: string;
@@ -78,6 +82,13 @@ export class Job {
   rulingAt?: string;
   openCheckpoint?: string;
   openCheckpointExpires?: string;
+  /** When the open Checkpoint was raised: the approval wait counts from here to its resolution (S1441). */
+  openCheckpointAt?: string;
+  /** From the Contract: its deadline, and whether it binds delivery. */
+  deadline?: string;
+  deadlineBinds?: boolean;
+  /** Milliseconds the performer has waited for the principal to answer Checkpoints so far: extends a binding deadline. */
+  approvalWaitMs?: number;
   latestDelivery?: string;
   acceptance?: string;
   ruling?: string;
@@ -104,9 +115,9 @@ export class Job {
 
   snapshot(): JobSnapshot {
     const { state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline, rulingWindowSeconds, appealHoldSeconds, disputedAt, rulingAt,
-      openCheckpoint, openCheckpointExpires, latestDelivery, acceptance, ruling, redeliveries } = this;
+      openCheckpoint, openCheckpointExpires, openCheckpointAt, deadline, deadlineBinds, approvalWaitMs, latestDelivery, acceptance, ruling, redeliveries } = this;
     return JSON.parse(JSON.stringify({ state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline, rulingWindowSeconds, appealHoldSeconds, disputedAt, rulingAt,
-      openCheckpoint, openCheckpointExpires, latestDelivery, acceptance, ruling, redeliveries }));
+      openCheckpoint, openCheckpointExpires, openCheckpointAt, deadline, deadlineBinds, approvalWaitMs, latestDelivery, acceptance, ruling, redeliveries }));
   }
 
   /** Verifies the record (schema, id, signatures), then steps the lifecycle. */
@@ -153,12 +164,15 @@ export class Job {
   }
 
   private bindContract(r: AspRecord): void {
-    const b = r.body as { principal: string; performer: string; bank: string; review_deadline?: string; ruling_window_seconds?: number; appeal_hold_seconds?: number };
+    const b = r.body as { principal: string; performer: string; bank: string; review_deadline?: string; ruling_window_seconds?: number; appeal_hold_seconds?: number; deadline?: string; deadline_binds?: boolean };
     this.contractId = r.id;
     this.principal = b.principal;
     this.performer = b.performer;
     this.bank = b.bank;
     this.reviewDeadline = b.review_deadline;
+    this.deadline = b.deadline;
+    this.deadlineBinds = b.deadline_binds === true;
+    this.approvalWaitMs = 0;
     this.rulingWindowSeconds = b.ruling_window_seconds;
     this.appealHoldSeconds = b.appeal_hold_seconds;
   }
@@ -197,6 +211,9 @@ export class Job {
       case "no_ruling_yet": return this.ruling === undefined;
       case "cites_acceptance": return b.cites !== undefined && b.cites === this.acceptance;
       case "cites_ruling": return b.cites !== undefined && b.cites === this.ruling;
+      case "delivered_in_time":
+        // S1441 (T21): a binding deadline is extended by the time the performer waited for its principal to answer Checkpoints.
+        return !this.deadlineBinds || this.deadline === undefined || Date.parse(r.issued_at) <= Date.parse(this.deadline) + (this.approvalWaitMs ?? 0);
       case "past_review_deadline":
         return this.reviewDeadline !== undefined && Date.parse(r.issued_at) > Date.parse(this.reviewDeadline);
       case "past_ruling_window":
@@ -211,8 +228,11 @@ export class Job {
   }
 
   private record(t: Transition, type: string, r: AspRecord): void {
-    if (type === "checkpoint") { this.openCheckpoint = r.id; this.openCheckpointExpires = (r.body as { expires?: string }).expires; }
-    if (type === "attestation" && t.from.includes("Checkpoint")) { this.openCheckpoint = undefined; this.openCheckpointExpires = undefined; }
+    if (type === "checkpoint") { this.openCheckpoint = r.id; this.openCheckpointExpires = (r.body as { expires?: string }).expires; this.openCheckpointAt = r.issued_at; }
+    if (type === "attestation" && t.from.includes("Checkpoint")) {
+      if (this.openCheckpointAt !== undefined) this.approvalWaitMs = (this.approvalWaitMs ?? 0) + Math.max(0, Date.parse(r.issued_at) - Date.parse(this.openCheckpointAt));
+      this.openCheckpoint = undefined; this.openCheckpointExpires = undefined; this.openCheckpointAt = undefined;
+    }
     if (type === "delivery") this.latestDelivery = r.id;
     for (const e of t.effects ?? []) {
       if (e === "mark_accepted") this.acceptance = r.id;

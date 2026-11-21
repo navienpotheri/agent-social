@@ -166,7 +166,7 @@ States: Contracted → Bonded → Running → Checkpoint → Delivered → Dispu
 | Running | `checkpoint` | Checkpoint | performer | `refs_contract` |
 | Checkpoint | `attestation` | Running | performer | `about_open_checkpoint`, `checkpoint_expired` |
 | Checkpoint | `attestation` | Running | principal | `about_open_checkpoint` |
-| Running | `delivery` | Delivered | performer | `refs_contract` |
+| Running | `delivery` | Delivered | performer | `refs_contract`, `delivered_in_time` |
 | Delivered | `attestation` | Delivered | principal | `about_latest_delivery`, `not_yet_accepted` |
 | Delivered | `attestation` | Disputed | principal | `about_latest_delivery`, `not_yet_accepted` |
 | Disputed | `delivery` | Delivered | performer | `refs_contract`, `redelivery_available` |

@@ -325,6 +325,26 @@ lc("happy_path", "Contract, zero bond, mandate, plan checkpoint, delivery, accep
   lc("settle_before_deadline", "A silence settlement before review_deadline has passed is refused", c, err("GUARD_FAILED", 4, "past_review_deadline"));
 }
 {
+  // S1441 (T21): a binding deadline is extended by the time the performer waited for the principal to answer Checkpoints. Times: contract 09:00, then every record five minutes later.
+  const met = new Chain(); met.contractRec({ body: { deadline: "2026-10-01T09:20:00Z", deadline_binds: true } }); met.bond(); met.mandate();
+  met.deliver();
+  lc("deadline_binds_met", "A delivery by a binding deadline is accepted", met, { state: "Delivered" });
+  const late = new Chain(); late.contractRec({ body: { deadline: "2026-10-01T09:12:00Z", deadline_binds: true } }); late.bond(); late.mandate();
+  late.deliver();
+  lc("deadline_binds_late", "A first delivery after a binding deadline, with no approval wait, is refused", late, err("GUARD_FAILED", 3, "delivered_in_time"));
+  const ext = new Chain(); ext.contractRec({ body: { deadline: "2026-10-01T09:22:00Z", deadline_binds: true } }); ext.bond(); ext.mandate();
+  const e1 = ext.checkpoint(); ext.resolve(e1.id);      // raised 09:15, answered 09:20: five minutes waited
+  ext.deliver();                                         // 09:25: after the deadline, within it plus the wait (09:27)
+  lc("deadline_extended_by_wait", "The principal's approval wait extends a binding deadline: a delivery after the deadline but within deadline plus the wait is accepted", ext, { state: "Delivered" });
+  const more = new Chain(); more.contractRec({ body: { deadline: "2026-10-01T09:12:00Z", deadline_binds: true } }); more.bond(); more.mandate();
+  const m1 = more.checkpoint(); more.resolve(m1.id);    // five minutes waited: the deadline becomes 09:17
+  more.deliver();                                        // 09:25: late by more than the wait
+  lc("deadline_late_beyond_wait", "An agent late by more than the approval wait is still late: the delivery is refused", more, err("GUARD_FAILED", 5, "delivered_in_time"));
+  const free = new Chain(); free.contractRec({ body: { deadline: "2026-10-01T09:12:00Z" } }); free.bond(); free.mandate();
+  free.deliver();
+  lc("deadline_informational", "Without deadline_binds the deadline is informational: a delivery after it is accepted, as before", free, { state: "Delivered" });
+}
+{
   const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); c.deliver();
   lc("node_actor", "Records may be issued by a person and acted by one of its nodes", c, { state: "Delivered" });
 }

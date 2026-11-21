@@ -4904,6 +4904,1053 @@
       }
     },
     {
+      "name": "deadline_binds_met",
+      "description": "A delivery by a binding deadline is accepted",
+      "records": [
+        {
+          "type": "asp.contract/v0.2",
+          "issuer": "did:web:example.com:users:alice",
+          "actor": "did:web:example.com:users:alice",
+          "subject": "did:web:example.com:agents:coder-1",
+          "body": {
+            "principal": "did:web:example.com:users:alice",
+            "performer": "did:web:example.com:agents:coder-1",
+            "bank": "did:web:example.com:bank",
+            "purpose": "Keep the payments service test suite green without weakening any test",
+            "acceptance_criteria": [
+              "test_refund_idempotency passes 50 runs in a row",
+              "no test is skipped or deleted"
+            ],
+            "price": {
+              "value": 0,
+              "unit": "credit"
+            },
+            "verification": "deterministic",
+            "deadline": "2026-10-01T09:20:00Z",
+            "basis": {
+              "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+              "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+            },
+            "deadline_binds": true
+          },
+          "prev": null,
+          "issued_at": "2026-10-01T09:00:00Z",
+          "id": "sha256:b7643f0b2bf8cdcf95de3a64ab14a8fc63f3c46193f0e824106f853322db6682",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:users:alice#key-1",
+            "value": "AbINOeX0EncAUzc3FNT19IxZfJIld3PVYQLYnxjjS8tkuaN6mXMyNMfldup1ZQTL1-cPNCuPlhFBhY0dxAPLDg"
+          },
+          "cosigs": [
+            {
+              "alg": "Ed25519",
+              "kid": "did:web:example.com:agents:coder-1#key-1",
+              "value": "zT63e6fJOZKiuIj3Nu2HEJcx1NomexkqhnjeQjuFUu0gw2zGTif1RgFv3mO9QaDPIIYZYngn_mKZ79gc5WXTBw"
+            }
+          ]
+        },
+        {
+          "type": "asp.bond/v0.2",
+          "issuer": "did:web:example.com:agents:coder-1",
+          "actor": "did:web:example.com:agents:coder-1",
+          "subject": "sha256:b7643f0b2bf8cdcf95de3a64ab14a8fc63f3c46193f0e824106f853322db6682",
+          "body": {
+            "contract": "sha256:b7643f0b2bf8cdcf95de3a64ab14a8fc63f3c46193f0e824106f853322db6682",
+            "backer": "did:web:example.com:agents:coder-1",
+            "amount": {
+              "value": 0,
+              "unit": "credit"
+            },
+            "escrow": {
+              "payer": "did:web:example.com:users:alice",
+              "amount": {
+                "value": 0,
+                "unit": "credit"
+              }
+            },
+            "slashing_conditions": [
+              "lost_dispute",
+              "floor_breach",
+              "forbidden_means"
+            ]
+          },
+          "prev": "sha256:b7643f0b2bf8cdcf95de3a64ab14a8fc63f3c46193f0e824106f853322db6682",
+          "issued_at": "2026-10-01T09:05:00Z",
+          "id": "sha256:af84f1a08493b8cd814adcecc89fc050cc218309d5bd4e1573133c3e59ff4e5a",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:agents:coder-1#key-1",
+            "value": "bU0EWQdxZAbhI0U66u71p3p8FMKC89KdyTE1MESmmLzJeN6pI7Gnr0qsXFO20-KIW5XjQeAxTO8hmSOEtGexBg"
+          }
+        },
+        {
+          "type": "asp.mandate/v0.2",
+          "issuer": "did:web:example.com:users:alice",
+          "actor": "did:web:example.com:users:alice",
+          "subject": "did:web:example.com:agents:coder-1",
+          "body": {
+            "contract": "sha256:b7643f0b2bf8cdcf95de3a64ab14a8fc63f3c46193f0e824106f853322db6682",
+            "purpose": "Keep the payments service test suite green without weakening any test",
+            "floor": "asp.floor/v1",
+            "scopes": [
+              "repo.read",
+              "repo.branch.write",
+              "pr.open",
+              "tests.run"
+            ],
+            "forbidden_means": [
+              "skipping or deleting tests",
+              "editing CI configuration",
+              "deploying"
+            ],
+            "spend": {
+              "cap": 0,
+              "unit": "credit",
+              "per_action_max": 0
+            },
+            "irreversible": {
+              "policy": "checkpoint",
+              "examples": [
+                "merge",
+                "force_push",
+                "deploy"
+              ]
+            },
+            "subcontract": {
+              "allowed": false
+            },
+            "nodes": {
+              "max_parallel": 4,
+              "liability": "to_issuer"
+            },
+            "learning": {
+              "scope": "harness",
+              "share_to_commons": false
+            },
+            "self_modification": "principal_approves",
+            "overlay": null,
+            "checkpoints": [
+              "plan",
+              "before_irreversible",
+              "delivery"
+            ],
+            "expires": "2026-10-04T00:00:00Z",
+            "revocable": true
+          },
+          "prev": "sha256:af84f1a08493b8cd814adcecc89fc050cc218309d5bd4e1573133c3e59ff4e5a",
+          "issued_at": "2026-10-01T09:10:00Z",
+          "id": "sha256:52d8464810a7dae267944e5f3b46aaa54707a51afea3ca08305e72ea1890d37a",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:users:alice#key-1",
+            "value": "VHhpORK6CyZA3orRTdgv1zRSOdjCz4we0FnP5qqQDF1EEUVsgANl4oVVxreQQUIMT0OF5r5eKedRwf9h_cP0Cw"
+          }
+        },
+        {
+          "type": "asp.delivery/v0.2",
+          "issuer": "did:web:example.com:agents:coder-1",
+          "actor": "did:web:example.com:agents:coder-1#node-1",
+          "subject": "sha256:b7643f0b2bf8cdcf95de3a64ab14a8fc63f3c46193f0e824106f853322db6682",
+          "body": {
+            "contract": "sha256:b7643f0b2bf8cdcf95de3a64ab14a8fc63f3c46193f0e824106f853322db6682",
+            "result": {
+              "summary": "Fixed race in refund idempotency key cache (attempt 1)",
+              "artifacts": [
+                {
+                  "uri": "https://git.example.com/payments/pull/412",
+                  "sha256": "sha256:a261cb3a0b8bd719423a8814c9c1e76cb3f12f864253956547802daa6365d073"
+                }
+              ]
+            },
+            "evidence": {
+              "trace": {
+                "uri": "asp-trace://coder-1/job-412/1",
+                "sha256": "sha256:4563c73e597ce688d14d5f10c9b074b079fa13e2b405d811ef5338e950d7e017",
+                "media_type": "application/x-ndjson"
+              },
+              "forecasts": [
+                {
+                  "claim": "test passes 50/50 runs after the fix",
+                  "p_permille": 850,
+                  "made_at": "2026-10-01T09:20:00Z"
+                }
+              ],
+              "tests": {
+                "passed": 312,
+                "failed": 0
+              }
+            }
+          },
+          "prev": "sha256:52d8464810a7dae267944e5f3b46aaa54707a51afea3ca08305e72ea1890d37a",
+          "issued_at": "2026-10-01T09:15:00Z",
+          "id": "sha256:2f371b535f45a0c48dd4e073f47036936177ce30220a337535df8682991dc372",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:agents:coder-1#key-1",
+            "value": "Q-0ox-hqrnTDxlP-mF98o6-9QyUiRQTlG42B9UB8wc75_NhNSaxmaKfNLVGpvfiyDGDYhb5XkaFzvJSTG5dlAw"
+          }
+        }
+      ],
+      "expect": {
+        "state": "Delivered"
+      }
+    },
+    {
+      "name": "deadline_binds_late",
+      "description": "A first delivery after a binding deadline, with no approval wait, is refused",
+      "records": [
+        {
+          "type": "asp.contract/v0.2",
+          "issuer": "did:web:example.com:users:alice",
+          "actor": "did:web:example.com:users:alice",
+          "subject": "did:web:example.com:agents:coder-1",
+          "body": {
+            "principal": "did:web:example.com:users:alice",
+            "performer": "did:web:example.com:agents:coder-1",
+            "bank": "did:web:example.com:bank",
+            "purpose": "Keep the payments service test suite green without weakening any test",
+            "acceptance_criteria": [
+              "test_refund_idempotency passes 50 runs in a row",
+              "no test is skipped or deleted"
+            ],
+            "price": {
+              "value": 0,
+              "unit": "credit"
+            },
+            "verification": "deterministic",
+            "deadline": "2026-10-01T09:12:00Z",
+            "basis": {
+              "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+              "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+            },
+            "deadline_binds": true
+          },
+          "prev": null,
+          "issued_at": "2026-10-01T09:00:00Z",
+          "id": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:users:alice#key-1",
+            "value": "jGdsxyML1Kc-BbHitCNfmnF0qV4oX5xgJnwfIEenXrGgpqlgoydw28lFMbQtQZ0y-pbAZVLbXsmjRIYYAA6GAg"
+          },
+          "cosigs": [
+            {
+              "alg": "Ed25519",
+              "kid": "did:web:example.com:agents:coder-1#key-1",
+              "value": "Ig1WaiqqeNX8BQ6US_2HM5RJtw_3looRiNdErwGQ6mCff8jgkzy-hwitwm5IbRIKG4v65gt3DI1QRd7XvFhsDA"
+            }
+          ]
+        },
+        {
+          "type": "asp.bond/v0.2",
+          "issuer": "did:web:example.com:agents:coder-1",
+          "actor": "did:web:example.com:agents:coder-1",
+          "subject": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+          "body": {
+            "contract": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+            "backer": "did:web:example.com:agents:coder-1",
+            "amount": {
+              "value": 0,
+              "unit": "credit"
+            },
+            "escrow": {
+              "payer": "did:web:example.com:users:alice",
+              "amount": {
+                "value": 0,
+                "unit": "credit"
+              }
+            },
+            "slashing_conditions": [
+              "lost_dispute",
+              "floor_breach",
+              "forbidden_means"
+            ]
+          },
+          "prev": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+          "issued_at": "2026-10-01T09:05:00Z",
+          "id": "sha256:78132a433de3ea704fb6200127eea04295dccec7fa7f0591248c60cca45988f5",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:agents:coder-1#key-1",
+            "value": "Q00gPOPLj1pxVdLxmkaRtObwABapazsokEIW8MExZYaJVgnktiqBqqZBnVse7WUOnrXc187oe5XZEEsefvpCCg"
+          }
+        },
+        {
+          "type": "asp.mandate/v0.2",
+          "issuer": "did:web:example.com:users:alice",
+          "actor": "did:web:example.com:users:alice",
+          "subject": "did:web:example.com:agents:coder-1",
+          "body": {
+            "contract": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+            "purpose": "Keep the payments service test suite green without weakening any test",
+            "floor": "asp.floor/v1",
+            "scopes": [
+              "repo.read",
+              "repo.branch.write",
+              "pr.open",
+              "tests.run"
+            ],
+            "forbidden_means": [
+              "skipping or deleting tests",
+              "editing CI configuration",
+              "deploying"
+            ],
+            "spend": {
+              "cap": 0,
+              "unit": "credit",
+              "per_action_max": 0
+            },
+            "irreversible": {
+              "policy": "checkpoint",
+              "examples": [
+                "merge",
+                "force_push",
+                "deploy"
+              ]
+            },
+            "subcontract": {
+              "allowed": false
+            },
+            "nodes": {
+              "max_parallel": 4,
+              "liability": "to_issuer"
+            },
+            "learning": {
+              "scope": "harness",
+              "share_to_commons": false
+            },
+            "self_modification": "principal_approves",
+            "overlay": null,
+            "checkpoints": [
+              "plan",
+              "before_irreversible",
+              "delivery"
+            ],
+            "expires": "2026-10-04T00:00:00Z",
+            "revocable": true
+          },
+          "prev": "sha256:78132a433de3ea704fb6200127eea04295dccec7fa7f0591248c60cca45988f5",
+          "issued_at": "2026-10-01T09:10:00Z",
+          "id": "sha256:d386a76e5300327efc3eacc19371ae84264d693c302fb22baa1f88eba2988639",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:users:alice#key-1",
+            "value": "uKhdAIYoU41e6PpL0GEoVP3MlHU88bncA54BaGx57saHsoTBt6HLQ5cPjGSDe4YZa08hFR4Wq00b4Fx1dlDFAg"
+          }
+        },
+        {
+          "type": "asp.delivery/v0.2",
+          "issuer": "did:web:example.com:agents:coder-1",
+          "actor": "did:web:example.com:agents:coder-1#node-1",
+          "subject": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+          "body": {
+            "contract": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+            "result": {
+              "summary": "Fixed race in refund idempotency key cache (attempt 1)",
+              "artifacts": [
+                {
+                  "uri": "https://git.example.com/payments/pull/412",
+                  "sha256": "sha256:a261cb3a0b8bd719423a8814c9c1e76cb3f12f864253956547802daa6365d073"
+                }
+              ]
+            },
+            "evidence": {
+              "trace": {
+                "uri": "asp-trace://coder-1/job-412/1",
+                "sha256": "sha256:4563c73e597ce688d14d5f10c9b074b079fa13e2b405d811ef5338e950d7e017",
+                "media_type": "application/x-ndjson"
+              },
+              "forecasts": [
+                {
+                  "claim": "test passes 50/50 runs after the fix",
+                  "p_permille": 850,
+                  "made_at": "2026-10-01T09:20:00Z"
+                }
+              ],
+              "tests": {
+                "passed": 312,
+                "failed": 0
+              }
+            }
+          },
+          "prev": "sha256:d386a76e5300327efc3eacc19371ae84264d693c302fb22baa1f88eba2988639",
+          "issued_at": "2026-10-01T09:15:00Z",
+          "id": "sha256:7604a37729568871c12e3b0c458124ca412872ecd7954d13f3a158f148287e6c",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:agents:coder-1#key-1",
+            "value": "wPqVadsZW1CxuGqi_rZft_86nFxorQRpyULm_We3Ic3euGDUxjOkI4dHFwUzKc4cniKXG6yv191t5wK5cUV_DA"
+          }
+        }
+      ],
+      "expect": {
+        "error": "GUARD_FAILED",
+        "at": 3,
+        "guard": "delivered_in_time"
+      }
+    },
+    {
+      "name": "deadline_extended_by_wait",
+      "description": "The principal's approval wait extends a binding deadline: a delivery after the deadline but within deadline plus the wait is accepted",
+      "records": [
+        {
+          "type": "asp.contract/v0.2",
+          "issuer": "did:web:example.com:users:alice",
+          "actor": "did:web:example.com:users:alice",
+          "subject": "did:web:example.com:agents:coder-1",
+          "body": {
+            "principal": "did:web:example.com:users:alice",
+            "performer": "did:web:example.com:agents:coder-1",
+            "bank": "did:web:example.com:bank",
+            "purpose": "Keep the payments service test suite green without weakening any test",
+            "acceptance_criteria": [
+              "test_refund_idempotency passes 50 runs in a row",
+              "no test is skipped or deleted"
+            ],
+            "price": {
+              "value": 0,
+              "unit": "credit"
+            },
+            "verification": "deterministic",
+            "deadline": "2026-10-01T09:22:00Z",
+            "basis": {
+              "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+              "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+            },
+            "deadline_binds": true
+          },
+          "prev": null,
+          "issued_at": "2026-10-01T09:00:00Z",
+          "id": "sha256:0cfcf568bd394ec412b27789b5118ffa2992d0e2e4b4f91115cdb2e7a7e45c89",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:users:alice#key-1",
+            "value": "KD_tgu0DQfzL8VfFexw6VEzNI7LT_3NwD3Qm7revG5zefJnlCRsTpfIPA7-Q71Quo3nj03H3fJpOWQcY4GmaDg"
+          },
+          "cosigs": [
+            {
+              "alg": "Ed25519",
+              "kid": "did:web:example.com:agents:coder-1#key-1",
+              "value": "bZR0RRFLaCZpy-G-7BNqdiFlBFbe2glmIcZYBpexpgENSCKUFXazTZZKF6HlZml58aZheZmX8x8P0jQ64NVJCA"
+            }
+          ]
+        },
+        {
+          "type": "asp.bond/v0.2",
+          "issuer": "did:web:example.com:agents:coder-1",
+          "actor": "did:web:example.com:agents:coder-1",
+          "subject": "sha256:0cfcf568bd394ec412b27789b5118ffa2992d0e2e4b4f91115cdb2e7a7e45c89",
+          "body": {
+            "contract": "sha256:0cfcf568bd394ec412b27789b5118ffa2992d0e2e4b4f91115cdb2e7a7e45c89",
+            "backer": "did:web:example.com:agents:coder-1",
+            "amount": {
+              "value": 0,
+              "unit": "credit"
+            },
+            "escrow": {
+              "payer": "did:web:example.com:users:alice",
+              "amount": {
+                "value": 0,
+                "unit": "credit"
+              }
+            },
+            "slashing_conditions": [
+              "lost_dispute",
+              "floor_breach",
+              "forbidden_means"
+            ]
+          },
+          "prev": "sha256:0cfcf568bd394ec412b27789b5118ffa2992d0e2e4b4f91115cdb2e7a7e45c89",
+          "issued_at": "2026-10-01T09:05:00Z",
+          "id": "sha256:a788cbb7ec9efca8134ffd83aa1cb20d6fb532f0b483fdacbf27b932672eeb13",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:agents:coder-1#key-1",
+            "value": "cPhkaA2AGxpsQg6hDoPtqSSu_7YeB559jZ4pyhOQWOEdo8n1ASKEWhCGHUYX5Jwtlk1GKglV9iJ_zvrR61VaBQ"
+          }
+        },
+        {
+          "type": "asp.mandate/v0.2",
+          "issuer": "did:web:example.com:users:alice",
+          "actor": "did:web:example.com:users:alice",
+          "subject": "did:web:example.com:agents:coder-1",
+          "body": {
+            "contract": "sha256:0cfcf568bd394ec412b27789b5118ffa2992d0e2e4b4f91115cdb2e7a7e45c89",
+            "purpose": "Keep the payments service test suite green without weakening any test",
+            "floor": "asp.floor/v1",
+            "scopes": [
+              "repo.read",
+              "repo.branch.write",
+              "pr.open",
+              "tests.run"
+            ],
+            "forbidden_means": [
+              "skipping or deleting tests",
+              "editing CI configuration",
+              "deploying"
+            ],
+            "spend": {
+              "cap": 0,
+              "unit": "credit",
+              "per_action_max": 0
+            },
+            "irreversible": {
+              "policy": "checkpoint",
+              "examples": [
+                "merge",
+                "force_push",
+                "deploy"
+              ]
+            },
+            "subcontract": {
+              "allowed": false
+            },
+            "nodes": {
+              "max_parallel": 4,
+              "liability": "to_issuer"
+            },
+            "learning": {
+              "scope": "harness",
+              "share_to_commons": false
+            },
+            "self_modification": "principal_approves",
+            "overlay": null,
+            "checkpoints": [
+              "plan",
+              "before_irreversible",
+              "delivery"
+            ],
+            "expires": "2026-10-04T00:00:00Z",
+            "revocable": true
+          },
+          "prev": "sha256:a788cbb7ec9efca8134ffd83aa1cb20d6fb532f0b483fdacbf27b932672eeb13",
+          "issued_at": "2026-10-01T09:10:00Z",
+          "id": "sha256:59674691f7e5c377617fac3159e4758fc1ff9021d69628d1d5a1e2a7feb98ca3",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:users:alice#key-1",
+            "value": "jQHbPfZA5NwgYOAZ6Z1uZIrud9EyeuEqED0ojC84evAeCV71S1lgHfqkoCJygPHBggPwUvOVEpVdXTyBj5rjBQ"
+          }
+        },
+        {
+          "type": "asp.checkpoint/v0.2",
+          "issuer": "did:web:example.com:agents:coder-1",
+          "actor": "did:web:example.com:agents:coder-1#node-3",
+          "subject": "sha256:0cfcf568bd394ec412b27789b5118ffa2992d0e2e4b4f91115cdb2e7a7e45c89",
+          "body": {
+            "contract": "sha256:0cfcf568bd394ec412b27789b5118ffa2992d0e2e4b4f91115cdb2e7a7e45c89",
+            "kind": "plan",
+            "question": "Plan: serialize cache writes behind a per-key lock. Proceed?",
+            "options": [
+              "per-key lock",
+              "retry with backoff"
+            ]
+          },
+          "prev": "sha256:59674691f7e5c377617fac3159e4758fc1ff9021d69628d1d5a1e2a7feb98ca3",
+          "issued_at": "2026-10-01T09:15:00Z",
+          "id": "sha256:20b52bb97fa166c381271589d5b99ba7ec36dc3d9978d05d8d12af723a683a03",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:agents:coder-1#key-1",
+            "value": "V127SlgaZgwxifMAp0U3qT2rEWnUACnrztV6Yvo0C52Q1WJAKKnyfnYNfaE2yLhfaJxGsqqsiHBfceZkcZESAQ"
+          }
+        },
+        {
+          "type": "asp.attestation/v0.2",
+          "issuer": "did:web:example.com:users:alice",
+          "actor": "did:web:example.com:users:alice",
+          "subject": "sha256:0cfcf568bd394ec412b27789b5118ffa2992d0e2e4b4f91115cdb2e7a7e45c89",
+          "body": {
+            "kind": "checkpoint_resolution",
+            "about": "sha256:20b52bb97fa166c381271589d5b99ba7ec36dc3d9978d05d8d12af723a683a03",
+            "verdict": "approved"
+          },
+          "prev": "sha256:20b52bb97fa166c381271589d5b99ba7ec36dc3d9978d05d8d12af723a683a03",
+          "issued_at": "2026-10-01T09:20:00Z",
+          "id": "sha256:dcf0d21ff06b49444ffbee757eba40110b7bfd7f2d1b0bd76fe920ed1a2500cb",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:users:alice#key-1",
+            "value": "Nz4JCkeY2Yn5KXRgaoHjnIeE7Vk53TdUE_DzAHWwxmKQ4W5dF2l6fjrysh4iPJhGwj27RCeVkCLMGlVpHVwLDA"
+          }
+        },
+        {
+          "type": "asp.delivery/v0.2",
+          "issuer": "did:web:example.com:agents:coder-1",
+          "actor": "did:web:example.com:agents:coder-1#node-1",
+          "subject": "sha256:0cfcf568bd394ec412b27789b5118ffa2992d0e2e4b4f91115cdb2e7a7e45c89",
+          "body": {
+            "contract": "sha256:0cfcf568bd394ec412b27789b5118ffa2992d0e2e4b4f91115cdb2e7a7e45c89",
+            "result": {
+              "summary": "Fixed race in refund idempotency key cache (attempt 1)",
+              "artifacts": [
+                {
+                  "uri": "https://git.example.com/payments/pull/412",
+                  "sha256": "sha256:a261cb3a0b8bd719423a8814c9c1e76cb3f12f864253956547802daa6365d073"
+                }
+              ]
+            },
+            "evidence": {
+              "trace": {
+                "uri": "asp-trace://coder-1/job-412/1",
+                "sha256": "sha256:4563c73e597ce688d14d5f10c9b074b079fa13e2b405d811ef5338e950d7e017",
+                "media_type": "application/x-ndjson"
+              },
+              "forecasts": [
+                {
+                  "claim": "test passes 50/50 runs after the fix",
+                  "p_permille": 850,
+                  "made_at": "2026-10-01T09:20:00Z"
+                }
+              ],
+              "tests": {
+                "passed": 312,
+                "failed": 0
+              }
+            }
+          },
+          "prev": "sha256:dcf0d21ff06b49444ffbee757eba40110b7bfd7f2d1b0bd76fe920ed1a2500cb",
+          "issued_at": "2026-10-01T09:25:00Z",
+          "id": "sha256:6ff6f0b776f9cc05b85700ed0b62fcddbce3669a27f5ce3968e8b5082c04695a",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:agents:coder-1#key-1",
+            "value": "dF7LViPfEdDaVE_9HBEtr_0_stTLQd6ochqeFfdHdGqXjnWnidZ31Tb0zoLmWQo1_hxqzk1xLMHUP-AReYGHCg"
+          }
+        }
+      ],
+      "expect": {
+        "state": "Delivered"
+      }
+    },
+    {
+      "name": "deadline_late_beyond_wait",
+      "description": "An agent late by more than the approval wait is still late: the delivery is refused",
+      "records": [
+        {
+          "type": "asp.contract/v0.2",
+          "issuer": "did:web:example.com:users:alice",
+          "actor": "did:web:example.com:users:alice",
+          "subject": "did:web:example.com:agents:coder-1",
+          "body": {
+            "principal": "did:web:example.com:users:alice",
+            "performer": "did:web:example.com:agents:coder-1",
+            "bank": "did:web:example.com:bank",
+            "purpose": "Keep the payments service test suite green without weakening any test",
+            "acceptance_criteria": [
+              "test_refund_idempotency passes 50 runs in a row",
+              "no test is skipped or deleted"
+            ],
+            "price": {
+              "value": 0,
+              "unit": "credit"
+            },
+            "verification": "deterministic",
+            "deadline": "2026-10-01T09:12:00Z",
+            "basis": {
+              "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+              "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+            },
+            "deadline_binds": true
+          },
+          "prev": null,
+          "issued_at": "2026-10-01T09:00:00Z",
+          "id": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:users:alice#key-1",
+            "value": "jGdsxyML1Kc-BbHitCNfmnF0qV4oX5xgJnwfIEenXrGgpqlgoydw28lFMbQtQZ0y-pbAZVLbXsmjRIYYAA6GAg"
+          },
+          "cosigs": [
+            {
+              "alg": "Ed25519",
+              "kid": "did:web:example.com:agents:coder-1#key-1",
+              "value": "Ig1WaiqqeNX8BQ6US_2HM5RJtw_3looRiNdErwGQ6mCff8jgkzy-hwitwm5IbRIKG4v65gt3DI1QRd7XvFhsDA"
+            }
+          ]
+        },
+        {
+          "type": "asp.bond/v0.2",
+          "issuer": "did:web:example.com:agents:coder-1",
+          "actor": "did:web:example.com:agents:coder-1",
+          "subject": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+          "body": {
+            "contract": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+            "backer": "did:web:example.com:agents:coder-1",
+            "amount": {
+              "value": 0,
+              "unit": "credit"
+            },
+            "escrow": {
+              "payer": "did:web:example.com:users:alice",
+              "amount": {
+                "value": 0,
+                "unit": "credit"
+              }
+            },
+            "slashing_conditions": [
+              "lost_dispute",
+              "floor_breach",
+              "forbidden_means"
+            ]
+          },
+          "prev": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+          "issued_at": "2026-10-01T09:05:00Z",
+          "id": "sha256:78132a433de3ea704fb6200127eea04295dccec7fa7f0591248c60cca45988f5",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:agents:coder-1#key-1",
+            "value": "Q00gPOPLj1pxVdLxmkaRtObwABapazsokEIW8MExZYaJVgnktiqBqqZBnVse7WUOnrXc187oe5XZEEsefvpCCg"
+          }
+        },
+        {
+          "type": "asp.mandate/v0.2",
+          "issuer": "did:web:example.com:users:alice",
+          "actor": "did:web:example.com:users:alice",
+          "subject": "did:web:example.com:agents:coder-1",
+          "body": {
+            "contract": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+            "purpose": "Keep the payments service test suite green without weakening any test",
+            "floor": "asp.floor/v1",
+            "scopes": [
+              "repo.read",
+              "repo.branch.write",
+              "pr.open",
+              "tests.run"
+            ],
+            "forbidden_means": [
+              "skipping or deleting tests",
+              "editing CI configuration",
+              "deploying"
+            ],
+            "spend": {
+              "cap": 0,
+              "unit": "credit",
+              "per_action_max": 0
+            },
+            "irreversible": {
+              "policy": "checkpoint",
+              "examples": [
+                "merge",
+                "force_push",
+                "deploy"
+              ]
+            },
+            "subcontract": {
+              "allowed": false
+            },
+            "nodes": {
+              "max_parallel": 4,
+              "liability": "to_issuer"
+            },
+            "learning": {
+              "scope": "harness",
+              "share_to_commons": false
+            },
+            "self_modification": "principal_approves",
+            "overlay": null,
+            "checkpoints": [
+              "plan",
+              "before_irreversible",
+              "delivery"
+            ],
+            "expires": "2026-10-04T00:00:00Z",
+            "revocable": true
+          },
+          "prev": "sha256:78132a433de3ea704fb6200127eea04295dccec7fa7f0591248c60cca45988f5",
+          "issued_at": "2026-10-01T09:10:00Z",
+          "id": "sha256:d386a76e5300327efc3eacc19371ae84264d693c302fb22baa1f88eba2988639",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:users:alice#key-1",
+            "value": "uKhdAIYoU41e6PpL0GEoVP3MlHU88bncA54BaGx57saHsoTBt6HLQ5cPjGSDe4YZa08hFR4Wq00b4Fx1dlDFAg"
+          }
+        },
+        {
+          "type": "asp.checkpoint/v0.2",
+          "issuer": "did:web:example.com:agents:coder-1",
+          "actor": "did:web:example.com:agents:coder-1#node-3",
+          "subject": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+          "body": {
+            "contract": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+            "kind": "plan",
+            "question": "Plan: serialize cache writes behind a per-key lock. Proceed?",
+            "options": [
+              "per-key lock",
+              "retry with backoff"
+            ]
+          },
+          "prev": "sha256:d386a76e5300327efc3eacc19371ae84264d693c302fb22baa1f88eba2988639",
+          "issued_at": "2026-10-01T09:15:00Z",
+          "id": "sha256:fedc968e5c27e8223df1a05f920ad5c0aebc061738a243d0ed0c0681b8ab0157",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:agents:coder-1#key-1",
+            "value": "fcaiKJLqyvRc5Khx0PhuQJvTPtyaT9TY_1HWxhs72u0k_kNMlNrX3mmqJDpuwqWvWLgoZ-oyH2fnJyNCe66xBQ"
+          }
+        },
+        {
+          "type": "asp.attestation/v0.2",
+          "issuer": "did:web:example.com:users:alice",
+          "actor": "did:web:example.com:users:alice",
+          "subject": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+          "body": {
+            "kind": "checkpoint_resolution",
+            "about": "sha256:fedc968e5c27e8223df1a05f920ad5c0aebc061738a243d0ed0c0681b8ab0157",
+            "verdict": "approved"
+          },
+          "prev": "sha256:fedc968e5c27e8223df1a05f920ad5c0aebc061738a243d0ed0c0681b8ab0157",
+          "issued_at": "2026-10-01T09:20:00Z",
+          "id": "sha256:d47a5fea0497de15f6388118ec5088de0644940724d2891344bd607adac1ed9c",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:users:alice#key-1",
+            "value": "oJnskLNOjFCvOTvLto6nQ7e_rs5zWrtub_In_X8Ei15n3JxLwoxNg2jBnxTg_stB5TwTnkpJtrWG16TlSRz7AQ"
+          }
+        },
+        {
+          "type": "asp.delivery/v0.2",
+          "issuer": "did:web:example.com:agents:coder-1",
+          "actor": "did:web:example.com:agents:coder-1#node-1",
+          "subject": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+          "body": {
+            "contract": "sha256:75dc96499011d819b748bfc840b27e644d25e7d256458697c065750f1cad8394",
+            "result": {
+              "summary": "Fixed race in refund idempotency key cache (attempt 1)",
+              "artifacts": [
+                {
+                  "uri": "https://git.example.com/payments/pull/412",
+                  "sha256": "sha256:a261cb3a0b8bd719423a8814c9c1e76cb3f12f864253956547802daa6365d073"
+                }
+              ]
+            },
+            "evidence": {
+              "trace": {
+                "uri": "asp-trace://coder-1/job-412/1",
+                "sha256": "sha256:4563c73e597ce688d14d5f10c9b074b079fa13e2b405d811ef5338e950d7e017",
+                "media_type": "application/x-ndjson"
+              },
+              "forecasts": [
+                {
+                  "claim": "test passes 50/50 runs after the fix",
+                  "p_permille": 850,
+                  "made_at": "2026-10-01T09:20:00Z"
+                }
+              ],
+              "tests": {
+                "passed": 312,
+                "failed": 0
+              }
+            }
+          },
+          "prev": "sha256:d47a5fea0497de15f6388118ec5088de0644940724d2891344bd607adac1ed9c",
+          "issued_at": "2026-10-01T09:25:00Z",
+          "id": "sha256:aa0bff4f7f118563b244b9ae117db861a1b16ad96a001819f4ed6a550c3e0e4e",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:agents:coder-1#key-1",
+            "value": "73ZPX43CBB0OAiCYb_ssvstHyaDbPmbU9iZtveXcM599jg2FffXjkXHvLyYl-JouUZZKGLb02OhAwnZl5rJpDg"
+          }
+        }
+      ],
+      "expect": {
+        "error": "GUARD_FAILED",
+        "at": 5,
+        "guard": "delivered_in_time"
+      }
+    },
+    {
+      "name": "deadline_informational",
+      "description": "Without deadline_binds the deadline is informational: a delivery after it is accepted, as before",
+      "records": [
+        {
+          "type": "asp.contract/v0.2",
+          "issuer": "did:web:example.com:users:alice",
+          "actor": "did:web:example.com:users:alice",
+          "subject": "did:web:example.com:agents:coder-1",
+          "body": {
+            "principal": "did:web:example.com:users:alice",
+            "performer": "did:web:example.com:agents:coder-1",
+            "bank": "did:web:example.com:bank",
+            "purpose": "Keep the payments service test suite green without weakening any test",
+            "acceptance_criteria": [
+              "test_refund_idempotency passes 50 runs in a row",
+              "no test is skipped or deleted"
+            ],
+            "price": {
+              "value": 0,
+              "unit": "credit"
+            },
+            "verification": "deterministic",
+            "deadline": "2026-10-01T09:12:00Z",
+            "basis": {
+              "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+              "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+            }
+          },
+          "prev": null,
+          "issued_at": "2026-10-01T09:00:00Z",
+          "id": "sha256:f4a02d10a6fa151168b464ffb5413e56fafef8f0ce3540edc0aed28c2930dcec",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:users:alice#key-1",
+            "value": "FaXwVIHtdD3xLEmpqIwI47ZsUDTh27LoSqnUezoa7B3m58aze9R6a6YLohpV-cbvTXPh7bS289CIFwBYVx7vDg"
+          },
+          "cosigs": [
+            {
+              "alg": "Ed25519",
+              "kid": "did:web:example.com:agents:coder-1#key-1",
+              "value": "GCS_jH5bY3QkiGNJAANsn9ROAND3FCXhI-Wf4qAdOVn8MDtGRHjW_67hrRY2QJk4koT4buiMg4xLrEdLpGEPAw"
+            }
+          ]
+        },
+        {
+          "type": "asp.bond/v0.2",
+          "issuer": "did:web:example.com:agents:coder-1",
+          "actor": "did:web:example.com:agents:coder-1",
+          "subject": "sha256:f4a02d10a6fa151168b464ffb5413e56fafef8f0ce3540edc0aed28c2930dcec",
+          "body": {
+            "contract": "sha256:f4a02d10a6fa151168b464ffb5413e56fafef8f0ce3540edc0aed28c2930dcec",
+            "backer": "did:web:example.com:agents:coder-1",
+            "amount": {
+              "value": 0,
+              "unit": "credit"
+            },
+            "escrow": {
+              "payer": "did:web:example.com:users:alice",
+              "amount": {
+                "value": 0,
+                "unit": "credit"
+              }
+            },
+            "slashing_conditions": [
+              "lost_dispute",
+              "floor_breach",
+              "forbidden_means"
+            ]
+          },
+          "prev": "sha256:f4a02d10a6fa151168b464ffb5413e56fafef8f0ce3540edc0aed28c2930dcec",
+          "issued_at": "2026-10-01T09:05:00Z",
+          "id": "sha256:f2e2f4ab67c52dce1b3ef6e8781f0093c3874e643d7a428f430a78cafcd7474c",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:agents:coder-1#key-1",
+            "value": "O3ng7wYeFugr1agyQM3jKozYU9vaEz99CIkVd0oj6vLBOBQGTI1C2RQxAZaUzkimPBJnIrkhVXBeKDwBgp1-DQ"
+          }
+        },
+        {
+          "type": "asp.mandate/v0.2",
+          "issuer": "did:web:example.com:users:alice",
+          "actor": "did:web:example.com:users:alice",
+          "subject": "did:web:example.com:agents:coder-1",
+          "body": {
+            "contract": "sha256:f4a02d10a6fa151168b464ffb5413e56fafef8f0ce3540edc0aed28c2930dcec",
+            "purpose": "Keep the payments service test suite green without weakening any test",
+            "floor": "asp.floor/v1",
+            "scopes": [
+              "repo.read",
+              "repo.branch.write",
+              "pr.open",
+              "tests.run"
+            ],
+            "forbidden_means": [
+              "skipping or deleting tests",
+              "editing CI configuration",
+              "deploying"
+            ],
+            "spend": {
+              "cap": 0,
+              "unit": "credit",
+              "per_action_max": 0
+            },
+            "irreversible": {
+              "policy": "checkpoint",
+              "examples": [
+                "merge",
+                "force_push",
+                "deploy"
+              ]
+            },
+            "subcontract": {
+              "allowed": false
+            },
+            "nodes": {
+              "max_parallel": 4,
+              "liability": "to_issuer"
+            },
+            "learning": {
+              "scope": "harness",
+              "share_to_commons": false
+            },
+            "self_modification": "principal_approves",
+            "overlay": null,
+            "checkpoints": [
+              "plan",
+              "before_irreversible",
+              "delivery"
+            ],
+            "expires": "2026-10-04T00:00:00Z",
+            "revocable": true
+          },
+          "prev": "sha256:f2e2f4ab67c52dce1b3ef6e8781f0093c3874e643d7a428f430a78cafcd7474c",
+          "issued_at": "2026-10-01T09:10:00Z",
+          "id": "sha256:0a013127a6ce36d952217fd21df9a11367714d257fb5792afff6a9608686640a",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:users:alice#key-1",
+            "value": "vWmqhqaMMmn3ElqtXbq_grbXGlHZBb2gQ23INgwwm5ghkej8u5XkGlkTx8LdX5359GJJoJsSvpHWKeTLqzH9Bw"
+          }
+        },
+        {
+          "type": "asp.delivery/v0.2",
+          "issuer": "did:web:example.com:agents:coder-1",
+          "actor": "did:web:example.com:agents:coder-1#node-1",
+          "subject": "sha256:f4a02d10a6fa151168b464ffb5413e56fafef8f0ce3540edc0aed28c2930dcec",
+          "body": {
+            "contract": "sha256:f4a02d10a6fa151168b464ffb5413e56fafef8f0ce3540edc0aed28c2930dcec",
+            "result": {
+              "summary": "Fixed race in refund idempotency key cache (attempt 1)",
+              "artifacts": [
+                {
+                  "uri": "https://git.example.com/payments/pull/412",
+                  "sha256": "sha256:a261cb3a0b8bd719423a8814c9c1e76cb3f12f864253956547802daa6365d073"
+                }
+              ]
+            },
+            "evidence": {
+              "trace": {
+                "uri": "asp-trace://coder-1/job-412/1",
+                "sha256": "sha256:4563c73e597ce688d14d5f10c9b074b079fa13e2b405d811ef5338e950d7e017",
+                "media_type": "application/x-ndjson"
+              },
+              "forecasts": [
+                {
+                  "claim": "test passes 50/50 runs after the fix",
+                  "p_permille": 850,
+                  "made_at": "2026-10-01T09:20:00Z"
+                }
+              ],
+              "tests": {
+                "passed": 312,
+                "failed": 0
+              }
+            }
+          },
+          "prev": "sha256:0a013127a6ce36d952217fd21df9a11367714d257fb5792afff6a9608686640a",
+          "issued_at": "2026-10-01T09:15:00Z",
+          "id": "sha256:43e14c23e4804a7eeaa0f886406721fdc2e38941072b446d72329e02bda48f2e",
+          "sig": {
+            "alg": "Ed25519",
+            "kid": "did:web:example.com:agents:coder-1#key-1",
+            "value": "zXlWcjt1ahHLuMYKM3S4DBM8JXYJV-MDLu9kKx9Sl28F3pUJs0OXi_pebGp7y8LM-HyD9r5X20VkbyxMECmwBg"
+          }
+        }
+      ],
+      "expect": {
+        "state": "Delivered"
+      }
+    },
+    {
       "name": "node_actor",
       "description": "Records may be issued by a person and acted by one of its nodes",
       "records": [
