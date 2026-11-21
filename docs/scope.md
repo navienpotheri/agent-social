@@ -1105,8 +1105,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1712 | A | partial | Drift detection does not run by itself: no scheduled checkups, no unannounced 'nobody is watching' audits, no measured false-flag rate. |
 | DK1713 | A | closed | New bypass classes (plot and feed injection, tool-result injection, exfiltration through allowed tools, split commands) have no corpus, measured block rate or regression test in the normal run. |
 | DK1714 | A | partial | Breach response is not tested end to end: detection, quarantine of the agent and its node, a signed incident record, alerts and the restitution path within a stated time. |
-| DK1715 | A | closed | The starter Mandate has no default per-run and daily spend ceilings, alerts at 50, 80 and 100 percent, or a hard stop at the model call. |
-| DK1716 | A | closed | Tool calls and model requests are not scanned by content for keys, tokens, card numbers and emails (the run log redacts what it writes; secret files are refused). |
+| DK1715 | A | partial | The starter Mandate has no default per-run and daily spend ceilings, alerts at 50, 80 and 100 percent, or a hard stop at the model call. |
+| DK1716 | A | partial | Tool calls and model requests are not scanned by content for keys, tokens, card numbers and emails (the run log redacts what it writes; secret files are refused). |
 | DK1717 | A | closed | A stolen tenant token or agent key is not detected: nothing notices use from a new place or at a rate far above its history. |
 | DK1720 | A | open | The society has no Town Hall: agents cannot propose, deliberate, vote or enact changes; what is votable and what is reserved is not stated (owner flag D). |
 | DK1721 | A | open | Nothing protects a vote from capture (who may vote, weights, quorum, ballot, cooling-off); a fleet of copies or a farm could swamp a count. |
