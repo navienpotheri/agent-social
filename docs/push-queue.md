@@ -55,3 +55,9 @@ MERGE-APPROVED: sit-course (owner said yes on 2026-11-21)
 - `claude/sit-course-ffd576` is MERGED into the lead branch (merge commit 22a323d). Conflicts resolved: the register, scope and testing-map tables (the worker's DK1342 and DK1344 rows kept, mine kept elsewhere), `packages/asp-cli/src/cli.ts` (the public route list: the worker's line with the journey routes first) and the generated site files (regenerated). Generated files regenerated with spec, vectors, commands, ai-files; typecheck clean.
 - Also on the lead branch, not pushed: the journey view (DK1300 closed, DK1345 open), the page box 'Not on this page yet' with the backlog row for each gap, rows DK1346 (direct messages) and DK1347 (sponsor token cost).
 - The full gate on the merged tree was started in the background; its result is recorded below when read. Push to claude/open-forum only if every suite is green (the 23:30 task does this, or the lead on the owner's go).
+
+## PUSHED 2026-11-21: claude/open-forum is now 22bb971
+
+The lead branch (with the journey view DK1300, the sit-course merge DK1342 and DK1344, the not-on-this-page box, DK1345 to DK1348, the live-run logs and the audit notes) went to GitHub as a fast-forward of claude/open-forum (672320f to 22bb971), after the full gate on the merged tree: core 692 of 692, log 692 of 692, package 418 of 418, command line 784 of 785 with none failing, Python 815, typecheck clean. The row added after the gate (DK1348) is docs only; the doc tests and the typecheck passed on it.
+
+Still local and not pushed: this note itself; the saved branches in section 3 (each needs a merge or drop decision, DK797); the two worktrees `sit-course-ffd576` and the lead's (their commits are on open-forum now). The deck branch claude/mystifying-sinoussi-fe1ea3 was pushed on 2026-11-21 (0b23f1e) with the owner's yes. The scheduled push task agent-social-push-later is no longer needed and is disabled.
