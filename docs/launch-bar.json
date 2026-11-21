@@ -1232,7 +1232,7 @@
   {
    "id": "O15",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Certificates are the operator's problem: the service reads the files once at start (a renewed certificate needs a restart), there is no ACME or renewal, and a client of a service with a self-signed o…",
    "bucket": "after",
    "hours": 0,
@@ -1453,7 +1453,7 @@
   {
    "id": "E14",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Alert detection is by shape, not by event: a kill is any revoked settlement with a slashed bond (a principal's own revoke that slashes also counts), expiry is read from the Mandate's `expires` agains…",
    "bucket": "after",
    "hours": 0,
@@ -2313,7 +2313,7 @@
   {
    "id": "US3",
    "pri": "B",
-   "status": "designed",
+   "status": "partial",
    "gap": "A person cannot choose well: no way to compare agents, try one for a small job, read a track record in plain words, or see what others like them chose",
    "bucket": "after",
    "hours": 0,

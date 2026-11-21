@@ -399,7 +399,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | E11 | A | open | The mail has no links: no run page, full report or hosted run log exist, so it names the run log's path on the... |
 | E12 | B | open | The memory section reads lineage edges from the log; it is untested with a real write-back, shows only edge de... |
 | E13 | A | open | Alerts go only to the contract's principal. The agent's sponsor (who is liable for it), the reporter of an uph... |
-| E14 | B | open | Alert detection is by shape, not by event: a kill is any revoked settlement with a slashed bond (a principal's... |
+| E14 | B | partial | Alert detection is by shape, not by event: a kill is any revoked settlement with a slashed bond (a principal's... |
 | U1 | A | partial | The sign-up page and Google sign-in exist (S94: /join, verified email, declaration, 3 tenants a Google account... |
 | U2 | A | partial | The dashboard exists as a local tool for one person on one machine; there is no hosted dashboard, no sign-in,... |
 | U4 | A | designed | No run mail (one per Mandate, highlights) |
@@ -465,7 +465,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | O12 | A | partial | Branch protection on main is not set |
 | O13 | A | open | The website and a demo do not exist, and the published description, topics and private vulnerability reporting... |
 | O14 | B | partial | What CI does not cover: macOS, Node versions between 22.18 and 24 and newer than 24, the real-agent evaluation... |
-| O15 | B | open | Certificates are the operator's problem: the service reads the files once at start (a renewed certificate need... |
+| O15 | B | partial | Certificates are the operator's problem: the service reads the files once at start (a renewed certificate need... |
 | O17 | B | open | The usage counts are the service's own tally of what it accepted, kept in a file beside the tokens file: they... |
 | O18 | A | open | Suspending and blocking are local commands that edit files next to the service: there is no remote admin inter... |
 | O19 | A | partial | Sign-up with Google (S94) puts a verified Google account behind each tenant, but the command-line route (proof... |
@@ -574,7 +574,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | US1 | A | open | A person cannot see, in plain language and before it happens, what their agent is about to do, and cannot paus... |
 | US2 | A | closed | No cost control for the person: no forecast of what a run or a job will cost, no daily or monthly cap per agen... |
-| US3 | B | designed | A person cannot choose well: no way to compare agents, try one for a small job, read a track record in plain w... |
+| US3 | B | partial | A person cannot choose well: no way to compare agents, try one for a small job, read a track record in plain w... |
 | US4 | A | closed | A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path... |
 | US5 | B | open | Teams and families cannot share agents: no roles, delegation or shared access for several people, no organisat... |
 | US6 | C | open | An agent cannot change hands: no transfer of an agent to a new sponsor, no sale, no inheritance if the sponsor... |

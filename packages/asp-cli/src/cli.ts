@@ -210,6 +210,7 @@
  *   asp credits auto-refund [--yes]   the purchases an institution never answered in seven days, and the refund each buyer is owed (the operator signs them with --yes)
  *   asp credits ratify [--by <owner did>] [--file <policy.md>] [--policy <name>] [--public-key <hex>]   the owner signs the monetary policy (with --by) or checks that the signed text is unchanged (without)
  *   asp pause [status] | resume   hold every running session on this machine at its next call, and let them continue (asp stop --all ends them instead)
+ *   asp run <runtime> --ask-first [--yes]   show the plan in words (what the agent may and may not do) before anything runs and wait for the person to answer; without a terminal the run does not start unless --yes
  *   asp my-data [--agent <did>] [--acknowledge] [--json]   your data in the city in plain words: what stays here, what the city keeps and in which categories, what it is used for, how to list and delete it; --acknowledge records that you read it
  *   asp credits guard [--json]   the monetary guard measures (issuance rate, starter pool use, hoarding, Treasury share, audit mismatch) with the action each names; exit 1 when one is over its threshold; nothing is changed
  *   asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>   the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs, certificates), the summary a governed run gives the agent; --sign signs it with the agent's key, --verify refuses a tampered or stale one
@@ -374,6 +375,7 @@ import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
 import { myDataCmd } from "./my-data.ts";
+import { reloadTlsOnSighup } from "./tls-reload.ts";
 import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
@@ -470,6 +472,7 @@ const OPTIONS = {
   backend: { type: "string" },
   agent: { type: "string" },
   acknowledge: { type: "boolean" },
+  plain: { type: "boolean" },
   project: { type: "string" },
   out: { type: "string" },
   verify: { type: "string" },
@@ -786,6 +789,7 @@ const OPTIONS = {
   "widen-hint": { type: "string" },
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
+  "ask-first": { type: "boolean" },
   week: { type: "string" },
   "agent-name": { type: "string" },
   "google-auth-url": { type: "string" },
@@ -3061,6 +3065,7 @@ If this was you${code ? `, confirm with the code ${code}: POST /token/confirm {"
     mailTimer = setInterval(() => { mailer!.tick().catch((e) => io.err(`  mail pass failed: ${(e as Error).message}`)); }, every);
     mailTimer.unref?.();
   }
+  if (tls && process.platform !== "win32") { reloadTlsOnSighup(server as never, { cert: resolve(io.cwd, v["tls-cert"]!), key: resolve(io.cwd, v["tls-key"]!) }, io.err); io.out("  tls      a renewed certificate is read again on SIGHUP (kill -HUP <pid>)"); }
   if (sandbox) io.out(`  SANDBOX   ${SANDBOX_BANNER}`);
   io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port}${sandbox ? " [SANDBOX]" : ""} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
   io.out(`  limits per minute: ${limits.tenantPerMinute || "no limit"} requests and ${limits.appendPerMinute || "no limit"} writes per tenant, ${limits.addressPerMinute || "no limit"} per address; ${limits.maxInFlight || "no"} in flight; lockout after ${limits.failedAuthMax || "never"} failed sign-ins`);
@@ -5634,7 +5639,7 @@ async function registryCommand(home: string, sub: string | undefined, rest: stri
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await registryCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(p, "utf8")), flags: { by: v.by, did: v.did, paid: v.paid, page: v.page, genuine: v.genuine, grounds: v.grounds, evidence: v.evidence, reason: v.reason, articles: v.articles, report: v.report, suspension: v.suspension, level: v.level, until: v.until, days: v.days, json: v.json, name: v.name } });
+    return await registryCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(p, "utf8")), flags: { plain: v.plain, by: v.by, did: v.did, paid: v.paid, page: v.page, genuine: v.genuine, grounds: v.grounds, evidence: v.evidence, reason: v.reason, articles: v.articles, report: v.report, suspension: v.suspension, level: v.level, until: v.until, days: v.days, json: v.json, name: v.name } });
   } catch (e) {
     if (e instanceof RegistryUsage) throw new UsageError(e.message);
     throw e;
@@ -6924,6 +6929,20 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}${scopes.includes("shell.exec") ? ", run commands" : scopes.includes("tests.run") ? ", run tests" : ""}${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)${renewed ? `; ${renewed}, so this one was made, and your earlier records are unchanged` : ""}` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
   if (inferred.narrowed) io.err(`  scope    ${inferred.why}`);
+  // US1: with --ask-first the plan above is shown before anything runs and the person answers. Without a terminal nobody can answer, so the run does not start unless --yes says the plan was read.
+  if (v["ask-first"] && !v.yes) {
+    let go = false;
+    if (process.stdin.isTTY) {
+      const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stderr });
+      go = /^y(es)?$/i.test((await rl.question("  Start this run as described above? [y/N] ")).trim());
+      rl.close();
+    } else io.err("  confirm  no one can answer here: run it in a terminal, or add --yes once you have read the plan above");
+    if (!go) {
+      sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state: "stopped", calls: 0, refused: [], tokens: 0, exitCode: 1 });
+      io.err("  confirm  the run was not started");
+      return 1;
+    }
+  }
 
   // An interactive session cannot ask here: the tool owns the window, and a person who types y into the tool's own box answers the tool, not asp (found live, UC-15).
   if (gate.length && !v.prompt && !headless) io.err("  approvals: this window belongs to the tool, so asp cannot ask you in it. When a command is held, open a second terminal and run:  asp approvals approve   (or  asp approvals refuse ). Typing y in the tool's own box does not answer it.");

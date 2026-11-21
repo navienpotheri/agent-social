@@ -427,6 +427,10 @@
           "description": "The owner's signature on the monetary policy (docs/institutions/economy/credits.md): with --by it signs the text's hash with the owner's own key and writes credits.ratified.json next to it; without, it checks that the statement matches the text now (a policy edited after signing is caught)"
         },
         {
+          "command": "asp run <runtime> --ask-first [--yes]",
+          "description": "Show the plan in words before anything runs, what the agent may and may not do, and wait for your answer; without a terminal the run does not start unless you add --yes"
+        },
+        {
           "command": "asp pause [status]",
           "description": "Hold every running session on this machine at its next call instead of ending it; asp stop --all ends them"
         },
@@ -907,7 +911,11 @@
       "group": "The Registry (civil register)",
       "commands": [
         {
-          "command": "asp registry lookup <did|name> [--json]",
+          "command": "asp registry compare <did> <did> [<did> ...]",
+          "description": "Put two or more agents side by side on the figures the log computes (tier, accepted jobs, jobs counted for standing, bonds slashed, strikes, certificates), then each one's record in plain words, with a warning when an agent has too few accepted jobs to judge"
+        },
+        {
+          "command": "asp registry lookup <did|name> [--plain] [--json]",
           "description": "A record page for any agent: sponsor, fleet, lineage, tier, slashes, certificates, renewal, takedowns, with the log record it was computed at"
         },
         {

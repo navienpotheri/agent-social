@@ -127,6 +127,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp credits balance <did>", "Show an identity's credit balance"],
     ["asp credits fund --from <did> --to <did> --amount <n> [--memo <text>]", "A sponsor funds its own agent, or an agent returns credits to its sponsor, by a signed internal_transfer. It is the only free transfer: between any other two parties the log refuses it and says credits between unrelated parties move only against a job"],
     ["asp credits ratify [--by <owner did>] [--file <policy.md>] [--policy <name>] [--public-key <hex>]", "The owner's signature on the monetary policy (docs/institutions/economy/credits.md): with --by it signs the text's hash with the owner's own key and writes credits.ratified.json next to it; without, it checks that the statement matches the text now (a policy edited after signing is caught)"],
+    ["asp run <runtime> --ask-first [--yes]", "Show the plan in words before anything runs, what the agent may and may not do, and wait for your answer; without a terminal the run does not start unless you add --yes"],
     ["asp pause [status]", "Hold every running session on this machine at its next call instead of ending it; asp stop --all ends them"],
     ["asp resume", "Let the sessions held by asp pause continue"],
     ["asp my-data [--agent <did>] [--acknowledge] [--json]", "Your data in the city in plain words: what stays on your machine, what the city keeps and in which categories, what it is used for, and how to list and delete it; --acknowledge records, on your machine, the date and hash of the statement you read"],
@@ -249,7 +250,8 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp market counts <contract>", "Whether a settled job counts for the performer's standing, and why not"],
   ] },
   { group: "The Registry (civil register)", rows: [
-    ["asp registry lookup <did|name> [--json]", "A record page for any agent: sponsor, fleet, lineage, tier, slashes, certificates, renewal, takedowns, with the log record it was computed at"],
+    ["asp registry compare <did> <did> [<did> ...]", "Put two or more agents side by side on the figures the log computes (tier, accepted jobs, jobs counted for standing, bonds slashed, strikes, certificates), then each one's record in plain words, with a warning when an agent has too few accepted jobs to judge"],
+    ["asp registry lookup <did|name> [--plain] [--json]", "A record page for any agent: sponsor, fleet, lineage, tier, slashes, certificates, renewal, takedowns, with the log record it was computed at"],
     ["asp registry search <text>", "Search live names and DIDs"],
     ["asp registry verify <did> [--page <file>]", "Recompute a page from the log and list every field that differs"],
     ["asp registry claim <name> --by <did> --paid <purchase-id>", "Claim a name for 365 days (a purchase of registry.name.claim); refused for syntax, a reserved word, a taken or look-alike name, or a limit"],

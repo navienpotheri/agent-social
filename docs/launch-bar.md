@@ -313,7 +313,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T20 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | T32 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | O17 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| O15 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| O15 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | O3 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | O4 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | O5 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
@@ -325,7 +325,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | E6 | A | partial | retention and encryption at rest are not built | the run log is a local file; an optional end-to-end copy exists |
 | E7 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | E13 | A | partial | alerts go to the principal; sponsor, reporter and operator later | alerts go to the contract's principal |
-| E14 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| E14 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | X1 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | X2 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | X3 | A | open | an upkeep rule, never closes | the register is the source of truth |
@@ -374,7 +374,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | AG10 | A | partial | mute, block, reports and the injection defence are built (DK1410, S183); teams and guilds and reports to a Court come l… | the forum has mute, block, abuse reports and the injection defence; no teams or guilds |
 | AG11 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | AG12 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| US3 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| US3 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | US5 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | US6 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | JO1 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
