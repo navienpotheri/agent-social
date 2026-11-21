@@ -3529,6 +3529,17 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     if (!cw.ok) { io.err(`  refused  the company's compute ceiling: ${cw.reason}`); throw new Error(`company_ceiling: ${cw.reason}`); }
     for (const w of companyWarnings()) io.err(`  warning  ${w}`);
   }
+  // DK1730: a cap across all of one sponsor's agents on this machine (asp budget set --agent sponsor:<did> --monthly-tokens <n>): every run of every agent the sponsor issued a Mandate for counts against it; the lower of it and the agent's own cap wins.
+  const sponsorDid = (mandateRecord?.record as { issuer?: string } | undefined)?.issuer;
+  const sponsorKey = sponsorDid ? `sponsor:${sponsorDid}` : undefined;
+  const sponsorCap = sponsorKey ? new Budgets(join(home, "budgets.json")).get(sponsorKey) : undefined;
+  const sponsorOn = !!sponsorKey && !!sponsorCap && (sponsorCap.dailyTokens !== undefined || sponsorCap.monthlyTokens !== undefined);
+  let sponsorTokensLeft: number | undefined;
+  if (sponsorOn) {
+    const sw = ceiling.wake(sponsorKey!, by, wakeDay, now(), { tokens: sponsorCap!.dailyTokens, ...(sponsorCap!.monthlyTokens !== undefined ? { monthTokens: sponsorCap!.monthlyTokens } : {}) });
+    if (!sw.ok) { io.err(`  refused  the sponsor's cap across all their agents (${sponsorDid}): ${sw.reason}`); throw new Error(`sponsor_ceiling: ${sw.reason}`); }
+    sponsorTokensLeft = sw.tokensLeft;
+  }
   // US2: a person who set a cap is told before it is reached, as the run starts and again when it ends.
   for (const w of budgetWarnings(by, standing, { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) })) io.err(`  warning  ${w}`);
   const gwRunDir = join(home, "runs", `gateway-${randomBytes(3).toString("hex")}-${now().replace(/:/g, "")}`);
@@ -3692,7 +3703,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     scopes: mandate.scopes, hosts: effectiveHosts, ...(fleetCeiling ? { ceiling: { label: fleetCeiling.label, removed: fleetCeiling.removed }, ...(fleetCeiling.tokensOver ? { modelBlock: fleetCeiling.tokensOver } : {}) } : {}), rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
     // The sponsor's spend guard (DK1715): default per-run and per-day ceilings in tokens, clamped to what the operator allows, alerts at 50, 80 and 100 percent, and a hard stop at the next model call.
-    tokenCap: Math.min(guard.perRun, wake.tokensLeft ?? Math.max(0, guard.perDay - ceiling.tokensUsed(by, wakeDay))),
+    tokenCap: Math.min(guard.perRun, wake.tokensLeft ?? Math.max(0, guard.perDay - ceiling.tokensUsed(by, wakeDay)), sponsorTokensLeft ?? Infinity),
     onBudgetAlert: (e) => io.err(`  budget   ${alertLine(e)}`),
     pauseFile: join(home, "paused"),
     onCall: (e) => {
@@ -3909,6 +3920,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const sum = gw.summary();
   const beforeRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
   ceiling.addTokens(by, wakeDay, sum.tokens.input + sum.tokens.output);
+  if (sponsorOn) ceiling.addTokens(sponsorKey!, wakeDay, sum.tokens.input + sum.tokens.output);
   if (companyOn) { const had = new Set(companyWarnings()); ceiling.addTokens(COMPANY, wakeDay, sum.tokens.input + sum.tokens.output); for (const w of companyWarnings()) if (!had.has(w)) io.err(`  warning  ${w}`); }
   const afterRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
   { const had = new Set(budgetWarnings(by, standing, beforeRun)); for (const w of budgetWarnings(by, standing, afterRun)) if (!had.has(w)) io.err(`  warning  ${w}`); }
