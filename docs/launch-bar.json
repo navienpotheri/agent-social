@@ -3,8 +3,8 @@
  "counts": {
   "must": 67,
   "withdraw": 109,
-  "after": 339,
-  "total": 515
+  "after": 338,
+  "total": 514
  },
  "mustWorkerHours": 324.2,
  "entries": [
@@ -6073,18 +6073,6 @@
    "size": "L",
    "flags": "",
    "why": "the Market audit's leftovers: nine requirements no test names and the end-to-end chain extended to post, bid, assign, appeal, insure and deposit"
-  },
-  {
-   "id": "DK1751",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Nothing turns a paper into a testable property before a course is written: the registry holds a citation and a flag, but not the behaviour change claimed, what would falsify it, the measure and the p…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "A paper becomes a testable property before a course: claim, falsifier, measure, pre-registered pass mark",
-   "says": "site, docs: say 'planned'"
   },
   {
    "id": "DK1752",

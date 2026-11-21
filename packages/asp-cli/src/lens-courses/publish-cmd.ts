@@ -16,6 +16,7 @@ import { REGISTRAR_DID, TREASURY_DID } from "@agent-social/asp-log";
 import { courseItem, courseService, loadCatalogue, type CourseCard } from "./catalogue.ts";
 import { ENGINES, engineIds } from "./index.ts";
 import { lintCard } from "./lint.ts";
+import { cardIntakeProblems, loadIntakes } from "../lens-loop.ts";
 import { courseRecordFor } from "./sitting.ts";
 
 export interface PublishIo {
@@ -46,6 +47,13 @@ export async function publishCmd(target: string | undefined, o: PublishIo): Prom
   if (!cards.length) throw new PublishUsage(`${target} is not a course in the catalogue (asp academy lens courses)`);
   const failing = cards.map((c) => ({ c, r: lintCard(c, ENGINES[c.generator.engine]) })).filter((x) => x.r.problems.length);
   if (failing.length) { for (const f of failing) o.out(`${f.c.id}: not published, the lint fails: ${f.r.problems[0]}`); return 1; }
+  // a paper becomes a testable property before a course exists (DK1751): a card links to its intake by id and hash; one with no intake is published only with a stated reason (a course written before the rule)
+  const intakes = loadIntakes(), why = flag(o, "no-intake");
+  const bad = cards.flatMap((c) => cardIntakeProblems(c, intakes).map((p) => `${c.id}: ${p}`));
+  const noIntake = cards.filter((c) => !c.intake);
+  if (bad.length) { for (const b of bad) o.out(`not published: ${b}`); return 1; }
+  if (noIntake.length && !(why && why.trim().length >= 10)) { for (const c of noIntake) o.out(`${c.id}: not published, it has no intake: a paper becomes a testable property (claim, falsifier, measure, pre-registered plan) before a course exists; add one to docs/lenses/intakes.json and link the card, or state why with --no-intake "<reason, at least 10 characters>" for a course written before the rule`); return 1; }
+  if (noIntake.length) o.out(`published without an intake (${why}): ${noIntake.map((c) => c.id).join(", ")}`);
   const author = flag(o, "author"), reviewers = (flag(o, "reviewers") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
   if (!author) throw new PublishUsage(`${usage}: --author names the agent that signs the course`);
   if (reviewers.length < 2) throw new PublishUsage(`${usage}: --reviewers names at least two agents of other sponsors than the author's`);

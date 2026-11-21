@@ -754,6 +754,7 @@ const OPTIONS = {
   detection: { type: "string" },
   seed: { type: "string" },
   null: { type: "boolean" },
+  "no-intake": { type: "string" },
   effect: { type: "string" },
   value: { type: "string" },
   provider: { type: "string" },

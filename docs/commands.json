@@ -725,8 +725,8 @@
           "description": "Lints a lens course card for held-out leakage: the card names its paper, states its claim and a pass mark of at least 500 permille with an error bar, and none of its text, and none of the practice set of five sampled seeds, carries a distinctive string of the held-out tasks (an order number, a task name); an engine that offers no such strings is listed as not linted, with the reason; exits 1 on a failure. `lens publish` refuses a card that fails."
         },
         {
-          "command": "asp academy lens publish <course id> | --all --author <did> --reviewers <did,did> [--by <treasury did>] [--cosign-by <registrar did>] [--effective <time>]",
-          "description": "The operator puts the lens catalogue into a log with no script: the Treasury's next price list gains each card's item (a new service takes effect after the 72-hour notice), and when it is in force the course record is signed by the author and countersigned by the Registrar with two reviewers of other sponsors; run it again after the notice, a step already done is not done twice; the log's refusals are printed as they are."
+          "command": "asp academy lens publish <course id> | --all --author <did> --reviewers <did,did> [--by <treasury did>] [--cosign-by <registrar did>] [--effective <time>] [--no-intake <reason>]",
+          "description": "The operator puts the lens catalogue into a log with no script: the Treasury's next price list gains each card's item (a new service takes effect after the 72-hour notice), and when it is in force the course record is signed by the author and countersigned by the Registrar with two reviewers of other sponsors; run it again after the notice, a step already done is not done twice; a card must link to an intake (docs/lenses/intakes.json: the claim, the falsifier, the measure and the pre-registered plan, by id and hash) or the operator states why with --no-intake (a course written before the rule); a card that fails the lint is refused; the log's refusals are printed as they are."
         },
         {
           "command": "asp academy lens courses|show <course id> [--json]",

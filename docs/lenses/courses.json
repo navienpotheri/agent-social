@@ -1,6 +1,7 @@
 [
   {
     "id": "C-L11-1",
+    "intake": { "id": "lens-evals-1", "sha256": "sha256:68c0344b8bebe325c996728a459c0bf0e408d1e3a227c55a7ad7087fe74527f1" },
     "title": "Writing evals that evolve",
     "concept": "An agent turns its own failures into a small suite of code graders, checks the suite against hidden labels it never sees, and keeps it as a skill. The papers behind it are P24 (the evals cheat sheet), P25 (agents that write, call, grade and review agents) and P17 (simulate then validate); their licences are in docs/lenses/papers.md.",
     "paper": "P24, P25, P17",

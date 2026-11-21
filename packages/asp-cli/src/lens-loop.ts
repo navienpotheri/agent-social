@@ -16,6 +16,8 @@
  * course's own engine, and a null run (nobody learns) shows no effect. A real model-agent run is postponed with the other live runs (register row DK1759). Pure and deterministic: the same seed gives the same readout.
  */
 import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { b64urlDecode, b64urlEncode, publicKeyFromSeed, signBytes, verifyBytes } from "@agent-social/asp-core";
 import { auditLesson, type HeldOutTask } from "@agent-social/asp-package";
 import { armOf } from "@agent-social/asp-log";
@@ -79,6 +81,20 @@ export function intakeProblems(i: Intake, courses: readonly Pick<CourseCard, "id
   if (p.retention_days[0] >= p.retention_days[1]) out.push("the retention days ascend");
   if (!(p.retention_floor_permille >= 0 && p.retention_floor_permille <= 1000)) out.push("the retention floor is a share of the lift between 0 and 1000 permille");
   if (!(p.kill.regression_max_permille >= 0)) out.push("the kill rule names the most regressions a cohort may show");
+  return out;
+}
+
+/** The intakes the registry holds (docs/lenses/intakes.json), by id. */
+export const INTAKES_FILE = fileURLToPath(new URL("../../../docs/lenses/intakes.json", import.meta.url));
+export function loadIntakes(file = INTAKES_FILE): Intake[] { return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as { intakes: Intake[] }).intakes : []; }
+/** What bars a course card on its intake (DK1751): a card that names an intake names one the registry holds, with the hash of the plan as it stands, and for the course the intake names. A card with no intake is not refused here: `lens publish` refuses it unless the operator states why (a course written before the rule). */
+export function cardIntakeProblems(card: Pick<CourseCard, "id" | "intake">, intakes: readonly Intake[]): string[] {
+  if (!card.intake) return [];
+  const i = intakes.find((x) => x.id === card.intake!.id);
+  if (!i) return [`${card.id} names the intake ${card.intake.id}, which the registry does not hold`];
+  const out: string[] = [];
+  if (intakeHash(i) !== card.intake.sha256) out.push(`${card.id} names the intake ${i.id} with the hash ${card.intake.sha256.slice(0, 19)}, but the plan as it stands hashes to ${intakeHash(i).slice(0, 19)}: a plan changed after the course was linked to it is a different intake`);
+  if (i.course !== card.id) out.push(`the intake ${i.id} is for the course ${i.course}, not ${card.id}`);
   return out;
 }
 
