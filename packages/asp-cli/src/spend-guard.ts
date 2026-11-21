@@ -18,7 +18,7 @@ const num = (v: string | undefined, name: string): number | undefined => {
 };
 
 /** The ceilings for a run: the sponsor's figures (flags), else the defaults, each clamped to what the operator allows (the environment may lower or raise the operator's own maximum). */
-export function ceilingsFor(flags: { "token-cap"?: string; "daily-tokens"?: string }, env: Record<string, string | undefined> = {}): SpendCeilings {
+export function ceilingsFor(flags: { "token-cap"?: string; "daily-tokens"?: string }, env: Record<string, string | undefined> = {}, mandate?: { per_run?: number; per_day?: number }): SpendCeilings {
   const maxRun = num(env.ASP_MAX_RUN_TOKENS, "ASP_MAX_RUN_TOKENS") ?? OPERATOR_MAX_RUN_TOKENS;
   const maxDay = num(env.ASP_MAX_DAY_TOKENS, "ASP_MAX_DAY_TOKENS") ?? OPERATOR_MAX_DAY_TOKENS;
   const clamped: string[] = [];
@@ -26,6 +26,9 @@ export function ceilingsFor(flags: { "token-cap"?: string; "daily-tokens"?: stri
   let perDay = num(flags["daily-tokens"], "--daily-tokens") ?? DEFAULT_DAY_TOKENS;
   if (perRun > maxRun) { clamped.push(`--token-cap ${perRun} is above what the operator allows for a run (${maxRun}): using ${maxRun}`); perRun = maxRun; }
   if (perDay > maxDay) { clamped.push(`--daily-tokens ${perDay} is above what the operator allows for a day (${maxDay}): using ${maxDay}`); perDay = maxDay; }
+  // The Mandate's own token budget (its `token_budget`) is a ceiling too: the run keeps to the smaller of it and the sponsor's figure.
+  if (mandate?.per_run !== undefined && mandate.per_run < perRun) { clamped.push(`the Mandate's token budget for one run is ${mandate.per_run}: using it`); perRun = mandate.per_run; }
+  if (mandate?.per_day !== undefined && mandate.per_day < perDay) { clamped.push(`the Mandate's token budget for one day is ${mandate.per_day}: using it`); perDay = mandate.per_day; }
   return { perRun, perDay, clamped };
 }
 
