@@ -10,6 +10,8 @@
  *
  * Read-only. It changes no record and no signed format. Credits are accounting entries, not money.
  */
+import { BANK_DID } from "./bank.ts";
+import { INSURER_DID } from "./insurer.ts";
 import { BANK_DEPOSIT_DID, FOUNDING_STAKE_DID, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_RESTORE_SERVICE, BURN_DID, INSTITUTION_DIDS, isReservedAccount, PLATFORM_DID, STARTER_POOL_DID, TREASURY_DID, splitParts, type Split } from "./economy.ts";
 import type { AccountRow, EscrowRow, JurorRow, LogHead, MintRow, ReportRow, Store } from "./store.ts";
 
@@ -97,7 +99,7 @@ export function auditLedger(rows: LedgerRows, platformDid: string = PLATFORM_DID
     verdict: problems.length ? "mismatch" : "balanced", problems,
     notYet: [
       "minted credits by reason for the old unsigned mints (only signed mint records carry a reason; see mintedUnsigned)",
-      "job tax, standing orders and credit lines (CR-15: not built); budget payments, allowances and prizes (S190) move balances and are listed by flow under --by-flow",
+      "the owner's target of an active Bank (interest, agents' credits held at the Bank, the Treasury borrowing: DK1458, not built); budget payments, allowances, handouts, prizes, credit lines, deposits, policies, claims and appeal money move balances and are listed by flow under --by-flow",
     ],
   };
 }
@@ -115,11 +117,19 @@ export interface CreditFlows {
   /** Purchases in the period with the split applied: provider is what the institution accounts received, treasury the Treasury part, burned the Burn part. */
   purchases: { count: number; amount: number; provider: number; treasury: number; burned: number; byService: Record<string, { count: number; amount: number }> };
   /** The closed-loop flows of the Treasury (S190, DK98): budgets set, payments out of them, newcomer allowances and prizes, counted from the signed records in the period. */
-  treasury: { budgets: { count: number; amount: number }; payments: { count: number; amount: number }; allowances: { count: number; amount: number }; prizes: { count: number; amount: number } };
+  treasury: { budgets: { count: number; amount: number }; payments: { count: number; amount: number }; allowances: { count: number; amount: number }; prizes: { count: number; amount: number }; handouts: { count: number; amount: number } };
   /** Refunds paid back by receipts in the period. */
   refunds: { count: number; amount: number };
   /** The Clinic's services in the period (DK161): checkups and restores bought, free checkups paid by the Treasury's budget line, and what was refunded on them. */
   clinic: { checkupsBought: { count: number; amount: number }; restoresBought: { count: number; amount: number }; freeCheckups: { count: number; amount: number }; refunds: { count: number; amount: number } };
+  /** The Bank (DK1452, bank-insurer.md): its reserve now, the credit lines opened in the period, what the draws lent and how much came back, what is still owed, defaults and debts cleared. */
+  bank: { reserve: number; linesOpened: { count: number; amount: number }; lent: { count: number; amount: number }; returned: number; outstanding: number; defaults: { count: number; unpaid: number }; debtCleared: { count: number; amount: number } };
+  /** Deposits with the Bank in the period (DK294): made, withdrawn and the Treasury's reward paid, with what the deposit account holds now. */
+  deposits: { made: { count: number; amount: number }; withdrawn: { count: number; amount: number }; rewards: { count: number; amount: number }; held: number };
+  /** The Insurer (DK20): its reserve now, the policies sold and their premiums, the claims filed and the decisions, with the amounts paid out of the reserve. */
+  insurer: { reserve: number; policies: { count: number; premiums: number }; claims: number; decisions: { paid: { count: number; amount: number }; reduced: { count: number; amount: number }; denied: { count: number } } };
+  /** The Courts (S232, S1400): appeals filed and decided, what the appeal jurors were paid by the loser and what stayed unpaid, and the penalties moved from a reversed first panel to the Treasury. */
+  courts: { appealsFiled: number; appealRulings: { affirmed: number; reversed: number; varied: number }; jurorsPaid: number; jurorShortfall: number; penalties: { count: number; amount: number } };
   /** Not available from the log today, with the reason. */
   unavailable: string[];
 }
@@ -132,7 +142,12 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
   const purchases: CreditFlows["purchases"] = { count: 0, amount: 0, provider: 0, treasury: 0, burned: 0, byService: {} };
   const refunds = { count: 0, amount: 0 };
   const clinic: CreditFlows["clinic"] = { checkupsBought: { count: 0, amount: 0 }, restoresBought: { count: 0, amount: 0 }, freeCheckups: { count: 0, amount: 0 }, refunds: { count: 0, amount: 0 } };
-  const treasury: CreditFlows["treasury"] = { budgets: { count: 0, amount: 0 }, payments: { count: 0, amount: 0 }, allowances: { count: 0, amount: 0 }, prizes: { count: 0, amount: 0 } };
+  const treasury: CreditFlows["treasury"] = { budgets: { count: 0, amount: 0 }, payments: { count: 0, amount: 0 }, allowances: { count: 0, amount: 0 }, prizes: { count: 0, amount: 0 }, handouts: { count: 0, amount: 0 } };
+  const bank: CreditFlows["bank"] = { reserve: (await store.getAccount(BANK_DID))?.balance ?? 0, linesOpened: { count: 0, amount: 0 }, lent: { count: 0, amount: 0 }, returned: 0, outstanding: 0, defaults: { count: 0, unpaid: 0 }, debtCleared: { count: 0, amount: 0 } };
+  const deposits: CreditFlows["deposits"] = { made: { count: 0, amount: 0 }, withdrawn: { count: 0, amount: 0 }, rewards: { count: 0, amount: 0 }, held: (await store.getAccount(BANK_DEPOSIT_DID))?.balance ?? 0 };
+  const insurer: CreditFlows["insurer"] = { reserve: (await store.getAccount(INSURER_DID))?.balance ?? 0, policies: { count: 0, premiums: 0 }, claims: 0, decisions: { paid: { count: 0, amount: 0 }, reduced: { count: 0, amount: 0 }, denied: { count: 0 } } };
+  const courts: CreditFlows["courts"] = { appealsFiled: 0, appealRulings: { affirmed: 0, reversed: 0, varied: 0 }, jurorsPaid: 0, jurorShortfall: 0, penalties: { count: 0, amount: 0 } };
+  const marker = (k: string) => store.transaction((tx) => tx.getMarker(k));
   const head = await store.logHead();
   for (let after = 0; ; ) {
     const page = await store.since(after, 500);
@@ -156,12 +171,46 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
         if (cl) { cl.count++; cl.amount += p.amount.value; }
         continue;
       }
+      {
+        const b = r.record.body as Record<string, any>;
+        const amt = (b.amount?.value as number | undefined) ?? 0;
+        if (r.record.type === "asp.credit_line/v0.2") {
+          bank.linesOpened.count++; bank.linesOpened.amount += amt;
+          const line = JSON.parse((await marker(`line:${r.id}`)) ?? "null") as { status: string; drawn: number; owed: number } | null;
+          if (line && line.drawn > 0) { bank.lent.count++; bank.lent.amount += line.drawn; const out = line.status === "repaid" ? 0 : line.owed; bank.outstanding += out; bank.returned += line.drawn - out; }
+          continue;
+        }
+        if (r.record.type === "asp.credit_default/v0.2") { bank.defaults.count++; bank.defaults.unpaid += b.unpaid?.value ?? 0; continue; }
+        if (r.record.type === "asp.debt_payment/v0.2") { bank.debtCleared.count++; bank.debtCleared.amount += amt; continue; }
+        if (r.record.type === "asp.deposit_act/v0.2") {
+          const d = b.act === "deposit" ? deposits.made : b.act === "reward" ? deposits.rewards : undefined;
+          if (d) { d.count++; d.amount += amt; }
+          if (b.act === "withdraw") { const dep = JSON.parse((await marker(`deposit:${b.deposit}`)) ?? "null") as { amount: number } | null; deposits.withdrawn.count++; deposits.withdrawn.amount += dep?.amount ?? 0; }
+          continue;
+        }
+        if (r.record.type === "asp.policy/v0.2") { insurer.policies.count++; insurer.policies.premiums += b.premium?.value ?? 0; continue; }
+        if (r.record.type === "asp.claim/v0.2") { insurer.claims++; continue; }
+        if (r.record.type === "asp.claim_decision/v0.2") {
+          if (b.decision === "denied") insurer.decisions.denied.count++;
+          else { const d = b.decision === "reduced" ? insurer.decisions.reduced : insurer.decisions.paid; d.count++; d.amount += amt; }
+          continue;
+        }
+        if (r.record.type === "asp.court_act/v0.2") {
+          if (b.act === "appeal") courts.appealsFiled++;
+          if (b.act === "appeal_ruling") {
+            if (b.outcome === "affirmed" || b.outcome === "reversed" || b.outcome === "varied") courts.appealRulings[b.outcome as "affirmed" | "reversed" | "varied"]++;
+            const m = JSON.parse((await marker(`appeal_money:${r.id}`)) ?? "null") as { paid: number; shortfall: number; penalised: { amount: number }[] } | null;
+            if (m) { courts.jurorsPaid += m.paid; courts.jurorShortfall += m.shortfall; for (const p of m.penalised) { courts.penalties.count++; courts.penalties.amount += p.amount; } }
+          }
+          continue;
+        }
+      }
       if (r.record.type === "asp.clinic_order/v0.2" && (r.record.body as { budget?: string }).budget) {
         clinic.freeCheckups.count++; clinic.freeCheckups.amount += CLINIC_CHECKUP_PRICE;
         continue;
       }
       {
-        const t = ({ "asp.budget/v0.2": "budgets", "asp.treasury_payment/v0.2": "payments", "asp.allowance/v0.2": "allowances", "asp.prize/v0.2": "prizes" } as Record<string, keyof CreditFlows["treasury"]>)[r.record.type];
+        const t = ({ "asp.budget/v0.2": "budgets", "asp.treasury_payment/v0.2": "payments", "asp.allowance/v0.2": "allowances", "asp.prize/v0.2": "prizes", "asp.handout/v0.2": "handouts" } as Record<string, keyof CreditFlows["treasury"]>)[r.record.type];
         if (t) { treasury[t].count++; treasury[t].amount += (r.record.body as { amount: { value: number } }).amount.value; continue; }
       }
       if (r.record.type === "asp.receipt/v0.2") {
@@ -181,11 +230,11 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
     }
   }
   return {
-    since: since ?? null, head, settlements: s, minted: (await store.ledgerRows()).mints.reduce((n, m) => n + m.totalMinted, 0), mintedByReason, purchases, treasury, refunds, clinic,
+    since: since ?? null, head, settlements: s, minted: (await store.ledgerRows()).mints.reduce((n, m) => n + m.totalMinted, 0), mintedByReason, purchases, treasury, refunds, clinic, bank, deposits, insurer, courts,
     unavailable: [
       "faucets by reason for the old unsigned mints (they carry no reason; signed mints do, see mintedByReason)",
       "job tax, standing orders and auto-refunds (not built: CR-15, CR-23)",
-      "credit lines, premiums, claims and reserves of the Bank and the Insurer (not built)",
+      "interest and the Bank holding agents' credits (the owner's target, DK1458: not built)",
       "panel fees paid to jurors (derived inside a ruling settlement, not stored)",
     ],
   };

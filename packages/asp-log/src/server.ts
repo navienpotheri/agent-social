@@ -15,6 +15,7 @@ const PUBLIC_PAGE_PATH = /^\/((registry|market|courts|home|housing|events)\/.+|c
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
+import type { FunnelTap } from "./funnel-tap.ts";
 import { Limits, clientAddress, type LimitOptions, type Verdict } from "./limits.ts";
 import { UsageStore } from "./usage.ts";
 import type { Signup } from "./signup.ts";
@@ -100,14 +101,14 @@ const ADMIN_HANDLE_METHODS = new Set(["mint"]);
 
 export interface ServerOptions {
   handle: LogHandle;
-  /** The funnel counters (row DK1211): counts the steps of the front door this server serves; anonymous. */
-  funnelTap?: import("./funnel.ts").FunnelTap;
   /** Self-serve sign-up (GET /signup, GET /signup/challenge, POST /signup), open to anyone who can reach the service. Absent means no sign-up. */
   signup?: Signup;
   /** Enrolling over plain HTTP (row DK733, flag `--http-enrol`): the handler of `POST /signup/http`. Absent means the route answers 403. */
   httpEnrol?: (address: string, body: unknown) => Promise<{ status: number; body: unknown; retryAfterSec?: number }>;
   /** The browser sign-up with a verified Google account (/join and /auth/callback); needs `signup`. */
   google?: GoogleSignIn;
+  /** The measured front door (DK1211): counts the steps an agent takes, and serves `GET /society/funnel` to an operator. */
+  funnel?: FunnelTap;
   /** The service's public address (https://log.example.org), for the pages and the terms links. */
   publicUrl?: string;
   tenants?: Tenant[];
@@ -197,7 +198,6 @@ export function createLogServer(opts: ServerOptions): Server {
       const address = clientAddress(req, !!opts.trustProxy);
       if (opts.blocked?.().includes(address)) return json(res, 403, { ok: false, error: { code: "BLOCKED", message: "this address is blocked by the operator" } });
       if (limits) { const v = limits.checkAddress(address); if (!v.ok) return tooMany(res, v); }
-      opts.funnelTap?.observe(req, res, address);
       if (req.method === "GET" && req.url === "/health") return json(res, 200, { ok: true });
       if (req.method === "GET" && PUBLIC_PAGE_PATH.test((req.url ?? "").split("?")[0])) {
         // Public, read-only pages of the Registry and the Market (public-pages.ts): no token, derived from the log, escaped, with a strict CSP.
@@ -258,6 +258,7 @@ export function createLogServer(opts: ServerOptions): Server {
           }
           const r = opts.signup.registerVerified(address, { ...done.form }, done.google);
           if (!r.ok) return page(r.status, joinError("Sign-up did not finish", r.message), clear);
+          opts.funnel?.step("enrolled", req, { tenant: r.tenant });
           if (done.form.c && pickup) { pickup.put(done.form.c, { tenant: r.tenant, token: r.token, quotas: r.quotas }); return page(201, joinDoneCli(r.tenant), clear); }
           return page(201, joinDone({ tenant: r.tenant, token: r.token, service: base || `https://${req.headers.host}`, quotas: r.quotas }), clear);
         }
@@ -269,6 +270,7 @@ export function createLogServer(opts: ServerOptions): Server {
           let hb: unknown;
           try { hb = JSON.parse(await readBody(req, 8 * 1024)); } catch { return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "the body is JSON, at most 8 KB" } }); }
           const hr = await opts.httpEnrol(address, hb);
+          if (hr.status >= 200 && hr.status < 300 && (hr.body as { ok?: boolean } | undefined)?.ok !== false) opts.funnel?.step("enrolled", req, { tenant: String((hr.body as { tenant?: unknown })?.tenant ?? "") || undefined });
           if (hr.retryAfterSec) res.setHeader("retry-after", String(hr.retryAfterSec));
           return json(res, hr.status, hr.body);
         }
@@ -280,6 +282,7 @@ export function createLogServer(opts: ServerOptions): Server {
             if (kr.retryAfterSec) res.setHeader("retry-after", String(kr.retryAfterSec));
             return json(res, kr.status, { ok: false, error: { code: kr.code, message: kr.message, ...(kr.retryAfterSec ? { retryAfterSec: kr.retryAfterSec } : {}) } });
           }
+          opts.funnel?.step("enrolled", req, { tenant: kr.tenant });
           return json(res, 201, { ok: true, tenant: kr.tenant, token: kr.token, did: kr.did, quotas: kr.quotas, termsVersion: kr.termsVersion, ...(kr.costs ? { costs: kr.costs } : {}), verify: `GET /registry/agents/${encodeURIComponent(kr.did ?? "")}/record (your identity, recomputed from the log)`, wake: wakeRecipe(kr.did) });
         }
         if (req.method === "GET" && req.url === "/signup") return json(res, 200, { ok: true, ...opts.signup.info() });
@@ -292,6 +295,7 @@ export function createLogServer(opts: ServerOptions): Server {
             if (r.retryAfterSec) res.setHeader("retry-after", String(r.retryAfterSec));
             return json(res, r.status, { ok: false, error: { code: r.code, message: r.message, ...(r.retryAfterSec ? { retryAfterSec: r.retryAfterSec } : {}) } });
           }
+          opts.funnel?.step("enrolled", req, { tenant: r.tenant });
           return json(res, 201, { ok: true, tenant: r.tenant, token: r.token, quotas: r.quotas, termsVersion: r.termsVersion });
         }
         return json(res, 405, { ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "GET or POST" } });
@@ -314,7 +318,14 @@ export function createLogServer(opts: ServerOptions): Server {
         if (!leave) return tooMany(res, { ok: false, retryAfterSec: 1, why: "this tenant has too many requests in flight" });
         res.on("close", leave);
       }
-      opts.funnelTap?.authenticated(tenant.name, address, false);
+      opts.funnel?.seen(req, tenant);
+      if (opts.funnel && req.method === "GET" && (req.url ?? "").split("?")[0] === "/society/funnel") {
+        if (tenant.role !== "admin") return json(res, 403, { ok: false, error: { code: "FORBIDDEN", message: "the funnel needs an operator token" } });
+        const q = new URLSearchParams((req.url ?? "").split("?")[1] ?? "");
+        const src = q.get("source") ?? undefined;
+        if (q.get("format") === "text") { const t = opts.funnel.text(src); res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "content-length": Buffer.byteLength(t) }); return void res.end(t); }
+        return json(res, 200, opts.funnel.view(src));
+      }
       if (opts.extra && (await opts.extra(req, res, { tenant }))) return;
       if (req.method !== "POST" || req.url !== "/rpc") return json(res, 404, { ok: false, error: { code: "NOT_FOUND", message: "POST /rpc, GET /health", did_you_mean: didYouMean(req.url ?? "/", req.method ?? "GET"), see: "/society/surface" } });
       let call: { target?: string; method?: string; args?: unknown[] };
@@ -325,7 +336,6 @@ export function createLogServer(opts: ServerOptions): Server {
       const args = Array.isArray(call.args) ? call.args : [];
       let fn: ((...a: unknown[]) => unknown) | undefined;
       const isWrite = target === "handle" && typeof method === "string" && TENANT_HANDLE_METHODS.has(method);
-      if (isWrite) opts.funnelTap?.authenticated(tenant.name, address, true);
       if (limits && isWrite) {
         const v = limits.checkWrite(tenant.name);
         if (!v.ok) return tooMany(res, v);
@@ -362,6 +372,7 @@ export function createLogServer(opts: ServerOptions): Server {
           const recs = method === "importRecords" ? ((args[0] as { record?: { issuer?: string; subject?: string } }[] | undefined) ?? []).map((x) => x?.record) : [args[0] as { issuer?: string; subject?: string } | undefined];
           opts.owners.add(tenant.name, recs.flatMap((r) => [r?.issuer, r?.subject]).filter((x): x is string => typeof x === "string" && x.startsWith("did:")));
         }
+        if (isWrite) opts.funnel?.step("first_act", req, { tenant: tenant.name });
         if (opts.usage && incoming) opts.usage.add(tenant.name, method === "importRecords" ? ((result as { imported?: number } | undefined)?.imported ?? incoming.records) : 1, incoming.bytes);
         return json(res, 200, result === undefined ? { ok: true, undefined: true } : { ok: true, result });
       } catch (e) {
@@ -374,7 +385,7 @@ export function createLogServer(opts: ServerOptions): Server {
     }
   };
   const server = (opts.tls ? createHttpsServer({ cert: opts.tls.cert, key: opts.tls.key }, handler) : createServer(handler)) as unknown as Server;
-  server.on("close", () => { opts.usage?.flush(); opts.owners?.flush(); });
+  server.on("close", () => { opts.usage?.flush(); opts.owners?.flush(); opts.funnel?.save(true); });
   server.requestTimeout = 60_000;
   server.headersTimeout = 15_000;
   return server;

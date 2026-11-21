@@ -79,7 +79,7 @@
     {
       "from": ["Disputed"], "type": "settlement", "when": { "basis": "ruling" }, "to": "Settled",
       "issuer": "bank",
-      "guards": ["refs_contract", "cites_ruling"]
+      "guards": ["refs_contract", "cites_ruling", "past_appeal_window"]
     },
     {
       "from": ["Contracted", "Bonded", "Running", "Checkpoint"], "type": "settlement", "when": { "basis": "revoked" }, "to": "Settled",

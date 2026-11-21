@@ -67,7 +67,7 @@ export async function insureCmd(sub: string | undefined, o: InsureOpts): Promise
     const contract = (await o.log.log.get(policy.contract))!.record.body as { performer: string; price: { value: number } };
     const escrow = await o.log.log.escrow(policy.contract);
     let fault = escrow && escrow.bondLocked > 0 ? Math.ceil((settlement.bond_slashed.value * 1000) / escrow.bondLocked) : 0;
-    if (settlement.basis === "ruling" && settlement.cites) fault = ((await o.log.log.get(settlement.cites))?.record.body as { fault?: Record<string, number> } | undefined)?.fault?.[contract.performer] ?? fault;
+    if (settlement.basis === "ruling" && settlement.cites) fault = (await o.log.log.effectiveFault(settlement.cites))?.[contract.performer] ?? fault;
     const terms = payoutFor(policy.cover, policy.insured_amount.value, contract.price.value, settlement.bond_slashed.value, fault);
     const reserve = await o.log.log.balance(INSURER_DID);
     const due = Math.min(terms.amount, reserve);

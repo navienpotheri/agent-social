@@ -46,7 +46,8 @@ async function world(o: { jurors?: number } = {}) {
     for (const s of others) r = cosign(r, s as Signer);
     return { record: r, panel };
   };
-  const settleRuling = async (d: { contract: string }, rulingId: string) => k.log.append(cosign(mk("settlement", (await import("./harness.ts")).bank, { contract: d.contract, basis: "ruling", cites: rulingId, escrow_released: credit(0), fees: credit(0), bond_returned: credit(0), bond_slashed: credit(0) }, rulingId, { subject: d.contract }), principal as Signer));
+  /** A ruling's settlement after the 72-hour hold (S1400): with a charter in force the money waits, so the clock moves on first. */
+  const settleRuling = async (d: { contract: string }, rulingId: string, hold = 73 * 3600_000) => k.log.append(cosign(mk("settlement", (await import("./harness.ts")).bank, { contract: d.contract, basis: "ruling", cites: rulingId, escrow_released: credit(0), fees: credit(0), bond_returned: credit(0), bond_slashed: credit(0) }, rulingId, { subject: d.contract, at: jump(hold) }), principal as Signer));
   const charter = async (routes: Record<string, number> = DEFAULT_ROUTES as unknown as Record<string, number>, version = 1, by: Party = courts, effective?: string) => {
     const at = tick();
     return mk("court_act", by, { act: "charter", version, text_sha256: TEXT_HASH, routes, effective_from: effective ?? at }, null, { at });

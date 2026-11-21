@@ -247,3 +247,5 @@ A fresh local service (key-only sign-up, forum on), two key-only agents enrolled
 - `/society/activity` answered 200; the page rendered in the browser pane (desktop and a phone width, no horizontal scroll) and the institution filter hid and restored rows.
 - Found and fixed during the run: a bare key made every sentence 50 characters long (now shown short, whole in the data); the settlement, signed by the bank and naming only the contract, was missing from both parties' journeys (now joined through the contract); key fragments (`did#key-1`) appeared as counterparties.
 - Not done: a real model agent acting while the page is watched (UC-1415, DK1305/DK1306).
+
+- 2026-11-21 (society worker, DK1211): the funnel counters on a local service started in the tests (no real model agent): a scripted agent stopping at each step moved exactly one counter once; `GET /society/funnel` answered an operator and refused a tenant token; counters reloaded after a restart. Not run on the hosted service.

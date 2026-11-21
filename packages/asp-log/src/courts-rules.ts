@@ -3,7 +3,7 @@
  * (precedents, departures, route), and the caseload cap. State is kept in markers written inside the append, so a refused record leaves none.
  */
 import { AspError, didOf, type AspRecord } from "@agent-social/asp-core";
-import { REGISTRAR_DID, institutionDid, isReservedAccount } from "./economy.ts";
+import { REGISTRAR_DID, TREASURY_DID, institutionDid, isReservedAccount, splitParts } from "./economy.ts";
 import { drawPanel, noteFunder, noteJurorService, panelDrawIsV2 } from "./panel.ts";
 import { APPEAL_SERVICE_SMALL, APPEAL_SERVICE_STANDARD, CHARTER_NOTICE_MS, DEFAULT_ROUTES, ROUTE_KEYS, routeFor, type CourtRoutes } from "./courts.ts";
 import type { LogTx } from "./store.ts";
@@ -15,6 +15,12 @@ const DAY = 24 * 3600 * 1000;
 export const ABUSE_RESTITUTION_CAP = 200;
 /** From this time no credit restitution is paid to an outside victim and an upheld abuse ruling names the operator's remedy instead (DK530, S952; owner decision 2026-11-18, H4 and H4b). Rulings before it replay as they were. */
 export const ABUSE_RESTITUTION_OFF_FROM = "2026-11-19T00:00:00Z";
+/** The hold on a ruling's settlement (S1400, DK121; Code 3.8, owner decision 2026-11-13): an appeal filed in this time can still change the money. */
+export const APPEAL_HOLD_MS = 72 * 3600 * 1000;
+/** An appeal that nobody has decided this long after it was filed no longer holds the settlement: the ruling stands and the money moves, so a stalled appeal cannot freeze an escrow for ever. */
+export const APPEAL_FREEZE_MAX_MS = 7 * DAY;
+/** A juror whose ruling is reversed on appeal loses this share of its stake to the Treasury (courts.md 4, CT-13; a proposal value kept in docs/owner-questions.md). */
+export const JUROR_PENALTY_PERMILLE = 200;
 const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
 const list = async (tx: Pick<LogTx, "getMarker">, key: string): Promise<string[]> => ((await tx.getMarker(key)) ?? "").split(",").filter(Boolean);
 
@@ -210,7 +216,8 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
       if (onPanel.length < quorum) throw rule("panel_quorum", `an appeal ruling needs ${quorum} of the drawn appeal panel (${panel.join(", ")}) to sign; only ${onPanel.length} did`);
       await noteJurorService(tx, onPanel, now);
     }
-    await tx.putMarker(`appeal:${b.appeal}`, JSON.stringify({ ...info, state: b.outcome }));
+    await tx.putMarker(`appeal:${b.appeal}`, JSON.stringify({ ...info, state: b.outcome, decided: r.id, ...(b.fault ? { fault: b.fault } : {}) }));
+    await settleAppealMoney(tx, r, info, b.outcome, b.fault, cb, panel.length > 0 ? panel.filter((p) => signers.has(p)) : [...signers], firstSigners);
     if (b.outcome === "reversed" || b.outcome === "varied") await tx.putMarker(`appeal_refundable:${info.fee}`, r.id);
     for (const id of b.precedents ?? []) await checkPrecedent(tx, id, r.id);
   }
@@ -253,4 +260,93 @@ export async function closeDispute(tx: LogTx, contract: AspRecord): Promise<void
   const principal = (contract.body as { principal: string }).principal;
   const open = await list(tx, `open_disputes:${principal}`);
   if (open.includes(contract.id)) await tx.putMarker(`open_disputes:${principal}`, open.filter((x) => x !== contract.id).join(","));
+}
+
+type AppealMarker = { ruling: string; appellant: string; contract: string; state: string; fee: string; fault?: Record<string, number>; decided?: string };
+
+/** The fault map a ruling stands on: its own, or the corrected one when an appeal reversed or varied it (S1400). `undefined` for a record that is not a ruling. */
+export async function effectiveFault(tx: Pick<LogTx, "getMarker" | "getRecord">, rulingId: string): Promise<Record<string, number> | undefined> {
+  const ruling = await tx.getRecord(rulingId);
+  const rb = ruling?.record.body as { kind?: string; fault?: Record<string, number> } | undefined;
+  if (rb?.kind !== "ruling") return undefined;
+  const appealId = await tx.getMarker(`appealed:${rulingId}`);
+  const info = appealId ? (JSON.parse((await tx.getMarker(`appeal:${appealId}`)) ?? "null") as AppealMarker | null) : null;
+  if (info && (info.state === "reversed" || info.state === "varied") && info.fault) return info.fault;
+  return rb.fault ?? {};
+}
+
+/**
+ * The hold on a ruling's settlement (S1400, DK121). Refused: a settlement inside the hold (the contract's `appeal_hold_seconds`, or 72 hours once a court charter is in force at the time of the ruling) unless both parties
+ * cosign it as a waiver; and any settlement while an appeal of the ruling is open, until it is decided or has waited APPEAL_FREEZE_MAX_MS. Without a charter and without the field a log behaves as before.
+ */
+export async function checkSettlementHold(tx: LogTx, settlement: AspRecord, rulingId: string): Promise<void> {
+  const ruling = await tx.getRecord(rulingId);
+  if (!ruling) return;
+  const sb = settlement.body as { contract: string };
+  const contract = (await tx.getRecord(sb.contract))?.record.body as { principal: string; performer: string; appeal_hold_seconds?: number } | undefined;
+  if (!contract) return;
+  const cosigners = new Set((settlement.cosigs ?? []).map((c) => didOf(c.kid)));
+  const waived = cosigners.has(contract.principal) && cosigners.has(contract.performer);
+  const holdMs = contract.appeal_hold_seconds !== undefined ? contract.appeal_hold_seconds * 1000 : (await charterIn(tx, ruling.record.issued_at)) ? APPEAL_HOLD_MS : 0;
+  const now = Date.parse(settlement.issued_at);
+  if (holdMs > 0 && !waived && now < Date.parse(ruling.record.issued_at) + holdMs) {
+    throw rule("settlement_in_appeal_hold", `a ruling's settlement is held ${holdMs / 3600_000} hours so that an appeal can change the money: not before ${iso(Date.parse(ruling.record.issued_at) + holdMs)}, unless the principal and the performer both cosign a waiver`);
+  }
+  const appealId = await tx.getMarker(`appealed:${rulingId}`);
+  const info = appealId ? (JSON.parse((await tx.getMarker(`appeal:${appealId}`)) ?? "null") as AppealMarker | null) : null;
+  if (appealId && info?.state === "open") {
+    const filed = Date.parse((await tx.getRecord(appealId))!.record.issued_at);
+    if (now < filed + APPEAL_FREEZE_MAX_MS) throw rule("settlement_appeal_pending", `the ruling is under appeal (${appealId}): the settlement waits for the appeal ruling, or until ${iso(filed + APPEAL_FREEZE_MAX_MS)} if it is not decided`);
+  }
+}
+
+/**
+ * What an appeal ruling does to money (S1400, DK121), derived and never declared. The jurors who sign it are paid the appeal fee by the loser of the appeal: when the ruling is affirmed the appellant lost and the Courts pay the
+ * jurors from the fee it paid; when it is reversed or varied the party with the larger share of the corrected fault lost and pays the same amount from its free balance, then its sponsor's (what is not there is not paid; the
+ * shortfall is on the record), and the appellant's fee is refundable as before. A reversal also costs each first-panel juror JUROR_PENALTY_PERMILLE of its stake, paid to the Treasury (a variation costs nothing).
+ * Credits only move; supply does not change.
+ */
+async function settleAppealMoney(tx: LogTx, r: AspRecord, info: AppealMarker, outcome: string, fault: Record<string, number> | undefined, parties: { principal: string; performer: string }, panelSigners: string[], firstSigners: string[]): Promise<void> {
+  const fee = (await tx.getRecord(info.fee))!;
+  const pb = fee.record.body as { amount: { value: number }; price_list: string; service: string };
+  const list = await tx.getRecord(pb.price_list);
+  const item = (list?.record.body as { items?: { service: string; split: Parameters<typeof splitParts>[1] }[] } | undefined)?.items?.find((i) => i.service === pb.service);
+  const total = item ? splitParts(pb.amount.value, item.split).payees.filter((p) => p.account === COURTS_DID).reduce((n, p) => n + p.amount, 0) : 0;
+  const jurors = [...new Set(panelSigners)];
+  const paidBy: { account: string; amount: number }[] = [];
+  let paid = 0;
+  if (jurors.length > 0 && total > 0) {
+    if (outcome === "affirmed") {
+      const courts = await tx.getAccount(COURTS_DID);
+      const take = Math.min(courts?.balance ?? 0, total);
+      if (take > 0) { await tx.putAccount({ did: COURTS_DID, balance: (courts?.balance ?? 0) - take }); paidBy.push({ account: COURTS_DID, amount: take }); paid = take; }
+    } else {
+      const loser = (fault?.[parties.performer] ?? 0) >= (fault?.[parties.principal] ?? 0) ? parties.performer : parties.principal;
+      const sponsor = (await tx.getPassport(loser))?.sponsor ?? null;
+      for (const payer of [loser, sponsor]) {
+        if (!payer || paid >= total) continue;
+        const acct = await tx.getAccount(payer);
+        const take = Math.min(acct?.balance ?? 0, total - paid);
+        if (take > 0) { await tx.putAccount({ did: payer, balance: (acct?.balance ?? 0) - take }); paidBy.push({ account: payer, amount: take }); paid += take; }
+      }
+    }
+    if (paid > 0) {
+      const each = Math.floor(paid / jurors.length);
+      for (const [i, d] of jurors.entries()) { const a = await tx.getAccount(d); await tx.putAccount({ did: d, balance: (a?.balance ?? 0) + each + (i === 0 ? paid - each * jurors.length : 0) }); }
+      for (const f of paidBy) for (const d of jurors) await noteFunder(tx, d, f.account, isReservedAccount);
+    }
+  }
+  const penalised: { juror: string; amount: number }[] = [];
+  if (outcome === "reversed") {
+    for (const d of new Set(firstSigners)) {
+      const row = await tx.getJuror(d);
+      if (!row || row.staked <= 0) continue;
+      const amount = Math.min(row.staked, Math.max(1, Math.ceil((row.staked * JUROR_PENALTY_PERMILLE) / 1000)));
+      await tx.putJuror({ ...row, staked: row.staked - amount });
+      const treasury = await tx.getAccount(TREASURY_DID);
+      await tx.putAccount({ did: TREASURY_DID, balance: (treasury?.balance ?? 0) + amount });
+      penalised.push({ juror: d, amount });
+    }
+  }
+  await tx.putMarker(`appeal_money:${r.id}`, JSON.stringify({ fee: info.fee, owed: total, paid, shortfall: total - paid, from: paidBy, jurors, penalised }));
 }
