@@ -465,3 +465,26 @@ test("H15: a Mandate that grants a network scope and names no rate gets the defa
   // The opt-out is the principal's to ask for and the log's to refuse for a low-tier agent.
   await assert.rejects(runningContract(makeFixture(), ["web.read"], ["--network-host", "docs.example.org", "--network-rate-unlimited"]), /must limit the rate/);
 });
+
+test("asp gateway --outbound-scan block (DK1716): a call that carries a key is refused before the agent sees it, and the run log has the kind and a hash, no value", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f, ["repo.read", "shell.exec"]);
+  const key = "sk-ant-" + "api03-" + "A".repeat(10) + "b".repeat(10) + "9".repeat(8);
+  const server = createServer(async (req, res) => {
+    for await (const _ of req) { /* drain */ }
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ id: "c1", object: "chat.completion", created: 1, model: "m", usage: { prompt_tokens: 3, completion_tokens: 2 }, choices: [{ index: 0, finish_reason: "tool_calls", message: { role: "assistant", content: null, tool_calls: [{ id: "a", type: "function", function: { name: "bash", arguments: JSON.stringify({ command: `echo ${key}` }) } }] } }] }));
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  servers.push(server);
+  const upstream = `http://127.0.0.1:${(server.address() as { port: number }).port}/v1`;
+  const run = await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--outbound-scan", "block", "--", process.execPath, "--input-type=module", "-e", AGENT]);
+  assert.equal(run.code, 0, run.err);
+  assert.match(run.err, /REFUSED {2}bash -> repo\.read: \[ASP\] outbound scan: this call carries secret and was not sent/);
+  const log = /run log {2}(\S.*)$/m.exec(run.err)?.[1]?.trim();
+  assert.ok(log && existsSync(log));
+  const text = readFileSync(log!, "utf8");
+  assert.match(text, /outbound_scan/);
+  assert.match(text, /"kind":"secret"/);
+  assert.ok(!text.includes(key), "the run log holds no key");
+});

@@ -589,6 +589,7 @@ const OPTIONS = {
   tenant: { type: "string" },
   role: { type: "string" },
   "no-auth": { type: "boolean" },
+  "outbound-scan": { type: "string" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
   "keyonly-review-interval": { type: "string" },
@@ -3550,6 +3551,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
     confineTo: resolve(io.cwd, v.project ?? "."),
+    // The outbound scan (DK1716): a key, a card number or an email address in a call or a model request is blocked or masked.
+    ...(v["outbound-scan"] ? { outbound: { mode: (v["outbound-scan"] === "redact" ? "redact" : "block") as "block" | "redact" } } : {}),
     // The Code of the City goes into the system context of every model request, unless the person turns it off (gap LW1).
     // The Code, and the agent's own record from the log (DK59): both go into the system context of every request. The record is read once at the start of the run, at the log head named in it.
     ...(() => {

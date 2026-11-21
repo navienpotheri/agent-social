@@ -8,6 +8,7 @@
  * (for example /v1/responses) pass through unjudged and are counted as unjudged requests.
  * P2: MCP at /mcp/<name>: the `asp` server (memory and commons tools) and a judging proxy for each of the agent's MCP servers.
  */
+import { scanText, stringsOf, redactDeep, type OutboundKind, type OutboundMode } from "./outbound-scan.ts";
 import type { SecondCheck } from "./second-check.ts";
 import { targetsOf } from "./targets.ts";
 import { GatewayBreaker } from "../agent-guards.ts";
@@ -48,6 +49,8 @@ export interface GatewayOptions {
   anthropicKey?: string;
   /** The short form of the Code of the City (law-code.ts): added to the system context of every model request the agent makes, so the agent holds the rules it is judged by (gap LW1). */
   lawContext?: string;
+  /** The outbound scan (DK1716): the content of every tool call and model request is looked at for a key, a card number and an email address; `block` refuses it, `redact` (requests only) masks the value and goes on. A hit is a record of the kind and a hash, never the value. Absent: no scan. */
+  outbound?: { mode: OutboundMode; kinds?: OutboundKind[] };
   /** The live Mandate's scopes. */
   scopes: string[];
   /** A fleet member's ceiling (DK1471): scopes the Mandate record grants that its fleet's template does not. A call on one is refused naming the template, not the Mandate. */
@@ -343,9 +346,18 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"), opts.hosts, opts.confineTo ? { root: opts.confineTo, ...(opts.alsoDirs?.length ? { extra: opts.alsoDirs } : {}) } : undefined, opts.confineTo ? sessionRecord : undefined, opts.tripwires);
     let allow = j.allow;
     let reason = j.reason;
+    let outboundStrike = true;
+    if (allow && opts.outbound) {
+      const hits = stringsOf(call.args).flatMap((t) => scanText(t, opts.outbound!.kinds));
+      if (hits.length) {
+        allow = false; outboundStrike = false;
+        for (const h of hits) rec?.event("outbound_scan", { where: "tool_call", tool: call.name, kind: h.kind, detail: h.detail, hash: h.hash, action: "blocked" });
+        reason = `[ASP] outbound scan: this call carries ${[...new Set(hits.map((h) => h.kind))].join(" and ")} and was not sent; if it is needed, tell your principal and have them allow it`;
+      }
+    }
     if (!allow && opts.ceiling?.removed.includes(j.scope) && /is not granted by this job's Mandate/.test(reason ?? "")) reason = `the scope ${j.scope} is outside the ${opts.ceiling.label}, which bounds this member whatever its Mandate record says`;
     if (allow) { const why = mcpDestinationProblem(call, opts.hosts, opts.mcpDestinations); if (why) { allow = false; reason = why; } }
-    let strike = true;
+    let strike = outboundStrike;
     // The second check (DK531): only on a call the rules allowed, only stricter, never a strike (it is advisory); an error, "unsure" or a spent budget leaves the rules' answer.
     if (allow && opts.secondCheck) {
       const r = await opts.secondCheck.review(call, j);
@@ -486,11 +498,30 @@ export function createGateway(opts: GatewayOptions): Gateway {
     return h;
   }
 
+  /** The outbound scan on a model request (DK1716). True when the request was refused and the reply is sent. */
+  function guardRequest(body: Record<string, any>, res: ServerResponse, style: "openai" | "anthropic"): boolean {
+    if (!opts.outbound) return false;
+    const hits = stringsOf(body).flatMap((t) => scanText(t, opts.outbound!.kinds));
+    if (!hits.length) return false;
+    const action = opts.outbound.mode === "block" ? "blocked" : "redacted";
+    for (const h of hits) rec?.event("outbound_scan", { where: "model_request", kind: h.kind, detail: h.detail, hash: h.hash, action });
+    if (opts.outbound.mode === "block") {
+      const reason = `ASP gateway: the model request carries ${[...new Set(hits.map((h) => h.kind))].join(" and ")} and was not sent`;
+      opts.onCall?.({ tool: "model request", scope: "outbound.scan", allowed: false, reason });
+      json(res, 403, style === "openai" ? { error: { message: reason, type: "asp_outbound_scan", code: "asp_outbound_scan" } } : { type: "error", error: { type: "permission_error", message: reason } });
+      return true;
+    }
+    const r = redactDeep(body, opts.outbound.kinds);
+    for (const k of Object.keys(body)) body[k] = (r.value as Record<string, unknown>)[k];
+    return false;
+  }
+
   // ---------- OpenAI-compatible chat completions ----------
   async function openaiChat(req: IncomingMessage, res: ServerResponse, rawBody: Buffer) {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
     noteModel(body.model, opts.openaiUpstream);
+    if (guardRequest(body, res, "openai")) return;
     addCode(body, "chat");
     const snap = beginModelCall("chat.completions", body);
     if (!wantsStream) body.stream = false;
@@ -538,6 +569,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
     noteModel(body.model, opts.openaiUpstream);
+    if (guardRequest(body, res, "openai")) return;
     addCode(body, "responses");
     const snap = beginModelCall("responses", body);
     const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/responses`, { method: "POST", headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
@@ -580,6 +612,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const body = JSON.parse(rawBody.toString("utf8"));
     const wantsStream = body.stream === true;
     noteModel(body.model, opts.anthropicUpstream);
+    if (guardRequest(body, res, "anthropic")) return;
     addCode(body, "anthropic");
     const snap = beginModelCall("messages", body);
     if (!wantsStream) body.stream = false;
