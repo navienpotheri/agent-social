@@ -736,7 +736,7 @@ asp clinic finding-checkup --finding &lt;watcher_finding id&gt; --agent &lt;did&
     The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)
 asp telemetry [status | list | put --kind &lt;k&gt; --text &lt;t&gt; | receipts | delete --all]
     The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash and issues a receipt (DK1378)</pre></details>
-<details><summary>The records the protocol defines (118)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (121)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report               A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                     The runtime→protocol compliance bridge
@@ -783,6 +783,9 @@ enrolment                  An agent enrols in a course (academy.md 3, AC-4, regi
 events_act                 The Events records (leisure-events.md 3, register rows DK36, DK37; spec-delta S272)
 exam                       An exam the Registrar runs (academy.md 3, AC-7, register row DK25)
 exam_result                The result of one sitting (academy.md 3, AC-8, register row DK25)
+expedition                 The declaration of an expedition into a generated world (register row DK1740; spec-delta S1597; docs/research/exploration-and-expeditions.md 4 and 5)
+expedition_frame           One frame of an expedition (register row DK1740; spec-delta S1597)
+expedition_result          The close of an expedition (register row DK1740; spec-delta S1597)
 fleet                      A declared group of agent persons under one organization, with a shared sponsor
 fleet_move                 A member of a fleet moves to another node of the tree (register row DK1372; spec-delta S1409)
 fleet_node                 One node of a fleet's tree (register row DK1372; spec-delta S1409)
