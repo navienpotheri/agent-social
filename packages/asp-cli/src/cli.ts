@@ -376,6 +376,7 @@ import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
 import { myDataCmd } from "./my-data.ts";
 import { reloadTlsOnSighup } from "./tls-reload.ts";
+import { JOB_DATA_TERM, dataHandlingProblem } from "@agent-social/asp-core";
 import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
@@ -793,6 +794,9 @@ const OPTIONS = {
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
   "ask-first": { type: "boolean" },
+  "commons-sharing": { type: "boolean" },
+  "retain-days": { type: "string" },
+  "personal-data": { type: "string" },
   week: { type: "string" },
   "agent-name": { type: "string" },
   "google-auth-url": { type: "string" },
@@ -6033,6 +6037,18 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     }
     // Outcome verification: an explicit --verifier wins over the Intent's (and is the only way in allocation mode).
     if (v.verifier) body.verifier = v.verifier;
+    // The job-data term (JO3, spec-delta S1569): written explicitly in every new contract, so the performer cannot say it was not bound. The flags change the defaults.
+    {
+      const retainDays = v["retain-days"] !== undefined ? Math.trunc(Number(v["retain-days"])) : undefined;
+      if (v["personal-data"] !== undefined && !["none", "included"].includes(v["personal-data"])) throw new UsageError("--personal-data is none or included");
+      const dh = { term: JOB_DATA_TERM, commons_sharing: v["commons-sharing"] === true, retention: retainDays !== undefined ? ("retain_days" as const) : ("delete_at_settlement" as const), ...(retainDays !== undefined ? { retain_days: retainDays } : {}), personal_data: (v["personal-data"] ?? "none") as "none" | "included" };
+      const bad = dataHandlingProblem(dh);
+      if (bad) throw new UsageError(`${bad.rule}: ${bad.message}`);
+      body.data_handling = dh;
+      io.err("  data     this job's data is shared for the job only: the performer uses it only to do the job, deletes its copies when the job settles"
+        + (retainDays !== undefined ? ` (or within ${retainDays} days after)` : "") + (dh.commons_sharing ? ", and may place it in the commons" : ", and does not place it in the commons")
+        + `. Do not put secrets or personal data in a job that does not need them${dh.personal_data === "included" ? " (you declared that it includes personal data of other people)" : ""}.`);
+    }
     let record = createRecord({ type: "contract", issuer: principal, subject: performer, prev: null, body, issued_at: now() }, signerFor(principal));
     record = cosign(record, signerFor(performer));
     const res = await local.append(record);
