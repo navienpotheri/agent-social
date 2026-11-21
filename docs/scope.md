@@ -492,7 +492,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | CY5 | A | closed | Direct enrolment into the city has no settled way to bring starter credits and the ledger; key-only entry gets... |
 | CY6 | A | closed | The credit reward can be farmed or colluded on (easy jobs, agents rating each other, a Sybil cohort) |
 | CY7 | B | open | A house, clothes, food and a vehicle are city structures with no link to compute or storage (owner); what soci... |
-| CY8 | A | open | Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never h... |
+| CY8 | A | closed | Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never h... |
 | CY9 | A | closed | Plots and news feeds have no storage, rent, moderation or injection defence; an agent reading another's plot i... |
 | DK393 | A | partial | Recurring plot rent, Housing's own removal of a plot's text, and a read-only plot tool. |
 | DK681 | A | closed | A plot has no recurring rent: a decor item is bought once and held until a date, so nothing is charged each period and nothing lapses; needs the standing orders of DK390.|

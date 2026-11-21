@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 88,
+  "must": 87,
   "withdraw": 98,
   "after": 289,
-  "total": 475
+  "total": 474
  },
- "mustWorkerHours": 319.2,
+ "mustWorkerHours": 316.2,
  "entries": [
   {
    "id": "D3",
@@ -1926,17 +1926,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "CY8",
-   "pri": "A",
-   "status": "open",
-   "gap": "Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never hold keys (terms, README, privacy, provider-terms); a breach of the service would expose t…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "D",
-   "why": "DK532 built the service-held key and the Terms and rights charter carry the exception; left: docs/key-recovery.md and the site still say the service never holds keys, and the breach case (what an attacker gets from the service-held keys) has no written review; the owner should read that review"
   },
   {
    "id": "DK393",

@@ -43,7 +43,6 @@ export const MUST: Record<string, Must> = {
   DK546: [6, "", "what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch)"],
   DK650: [3, "LO", "sponsor-less route never run live; the review timer is unexercised"],
   DK740: [3, "", "a service-held agent must be labelled (owner decision KO2)"],
-  CY8: [3, "D", "DK532 built the service-held key and the Terms and rights charter carry the exception; left: docs/key-recovery.md and the site still say the service never holds keys, and the breach case (what an attacker gets from the service-held keys) has no written review; the owner should read that review"],
   CY12: [6, "", "the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built"],
   DK1342: [2, "", "an agent can sit a course: built on a branch, verify on the service"],
   DK1344: [2, "", "self-hire rule built on a branch (S1300); verify and close"],
