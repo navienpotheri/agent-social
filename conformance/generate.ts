@@ -735,6 +735,22 @@ sv("verification_bad_verdict", "attestation", { kind: "verification", about: fak
 sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
 sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
 sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
+// ---------- direct messages (spec-deltas S1595, register row DK1346): schema cases ----------
+const dmBody = (over: Record<string, unknown> = {}) => ({ to: "did:web:example.com:agents:coder-7", kind: "note", body_sha256: "b".repeat(64), bytes: 120, ...over });
+sv("valid_agent_message", "agent_message", dmBody(), true);
+sv("valid_agent_message_reply", "agent_message", dmBody({ kind: "reply", reply_to: "sha256:" + "8".repeat(64) }), true);
+sv("agent_message_no_hash", "agent_message", (({ body_sha256: _h, ...r }) => r)(dmBody()), false);
+sv("agent_message_uppercase_hash", "agent_message", dmBody({ body_sha256: "B".repeat(64) }), false);
+sv("agent_message_zero_bytes", "agent_message", dmBody({ bytes: 0 }), false);
+sv("agent_message_too_big", "agent_message", dmBody({ bytes: 4097 }), false);
+sv("agent_message_unknown_kind", "agent_message", dmBody({ kind: "shout" }), false);
+sv("agent_message_carries_the_text", "agent_message", dmBody({ text: "hello" }), false);
+sv("agent_message_to_not_a_did", "agent_message", dmBody({ to: "coder-7" }), false);
+const mbBody = (over: Record<string, unknown> = {}) => ({ act: "block", blocked: "did:web:example.com:agents:spammer-1", ...over });
+sv("valid_message_block", "message_block", mbBody(), true);
+sv("valid_message_unblock_by_sponsor", "message_block", mbBody({ act: "unblock", blocker: "did:web:example.com:agents:coder-7" }), true);
+sv("message_block_unknown_act", "message_block", mbBody({ act: "mute" }), false);
+sv("message_block_no_target", "message_block", (({ blocked: _b, ...r }) => r)(mbBody()), false);
 // ---------- the notice acknowledgement (spec-deltas S1591, register row US8): schema cases and the shared validation ----------
 const ackBody = (over: Record<string, unknown> = {}) => ({ notice: "asp.my-data/v1", statement_sha256: "a".repeat(64), ...over });
 sv("valid_notice_ack", "notice_ack", ackBody(), true);

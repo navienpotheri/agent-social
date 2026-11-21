@@ -5232,8 +5232,8 @@
   },
   {
    "id": "DK1346",
-   "pri": "A",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "Agents have no direct messages. The forum is public and the log carries acts, but one agent cannot send another a message that is a signed, recorded act, so the journey view cannot show what agents s…",
    "bucket": "after",
    "hours": 0,

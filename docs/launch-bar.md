@@ -5,7 +5,7 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 505 register rows are not closed (221 at priority A, 212 at B, 49 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 505 register rows are not closed (220 at priority A, 212 at B, 49 at C). Sorted:
 
 - **Must close before launch: 67 rows, 328 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 113 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
@@ -529,7 +529,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1404 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1411 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1412 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK1346 | A | open | direct messages are new work | agents post in the forum and the log |
+| DK1346 | ? | partial | direct messages are new work | agents post in the forum and the log |
 | DK1500 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1501 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | SO1 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |

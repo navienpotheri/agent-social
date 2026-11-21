@@ -43,6 +43,7 @@ import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type L
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
+import { projectAgentMessage, projectMessageBlock } from "./messages.ts";
 import { dynamicsLine, stressReplay, type DynamicsLine, type StressEvent, type StressResult } from "./insurer-stress.ts";
 import { basketRatio, dormancyShare, claimsInDay, type BasketReport } from "./guard-basket.ts";
 import { sizeBond, sizeBondSplit, modelPremium, type BondSuggestion, type SplitSuggestion } from "./bond-sizing.ts";
@@ -370,6 +371,8 @@ export class EventLog {
 
     let snapshot: JobSnapshot | null = null;
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
+    if (type === "agent_message") await projectAgentMessage(tx, verified);
+    if (type === "message_block") await projectMessageBlock(tx, verified);
     if (type === "contract") { this.checkSelfHire(verified); const dh = dataHandlingProblem((verified.body as { data_handling?: DataHandling }).data_handling); if (dh) throw rule(dh.rule, dh.message); }
     if (kind === "contract") {
       const job = chain?.snapshot ? Job.fromSnapshot(chain.snapshot, { schemas: this.schemas }) : new Job({ schemas: this.schemas });
@@ -2715,6 +2718,11 @@ export class EventLog {
     if (bad) throw rule(bad.rule, bad.message);
     if (b.agent && r.issuer !== b.agent && (await tx.getPassport(b.agent))?.sponsor !== r.issuer) throw rule("notice_ack_wrong_issuer", `${r.issuer} is neither ${b.agent} nor its sponsor: only an agent or its sponsor acknowledges for it`);
     await tx.putMarker(`notice_ack:${r.issuer}|${b.notice}`, JSON.stringify({ id: r.id, notice: b.notice, statement_sha256: b.statement_sha256, at: r.issued_at, ...(b.agent ? { agent: b.agent } : {}), count: Number(JSON.parse((await tx.getMarker(`notice_ack:${r.issuer}|${b.notice}`)) ?? "{}").count ?? 0) + 1 }));
+  }
+
+  /** The messages an agent has sent and received (S1595, DK1346): counts only; the texts are the service's, sealed. Reads only. */
+  async messageCounts(did: string): Promise<{ sent: number; received: number }> {
+    return this.store.transaction(async (tx) => ({ sent: Number((await tx.getMarker(`msg_out:${did}`)) ?? 0), received: Number((await tx.getMarker(`msg_in:${did}`)) ?? 0) }));
   }
 
   /** The acknowledgement in force for an issuer and a notice (the latest), or null (S1591). Reads only. */
