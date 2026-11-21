@@ -89,3 +89,5 @@ lane-society block 1 (DK1211 and DK1344 closed) merged into the lead branch (1e1
 - 2026-11-21: pushed claude/open-forum 0429ae39..HEAD (rounds 5 and 6: DK1358, DK1366, DK858, DK1378, DK1387, DK380 re-closed, plus DK1348, DK1361, DK1367 closed on owner approval). Full gate on round 5: core 878, log 868, package 432, cli 901 of 903 (1 failure was the duplicate DK1365 row, fixed in round 6, register-ids re-run green), python 1017. Round 6 had targeted tests only (74 doc/page tests green).
 
 - 2026-11-21: pushed claude/open-forum 067bc3cc..HEAD (round 8: DK1470, DK1471, DK1355, DK1356 closed; DK1370, DK1379, DK1472, DK1473 partial; DK1601 added: the three approved pages need more work before launch). Gate on 067bc3cc: core 878, log 868, package 435, cli 921 (920 pass, 1 skipped), python 1017. Round 8: typecheck clean, 58 doc/journey tests green; full gate follows.
+
+- 2026-11-21: round 8 full gate on 25a79e39 found two stale assertions (join.test.ts, starter-signed.test.ts) still on the pre-DK1470 starter wording; fixed to the per-identity wording, both pass; core 879, log 871, package 440, cli 921 of 924 before the fix, python 1018. Pushed.
