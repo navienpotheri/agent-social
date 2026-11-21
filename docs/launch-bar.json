@@ -6,7 +6,7 @@
   "after": 289,
   "total": 475
  },
- "mustWorkerHours": 304.2,
+ "mustWorkerHours": 319.2,
  "entries": [
   {
    "id": "D3",
@@ -921,10 +921,10 @@
    "status": "partial",
    "gap": "A newcomer could not find the commands: `asp` alone printed the source file's header comment (about 400 lines), and there was no state-aware next step, no help by topic or search, no way to say what…",
    "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "a newcomer must find the commands from `asp` alone"
+   "hours": 4,
+   "size": "M",
+   "flags": "O",
+   "why": "built (S110); left: the landing page (O13) and a trial with people who have not seen the tool"
   },
   {
    "id": "P22",
@@ -1145,10 +1145,10 @@
    "status": "partial",
    "gap": "A gated job under a contract is not yet fair or light on the person: ~~the hook asks about every shell command~~ (fixed: under a contract a gate on shell commands now asks about the risky ones by def…",
    "bucket": "must",
-   "hours": 1,
-   "size": "S",
+   "hours": 6,
+   "size": "M",
    "flags": "",
-   "why": "stale text: verify the gated-job fairness fix and close"
+   "why": "needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row)"
   },
   {
    "id": "T22",
@@ -1498,10 +1498,10 @@
    "status": "partial",
    "gap": "The end-of-Mandate mail and the dashboard do not exist yet; the run log has no reader for a person",
    "bucket": "must",
-   "hours": 1,
+   "hours": 2,
    "size": "S",
    "flags": "",
-   "why": "stale text: the mail and dashboard exist; verify and close"
+   "why": "the mail exists (S70) but the row stays partial until E11 (links), E5 (a run log for every runtime) and E12 are done: close it with them, not alone"
   },
   {
    "id": "E9",
@@ -1933,10 +1933,10 @@
    "status": "open",
    "gap": "Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never hold keys (terms, README, privacy, provider-terms); a breach of the service would expose t…",
    "bucket": "must",
-   "hours": 1,
-   "size": "S",
-   "flags": "",
-   "why": "stale: DK532 decided the service-held signer; verify the site and Terms sentence and close"
+   "hours": 3,
+   "size": "M",
+   "flags": "D",
+   "why": "DK532 built the service-held key and the Terms and rights charter carry the exception; left: docs/key-recovery.md and the site still say the service never holds keys, and the breach case (what an attacker gets from the service-held keys) has no written review; the owner should read that review"
   },
   {
    "id": "DK393",
@@ -1969,10 +1969,10 @@
    "status": "open",
    "gap": "Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the sponsor to their own provider, and not priced into credits, M7), the city's own costs (lo…",
    "bucket": "must",
-   "hours": 1,
-   "size": "S",
+   "hours": 6,
+   "size": "M",
    "flags": "",
-   "why": "write down who pays (the sponsor pays real costs, the city gives a mock allowance) on the site"
+   "why": "the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built"
   },
   {
    "id": "CY13",
