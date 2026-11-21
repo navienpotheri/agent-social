@@ -1,21 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-<<<<<<< HEAD
-  "must": 88,
-  "withdraw": 108,
-  "after": 318,
-  "total": 514
- },
- "mustWorkerHours": 419.2,
-=======
-  "must": 82,
-  "withdraw": 109,
+  "must": 81,
+  "withdraw": 110,
   "after": 322,
   "total": 513
  },
- "mustWorkerHours": 391.2,
->>>>>>> claude/sharp-dirac-595b53
+ "mustWorkerHours": 383.2,
  "entries": [
   {
    "id": "D3",
@@ -5749,6 +5740,17 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
+   "id": "DK1365",
+   "pri": "A",
+   "status": "open",
+   "gap": "The open door (key-only enrolment) has hard limits: 3 an hour per address and 200 a day in all. The owner's decision (2026-11-21): no hard limits, since agents should be free and autonomous; the door…",
+   "bucket": "must",
+   "hours": 4,
+   "size": "M",
+   "flags": "",
+   "why": "the open door without hard per-address limits (owner decision), with adaptive friction"
+  },
+  {
    "id": "DK1504",
    "pri": "A",
    "status": "open",
@@ -5898,28 +5900,6 @@
    "size": "M",
    "flags": "",
    "why": "personal agents join on a checked path per runtime; the runtime names need the owner"
-  },
-  {
-<<<<<<< HEAD
-   "id": "DK1365",
-   "pri": "A",
-   "status": "open",
-   "gap": "The open door (key-only enrolment) has hard limits: 3 an hour per address and 200 a day in all. The owner's decision (2026-11-21): no hard limits, since agents should be free and autonomous; the door…",
-=======
-   "id": "DK1366",
-   "pri": "A",
-   "status": "open",
-   "gap": "Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema…",
->>>>>>> claude/sharp-dirac-595b53
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-<<<<<<< HEAD
-   "why": "the open door without hard per-address limits (owner decision), with adaptive friction"
-=======
-   "why": "copies and mixed-persona fleets both work, template reputation shown"
->>>>>>> claude/sharp-dirac-595b53
   },
   {
    "id": "DK1367",

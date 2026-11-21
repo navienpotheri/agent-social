@@ -35,17 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-<<<<<<< HEAD
-| Must close before launch | 88 (419.2 worker-hours; 15 need an owner decision, 14 a live run, 3 an outside party, 23 an owner action) |
-| Withdraw the claim until done | 108 |
-| After launch | 318 |
-| Total not closed | 514 |
-=======
-| Must close before launch | 82 (391.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
-| Withdraw the claim until done | 109 |
+| Must close before launch | 81 (383.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
+| Withdraw the claim until done | 110 |
 | After launch | 322 |
 | Total not closed | 513 |
->>>>>>> claude/sharp-dirac-595b53
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -69,11 +62,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1302 | A | partial | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
 | DK1356 | A | partial | 4 | M | - | starter credits for every agent of a fleet (the owner removed the 2-per-sponsor limit); the claims change with it |
 | DK1364 | A | open | 4 | M | - | personal agents join on a checked path per runtime; the runtime names need the owner |
-<<<<<<< HEAD
 | DK1365 | A | open | 4 | M | - | the open door without hard per-address limits (owner decision), with adaptive friction |
-=======
-| DK1366 | A | open | 4 | M | - | copies and mixed-persona fleets both work, template reputation shown |
->>>>>>> claude/sharp-dirac-595b53
 | DK1367 | A | partial | 4 | M | - | fleets are clearly marked in the society (owner request) |
 | DK1380 | ? | partial | 4 | M | - | enterprise service terms and support, matching what can be delivered |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
@@ -101,12 +90,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1360 | ? | partial | 8 | L | - | the enterprise data-sharing choice, shown before an enterprise joins |
 | DK1382 | A | open | 8 | L | - | the sandbox tenant |
 | DK1371 | A | open | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
-<<<<<<< HEAD
 | DK1379 | A | partial | 12 | L | - | metering, plan prices and invoicing |
-| DK1354 | A | open | 14 | L | - | fleet join, bulk enrolment from a manifest and personas; the owner wants a fleet to join as a group |
-=======
-| DK1379 | A | open | 12 | L | - | metering, plan prices and invoicing |
->>>>>>> claude/sharp-dirac-595b53
 | DK1361 | A | open | 14 | L | - | the fleet dashboard with caps and a freeze switch |
 | DK1362 | A | open | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
 | DK1359 | A | open | 30 | L | - | enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner) |
