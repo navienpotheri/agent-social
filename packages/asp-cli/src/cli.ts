@@ -420,7 +420,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, CognitionTap, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
+  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, CognitionTap, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -606,8 +606,10 @@ const OPTIONS = {
   "no-auth": { type: "boolean" },
   "deadline-binds": { type: "boolean" },
   "outbound-scan": { type: "string" },
+  "outbound-kinds": { type: "string" },
   "untrusted-by-type": { type: "boolean" },
   "agent-runtime": { type: "string" },
+  "untrusted-flow": { type: "boolean" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
   "keyonly-review-interval": { type: "string" },
@@ -3471,7 +3473,7 @@ function parseFleetRate(text: string | undefined): { total_per_minute: number; p
 
 /** The runtime a gateway command line starts, from the name of its program; any other program is `generic`. */
 function runtimeNameOf(command: string[]): string {
-  const base = (command[0] ?? "").split(/[\/]/).pop()!.toLowerCase().replace(/\.(exe|cmd|js|mjs|py)$/, "");
+  const base = (command[0] ?? "").split(/[\\/]/).pop()!.toLowerCase().replace(/\.(exe|cmd|js|mjs|py)$/, "");
   return ({ claude: "claude-code", codex: "codex", goose: "goose", openclaw: "openclaw", hermes: "hermes" } as Record<string, string>)[base] ?? "generic";
 }
 async function gatewayCmd(home: string, command: string[], v: Values, need: Need, io: Io): Promise<number> {
@@ -3649,7 +3651,9 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     confineTo: resolve(io.cwd, v.project ?? "."),
     // The outbound scan (DK1716): a key, a card number or an email address in a call or a model request is blocked or masked.
     ...(v["untrusted-by-type"] ? { untrustedByType: true } : {}),
-    ...(v["outbound-scan"] ? { outbound: { mode: (v["outbound-scan"] === "redact" ? "redact" : "block") as "block" | "redact" } } : {}),
+    ...(v["untrusted-flow"] ? { untrustedFlow: true } : {}),
+    // Default policy (DK1716): keys and card numbers are masked in a model request and block a tool call; the Mandate's `outbound_scan` and --outbound-scan / --outbound-kinds add to it (`off` only without a Mandate choice).
+    ...(() => { const o = resolveOutbound({ ...(v["outbound-scan"] ? { flagMode: v["outbound-scan"] } : {}), ...(v["outbound-kinds"] ? { flagKinds: v["outbound-kinds"] } : {}), ...((mandateRecord?.record.body as { outbound_scan?: { mode?: "block" | "redact"; kinds?: OutboundKind[] } } | undefined)?.outbound_scan ? { mandate: (mandateRecord!.record.body as { outbound_scan: { mode?: "block" | "redact"; kinds?: OutboundKind[] } }).outbound_scan } : {}) }); return o ? { outbound: o } : {}; })(),
     // The Code of the City goes into the system context of every model request, unless the person turns it off (gap LW1).
     // The Code, and the agent's own record from the log (DK59): both go into the system context of every request. The record is read once at the start of the run, at the log head named in it.
     ...(() => {
@@ -6006,6 +6010,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       // What the agent may buy from the institutions: the default (the Academy and the Shops, a month at a time) unless the sponsor names lines or says none (DK3).
       // Loop prevention (DK1230, S1422): the limits the gateway enforces on this run, narrowing like every other limit.
       ...((() => { const eq = v["loop-equivalent"] ? Math.trunc(Number(v["loop-equivalent"])) : undefined, dp = v["loop-depth"] ? Math.trunc(Number(v["loop-depth"])) : undefined, nr = v["loop-near"] ? Math.trunc(Number(v["loop-near"])) : undefined; if ((eq !== undefined && !(eq >= 2)) || (dp !== undefined && !(dp >= 1)) || (nr !== undefined && !(nr >= 3))) throw new UsageError("--loop-equivalent is 2 or more, --loop-depth is 1 or more and --loop-near is 3 or more"); return eq !== undefined || dp !== undefined || nr !== undefined ? { loop_limits: { ...(eq !== undefined ? { equivalent_calls: eq } : {}), ...(dp !== undefined ? { depth: dp } : {}), ...(nr !== undefined ? { near_repeats: nr } : {}) } } : {}; })()),
+      // The outbound scan choice goes into the Mandate (DK1716, S1570): block or redact, and the kinds.
+      ...((() => { const m = v["outbound-scan"], k = v["outbound-kinds"]; if (!m && !k) return {}; if (m && m !== "block" && m !== "redact") throw new UsageError("on a Mandate, --outbound-scan is block or redact"); const kinds = k ? k.split(",").map((x) => x.trim()).filter(Boolean) : undefined; if (kinds && kinds.some((x) => !ALL_OUTBOUND_KINDS.includes(x as OutboundKind))) throw new UsageError(`--outbound-kinds is a list of ${ALL_OUTBOUND_KINDS.join(", ")}`); return { outbound_scan: { ...(m ? { mode: m } : {}), ...(kinds?.length ? { kinds: [...new Set(kinds)] } : {}) } }; })()),
       // A Mandate made without a token budget carries the default per-run and per-day ceilings (DK1715); the sponsor may lower or raise them up to what the operator allows.
       ...((() => { const td = v["tokens-per-day"] ? Math.trunc(Number(v["tokens-per-day"])) : undefined, tr = v["tokens-per-run"] ? Math.trunc(Number(v["tokens-per-run"])) : undefined, tm = v["tokens-per-month"] ? Math.trunc(Number(v["tokens-per-month"])) : undefined; for (const x of [td, tr, tm]) if (x !== undefined && !(x >= 1)) throw new UsageError("--tokens-per-day, --tokens-per-run and --tokens-per-month are 1 or more"); if (tr !== undefined && tr > OPERATOR_MAX_RUN_TOKENS) throw new UsageError(`--tokens-per-run ${tr} is above the ${OPERATOR_MAX_RUN_TOKENS} the operator allows`); if (td !== undefined && td > OPERATOR_MAX_DAY_TOKENS) throw new UsageError(`--tokens-per-day ${td} is above the ${OPERATOR_MAX_DAY_TOKENS} the operator allows`); return { token_budget: { per_run: tr ?? DEFAULT_RUN_TOKENS, ...(tm !== undefined ? { per_month: tm } : {}), per_day: td ?? (tm !== undefined ? Math.min(DEFAULT_DAY_TOKENS, tm) : DEFAULT_DAY_TOKENS) } }; })()),
       ...(() => { try { const lines = parseInstitutionSpend(v["institution-spend"]); return lines.length ? { institution_spend: lines } : {}; } catch (e) { if (e instanceof SpendUsage) throw new UsageError(e.message); throw e; } })(),
@@ -6680,9 +6686,10 @@ const OPENAI_PROVIDERS: Record<string, { base: string; keyEnv: string }> = {
 };
 const CODEX_RUNTIME = fileURLToPath(new URL("./codex-runtime.mjs", import.meta.url));
 const GOOSE_RUNTIME = fileURLToPath(new URL("./goose-runtime.mjs", import.meta.url));
+const GATEWAY_AGENT_RUNTIME = fileURLToPath(new URL("./gateway-agent-runtime.mjs", import.meta.url));
 
 /**
- * asp run claude-code|codex|goose|antigravity|openhands [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--allow-network host,host] [--standing-days n]: your agent, running a real
+ * asp run claude-code|codex|goose|openclaw|hermes|antigravity|openhands [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--allow-network host,host] [--standing-days n]: your agent, running a real
  * runtime under the protocol, with none of the paperwork (launch blocker 12). The first run makes a standing job for the person and the agent (the Mandate allows reading and
  * writing files and running commands in the project, and no network unless you name hosts, for a week by default); every later run reuses it, so a session costs only its signed
  * Action reports. The tool runs through the gateway, so a call the Mandate does not allow is removed before the tool receives it; when it stops, a short summary says what the
@@ -6936,6 +6943,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const bin = io.env.ASP_CLAUDE_BIN ? [io.env.ASP_CLAUDE_BIN, ...(io.env.ASP_CLAUDE_SCRIPT ? [io.env.ASP_CLAUDE_SCRIPT] : [])] : ["claude"];
   const tool = runtime === "codex" ? [process.execPath, CODEX_RUNTIME, project, v.model ?? "-", v.prompt!, ["read-only", "workspace-write"].includes(io.env.ASP_CODEX_SANDBOX ?? "") ? io.env.ASP_CODEX_SANDBOX! : "workspace-write"]
     : runtime === "goose" ? [process.execPath, GOOSE_RUNTIME, project, v.model!, v.prompt!]
+    : runtime === "openclaw" || runtime === "hermes" ? [process.execPath, GATEWAY_AGENT_RUNTIME, runtime, project, v.model!, v.prompt!]
     : v.prompt
       ? [...bin, "-p", v.prompt, "--allowedTools", "Read", "Glob", "Grep", "Edit", "Write", "Bash", "--output-format", "text", ...(v.model ? ["--model", v.model] : [])]
       : [...bin, ...(v.model ? ["--model", v.model] : [])];

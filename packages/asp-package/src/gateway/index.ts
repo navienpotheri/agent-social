@@ -7,3 +7,5 @@ export { CognitionTap, thinkingOf, type CognitionItem, type CognitionOptions } f
 export { aspHandler, handleRpc, httpUpstream, proxyHandler, stdioUpstream, textResult, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
 export { RunRecorder, hashAfter, lastUserText, readRunLog, replyText, toolResultsIn, runLogArtifact, runIdOf, parseRunLogUri, type RunEvent, type RunLogCheck } from "./runlog.ts";
 export { SecondCheck, defaultRisky, type SecondAnswer, type SecondJudge, type SecondCheckOptions } from "./second-check.ts";
+export { scanText, redactDeep, resolveOutbound, ALL_OUTBOUND_KINDS, DEFAULT_OUTBOUND, type OutboundKind, type OutboundMode, type OutboundHit } from "./outbound-scan.ts";
+export { salientTokens, copiedFromUntrusted, flowReachesOutward } from "./untrusted-flow.ts";

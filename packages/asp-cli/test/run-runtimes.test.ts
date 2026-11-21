@@ -44,7 +44,7 @@ test("asp run codex and asp run goose: governed sessions with the person's own A
     mkdirSync(f.aspHome, { recursive: true });
     const me = `did:web:127.0.0.1%3A${port}:u:rt`, agent = `did:web:127.0.0.1%3A${port}:a:rt:my-agent`, bank = `did:web:127.0.0.1%3A${port}:u:rt:bank`;
     writeFileSync(join(f.aspHome, "config.json"), JSON.stringify({ service: base, token: "tok-r", tenant: "rt", joinedAt: "2026-10-11T00:00:00Z", identities: { me, agent, bank } }));
-    const baseEnv = { ASP_HOME: f.aspHome, ASP_CODEX_BIN: fakeAgent, ASP_GOOSE_BIN: fakeAgent, ASP_RUN_OPENAI_UPSTREAM: provUrl };
+    const baseEnv = { ASP_HOME: f.aspHome, ASP_CODEX_BIN: fakeAgent, ASP_GOOSE_BIN: fakeAgent, ASP_OPENCLAW_BIN: fakeAgent, ASP_HERMES_BIN: fakeAgent, ASP_RUN_OPENAI_UPSTREAM: provUrl };
     const call = async (args: string[], extra: Record<string, string> = {}) => { const out: string[] = [], err: string[] = []; const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env: { ...baseEnv, ...extra }, cwd: f.root, raw: (b) => out.push(b.toString("utf8").trimEnd()) } as Io); return { code, out: out.join("\n"), err: err.join("\n") }; };
     for (const a of [["identity", "new", "--kind", "human", "--me", "--no-recovery"], ["identity", "new", "--kind", "agent", "--name", "my-agent", "--sponsor", me, "--purpose", "Test"], ["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]]) assert.equal((await call(a)).code, 0);
 
@@ -76,11 +76,21 @@ test("asp run codex and asp run goose: governed sessions with the person's own A
     assert.match(goose.out, /refused\s+shell -> shell\.network/);
     assert.ok(keysSeen.includes("Bearer sk-or-key"));
     assert.ok(!goose.out.includes("sk-or-key"));
+    // OpenClaw and Hermes Agent (stand-ins): started in a private home pointed at the gateway with a placeholder key; the call is refused before the tool receives it.
+    for (const [rt, argv] of [["openclaw", "agent --local"], ["hermes", "chat --oneshot"]] as const) {
+      const r = await call(["run", rt, "--prompt", "Fetch the page", "--model", "some/model", "--project", project], { OPENAI_API_KEY: "sk-real-key" });
+      assert.equal(r.code, 0, r.err + r.out);
+      assert.match(r.out, new RegExp(`argv: ${argv}`));
+      assert.match(r.out, /agent received tool calls: none/);
+      assert.match(r.out, /refused\s+shell -> shell\.network/);
+      assert.ok(!r.out.includes("sk-real-key") && !r.err.includes("sk-real-key"), `${rt}: the real key never reaches the tool or the screen`);
+    }
+    assert.match((await call(["run", "openclaw", "--prompt", "x", "--project", project], { OPENAI_API_KEY: "k" })).err, /asp run openclaw needs --model/);
     // The sessions are in the history, with their runtime, under the same standing job.
     const runs = await call(["runs"]);
     assert.match(runs.out, /codex\s+ended\s+1 calls, 1 refused/);
     assert.match(runs.out, /goose\s+ended\s+1 calls, 1 refused/);
-    assert.match((await call(["standing"])).out, /2 session\(s\)/);
+    assert.match((await call(["standing"])).out, /4 session\(s\)/);
     // OpenHands and Antigravity are sessions too (S112, tested in run-hooked.test.ts); like Codex they need a task.
     const oh = await call(["run", "openhands"]);
     assert.equal(oh.code, 2);

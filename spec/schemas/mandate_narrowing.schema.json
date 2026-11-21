@@ -375,6 +375,35 @@
               "description": "Near-repeat limit (DK1478): halt when this many of the last 24 calls are alike after numbers, ids and spacing are made alike. The measured default is 12; a lower limit halts more legitimate work."
             }
           }
+        },
+        "outbound_scan": {
+          "description": "Outbound scan (register row DK1716; spec-delta S1570): what the gateway does with a key, a card number or other personal data in a tool call or a model request. `mode` block refuses it, redact masks it in a model request (a tool call that carries one is always refused); `kinds` are the kinds looked for. Like every limit it can only be narrowed: a template, a node and a member may choose block over redact and add kinds, never choose redact where the ceiling states block or drop a kind the ceiling states.",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": [
+                "block",
+                "redact"
+              ]
+            },
+            "kinds": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "secret",
+                  "card number",
+                  "email address",
+                  "phone number",
+                  "national id",
+                  "iban"
+                ]
+              }
+            }
+          }
         }
       }
     }
