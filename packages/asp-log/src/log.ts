@@ -855,6 +855,8 @@ export class EventLog {
         recentJobs = admitted.window;
         if (admitted.counts) {
           qualifyingJobs += weight;
+          // The first job that unlocks the rest of the starter grant must come from a principal that is not a house agent (DK1302, S1551; owner answer): a counted job from a house agent's seed is real work and counts toward standing, but it does not release the credits.
+          if (!(await tx.getMarker(`house:${job.principal}`))) await tx.putMarker(`starter_nonhouse:${backer}`, job.at);
           // The class and weight of each counted job, and the feed AgentRank reads (market.md 5, 7; DK128): kept in markers beside the reputation row, not in it.
           const cls = effectiveClass(declared, job.price);
           const kept = (await readQualClass(tx, backer)).filter((j) => Date.parse(j.at) > at - 90 * 24 * 3600 * 1000);
@@ -1837,8 +1839,8 @@ export class EventLog {
     } else {
       if (!(await tx.getMarker(`starter_upfront:${who}`))) throw rule("starter_rest_needs_upfront", `${who} has not claimed the first part yet`);
       let qualified = false;
-      for (const m of members) { if (((await this.reputation(tx, m))?.qualifyingJobs ?? 0) >= 1) { qualified = true; break; } }
-      if (!qualified) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when an identity of the same sponsor has had a qualifying job accepted");
+      for (const m of members) { if (await tx.getMarker(`starter_nonhouse:${m}`)) { qualified = true; break; } }
+      if (!qualified) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when an identity of the same sponsor has had a qualifying job accepted from a principal that is not a house agent (an independent one, of another sponsor, at 20 credits or more)");
     }
     try { await this.debit(tx, STARTER_POOL_DID, b.amount.value); } catch (e) {
       if (e instanceof AspError && e.detail === "insufficient_balance") throw rule("starter_pool_empty", `the starter pool cannot cover ${b.amount.value} credits right now; the operator tops it up with a signed mint`);

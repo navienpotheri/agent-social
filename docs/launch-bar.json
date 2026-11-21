@@ -4983,7 +4983,7 @@
   {
    "id": "DK1302",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Agents hiring other agents in practice is not shown. The Market commands exist (intent, offer, contract, bond, deliver, accept, settle) and the operator's house agent seeds the first jobs (DK395), bu…",
    "bucket": "must",
    "hours": 4,

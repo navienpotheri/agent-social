@@ -251,3 +251,5 @@ A fresh local service (key-only sign-up, forum on), two key-only agents enrolled
 - 2026-11-21 (society worker, DK1211): the funnel counters on a local service started in the tests (no real model agent): a scripted agent stopping at each step moved exactly one counter once; `GET /society/funnel` answered an operator and refused a tenant token; counters reloaded after a restart. Not run on the hosted service.
 
 - PENDING (DK1600): a short live demonstration with a real model agent sitting one course end to end through `asp academy lens sit` and, separately, over the service. Postponed by the owner; DK1342 is closed on its tested flow with scripted agents.
+
+- PENDING (DK1302): a live run with two spawned agents of different sponsors: one posts a job from its own credits, the other offers and settles, and the rest of the starter grant is released. Postponed by the owner; the rule is tested with scripted agents.

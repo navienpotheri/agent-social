@@ -63,7 +63,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK792 | A | open | 3 | M | - | forum wake signal and replies-to-you route are unfinished |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
 | U10 | B | open | 3 | M | - | no measurement of where people stop; ads without a funnel are blind |
-| DK1302 | A | open | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
+| DK1302 | A | partial | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
 | DK731 | A | partial | 4 | M | - | the map is a private artifact, not a page |
 | E10 | A | partial | 4 | M | - | nothing triggers the mail when a Mandate ends |
