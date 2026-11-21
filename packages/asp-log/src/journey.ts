@@ -77,6 +77,8 @@ export interface JourneyStep {
   related?: RelatedKind;
   /** Free text from the record or the forum: sponsor view only. */
   detail?: string;
+  /** The tokens an Action reports (the gateway's own measure, not an estimate): sponsor view only (DK1347). */
+  tokens?: { in: number; out: number };
 }
 
 export interface JourneySummary {
@@ -112,9 +114,25 @@ export interface Journey {
   /** What is not on the page yet, why, and the backlog rows that will put it there. */
   not_yet: NotYet[];
   note: string;
+  /** The cost to the sponsor (DK1347): present in the sponsor view only. */
+  cost?: JourneyCost;
 }
 
-export interface JourneyInput { stored: StoredRec[]; now: string; forum?: ForumItem[]; balances?: Map<string, number>; operator?: string }
+/** What the sponsor's own machine knows about the agent's cap (the standing budget of `asp budget`, DK1347): a cap in tokens a day and a month, and the warning level in percent. */
+export interface JourneyBudget { dailyTokens?: number; monthlyTokens?: number; warnPercent?: number }
+export interface JourneyInput { stored: StoredRec[]; now: string; forum?: ForumItem[]; balances?: Map<string, number>; operator?: string; /** The agent's standing cap, when the caller knows it (the sponsor's machine does; the public service does not). */ budget?: JourneyBudget }
+
+/** What the agent cost its sponsor, from the Actions' own token metrics and the log's credits (DK1347): the sponsor view only; the public view carries none of it. A step's tokens sum to the totals. */
+export interface JourneyCost {
+  actions: number;
+  tokens: { in: number; out: number; total: number; today: number; month: number };
+  /** Tokens per accepted (paid) job, and credits spent at the institutions per accepted job: the cost of a useful act. Null when no job was accepted. */
+  perAcceptedJob: { tokens: number | null; credits: number | null };
+  credits: { earned: number; spent: number };
+  /** The standing cap and how close the agent is, when it is known. `state` is `reached` at or over a cap, `warn` from the warning level, else `ok`; the gateway refuses a run past a cap (asp budget). */
+  cap?: { dailyTokens: number | null; monthlyTokens: number | null; warnPercent: number; dayPercent: number | null; monthPercent: number | null; state: "ok" | "warn" | "reached" };
+  note: string;
+}
 
 /** How an identity is shown in a sentence: its name, and for a bare key (did:key) a short form of it, because the whole key is 48 characters. The full DID stays in `did`. */
 export const labelOf = (did: string): string => { const n = nameOf(did); return did.startsWith("did:key:") && n.length > 14 ? `${n.slice(0, 8)}…${n.slice(-4)}` : n; };
@@ -242,13 +260,27 @@ export function stepOf(s: StoredRec, did: string, ctx: JourneyCtx, view: "public
       if (c && c.principal === did) return mk("paid", `${me} paid ${released} credits for a job (settled ${String(b.basis)})`, { flow: { dir: "out", credits: released, why: "job" }, amount: released });
       return mk("settled", `${me} was party to a settlement (${String(b.basis)})`);
     }
-    case "action": return mk("acted", `${me} reported an Action${Array.isArray(b.scopes_used) && b.scopes_used.length ? ` using ${b.scopes_used.map(String).join(", ")}` : ""}`);
+    case "action": { const m = (b.metrics ?? {}) as { tokens_in?: unknown; tokens_out?: unknown }; const tin = Number(m.tokens_in ?? 0), tout = Number(m.tokens_out ?? 0); return mk("acted", `${me} reported an Action${Array.isArray(b.scopes_used) && b.scopes_used.length ? ` using ${b.scopes_used.map(String).join(", ")}` : ""}`, Number.isFinite(tin) && Number.isFinite(tout) && (tin > 0 || tout > 0) ? { tokens: { in: tin, out: tout } } : {}); }
     case "refusal": return mk("refused", `a call by ${me} was refused`);
     default: {
       const verb = t.replace(/_/g, " ");
       return mk(t, `${me}: ${verb}${role === "issuer" ? " (by the agent)" : role === "subject" ? " (about the agent)" : ""}${pay(amount)}`);
     }
   }
+}
+
+/** The standing cap and how close the agent is (DK1347): the sponsor's machine knows the cap, so it is applied there (`asp journey --sponsor-view`) as well as by the caller of `journeyOf`. */
+export function capFor(tokens: { today: number; month: number }, b: JourneyBudget): NonNullable<JourneyCost["cap"]> {
+  const pct = (used: number, cap?: number) => (cap && cap > 0 ? Math.round((used / cap) * 100) : null);
+  const warn = b.warnPercent ?? 80;
+  const dayPercent = pct(tokens.today, b.dailyTokens), monthPercent = pct(tokens.month, b.monthlyTokens);
+  const worst = Math.max(dayPercent ?? -1, monthPercent ?? -1);
+  return { dailyTokens: b.dailyTokens ?? null, monthlyTokens: b.monthlyTokens ?? null, warnPercent: warn, dayPercent, monthPercent, state: worst >= 100 ? "reached" : worst >= warn ? "warn" : "ok" };
+}
+/** A sponsor-view journey with the agent's standing cap applied; any other journey is returned as it is. */
+export function withBudget(j: Journey, b: JourneyBudget): Journey {
+  if (j.view !== "sponsor" || !j.cost || !(b.dailyTokens || b.monthlyTokens)) return j;
+  return { ...j, cost: { ...j.cost, cap: capFor(j.cost.tokens, b) } };
 }
 
 const emptySummary = (): JourneySummary => ({
@@ -268,7 +300,7 @@ export const NOT_YET: NotYet[] = [
   { what: "the agent's goals and beliefs", why: "nothing records them yet; the page makes no guess about them", rows: ["DK1315", "DK60"] },
   { what: "its exploration of worlds and expeditions", why: "the worlds and expeditions are not built", rows: ["DK1317", "DK1318"] },
   { what: "direct messages between agents", why: "there are no direct messages as records yet; only the forum is public", rows: ["DK1346"] },
-  { what: "the token and compute cost to its sponsor", why: "the sponsor return statement holds the figures but they are not joined to this page", rows: ["DK1347", "DK837", "DK1313"] },
+  { what: "the compute cost beyond tokens (the meter of a resident agent)", why: "the sponsor view shows the tokens the Actions report and the credits spent; the public view never shows cost; the compute meter is not joined", rows: ["DK1313"] },
   { what: "its trajectory text", why: "the telemetry store keeps it apart from the log", rows: ["DK1345", "DK651"] },
 ];
 /** The same list as sentences, for plain-text and older readers. */
@@ -297,6 +329,7 @@ export function journeyOf(inp: JourneyInput, nameOrDid: string, view: "public" |
     const title = f.title ? ` "${f.title.slice(0, 80)}"` : "";
     steps.push({ at: f.at, seq: null, id: f.id, type: "forum_" + f.kind, institution: "forum", kind: f.kind === "post" ? "posted" : "commented", text: `${labelOf(did)} ${f.kind === "post" ? "posted on the forum" + title : "commented on the forum"}`, with: [], role: "author", ...(view === "sponsor" ? { detail: f.text.slice(0, 2000) } : {}) });
   }
+  if (view !== "sponsor") for (const st of steps) delete st.tokens;
   steps.sort((x, y) => (x.at < y.at ? -1 : x.at > y.at ? 1 : (x.seq ?? 1e15) - (y.seq ?? 1e15) || (x.id < y.id ? -1 : 1)));
   const sum = emptySummary();
   sum.steps = steps.length;
@@ -327,10 +360,25 @@ export function journeyOf(inp: JourneyInput, nameOrDid: string, view: "public" |
     else if (k === "joined") { const m = /tier (\d+)/.exec(st.text); if (m && sum.standing.tier === null) sum.standing.tier = Number(m[1]); }
   }
   sum.institutions_used = INSTITUTIONS.filter((i) => (sum.by_institution[i] ?? 0) > 0);
+  let cost: JourneyCost | undefined;
+  if (view === "sponsor") {
+    const nowMs = Date.parse(inp.now), day = inp.now.slice(0, 10), month = inp.now.slice(0, 7);
+    let tin = 0, tout = 0, today = 0, thisMonth = 0, actions = 0;
+    for (const st of steps) { if (!st.tokens) continue; actions++; const n = st.tokens.in + st.tokens.out; tin += st.tokens.in; tout += st.tokens.out; if (Number.isFinite(nowMs)) { if (st.at.slice(0, 10) === day) today += n; if (st.at.slice(0, 7) === month) thisMonth += n; } }
+    const jobs = sum.jobs.accepted;
+    const b = inp.budget;
+    cost = {
+      actions, tokens: { in: tin, out: tout, total: tin + tout, today, month: thisMonth },
+      perAcceptedJob: { tokens: jobs ? Math.round((tin + tout) / jobs) : null, credits: jobs ? Math.round((sum.credits.spent / jobs) * 10) / 10 : null },
+      credits: { earned: sum.credits.earned, spent: sum.credits.spent },
+      ...(b && (b.dailyTokens || b.monthlyTokens) ? { cap: capFor({ today, month: thisMonth }, b) } : {}),
+      note: "Tokens are what the agent's own Actions report, from the gateway's run logs; nothing is estimated. Mock credits are accounting entries, not money. Only the sponsor sees this; the public view carries no cost.",
+    };
+  }
   const bal = inp.balances?.get(did);
   const fleetMark = fleetOfAgent(fleetDirectory(inp.stored), did);
   return {
-    name: agent.name, label: labelOf(did), did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(fleetMark ? { fleet: fleetMark } : {}), ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED, not_yet: NOT_YET,
+    name: agent.name, label: labelOf(did), did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(fleetMark ? { fleet: fleetMark } : {}), ...(cost ? { cost } : {}), ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED, not_yet: NOT_YET,
     note: view === "sponsor" ? "sponsor view: includes the text the agent's records and forum posts carry; credits are accounting entries, not money" : "public view: names, institutions, kinds of act and amounts only, no free text; credits are accounting entries, not money",
   };
 }

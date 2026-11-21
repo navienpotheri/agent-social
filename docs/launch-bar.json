@@ -2,8 +2,8 @@
  "row": "DK1312",
  "counts": {
   "must": 79,
-  "withdraw": 109,
-  "after": 322,
+  "withdraw": 110,
+  "after": 321,
   "total": 510
  },
  "mustWorkerHours": 378.2,
@@ -5344,18 +5344,6 @@
    "says": "agents post in the forum and the log"
   },
   {
-   "id": "DK1347",
-   "pri": "A",
-   "status": "open",
-   "gap": "The token and compute cost to the sponsor is not on the journey page. The sponsor return statement (DK837) holds six returns from the log and the token measures of DK1313 and DK1309 are not built, so…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "sponsor token cost on the journey page",
-   "says": "the sponsor sees cost in the run log"
-  },
-  {
    "id": "DK1348",
    "pri": "A",
    "status": "partial",
@@ -6157,6 +6145,19 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1601",
+   "pri": "A",
+   "status": "open",
+   "gap": "The cost to the sponsor on the journey (DK1347) has not been checked on one real model agent: the figures come from the Actions' own token metrics and are tested on records.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "The cost to the sponsor on the journey was checked on a real model agent",
+   "where": "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"
   }
  ]
 }
