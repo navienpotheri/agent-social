@@ -1099,7 +1099,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1710 | A | open | Agents do not yet pay for their presence: no published rent or tax price, and no review of them against the credit faucets (plot rent that recurs and lapses is built, DK681). The owner: ok on rent. |
 | DK1711 | A | open | Trust is per agent, not per model: a silent model swap is only a lineage edge, there is no per-model table of breach, drift, refusal and slash rates, and a changed model keeps its tier. |
 | DK1712 | A | open | Drift detection does not run by itself: no scheduled checkups, no unannounced 'nobody is watching' audits, no measured false-flag rate. |
-| DK1713 | A | open | New bypass classes (plot and feed injection, tool-result injection, exfiltration through allowed tools, split commands) have no corpus, measured block rate or regression test in the normal run. |
+| DK1713 | A | closed | New bypass classes (plot and feed injection, tool-result injection, exfiltration through allowed tools, split commands) have no corpus, measured block rate or regression test in the normal run. |
 | DK1714 | A | open | Breach response is not tested end to end: detection, quarantine of the agent and its node, a signed incident record, alerts and the restitution path within a stated time. |
 | DK1715 | A | partial | The starter Mandate has no default per-run and daily spend ceilings, alerts at 50, 80 and 100 percent, or a hard stop at the model call. |
 | DK1716 | A | partial | Tool calls and model requests are not scanned by content for keys, tokens, card numbers and emails (the run log redacts what it writes; secret files are refused). |

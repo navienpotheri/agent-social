@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 73,
+  "must": 72,
   "withdraw": 110,
   "after": 323,
-  "total": 506
+  "total": 505
  },
- "mustWorkerHours": 365.2,
+ "mustWorkerHours": 355.2,
  "entries": [
   {
    "id": "D3",
@@ -6061,17 +6061,6 @@
    "size": "L",
    "flags": "",
    "why": "drift detection that runs by itself, with unannounced audits and a stated false-flag rate"
-  },
-  {
-   "id": "DK1713",
-   "pri": "A",
-   "status": "open",
-   "gap": "The containment benchmark is a benchmark, not a gate, and its coverage stops at the classes it has. DK1339 says no benchmark-only claim is made, but new bypass classes have no corpus: injection throu…",
-   "bucket": "must",
-   "hours": 10,
-   "size": "L",
-   "flags": "",
-   "why": "four new bypass classes with a corpus, a measured block rate and a regression test in the normal run"
   },
   {
    "id": "DK1714",
