@@ -28,10 +28,10 @@ test("asp prices publish --preset forum-long: the two long forum acts are priced
   const done = await publish(k);
   assert.equal(done.code, 0, done.text);
   assert.match(done.text, /price list version 2 signed/);
-  const lists = (await k.log.priceLists()) as { id: string; body: { version: number; items: { service: string; price: number; institution: string }[] } }[];
+  const lists = ((await k.log.priceLists()) as unknown) as { id: string; body: { version: number; items: { service: string; price: number; institution: string }[] } }[];
   assert.equal(lists.length, 2);
   const v2 = lists.find((l) => l.body.version === 2)!;
-  assert.equal(v2.body.items.length, before[0]!.body.items.length + 2, "the old services are kept");
+  assert.equal(v2.body.items.length, (before[0]!.body as { items: unknown[] }).items.length + 2, "the old services are kept");
   const post = v2.body.items.find((i) => i.service === FORUM_SERVICES.post)!;
   assert.equal(post.price, FORUM_COSTS.longPost);
   assert.equal(post.institution, institutionDid("research"));
