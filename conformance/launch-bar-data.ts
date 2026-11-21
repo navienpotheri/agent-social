@@ -113,7 +113,7 @@ export const MUST: Record<string, Must> = {
   DK421: [1, "D", "operator succession: the owner chooses and signs (OD-DK421)"],
   DK1312: [2, "D", "this row: it closes only when the owner approves"],
   // the owner's questions of 2026-11-21 (rent, model trust and drift, breaches): rows by lane-verify
-  DK1710: [6, "D", "agents pay no published rent or tax yet: the price and the tax rate are the owner's decision, with a review against the credit faucets"],
+  DK1710: [6, "", "agents pay no published rent or tax yet: measure the average earnings, draft the price table and tax from them for the owner to approve, publish before launch (owner answer 2026-11-21)"],
   DK1711: [8, "", "trust per model and version: a silent swap is detected and the tier held until a re-exam; a per-model table in the Registry"],
   DK1712: [10, "", "drift detection that runs by itself, with unannounced audits and a stated false-flag rate"],
   DK1713: [10, "", "four new bypass classes with a corpus, a measured block rate and a regression test in the normal run"],
