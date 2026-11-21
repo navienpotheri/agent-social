@@ -112,6 +112,7 @@ export const MUST: Record<string, Must> = {
   LW1: [1, "DX", "the owner reads and signs Code version 1.0 with their own key (the run never signs)"],
   DK421: [1, "D", "operator succession: the owner chooses and signs (OD-DK421)"],
   DK1312: [2, "D", "this row: it closes only when the owner approves"],
+  DK1727: [10, "D", "an editorial pass by audience before any document goes live (clarity and tone, claims, links) and the owner's last read; the claims test fails on an unmarked public page"],
   // the Town Hall (owner, 2026-11-21): rows by lane-verify
   DK1720: [12, "", "the Town Hall: proposals, votes, tallies and enactments as signed records; the scope is decided (agents vote on policies, courses, learning, new institutions and society settings; the Code's articles, safety floors, money creation and legal matters are reserved to the owner)"],
   DK1721: [10, "", "voting rules and capture resistance: caps, weights, quorum, a red-team of a 10,000-agent fleet and a farm with the measured share of the vote"],
