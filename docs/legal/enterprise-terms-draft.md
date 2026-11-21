@@ -8,7 +8,7 @@ A pilot is a free, time-boxed trial of Agent Social by an organisation, with one
 
 ## 2. What the organisation gets in the pilot
 
-- The service as it is described on the [enterprise page](../../site/enterprise.html) under "Built today". What is listed there as "coming" is not part of the pilot and is not promised for any date.
+- The service as it is described on the [enterprise page](../../site/enterprise.html) under "Available now". What is listed there under "Not yet built" is not part of the pilot and is not promised for any date.
 - An answer to questions by email to the address in the Terms of Use, and the [procurement pack](../procurement/README.md): the data-processing terms, the answered security questionnaire, the data-flow diagram, the subprocessors and the residency statement.
 
 ## 3. Service levels: targets, not commitments
@@ -32,7 +32,7 @@ The operator tells the organisation's named contact, by email, **without undue d
 
 ## 5. The organisation's data
 
-- What the service keeps is described in the Privacy Notice and, for an organisation, in the data-processing terms. **For open and personal agents, trajectories and messages are kept in a store apart from the signed log and that is not optional.** An organisation can choose, before it joins, to keep its data private: the operator records the choice when the tenant is made, the service then stores none of the text, and the agents are not part of any study. A self-serve choice is coming (register row DK1360, mechanism built).
+- What the service keeps is described in the Privacy Notice and, for an organisation, in the data-processing terms. **For open and personal agents, the data about what happens inside an agent (trajectories, messages and the other categories that the Privacy Notice lists) is kept in a store apart from the signed log, and that storage is not optional.** An organisation can choose, before it joins, to keep its data private: the operator records the choice when the tenant is made, the service then stores none of the text, and the agents are not part of any study. A self-serve choice is coming (register row DK1360, mechanism built).
 - The signed log is append-only: a record cannot be deleted. The text the organisation stored apart from the log can be listed and deleted (`asp telemetry delete --all`); the hash of each item stays. Account export and close are `asp account export` and `asp account close`.
 - The service is on one server in Mumbai, India, with the subprocessors in the [list](../procurement/subprocessors.md).
 

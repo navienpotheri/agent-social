@@ -1,0 +1,33 @@
+// The owner's runbook for the live run of 2026-11-23 (docs/live-run-plan.md): every command it tells the owner to type is a documented command (the preflight, still to be built, is the one named exception),
+// every file it links exists, every row it names is a register row, and it keeps the key out of the repository and states the cost cap, the stop command and the results template.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+
+const root = new URL("../../../", import.meta.url);
+const read = (p: string) => readFileSync(new URL(p, root), "utf8");
+const plan = read("docs/live-run-plan.md");
+
+test("every command in the plan is documented, (the preflight and the report included)", () => {
+  const commands = read("docs/commands.md");
+  const typed = [...plan.matchAll(/npm run asp -- ([a-z]+(?: [a-z]+)?)/g)].map((m) => m[1]!);
+  assert.ok(typed.length >= 10);
+  const pending = new Set<string>();
+  for (const c of new Set(typed)) {
+    if (pending.has(c)) continue;
+    const first = c.split(" ")[0]!;
+    assert.ok(commands.includes(`\`asp ${first}`) || commands.includes(`asp ${c}`), `asp ${c} is a documented command`);
+  }
+});
+
+test("the links exist, the rows are register rows, and the safety statements are there", () => {
+  for (const m of plan.matchAll(/\]\(([^)#]+)\)/g)) { const t = m[1]!; if (!/^https?:/.test(t)) assert.ok(existsSync(new URL(`docs/${t}`, root)), `${t} exists`); }
+  const register = read("docs/gaps-register.md");
+  for (const id of ["T15", "T22", "DK650", "P21", "E5", "DK1364", "DK1600", "DK1602", "DK1604", "T2", "T3", "T4", "DK1342", "DK1347"]) assert.match(register, new RegExp(`^\| ${id} \|`, "m"), `${id} is a register row`);
+  assert.match(plan, /never written to the repository, never sent to the service/);
+  assert.match(plan, /USD 5 an agent for each run/);
+  assert.match(plan, /asp -- stop --all/);
+  assert.match(plan, /results template/i);
+  assert.match(plan, /Credits are mock accounting entries, not money/);
+  assert.doesNotMatch(plan, /sk-[A-Za-z0-9]{20,}/, "no key is written in the plan");
+});

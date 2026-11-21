@@ -115,3 +115,6 @@ export { SANDBOX_BANNER, SANDBOX_CREDITS_PER_REQUEST, SANDBOX_CREDITS_PER_TENANT
 export { PERSONAL_AGENTS, firstMinute, personalAgentByName, type PersonalAgent, type PersonalWay } from "./personal-agents.ts";
 export { ORG_ROLES, OrgStore, PERMISSIONS, can, orgRoutes, verifyIdToken, type Org, type OrgMember, type OrgPermission, type OrgRole, type OidcConfig } from "./org-tenancy.ts";
 export { GatewayBreaker, loopLimitsFrom, LoopBreaker, type LoopLimits, type GatewayHalt } from "./agent-guards.ts";
+
+export { gatewayAgentPlan, openclawPlan, hermesPlan, GATEWAY_PLACEHOLDER_KEY, type GatewayAgentPlan, type GatewayAgentInput } from "./adapters/gateway-agents.ts";
+export { PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, privateCallSummary, PRIVATE_TOOL, SCOPE_NAME, MAX_SCOPE_BYTES, MAX_SCOPES, type PrivateMemoryEvent, type PrivateMemoryOptions } from "./private-memory-run.ts";

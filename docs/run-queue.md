@@ -197,6 +197,10 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-society (DK27 tiers rise, if buildable), 18:39Z
 - 2026-11-22 held by lane-society (DK1608 log refuses a course whose Town Hall proposal is not enacted; DK1607 institutions act on a reversed contest; DK1605 tier hold after a model swap; spec-deltas S1554+; coordinate with lane-protocol-2 on log.ts), 18:39Z
 - 2026-11-21 held by lane-protocol-2 (DK1728 Market completeness audit: table and first chain built, partial; DK1729 the unmapped ids and the longer chain), 18:10Z
+- 2026-11-22 held by lane-cli-3 (DK79 collection taps: registry, tap, disclosure; then DK1716 finishing, OpenClaw and Hermes adapters, DK1713 follow-up), 00:30Z
+- 2026-11-22 held by launch-bar-2 (US8 built, partial; next US1, JO3, DK440)
+- 2026-11-22 held by lane-cli-3 (live-run readiness for 2026-11-23: --budget-usd hard cap, asp live preflight, asp live report, stand-in rehearsal of failure modes)
+- 2026-11-22 held by launch-bar-2: forum front end design pack (docs/forum-design.md, screens), then GV11 and D12/DK272 private memory with lane-cli-3
 - 2026-11-22 lane-protocol-2: DK1728 and DK1729 closed (market audit table + nineteen-step chain over one log); DK1730 opened (Court standing adjustment, CR-14). Next held: DK1333 follow-ups (bond sizing to the Insurer, published table), DK1714 leftovers, then the credits/ledger pool.
 - 2026-11-22 held by lane-protocol-3 (DK1608 the log refuses a course whose Town Hall proposal was not enacted or failed the gate; then DK1730, DK1333 follow-ups, DK1714 leftovers, ledger rows), 18:42Z
 - 2026-11-22 held by lane-protocol-3 (DK172 / CR-25 treasury_return: an institution returns its surplus to the Treasury; then DK491 Insurer drivers, BI-14, BI-18), 19:07Z

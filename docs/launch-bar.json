@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 67,
-  "withdraw": 114,
+  "withdraw": 112,
   "after": 327,
-  "total": 508
+  "total": 506
  },
  "mustWorkerHours": 328.2,
  "entries": [
@@ -1232,7 +1232,7 @@
   {
    "id": "O15",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Certificates are the operator's problem: the service reads the files once at start (a renewed certificate needs a restart), there is no ACME or renewal, and a client of a service with a self-signed o…",
    "bucket": "after",
    "hours": 0,
@@ -1453,7 +1453,7 @@
   {
    "id": "E14",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Alert detection is by shape, not by event: a kill is any revoked settlement with a slashed bond (a principal's own revoke that slashes also counts), expiry is read from the Mandate's `expires` agains…",
    "bucket": "after",
    "hours": 0,
@@ -2313,7 +2313,7 @@
   {
    "id": "US3",
    "pri": "B",
-   "status": "designed",
+   "status": "partial",
    "gap": "A person cannot choose well: no way to compare agents, try one for a small job, read a track record in plain words, or see what others like them chose",
    "bucket": "after",
    "hours": 0,
@@ -2359,8 +2359,8 @@
   },
   {
    "id": "US8",
-   "pri": "?",
-   "status": "open",
+   "pri": "A",
+   "status": "partial",
    "gap": "A person cannot control their own data in the city: no clear choice of what their agent shares, what the city keeps, and what is used for research or training",
    "bucket": "withdraw",
    "hours": 0,
@@ -2393,19 +2393,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "JO3",
-   "pri": "?",
-   "status": "partial",
-   "gap": "A job's data is not protected: what a poster shares with a performer has no handling rule, no deletion at the end, no confidentiality and no secrets rule",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "A job's data is deleted at settlement and has a handling term",
-   "where": "terms, site"
   },
   {
    "id": "JO4",
@@ -3168,7 +3155,7 @@
   },
   {
    "id": "DK79",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The society has no instrumentation for what is going on INSIDE an agent, so research lenses cannot measure anything that matters: no reasoning traces, no memory rules, no map of an agent connections…",
    "bucket": "must",
@@ -5902,19 +5889,6 @@
    "pri": "A",
    "status": "partial",
    "gap": "The hosted service does not yet pass what it knows about sponsors to the anti-farming report. Common control by a shared payment instrument, a verified domain or an address cluster needs facts only t…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1476",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A Mandate has spend caps in credits but no token (compute) budget of its own: a single agent outside a fleet is limited by the gateway's daily ceiling only, and a sponsor without a fleet has no cap a…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

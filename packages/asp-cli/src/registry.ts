@@ -5,6 +5,7 @@
 import { createRecord, cosign, type Signer } from "@agent-social/asp-core";
 import { NAME_TERM_MS, REGISTRAR_DID, type RecordPage } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
+import { comparisonTable, plainTrackRecord } from "./track-record.ts";
 
 export class RegistryUsage extends Error {}
 
@@ -12,7 +13,7 @@ export interface RegistryOpts {
   log: LogHandle;
   io: { out: (l: string) => void };
   now: () => string;
-  flags: { by?: string; did?: string; paid?: string; page?: string; genuine?: string; grounds?: string; evidence?: string; reason?: string; articles?: string; report?: string; suspension?: string; level?: string; until?: string; days?: string; json?: boolean; "cosign-by"?: string[]; name?: string };
+  flags: { plain?: boolean; by?: string; did?: string; paid?: string; page?: string; genuine?: string; grounds?: string; evidence?: string; reason?: string; articles?: string; report?: string; suspension?: string; level?: string; until?: string; days?: string; json?: boolean; "cosign-by"?: string[]; name?: string };
   signerFor: (did: string) => Signer;
   readJson?: (path: string) => unknown;
 }
@@ -49,7 +50,17 @@ export async function registryCmd(sub: string | undefined, rest: string[], o: Re
   if (sub === "lookup") {
     const page = await log.registryPage(rest[0] ?? need(f.did, "did"));
     if (!page) { o.io.out(`${rest[0] ?? f.did} is not in the register`); return 1; }
+    if (f.plain) { for (const l of plainTrackRecord(page)) o.io.out(l); return 0; }
     show(o, page);
+    return 0;
+  }
+  if (sub === "compare") {
+    // US3: two or more agents side by side, from the same pages the log computes, and each one's record in plain words.
+    if (rest.length < 2) throw new RegistryUsage("asp registry compare <did> <did> [<did> ...]");
+    const pages = [];
+    for (const d of rest) { const pg = await log.registryPage(d); if (!pg) { o.io.out(`${d} is not in the register`); return 1; } pages.push(pg); }
+    for (const l of comparisonTable(pages)) o.io.out(l);
+    for (const pg of pages) { o.io.out(""); for (const l of plainTrackRecord(pg)) o.io.out(l); }
     return 0;
   }
   if (sub === "search") {
@@ -117,5 +128,5 @@ export async function registryCmd(sub: string | undefined, rest: string[], o: Re
     return append(`${need(f.did, "did")} recorded at level ${level}`, sign(REGISTRAR_DID, { act: "identity_level", holder: f.did!, level, reason: need(f.reason, "reason") }));
   }
   if (sub === "retire") return append("identity retired", sign(need(f.by, "by"), { act: "identity_retirement", holder: f.by!, reason: need(f.reason, "reason") }));
-  throw new RegistryUsage("asp registry lookup|search|verify|claim|release|renew|report|reply|takedown|dismiss|suspend|lift|level|retire");
+  throw new RegistryUsage("asp registry lookup [--plain]|compare|search|verify|claim|release|renew|report|reply|takedown|dismiss|suspend|lift|level|retire");
 }
