@@ -1546,6 +1546,15 @@ const worldRules = [
   sv("incident_unknown_step", "incident", incBody({ steps: [{ step: "shrug" }] }), false);
   sv("incident_credit_restitution", "incident", incBody({ restitution: { open: true, remedy: "credits" } }), false);
   sv("incident_no_detected_at", "incident", (({ detected_at: _d, ...r }) => r)(incBody()), false);
+  // ---------- the standing adjustment (spec-deltas S1565): schema cases ----------
+  const adjBody = (over: Record<string, unknown> = {}) => ({ agent: "did:web:example.com:agents:coder-7", jobs: ["sha256:" + "5".repeat(64), "sha256:" + "6".repeat(64)], finding: "sha256:" + "7".repeat(64), reason: "the jobs came from a pair that hired each other", ...over });
+  sv("valid_standing_adjustment", "standing_adjustment", adjBody(), true);
+  sv("standing_adjustment_no_jobs", "standing_adjustment", adjBody({ jobs: [] }), false);
+  sv("standing_adjustment_duplicate_jobs", "standing_adjustment", adjBody({ jobs: ["sha256:" + "5".repeat(64), "sha256:" + "5".repeat(64)] }), false);
+  sv("standing_adjustment_no_finding", "standing_adjustment", (({ finding: _f, ...r }) => r)(adjBody()), false);
+  sv("standing_adjustment_no_reason", "standing_adjustment", adjBody({ reason: "" }), false);
+  sv("standing_adjustment_extra_field", "standing_adjustment", adjBody({ slash: 5 }), false);
+  sv("standing_adjustment_job_not_a_record_id", "standing_adjustment", adjBody({ jobs: ["a job"] }), false);
   sv("valid_run_halt_breach", "run_halt", { contract: "sha256:" + "4".repeat(64), agent: "did:web:example.com:agents:coder-7", reason: "breach", detail: "the node was frozen by an incident", node: "platform" }, true);
   // ---------- the key handover (spec-deltas S1427): schema cases ----------
   const hoBody = (over: Record<string, unknown> = {}) => ({ old: "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD", new: "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW", ...over });

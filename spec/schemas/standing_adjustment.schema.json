@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:standing_adjustment",
+  "title": "Standing adjustment body",
+  "description": "A Court's signed adjustment of an agent's count (register row DK1730; spec-delta S1565; credits.md CR-14): when collusion or farming is found, the jobs it produced are taken out of the agent's qualifying count, so the count the bond floor, tier promotion and AgentRank read is the one the Court left. It names the agent, the contracts whose jobs no longer count, the finding behind it (a ruling, a watcher finding or a Court act: a record id) and the reason. Signed by the Courts. It is not a slash, a strike or a verdict on the agent: the jobs and their payments stand, only what they count for changes. Chain: none (prev is null).",
+  "type": "object",
+  "required": ["agent", "jobs", "finding", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "agent": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "jobs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "uniqueItems": true,
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+    },
+    "finding": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 500 }
+  }
+}

@@ -52,6 +52,7 @@ import { suggestRisk, type RiskInput, type RiskSuggestion, type RiskTerms, type 
 import { JOB_CLASSES } from "./market.ts";
 import { DYNAMICS, SKILLS, adaptationDays, demandOn, demandTable, entrantWaves, guideFromFill, mixDivergence, seasonOf, skillClass, transferShare, type Dynamics, type Guide, type JobFact, type Season, type Demand, type Wave } from "./market-dynamics.ts";
 import { seedCommitment } from "./world.ts";
+import { COURTS_DID } from "./courts-rules.ts";
 import { CONTEST_COURTS_MS, CONTEST_OPERATOR_MS, charterIn, checkCaseload, checkRulingExtras, checkSettlementHold, closeDispute, effectiveFault, projectCourtAct } from "./courts-rules.ts";
 import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
@@ -419,6 +420,7 @@ export class EventLog {
     if (type === "emergency_stop") await this.projectEmergencyStop(tx, verified);
     if (type === "run_halt") await this.projectRunHalt(tx, verified);
     if (type === "incident") await this.projectIncident(tx, verified);
+    if (type === "standing_adjustment") await this.projectStandingAdjustment(tx, verified);
     if (type === "key_handover") await this.projectKeyHandover(tx, verified);
     if (type === "town_proposal" || type === "town_vote" || type === "town_tally" || type === "town_enactment") await this.projectTown(tx, verified, type);
     if (type === "usage_plan") await this.projectUsagePlan(tx, verified);
@@ -2578,6 +2580,46 @@ export class EventLog {
       for (let d = did; ;) { const n = await tx.getMarker(`handed_over:${d}`); if (!n) break; const to = (JSON.parse(n) as { to: string }).to; if (after.includes(to)) break; after.push(to); d = to; }
       return { before, after };
     });
+  }
+
+  /**
+   * A Court's standing adjustment (S1565, DK1730; credits.md CR-14): the jobs it names stop counting. Signed by the Courts for an agent with a passport; it cites a finding that is a record in this log (a ruling, a watcher
+   * finding or a Court act); every job is a contract the agent's count really took in (the feed keeps each counted job by contract, so a job that never counted, or was adjusted already, is refused). The weights are taken out of
+   * the qualifying count, the jobs leave the AgentRank feed, and a tier the smaller count no longer supports falls back to the highest it does (1 to 2 needs 3 qualifying jobs, 2 to 3 needs its own number); a tier 0 or 1 does
+   * not move. The jobs and their payments stand: this is not a slash, a strike or a verdict on the agent.
+   */
+  private async projectStandingAdjustment(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { agent: string; jobs: string[]; finding: string; reason: string };
+    if (r.prev !== null) throw rule("adjustment_not_chained", "a standing adjustment starts its own chain (prev is null)");
+    if (r.issuer !== COURTS_DID) throw rule("adjustment_wrong_issuer", `${r.issuer} is not the Courts (${COURTS_DID}): only a Court adjusts a count`);
+    const rep = await this.reputation(tx, b.agent);
+    if (!rep || !(await tx.getPassport(b.agent))) throw rule("adjustment_unknown_agent", `${b.agent} is not an agent with a passport in this log`);
+    const finding = await tx.getRecord(b.finding);
+    const ft = finding?.record.type;
+    const isRuling = ft === "asp.attestation/v0.2" && (finding?.record.body as { kind?: string }).kind === "ruling";
+    if (!finding || !(isRuling || ft === "asp.watcher_finding/v0.2" || ft === "asp.court_act/v0.2")) throw rule("adjustment_needs_finding", "an adjustment cites a finding in this log: a ruling, a watcher finding or a Court act");
+    const feed = JSON.parse((await tx.getMarker(`qual_feed:${b.agent}`)) ?? "[]") as { contract: string | null; at: string; class: string; weight: number }[];
+    let removed = 0;
+    const gone = new Set<string>();
+    for (const job of b.jobs) {
+      if (await tx.getMarker(`adjusted:${job}`)) throw rule("adjustment_job_adjusted", `${job} was taken out of the count already`);
+      const hit = feed.find((f) => f.contract === job);
+      if (!hit) throw rule("adjustment_job_not_counted", `${job} is not a job that counted for ${b.agent}: there is nothing to take out`);
+      removed += hit.weight;
+      gone.add(job);
+    }
+    const classes = await readQualClass(tx, b.agent);
+    const left = [...classes];
+    for (const job of b.jobs) { const hit = feed.find((f) => f.contract === job)!; const i = left.findIndex((c) => c.at === hit.at && c.w === hit.weight); if (i >= 0) left.splice(i, 1); }
+    const qualifyingJobs = Math.max(0, rep.qualifyingJobs - removed);
+    let tier = rep.tier;
+    if (tier >= 3 && qualifyingJobs < PROMOTION_QUALIFYING_JOBS_2_TO_3) tier = 2;
+    if (tier >= 2 && qualifyingJobs < PROMOTION_QUALIFYING_JOBS_1_TO_2) tier = 1;
+    await tx.putMarker(`qual_feed:${b.agent}`, JSON.stringify(feed.filter((f) => !f.contract || !gone.has(f.contract))));
+    await tx.putMarker(`qual_class:${b.agent}`, JSON.stringify(left));
+    for (const job of b.jobs) await tx.putMarker(`adjusted:${job}`, r.id);
+    await tx.putMarker(`adjusted_agent:${b.agent}`, JSON.stringify([...(JSON.parse((await tx.getMarker(`adjusted_agent:${b.agent}`)) ?? "[]") as string[]), r.id]));
+    await this.saveReputation(tx, b.agent, { ...rep, qualifyingJobs, tier });
   }
 
   /** An incident record (S1426, DK1714): signed by the operator or the Clinic for an agent with a passport; the response steps it lists must name records that exist. */

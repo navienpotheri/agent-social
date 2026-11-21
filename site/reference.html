@@ -698,7 +698,7 @@ asp clinic finding-checkup --finding &lt;watcher_finding id&gt; --agent &lt;did&
     The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)
 asp telemetry [status | list | put --kind &lt;k&gt; --text &lt;t&gt; | receipts | delete --all]
     The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash and issues a receipt (DK1378)</pre></details>
-<details><summary>The records the protocol defines (107)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (108)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report               A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                     The runtime→protocol compliance bridge
@@ -788,6 +788,7 @@ run_halt                   A halted run (register rows DK1230 and its successors
 settlement                 Escrow released, bond returned or slashed, fees split
 shops_act                  The Shops and Services records (shops.md 3, register rows DK21, DK22; spec-delta S250)
 sponsor_allowance          What a sponsor lets its resident agent spend while it lives in the society (residency.md 5 and 7, register row DK82; spec-delta S302), in the sponsor's own tokens
+standing_adjustment        A Court's signed adjustment of an agent's count (register row DK1730; spec-delta S1565; credits.md CR-14)
 standing_order             A purchase the buyer signs once to be repeated on a schedule (register row DK390; spec-delta S963; credits.md 4.2, CR-23)
 starter_claim              A new identity claims its starter credits from the starter pool (credits.md 5.1, register rows DK94 and DK67)
 subsidy_budget             The city's monthly budget for compute it spends on resident agents (residency.md 5 to 7, register row DK85; spec-delta S300), in REAL UNITS (tokens or host_seconds), never credits

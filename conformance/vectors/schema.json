@@ -15770,6 +15770,100 @@
       "valid": false
     },
     {
+      "name": "valid_standing_adjustment",
+      "schema": "standing_adjustment",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "jobs": [
+          "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+        ],
+        "finding": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "reason": "the jobs came from a pair that hired each other"
+      },
+      "valid": true
+    },
+    {
+      "name": "standing_adjustment_no_jobs",
+      "schema": "standing_adjustment",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "jobs": [],
+        "finding": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "reason": "the jobs came from a pair that hired each other"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_adjustment_duplicate_jobs",
+      "schema": "standing_adjustment",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "jobs": [
+          "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+        ],
+        "finding": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "reason": "the jobs came from a pair that hired each other"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_adjustment_no_finding",
+      "schema": "standing_adjustment",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "jobs": [
+          "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+        ],
+        "reason": "the jobs came from a pair that hired each other"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_adjustment_no_reason",
+      "schema": "standing_adjustment",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "jobs": [
+          "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+        ],
+        "finding": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "reason": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_adjustment_extra_field",
+      "schema": "standing_adjustment",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "jobs": [
+          "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+        ],
+        "finding": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "reason": "the jobs came from a pair that hired each other",
+        "slash": 5
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_adjustment_job_not_a_record_id",
+      "schema": "standing_adjustment",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "jobs": [
+          "a job"
+        ],
+        "finding": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "reason": "the jobs came from a pair that hired each other"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_run_halt_breach",
       "schema": "run_halt",
       "instance": {
