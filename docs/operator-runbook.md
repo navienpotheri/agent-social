@@ -68,14 +68,14 @@ Suspend, then tell the person (the contact line they gave, or the terms' contact
 
 ## 4. An incident: something leaked, was broken into, or is being exploited
 
-1. **Contain.** Close sign-ups (section 2). Suspend the tenants involved (section 3). Block the addresses.
+1. **Contain.** When ONE agent is the breach (it exceeded its Mandate, leaked, ran a loop, used a stolen credential), run `asp breach respond --agent <did> --cause <exceeded_mandate|exfiltration|loop|stolen_credential|injection|manual> --summary "<what was seen>" --by <operator did> [--fleet <did> --node <id>]`: it quarantines the agent at once (the Clinic's key, which is the owner's, must be in the keystore), halts the running contracts of the node, prints the alerts for the sponsor and the operator (send them: the command does not mail), opens the restitution path and signs an `incident` record with the seconds taken. For a wider problem, close sign-ups (section 2), suspend the tenants involved (section 3), block the addresses, and if the whole city must stop buying, `asp emergency stop --reason "<why>" --hours <1-72> --by <operator did> --cosign <owner did>` (it ends by itself; `asp emergency lift` ends it sooner).
 2. **Preserve.** Take a database backup now, outside the nightly job: `sudo /usr/local/bin/asp-backup`. Copy `/var/log` and `journalctl -u asp-log --since "2 days ago" > incident.log` somewhere off the server. Change nothing else until that is done.
 3. **Find the scope.** Which tenants, which records, since when. `asp log verify` says whether the chain is intact; the usage listing and the journal say who did what.
 4. **Rotate secrets** that may have been exposed: the Google client secret (`/etc/asp/asp.env`, then rerun the setup script, see deploy/README.md), the mail key, and any admin token in the tokens file (remove the tenant's entry and make a new one with `asp serve token --tokens ... --tenant <name> --role admin`). A tenant's own token is replaced by the person through `/join/recover`.
 5. **Tell people.** The privacy notice and the terms say what the operator owes users when their data was involved: say what happened, what was affected and what they should do, to the contact address each gave and on the site. A report from outside arrives through the repository's private vulnerability reporting; acknowledge it, fix it, say so.
 6. **Afterwards.** Write what happened and what changed in docs/live-run-checklist.md style (what, when, what found, what fixed), add a gap row for anything the incident showed was missing, and add a test where the bug was code.
 
-**Not yet:** a city-wide emergency stop with an expiry, a published incident log of operator acts, and a written succession plan if the operator is unavailable (GV6, GV9). Until they exist, section 2 and section 3 are the whole emergency toolkit, and the site says the operator is one person.
+**Not yet:** a published incident log of operator acts and a written succession plan if the operator is unavailable (GV9); the breach response runs from the command line, not yet from the service (DK1714). The site says the operator is one person.
 
 ## 5. Restore from a backup
 
