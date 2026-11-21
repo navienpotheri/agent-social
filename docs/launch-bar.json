@@ -6024,7 +6024,7 @@
   {
    "id": "DK1361",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "There is no fleet dashboard and no control for an enterprise over its fleet: no per-fleet or per-persona spending caps, no freeze switch, no view of members, personas, tiers, slashes, drift and spend.",
    "bucket": "must",
    "hours": 14,
