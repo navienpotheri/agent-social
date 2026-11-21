@@ -5792,6 +5792,41 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     io.out(`  monitor: mix divergence ${d.monitor.mixDivergence ?? "n/a"}, transfer share ${d.monitor.transferShare ?? "n/a"}, adaptation ${d.monitor.adaptation.map((x) => `${x.event} ${x.days === null ? "not yet" : `${x.days}d`}`).join(", ") || "no job opening yet"}`);
     return 0;
   }
+  if (sub === "risk") {
+    // The Market's risk model (market.md 13.1; DK1455, S1404): `asp market risk show|suggest --offer <id>|replay [--file <terms.json>] [--days <n>]|publish --file <terms.json> --effective <time> --by <treasury> [--cosign-by <owner>]`.
+    const action = rest[0] ?? "show";
+    if (action === "show") {
+      const m = await local.log.riskModel(v.at);
+      if (v.json) { io.out(JSON.stringify(m, null, 2)); return 0; }
+      io.out(m ? `risk model version ${m.version} (record ${m.record.slice(0, 19)}...), in force from ${m.effective_from}:\n${JSON.stringify(m.terms, null, 2)}` : "no risk model is in force: the Market suggests the performer's own floor and the whole price");
+      return 0;
+    }
+    if (action === "suggest") {
+      const s = await local.log.suggestedBond(need("offer"), v.at);
+      if (v.json) { io.out(JSON.stringify(s, null, 2)); return 0; }
+      io.out(`offer ${s.offer}: the offer offers a bond of ${s.offered}; the Market suggests a bond of ${s.suggestion.bond} (${s.suggestion.bondPermille} permille of ${s.input.price}) and an escrow of ${s.suggestion.escrow}${s.modelVersion === null ? " (no model: the performer's floor and the whole price)" : ` by model version ${s.modelVersion}`}`);
+      io.out(`  floor ${s.suggestion.parts.floor}, class (${s.input.jobClass}) ${s.suggestion.parts.class}, verification (${s.input.verification}) ${s.suggestion.parts.verification}, poster's record ${s.suggestion.parts.poster} permille. A suggestion, never binding.`);
+      return 0;
+    }
+    if (action === "replay") {
+      const candidate = v.file ? (JSON.parse(readFileSync(v.file, "utf8")) as never) : null;
+      const r = await local.log.riskReplay(candidate, v.days ? Math.trunc(Number(v.days)) : 90);
+      if (v.json) { io.out(JSON.stringify(r, null, 2)); return 0; }
+      io.out(`replay over ${r.days} days: ${r.contracts} settled contract(s); locked ${r.lockedActual}, the model would suggest ${r.lockedSuggested} (at most ${r.maxSuggestedPermille} permille of a price); ${r.slashes} slash(es) of ${r.slashedCredits} credits, the model would have locked more on ${r.suggestionWouldLockMoreOnSlashed} of them`);
+      return 0;
+    }
+    if (action === "publish") {
+      const by = need("by");
+      const terms = JSON.parse(readFileSync(need("file"), "utf8"));
+      const head = (await local.log.riskModel("9999-12-31T00:00:00Z"))?.version ?? 0;
+      let rec = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "risk_model", model_version: head + 1, terms, effective_from: need("effective") }, issued_at: now() }, signerFor(by));
+      for (const c of v["cosign-by"] ?? []) rec = cosign(rec, signerFor(c));
+      const res = await local.append(rec);
+      io.out(`risk model version ${head + 1} published ${res.id.slice(0, 19)}... (log seq ${res.seq}), in force from ${need("effective")}`);
+      return 0;
+    }
+    throw new UsageError("asp market risk show|suggest --offer <id>|replay [--file <terms.json>] [--days <n>]|publish --file <terms.json> --effective <time> --by <treasury> [--cosign-by <owner>]");
+  }
   if (sub === "stats" || sub === "monthly") {
     // The Market's statistics and monthly report (market.md 7, 8; DK1453): the same figures GET /market/stats and /market/report?month= serve.
     const month = sub === "monthly" ? (v.month ?? new Date().toISOString().slice(0, 7)) : (v.month ?? null);
@@ -5812,7 +5847,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
-  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|report|report-rule|settle|show|action|juror register|juror show|panel draw|board|jobs|stats|monthly|dynamics|post|bid|class|assign|discover|counts");
+  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|report|report-rule|settle|show|action|juror register|juror show|panel draw|board|jobs|stats|monthly|dynamics|risk|post|bid|class|assign|discover|counts");
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */

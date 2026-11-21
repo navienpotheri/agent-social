@@ -1,7 +1,7 @@
 // asp market stats | monthly (market.md 7, 8; register row DK1453): the same figures the public routes serve, as text and as --json; a bad month is a usage error.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { main, type Io } from "../src/cli.ts";
@@ -44,4 +44,23 @@ test("asp market dynamics (DK1456) reads the season, demand, guide prices and wa
   assert.equal(json.halted, false);
   assert.equal(json.demand.length, 5);
   assert.ok(json.demand.every((d: { index: number }) => d.index === 1000));
+});
+
+test("asp market risk (DK1455): show says none is in force, replay of a candidate on an empty log counts nothing, suggest refuses an unknown offer, publish needs a key", async () => {
+  const home = mkdtempSync(join(tmpdir(), "asp-market-risk-"));
+  const show = await asp(home, ["market", "risk", "show"]);
+  assert.equal(show.code, 0, show.err);
+  assert.match(show.out, /no risk model is in force/);
+  const file = join(home, "terms.json");
+  writeFileSync(file, JSON.stringify({ class_permille: { trivial: 0, routine: 100, skilled: 0, critical: 0 }, verification_permille: { deterministic: 0, principal: 0, arbiter: 0 }, poster_permille: 0, escrow_share_permille: 900 }));
+  const replay = await asp(home, ["market", "risk", "replay", "--file", file]);
+  assert.equal(replay.code, 0, replay.err);
+  assert.match(replay.out, /replay over 90 days: 0 settled contract\(s\)/);
+  const bad = await asp(home, ["market", "risk", "suggest", "--offer", "sha256:" + "0".repeat(64)]);
+  assert.notEqual(bad.code, 0);
+  assert.match(bad.err, /not an offer/);
+  const noKey = await asp(home, ["market", "risk", "publish", "--file", file, "--effective", "2027-01-01T00:00:00Z", "--by", "did:web:asp.local:treasury"]);
+  assert.notEqual(noKey.code, 0);
+  assert.match(noKey.err, /no key for/);
+  assert.notEqual((await asp(home, ["market", "risk", "nonsense"])).code, 0);
 });

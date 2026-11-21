@@ -14,6 +14,7 @@ import {
 import { signBytes } from "../packages/asp-core/src/crypto.ts";
 import { brier as tBrier, calibration as tCalibration, klBits as tKl, meanSurprisal as tMeanSurprisal, normativePosterior as tNormative, surprisal as tSurprisal } from "../packages/asp-log/src/telemetry.ts";
 import { GENERATOR, WORLD_DID, dayBody, generateDay, seedCommitment } from "../packages/asp-log/src/world.ts";
+import { suggestRisk, onlyRemovesRule, type RiskTerms, type RiskInput } from "../packages/asp-log/src/market-risk.ts";
 
 const OUT = fileURLToPath(new URL("./vectors/", import.meta.url));
 const HERE = fileURLToPath(new URL("./", import.meta.url));
@@ -1338,6 +1339,45 @@ const worldRules = [
   rule("resume_ok", "did:web:example.com:operator", "2026-11-20T06:00:00Z", { kind: "resume", halt: haltId, reason: "fixed" }, "ok"),
 ];
 
+// ---------- the Market's risk model (spec-deltas S1404): schema cases and the suggestion, identical in both SDKs ----------
+const riskTerms = (over: Record<string, unknown> = {}) => ({
+  class_permille: { trivial: -50, routine: 0, skilled: 50, critical: 150 }, verification_permille: { deterministic: -80, principal: 0, arbiter: 40 }, poster_permille: 120, escrow_share_permille: 800, ...over,
+});
+const riskAct = (over: Record<string, unknown> = {}) => ({ act: "risk_model", model_version: 1, terms: riskTerms(), effective_from: "2026-12-01T00:00:00Z", ...over });
+sv("valid_market_risk_model", "market_act", riskAct(), true);
+sv("valid_market_risk_model_zero", "market_act", riskAct({ terms: { class_permille: { trivial: 0, routine: 0, skilled: 0, critical: 0 }, verification_permille: { deterministic: 0, principal: 0, arbiter: 0 }, poster_permille: 0, escrow_share_permille: 1000 } }), true);
+sv("market_risk_model_no_version", "market_act", riskAct({ model_version: undefined }), false);
+sv("market_risk_model_version_zero", "market_act", riskAct({ model_version: 0 }), false);
+sv("market_risk_model_no_terms", "market_act", riskAct({ terms: undefined }), false);
+sv("market_risk_model_no_effective", "market_act", riskAct({ effective_from: undefined }), false);
+sv("market_risk_model_class_term_too_big", "market_act", riskAct({ terms: riskTerms({ class_permille: { trivial: 0, routine: 0, skilled: 301, critical: 0 } }) }), false);
+sv("market_risk_model_class_term_too_low", "market_act", riskAct({ terms: riskTerms({ verification_permille: { deterministic: -201, principal: 0, arbiter: 0 } }) }), false);
+sv("market_risk_model_missing_class", "market_act", riskAct({ terms: riskTerms({ class_permille: { trivial: 0, routine: 0, skilled: 0 } }) }), false);
+sv("market_risk_model_escrow_share_low", "market_act", riskAct({ terms: riskTerms({ escrow_share_permille: 499 }) }), false);
+sv("market_risk_model_escrow_share_high", "market_act", riskAct({ terms: riskTerms({ escrow_share_permille: 1001 }) }), false);
+sv("market_risk_model_poster_negative", "market_act", riskAct({ terms: riskTerms({ poster_permille: -1 }) }), false);
+sv("market_risk_model_extra_term", "market_act", riskAct({ terms: riskTerms({ tier_bonus: 10 }) }), false);
+sv("market_risk_model_float", "market_act", riskAct({ terms: riskTerms({ poster_permille: 12.5 }) }), false);
+const riskCases: { name: string; terms: RiskTerms | null; input: RiskInput }[] = [
+  { name: "no_model_is_the_floor_and_the_whole_price", terms: null, input: { price: 80, floorPermille: 400, jobClass: "routine", verification: "principal", posterLostPermille: 0 } },
+  { name: "routine_principal_no_poster_record", terms: riskTerms() as RiskTerms, input: { price: 100, floorPermille: 300, jobClass: "routine", verification: "principal", posterLostPermille: 0 } },
+  { name: "critical_arbiter_raises_it", terms: riskTerms() as RiskTerms, input: { price: 200, floorPermille: 300, jobClass: "critical", verification: "arbiter", posterLostPermille: 0 } },
+  { name: "deterministic_tests_lower_it", terms: riskTerms() as RiskTerms, input: { price: 100, floorPermille: 300, jobClass: "trivial", verification: "deterministic", posterLostPermille: 0 } },
+  { name: "a_poster_who_lost_every_dispute", terms: riskTerms() as RiskTerms, input: { price: 100, floorPermille: 300, jobClass: "routine", verification: "principal", posterLostPermille: 1000 } },
+  { name: "a_poster_who_lost_a_third_rounds", terms: riskTerms() as RiskTerms, input: { price: 100, floorPermille: 300, jobClass: "routine", verification: "principal", posterLostPermille: 333 } },
+  { name: "half_a_permille_rounds_up", terms: riskTerms({ poster_permille: 3 }) as RiskTerms, input: { price: 100, floorPermille: 300, jobClass: "routine", verification: "principal", posterLostPermille: 500 } },
+  { name: "capped_at_the_whole_price", terms: riskTerms() as RiskTerms, input: { price: 100, floorPermille: 900, jobClass: "critical", verification: "arbiter", posterLostPermille: 1000 } },
+  { name: "never_below_zero", terms: riskTerms({ class_permille: { trivial: -200, routine: -200, skilled: -200, critical: -200 }, verification_permille: { deterministic: -200, principal: -200, arbiter: -200 } }) as RiskTerms, input: { price: 100, floorPermille: 50, jobClass: "trivial", verification: "deterministic", posterLostPermille: 0 } },
+  { name: "the_bond_rounds_up", terms: riskTerms() as RiskTerms, input: { price: 7, floorPermille: 333, jobClass: "routine", verification: "principal", posterLostPermille: 0 } },
+  { name: "a_poster_share_above_1000_is_capped", terms: riskTerms() as RiskTerms, input: { price: 100, floorPermille: 300, jobClass: "routine", verification: "principal", posterLostPermille: 5000 } },
+];
+const riskRemoves = [
+  { name: "zero_after_a_model_only_removes_rule", prev: riskTerms() as RiskTerms, next: riskTerms({ class_permille: { trivial: -50, routine: 0, skilled: 0, critical: 0 }, poster_permille: 0, escrow_share_permille: 1000 }) as RiskTerms },
+  { name: "a_higher_term_adds_rule", prev: riskTerms() as RiskTerms, next: riskTerms({ poster_permille: 121 }) as RiskTerms },
+  { name: "a_lower_escrow_share_adds_rule", prev: riskTerms() as RiskTerms, next: riskTerms({ escrow_share_permille: 799 }) as RiskTerms },
+  { name: "the_same_model_only_removes_nothing", prev: riskTerms() as RiskTerms, next: riskTerms() as RiskTerms },
+].map((c) => ({ ...c, expected: onlyRemovesRule(c.prev, c.next) }));
+const risk = { version: "asp.conformance/v0.2", model: "asp-risk-model/1", suggest: riskCases.map((c) => ({ ...c, expected: suggestRisk(c.terms, c.input) })), onlyRemoves: riskRemoves };
 // ---------- cognition telemetry: the derived measures, identical in both SDKs (DK195) ----------
 type TItem = { p: number; outcome: 0 | 1 };
 const thin: TItem[] = [{ p: 0.9, outcome: 1 }, { p: 0.7, outcome: 0 }, { p: 0.2, outcome: 0 }, { p: 0.5, outcome: 1 }, { p: 0.05, outcome: 0 }];
@@ -1365,5 +1405,6 @@ write("schema.json", { version: "asp.conformance/v0.2", cases: schema });
 write("records.json", { version: "asp.conformance/v0.2", cases: records });
 write("lifecycle.json", { version: "asp.conformance/v0.2", cases: lifecycle });
 write("telemetry.json", { version: "asp.conformance/v0.2", note: "exact: every number is identical in both languages; otherwise equal to 1e-9", cases: telemetry });
+write("risk.json", risk);
 write("world.json", { version: "asp.conformance/v0.2", generator: GENERATOR, commitments: ["", "vector-seed", "another-seed"].map((x) => ({ seed: x, commitment: seedCommitment(x) })), generate: worldGen, rules: worldRules });
 console.log(`canonical ${canonical.length}, schema ${schema.length}, records ${records.length}, lifecycle ${lifecycle.length}`);

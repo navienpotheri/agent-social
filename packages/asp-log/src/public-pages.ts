@@ -61,6 +61,8 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
   if (path === "/insurer/claims") { const c = await log.insurerClaims(); return wantsHtml ? { status: 200, html: insurerHtml(await log.insurerPage(), c) } : { status: 200, json: { ok: true, result: c } }; }
   if (path === "/market/stats") return { status: 200, json: { ok: true, result: await log.marketStats() } };
   if (path === "/market/report") { const month = url.searchParams.get("month"); if (!month) return { status: 400, json: { ok: false, error: "name a month: /market/report?month=YYYY-MM" } }; try { return { status: 200, json: { ok: true, result: await log.marketStats(undefined, month) } }; } catch { return { status: 400, json: { ok: false, error: `${month} is not a month (YYYY-MM)` } }; } }
+  if (path === "/market/risk-model") return { status: 200, json: { ok: true, result: { model: await log.riskModel() } } };
+  if (path === "/market/suggest") { const offer = url.searchParams.get("offer"); if (!offer) return { status: 400, json: { ok: false, error: "name an offer: /market/suggest?offer=<id>" } }; try { return { status: 200, json: { ok: true, result: await log.suggestedBond(offer) } }; } catch { return notFound(offer); } }
   if (path === "/market/dynamics") { const at = url.searchParams.get("at") ?? undefined; return { status: 200, json: { ok: true, result: await log.marketDynamics(at) } }; }
   if (path === "/market/counts") {
     const contract = url.searchParams.get("contract");

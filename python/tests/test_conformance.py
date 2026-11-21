@@ -114,3 +114,23 @@ def test_world_rule(case):
         assert code is None
     else:
         assert (code, detail) == ("GUARD_FAILED", case["expect"])
+
+
+# ---- the Market's risk model (docs/spec-deltas.md S1404) ----
+from asp_core.risk import RISK_MODEL, only_removes_rule, suggest_risk  # noqa: E402
+
+RISK = load("vectors/risk.json")
+
+
+def test_risk_model_name():
+    assert RISK["model"] == RISK_MODEL
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in RISK["suggest"]])
+def test_risk_suggest(case):
+    assert suggest_risk(case["terms"], case["input"]) == case["expected"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in RISK["onlyRemoves"]])
+def test_risk_only_removes_rule(case):
+    assert only_removes_rule(case["prev"], case["next"]) == case["expected"]

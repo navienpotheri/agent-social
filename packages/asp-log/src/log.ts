@@ -33,6 +33,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
+import { suggestRisk, type RiskInput, type RiskSuggestion, type RiskTerms, type Verification } from "./market-risk.ts";
 import { JOB_CLASSES } from "./market.ts";
 import { DYNAMICS, SKILLS, adaptationDays, demandOn, demandTable, entrantWaves, guideFromFill, mixDivergence, seasonOf, skillClass, transferShare, type Dynamics, type Guide, type JobFact, type Season, type Demand, type Wave } from "./market-dynamics.ts";
 import { seedCommitment } from "./world.ts";
@@ -2830,7 +2831,7 @@ export class EventLog {
   }
 
   /** What the Market's rules need from the log (market-rules.ts). */
-  private marketEnv(): MarketEnv { return { operator: this.operator, bondFloor: this.bondFloor, bondFloorFrom: this.bondFloorFrom, reputation: (rd, did) => this.reputation(rd, did) }; }
+  private marketEnv(): MarketEnv { return { operator: this.operator, owner: this.owner, bondFloor: this.bondFloor, bondFloorFrom: this.bondFloorFrom, reputation: (rd, did) => this.reputation(rd, did) }; }
 
   /** Every record of the given short types, in log order (read by the views). */
   async recordsOfTypes(types: string[]): Promise<AspRecord[]> {
@@ -2921,6 +2922,76 @@ export class EventLog {
     const audit = await this.creditAudit();
     if (audit.verdict !== "balanced") failures.push(`the credit supply rule is broken: ${audit.problems.join("; ")}`);
     return { ok: failures.length === 0, failures, checked: { days, entries } };
+  }
+
+  /** The risk model in force at `at` (the newest version whose `effective_from` has come), or null when none is published (market.md 13.1; DK1455, S1404). */
+  async riskModel(at?: string): Promise<{ version: number; terms: RiskTerms; effective_from: string; record: string } | null> {
+    const when = Date.parse(at ?? this.now().toISOString());
+    return this.store.transaction(async (tx) => {
+      for (let v = Number((await tx.getMarker("risk_model_head")) ?? 0); v >= 1; v--) {
+        const m = JSON.parse((await tx.getMarker(`risk_model:${v}`)) ?? "null") as { terms: RiskTerms; effective_from: string; record: string } | null;
+        if (m && Date.parse(m.effective_from) <= when) return { version: v, ...m };
+      }
+      return null;
+    });
+  }
+
+  /**
+   * What the Market suggests for an offer (market.md 13.1; DK1455, S1404): the bond and the escrow the risk model in force gives for this job, this performer and this poster, next to what the offer offers. Never binding: the log
+   * still enforces only the performer's own floor. Reproducible: the inputs are the offer, its intent, the performer's recorded floor terms and the poster's record, and the model is a record in the log.
+   */
+  async suggestedBond(offerId: string, at?: string): Promise<{ offer: string; modelVersion: number | null; offered: number; suggestion: RiskSuggestion; input: RiskInput }> {
+    const when = at ?? this.now().toISOString();
+    const offer = await this.store.getRecord(offerId);
+    if (!offer || offer.record.type !== "asp.offer/v0.2") throw new AspError("BAD_PREV", `${offerId} is not an offer in this log`);
+    const ob = offer.record.body as { intent: string; price: { value: number }; bond_offered?: { value: number } };
+    const intent = await this.store.getRecord(ob.intent);
+    if (!intent) throw new AspError("BAD_PREV", `the offer's intent ${ob.intent} is not in the log`);
+    const ib = intent.record.body as { verification?: { mode?: Verification } };
+    const raised = (await this.recordsOfTypes(["market_act"])).filter((r) => (r.body as { act: string; intent?: string; verdict?: string }).act === "class_check" && (r.body as { intent?: string }).intent === ob.intent && (r.body as { verdict?: string }).verdict === "changed_to").map((r) => (r.body as { class: JobClass }).class).at(-1);
+    const poster = await this.posterRecord(intent.record.issuer);
+    const f = await this.floorTerms(offer.record.issuer, when);
+    const input: RiskInput = {
+      price: ob.price.value, floorPermille: bondFloorPermille({ ownSlashes: f.ownSlashes, fleetSlashes: f.fleetSlashes, recentStrikes: f.recentStrikes, verifiedImprovements: f.verifiedImprovements, acceptedCleanJobs: f.acceptedCleanJobs, regressions: f.regressions, probation: f.probation }),
+      jobClass: jobNeeds(intent.record, raised).class, verification: ib.verification?.mode ?? "principal", posterLostPermille: poster.settled ? Math.round((poster.disputesLost * 1000) / poster.settled) : 0,
+    };
+    const model = await this.riskModel(when);
+    return { offer: offerId, modelVersion: model?.version ?? null, offered: ob.bond_offered?.value ?? 0, suggestion: suggestRisk(model?.terms ?? null, input), input };
+  }
+
+  /**
+   * Replay of a candidate model over the past (market.md 13.1 "replay the previous 90 days"; DK1455): for each contract settled in the window, what the model would have suggested for its bond against the bond that was locked,
+   * and for each slash whether the suggestion would have locked more. `candidate` null replays the model in force. The inputs are the contract's recorded facts and the performer's and poster's records as they are now, so the
+   * replay says what the model would lock on today's records, and a model that would have locked absurd amounts shows here before it is published.
+   */
+  async riskReplay(candidate: RiskTerms | null, days = 90, at?: string): Promise<{ days: number; contracts: number; lockedActual: number; lockedSuggested: number; slashes: number; slashedCredits: number; suggestionWouldLockMoreOnSlashed: number; maxSuggestedPermille: number }> {
+    const when = at ?? this.now().toISOString();
+    const from = Date.parse(when) - days * 86_400_000;
+    const records = await this.recordsOfTypes(["contract", "bond", "settlement", "intent"]);
+    const byId = new Map(records.map((r) => [r.id, r]));
+    const bonds = new Map<string, number>();
+    for (const r of records) if (r.type === "asp.bond/v0.2") bonds.set((r.body as { contract: string }).contract, (r.body as { amount: { value: number } }).amount.value);
+    const model = candidate ?? (await this.riskModel(when))?.terms ?? null;
+    const out = { days, contracts: 0, lockedActual: 0, lockedSuggested: 0, slashes: 0, slashedCredits: 0, suggestionWouldLockMoreOnSlashed: 0, maxSuggestedPermille: 0 };
+    for (const s of records) {
+      if (s.type !== "asp.settlement/v0.2" || Date.parse(s.issued_at) < from || Date.parse(s.issued_at) > Date.parse(when)) continue;
+      const sb = s.body as { contract: string; bond_slashed: { value: number } };
+      const c = byId.get(sb.contract);
+      if (!c) continue;
+      const cb = c.body as { performer: string; principal: string; price: { value: number }; basis?: { intent?: string } };
+      const intent = cb.basis?.intent ? byId.get(cb.basis.intent) : undefined;
+      const poster = await this.posterRecord(cb.principal);
+      const f = await this.floorTerms(cb.performer, when);
+      const input: RiskInput = {
+        price: cb.price.value, floorPermille: bondFloorPermille({ ownSlashes: f.ownSlashes, fleetSlashes: f.fleetSlashes, recentStrikes: f.recentStrikes, verifiedImprovements: f.verifiedImprovements, acceptedCleanJobs: f.acceptedCleanJobs, regressions: f.regressions, probation: f.probation }),
+        jobClass: intent ? jobNeeds(intent).class : "routine", verification: (intent?.body as { verification?: { mode?: Verification } } | undefined)?.verification?.mode ?? "principal", posterLostPermille: poster.settled ? Math.round((poster.disputesLost * 1000) / poster.settled) : 0,
+      };
+      const sg = suggestRisk(model, input);
+      const actual = bonds.get(sb.contract) ?? 0;
+      out.contracts++; out.lockedActual += actual; out.lockedSuggested += sg.bond; out.maxSuggestedPermille = Math.max(out.maxSuggestedPermille, sg.bondPermille);
+      if (sb.bond_slashed.value > 0) { out.slashes++; out.slashedCredits += sb.bond_slashed.value; if (sg.bond > actual) out.suggestionWouldLockMoreOnSlashed++; }
+    }
+    return out;
   }
 
   /**

@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 83,
-  "withdraw": 104,
+  "withdraw": 103,
   "after": 311,
-  "total": 498
+  "total": 497
  },
  "mustWorkerHours": 297.2,
  "entries": [
@@ -5893,19 +5893,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1455",
-   "pri": "A",
-   "status": "open",
-   "gap": "Bond and escrow ignore the job's risk: a poster and a performer pick a bond by hand and the Market suggests none (MK-14, DK43). The risk model is not a record, an offer carries no suggested bond and…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "DK1457",

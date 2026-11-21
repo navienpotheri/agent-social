@@ -38,6 +38,7 @@ export * from "./world.ts";
 export * from "./market.ts";
 export { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
 export * from "./market-dynamics.ts";
+export * from "./market-risk.ts";
 export * from "./registry.ts";
 export * from "./public-pages.ts";
 export * from "./courts.ts";

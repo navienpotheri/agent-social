@@ -11241,6 +11241,339 @@
         "rank": 1
       },
       "valid": false
+    },
+    {
+      "name": "valid_market_risk_model",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_market_risk_model_zero",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": 0,
+            "routine": 0,
+            "skilled": 0,
+            "critical": 0
+          },
+          "verification_permille": {
+            "deterministic": 0,
+            "principal": 0,
+            "arbiter": 0
+          },
+          "poster_permille": 0,
+          "escrow_share_permille": 1000
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "market_risk_model_no_version",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_version_zero",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 0,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_no_terms",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_no_effective",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_class_term_too_big",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": 0,
+            "routine": 0,
+            "skilled": 301,
+            "critical": 0
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_class_term_too_low",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -201,
+            "principal": 0,
+            "arbiter": 0
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_missing_class",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": 0,
+            "routine": 0,
+            "skilled": 0
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_escrow_share_low",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 499
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_escrow_share_high",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 1001
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_poster_negative",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": -1,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_extra_term",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800,
+          "tier_bonus": 10
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_float",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 12.5,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
     }
   ]
 }

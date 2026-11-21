@@ -702,6 +702,22 @@
           "description": "What keeps the Market moving, read from the log and the revealed seed: the season, demand for each skill, the guide price of each class from its fill rate, the announced operator-run entrant waves and the monitor (mix divergence, adaptation, transfer share); stopped by the kill-switch of the world (the same figures as GET /market/dynamics)"
         },
         {
+          "command": "asp market risk [show] [--at <time>] [--json]",
+          "description": "The Market's published risk model in force (extra bond by class, verification and poster record, the suggested escrow share), or that none is"
+        },
+        {
+          "command": "asp market risk suggest --offer <id> [--at <time>] [--json]",
+          "description": "The bond and escrow the Market suggests for an offer, next to what the offer offers, with each part; never binding"
+        },
+        {
+          "command": "asp market risk replay [--file <terms.json>] [--days <n>] [--json]",
+          "description": "What a candidate model (or the one in force) would have locked on the contracts settled in the last n days (default 90) against what was locked, and whether it would have locked more on the slashed ones"
+        },
+        {
+          "command": "asp market risk publish --file <terms.json> --effective <time> --by <treasury did> [--cosign-by <owner did>]",
+          "description": "Publish the next version of the risk model: the Treasury signs, the owner co-signs the first; a model that adds a term takes effect 72 hours later, one that only removes rule at once"
+        },
+        {
           "command": "asp market monthly [--month YYYY-MM] [--json]",
           "description": "The Market's monthly report (default this month): the statistics for the postings and contracts of one month (GET /market/report?month=)"
         },
