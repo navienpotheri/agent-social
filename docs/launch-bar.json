@@ -6032,7 +6032,7 @@
   {
    "id": "DK1472",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The hosted service does not yet pass what it knows about sponsors to the anti-farming report. Common control by a shared payment instrument, a verified domain or an address cluster needs facts only t…",
    "bucket": "withdraw",
    "hours": 0,

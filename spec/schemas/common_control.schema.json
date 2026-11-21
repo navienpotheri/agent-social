@@ -34,7 +34,8 @@
           "key_lineage",
           "payment",
           "domain",
-          "address"
+          "address",
+          "account"
         ]
       }
     },

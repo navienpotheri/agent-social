@@ -467,6 +467,14 @@
           "description": "Metering: a fleet's, an organisation's or an agent's usage in a UTC month counted from the log (active agents, writes, Actions, tokens, stored data; reads are the service's own counter); a signed plan (the owner sets prices); a statement that prices the month from the plan with tax lines, optionally settled with purchased credits at the plan's credit value; and a recount that checks a statement against the log"
         },
         {
+          "command": "asp lots grant --holder <did> --amount <n> --expires <date> --reference <sha256> [--refund-until <date>] --by <operator did> --cosign <owner did> | expire --lot <id> --holder <did> --by <operator did> | refund --lot <id> --holder <did> --amount <n> --by <operator did> --cosign <owner did> | show [--holder <did>] [--json]",
+          "description": "The second ledger class: the operator records a sale of purchased credits as a lot (the owner co-signs: the owner's go for each sale), the expiry of a lot and a refund inside its window; `show` prints sold, consumed, expired, refunded, outstanding and the audit verdict. The payment is not here: `--reference` is the hash of the provider's reference"
+        },
+        {
+          "command": "asp meter invoice <statement id> [--json]",
+          "description": "Prints a usage statement as an invoice (lines, tax lines, total in minor units, the plan and contract) and says whether the usage it states is what the log counts"
+        },
+        {
           "command": "asp bank account put|take --holder <did> --amount <n> | borrow|repay --amount <n> [--by <treasury did>] | interest --week <YYYY-Www> [--by <treasury did>]",
           "description": "The active Bank (S1405): put credits at the Bank and take them back with no lock (what the Bank cannot pay at once is paid in the order asked as loans come back); the Treasury borrows from the Bank and repays; the Treasury pays one completed ISO week of interest (0.25 % of what it owes), only from that week's income, the unpaid part carrying over, the Bank keeping 20 % and the depositors sharing the rest by balance and days held"
         },

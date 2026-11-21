@@ -353,6 +353,7 @@ import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
+import { serviceFarmingFacts } from "@agent-social/asp-package";
 import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
@@ -893,6 +894,9 @@ const OPTIONS = {
   "min-qualifying": { type: "string" },
   month: { type: "string" },
   persona: { type: "string" },
+  reference: { type: "string" },
+  lot: { type: "string" },
+  "refund-until": { type: "string" },
   "tax-line": { type: "string", multiple: true },
   cosign: { type: "string" },
   association: { type: "string" },
@@ -1186,6 +1190,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "collusion") return await collusionCommand(home, v, io);
     if (cmd === "farming") return await farmingCommand(home, sub, v, io);
     if (cmd === "meter") return await meterCommand(home, sub, v, io, rest);
+    if (cmd === "lots") return await lotsCommand(home, sub, v, io);
     if (cmd === "charter") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return x; };
@@ -2788,7 +2793,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const funnel = new FunnelTap({ ...(v.tokens ? { file: `${v.tokens}.funnel.json` } : {}), trustProxy: !!v["trust-proxy"] });
   const publicList = [journeyRoutes(journeySource as never), fleetRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never }), helpRoutes(), frontDoorRoutes({ onStep: (st, rq) => funnel.step(st, rq as never), doorExtra, pulse: { head: () => handle.log.head(), since: (a: number, l: number) => handle.log.since(a, l) as never }, flags: () => ({ forum: !!v.forum, "known-bad": !!v["known-bad"], commons: !!v.commons, "hosted-bots": !!v["hosted-keys"], "http-enrol": !!v["http-enrol"] }), keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend(), velocity: () => handle.log.velocity() as never }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), coursesRoutes(), sitRoutes({ onStep: (st, rq, who) => funnel.step(st, rq as never, who), log: () => handle as never, ledger: new SittingLedger(v.tokens ? `${v.tokens}.lens-sittings.jsonl` : undefined), now, registrar: () => new Keystore(aspHome(v.home ?? io.env.ASP_HOME)).forDid(REGISTRAR_DID) ?? undefined }), cohortRoutes(), storyRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never, balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; }, ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now }), ...(abuseIntake ? [abuseIntake] : []), handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(handle.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => isoWeekOf(Date.now() - 7 * 86_400_000) }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
-  const server = createLogServer({ funnel, ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  const farmingSalt = process.env.ASP_FARMING_SALT ?? (v.tokens ? createHash("sha256").update(`farming|${v.tokens}`).digest("hex") : "asp-farming-salt");
+  const server = createLogServer({ ...(didDomain && tenantSource ? { farmingFacts: async () => serviceFarmingFacts(tenantSource(), didDomain, await handle.log.sponsorDids(), farmingSalt) } : {}), funnel, ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   // The sponsor-less review (rows DK542, DK546): every --keyonly-review-interval seconds (default 300) the slashes of each key-only tenant are counted from the log; two ban its key and address and suspend the tenant,
   // one asks the Clinic for a quarantine, which the service cannot sign (the Clinic's key is the owner's): the request waits in <tokens>.keyonly-pending.json for `asp clinic keyonly-freeze`.
   if (signup && keyOnlyPending && !v["no-key-only-signup"]) {
@@ -5002,6 +5008,45 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
 
 /** asp collusion [--json]: the patterns that farm the credit reward, read from the log: pairs and rings that hire each other, one sponsor's agents settling together, one principal behind most of an agent's work (register row DK6). Exit 1 when it finds something. */
 /**
+ * asp lots grant --holder <did> --amount <n> --expires <date> --reference <sha256 of the payment reference> [--refund-until <date>] --by <operator did> --cosign <owner did> | expire --lot <id> --holder <did> --by <operator did> | refund --lot <id> --holder <did> --amount <n> --by <operator did> --cosign <owner did> | show [--holder <did>] [--json]
+ * (register row DK1370, ledger part; S1413): the operator records a sale of purchased credits (with the owner's co-signature, the owner's go for each sale), the expiry of a lot and a refund inside its window, and anyone reads
+ * the two classes. The payment itself is not here: `reference` is the hash of the payment provider's reference. Credits are accounting entries, not money.
+ */
+async function lotsCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  const n = (x: string | undefined, what: string) => { const k = Number(x); if (!Number.isInteger(k) || k < 1) throw new UsageError(`${what} is a whole number, 1 or more`); return k; };
+  const send = async (body: Record<string, unknown>, by: string, cosigner?: string) => {
+    let r = createRecord({ type: "credit_lot", issuer: by, subject: String(body.holder), prev: null, body, issued_at: now() }, signerFor(by));
+    if (cosigner) r = cosign(r, signerFor(cosigner));
+    return local.append(r);
+  };
+  if (sub === "grant") {
+    if (!v.holder || !v.amount || !v.expires || !v.reference || !v.by || !v.cosign) throw new UsageError("asp lots grant --holder <did> --amount <n> --expires <date> --reference <sha256> [--refund-until <date>] --by <operator did> --cosign <owner did>");
+    const res = await send({ act: "grant", holder: v.holder, amount: { value: n(v.amount, "--amount"), unit: "credit" }, expires: new Date(v.expires).toISOString().replace(/\.\d+Z$/, "Z"), ...(v["refund-until"] ? { refund_until: new Date(v["refund-until"]).toISOString().replace(/\.\d+Z$/, "Z") } : {}), reference: v.reference }, v.by, v.cosign);
+    io.out(`lot ${res.id}: ${v.amount} purchased credit(s) recorded for ${v.holder} (log seq ${res.seq}); they buy the platform's services and fund the holder's own agents, never a job or a third party`);
+    return 0;
+  }
+  if (sub === "expire" || sub === "refund") {
+    if (!v.lot || !v.holder || !v.by || (sub === "refund" && (!v.amount || !v.cosign))) throw new UsageError(sub === "expire" ? "asp lots expire --lot <id> --holder <did> --by <operator did>" : "asp lots refund --lot <id> --holder <did> --amount <n> --by <operator did> --cosign <owner did>");
+    let amount = v.amount ? n(v.amount, "--amount") : 0;
+    if (sub === "expire") { const c = await local.log.holderLots(v.holder); amount = c.lots.find((l) => l.id === v.lot)?.left ?? 0; if (!amount) throw new UsageError(`no purchased credits are left of ${v.lot} on ${v.holder}`); }
+    const res = await send({ act: sub, holder: v.holder, amount: { value: amount, unit: "credit" }, lot: v.lot }, v.by, sub === "refund" ? v.cosign : undefined);
+    io.out(`${amount} purchased credit(s) of ${v.lot} ${sub === "expire" ? "expired" : "refunded"} and burned (log seq ${res.seq}); ${sub === "refund" ? "the refund of money is the payment lane's, not this record's" : "nothing was paid"}`);
+    return 0;
+  }
+  if (!sub || sub === "show") {
+    const c = await local.log.creditClassAudit();
+    const holder = v.holder ? await local.log.holderLots(v.holder) : undefined;
+    if (v.json) { io.out(JSON.stringify({ classes: c, ...(holder ? { holder } : {}) }, null, 2)); return c.verdict === "balanced" ? 0 : 1; }
+    io.out(`purchased credits: sold ${c.sold}, consumed at the institutions ${c.consumed}, expired ${c.expired}, refunded ${c.refunded}, outstanding ${c.outstanding}; not sold (starter, earned) ${c.notSold}; ${c.verdict}${c.problems.length ? ": " + c.problems.join("; ") : ""}`);
+    if (holder) for (const l of holder.lots) io.out(`  ${v.holder}: lot ${l.id.slice(0, 16)}: ${l.left} left, expires ${l.expires}${l.refundUntil ? `, refundable until ${l.refundUntil}` : ""}`);
+    return c.verdict === "balanced" ? 0 : 1;
+  }
+  throw new UsageError("asp lots grant | expire | refund | show");
+}
+
+/**
  * asp meter report (--fleet <did> | --org <did> | --agent <did>) [--month <YYYY-MM>] [--json] | plan --file <plan.json> --by <operator did> --cosign <owner did> | statement --holder <org did> [--fleet <did>] --month <YYYY-MM> --plan <id> [--tax-line <name:basis points> ...] [--credits <n>] [--contract <text>] --by <operator did> | check <statement id>
  * (register row DK1379, S1414): what a fleet's, an organisation's or an agent's usage was in a UTC month, counted from the log (active agents, writes, tokens, stored data; reads are the service's own counter); a signed plan (the
  * owner sets prices); a statement that prices a month from the plan, with tax lines, optionally settled with purchased credits; and a recount that checks a statement against the log. Credits are accounting entries, not money.
@@ -5038,6 +5083,24 @@ async function meterCommand(home: string, sub: string | undefined, v: Values, io
     const res = await local.append(createRecord({ type: "usage_statement", issuer: v.by, subject: v.holder, prev: null, body, issued_at: now() }, signerFor(v.by)));
     io.out(`statement ${res.id}: ${month} for ${v.holder}${v.fleet ? ` (${v.fleet})` : ""}, ${priced.lines.length} line(s), subtotal ${priced.subtotal}, tax ${priced.tax.reduce((n, t) => n + t.amount, 0)}, total ${priced.total} ${plan.currency} (minor units)${body.credits_applied ? `, ${body.credits_applied} purchased credit(s) applied` : ""}`);
     for (const l of priced.lines) io.out(`  ${l.item}: ${l.quantity} x ${l.unit_price} = ${l.amount}`);
+    return 0;
+  }
+  if (sub === "invoice") {
+    const id = rest[0];
+    if (!id) throw new UsageError("asp meter invoice <statement id> [--json]");
+    const r = await local.log.get(id);
+    if (!r || r.record.type !== "asp.usage_statement/v0.2") throw new UsageError(`${id} is not a usage statement in this log`);
+    const b = r.record.body as { holder: string; fleet?: string; month: string; plan: string; usage: Record<string, number>; lines: { item: string; quantity: number; unit_price: number; amount: number }[]; subtotal: number; tax: { name: string; rate_bp: number; amount: number }[]; total: number; currency: string; credits_applied?: number; contract?: string };
+    const c = await local.log.checkStatement(id);
+    if (v.json) { io.out(JSON.stringify({ id, issued: r.record.issued_at, ...b, usage_matches_log: c.ok }, null, 2)); return 0; }
+    io.out(`INVOICE ${id.slice(0, 20)}   issued ${r.record.issued_at}   for ${b.holder}${b.fleet ? ` (fleet ${b.fleet})` : ""}   period ${b.month}   plan ${b.plan}${b.contract ? `   contract ${b.contract}` : ""}`);
+    for (const l of b.lines) io.out(`  ${l.item.padEnd(66)} ${String(l.quantity).padStart(8)} x ${String(l.unit_price).padStart(8)} = ${String(l.amount).padStart(10)}`);
+    io.out(`  ${"subtotal".padEnd(66)} ${String(b.subtotal).padStart(31)}`);
+    for (const t of b.tax) io.out(`  ${`${t.name} (${(t.rate_bp / 100).toFixed(2)} %)`.padEnd(66)} ${String(t.amount).padStart(31)}`);
+    io.out(`  ${`TOTAL (${b.currency}, minor units)`.padEnd(66)} ${String(b.total).padStart(31)}`);
+    if (b.credits_applied) io.out(`  settled in part with ${b.credits_applied} purchased credit(s)`);
+    io.out(`usage: ${b.usage.active_agents} active agent(s), ${b.usage.writes} write(s), ${b.usage.tokens} token(s), ${b.usage.storage_bytes} byte(s) stored; ${c.ok ? "the usage matches what the log counts" : "the log now counts differently: " + c.differences.join("; ")}`);
+    io.out("This is a statement of use computed from the signed log. Payment is arranged under the contract; credits are accounting entries, not money.");
     return 0;
   }
   if (sub === "check") {

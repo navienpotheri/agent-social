@@ -916,6 +916,13 @@ export class EventLog {
     return analyseFarming(recs, opts);
   }
 
+  /** Every identity that sponsors an agent, or is a person or organisation with a passport (S1415): who the service's facts are asked about. */
+  async sponsorDids(): Promise<string[]> {
+    const out = new Set<string>();
+    for (const r of await this.recordsOfTypes(["passport"])) { const b = r.body as { did: string; kind: string; sponsor?: string }; if (b.sponsor) out.add(b.sponsor); if (b.kind !== "agent") out.add(b.did); }
+    return [...out].sort();
+  }
+
   /** The agents sponsored by any of these sponsors (S1410): who a cluster freeze names. */
   async agentsOfSponsors(sponsors: string[]): Promise<string[]> {
     const set = new Set(sponsors);
@@ -2355,6 +2362,9 @@ export class EventLog {
     if (m.tokensIn + m.tokensOut !== b.usage.tokens) diffs.push(`tokens: the log has ${m.tokensIn + m.tokensOut}, the statement ${b.usage.tokens}`);
     return { ok: !diffs.length, differences: diffs };
   }
+
+  /** An account's purchased-credit lots (S1413): amount left, expiry and refund window of each. */
+  async holderLots(did: string): Promise<{ holder: string; lots: Lot[]; outstanding: number }> { return this.store.transaction(async (tx) => { const lots = await lotsOf(tx, canonicalAccount(did)); return { holder: did, lots, outstanding: outstanding(lots) }; }); }
 
   /** The two ledger classes (S1413, DK1370): what was sold, consumed at the institutions, expired and refunded, what is outstanding, and whether every account's purchased credits fit inside its balance and the classes add up. Read-only. */
   async creditClassAudit(): Promise<{ sold: number; consumed: number; expired: number; refunded: number; outstanding: number; notSold: number; holders: number; expiredNotBurned: number; verdict: "balanced" | "mismatch"; problems: string[] }> {
