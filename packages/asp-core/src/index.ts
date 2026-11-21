@@ -16,3 +16,4 @@ export { KNOWN_NOTICES, noticeAckProblem } from "./notice-ack.ts";
 export { JOB_DATA_TERM, KNOWN_JOB_DATA_TERMS, MAX_RETAIN_DAYS, readDataHandling, dataHandlingProblem, type DataHandling, type DataHandlingReading } from "./data-handling.ts";
 export { deriveMandate, mandateViolations, scopeCovered, type MandateLike } from "./mandate-template.ts";
 export { DEFAULT_NETWORK_RATE, hostAllowed, isNetworkScope } from "./network.ts";
+export { HIDDEN, INVARIANT_PATTERNS, lessonTextProblems, type TextProblem } from "./lesson-text.ts";

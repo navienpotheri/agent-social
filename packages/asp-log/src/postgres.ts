@@ -209,6 +209,7 @@ export class PostgresStore implements Store {
   getProbation(did: string) { return this.r.getProbation(did); }
   keysForDid(did: string) { return this.r.keysForDid(did); }
   getAccount(did: string) { return this.r.getAccount(did); }
+  getMarker(key: string) { return this.r.getMarker(key); }
   getEscrow(contract: string) { return this.r.getEscrow(contract); }
   allMints() { return this.r.allMints(); }
   /** One REPEATABLE READ, read-only transaction, so the head, accounts, mints and locks are from the same moment even while appends continue. */

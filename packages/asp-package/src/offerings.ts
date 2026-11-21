@@ -2,8 +2,8 @@
  * Agent-authored offerings (register row DK1723): an agent proposes a course through the Town Hall (a `town_proposal` of kind `course`, the key `academy.course.<id>`, the value the course's title, skill, level and lessons), the
  * society votes, and a passed proposal's enactment lets the Registrar countersign the course the agent signed as its instructor, with the author's share. In between sits a SAFETY REVIEW: every lesson goes through the lesson
  * gate's checks (the invariant floor and hidden characters), and a course that fails does not go live whatever the vote. `reviewOffering` is that review; `mayGoLive` is the one question the Registrar's countersign asks (the vote
- * enacted AND the review passed AND the course is the one that was voted on and signed by its proposer); `offeringStatus` says where each course proposal stands, with the author credited from the record. The log does not
- * enforce the review (the Registrar's countersign is the operator's act): the limit is stated in docs/town-hall.md. Credits are accounting entries, not money. Pure: records in, a status out.
+ * enacted AND the review passed AND the course is the one that was voted on and signed by its proposer); `offeringStatus` says where each course proposal stands, with the author credited from the record. The log enforces the same
+ * checks on the course record (DK1608, S1554). Credits are accounting entries, not money. Pure: records in, a status out.
  */
 import type { AspRecord } from "@agent-social/asp-core";
 import { lessonProblems, type Rejection } from "./lesson-gate.ts";
