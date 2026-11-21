@@ -38,6 +38,34 @@ The question below is open; questions 2 onward were answered or are signatures a
 20. **DK64:** publish the asp-run GitHub Action and test it once in your own pipeline (steps from launch-bar-2). [site]
 21. **DK1371:** arrange the timed walkthrough by a person with no prior knowledge (name the person later). [CLI]
 22. **T2 / U16:** do the two live cases (a laptop sleeping mid-session, a multi-GB repository) and the trial of the commands with people who have not seen the tool (steps and a list of people are prepared). [society]
+**Count of open questions: 16** (A 1 decision, B 8 signatures and approvals still to come, C 7 the owner's own live actions). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+
+## A. Decisions (a yes, no or number is enough)
+
+The earlier decisions (questions 1 to 11 of 2026-11-21) were answered (see docs/owner-decisions.md); one new decision is open, with the default taken meanwhile:
+
+1. **DK491 / DK185 (the Insurer):** the Insurer's price drivers (a tight reserve makes cover a quarter dearer, a plentiful one a tenth cheaper, a clean holder up to a fifth cheaper) and the fleet mutual pool are built and OFF until you set a date (`ASP_INSURER_DRIVERS_FROM`, an ISO time in the service's environment). Recommended default, taken until you answer: off, so the table's premiums stay the rule for the first 30 days of the beta while real data arrives, and no mutual-cover experiment is started (the pool exists for a fleet that asks). Reversible: unset the variable. [protocol]
+
+## B. Signatures and approvals still to come
+
+2. **DK1:** sign the monetary policy (approved; the sign kit is docs/owner-sign-kit.md and `asp credits ratify`). [protocol]
+3. **LW1:** the Code, draft 0.4 (with Article 3.7), is approved; sign it once as version 1.0. [site]
+4. **DK421:** the succession plan is approved; give the names of your successor and the third keyholder when you can, and sign docs/succession-plan.md. [site]
+5. **DK1340 / O19:** sign the acceptance of risks A1 to A11 of the legal review once launch-bar-2 has fixed its self-contradiction (the review is approved). [site]
+6. **DK1370:** sign the acceptance of risks S1 to S7 at the first sale (the "Selling credits" section is approved; no sale date yet). [site]
+7. **DK730:** approve the wording of the three pages (site/society.html, site/learning.html, site/place-for-agents.html) after the formal rewrite. [site]
+8. **DK1204:** publish the forum price list with the forum go-live (an owner action, no decision left). [site]
+9. **DK1727 (editorial pass):** confirm the audience of each document (internal, public site, signed, investor or enterprise) and give the last read before anything goes live; the reading pack is approved for now as working drafts. [site]
+
+## C. The owner's own live actions (about two hours at deployment; docs/owner-live-block.md; the kits: docs/live-check-kit.md for the live checks and docs/owner-sign-kit.md for the signatures)
+
+10. **DK95 / DK9:** run the unsigned-mint adoption and the hosted-database steps once at deployment (exact commands in the deployment kit). [protocol, CLI]
+11. **O18:** run suspend, resume, block and unblock on the deployed service and paste the audit trail. [CLI]
+12. **DK1411:** check the encryption of the boot disk, the data disk and the backups in the Google Cloud console and send the result (the claim stays off until then). [site]
+13. **DK34 / X6 / X7:** take the forum live with the deployment, after the host and the monitor, and record the live check. [site]
+14. **DK64:** publish the asp-run GitHub Action and test it once in your own pipeline (steps from launch-bar-2). [site]
+15. **DK1371:** arrange the timed walkthrough by a person with no prior knowledge (name the person later). [CLI]
+16. **T2 / U16:** do the two live cases (a laptop sleeping mid-session, a multi-GB repository) and the trial of the commands with people who have not seen the tool (steps and a list of people are prepared). [society]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 

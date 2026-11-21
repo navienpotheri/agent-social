@@ -35,7 +35,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
-import { dataHandlingProblem, noticeAckProblem, type DataHandling } from "@agent-social/asp-core";
+import { dataHandlingProblem, noticeAckProblem, privateScopesProblem, type DataHandling } from "@agent-social/asp-core";
 import { allowedInWindow, hireCycles, tripped, type Hire as BreakerHire } from "./fleet-breaker.ts";
 import { buildAuditExport, type AuditManifest } from "./audit-export.ts";
 import { creditsFor, meterOf, priceStatement, type Plan, type Usage, type AgentUsage } from "./metering.ts";
@@ -43,6 +43,7 @@ import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type L
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
+import { projectAgentMessage, projectMessageBlock } from "./messages.ts";
 import { dynamicsLine, stressReplay, type DynamicsLine, type StressEvent, type StressResult } from "./insurer-stress.ts";
 import { basketRatio, dormancyShare, claimsInDay, type BasketReport } from "./guard-basket.ts";
 import { sizeBond, sizeBondSplit, modelPremium, type BondSuggestion, type SplitSuggestion } from "./bond-sizing.ts";
@@ -170,6 +171,8 @@ export interface EventLogOptions {
   /** From this time the Insurer's price drivers decide the premium a policy is sold at (S1567, DK491); before it, or with no value, the table's premium is the rule. `insurerSeed` seeds the premium holidays (default "asp-insurer"). */
   insurerDriversFrom?: string;
   insurerSeed?: string;
+  /** Refuse a node grant that cites no Mandate (T22, S1594). Default off (single-player mode keeps its bookkeeping grants); the hosted service turns it on with ASP_NODE_REQUIRES_MANDATE=1. */
+  requireNodeMandate?: boolean;
   /** The time from which a bond's floor reads the decayed job count and the Clinic's measured terms (DK313, S1201). Default `FLOOR_MEASURED_FROM`. */
   floorMeasuredFrom?: string;
   /** The time from which a record's panel is drawn by v2 (one seat for each funding source); before it, v1. Default `PANEL_DRAW_V2_FROM`. */
@@ -284,6 +287,7 @@ export class EventLog {
   private readonly panelSize: number;
   private readonly bankEnv: BankEnv = { reputation: (tx, did) => this.gatedReputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
   private insurerDrivers?: InsurerDrivers;
+  private requireNodeMandate = false;
   private get insurerEnv(): InsurerEnv { return { ...(this.insurerDrivers ? { drivers: this.insurerDrivers } : {}), ...this.insurerEnvBase }; }
   private readonly insurerEnvBase: InsurerEnv = { reputation: (tx, did) => this.gatedReputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
 
@@ -308,6 +312,7 @@ export class EventLog {
     if (opts.bondFloorFrom !== undefined && !Number.isFinite(Date.parse(opts.bondFloorFrom))) throw new Error(`bondFloorFrom must be an ISO time, got ${opts.bondFloorFrom}`);
     this.bondFloorFrom = opts.bondFloorFrom;
     // The owner's switch for the Insurer's price drivers: the option, or the environment of the service (ASP_INSURER_DRIVERS_FROM, an ISO time; ASP_INSURER_SEED); a replica must be started with the same value to replay the same premiums.
+    this.requireNodeMandate = opts.requireNodeMandate ?? (process.env.ASP_NODE_REQUIRES_MANDATE === "1");
     const driversFrom = opts.insurerDriversFrom ?? process.env.ASP_INSURER_DRIVERS_FROM;
     if (driversFrom !== undefined && driversFrom !== "") { if (!Number.isFinite(Date.parse(driversFrom))) throw new Error(`insurerDriversFrom must be an ISO time, got ${driversFrom}`); this.insurerDrivers = { from: driversFrom, seed: opts.insurerSeed ?? process.env.ASP_INSURER_SEED ?? "asp-insurer" }; }
     if (opts.panelV2From !== undefined && !Number.isFinite(Date.parse(opts.panelV2From))) throw new Error(`panelV2From must be an ISO time, got ${opts.panelV2From}`);
@@ -322,7 +327,7 @@ export class EventLog {
 
   /** The options a replay needs to judge the same records the same way. */
   private replayOptions(): EventLogOptions {
-    return { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor, ...(this.bondFloorFrom ? { bondFloorFrom: this.bondFloorFrom } : {}), ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}), ...(this.floorMeasuredFrom ? { floorMeasuredFrom: this.floorMeasuredFrom } : {}), ...(this.insurerDrivers ? { insurerDriversFrom: this.insurerDrivers.from, insurerSeed: this.insurerDrivers.seed } : {}), operator: this.operator, owner: this.owner };
+    return { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor, ...(this.bondFloorFrom ? { bondFloorFrom: this.bondFloorFrom } : {}), ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}), ...(this.floorMeasuredFrom ? { floorMeasuredFrom: this.floorMeasuredFrom } : {}), ...(this.insurerDrivers ? { insurerDriversFrom: this.insurerDrivers.from, insurerSeed: this.insurerDrivers.seed } : {}), requireNodeMandate: this.requireNodeMandate, operator: this.operator, owner: this.owner };
   }
 
   append(raw: unknown): Promise<AppendResult> {
@@ -366,6 +371,8 @@ export class EventLog {
 
     let snapshot: JobSnapshot | null = null;
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
+    if (type === "agent_message") await projectAgentMessage(tx, verified);
+    if (type === "message_block") await projectMessageBlock(tx, verified);
     if (type === "contract") { this.checkSelfHire(verified); const dh = dataHandlingProblem((verified.body as { data_handling?: DataHandling }).data_handling); if (dh) throw rule(dh.rule, dh.message); }
     if (kind === "contract") {
       const job = chain?.snapshot ? Job.fromSnapshot(chain.snapshot, { schemas: this.schemas }) : new Job({ schemas: this.schemas });
@@ -1086,6 +1093,8 @@ export class EventLog {
       if (!body.mandate) throw rule("delegation_needs_mandate", "a residency delegation cites the Mandate it works under: a host key is never limited by the 24-hour cap alone");
       if (body.host !== HOST_DID) throw rule("delegation_wrong_host", `a residency delegation names the city host (${HOST_DID}) in host, not ${body.host ?? "nothing"}`);
     } else if (body.host) throw rule("delegation_host_without_purpose", "host belongs to a residency delegation (purpose residency)");
+    // An unbound node grant (T22, S1594): with the log's option `requireNodeMandate` (or ASP_NODE_REQUIRES_MANDATE=1 in the service's environment) a node key that cites no Mandate is refused, so a helper key is always bounded by a Mandate's `nodes.max_parallel` and expiry, never by the 24-hour cap alone. A revocation (expires at or before issued_at) is always allowed, so an unbound grant made earlier can still be ended.
+    if (this.requireNodeMandate && !body.mandate && after(body.expires, r.issued_at)) throw rule("node_needs_mandate", "a node grant cites the Mandate it works under: a helper key is bounded by that Mandate's parallel limit and expiry, never by the 24-hour cap alone"+" (asp orchestrate --mandate <id>)");
     if (body.mandate) {
       const m = await tx.getRecord(body.mandate);
       if (!m || m.record.type !== "asp.mandate/v0.2") throw rule("node_mandate_unknown", `${body.mandate} is not a Mandate in this log`);
@@ -1499,7 +1508,8 @@ export class EventLog {
   /** Tracks a contract's current Mandate scopes, so a later Action report can be checked against it. */
   /** Approval gates: every scope the Mandate gates (or forbids) must be one it actually grants. */
   private checkMandateGates(r: AspRecord): void {
-    const body = r.body as { scopes: string[]; irreversible?: { scopes?: string[] } };
+    const body = r.body as { scopes: string[]; irreversible?: { scopes?: string[] }; learning?: { private_scopes?: unknown } };
+    if (privateScopesProblem(body.learning?.private_scopes)) throw rule("private_scopes_invalid", "learning.private_scopes is at most 16 distinct names of 1 to 64 characters from a-z 0-9 - _");
     const stray = (body.irreversible?.scopes ?? []).filter((s) => !body.scopes.includes(s));
     if (stray.length) throw rule("gate_not_granted", `irreversible.scopes names scope(s) the Mandate does not grant: ${stray.join(", ")}`);
   }
@@ -2763,6 +2773,11 @@ export class EventLog {
     if (bad) throw rule(bad.rule, bad.message);
     if (b.agent && r.issuer !== b.agent && (await tx.getPassport(b.agent))?.sponsor !== r.issuer) throw rule("notice_ack_wrong_issuer", `${r.issuer} is neither ${b.agent} nor its sponsor: only an agent or its sponsor acknowledges for it`);
     await tx.putMarker(`notice_ack:${r.issuer}|${b.notice}`, JSON.stringify({ id: r.id, notice: b.notice, statement_sha256: b.statement_sha256, at: r.issued_at, ...(b.agent ? { agent: b.agent } : {}), count: Number(JSON.parse((await tx.getMarker(`notice_ack:${r.issuer}|${b.notice}`)) ?? "{}").count ?? 0) + 1 }));
+  }
+
+  /** The messages an agent has sent and received (S1595, DK1346): counts only; the texts are the service's, sealed. Reads only. */
+  async messageCounts(did: string): Promise<{ sent: number; received: number }> {
+    return this.store.transaction(async (tx) => ({ sent: Number((await tx.getMarker(`msg_out:${did}`)) ?? 0), received: Number((await tx.getMarker(`msg_in:${did}`)) ?? 0) }));
   }
 
   /** The acknowledgement in force for an issuer and a notice (the latest), or null (S1591). Reads only. */

@@ -38,7 +38,7 @@ export const INSTITUTION_OF: Record<string, Institution> = {
   intent: "market", offer: "market", contract: "market", bond: "market", mandate: "market", delivery: "market", attestation: "market", settlement: "market", checkpoint: "market",
   market_act: "market", proposal: "market", call: "market", standing_order: "market",
   // the bank and the insurer
-  bank_statement: "bank", credit_line: "bank", credit_default: "bank", debt_payment: "bank", deposit_act: "bank", bank_act: "bank", credit_lot: "treasury", emergency_stop: "treasury", run_halt: "market", incident: "clinic", standing_adjustment: "courts", treasury_return: "treasury", mutual_act: "insurer", notice_ack: "registry", key_handover: "registry", town_proposal: "forum", town_vote: "forum", town_tally: "forum", town_enactment: "forum", usage_plan: "treasury", usage_statement: "treasury", related_party_attestation: "registry", mandate_template: "registry", mandate_narrowing: "registry", fleet_node: "registry", fleet_move: "registry", common_control: "registry",
+  bank_statement: "bank", credit_line: "bank", credit_default: "bank", debt_payment: "bank", deposit_act: "bank", bank_act: "bank", credit_lot: "treasury", emergency_stop: "treasury", run_halt: "market", incident: "clinic", standing_adjustment: "courts", treasury_return: "treasury", mutual_act: "insurer", notice_ack: "registry", agent_message: "forum", message_block: "forum", key_handover: "registry", town_proposal: "forum", town_vote: "forum", town_tally: "forum", town_enactment: "forum", usage_plan: "treasury", usage_statement: "treasury", related_party_attestation: "registry", mandate_template: "registry", mandate_narrowing: "registry", fleet_node: "registry", fleet_move: "registry", common_control: "registry",
   policy: "insurer", claim: "insurer", claim_decision: "insurer",
   // the academy: courses, exams, certificates, tiers
   course: "academy", enrolment: "academy", completion: "academy", exam: "academy", exam_result: "academy", certificate: "academy", certificate_revocation: "academy", tier_promotion: "academy",
@@ -260,6 +260,8 @@ export function stepOf(s: StoredRec, did: string, ctx: JourneyCtx, view: "public
       return mk("sponsored", `${me} registered ${labelOf(String(b.did))} as an agent it answers for`);
     case "mint": return mk("credits_in", `${me} received ${num(b.amount) ?? "some"} mock credits (${String(b.reason ?? "mint")})`, { flow: { dir: "in", credits: num(b.amount) ?? 0, why: String(b.reason ?? "mint") } });
     case "starter_claim": return mk("credits_in", `${me} claimed the ${String(b.part)} part of its starter credits${pay(num(b.amount))}`, { flow: { dir: "in", credits: num(b.amount) ?? 0, why: "starter" } });
+    case "agent_message": return b.to === did ? mk("message_received", `${me} received a ${String(b.kind ?? "note")} from another agent`) : mk("message_sent", `${me} sent a ${String(b.kind ?? "note")} to another agent`);
+    case "message_block": return mk(String(b.act) === "block" ? "message_blocked" : "message_unblocked", `${me} ${String(b.act) === "block" ? "blocked" : "unblocked"} another agent's messages`);
     case "enrolment": return mk("enrolled", `${me} enrolled in a course (${String(b.course ?? "").slice(7, 19)})`);
     case "completion": return mk("completed", `${me} completed a course`);
     case "certificate": return mk("certificate", `${me} earned the ${String(b.skill)} certificate, level ${String(b.level)}`);

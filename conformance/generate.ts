@@ -696,6 +696,11 @@ const codeRef = { version: "0.3", sha256: "6e2b9c9d3df853aa0d63e59b5a05b91cdf2ec
 sv("valid_report_ruling_upheld", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: codeRef }, true);
 sv("report_ruling_upheld_without_code", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld" }, false);
 sv("valid_report_ruling_dismissed_without_code", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "dismissed" }, true);
+sv("valid_ruling_outside_mandate", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "for_principal", fault: { "did:web:example.com:agents:coder": 1000 }, outside_mandate: ["did:web:example.com:agents:coder"] }, true);
+sv("ruling_outside_mandate_empty", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "for_principal", fault: { "did:web:example.com:agents:coder": 1000 }, outside_mandate: [] }, false);
+sv("ruling_outside_mandate_not_a_did", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "for_principal", fault: { "did:web:example.com:agents:coder": 1000 }, outside_mandate: ["the coder"] }, false);
+sv("ruling_outside_mandate_duplicate", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "for_principal", fault: { "did:web:example.com:agents:coder": 1000 }, outside_mandate: ["did:web:example.com:agents:coder", "did:web:example.com:agents:coder"] }, false);
+sv("acceptance_with_outside_mandate", "attestation", { kind: "acceptance", about: fakeId("d"), verdict: "accepted", outside_mandate: ["did:web:example.com:agents:coder"] }, false);
 sv("valid_ruling_citing_code", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "split", fault: { "did:web:example.com:agents:coder": 500 }, code: { version: "0.3", articles: ["3"] } }, true);
 sv("code_without_articles", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: [] } }, false);
 sv("code_article_out_of_range", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: ["13"] } }, false);
@@ -730,6 +735,22 @@ sv("verification_bad_verdict", "attestation", { kind: "verification", about: fak
 sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
 sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
 sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
+// ---------- direct messages (spec-deltas S1595, register row DK1346): schema cases ----------
+const dmBody = (over: Record<string, unknown> = {}) => ({ to: "did:web:example.com:agents:coder-7", kind: "note", body_sha256: "b".repeat(64), bytes: 120, ...over });
+sv("valid_agent_message", "agent_message", dmBody(), true);
+sv("valid_agent_message_reply", "agent_message", dmBody({ kind: "reply", reply_to: "sha256:" + "8".repeat(64) }), true);
+sv("agent_message_no_hash", "agent_message", (({ body_sha256: _h, ...r }) => r)(dmBody()), false);
+sv("agent_message_uppercase_hash", "agent_message", dmBody({ body_sha256: "B".repeat(64) }), false);
+sv("agent_message_zero_bytes", "agent_message", dmBody({ bytes: 0 }), false);
+sv("agent_message_too_big", "agent_message", dmBody({ bytes: 4097 }), false);
+sv("agent_message_unknown_kind", "agent_message", dmBody({ kind: "shout" }), false);
+sv("agent_message_carries_the_text", "agent_message", dmBody({ text: "hello" }), false);
+sv("agent_message_to_not_a_did", "agent_message", dmBody({ to: "coder-7" }), false);
+const mbBody = (over: Record<string, unknown> = {}) => ({ act: "block", blocked: "did:web:example.com:agents:spammer-1", ...over });
+sv("valid_message_block", "message_block", mbBody(), true);
+sv("valid_message_unblock_by_sponsor", "message_block", mbBody({ act: "unblock", blocker: "did:web:example.com:agents:coder-7" }), true);
+sv("message_block_unknown_act", "message_block", mbBody({ act: "mute" }), false);
+sv("message_block_no_target", "message_block", (({ blocked: _b, ...r }) => r)(mbBody()), false);
 // ---------- the notice acknowledgement (spec-deltas S1591, register row US8): schema cases and the shared validation ----------
 const ackBody = (over: Record<string, unknown> = {}) => ({ notice: "asp.my-data/v1", statement_sha256: "a".repeat(64), ...over });
 sv("valid_notice_ack", "notice_ack", ackBody(), true);
@@ -1690,9 +1711,26 @@ const worldRules = [
     ["a_dropped_token_limit", { token_budget: { per_run: 40000 } }], ["a_dropped_daily_cap", { token_budget: { per_run: 40000, per_month: 800000 } }], ["a_higher_daily_cap", { token_budget: { per_run: 40000, per_month: 800000, per_day: 400000 } }],
     ["lower_loop_limits", { loop_limits: { equivalent_calls: 5, depth: 2, near_repeats: 9 } }], ["more_equivalent_calls", { loop_limits: { equivalent_calls: 9, depth: 3, near_repeats: 12 } }], ["deeper_recursion", { loop_limits: { equivalent_calls: 8, depth: 4, near_repeats: 12 } }], ["more_near_repeats", { loop_limits: { equivalent_calls: 8, depth: 3, near_repeats: 13 } }], ["a_dropped_near_limit", { loop_limits: { equivalent_calls: 8, depth: 3 } }], ["a_dropped_loop_limit", { loop_limits: { depth: 3, near_repeats: 12 } }], ["a_redact_mode", { outbound_scan: { mode: "redact", kinds: ["secret", "card number"] } }], ["a_dropped_outbound_kind", { outbound_scan: { mode: "block", kinds: ["secret"] } }], ["an_added_outbound_kind", { outbound_scan: { mode: "block", kinds: ["secret", "card number", "email address"] } }], ["no_outbound_scan", { outbound_scan: undefined }], ["no_outbound_mode", { outbound_scan: { kinds: ["secret", "card number"] } }], ["no_loop_limits", { loop_limits: undefined }], ["no_token_budget", { token_budget: undefined }],
   ].map(([name, over]) => ({ name: name as string, ceiling: T, candidate: { ...T, ...(over as object) } }));
+  // private scopes (spec-deltas S1593): only ever narrowed, absent reads as none
+  {
+    const TP = { ...T, learning: { ...(T.learning as object), private_scopes: ["notes", "plans"] } };
+    const learn = (over: Record<string, unknown>) => ({ ...TP.learning, ...over });
+    for (const [name, ceiling, learning] of [
+      ["private_scopes_the_same", TP, learn({})], ["private_scopes_a_subset", TP, learn({ private_scopes: ["notes"] })], ["private_scopes_none_left", TP, learn({ private_scopes: [] })],
+      ["private_scopes_a_name_added", TP, learn({ private_scopes: ["notes", "secrets"] })], ["private_scopes_a_different_name", TP, learn({ private_scopes: ["secrets"] })],
+      ["private_scopes_dropped_is_none", TP, (({ private_scopes: _p, ...r }) => r)(TP.learning as Record<string, unknown>)],
+      ["private_scopes_added_to_a_ceiling_with_none", T, { ...(T.learning as object), private_scopes: ["notes"] }], ["private_scopes_none_under_none", T, T.learning],
+    ] as [string, Record<string, unknown>, unknown][]) cases.push({ name, ceiling, candidate: { ...ceiling, learning } });
+  }
   const mt = {
     version: "asp.conformance/v0.2",
     violations: cases.map((c) => ({ ...c, expected: mandateViolations(c.ceiling, c.candidate) })),
+    privateScopes: [
+      ["absent", undefined, null], ["empty", [], null], ["one name", ["notes"], null], ["all the characters", ["a-z_0-9"], null], ["sixteen names", Array.from({ length: 16 }, (_, i) => `s${i}`), null], ["a name of 64 characters", ["a".repeat(64)], null],
+      ["seventeen names", Array.from({ length: 17 }, (_, i) => `s${i}`), "private_scopes_invalid"], ["a duplicate", ["notes", "notes"], "private_scopes_invalid"], ["an empty name", [""], "private_scopes_invalid"],
+      ["a name of 65 characters", ["a".repeat(65)], "private_scopes_invalid"], ["an uppercase name", ["Notes"], "private_scopes_invalid"], ["a name with a space", ["my notes"], "private_scopes_invalid"], ["a name with a slash", ["a/b"], "private_scopes_invalid"],
+      ["a name that is not a string", [7], "private_scopes_invalid"], ["not a list", "notes", "private_scopes_invalid"],
+    ].map(([name, input, problem]) => ({ name, input: input ?? null, problem })),
     derive: [
       { name: "no_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: null },
       { name: "a_valid_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: { scopes: ["repo.read"], spend: { cap: 40, unit: "credit", per_action_max: 5 } } },

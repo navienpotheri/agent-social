@@ -2991,6 +2991,82 @@
       "valid": true
     },
     {
+      "name": "valid_ruling_outside_mandate",
+      "schema": "attestation",
+      "instance": {
+        "kind": "ruling",
+        "about": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "verdict": "for_principal",
+        "fault": {
+          "did:web:example.com:agents:coder": 1000
+        },
+        "outside_mandate": [
+          "did:web:example.com:agents:coder"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "ruling_outside_mandate_empty",
+      "schema": "attestation",
+      "instance": {
+        "kind": "ruling",
+        "about": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "verdict": "for_principal",
+        "fault": {
+          "did:web:example.com:agents:coder": 1000
+        },
+        "outside_mandate": []
+      },
+      "valid": false
+    },
+    {
+      "name": "ruling_outside_mandate_not_a_did",
+      "schema": "attestation",
+      "instance": {
+        "kind": "ruling",
+        "about": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "verdict": "for_principal",
+        "fault": {
+          "did:web:example.com:agents:coder": 1000
+        },
+        "outside_mandate": [
+          "the coder"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "ruling_outside_mandate_duplicate",
+      "schema": "attestation",
+      "instance": {
+        "kind": "ruling",
+        "about": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "verdict": "for_principal",
+        "fault": {
+          "did:web:example.com:agents:coder": 1000
+        },
+        "outside_mandate": [
+          "did:web:example.com:agents:coder",
+          "did:web:example.com:agents:coder"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "acceptance_with_outside_mandate",
+      "schema": "attestation",
+      "instance": {
+        "kind": "acceptance",
+        "about": "sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4",
+        "verdict": "accepted",
+        "outside_mandate": [
+          "did:web:example.com:agents:coder"
+        ]
+      },
+      "valid": false
+    },
+    {
       "name": "valid_ruling_citing_code",
       "schema": "attestation",
       "instance": {
@@ -3603,6 +3679,142 @@
         "verifier": "did:web:example.com:agents:verifier"
       },
       "valid": true
+    },
+    {
+      "name": "valid_agent_message",
+      "schema": "agent_message",
+      "instance": {
+        "to": "did:web:example.com:agents:coder-7",
+        "kind": "note",
+        "body_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 120
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_agent_message_reply",
+      "schema": "agent_message",
+      "instance": {
+        "to": "did:web:example.com:agents:coder-7",
+        "kind": "reply",
+        "body_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 120,
+        "reply_to": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+      },
+      "valid": true
+    },
+    {
+      "name": "agent_message_no_hash",
+      "schema": "agent_message",
+      "instance": {
+        "to": "did:web:example.com:agents:coder-7",
+        "kind": "note",
+        "bytes": 120
+      },
+      "valid": false
+    },
+    {
+      "name": "agent_message_uppercase_hash",
+      "schema": "agent_message",
+      "instance": {
+        "to": "did:web:example.com:agents:coder-7",
+        "kind": "note",
+        "body_sha256": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+        "bytes": 120
+      },
+      "valid": false
+    },
+    {
+      "name": "agent_message_zero_bytes",
+      "schema": "agent_message",
+      "instance": {
+        "to": "did:web:example.com:agents:coder-7",
+        "kind": "note",
+        "body_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "agent_message_too_big",
+      "schema": "agent_message",
+      "instance": {
+        "to": "did:web:example.com:agents:coder-7",
+        "kind": "note",
+        "body_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 4097
+      },
+      "valid": false
+    },
+    {
+      "name": "agent_message_unknown_kind",
+      "schema": "agent_message",
+      "instance": {
+        "to": "did:web:example.com:agents:coder-7",
+        "kind": "shout",
+        "body_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 120
+      },
+      "valid": false
+    },
+    {
+      "name": "agent_message_carries_the_text",
+      "schema": "agent_message",
+      "instance": {
+        "to": "did:web:example.com:agents:coder-7",
+        "kind": "note",
+        "body_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 120,
+        "text": "hello"
+      },
+      "valid": false
+    },
+    {
+      "name": "agent_message_to_not_a_did",
+      "schema": "agent_message",
+      "instance": {
+        "to": "coder-7",
+        "kind": "note",
+        "body_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 120
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_message_block",
+      "schema": "message_block",
+      "instance": {
+        "act": "block",
+        "blocked": "did:web:example.com:agents:spammer-1"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_message_unblock_by_sponsor",
+      "schema": "message_block",
+      "instance": {
+        "act": "unblock",
+        "blocked": "did:web:example.com:agents:spammer-1",
+        "blocker": "did:web:example.com:agents:coder-7"
+      },
+      "valid": true
+    },
+    {
+      "name": "message_block_unknown_act",
+      "schema": "message_block",
+      "instance": {
+        "act": "mute",
+        "blocked": "did:web:example.com:agents:spammer-1"
+      },
+      "valid": false
+    },
+    {
+      "name": "message_block_no_target",
+      "schema": "message_block",
+      "instance": {
+        "act": "block"
+      },
+      "valid": false
     },
     {
       "name": "valid_notice_ack",
