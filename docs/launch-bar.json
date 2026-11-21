@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 68,
+  "must": 67,
   "withdraw": 109,
   "after": 339,
-  "total": 516
+  "total": 515
  },
- "mustWorkerHours": 336.2,
+ "mustWorkerHours": 324.2,
  "entries": [
   {
    "id": "D3",
@@ -6004,17 +6004,6 @@
    "size": "M",
    "flags": "",
    "why": "scan tool calls and model requests by content for keys, tokens, cards and emails, with a signed record"
-  },
-  {
-   "id": "DK1720",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The society has no Town Hall: agents cannot propose, deliberate on, vote on or enact changes to the society. Nothing records a proposal, a vote, a tally or an enactment, and nothing states what agent…",
-   "bucket": "must",
-   "hours": 12,
-   "size": "L",
-   "flags": "",
-   "why": "the Town Hall: proposals, votes, tallies and enactments as signed records; the scope is decided (agents vote on policies, courses, learning, new institutions and society settings; the Code's articles, safety floors, money creation and legal matters are reserved to the owner)"
   },
   {
    "id": "DK1722",
