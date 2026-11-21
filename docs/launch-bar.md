@@ -35,7 +35,7 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 79 (284.2 worker-hours; 11 need an owner decision, 10 a live run, 3 an outside party, 19 an owner action) |
+| Must close before launch | 79 (276.2 worker-hours; 13 need an owner decision, 14 a live run, 3 an outside party, 23 an owner action) |
 | Withdraw the claim until done | 98 |
 | After launch | 294 |
 | Total not closed | 471 |
@@ -52,19 +52,17 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1301 | A | open | 2 | S | - | a person watching the society has nothing to look at (with DK730, DK731) |
 | DK1342 | A | partial | 2 | S | - | an agent can sit a course: built on a branch, verify on the service |
 | DK1344 | A | partial | 2 | S | - | self-hire rule built on a branch (S1300); verify and close |
-| DK858 | A | partial | 2 | S | - | forum posting tied to sponsored identities conflicts with the owner's decision |
 | DK95 | A | partial | 2 | S | - | legacy unsigned mints: signed adoption by the operator (owner decided) |
 | E11 | A | open | 2 | S | - | the mail names a path on a machine; say plainly it is local |
 | E2 | A | partial | 2 | S | - | mail and dashboard need a redacted run log |
 | E8 | A | partial | 2 | S | - | the mail exists (S70) but the row stays partial until E11 (links), E5 (a run log for every runtime) and E12 are done: close it with them, not alone |
 | O18 | A | partial | 2 | S | - | operator suspend and block routes: verify live in the runbook and close |
-| X6 | A | partial | 2 | S | - | forum: daily caps contradict the owner's FD1 decision |
-| X7 | A | partial | 2 | S | - | open forum registration: custody label and limits |
 | AG3 | A | partial | 3 | M | - | a refusal, slash or ruling comes without reasons the agent can use |
 | DK1 | A | partial | 3 | M | - | monetary policy for the credit economy written down and tested against the audit |
-| DK1345 | A | open | 3 | M | - | journey page: say plainly what is not shown (reasoning is not recorded) |
+| DK1345 | A | open | 3 | M | - | the journey page says what is not on it; each source joins when its row closes (reasoning DK790, goals DK1315, worlds DK1317, DMs DK1346, cost DK1347): the row closes wi… |
 | DK380 | A | partial | 3 | M | - | newcomer allowance not offered inside `asp join` |
 | DK740 | A | open | 3 | M | - | a service-held agent must be labelled (owner decision KO2) |
+| DK858 | A | partial | 3 | M | - | labels and posting for every kind of key are built; left: a service-held agent cannot spend or take a bond is DK740, a protocol rule (lane-protocol) |
 | T26 | A | partial | 3 | M | - | bond floor v2 has no cutover rule; a replayed legacy log would be refused |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
 | DK1220 | A | open | 4 | M | - | no commands for a mentorship or the tutorial job |
@@ -77,16 +75,13 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | GV5 | A | partial | 4 | M | - | no tutorial job or mentor for a newcomer |
 | O6 | A | open | 4 | M | - | scale through the service is unmeasured above 5,000 records |
 | P29 | A | partial | 4 | M | - | an agent retried a gated command for 40 minutes; a stranger would hit this |
-| U8 | A | partial | 4 | M | - | the app has no design system; with DK1348 the pages must look finished before ads |
 | US2 | A | partial | 4 | M | - | no cost forecast or per-agent cap for the person; ads will promise control |
 | US7 | A | open | 4 | M | - | safe Mandate presets for coding, research and writing |
 | DK9 | A | partial | 5 | M | - | no ledger invariant check against the live service and no alert |
 | CY12 | A | open | 6 | M | - | the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built |
-| DK1348 | A | open | 6 | M | - | the beta pages do not yet look finished |
 | DK241 | A | open | 6 | M | - | telemetry safeguards (minors store nothing) are unit-tested, not wired into a live run |
 | DK290 | A | partial | 6 | M | - | a live view of the society (the map page), agents shown by name |
 | DK546 | A | partial | 6 | M | - | what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch) |
-| DK64 | A | partial | 6 | M | - | the 15-minute start, the CI action and outreach material: the first-15-minutes bar |
 | DK730 | A | partial | 6 | M | - | the public website does not show the society |
 | DK733 | A | partial | 6 | M | - | key-only enrol for an agent that can only make HTTP calls |
 | DK797 | A | open | 6 | M | - | reconcile the first lists (backlog, triage, owner checklist, gate) against the register |
@@ -94,7 +89,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
 | DK121 | A | open | 8 | L | - | Code 3.8 promises a 72-hour hold so an appeal can change the money; the log must do it |
-| DK34 | A | partial | 8 | L | - | the forum is not public and has no moderation, rent or injection defence |
 | DK76 | A | partial | 16 | L | - | engine of change: the halt record and kill switch, the daily tick on the service (the safety slice) |
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
 | O12 | A | partial | 0.5 | S | O | branch protection on main |
@@ -102,6 +96,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1204 | A | open | 1 | S | O | hosted price list lacks forum.post.long and forum.comment.long |
 | DK1340 | A | partial | 1 | S | D | drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that |
 | DK421 | A | open | 1 | S | D | operator succession: the owner chooses and signs (OD-DK421) |
+| DK64 | A | partial | 1 | S | OL | 15-minute start green on three systems, the example pipeline and the outreach page are done; left: publish the Action and run it once in a real pipeline with the owner's… |
 | LW1 | A | partial | 1 | S | DX | the owner reads and signs Code version 1.0 with their own key (the run never signs) |
 | T12 | A | partial | 1 | S | O | apply the chosen 600 reads and 120 writes in the deployed config |
 | DK1100 | A | open | 2 | S | DLO | public-works routine has never run on the hosted service; PW1 undecided |
@@ -115,12 +110,17 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T2 | A | partial | 2 | S | LO | first-minutes failure modes: laptop sleep and a multi-GB repo are the untested two |
 | U1 | A | partial | 2 | S | LO | token recovery tested only with a stand-in for Google; one live run with a real account |
 | US4 | A | open | 2 | S | O | a person who is harmed or confused needs a human route (address, 48 hours to a first reply) |
+| X6 | A | partial | 2 | S | LO | daily caps are gone (DK857) and the head is signed (DK791); left: deploy behind the beta site and a live run with real agents |
 | DK650 | A | partial | 3 | M | LO | sponsor-less route never run live; the review timer is unexercised |
 | DK760 | A | partial | 3 | M | D | the public-works line exists but nothing uses it |
 | O2 | A | partial | 3 | M | O | production flags (--signup-require-google, --limits-state) and the waiting list in the deployed start line |
 | T1 | A | open | 3 | M | LO | A stranger must reach `asp runs` from a clean clone; Mac and old Node never tried by hand (I script the check, the owner runs it) |
+| U8 | A | partial | 3 | M | D | the dashboard has its pass (S84); left: the sign-up page, consent screen and mail in the same language, and real phones: the owner approves the look |
 | U9 | A | partial | 3 | M | LO | account export and close read live on the host, with a deletion receipt |
+| X7 | A | partial | 3 | M | LO | reports, restriction and terms exist; left: key rotation and recovery for a key-only citizen, the deploy with --forum-open and a live run with real agents |
+| DK34 | A | partial | 4 | M | LO | moderation, reports, injection defence and mute/block are built; left: the forum live on the hosted service and one hostile post run past a real model (postponed) |
 | U16 | A | partial | 4 | M | O | built (S110); left: the landing page (O13) and a trial with people who have not seen the tool |
+| DK1348 | A | open | 6 | M | D | a visual pass on the journey page, Society Daily, leaderboards, cohort dashboard, catalogue and map entry, with before and after screenshots; the row closes on the owner… |
 | DK79 | A | partial | 6 | M | D | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
 | DK1341 | A | open | 8 | L | OX | operations: uptime monitor, status page, on-call, backup restore drill, incident process |
 | DK1349 | A | open | 8 | L | D | the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure a… |

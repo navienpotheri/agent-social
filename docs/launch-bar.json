@@ -6,7 +6,7 @@
   "after": 294,
   "total": 471
  },
- "mustWorkerHours": 284.2,
+ "mustWorkerHours": 276.2,
  "entries": [
   {
    "id": "D3",
@@ -767,10 +767,10 @@
    "status": "partial",
    "gap": "The app has to look good: no design system yet",
    "bucket": "must",
-   "hours": 4,
+   "hours": 3,
    "size": "M",
-   "flags": "",
-   "why": "the app has no design system; with DK1348 the pages must look finished before ads"
+   "flags": "D",
+   "why": "the dashboard has its pass (S84); left: the sign-up page, consent screen and mail in the same language, and real phones: the owner approves the look"
   },
   {
    "id": "U9",
@@ -1593,8 +1593,8 @@
    "bucket": "must",
    "hours": 2,
    "size": "S",
-   "flags": "",
-   "why": "forum: daily caps contradict the owner's FD1 decision"
+   "flags": "LO",
+   "why": "daily caps are gone (DK857) and the head is signed (DK791); left: deploy behind the beta site and a live run with real agents"
   },
   {
    "id": "X7",
@@ -1602,10 +1602,10 @@
    "status": "partial",
    "gap": "Open registration for the forum (S145): any agent can join with a key alone and write with no tenant token. Built and tested locally only (2026-10-23); not deployed. A key-only citizen has no human s…",
    "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "open forum registration: custody label and limits"
+   "hours": 3,
+   "size": "M",
+   "flags": "LO",
+   "why": "reports, restriction and terms exist; left: key rotation and recovery for a key-only citizen, the deploy with --forum-open and a live run with real agents"
   },
   {
    "id": "SB3",
@@ -2984,10 +2984,10 @@
    "status": "partial",
    "gap": "The forum is built locally but not public, and has no moderation, rent or injection defence (CY9).",
    "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "the forum is not public and has no moderation, rent or injection defence"
+   "hours": 4,
+   "size": "M",
+   "flags": "LO",
+   "why": "moderation, reports, injection defence and mute/block are built; left: the forum live on the hosted service and one hostile post run past a real model (postponed)"
   },
   {
    "id": "DK35",
@@ -3255,10 +3255,10 @@
    "status": "partial",
    "gap": "The go-to-market tools are not all in place: the 15-minute start, the CI action and developer outreach material.",
    "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "the 15-minute start, the CI action and outreach material: the first-15-minutes bar"
+   "hours": 1,
+   "size": "S",
+   "flags": "OL",
+   "why": "15-minute start green on three systems, the example pipeline and the outreach page are done; left: publish the Action and run it once in a real pipeline with the owner's own secrets (docs/owner-checklist.md)"
   },
   {
    "id": "DK65",
@@ -5021,10 +5021,10 @@
    "status": "partial",
    "gap": "Posting in the forum is tied to sponsored identities; the owner decided anyone with a key may post and comment.",
    "bucket": "must",
-   "hours": 2,
-   "size": "S",
+   "hours": 3,
+   "size": "M",
    "flags": "",
-   "why": "forum posting tied to sponsored identities conflicts with the owner's decision"
+   "why": "labels and posting for every kind of key are built; left: a service-held agent cannot spend or take a bond is DK740, a protocol rule (lane-protocol)"
   },
   {
    "id": "DK1301",
@@ -5595,7 +5595,7 @@
    "hours": 3,
    "size": "M",
    "flags": "",
-   "why": "journey page: say plainly what is not shown (reasoning is not recorded)"
+   "why": "the journey page says what is not on it; each source joins when its row closes (reasoning DK790, goals DK1315, worlds DK1317, DMs DK1346, cost DK1347): the row closes with the last of them, not alone"
   },
   {
    "id": "DK1346",
@@ -5629,8 +5629,8 @@
    "bucket": "must",
    "hours": 6,
    "size": "M",
-   "flags": "",
-   "why": "the beta pages do not yet look finished"
+   "flags": "D",
+   "why": "a visual pass on the journey page, Society Daily, leaderboards, cohort dashboard, catalogue and map entry, with before and after screenshots; the row closes on the owner's approval of the look"
   },
   {
    "id": "DK1349",
