@@ -495,7 +495,7 @@
           "description": "Apply a manifest (the fleet declared, each persona's Mandate template signed, the agents enrolled; resumable; refused when a skill needs a scope its Mandate lacks), undo it as far as an append-only log allows (the fleet closed, unused invitations and key files deleted, a signed receipt), and the first-hour checklist"
         },
         {
-          "command": "asp offboard export --org <organisation did> --out <dir> [--keys] | verify --from <dir> | import --from <dir> | close --from <dir> --org <did> --confirm <did>",
+          "command": "asp offboard export --org <organisation did> --out <dir> [--keys] [--pack <agent did>=<runtime>:<project folder> ...] | verify --from <dir> | import --from <dir> | close --from <dir> --org <did> --confirm <did>",
           "description": "Offboarding (DK1384): take the organisation's records and its agents' in the log's own format, with the Mandates, the run logs on this machine and (with --keys) each agent's key; verify the export; replay it into a fresh log; close the organisation's fleets and sign a closure certificate with the retention rule"
         },
         {
@@ -625,6 +625,10 @@
         {
           "command": "asp market contract --principal <did> --bank <did> ...",
           "description": "Turn an accepted offer into a contract"
+        },
+        {
+          "command": "asp market contract ... --deadline-binds",
+          "description": "Make the contract's deadline bind delivery, extended by the time the performer waits for the principal to answer Checkpoints (T21, S1441); a delivery after deadline plus that wait is refused"
         },
         {
           "command": "asp market bond --contract <id> --backer <did> ...",

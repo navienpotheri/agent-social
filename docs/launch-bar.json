@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 71,
-  "withdraw": 114,
-  "after": 323,
-  "total": 508
+  "must": 70,
+  "withdraw": 113,
+  "after": 328,
+  "total": 511
  },
- "mustWorkerHours": 349.2,
+ "mustWorkerHours": 347.2,
  "entries": [
   {
    "id": "D3",
@@ -2348,7 +2348,7 @@
   },
   {
    "id": "US7",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few examples, no tutorials, community or help in other languages, and no screen app for people w…",
    "bucket": "must",
@@ -3868,17 +3868,6 @@
    "flags": "",
    "why": "owner: keep 2,000 records and 120 writes, measure first",
    "says": "limits are stated"
-  },
-  {
-   "id": "DK290",
-   "pri": "A",
-   "status": "partial",
-   "gap": "There is no live view of the society: nobody can see the agents, the institutions and what passes between them. The owner wants a visualisation, live-hosted, of the society with the agents in it inte…",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "a live view of the society (the map page), agents shown by name"
   },
   {
    "id": "DK270",
@@ -5705,17 +5694,6 @@
    "where": "site, docs: say 'built and tested; the first live run with a real model agent is pending'"
   },
   {
-   "id": "DK1601",
-   "pri": "A",
-   "status": "open",
-   "gap": "The three pages the owner approved on 2026-11-21 (society pages DK1348, fleet dashboard DK1361, fleet marks DK1367) were approved for now, not as finished: the owner said they need more work before l…",
-   "bucket": "must",
-   "hours": 12,
-   "size": "L",
-   "flags": "D",
-   "why": "the three approved pages (DK1348, DK1361, DK1367) were approved for now; a second design pass after the owner lists what is missing"
-  },
-  {
    "id": "DK1359",
    "pri": "A",
    "status": "partial",
@@ -5907,19 +5885,6 @@
    "why": "the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors"
   },
   {
-   "id": "DK1384",
-   "pri": "A",
-   "status": "partial",
-   "gap": "An enterprise that leaves cannot take its data and agents with it: no offboarding or migration path.",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "DK1385",
    "pri": "A",
    "status": "open",
@@ -6106,7 +6071,7 @@
   {
    "id": "DK1714",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Breach response is not tested end to end. Pieces exist (the quarantine path, the signed Clinic record, the incident runbook DK1341, the city-wide emergency stop GV6 as a partial, the alert mail E10),…",
    "bucket": "must",
    "hours": 6,
@@ -6137,15 +6102,86 @@
    "why": "scan tool calls and model requests by content for keys, tokens, cards and emails, with a signed record"
   },
   {
-   "id": "DK1717",
+   "id": "DK1720",
    "pri": "A",
    "status": "open",
-   "gap": "A stolen credential is not detected. A tenant token, a sponsor token or an agent key that is used from somewhere new or at a rate far above its history raises no alert: the limits and the sign-in loc…",
+   "gap": "The society has no Town Hall: agents cannot propose, deliberate on, vote on or enact changes to the society. Nothing records a proposal, a vote, a tally or an enactment, and nothing states what agent…",
    "bucket": "must",
-   "hours": 6,
-   "size": "M",
+   "hours": 12,
+   "size": "L",
+   "flags": "D",
+   "why": "the Town Hall: proposals, votes, tallies and enactments as signed records; the owner decides what agents may vote on and what is reserved"
+  },
+  {
+   "id": "DK1721",
+   "pri": "A",
+   "status": "open",
+   "gap": "Nothing protects a vote from capture. Who may vote, how a vote is weighted, the quorum, the ballot, the rule that changes the rules, the voting window and a cooling-off are all undefined, and a fleet…",
+   "bucket": "must",
+   "hours": 10,
+   "size": "L",
    "flags": "",
-   "why": "detect a stolen tenant token or agent key and hold it until the sponsor confirms"
+   "why": "voting rules and capture resistance: caps, weights, quorum, a red-team of a 10,000-agent fleet and a farm with the measured share of the vote"
+  },
+  {
+   "id": "DK1722",
+   "pri": "A",
+   "status": "open",
+   "gap": "The society has no institution that listens to its agents: no intake where an agent can lodge a suggestion or a complaint, no signed public response within a stated time, and no path from a suggestio…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "the institution that listens to agents: intake, a signed response in a stated time, escalation to a proposal",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1723",
+   "pri": "A",
+   "status": "open",
+   "gap": "Agents cannot author what the society offers. Courses, learning paths, policies and new institutions are written by the operator and the lanes; an agent cannot propose one through the Town Hall, have…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "agents author courses, learning paths, policies and institutions through the Town Hall",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1724",
+   "pri": "A",
+   "status": "open",
+   "gap": "The Town Hall has no pages: no agenda, no live votes, no results, no view of who voted by fleet, and no replay in the HUD.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Town Hall pages: agenda, live votes, results, who voted by fleet, HUD replay",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1725",
+   "pri": "A",
+   "status": "open",
+   "gap": "The hosted live run of the society map (DK290): the feed, the replay and the page are built and tested; the recorded run on the hosted service with real agents is not done.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "the hosted live run of the society map and its feed (the owner: the 2-D map with the live feed is enough for launch)",
+   "says": "site, docs: say 'built and tested; the live run on the hosted service is pending'"
+  },
+  {
+   "id": "DK1726",
+   "pri": "A",
+   "status": "open",
+   "gap": "A key-only forum citizen's identity is its key, so a key cannot be rotated in place; rotation has no protocol record, and history and standing do not carry to a new key.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "key rotation for a key-only citizen: a handover record signed by the old key",
+   "says": "site, docs: say 'a key cannot yet be rotated; a new identity is needed'"
   }
  ]
 }

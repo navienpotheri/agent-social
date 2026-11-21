@@ -15547,6 +15547,257 @@
       "valid": false
     },
     {
+      "name": "valid_incident",
+      "schema": "incident",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "cause": "exfiltration",
+        "summary": "the agent tried to send a secret to an outside host",
+        "detected_at": "2026-11-21T10:00:00Z",
+        "detection": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "steps": [
+          {
+            "step": "quarantine",
+            "ref": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "at": "2026-11-21T10:00:01Z"
+          },
+          {
+            "step": "alert_sponsor"
+          },
+          {
+            "step": "restitution_opened"
+          }
+        ],
+        "restitution": {
+          "open": true,
+          "remedy": "suspension"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_incident_node",
+      "schema": "incident",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "cause": "loop",
+        "summary": "the agent tried to send a secret to an outside host",
+        "detected_at": "2026-11-21T10:00:00Z",
+        "detection": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "steps": [
+          {
+            "step": "quarantine",
+            "ref": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "at": "2026-11-21T10:00:01Z"
+          },
+          {
+            "step": "alert_sponsor"
+          },
+          {
+            "step": "restitution_opened"
+          }
+        ],
+        "restitution": {
+          "open": true,
+          "remedy": "suspension"
+        },
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "platform"
+      },
+      "valid": true
+    },
+    {
+      "name": "incident_no_steps",
+      "schema": "incident",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "cause": "exfiltration",
+        "summary": "the agent tried to send a secret to an outside host",
+        "detected_at": "2026-11-21T10:00:00Z",
+        "detection": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "steps": [],
+        "restitution": {
+          "open": true,
+          "remedy": "suspension"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "incident_unknown_cause",
+      "schema": "incident",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "cause": "bad luck",
+        "summary": "the agent tried to send a secret to an outside host",
+        "detected_at": "2026-11-21T10:00:00Z",
+        "detection": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "steps": [
+          {
+            "step": "quarantine",
+            "ref": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "at": "2026-11-21T10:00:01Z"
+          },
+          {
+            "step": "alert_sponsor"
+          },
+          {
+            "step": "restitution_opened"
+          }
+        ],
+        "restitution": {
+          "open": true,
+          "remedy": "suspension"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "incident_unknown_step",
+      "schema": "incident",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "cause": "exfiltration",
+        "summary": "the agent tried to send a secret to an outside host",
+        "detected_at": "2026-11-21T10:00:00Z",
+        "detection": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "steps": [
+          {
+            "step": "shrug"
+          }
+        ],
+        "restitution": {
+          "open": true,
+          "remedy": "suspension"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "incident_credit_restitution",
+      "schema": "incident",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "cause": "exfiltration",
+        "summary": "the agent tried to send a secret to an outside host",
+        "detected_at": "2026-11-21T10:00:00Z",
+        "detection": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "steps": [
+          {
+            "step": "quarantine",
+            "ref": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "at": "2026-11-21T10:00:01Z"
+          },
+          {
+            "step": "alert_sponsor"
+          },
+          {
+            "step": "restitution_opened"
+          }
+        ],
+        "restitution": {
+          "open": true,
+          "remedy": "credits"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "incident_no_detected_at",
+      "schema": "incident",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "cause": "exfiltration",
+        "summary": "the agent tried to send a secret to an outside host",
+        "detection": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "steps": [
+          {
+            "step": "quarantine",
+            "ref": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "at": "2026-11-21T10:00:01Z"
+          },
+          {
+            "step": "alert_sponsor"
+          },
+          {
+            "step": "restitution_opened"
+          }
+        ],
+        "restitution": {
+          "open": true,
+          "remedy": "suspension"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_run_halt_breach",
+      "schema": "run_halt",
+      "instance": {
+        "contract": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "agent": "did:web:example.com:agents:coder-7",
+        "reason": "breach",
+        "detail": "the node was frozen by an incident",
+        "node": "platform"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_key_handover",
+      "schema": "key_handover",
+      "instance": {
+        "old": "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD",
+        "new": "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_key_handover_reason",
+      "schema": "key_handover",
+      "instance": {
+        "old": "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD",
+        "new": "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW",
+        "reason": "compromise_suspected"
+      },
+      "valid": true
+    },
+    {
+      "name": "key_handover_no_new",
+      "schema": "key_handover",
+      "instance": {
+        "old": "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD"
+      },
+      "valid": false
+    },
+    {
+      "name": "key_handover_no_old",
+      "schema": "key_handover",
+      "instance": {
+        "new": "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW"
+      },
+      "valid": false
+    },
+    {
+      "name": "key_handover_unknown_reason",
+      "schema": "key_handover",
+      "instance": {
+        "old": "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD",
+        "new": "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW",
+        "reason": "bored"
+      },
+      "valid": false
+    },
+    {
+      "name": "key_handover_carries_a_key",
+      "schema": "key_handover",
+      "instance": {
+        "old": "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD",
+        "new": "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW",
+        "new_key": "abc"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_fleet_move",
       "schema": "fleet_move",
       "instance": {

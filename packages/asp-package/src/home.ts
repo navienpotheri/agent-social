@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -20,10 +21,25 @@ const slug = (s: string) => s.replace(/[^A-Za-z0-9._-]+/g, "_");
 export class Keystore {
   readonly dir: string;
   private passphrase: () => string | undefined;
+  /**
+   * An external key vault (DK1359): a program the organisation runs in front of its own vault (HashiCorp Vault, a cloud KMS, an HSM). When ASP_KEY_VAULT_CMD names it, a key is made and kept
+   * through it and no key file is written here. The program is run as `<cmd> put <kid>` (the seed in hex on standard input), `<cmd> get <kid>` (prints {"seed_hex":"..."}) and `<cmd> list <did>`
+   * (prints one key id a line); a non-zero exit is a failure. The seed never appears on a command line. ASP does not talk to any vault itself: that is the program's job.
+   */
+  private vault: string[] | undefined;
 
-  constructor(home: string, passphrase: () => string | undefined = () => passphraseFrom()) {
+  constructor(home: string, passphrase: () => string | undefined = () => passphraseFrom(), vaultCmd: string | undefined = process.env.ASP_KEY_VAULT_CMD) {
     this.dir = join(home, "keys");
     this.passphrase = passphrase;
+    this.vault = vaultCmd?.trim() ? [...vaultCmd.trim().matchAll(/"([^"]*)"|(\S+)/g)].map((m) => m[1] ?? m[2]) : undefined;     // words, with "double quotes" for a path that has spaces
+  }
+
+  /** Whether keys are kept in an external vault. */
+  get usesVault(): boolean { return !!this.vault; }
+
+  private vaultRun(args: string[], input?: string): string {
+    const [cmd, ...pre] = this.vault!;
+    return execFileSync(cmd, [...pre, ...args], { input, encoding: "utf8", timeout: 15_000, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
   }
 
   private file(kid: string): string { return join(this.dir, `${slug(kid)}.json`); }
@@ -37,6 +53,10 @@ export class Keystore {
   }
 
   private store(kid: string, seedHex: string): void {
+    if (this.vault) {
+      try { this.vaultRun(["put", kid], seedHex); } catch (e) { throw new Error(`the key vault refused to keep ${kid}: ${((e as { stderr?: string }).stderr || (e as Error).message).toString().trim().slice(0, 200)}`); }
+      return;
+    }
     const pass = this.passphrase();
     this.put(kid, pass ? { kid, sealed: seal(seedHex, pass) } : { kid, seed_hex: seedHex });
   }
@@ -96,14 +116,17 @@ export class Keystore {
   createFromSeed(kid: string, seed: Uint8Array): Signer & { publicKey: Uint8Array } {
     if (this.find(kid)) throw new Error(`key ${kid} already exists`);
     const signer = signerFromSeed(kid, seed);
-    mkdirSync(this.dir, { recursive: true });
+    if (!this.vault) mkdirSync(this.dir, { recursive: true });
     this.store(kid, Buffer.from(signer.seed).toString("hex"));
     return signer;
   }
 
   find(kid: string): (Signer & { publicKey: Uint8Array }) | undefined {
     const file = this.file(kid);
-    if (!existsSync(file)) return undefined;
+    if (!existsSync(file)) {
+      if (!this.vault) return undefined;
+      try { const seedHex = (JSON.parse(this.vaultRun(["get", kid])) as { seed_hex?: string }).seed_hex; return typeof seedHex === "string" && /^[0-9a-f]{64}$/.test(seedHex) ? signerFromSeed(kid, Buffer.from(seedHex, "hex")) : undefined; } catch { return undefined; }
+    }
     const { seed_hex } = this.read(file);
     return signerFromSeed(kid, Buffer.from(seed_hex, "hex"));
   }
@@ -128,11 +151,12 @@ export class Keystore {
 
   /** The first key held for a DID (keys are named <did>#key-N). */
   forDid(did: string): (Signer & { publicKey: Uint8Array }) | undefined {
-    if (!existsSync(this.dir)) return undefined;
-    const kids = readdirSync(this.dir)
+    const fromVault = (): string[] => { if (!this.vault) return []; try { return this.vaultRun(["list", did]).split("\n").map((x) => x.trim()).filter((k) => k && didOf(k) === did && !k.includes("#node-")); } catch { return []; } };
+    if (!existsSync(this.dir) && !this.vault) return undefined;
+    const kids = [...new Set([...(existsSync(this.dir) ? readdirSync(this.dir) : [])
       .filter((f) => f.endsWith(".json"))
       .map((f) => JSON.parse(readFileSync(join(this.dir, f), "utf8")).kid as string)
-      .filter((kid) => didOf(kid) === did && !kid.includes("#node-"))
+      .filter((kid) => didOf(kid) === did && !kid.includes("#node-")), ...fromVault()])]
       .sort();
     return kids.length ? this.find(kids[0]) : undefined;
   }

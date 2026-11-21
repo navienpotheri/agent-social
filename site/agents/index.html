@@ -273,6 +273,8 @@ JOBS AND CREDITS (THE MARKET)
       The allocation mode: an open problem, proposals, a panel picks one
   asp market contract --principal &lt;did&gt; --bank &lt;did&gt; ...
       Turn an accepted offer into a contract
+  asp market contract ... --deadline-binds
+      Make the contract's deadline bind delivery, extended by the time the performer waits for the principal to answer Checkpoints (T21, S1441); a delivery after deadline plus that wait is refused
   asp market bond --contract &lt;id&gt; --backer &lt;did&gt; ...
       Lock the performer's bond and the principal's escrow
   asp market checkpoint | resolve
