@@ -252,3 +252,27 @@ describe("a tree of 10,000 members", () => {
   });
 });
 void credit;
+
+describe("a token budget in the Mandate (DK1476, S1421)", () => {
+  test("a token budget only narrows: the fleet template, a node and a member may lower it, never raise it or drop a limit it states", async () => {
+    const w = await world();
+    const TB = (per_run?: number, per_month?: number) => ({ token_budget: { ...(per_run ? { per_run } : {}), ...(per_month ? { per_month } : {}) } });
+    await w.log.append(mk("mandate_template", w.org, { fleet: FLEET, version: 1, mandate: M(TB(50_000, 1_000_000)) }, null, { subject: FLEET }));
+    await w.log.append(w.node("root", "fleet", undefined, { owner: w.org, mandate: M(TB(50_000, 1_000_000)) }));
+    assert.equal(await refusedBy(w.log.append(w.node("eng", "department", "root", { mandate: M(TB(60_000, 1_000_000)) }))), "node_mandate_widens", "a higher per-run budget");
+    assert.equal(await refusedBy(w.log.append(w.node("eng", "department", "root", { mandate: M(TB(50_000, 2_000_000)) }))), "node_mandate_widens", "a higher monthly budget");
+    assert.equal(await refusedBy(w.log.append(w.node("eng", "department", "root", { mandate: M(TB(50_000)) }))), "node_mandate_widens", "dropping the monthly limit the ceiling states");
+    assert.equal(await refusedBy(w.log.append(w.node("eng", "department", "root", { mandate: M() }))), "node_mandate_widens", "no budget at all");
+    await w.log.append(w.node("eng", "department", "root", { mandate: M(TB(40_000, 800_000)) }));
+    assert.equal(await refusedBy(w.log.append(w.node("platform", "team", "eng", { mandate: M(TB(45_000, 700_000)) }))), "node_mandate_widens", "a team cannot have more than its department");
+    await w.log.append(w.node("platform", "team", "eng", { mandate: M(TB(20_000, 500_000)) }));
+    // a member's own narrowing and a client's Mandate
+    const a = await w.join("tb-member", "platform");
+    assert.equal(await refusedBy(w.log.append(mk("mandate_narrowing", a, { fleet: FLEET, member: a.did, narrow: TB(30_000, 500_000) }, null, { subject: a.did }))), "narrowing_widens");
+    await w.log.append(mk("mandate_narrowing", a, { fleet: FLEET, member: a.did, narrow: TB(10_000, 400_000) }, null, { subject: a.did }));
+    const c = (await w.log.mandateCeiling(a.did))!;
+    assert.deepEqual(c.mandate.token_budget, { per_run: 10_000, per_month: 400_000 }, "the derived Mandate carries the member's budget");
+    // an amendment of the fleet template under a node below it is refused
+    assert.equal(await refusedBy(w.log.append(mk("mandate_template", w.org, { fleet: FLEET, version: 2, mandate: M(TB(15_000, 1_000_000)) }, null, { subject: FLEET }))), "template_below_node");
+  });
+});

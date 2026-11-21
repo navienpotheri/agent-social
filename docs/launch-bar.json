@@ -6023,7 +6023,7 @@
   {
    "id": "DK1476",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "A Mandate has spend caps in credits but no token (compute) budget of its own: a single agent outside a fleet is limited by the gateway's daily ceiling only, and a sponsor without a fleet has no cap a…",
    "bucket": "withdraw",
    "hours": 0,

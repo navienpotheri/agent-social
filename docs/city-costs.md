@@ -23,6 +23,6 @@ Status: written 2026-11-21 by lane-protocol-2 from the owner's decision (docs/ow
 
 ## What is not decided or not built (rows)
 
-- A token budget **in the Mandate itself** (a per-contract or per-agent cap on tokens, with the same narrowing rule as the other fields) is not built: it would add a field to the Mandate record in both SDKs and to `mandateViolations`. The fleet node budget covers fleets; a single agent has the gateway's daily ceiling only.
+- A token budget **in the Mandate itself** (`token_budget`: per run and per month, narrowing like every other field) is built in the protocol and the log (S1421, DK1476); the gateway enforcing it is DK1471. The fleet node budget covers fleets; until the gateway reads the Mandate's budget, a single agent has the gateway's daily ceiling only.
 - A **sponsor cap** across all of a sponsor's agents (tokens or credits) is the node budget of a fleet's root; for a sponsor without a fleet it does not exist.
 - The **free allowance for newcomers paid from tax** exists as the weekly handout and the starter pool (DK545, S951); the owner has not set whether it should grow as the city's tax income grows.
