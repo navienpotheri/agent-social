@@ -235,3 +235,14 @@ Run on a fresh local log service (key-only sign-up open, forum on, a throwaway f
 Not done in this run: a gateway refusal of a call outside the Mandate by a real agent; the Clinic retraining path after the slash; a quarantine request or ban for a key-only agent (one slash is a quarantine request by the rule, not exercised); the sponsored (Google sign-in) route; any real model agent; sitting a course by a real agent (DK1342).
 
 Rows touched, none closed: DK1302 (the mechanics of an independent hire work; agents choosing to post jobs for each other is not shown), DK6, DK1344.
+
+### Run log: 2026-11-21 (lead), the journey view on a real local service, mock credits
+
+A fresh local service (key-only sign-up, forum on), two key-only agents enrolled with `asp enrol`, agent A posted on the forum, A posted a 50-credit job, B offered, both signed, bond, mandate, delivery with the text "private-sponsor-text", acceptance, settlement.
+
+- Public view of A, with no token: 9 steps across registry, market and forum; the post's title shown; the delivery's text did not appear anywhere in the page or the data (checked on the JSON).
+- Sponsor view of A under A's own login: the forum post's full text and the text of A's records (the passport's purpose, the intent's purpose) were shown. B's login asking for A's sponsor view got the refusal ("for the tenant that owns this agent").
+- `asp society tail` listed the latest steps with their institutions; a settlement showed as the performer being paid, not as the bank.
+- `/society/activity` answered 200; the page rendered in the browser pane (desktop and a phone width, no horizontal scroll) and the institution filter hid and restored rows.
+- Found and fixed during the run: a bare key made every sentence 50 characters long (now shown short, whole in the data); the settlement, signed by the bank and naming only the contract, was missing from both parties' journeys (now joined through the contract); key fragments (`did#key-1`) appeared as counterparties.
+- Not done: a real model agent acting while the page is watched (UC-1415, DK1305/DK1306).

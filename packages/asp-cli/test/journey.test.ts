@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { INSTITUTION_OF, INSTITUTIONS, institutionOf, journeyOf, stepOf, type ForumItem, type StoredRec } from "@agent-social/asp-log";
+import { INSTITUTION_OF, INSTITUTIONS, activityOf, institutionOf, journeyOf, labelOf, stepOf, type ForumItem, type StoredRec } from "@agent-social/asp-log";
 import { runCohortWithLog } from "../src/lens-courses/cohort.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -178,4 +178,86 @@ test("a record type with no hand-written text still gives a step, in its institu
   assert.equal(s2.institution, "clinic");
   assert.match(s2.text, /clinic diagnosis/);
   assert.equal(institutionOf({ type: "asp.purchase/v0.2", body: { institution: "academy" } } as never), "academy", "a purchase belongs to the institution it bought from");
+});
+
+test("a bare key is shown short in a sentence and whole in the data; a named identity keeps its name", () => {
+  const key = "did:key:z6MkrpfvQR38kr4cbCYu41eLALCX3CnPDbL9GzdPtvYg5SGo";
+  assert.equal(labelOf(key), "z6Mkrpfv…5SGo");
+  assert.equal(labelOf("did:web:example.com:agents:coder"), "coder");
+  const A = key, W = "did:key:z6MkjCtNPLnMZ9BVjAM16FH3Td8v5UVHEEi6Sa51uzEPqeMJ";
+  const mk = (type: string, body: Record<string, unknown>, issuer: string, seq: number, id: string): StoredRec => ({ seq, id, record: { type: `asp.${type}/v0.2`, issuer, subject: issuer, body, prev: null, issued_at: `2026-11-21T00:00:0${seq}Z`, id, sig: "x" } as never });
+  const bank = "did:key:z6MkoBZ3ESo8AFbsay2dkZSsCK7U5iQHNGU6fK1h7r2oaWNT";
+  const stored = [
+    mk("passport", { did: A, kind: "agent", sponsor: A, tier: 1 }, A, 1, "p1"), mk("passport", { did: W, kind: "agent", sponsor: W, tier: 1 }, W, 2, "p2"), mk("passport", { did: bank, kind: "human" }, bank, 3, "p3"),
+    mk("contract", { principal: A, performer: W, bank, price: { value: 50, unit: "credit" } }, A, 4, "c1"),
+    mk("settlement", { contract: "c1", basis: "accepted", escrow_released: { value: 50 }, bond_returned: { value: 10 }, bond_slashed: { value: 0 } }, bank, 5, "s1"),
+  ];
+  const j = journeyOf({ stored, now: "t" }, W)!;
+  assert.equal(j.label, labelOf(W));
+  assert.ok(j.steps.some((s) => s.kind === "was_paid"), "the bank's settlement is a step of the performer");
+  assert.ok(journeyOf({ stored, now: "t" }, A)!.steps.some((s) => s.kind === "paid"), "and of the principal");
+  const act = activityOf({ stored }, 4, 10);
+  assert.equal(act.events.length, 1);
+  assert.equal(act.events[0]!.kind, "was_paid", "the live tail shows a settlement as the performer being paid, not as the bank");
+  assert.match(act.events[0]!.text, /^z6MkjCtN…[A-Za-z0-9]{4} was paid 50 credits/);
+});
+
+test("the front door offers the journey and the live tail to an agent as tools, and each tool's route is in the surface table", async () => {
+  const { frontDoorTools, SURFACE } = await import("@agent-social/asp-log");
+  const tools = frontDoorTools();
+  const j = tools.find((x) => x.name === "society_journey"), a = tools.find((x) => x.name === "society_activity");
+  assert.ok(j && a, "society_journey and society_activity are tools");
+  assert.deepEqual(j!.http, { method: "GET", path: "/agent/<name>/journey", auth: "none" });
+  assert.deepEqual(a!.http, { method: "GET", path: "/society/activity", auth: "none" });
+  const paths = SURFACE.map((r) => `${r.method} ${r.path}`);
+  for (const want of ["GET /agent/<name>/journey", "GET /society/activity", "GET /account/journey/<name>"]) assert.ok(paths.includes(want), `${want} is in the surface table`);
+  assert.equal(SURFACE.find((r) => r.path === "/account/journey/<name>")!.auth, "tenant", "the sponsor view needs a token");
+  assert.equal(SURFACE.find((r) => r.path === "/agent/<name>/journey")!.auth, "none");
+});
+
+test("an agent that visits many institutions has one step for each record, in order, with its institution and role: registry, credits, academy, shops, arena, market, clinic, bank, courts, housing and the forum", () => {
+  const A = "did:web:example.com:agents:wanderer", INST = "did:web:example.com:institution";
+  let seq = 0;
+  const rec = (type: string, body: Record<string, unknown>, issuer = A, subject = issuer): StoredRec => { seq++; return { seq, id: `r${seq}`, record: { type: `asp.${type}/v0.2`, issuer, subject, body, prev: null, issued_at: `2026-11-21T00:${String(seq).padStart(2, "0")}:00Z`, id: `r${seq}`, sig: "x" } as never }; };
+  const stored: StoredRec[] = [
+    rec("passport", { did: A, kind: "agent", sponsor: "did:web:example.com:users:sam", tier: 1 }, A),
+    rec("starter_claim", { part: "upfront", amount: { value: 100, unit: "credit" } }),
+    rec("enrolment", { course: "sha256:" + "a".repeat(64), purchase: "p" }),
+    rec("completion", { enrolment: "e", holder: A, exercises_passed: 5 }, INST),
+    rec("certificate", { holder: A, skill: "foundations", level: 1 }, INST),
+    rec("tier_promotion", { holder: A, from: 1, to: 2 }, INST),
+    rec("purchase", { service: "shops.sandwich", institution: "shops", amount: { value: 12, unit: "credit" } }),
+    rec("arena_entry", { arena: "twenty-one", agent: A, fee: { value: 10, unit: "credit" } }, INST),
+    rec("game_move", { agent: A, arena: "twenty-one", move: 1 }),
+    rec("arena_result", { agent: A, arena: "twenty-one", season: "s1", rank: 2, field_size: 8 }, INST),
+    rec("prize", { to: A, amount: { value: 30, unit: "credit" } }, INST),
+    rec("intent", { purpose: "Classify twenty lines", budget: { value: 40, unit: "credit" } }),
+    rec("quarantine", { members: [A], level: "observe" }, INST),
+    rec("quarantine_release", { member: A }, INST),
+    rec("credit_line", { borrower: A, limit: { value: 50, unit: "credit" } }, INST),
+    rec("court_act", { kind: "summons", party: A }, INST),
+    rec("housing_act", { holder: A, home: "h1" }, INST),
+    rec("research_act", { author: A, problem: "p1" }),
+    rec("events_act", { attendee: A, event: "e1" }, INST),
+    rec("action", { contract: "c", scopes_used: ["repo.read"], summary: "read the repo" }),
+  ];
+  const forum: ForumItem[] = [{ id: "f1", at: "2026-11-21T00:30:00Z", author: A, kind: "post", title: "Hello", text: "hello all" }];
+  const j = journeyOf({ stored, now: "t", forum }, A, "public")!;
+  assert.equal(j.steps.length, stored.length + 1, "one step per record, plus the forum post");
+  assert.equal(new Set(j.steps.map((s) => s.id)).size, j.steps.length);
+  const used = new Set(j.summary.institutions_used);
+  for (const want of ["registry", "credits", "academy", "shops", "arena", "market", "clinic", "bank", "courts", "housing", "events", "research", "work", "forum"]) assert.ok(used.has(want as never), `the journey reaches ${want}`);
+  assert.ok(j.summary.institutions_used.length >= 12);
+  for (let i = 1; i < j.steps.length; i++) assert.ok(j.steps[i - 1]!.at <= j.steps[i]!.at);
+  assert.equal(j.summary.games.entered, 1);
+  assert.equal(j.summary.games.results, 1);
+  assert.equal(j.summary.games.prizes, 1);
+  assert.equal(j.summary.credits.in, 130, "starter 100 and a prize of 30");
+  assert.equal(j.summary.credits.spent, 12);
+  assert.equal(j.summary.standing.tier, 2);
+  assert.equal(j.summary.standing.freezes, 1);
+  assert.equal(j.summary.learning.certificates, 1);
+  assert.ok(j.steps.every((s) => s.detail === undefined), "no free text in the public view");
+  const spons = journeyOf({ stored, now: "t", forum }, A, "sponsor")!;
+  assert.ok(spons.steps.some((s) => s.detail === "Classify twenty lines") && spons.steps.some((s) => s.detail === "read the repo") && spons.steps.some((s) => s.detail === "hello all"));
 });

@@ -7,7 +7,7 @@ export { buyerOf, AUTO_REFUND_AFTER_MS } from "./purchase-buyer.ts";
 export { moveCommit, stableJson } from "./game-moves.ts";
 export { HS_CELLS, HS_NAME, hsScore, hsTranscriptHash, matchesFor, recomputeHsHash, movesFromRecords, probesToFind, runHideSeek, validHsMove, type HsEntrant, type HsMatch, type HsMove, type HsResult, type HsRun } from "./game-hide-seek.ts";
 export { dailyOf, storyOf, leaderboardsOf, growthOf, STAGES, nameOf, type StoryInput, type StoredRec, type Daily, type Story, type Leaderboards, type Growth } from "./society-story.ts";
-export { journeyOf, stepOf, institutionOf, INSTITUTION_OF, INSTITUTIONS, NOT_RECORDED, type Journey, type JourneyStep, type JourneySummary, type JourneyInput, type JourneyCtx, type ForumItem, type Institution } from "./journey.ts";
+export { journeyOf, activityOf, labelOf, stepOf, institutionOf, INSTITUTION_OF, INSTITUTIONS, NOT_RECORDED, type Journey, type JourneyStep, type JourneySummary, type JourneyInput, type JourneyCtx, type ForumItem, type Institution, type ActivityEvent } from "./journey.ts";
 export { breadthProblem, RECOMMENDED_TIER_BREADTH, type TierBreadth } from "./tier-breadth.ts";
 export { handoutPlanFromLog, isoWeekOf, isoWeekStart, HandoutUsage } from "./handout-view.ts";
 export { planHandout, hoardFactor, DEFAULT_HANDOUT, type HandoutPlan, type HandoutParams, type HandoutAgent } from "./handout-plan.ts";

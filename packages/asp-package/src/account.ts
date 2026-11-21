@@ -32,6 +32,8 @@ export interface AccountOptions {
   telemetry?: { list(t: string): { hash: string; kind: string; at: string; bytes: number; deletedAt?: string }[]; get(t: string, h: string): { content?: string } | undefined; optedOut(t: string): boolean; deleteAll(t: string, at: string): number };
   handle: LogHandle;
   owners: OwnerStore;
+  /** The sponsor view of an agent's journey (DK1300), for the tenant that owns it: given the name or DID and the DIDs the tenant owns. */
+  journey?: (nameOrDid: string, ownedDids: string[]) => Promise<{ status: number; body: Record<string, unknown> }>;
   usage?: UsageStore;
   /** The folders the package and commons services keep their data in (omit one that is not served). */
   packagesRoot?: string;
@@ -311,6 +313,14 @@ export function accountRoutes(o: AccountOptions) {
       return true;
     }
 
+    // The sponsor view of one agent's journey (DK1300): the steps with the text the records and forum posts carry, only for the tenant that owns the agent.
+    if (method === "GET" && url.pathname.startsWith("/account/journey/")) {
+      if (!o.journey) { fail(res, 404, "NOT_SERVED", "this service does not serve journeys"); return true; }
+      const name = decodeURIComponent(url.pathname.slice("/account/journey/".length).replace(/\/+$/, ""));
+      const r = await o.journey(name, o.owners.of(me.name));
+      send(res, r.status, r.body);
+      return true;
+    }
     // A machine token (a CI job, a scheduled task) can read the account and write records, but not take it apart: no tokens, no starter credits, no export, no closing.
     if (me.machine && url.pathname !== "/account") { fail(res, 403, "MACHINE_TOKEN", `the machine token ${me.machine} can read the account and write records; this needs your own token`); return true; }
 

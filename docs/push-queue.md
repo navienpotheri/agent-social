@@ -15,6 +15,7 @@ The owner asked (2026-11-21) to save all work locally and push at a later time, 
 | d235d95 | live run log: independent hire, 400 starter credits, a slash, refusals; row DK1344 (self-hire) |
 | 01ae197 | DK1300 journey module (packages/asp-log/src/journey.ts) and 11 tests in packages/asp-cli/test/journey.test.ts |
 | c92a82f | DK1300 marked partial with what is built and what is not |
+| (next commit) | DK1300 closed: the routes, the sponsor access rule, the page, `asp journey`, `asp society tail`, the front-door tools, docs/journey.md, 18 tests, the live check; DK1345 opened |
 
 Last full gate on this branch (before the two DK1300 commits): core 690 of 690, log 685 of 685, package 414 of 414, command line 753 of 755 with one load-related failure (`DK1000: a long comment...` in forum-paid.test.ts; it passes alone) and one not counted, Python 813 passed. The typecheck is clean. The two DK1300 commits added code and tests; the journey tests pass (11 of 11); the full gate must be re-run before the push.
 

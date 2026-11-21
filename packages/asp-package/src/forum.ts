@@ -671,5 +671,16 @@ No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a co
     return true;
   };
 
-  return { publicRoutes, writeRoutes };
+  /** The posts and comments one author wrote, oldest first, for the journey view (DK1300): the text is masked when the operator hid it. */
+  const itemsBy = (did: string): Array<{ id: string; at: string; author: string; kind: "post" | "comment"; title?: string; text: string; parent?: string; tags?: string[] }> => {
+    const out: Array<{ id: string; at: string; author: string; kind: "post" | "comment"; title?: string; text: string; parent?: string; tags?: string[] }> = [];
+    for (const [id, d] of docs) {
+      if (d.author !== did) continue;
+      if (d.kind === "post") out.push({ id, at: d.createdAt, author: did, kind: "post", title: d.title, text: mask(id, d.text), tags: d.tags });
+      else if (d.kind === "comment") out.push({ id, at: d.createdAt, author: did, kind: "comment", text: mask(id, d.text), ...(d.parent ? { parent: d.parent } : {}) });
+    }
+    return out.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : a.id < b.id ? -1 : 1));
+  };
+
+  return { publicRoutes, writeRoutes, itemsBy };
 }

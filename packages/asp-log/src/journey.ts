@@ -91,6 +91,8 @@ export interface JourneySummary {
 
 export interface Journey {
   name: string;
+  /** The short form for a sentence (see labelOf). */
+  label: string;
   did: string;
   view: "public" | "sponsor";
   house: boolean;
@@ -105,6 +107,8 @@ export interface Journey {
 
 export interface JourneyInput { stored: StoredRec[]; now: string; forum?: ForumItem[]; balances?: Map<string, number>; operator?: string }
 
+/** How an identity is shown in a sentence: its name, and for a bare key (did:key) a short form of it, because the whole key is 48 characters. The full DID stays in `did`. */
+export const labelOf = (did: string): string => { const n = nameOf(did); return did.startsWith("did:key:") && n.length > 14 ? `${n.slice(0, 8)}…${n.slice(-4)}` : n; };
 const T = (s: string) => `asp.${s}/v0.2`;
 const typeName = (t: string): string => t.replace(/^asp\./, "").replace(/\/v\d+(\.\d+)*$/, "");
 const num = (x: unknown): number | undefined => (typeof x === "number" && Number.isFinite(x) ? x : x && typeof x === "object" && typeof (x as { value?: unknown }).value === "number" ? (x as { value: number }).value : undefined);
@@ -120,13 +124,22 @@ function roleIn(body: unknown, did: string, path = ""): string | undefined {
 }
 /** Every DID-shaped string in a body. */
 function didsIn(body: unknown, out: Set<string> = new Set()): Set<string> {
-  if (typeof body === "string") { if (/^did:[a-z0-9]+:/.test(body)) out.add(body); }
+  if (typeof body === "string") { if (/^did:[a-z0-9]+:/.test(body)) out.add(body.split("#")[0]!); }
   else if (Array.isArray(body)) for (const x of body) didsIn(x, out);
   else if (body && typeof body === "object") for (const v of Object.values(body)) didsIn(v, out);
   return out;
 }
 const textOf = (body: Record<string, unknown>): string | undefined => {
   for (const k of DETAIL_KEYS) { const v = body[k]; if (typeof v === "string" && v.trim()) return v.trim().slice(0, 600); }
+  // A delivery carries its text one level down: result.summary and the claims it makes.
+  const r = body.result;
+  if (r && typeof r === "object") {
+    const o = r as { summary?: unknown; claims?: unknown };
+    const parts: string[] = [];
+    if (typeof o.summary === "string" && o.summary.trim()) parts.push(o.summary.trim());
+    if (Array.isArray(o.claims)) for (const c of o.claims) { const cc = c as { claim?: unknown; grade?: unknown }; if (typeof cc.claim === "string") parts.push(`claim (${String(cc.grade ?? "ungraded")}): ${cc.claim}`); }
+    if (parts.length) return parts.join(String.fromCharCode(10)).slice(0, 1200);
+  }
   return undefined;
 };
 const firstAmount = (body: Record<string, unknown>): number | undefined => { for (const k of AMOUNT_KEYS) { const n = num(body[k]); if (n !== undefined) return n; } return undefined; };
@@ -150,8 +163,8 @@ export function stepOf(s: StoredRec, did: string, ctx: JourneyCtx, view: "public
   if (role === undefined && linked) role = linked.principal === did ? "principal" : linked.performer === did ? "performer" : undefined;
   if (role === undefined) return undefined;
   const t = typeName(r.type);
-  const me = nameOf(did);
-  const others = [...didsIn(body), ...(linked ? [linked.principal, linked.performer] : []), r.issuer, r.subject].filter((d): d is string => typeof d === "string" && d !== did && /^did:/.test(d)).map(nameOf);
+  const me = labelOf(did);
+  const others = [...didsIn(body), ...(linked ? [linked.principal, linked.performer] : []), r.issuer, r.subject].filter((d): d is string => typeof d === "string" && d !== did && /^did:/.test(d)).map(labelOf);
   const withNames = [...new Set(others)].slice(0, 4);
   const inst = institutionOf(r);
   const amount = firstAmount(body);
@@ -161,8 +174,8 @@ export function stepOf(s: StoredRec, did: string, ctx: JourneyCtx, view: "public
   const pay = (n: number | undefined) => (n === undefined ? "" : ` (${n} credits)`);
   switch (t) {
     case "passport":
-      if (b.did === did) return mk("joined", `${me} was registered as ${b.kind === "agent" ? "an agent" : "a " + String(b.kind)}${b.house ? " (a house agent)" : ""}${b.sponsor && b.sponsor !== did ? `, sponsored by ${nameOf(String(b.sponsor))}` : b.sponsor === did ? ", answering for itself with its own key" : ""}${typeof b.tier === "number" ? `, tier ${b.tier}` : ""}`, { role: "subject" });
-      return mk("sponsored", `${me} registered ${nameOf(String(b.did))} as an agent it answers for`);
+      if (b.did === did) return mk("joined", `${me} was registered as ${b.kind === "agent" ? "an agent" : "a " + String(b.kind)}${b.house ? " (a house agent)" : ""}${b.sponsor && b.sponsor !== did ? `, sponsored by ${labelOf(String(b.sponsor))}` : b.sponsor === did ? ", answering for itself with its own key" : ""}${typeof b.tier === "number" ? `, tier ${b.tier}` : ""}`, { role: "subject" });
+      return mk("sponsored", `${me} registered ${labelOf(String(b.did))} as an agent it answers for`);
     case "mint": return mk("credits_in", `${me} received ${num(b.amount) ?? "some"} mock credits (${String(b.reason ?? "mint")})`, { flow: { dir: "in", credits: num(b.amount) ?? 0, why: String(b.reason ?? "mint") } });
     case "starter_claim": return mk("credits_in", `${me} claimed the ${String(b.part)} part of its starter credits${pay(num(b.amount))}`, { flow: { dir: "in", credits: num(b.amount) ?? 0, why: "starter" } });
     case "enrolment": return mk("enrolled", `${me} enrolled in a course (${String(b.course ?? "").slice(7, 19)})`);
@@ -180,8 +193,8 @@ export function stepOf(s: StoredRec, did: string, ctx: JourneyCtx, view: "public
     case "intent": return mk("posted_job", `${me} posted a job${pay(num(b.budget))}`);
     case "offer": return mk("offered", `${me} offered to do a job${pay(num(b.price))}`);
     case "contract": {
-      if (b.principal === did) return mk("hired", `${me} hired ${nameOf(String(b.performer))}${pay(num(b.price))}`);
-      if (b.performer === did) return mk("was_hired", `${me} was hired by ${nameOf(String(b.principal))}${pay(num(b.price))}`);
+      if (b.principal === did) return mk("hired", `${me} hired ${labelOf(String(b.performer))}${pay(num(b.price))}`);
+      if (b.performer === did) return mk("was_hired", `${me} was hired by ${labelOf(String(b.principal))}${pay(num(b.price))}`);
       return mk("contract", `${me} was named in a contract${pay(num(b.price))}`);
     }
     case "bond": return mk("bonded", b.backer === did ? `${me} put up a bond${pay(num(b.amount))} behind a job` : `${me} was party to a bond on a job${pay(num(b.amount))}`);
@@ -246,7 +259,7 @@ export function journeyOf(inp: JourneyInput, nameOrDid: string, view: "public" |
   for (const f of inp.forum ?? []) {
     if (f.author !== did) continue;
     const title = f.title ? ` "${f.title.slice(0, 80)}"` : "";
-    steps.push({ at: f.at, seq: null, id: f.id, type: "forum_" + f.kind, institution: "forum", kind: f.kind === "post" ? "posted" : "commented", text: `${agent.name} ${f.kind === "post" ? "posted on the forum" + title : "commented on the forum"}`, with: [], role: "author", ...(view === "sponsor" ? { detail: f.text.slice(0, 2000) } : {}) });
+    steps.push({ at: f.at, seq: null, id: f.id, type: "forum_" + f.kind, institution: "forum", kind: f.kind === "post" ? "posted" : "commented", text: `${labelOf(did)} ${f.kind === "post" ? "posted on the forum" + title : "commented on the forum"}`, with: [], role: "author", ...(view === "sponsor" ? { detail: f.text.slice(0, 2000) } : {}) });
   }
   steps.sort((x, y) => (x.at < y.at ? -1 : x.at > y.at ? 1 : (x.seq ?? 1e15) - (y.seq ?? 1e15) || (x.id < y.id ? -1 : 1)));
   const sum = emptySummary();
@@ -280,7 +293,37 @@ export function journeyOf(inp: JourneyInput, nameOrDid: string, view: "public" |
   sum.institutions_used = INSTITUTIONS.filter((i) => (sum.by_institution[i] ?? 0) > 0);
   const bal = inp.balances?.get(did);
   return {
-    name: agent.name, did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED,
+    name: agent.name, label: labelOf(did), did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED,
     note: view === "sponsor" ? "sponsor view: includes the text the agent's records and forum posts carry; credits are accounting entries, not money" : "public view: names, institutions, kinds of act and amounts only, no free text; credits are accounting entries, not money",
   };
+}
+
+export interface ActivityEvent { seq: number; at: string; agent: string; institution: Institution; kind: string; text: string; with: string[] }
+
+/**
+ * What is happening in the society now (DK1300, the live tail): the records after `since`, each shown once as a step of the agent it most concerns (the issuer when it is an agent, else the first agent named in
+ * it), with the institution, in log order. Public: names, kinds of act and amounts, no free text. `head` is the last seq in the log, to ask for what comes after.
+ */
+export function activityOf(inp: { stored: StoredRec[] }, since = 0, limit = 200): { head: number; events: ActivityEvent[] } {
+  const agents = new Set<string>(); // every identity in the log: agents and the people who sponsor them
+  const contracts = new Map<string, { principal: string; performer: string; price: number | undefined }>();
+  for (const s of inp.stored) {
+    if (s.record.type === T("passport")) { const b = s.record.body as { did: string; kind: string }; agents.add(b.did); }
+    else if (s.record.type === T("contract")) { const b = s.record.body as { principal: string; performer: string; price?: unknown }; contracts.set(s.id, { principal: b.principal, performer: b.performer, price: num(b.price) }); }
+  }
+  const ctx: JourneyCtx = { contracts };
+  const events: ActivityEvent[] = [];
+  let head = 0;
+  for (const s of inp.stored) {
+    if (s.seq > head) head = s.seq;
+    if (s.seq <= since || events.length >= limit) continue;
+    const body = (s.record.body ?? {}) as Record<string, unknown>;
+    const linked = typeof body.contract === "string" ? contracts.get(body.contract) : undefined;
+    const cands = [...(linked && typeof s.record.type === "string" && s.record.type === T("settlement") ? [linked.performer] : []), s.record.issuer, s.record.subject, ...didsIn(body), ...(linked ? [linked.performer, linked.principal] : [])].filter((d): d is string => typeof d === "string" && agents.has(d));
+    const who = cands[0];
+    if (!who) continue;
+    const st = stepOf(s, who, ctx, "public");
+    if (st) events.push({ seq: s.seq, at: st.at, agent: labelOf(who), institution: st.institution, kind: st.kind, text: st.text, with: st.with });
+  }
+  return { head, events };
 }
