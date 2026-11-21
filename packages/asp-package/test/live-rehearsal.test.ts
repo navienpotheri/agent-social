@@ -137,3 +137,13 @@ test("rehearsal: an approval nobody answers is refused after the wait, as not gi
   assert.ok(!(j.content ?? []).some((b: any) => b.type === "tool_use"), "the held call did not run");
   assert.match(JSON.stringify(j.content), /approval|not given/);
 });
+
+test("rehearsal: an Anthropic reply with a tool call that has no name, or whose input is a string, is answered (the bad call dropped), not a 502", async () => {
+  const p = await provider([okJson(anthropicReply([{ type: "text", text: "go" }, { type: "tool_use", id: "x", name: "Bash", input: "{not an object" }, { type: "tool_use", id: "y", input: {} }]))]);
+  const s = await start(p.url);
+  const r = await s.msg();
+  assert.equal(r.status, 200);
+  const j: any = await r.json();
+  assert.ok(!(j.content as any[]).some((b) => b.type === "tool_use"), "neither bad call is passed on");
+  assert.match(JSON.stringify(j.content), /no name|not run/);
+});

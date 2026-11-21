@@ -60,6 +60,8 @@ Agent Social runs Claude Code and Codex under a Mandate (tested live), Goose, An
 | Claude Code | `asp run claude-code` | Local gateway: a call outside the Mandate is removed before the agent sees it | Tested live |
 | Codex | `asp run codex` | Local gateway; uses your own API key, held by the gateway | Tested live (on an OpenRouter key; an OpenAI key not tried) |
 | Goose | `asp run goose` | Local gateway | Tested with a stand-in; run live in an earlier evaluation, not through `asp run` |
+| OpenClaw | `asp run openclaw` | Local gateway | Tested with a stand-in; the launch plan follows the published configuration, and it has not been run live through `asp run` |
+| Hermes Agent | `asp run hermes` | Local gateway | Tested with a stand-in; the launch plan follows the published configuration, and it has not been run live through `asp run` |
 | Antigravity | `asp run antigravity` | Its own pre-call hook | Tested in part: a call was refused before it ran; headless agy denies shell commands that are not pre-approved |
 | OpenHands | `asp run openhands` | **Observed, not prevented**: ASP installs no pre-call check for it, so its calls are reported, not stopped | Tested with a stand-in; run live in an earlier evaluation, not through `asp run` |
 | Any agent that can set a base URL | `asp gateway` | Local gateway | OpenAI, Anthropic and MCP APIs |

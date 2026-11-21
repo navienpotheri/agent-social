@@ -210,3 +210,5 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-protocol-3 (DK402 insurance hold and exclusions; then the 69 must rows in my area), 19:48Z
 - 2026-11-22 held by lane-protocol-3 (T22: the log refuses an unbound node grant; then withdraw/after priority A log rows), 20:04Z
 - 2026-11-22 lane-protocol-3 done: DK1346 protocol (S1595, UC-1923), DK183/DK386 closed, T22 option. Next: DK1322 question, H15 fleet rate in log, DK1457 harness
+- 2026-11-22 held by lane-protocol-3 (DK402 insurance hold and exclusions; then the 69 must rows in my area), 19:48Z
+- 2026-11-22 held by lane-society-2 (the lens learning loop DK1750, rows DK1751 to DK1759; then the four design packs: exploration, games, forum mechanisms, elections; then IS9), 01:30Z

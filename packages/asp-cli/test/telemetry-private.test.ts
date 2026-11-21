@@ -66,14 +66,15 @@ ${r1.out}`);
     // The text stayed on the machine.
     const localDir = join(f.aspHome, "telemetry-private");
     const kept = readdirSync(localDir).map((n) => readFileSync(join(localDir, n), "utf8"));
-    assert.equal(kept.length, 2, "a trajectory and the task, kept in the ASP home");
+    assert.ok(kept.length >= 3, "a trajectory, the task, the run's cognition items and their manifest, kept in the ASP home");
     assert.ok(kept.some((t) => t.includes("zebra-quartz")), "the task text is on the machine");
     // The signed Action carries only their hashes, and the log holds no text.
     const lg = await openLog(f.aspHome, { ASP_LOG_URL: url, ASP_LOG_TOKEN: cfg.token } as never);
     const actions = (await lg.log.recordsOfTypes(["action"])) as unknown as { body: { artifacts?: { uri: string; sha256: string }[] } }[];
     const refs = actions.flatMap((a) => a.body.artifacts ?? []).filter((x) => x.uri.startsWith("asp://telemetry/"));
-    assert.equal(refs.length, 2, "the Action cites the two hashes");
-    assert.deepEqual(readdirSync(localDir).map((n) => `sha256:${n.replace(/\.txt$/, "")}`).sort(), refs.map((x) => x.sha256).sort(), "the hashes are those of the kept text");
+    assert.deepEqual(refs.map((x) => x.uri.slice("asp://telemetry/".length)).sort(), ["message", "text", "trajectory"], "the Action cites the trajectory, the task and one manifest of the cognition items");
+    const keptHashes = readdirSync(localDir).map((n) => `sha256:${n.replace(/\.txt$/, "")}`);
+    assert.ok(refs.every((x) => keptHashes.includes(x.sha256)), "each cited hash is of text kept on the machine");
     assert.ok(!JSON.stringify(actions).includes("zebra-quartz"), "the task text is not in the signed log");
     // The account export says private.
     const out = join(f.root, "export");
