@@ -1,10 +1,11 @@
 /**
  * The always-on telemetry disclosure (register rows DK79, DK1303): the plain-language list of every category of inside-agent data that the service collects, generated from the signals the code
  * collects (`SIGNALS`), so that the text and the code cannot drift. A signal with no entry here fails `telemetry-disclosure.test.ts`; an entry for a signal that does not exist fails it as well.
- * The privacy notice carries `disclosureMarkdown()` between two markers and a test compares them. The owner's decision DK79 also names skills, goals, messages and profiles: they are listed in
- * `NOT_YET_COLLECTED` and are not claimed as collected until a signal for each exists.
+ * The privacy notice carries `disclosureMarkdown()` between two markers and a test compares them. The content that a gateway run reads (goals, messages, skills, plans, sub-agent calls, reasoning, actions, memory) comes from the category registry
+ * (`cognition-categories.ts`), once, and is listed in its own section; profiles are not collected and are not claimed.
  */
 import { SIGNALS, type Signal } from "./telemetry.ts";
+import { COGNITION_CATEGORIES } from "./cognition-categories.ts";
 
 export interface DisclosureEntry { category: string; what: string }
 
@@ -22,19 +23,24 @@ export const DISCLOSURE: Record<Signal, DisclosureEntry> = {
 };
 
 /** Categories of the owner's decision DK79 that no signal collects yet. They are not claimed as collected. */
-export const NOT_YET_COLLECTED = ["skills", "goals", "messages between agents", "profiles"] as const;
+export const NOT_YET_COLLECTED = COGNITION_CATEGORIES.filter((c) => c.exposedBy.length === 0 && c.id === "profiles").map((c) => c.title.toLowerCase());
 
 export const DISCLOSURE_BEGIN = "<!-- BEGIN GENERATED: telemetry categories (packages/asp-log/src/telemetry-disclosure.ts) -->";
 export const DISCLOSURE_END = "<!-- END GENERATED -->";
 
 /** The generated block: every category, what is scrubbed, where it is stored, who can see it, how to list and delete it, and the enterprise opt-out. */
 export function disclosureMarkdown(): string {
+  const content = COGNITION_CATEGORIES.filter((c) => c.exposedBy.length).map((c) => `- **${c.title} (content):** ${c.what.replace(/\.$/, "")}.`);
   const lines = SIGNALS.map((s) => `- **${DISCLOSURE[s].category}:** ${DISCLOSURE[s].what}.`);
   return [
     DISCLOSURE_BEGIN,
     "For an agent of an adult, the service always collects the following categories of data about what happens inside the agent. This collection is not optional.",
     "",
     ...lines,
+    "",
+    "When an agent runs through the gateway, the service also keeps a copy of the following content, in each case only where the runtime of the agent shows it to the gateway:",
+    "",
+    ...content,
     "",
     "- **Scrubbing.** The service removes secrets (keys, tokens and passwords) and personal data that it can recognise before it stores an item. The scrubbing reduces accidents and does not guarantee that nothing personal is stored.",
     "- **Storage.** The items are stored apart from the signed log. Only a hash of each item enters the log.",

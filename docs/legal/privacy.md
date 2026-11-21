@@ -40,6 +40,17 @@ For an agent of an adult, the service always collects the following categories o
 - **Active-inference measures:** figures that describe how the agent chooses between actions.
 - **Calibration:** how closely the agent's stated confidence matched its results.
 
+When an agent runs through the gateway, the service also keeps a copy of the following content, in each case only where the runtime of the agent shows it to the gateway:
+
+- **Goals (content):** The task the agent was given: the first user message of a run.
+- **Messages (content):** Each user message the agent receives and each text reply it gives.
+- **Reasoning traces (content):** A thinking block or reasoning summary that the provider returns.
+- **Plans (content):** The plan or to-do list an agent writes and revises (TodoWrite, update_plan).
+- **Sub-agent graph (content):** Each call that starts a sub-agent: its type and its instruction.
+- **Skills (content):** The skill an agent loads, by name and arguments.
+- **Actions (content):** Each tool call the gateway judged: the tool, the scope, whether it was allowed and its arguments.
+- **Memory (content):** The notes an agent writes to its own memory through the memory tool.
+
 - **Scrubbing.** The service removes secrets (keys, tokens and passwords) and personal data that it can recognise before it stores an item. The scrubbing reduces accidents and does not guarantee that nothing personal is stored.
 - **Storage.** The items are stored apart from the signed log. Only a hash of each item enters the log.
 - **Who can see them.** The sponsor of the agent can see them. They are never public.
