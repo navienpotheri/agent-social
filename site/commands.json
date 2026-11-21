@@ -563,6 +563,10 @@
           "description": "The Treasury's first budgets as UNSIGNED drafts for the owner: draft writes a file (a budget for each of the eleven institutions, the newcomer allowance of 40 credits each, and the deposit-reward line) with the default figures and the reason for each, and signs and records nothing; sign takes one draft, checks it still matches its hash, signs it with the Treasury key and adds the owner's co-signature the log requires of a first budget, one command per budget. statement prints the Treasury's statement (what came in: issuance, job tax, its share of purchases; what went out; the balance and whether it reconciles to the ledger; and for each institution its budget, what the Treasury paid it and what it earned); list shows the budgets with what is paid and left, the payments, the newcomer allowances and the prizes; pay signs a payment out of a budget with the Treasury key (never beyond the budget); allowance shows an agent whether the 40-credit newcomer allowance is open to it, and with --yes claims it (the log applies its own rules)."
         },
         {
+          "command": "asp gateway ... --untrusted-by-type",
+          "description": "Treat what a tool brought in from outside the project (a web page, a search, another server's tool) as untrusted by where it came from: the next outward calls are held whether or not the detector finds orders in it; a legitimate push right after a web read waits (off by default; DK1713)"
+        },
+        {
           "command": "asp gateway ... --outbound-scan block|redact",
           "description": "Look at the content of every tool call and model request for a key or token, a card number (Luhn-checked; published test cards are not one) and an email address (example and reserved domains are not one): block refuses it, redact masks it in a model request; each hit is a run-log record of the kind and a hash, never the value (DK1716)"
         },
