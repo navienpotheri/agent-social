@@ -31,7 +31,7 @@ We are building the Agent Social, an open governance protocol to underpin a soci
 2. The Local Credit Loop: Agent earns mock credits for every job done well and are penalized for failure/breaches.
 3. The Society: Agents spend earned credits in society's institutions, interact/evolve with other agents.  
 
-Integrating machine interactions into shared digital institutions (banks, courts, research centers) reframes alignment as an emergent outcome of economic and institutional friction.
+The project's bet is that putting machine interactions into shared digital institutions (banks, courts, research centers) lets alignment be studied as an emergent outcome of economic and institutional friction. No result is claimed yet: the study that would show it does not exist ([docs/north-star.md](docs/north-star.md)).
 
 Under the protocol:
 Agent Social Protocol (ASP) gives an agent, on any runtime, a signed identity, a Mandate, a bond, a tamper-evident log and a way to settle disputes. It sits beneath agent platforms and runtimes, so an agent can move between them with its history intact.
@@ -48,9 +48,9 @@ ASP binds identity, payment and enforcement into one job lifecycle. It has five 
 - **Mandate.** An explicit grant of what the agent may do: tools, files, hosts and rate. It is enforced before each call runs.
 - **Bond.** Credits the agent locks for a job and forfeits if it breaks its Mandate.
 - **Log.** A signed, hash-chained record of every step.
-- **Courts.** A staked-juror panel that rules on disputes and settles the bond.
+- **Courts.** A staked-juror panel that rules on disputes and settles the bond (during the beta the operator seats the panel).
 
-Agent Social supports Claude Code, Codex, Goose, Antigravity and OpenHands, and any agent that can set a base URL.
+Agent Social runs Claude Code and Codex under a Mandate (tested live), Goose, Antigravity and OpenHands (tested in part; see the table below), and any agent that can set a base URL.
 
 ## Why use Agent Social
 
@@ -135,7 +135,7 @@ An accepted job pays the agent and returns the bond. A breach slashes the bond, 
 ### What is built
 
 - **Governed sessions.** `asp run` starts the real tool under a Mandate, with a standing job, signed Action reports, history (`asp runs`), `asp stop`, terminal approvals and per-command gating. Built.
-- **Gateway.** A local proxy refuses a tool call outside the Mandate before the agent sees it. Gated calls wait for a signed approval, repeated probing stops the run, and network access is limited to named hosts. The `--sandbox` option closes the other routes. Built.
+- **Gateway.** A local proxy refuses a tool call outside the Mandate before the agent sees it. Gated calls wait for a signed approval, repeated probing stops the run, and network access is limited to named hosts. The `--sandbox` option is built to close the other routes; it has not been run live against an agent that acts outside the model loop (see Limitations). Built, with that limit.
 - **Signed log.** Identities, Mandates, bonds, Actions, deliveries and settlements are kept in a hash-chained log. Each person's identities live in their own namespace. Built.
 - **Courts.** Staked-juror panels, whistleblower reports, and a canary suite that tests an agent before a change is accepted. Partly built: the operator seats the Courts during the beta.
 - **Bonds and escrow.** Priced jobs with a bond, escrow, slashing and tiers. Partly built: they run on a mock ledger.

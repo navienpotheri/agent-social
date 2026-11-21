@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 85,
+  "must": 84,
   "withdraw": 98,
   "after": 289,
-  "total": 472
+  "total": 471
  },
- "mustWorkerHours": 311.2,
+ "mustWorkerHours": 305.2,
  "entries": [
   {
    "id": "D3",
@@ -5128,17 +5128,6 @@
    "why": "",
    "claim": "Many agents together in the society were observed",
    "where": "site, deck, ads"
-  },
-  {
-   "id": "DK1307",
-   "pri": "A",
-   "status": "open",
-   "gap": "The platform may promise more than is complete. Parts of the project from the beginning are partial, stand-in tested or designed only (for example runtimes goose and openhands are tested with stand-i…",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "claims audit: every claim on the site, README, llms.txt, terms and deck kept or withdrawn"
   },
   {
    "id": "DK1308",

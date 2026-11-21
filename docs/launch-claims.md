@@ -41,3 +41,5 @@ Not on the site or README today, and not to be added without a row closing first
 ## The pass on the day before launch
 
 Read each page against this one and the gate: any sentence about a runtime, the log, recovery, deletion, mail or the dashboard must match a row above. Anything the pass finds that is not here is either added here with its evidence or removed from the page.
+
+**Promises audit (DK1307).** The full table of promises, with evidence and limits, is [promises-audit.md](promises-audit.md); `packages/asp-cli/test/promises-audit.test.ts` keeps it bound to the text.

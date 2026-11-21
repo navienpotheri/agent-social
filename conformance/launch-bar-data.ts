@@ -84,7 +84,6 @@ export const MUST: Record<string, Must> = {
   DK1340: [8, "DX", "the legal minimum: terms, privacy and telemetry notice, ad wording, minors; counsel must read it"],
   DK1341: [8, "OX", "operations: uptime monitor, status page, on-call, backup restore drill, incident process"],
   GV6: [2, "LO", "runbook exists; the restore drill on the real host is the owner's"],
-  DK1307: [6, "", "claims audit: every claim on the site, README, llms.txt, terms and deck kept or withdrawn"],
   DK797: [6, "", "reconcile the first lists (backlog, triage, owner checklist, gate) against the register"],
   DK794: [1, "", "forum docs and demos exist only as untracked files in an old worktree"],
   DK795: [1, "", "the society design document exists only in a worktree"],
