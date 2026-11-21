@@ -2,6 +2,7 @@
  * The log's rules for the Shops' records (shops.md 3 to 5; register rows DK21, DK22; spec-delta S250): what makes a holding, a residency, a standing order, an upkeep charge and a residency status valid,
  * and the checks a purchase of a catalogue item must pass. Called from `EventLog`; state lives in markers written inside the append, so a refused record leaves none.
  */
+import { noteIncome } from "./bank-active.ts";
 import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { TREASURY_DID, BURN_DID, splitParts, type Split } from "./economy.ts";
 import { CAPACITY_LEDGER, DAY_MS, DORMANT_AFTER_DAYS, HOUSING_DID, RESOURCE_EFFECTS, SHOPS_DID, UPKEEP_SERVICE, addDays, dayOf, daysBetween, freeThrough, isoAt, type CatalogueItem } from "./shops.ts";
@@ -192,6 +193,7 @@ export async function projectShopsAct(tx: LogTx, r: AspRecord, env: ShopsEnv): P
     const parts = splitParts(b.amount.value, item.split);
     for (const p of parts.payees) await env.credit(tx, p.account, p.amount);
     await env.credit(tx, TREASURY_DID, parts.treasury);
+    await noteIncome(tx, parts.treasury, r.issued_at);
     await env.credit(tx, BURN_DID, parts.burn);
     await tx.putMarker(spentKey, String(spent + b.amount.value));
     await writeResident(tx, b.agent, { ...res, paid_through: last });

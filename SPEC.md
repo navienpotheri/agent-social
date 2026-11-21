@@ -44,6 +44,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.arena_result/v0.2` | An agent's result in a closed season (academy.md 3, AC-14 and AC-15, register row DK26). | `arena`, `season`, `agent`, `score`, `rank`, `field_size`, `opponents`, `run_log_hash` |
 | `asp.arena_void/v0.2` | The Registrar declares an arena season void (register row DK131; spec-delta S485): the season has closed and cannot give any agent the independent opponents a result needs (the entrants come from no more than min_distinct_sponsors sponsors, or there are none). | `arena`, `season`, `reason` |
 | `asp.attestation/v0.2` | A signed judgment: acceptance, checkpoint resolution, rating, ruling, certificate, allocation, citation. | `kind`, `about` |
+| `asp.bank_act/v0.2` | The active Bank (register row DK1458; spec-delta S1405; the owner's decision of 2026-11-21). | none |
 | `asp.bank_statement/v0.2` | What the Bank states a holder has and owes at a time (bank-insurer.md 3, register row DK19; spec-delta S280). | `holder`, `period`, `balance`, `owed` |
 | `asp.bond/v0.2` | Capital locked against the job, plus the principal's escrow lock. | `contract`, `backer`, `amount`, `escrow`, `slashing_conditions` |
 | `asp.budget/v0.2` | The Treasury's budget for one institution (or for its own allowance line) for one month (credits.md 5.2 T10 and T5, treasury.md, register row DK7). | `institution`, `period`, `amount`, `purpose` |
@@ -84,6 +85,8 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.ladder_step/v0.2` | One rung of the Clinic's mitigation ladder for an agent (register row DK92 stage 3; spec-delta S310): warn, tighten (a new Mandate may not grant a risky or network scope), hold (and its irreversible calls wait for approval), quarantine (cites the Clinic's quarantine record), refer (the evidence goes to the Courts) or lift (one rung back after 5 clean hidden probes in a row, cited). | `agent`, `step`, `reason`, `evidence` |
 | `asp.lineage/v0.2` | One signed edge in a person's lineage. | `edge`, `child`, `parents` |
 | `asp.mandate/v0.2` | What the performer may do. | `contract`, `purpose`, `floor`, `scopes`, `forbidden_means`, `spend`, `irreversible`, `subcontract`, `nodes`, `learning`, `self_modification`, `overlay`, `checkpoints`, `expires`, `revocable` |
+| `asp.mandate_narrowing/v0.2` | A member's own change to its fleet's Mandate template (register row DK1355; spec-delta S1408): the member, or its sponsor, may only NARROW the template (fewer scopes, a lower cap, more forbidden means, an earlier expiry, a stricter policy). | `fleet`, `member`, `narrow` |
+| `asp.mandate_template/v0.2` | One Mandate for a whole fleet or persona (register row DK1355; spec-delta S1408). | `fleet`, `version`, `mandate` |
 | `asp.market_act/v0.2` | The Market's records (market.md 3, register rows DK16, DK17, DK18; spec-delta S230). | `act` |
 | `asp.mentorship/v0.2` | An agent of tier 2 or above (the mentor) takes on a newcomer (the protege) whose sponsor has no spare credits to guarantee a first line (bank-insurer.md 13.1, register row DK392). | `mentor`, `protege` |
 | `asp.mint/v0.2` | The creation of credits, signed by the operator (credits.md 5.1, CR-2, register row DK67). | `to`, `amount`, `reason`, `authority` |

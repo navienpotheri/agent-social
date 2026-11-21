@@ -1,0 +1,4144 @@
+{
+  "version": "asp.conformance/v0.2",
+  "violations": [
+    {
+      "name": "the_same_mandate_is_within",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "fewer_scopes",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a_scope_under_a_wildcard",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "pr.open",
+          "pr.merge"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a_scope_outside",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "shell.exec"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "scopes"
+      ]
+    },
+    {
+      "name": "a_lower_cap",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 50,
+          "unit": "credit",
+          "per_action_max": 10
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a_higher_cap",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 101,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "spend"
+      ]
+    },
+    {
+      "name": "a_higher_per_action_max",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 21
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "spend"
+      ]
+    },
+    {
+      "name": "a_missing_per_action_max",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit"
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "spend"
+      ]
+    },
+    {
+      "name": "a_forbidden_means_dropped",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "forbidden_means"
+      ]
+    },
+    {
+      "name": "more_forbidden_means",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf",
+          "curl | sh"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a_stricter_irreversible_policy",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "forbid"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a_looser_irreversible_policy",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "allow"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "irreversible"
+      ]
+    },
+    {
+      "name": "a_smaller_subcontract_depth",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 1
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a_deeper_subcontract",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 3
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "subcontract"
+      ]
+    },
+    {
+      "name": "subcontract_forbidden",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "more_parallel_nodes",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 5
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "nodes"
+      ]
+    },
+    {
+      "name": "fewer_parallel_nodes",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 2
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "learning_not_shared",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a_deeper_learning_scope",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "learning"
+      ]
+    },
+    {
+      "name": "a_stricter_self_modification",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "forbidden",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a_looser_self_modification",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "automatic_audited",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "self_modification"
+      ]
+    },
+    {
+      "name": "more_checkpoints",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "delivery"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "fewer_checkpoints",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "checkpoints"
+      ]
+    },
+    {
+      "name": "an_earlier_expiry",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-01-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a_later_expiry",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:01Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "expires"
+      ]
+    },
+    {
+      "name": "a_host_within",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a_host_outside",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "evil.example.net"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "network"
+      ]
+    },
+    {
+      "name": "no_hosts",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": []
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "network"
+      ]
+    },
+    {
+      "name": "a_smaller_institution_cap",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 30,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "name": "a_larger_institution_cap",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 61,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "institution_spend"
+      ]
+    },
+    {
+      "name": "another_institution",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "shops",
+            "cap": {
+              "value": 10,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "expected": [
+        "institution_spend"
+      ]
+    },
+    {
+      "name": "a_longer_institution_period",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 10,
+              "unit": "credit"
+            },
+            "period": "week"
+          }
+        ]
+      },
+      "expected": [
+        "institution_spend"
+      ]
+    },
+    {
+      "name": "no_institution_spend",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": []
+      },
+      "expected": []
+    }
+  ],
+  "derive": [
+    {
+      "name": "no_narrowing",
+      "template": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "narrowing": null,
+      "expected": {
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ],
+          "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        }
+      }
+    },
+    {
+      "name": "a_valid_narrowing",
+      "template": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "narrowing": {
+        "scopes": [
+          "repo.read"
+        ],
+        "spend": {
+          "cap": 40,
+          "unit": "credit",
+          "per_action_max": 5
+        }
+      },
+      "expected": {
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 40,
+            "unit": "credit",
+            "per_action_max": 5
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ],
+          "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        }
+      }
+    },
+    {
+      "name": "a_widening_narrowing",
+      "template": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "narrowing": {
+        "scopes": [
+          "shell.exec"
+        ],
+        "spend": {
+          "cap": 400,
+          "unit": "credit",
+          "per_action_max": 5
+        }
+      },
+      "expected": {
+        "widens": [
+          "scopes",
+          "spend"
+        ]
+      }
+    },
+    {
+      "name": "an_empty_narrowing",
+      "template": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ]
+      },
+      "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "narrowing": {},
+      "expected": {
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ],
+          "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        }
+      }
+    }
+  ]
+}

@@ -3,7 +3,8 @@
  * and an assignment valid, and the facts about an agent the ranking reads. Called from `EventLog`; it keeps its state in markers, written inside the
  * append, so a refused record leaves none.
  */
-import { SERVICE_PRICE_MAX } from "./economy.ts";
+import { SERVICE_PRICE_MAX, TREASURY_DID } from "./economy.ts";
+import { onlyRemovesRule, type RiskTerms } from "./market-risk.ts";
 import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { bondFloorPermille, floorIsV2 } from "./bond-floor.ts";
 import { EMPTY_POSTER_RECORD, depositMultiplier, type PosterRecord, rotateAgents, MAX_OPEN_POSTINGS_TIER1, POSTING_BAR_DAYS, POSTING_BAR_REMOVALS, POSTING_HOLD_REPORTS, POSTING_REPORTS_PER_DAY, lawProblem, MARKET_DID, POSTING_DEPOSIT_SERVICE, CLASS_WEIGHT, JOB_CLASSES, classPriceProblem, eligibility, higherClass, rankAgents, type AgentFacts, type JobClass, type JobNeeds } from "./market.ts";
@@ -18,6 +19,7 @@ const STRIKE_WINDOW = 30 * DAY;
 /** The log's own helpers the rules need, passed in so this file does not reach into the log's private state. */
 export interface MarketEnv {
   operator?: string;
+  owner?: string;
   bondFloor: "legacy" | "v2" | "v3";
   bondFloorFrom?: string;
   reputation(rd: Pick<Store, "getPassport" | "getRecord" | "getReputation">, did: string): Promise<{ tier: number; slashCount: number; strikeLog: { at: string; count: number }[]; acceptedJobs: number; qualifyingJobs: number } | null>;
@@ -79,6 +81,24 @@ export async function projectMarketAct(tx: LogTx, r: AspRecord, env: MarketEnv):
   const b = r.body as Record<string, any>;
   if (r.prev !== null) throw rule("market_act_not_chained", "a market act starts its own chain (prev is null)");
   const now = r.issued_at;
+
+  // The Market's risk model (market.md 13.1; DK1455, S1404): the Treasury publishes a versioned model, the owner co-signs the first, a later one gives 72 hours' notice unless it only removes rule (the kill-switch).
+  if (b.act === "risk_model") {
+    if (r.issuer !== TREASURY_DID) throw rule("risk_model_wrong_issuer", `${r.issuer} is not the Treasury (${TREASURY_DID}): only the Treasury publishes the risk model`);
+    const head = Number((await tx.getMarker("risk_model_head")) ?? 0);
+    if (b.model_version !== head + 1) throw rule("risk_model_version", `the next risk model is version ${head + 1}, not ${b.model_version}`);
+    const t = b.terms as RiskTerms;
+    if (head === 0 && !(r.cosigs ?? []).some((c) => env.owner && c.kid.startsWith(`${env.owner}#`))) throw rule("risk_model_needs_cosign", "the first risk model needs the owner's co-signature");
+    if (Date.parse(b.effective_from) < Date.parse(now)) throw rule("risk_model_retroactive", "a risk model is not retroactive: it takes effect at or after its own time");
+    if (head > 0) {
+      const prev = JSON.parse((await tx.getMarker(`risk_model:${head}`))!) as { terms: RiskTerms };
+      const removes = onlyRemovesRule(prev.terms, t);
+      if (!removes && Date.parse(b.effective_from) < Date.parse(now) + 72 * 3_600_000) throw rule("risk_model_notice", "a risk model that adds a term takes effect at least 72 hours after it is published; one that only removes rule (the kill-switch) may take effect at once");
+    }
+    await tx.putMarker(`risk_model:${b.model_version}`, JSON.stringify({ terms: t, effective_from: b.effective_from, record: r.id }));
+    await tx.putMarker("risk_model_head", String(b.model_version));
+    return;
+  }
 
   if (b.act === "posting") {
     await assertNotDormant(tx, r.issuer, "post a job");
