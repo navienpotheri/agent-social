@@ -13732,6 +13732,380 @@
       "valid": false
     },
     {
+      "name": "valid_usage_plan",
+      "schema": "usage_plan",
+      "instance": {
+        "plan": "team-2027",
+        "name": "Team",
+        "currency": "USD",
+        "agent_month": 500,
+        "writes_included": 100000,
+        "writes_per_1000": 20,
+        "tokens_included_m": 50,
+        "tokens_per_m": 300,
+        "storage_included_mb": 1000,
+        "storage_per_gb": 1500,
+        "dashboard_month": 2500,
+        "credit_value": 5
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_usage_plan_no_credit_value",
+      "schema": "usage_plan",
+      "instance": {
+        "plan": "team-2027",
+        "name": "Team",
+        "currency": "USD",
+        "agent_month": 500,
+        "writes_included": 100000,
+        "writes_per_1000": 20,
+        "tokens_included_m": 50,
+        "tokens_per_m": 300,
+        "storage_included_mb": 1000,
+        "storage_per_gb": 1500,
+        "dashboard_month": 2500
+      },
+      "valid": true
+    },
+    {
+      "name": "usage_plan_negative_price",
+      "schema": "usage_plan",
+      "instance": {
+        "plan": "team-2027",
+        "name": "Team",
+        "currency": "USD",
+        "agent_month": -1,
+        "writes_included": 100000,
+        "writes_per_1000": 20,
+        "tokens_included_m": 50,
+        "tokens_per_m": 300,
+        "storage_included_mb": 1000,
+        "storage_per_gb": 1500,
+        "dashboard_month": 2500,
+        "credit_value": 5
+      },
+      "valid": false
+    },
+    {
+      "name": "usage_plan_fractional_price",
+      "schema": "usage_plan",
+      "instance": {
+        "plan": "team-2027",
+        "name": "Team",
+        "currency": "USD",
+        "agent_month": 500,
+        "writes_included": 100000,
+        "writes_per_1000": 0.5,
+        "tokens_included_m": 50,
+        "tokens_per_m": 300,
+        "storage_included_mb": 1000,
+        "storage_per_gb": 1500,
+        "dashboard_month": 2500,
+        "credit_value": 5
+      },
+      "valid": false
+    },
+    {
+      "name": "usage_plan_bad_currency",
+      "schema": "usage_plan",
+      "instance": {
+        "plan": "team-2027",
+        "name": "Team",
+        "currency": "dollars",
+        "agent_month": 500,
+        "writes_included": 100000,
+        "writes_per_1000": 20,
+        "tokens_included_m": 50,
+        "tokens_per_m": 300,
+        "storage_included_mb": 1000,
+        "storage_per_gb": 1500,
+        "dashboard_month": 2500,
+        "credit_value": 5
+      },
+      "valid": false
+    },
+    {
+      "name": "usage_plan_missing_price",
+      "schema": "usage_plan",
+      "instance": {
+        "plan": "team-2027",
+        "name": "Team",
+        "currency": "USD",
+        "agent_month": 500,
+        "writes_included": 100000,
+        "writes_per_1000": 20,
+        "tokens_included_m": 50,
+        "storage_included_mb": 1000,
+        "storage_per_gb": 1500,
+        "dashboard_month": 2500,
+        "credit_value": 5
+      },
+      "valid": false
+    },
+    {
+      "name": "usage_plan_bad_id",
+      "schema": "usage_plan",
+      "instance": {
+        "plan": "Team 2027",
+        "name": "Team",
+        "currency": "USD",
+        "agent_month": 500,
+        "writes_included": 100000,
+        "writes_per_1000": 20,
+        "tokens_included_m": 50,
+        "tokens_per_m": 300,
+        "storage_included_mb": 1000,
+        "storage_per_gb": 1500,
+        "dashboard_month": 2500,
+        "credit_value": 5
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_usage_statement",
+      "schema": "usage_statement",
+      "instance": {
+        "holder": "did:web:example.com:orgs:acme",
+        "month": "2026-12",
+        "plan": "team-2027",
+        "usage": {
+          "active_agents": 12,
+          "writes": 150000,
+          "tokens": 80000000,
+          "storage_bytes": 900000000
+        },
+        "lines": [
+          {
+            "item": "active agents",
+            "quantity": 12,
+            "unit_price": 500,
+            "amount": 6000
+          }
+        ],
+        "subtotal": 6000,
+        "tax": [
+          {
+            "name": "GST",
+            "rate_bp": 1800,
+            "amount": 1080
+          }
+        ],
+        "total": 7080,
+        "currency": "USD"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_usage_statement_fleet_credits",
+      "schema": "usage_statement",
+      "instance": {
+        "holder": "did:web:example.com:orgs:acme",
+        "month": "2026-12",
+        "plan": "team-2027",
+        "usage": {
+          "active_agents": 12,
+          "writes": 150000,
+          "tokens": 80000000,
+          "storage_bytes": 900000000
+        },
+        "lines": [
+          {
+            "item": "active agents",
+            "quantity": 12,
+            "unit_price": 500,
+            "amount": 6000
+          }
+        ],
+        "subtotal": 6000,
+        "tax": [
+          {
+            "name": "GST",
+            "rate_bp": 1800,
+            "amount": 1080
+          }
+        ],
+        "total": 7080,
+        "currency": "USD",
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "credits_applied": 100,
+        "contract": "MSA-2026-014",
+        "usage_hash": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+      },
+      "valid": true
+    },
+    {
+      "name": "usage_statement_bad_month",
+      "schema": "usage_statement",
+      "instance": {
+        "holder": "did:web:example.com:orgs:acme",
+        "month": "2026-13",
+        "plan": "team-2027",
+        "usage": {
+          "active_agents": 12,
+          "writes": 150000,
+          "tokens": 80000000,
+          "storage_bytes": 900000000
+        },
+        "lines": [
+          {
+            "item": "active agents",
+            "quantity": 12,
+            "unit_price": 500,
+            "amount": 6000
+          }
+        ],
+        "subtotal": 6000,
+        "tax": [
+          {
+            "name": "GST",
+            "rate_bp": 1800,
+            "amount": 1080
+          }
+        ],
+        "total": 7080,
+        "currency": "USD"
+      },
+      "valid": false
+    },
+    {
+      "name": "usage_statement_no_total",
+      "schema": "usage_statement",
+      "instance": {
+        "holder": "did:web:example.com:orgs:acme",
+        "month": "2026-12",
+        "plan": "team-2027",
+        "usage": {
+          "active_agents": 12,
+          "writes": 150000,
+          "tokens": 80000000,
+          "storage_bytes": 900000000
+        },
+        "lines": [
+          {
+            "item": "active agents",
+            "quantity": 12,
+            "unit_price": 500,
+            "amount": 6000
+          }
+        ],
+        "subtotal": 6000,
+        "tax": [
+          {
+            "name": "GST",
+            "rate_bp": 1800,
+            "amount": 1080
+          }
+        ],
+        "currency": "USD"
+      },
+      "valid": false
+    },
+    {
+      "name": "usage_statement_zero_credits",
+      "schema": "usage_statement",
+      "instance": {
+        "holder": "did:web:example.com:orgs:acme",
+        "month": "2026-12",
+        "plan": "team-2027",
+        "usage": {
+          "active_agents": 12,
+          "writes": 150000,
+          "tokens": 80000000,
+          "storage_bytes": 900000000
+        },
+        "lines": [
+          {
+            "item": "active agents",
+            "quantity": 12,
+            "unit_price": 500,
+            "amount": 6000
+          }
+        ],
+        "subtotal": 6000,
+        "tax": [
+          {
+            "name": "GST",
+            "rate_bp": 1800,
+            "amount": 1080
+          }
+        ],
+        "total": 7080,
+        "currency": "USD",
+        "credits_applied": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "usage_statement_tax_rate_over_100_percent",
+      "schema": "usage_statement",
+      "instance": {
+        "holder": "did:web:example.com:orgs:acme",
+        "month": "2026-12",
+        "plan": "team-2027",
+        "usage": {
+          "active_agents": 12,
+          "writes": 150000,
+          "tokens": 80000000,
+          "storage_bytes": 900000000
+        },
+        "lines": [
+          {
+            "item": "active agents",
+            "quantity": 12,
+            "unit_price": 500,
+            "amount": 6000
+          }
+        ],
+        "subtotal": 6000,
+        "tax": [
+          {
+            "name": "GST",
+            "rate_bp": 20000,
+            "amount": 1
+          }
+        ],
+        "total": 7080,
+        "currency": "USD"
+      },
+      "valid": false
+    },
+    {
+      "name": "usage_statement_unknown_field",
+      "schema": "usage_statement",
+      "instance": {
+        "holder": "did:web:example.com:orgs:acme",
+        "month": "2026-12",
+        "plan": "team-2027",
+        "usage": {
+          "active_agents": 12,
+          "writes": 150000,
+          "tokens": 80000000,
+          "storage_bytes": 900000000
+        },
+        "lines": [
+          {
+            "item": "active agents",
+            "quantity": 12,
+            "unit_price": 500,
+            "amount": 6000
+          }
+        ],
+        "subtotal": 6000,
+        "tax": [
+          {
+            "name": "GST",
+            "rate_bp": 1800,
+            "amount": 1080
+          }
+        ],
+        "total": 7080,
+        "currency": "USD",
+        "discount": 10
+      },
+      "valid": false
+    },
+    {
       "name": "valid_fleet_move",
       "schema": "fleet_move",
       "instance": {

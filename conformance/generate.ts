@@ -1428,6 +1428,23 @@ const worldRules = [
   sv("credit_lot_expire_no_lot", "credit_lot", { act: "expire", holder: lotHolder, amount: { value: 40, unit: "credit" } }, false);
   sv("credit_lot_expire_with_expiry", "credit_lot", { act: "expire", holder: lotHolder, amount: { value: 40, unit: "credit" }, lot: lotId, expires: "2027-11-21T00:00:00Z" }, false);
   sv("credit_lot_unknown_act", "credit_lot", lotGrant({ act: "resell" }), false);
+  // ---------- usage plans and statements (spec-deltas S1414): schema cases ----------
+  const planBody = (over: Record<string, unknown> = {}) => ({ plan: "team-2027", name: "Team", currency: "USD", agent_month: 500, writes_included: 100000, writes_per_1000: 20, tokens_included_m: 50, tokens_per_m: 300, storage_included_mb: 1000, storage_per_gb: 1500, dashboard_month: 2500, credit_value: 5, ...over });
+  sv("valid_usage_plan", "usage_plan", planBody(), true);
+  sv("valid_usage_plan_no_credit_value", "usage_plan", (({ credit_value: _c, ...r }) => r)(planBody()), true);
+  sv("usage_plan_negative_price", "usage_plan", planBody({ agent_month: -1 }), false);
+  sv("usage_plan_fractional_price", "usage_plan", planBody({ writes_per_1000: 0.5 }), false);
+  sv("usage_plan_bad_currency", "usage_plan", planBody({ currency: "dollars" }), false);
+  sv("usage_plan_missing_price", "usage_plan", (({ tokens_per_m: _t, ...r }) => r)(planBody()), false);
+  sv("usage_plan_bad_id", "usage_plan", planBody({ plan: "Team 2027" }), false);
+  const stBody = (over: Record<string, unknown> = {}) => ({ holder: "did:web:example.com:orgs:acme", month: "2026-12", plan: "team-2027", usage: { active_agents: 12, writes: 150000, tokens: 80000000, storage_bytes: 900000000 }, lines: [{ item: "active agents", quantity: 12, unit_price: 500, amount: 6000 }], subtotal: 6000, tax: [{ name: "GST", rate_bp: 1800, amount: 1080 }], total: 7080, currency: "USD", ...over });
+  sv("valid_usage_statement", "usage_statement", stBody(), true);
+  sv("valid_usage_statement_fleet_credits", "usage_statement", stBody({ fleet: "did:web:example.com:orgs:acme:fleets:coders", credits_applied: 100, contract: "MSA-2026-014", usage_hash: "sha256:" + "8".repeat(64) }), true);
+  sv("usage_statement_bad_month", "usage_statement", stBody({ month: "2026-13" }), false);
+  sv("usage_statement_no_total", "usage_statement", (({ total: _t, ...r }) => r)(stBody()), false);
+  sv("usage_statement_zero_credits", "usage_statement", stBody({ credits_applied: 0 }), false);
+  sv("usage_statement_tax_rate_over_100_percent", "usage_statement", stBody({ tax: [{ name: "GST", rate_bp: 20000, amount: 1 }] }), false);
+  sv("usage_statement_unknown_field", "usage_statement", stBody({ discount: 10 }), false);
   sv("valid_fleet_move", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "platform" }, true);
   sv("valid_fleet_move_with_reason", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "root", reason: "the team was closed" }, true);
   sv("fleet_move_no_target", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7" }, false);

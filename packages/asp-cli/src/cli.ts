@@ -352,7 +352,7 @@ import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
-import { CLINIC_DID, farmingFreezeBody, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf } from "@agent-social/asp-log";
+import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
@@ -871,6 +871,8 @@ const OPTIONS = {
   "min-qualifying": { type: "string" },
   month: { type: "string" },
   persona: { type: "string" },
+  "tax-line": { type: "string", multiple: true },
+  cosign: { type: "string" },
   association: { type: "string" },
   action: { type: "string" },
   cluster: { type: "string" },
@@ -1150,6 +1152,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "wakes") return await wakesCommand(home, v, io);
     if (cmd === "collusion") return await collusionCommand(home, v, io);
     if (cmd === "farming") return await farmingCommand(home, sub, v, io);
+    if (cmd === "meter") return await meterCommand(home, sub, v, io, rest);
     if (cmd === "charter") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return x; };
@@ -1174,7 +1177,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "co-sponsor" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tax-line" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "co-sponsor" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -4895,6 +4898,55 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
 }
 
 /** asp collusion [--json]: the patterns that farm the credit reward, read from the log: pairs and rings that hire each other, one sponsor's agents settling together, one principal behind most of an agent's work (register row DK6). Exit 1 when it finds something. */
+/**
+ * asp meter report (--fleet <did> | --org <did> | --agent <did>) [--month <YYYY-MM>] [--json] | plan --file <plan.json> --by <operator did> --cosign <owner did> | statement --holder <org did> [--fleet <did>] --month <YYYY-MM> --plan <id> [--tax-line <name:basis points> ...] [--credits <n>] [--contract <text>] --by <operator did> | check <statement id>
+ * (register row DK1379, S1414): what a fleet's, an organisation's or an agent's usage was in a UTC month, counted from the log (active agents, writes, tokens, stored data; reads are the service's own counter); a signed plan (the
+ * owner sets prices); a statement that prices a month from the plan, with tax lines, optionally settled with purchased credits; and a recount that checks a statement against the log. Credits are accounting entries, not money.
+ */
+async function meterCommand(home: string, sub: string | undefined, v: Values, io: Io, rest: string[] = []): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  const month = v.month ?? now().slice(0, 7);
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new UsageError("--month is YYYY-MM");
+  if (!sub || sub === "report") {
+    if (!v.fleet && !v.org && !v.agent) throw new UsageError("asp meter report (--fleet <did> | --org <did> | --agent <did>) [--month <YYYY-MM>] [--json]");
+    const m = await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : {}), ...(v.org ? { org: v.org } : {}), ...(v.agent ? { agent: v.agent } : {}), month });
+    if (v.json) { io.out(JSON.stringify(m, null, 2)); return 0; }
+    const u = m.usage;
+    io.out(`usage of ${m.scope} in ${month}: ${u.activeAgents} active agent(s), ${u.writes} write(s), ${u.actions} action(s), ${u.tokensIn + u.tokensOut} token(s), ${u.modelRequests} model request(s), ${u.toolCalls} tool call(s), ${u.storageBytes} byte(s) stored; reads ${u.reads ?? "counted by the service, not the log"}`);
+    for (const a of m.perAgent.filter((x) => x.active).slice(0, 50)) io.out(`  ${a.did}: ${a.writes} write(s), ${a.actions} action(s), ${a.tokens} token(s)`);
+    return 0;
+  }
+  if (sub === "plan") {
+    if (!v.file || !v.by || !v.cosign) throw new UsageError("asp meter plan --file <plan.json> --by <operator did> --cosign <owner did>");
+    const body = JSON.parse(readFileSync(v.file, "utf8"));
+    const res = await local.append(cosign(createRecord({ type: "usage_plan", issuer: v.by, subject: null, prev: null, body, issued_at: now() }, signerFor(v.by)), signerFor(v.cosign)));
+    io.out(`plan ${body.plan} signed by the operator and the owner (log seq ${res.seq}); a plan is used once: a new price is a new plan`);
+    return 0;
+  }
+  if (sub === "statement") {
+    if (!v.holder || !v.plan || !v.by) throw new UsageError("asp meter statement --holder <org did> [--fleet <did>] --month <YYYY-MM> --plan <id> [--tax-line <name:basis points> ...] [--credits <n>] [--contract <text>] --by <operator did>");
+    const plan = await local.log.usagePlan(v.plan);
+    if (!plan) throw new UsageError(`${v.plan} is not a plan in this log`);
+    const taxes = (v["tax-line"] ?? []).map((t) => { const [name, bp] = t.split(":"); const n = Number(bp); if (!name || !Number.isInteger(n) || n < 0 || n > 10000) throw new UsageError("--tax-line is <name>:<basis points>, for example GST:1800"); return { name, rate_bp: n }; });
+    const m = (await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : { org: v.holder }), month })).usage;
+    const priced = priceStatement(plan, m, taxes);
+    const body = { holder: v.holder, ...(v.fleet ? { fleet: v.fleet } : {}), month, plan: v.plan, usage: { active_agents: m.activeAgents, writes: m.writes, tokens: m.tokensIn + m.tokensOut, storage_bytes: m.storageBytes }, lines: priced.lines, subtotal: priced.subtotal, tax: priced.tax, total: priced.total, currency: plan.currency, ...(v.credits ? { credits_applied: Math.trunc(Number(v.credits)) } : {}), ...(v.contract ? { contract: v.contract } : {}) };
+    const res = await local.append(createRecord({ type: "usage_statement", issuer: v.by, subject: v.holder, prev: null, body, issued_at: now() }, signerFor(v.by)));
+    io.out(`statement ${res.id}: ${month} for ${v.holder}${v.fleet ? ` (${v.fleet})` : ""}, ${priced.lines.length} line(s), subtotal ${priced.subtotal}, tax ${priced.tax.reduce((n, t) => n + t.amount, 0)}, total ${priced.total} ${plan.currency} (minor units)${body.credits_applied ? `, ${body.credits_applied} purchased credit(s) applied` : ""}`);
+    for (const l of priced.lines) io.out(`  ${l.item}: ${l.quantity} x ${l.unit_price} = ${l.amount}`);
+    return 0;
+  }
+  if (sub === "check") {
+    const id = rest[0];
+    if (!id) throw new UsageError("asp meter check <statement id>");
+    const c = await local.log.checkStatement(id);
+    io.out(c.ok ? `statement ${id}: the usage it states is what the log counts` : `statement ${id} differs from the log: ${c.differences.join("; ")}`);
+    return c.ok ? 0 : 1;
+  }
+  throw new UsageError("asp meter report | plan | statement | check");
+}
+
 /**
  * asp farming report [--json] | flag [--cluster <id>] --by <operator or watcher did> | freeze --report <upheld report> --cluster <id> [--by <Clinic did>] [--level observe|halt] [--days 1-7] (register row DK1357, S1410): the anti-farming
  * report (sponsors under common control and the rings, circles, wash trades and fan-ins of the job graph; a lead, never a penalty), a signed `common_control` record that makes a cluster one sponsor for independence, and the

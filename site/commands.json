@@ -451,6 +451,10 @@
           "description": "The member's fleet, the kind of fleet (copies, personas, mixed, single), persona, tree node and association, its template (runtime, model, policy, tools), and the standing of every agent with the same template in its fleet and in the society (counted jobs, slashes, strikes, related-party runs shown apart); the same block is on its Registry page"
         },
         {
+          "command": "asp meter report (--fleet <did> | --org <did> | --agent <did>) [--month <YYYY-MM>] [--json] | plan --file <plan.json> --by <operator did> --cosign <owner did> | statement --holder <org did> [--fleet <did>] --month <YYYY-MM> --plan <id> [--tax-line <name:basis points> ...] [--credits <n>] [--contract <text>] --by <operator did> | check <statement id>",
+          "description": "Metering: a fleet's, an organisation's or an agent's usage in a UTC month counted from the log (active agents, writes, Actions, tokens, stored data; reads are the service's own counter); a signed plan (the owner sets prices); a statement that prices the month from the plan with tax lines, optionally settled with purchased credits at the plan's credit value; and a recount that checks a statement against the log"
+        },
+        {
           "command": "asp bank account put|take --holder <did> --amount <n> | borrow|repay --amount <n> [--by <treasury did>] | interest --week <YYYY-Www> [--by <treasury did>]",
           "description": "The active Bank (S1405): put credits at the Bank and take them back with no lock (what the Bank cannot pay at once is paid in the order asked as loans come back); the Treasury borrows from the Bank and repays; the Treasury pays one completed ISO week of interest (0.25 % of what it owes), only from that week's income, the unpaid part carrying over, the Bank keeping 20 % and the depositors sharing the rest by balance and days held"
         },

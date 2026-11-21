@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 101,
-  "withdraw": 106,
+  "withdraw": 107,
   "after": 316,
-  "total": 523
+  "total": 524
  },
  "mustWorkerHours": 483.2,
  "entries": [
@@ -6137,7 +6137,7 @@
   {
    "id": "DK1379",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "There is no metering, billing or invoicing: nothing counts what an enterprise's agents use, prices it or produces an invoice.",
    "bucket": "must",
    "hours": 12,
@@ -6281,6 +6281,19 @@
    "pri": "A",
    "status": "open",
    "gap": "A stealth farm is not caught: each hop of a ring used only twice and most of the work honest-looking is below every rule of the detector (0 of 50 in the red team), and an attacker who adapts to the d…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1474",
+   "pri": "A",
+   "status": "open",
+   "gap": "The service does not yet feed its own counters to the meter or show a statement. The log's meter counts what agents signed (active agents, writes, Actions, tokens, stored data); reads and the hosted…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

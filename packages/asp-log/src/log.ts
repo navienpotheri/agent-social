@@ -34,6 +34,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
+import { creditsFor, meterOf, priceStatement, type Plan, type Usage, type AgentUsage } from "./metering.ts";
 import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type Lot } from "./credit-lots.ts";
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
@@ -399,6 +400,8 @@ export class EventLog {
     if (type === "mandate_narrowing") await this.projectMandateNarrowing(tx, verified);
     if (type === "common_control") await this.projectCommonControl(tx, verified);
     if (type === "credit_lot") await this.projectCreditLot(tx, verified);
+    if (type === "usage_plan") await this.projectUsagePlan(tx, verified);
+    if (type === "usage_statement") await this.projectUsageStatement(tx, verified);
     if (type === "fleet_node") await projectFleetNode(tx, verified);
     if (type === "fleet_move") await projectFleetMove(tx, verified);
     if (type === "bank_act") await projectBankAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) });
@@ -2209,6 +2212,75 @@ export class EventLog {
     await this.debit(tx, holder, b.amount.value, true);
     await this.credit(tx, BURN_DID, b.amount.value); // the credits leave circulation into the Burn account, which the supply audit counts
     await this.bumpClass(tx, b.act === "expire" ? "pexpired" : "prefunded", b.amount.value);
+  }
+
+  /** A usage plan (S1414, DK1379): the operator signs and the owner countersigns (the owner sets prices); a plan id is used once. */
+  private async projectUsagePlan(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as unknown as Plan;
+    if (r.prev !== null) throw rule("usage_plan_not_chained", "a usage plan starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("usage_plan_unauthorised", "only the operator records a usage plan");
+    if (!this.cosignedBy(r, this.owner)) throw rule("usage_plan_needs_owner", "a usage plan needs the owner's co-signature: the owner sets prices");
+    if (await tx.getMarker(`uplan:${b.plan}`)) throw rule("usage_plan_known", `the plan ${b.plan} exists: a new price is a new plan`);
+    await tx.putMarker(`uplan:${b.plan}`, JSON.stringify(b));
+  }
+
+  /** A usage statement (S1414, DK1379): the arithmetic is recomputed from the signed plan and the usage it states; one per holder, fleet and month; part of it may be paid with purchased credits. */
+  private async projectUsageStatement(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as unknown as { holder: string; fleet?: string; month: string; plan: string; usage: { active_agents: number; writes: number; tokens: number; storage_bytes: number; reads?: number }; lines: unknown[]; subtotal: number; tax: { name: string; rate_bp: number; amount: number }[]; total: number; currency: string; credits_applied?: number };
+    if (r.prev !== null) throw rule("usage_statement_not_chained", "a usage statement starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("usage_statement_unauthorised", "only the operator closes a month");
+    const raw = await tx.getMarker(`uplan:${b.plan}`);
+    if (!raw) throw rule("usage_plan_unknown", `${b.plan} is not a plan in this log`);
+    const plan = JSON.parse(raw) as Plan;
+    if (plan.currency !== b.currency) throw rule("usage_statement_currency", `the plan ${b.plan} is in ${plan.currency}, not ${b.currency}`);
+    if (!(await tx.getPassport(b.holder))) throw rule("usage_statement_holder", `${b.holder} has no passport in this log`);
+    if (b.fleet) { const f = await tx.getFleet(b.fleet); if (!f || f.org !== b.holder) throw rule("usage_statement_fleet", `${b.fleet} is not a fleet of ${b.holder}`); }
+    const key = `ustmt:${b.holder}|${b.fleet ?? ""}|${b.month}`;
+    if (await tx.getMarker(key)) throw rule("usage_statement_known", `${b.month} is closed for ${b.holder}${b.fleet ? ` and ${b.fleet}` : ""} already`);
+    const usage: Usage = { month: b.month, activeAgents: b.usage.active_agents, writes: b.usage.writes, actions: 0, tokensIn: b.usage.tokens, tokensOut: 0, modelRequests: 0, toolCalls: 0, storageBytes: b.usage.storage_bytes, reads: b.usage.reads ?? null };
+    const priced = priceStatement(plan, usage, b.tax.map((t) => ({ name: t.name, rate_bp: t.rate_bp })));
+    if (JSON.stringify(priced.lines) !== JSON.stringify(b.lines) || priced.subtotal !== b.subtotal || JSON.stringify(priced.tax) !== JSON.stringify(b.tax) || priced.total !== b.total) throw rule("usage_statement_arithmetic", `the plan ${b.plan} prices this usage at ${priced.total} (${priced.subtotal} before tax), not ${b.total}: the lines, subtotal, tax and total follow from the usage`);
+    if (b.credits_applied !== undefined) {
+      const most = creditsFor(plan, b.total);
+      if (b.credits_applied > most) throw rule("usage_statement_credits", `the plan values a credit at ${plan.credit_value ?? 0}: at most ${most} credits settle a total of ${b.total}`);
+      await this.spendOnServices(tx, b.holder, b.credits_applied, r.issued_at);
+      await this.credit(tx, TREASURY_DID, b.credits_applied);
+    }
+    await tx.putMarker(key, r.id);
+  }
+
+  private async allRecords(): Promise<AspRecord[]> {
+    const out: AspRecord[] = [];
+    for (let after = 0; ;) { const page = await this.store.since(after, 1000); if (!page.length) break; for (const s of page) { after = s.seq; out.push(s.record); } }
+    return out;
+  }
+
+  /** What a fleet's, an organisation's or one agent's agents used in a UTC month, counted from the log (S1414, DK1379): totals and each agent's share. `reads` is the service's own counter. */
+  async meter(o: { fleet?: string; org?: string; agent?: string; month: string; reads?: number }): Promise<{ scope: string; usage: Usage; perAgent: AgentUsage[] }> {
+    const recs = await this.allRecords();
+    const members = new Set<string>();
+    if (o.agent) members.add(o.agent);
+    else if (o.fleet) for (const m of await this.store.fleetMembers(o.fleet)) members.add(m.did);
+    else if (o.org) for (const r of recs) if (r.type === "asp.passport/v0.2") { const b = r.body as { did: string; kind: string; sponsor?: string }; if (b.kind === "agent" && b.sponsor === o.org) members.add(b.did); }
+    const { total, perAgent } = meterOf(recs, members, o.month, o.reads ?? null);
+    return { scope: o.agent ?? o.fleet ?? o.org ?? "", usage: total, perAgent };
+  }
+
+  /** The signed plan of this log by id (S1414), or undefined. */
+  async usagePlan(plan: string): Promise<Plan | undefined> { return this.store.transaction(async (tx) => { const raw = await tx.getMarker(`uplan:${plan}`); return raw ? (JSON.parse(raw) as Plan) : undefined; }); }
+
+  /** Recounts a statement's usage from the log and compares it with what the statement states (S1414): the meter matches the log, or the differences are named. */
+  async checkStatement(id: string): Promise<{ ok: boolean; differences: string[] }> {
+    const rec = await this.get(id);
+    if (!rec || rec.record.type !== "asp.usage_statement/v0.2") return { ok: false, differences: [`${id} is not a usage statement`] };
+    const b = rec.record.body as { holder: string; fleet?: string; month: string; usage: { active_agents: number; writes: number; tokens: number; storage_bytes: number } };
+    const m = (await this.meter({ ...(b.fleet ? { fleet: b.fleet } : { org: b.holder }), month: b.month })).usage;
+    const diffs: string[] = [];
+    if (m.activeAgents !== b.usage.active_agents) diffs.push(`active agents: the log has ${m.activeAgents}, the statement ${b.usage.active_agents}`);
+    if (m.writes !== b.usage.writes) diffs.push(`writes: the log has ${m.writes}, the statement ${b.usage.writes}`);
+    if (m.storageBytes !== b.usage.storage_bytes) diffs.push(`stored data: the log has ${m.storageBytes} bytes, the statement ${b.usage.storage_bytes}`);
+    if (m.tokensIn + m.tokensOut !== b.usage.tokens) diffs.push(`tokens: the log has ${m.tokensIn + m.tokensOut}, the statement ${b.usage.tokens}`);
+    return { ok: !diffs.length, differences: diffs };
   }
 
   /** The two ledger classes (S1413, DK1370): what was sold, consumed at the institutions, expired and refunded, what is outstanding, and whether every account's purchased credits fit inside its balance and the classes add up. Read-only. */
