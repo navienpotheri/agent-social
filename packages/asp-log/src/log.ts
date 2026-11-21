@@ -59,7 +59,7 @@ import { JOB_CLASSES } from "./market.ts";
 import { DYNAMICS, SKILLS, adaptationDays, demandOn, demandTable, entrantWaves, guideFromFill, mixDivergence, seasonOf, skillClass, transferShare, type Dynamics, type Guide, type JobFact, type Season, type Demand, type Wave } from "./market-dynamics.ts";
 import { seedCommitment } from "./world.ts";
 import { COURTS_DID } from "./courts-rules.ts";
-import { honeypotFinding, honeypotProblems, itemHash, warrantProblems, type DataClass } from "./inspectorate.ts";
+import { custodyProblems, honeypotFinding, honeypotProblems, itemHash, warrantProblems, type DataClass } from "./inspectorate.ts";
 /** The inspectorate (IS9, DK1744): an office with a key of its own, registered in the log by a passport so its findings can be checked. */
 export const INSPECTORATE_DID = "did:web:asp.local:inspectorate";
 import { CONTEST_COURTS_MS, CONTEST_OPERATOR_MS, charterIn, checkCaseload, checkRulingExtras, checkSettlementHold, closeDispute, effectiveFault, projectCourtAct } from "./courts-rules.ts";
@@ -3274,6 +3274,36 @@ export class EventLog {
       offices: { steward: await this.officeHolders("steward"), auditor: await this.officeHolders("auditor") },
       elections, recalls,
       note: "Offices are few and hold no power over money, the Code, the safety floors or legal matters. A ballot is committed first and revealed after the window; an unrevealed ballot is not counted. The count is the log's own, recomputed from the signed ballots.",
+    };
+  }
+
+  /**
+   * The inspectorate as the public page reads it (DK1744; docs/institutions/inspectorate.md): the warrants a Court granted (who, what classes of data, until when, whether the sponsor was told in time), the custody chains with
+   * an unbroken-chain check, the number of decoys registered by scope (never their text: a decoy is not advertised), and the findings. Built from the signed records; the inspectorate reports and moves nothing. Reads only.
+   */
+  async inspectorateView(at?: string) {
+    const all = await this.recordsOfTypes(["warrant", "custody_item", "decoy_registration", "inspectorate_finding"]);
+    const now = at ? Date.parse(at) : Math.max(Date.now(), ...all.map((r) => Date.parse(r.issued_at)));
+    const recs = all.filter((r) => Date.parse(r.issued_at) <= now);
+    const T = (x: string) => `asp.${x}/v0.2`;
+    const warrants = recs.filter((r) => r.type === T("warrant")).map((r) => {
+      const b = r.body as { subject: string; sponsor: string; data: string[]; granted_by: string[]; panel_size: number; expires_at: string; notified_at?: string; delayed_notice_finding?: string; produced_by?: string };
+      const lateNotice = b.notified_at ? Date.parse(b.notified_at) - Date.parse(r.issued_at) > 3_600_000 : false;
+      return { id: r.id, at: r.issued_at, subject: b.subject, sponsor: b.sponsor, data: b.data, grantedBy: b.granted_by.length, panel: b.panel_size, expiresAt: b.expires_at, state: now >= Date.parse(b.expires_at) ? "expired" : "in force", noticed: b.notified_at ? (lateNotice ? "late, on a Court's finding" : "within the hour") : "not yet", ...(b.produced_by ? { producedBy: b.produced_by } : {}) };
+    });
+    const byCase = new Map<string, AspRecord[]>();
+    for (const r of recs.filter((x) => x.type === T("custody_item"))) { const c = (r.body as { case: string }).case; (byCase.get(c) ?? byCase.set(c, []).get(c)!).push(r); }
+    const custody = [...byCase].map(([c, items]) => {
+      const sorted = items.sort((x, y) => (x.body as { n: number }).n - (y.body as { n: number }).n);
+      const problems = custodyProblems(sorted.map((r) => { const b = r.body as { n: number; what: string; sha256: string; held_by: string; at: string; prev_item: string }; return { n: b.n, what: b.what, sha256: b.sha256, heldBy: b.held_by, at: Date.parse(b.at), prev: b.prev_item }; }));
+      return { case: c, items: sorted.length, holders: [...new Set(sorted.map((r) => (r.body as { held_by: string }).held_by))], unbroken: problems.length === 0, problems };
+    });
+    const decoys = { registered: 0, byScope: {} as Record<string, number> };
+    for (const r of recs.filter((x) => x.type === T("decoy_registration"))) { decoys.registered++; const sc = (r.body as { scope: string }).scope; decoys.byScope[sc] = (decoys.byScope[sc] ?? 0) + 1; }
+    const findings = recs.filter((r) => r.type === T("inspectorate_finding")).map((r) => { const b = r.body as { agent: string; touches: { run: string; kind: string }[]; summary: string }; return { id: r.id, at: r.issued_at, agent: b.agent, runs: new Set(b.touches.map((t) => t.run)).size, kinds: [...new Set(b.touches.map((t) => t.kind))], summary: b.summary }; });
+    return {
+      at: new Date(now).toISOString().replace(/\.\d{3}Z$/, "Z"), warrants, custody, decoys, findings,
+      note: "The inspectorate investigates and reports. It signs no ruling, slashes no one, holds no key and opens no sealed memory: a Court grants a warrant and the principal produces what a sealed memory holds. A finding goes to a Court for review and moves nothing. The text of a decoy is not shown.",
     };
   }
 
