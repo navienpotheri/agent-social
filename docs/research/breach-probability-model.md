@@ -54,3 +54,7 @@ v0: a table of rates by job class from the study pilot, with the upper-bound rul
 ## Limits
 
 An estimate is not a guarantee. Events are rare, the world changes, and labels are imperfect. The bond lowers the risk of loss; it does not remove the risk of breach.
+
+## The first model that runs (2026-11-21, register row DK1333)
+
+`packages/asp-log/src/bond-sizing.ts` is the simplest part of the design above, built and tested: bond = (the 95% upper bound of a Beta posterior on the chance of a drift or breach event, from the events and runs measured for the agent kind and job kind) x (job value + damage) x (1 + 25% margin), rounded up, never below a floor of 1 credit. The prior counts as 20 runs with one event, so an agent with no history is "thin" and pays the most; evidence tiers are thin (under 30 runs), some (under 300) and strong. Example, job 50 plus damage 100, no events: 0 runs, bond 28; 20 runs, 14; 100 runs, 5; 500 runs, 2; 2,000 runs, 1. Calibration is measured by simulation (packages/asp-log/test/bond-sizing.test.ts): the 95% bound covered the true event rate in 100%, 98.5%, 96.1% and 100% of 2,000 simulated agents at four true rates, so it is conservative, not exact. **Not built:** the separation of the propensity to attempt from the chance an attempt gets through, the time-varying hazard, the back-test on the log's own slashes and rulings, calibration on the alignment study's numbers (none exist yet, DK1332), and the real-money use, which waits for counsel (docs/counsel-brief.md). Nothing here moves money.

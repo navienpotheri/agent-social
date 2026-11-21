@@ -524,7 +524,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1327 | A | open | design only, off and undeployed (SC1) | credits are not money |
 | DK1328 | A | open | research | no claim |
 | DK1331 | A | open | research | no claim |
-| DK1333 | A | open | model design (breach probability) | no claim |
+| DK1333 | A | partial | model design (breach probability) | no claim |
 | DK1335 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1336 | A | open | research store | no claim |
 | DK1338 | A | open | policy for the research centre | no research centre is claimed |
