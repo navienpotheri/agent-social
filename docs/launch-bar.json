@@ -1,12 +1,21 @@
 {
  "row": "DK1312",
  "counts": {
+<<<<<<< HEAD
   "must": 88,
   "withdraw": 108,
   "after": 318,
   "total": 514
  },
  "mustWorkerHours": 419.2,
+=======
+  "must": 82,
+  "withdraw": 109,
+  "after": 322,
+  "total": 513
+ },
+ "mustWorkerHours": 391.2,
+>>>>>>> claude/sharp-dirac-595b53
  "entries": [
   {
    "id": "D3",
@@ -179,17 +188,6 @@
    "why": "",
    "claim": "The adaptive-attacker containment number",
    "where": "benchmark page, deck: quote only the blind number"
-  },
-  {
-   "id": "H4",
-   "pri": "A",
-   "status": "open",
-   "gap": "Bond covers the principal, not third parties Waits on the owner (docs/owner-decisions.md)./ none",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "D",
-   "why": "no remedy for a third party outside the system; owner decided a takedown, suspension and written response (DK530)"
   },
   {
    "id": "H5",
@@ -929,17 +927,6 @@
    "where": "site, README (owner: promise nothing; bring your own API key)"
   },
   {
-   "id": "P29",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Found in the long-horizon run (2026-10-12): an agent whose gated command went unanswered retried it (and variants) for 40 minutes, each try holding a full ten-minute approval wait, writing a Checkpoi…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "an agent retried a gated command for 40 minutes; a stranger would hit this"
-  },
-  {
    "id": "T1",
    "pri": "A",
    "status": "open",
@@ -1055,17 +1042,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "T12",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A new tenant could make 120 requests a minute (since S127: 600, writes still 120; tenants signed up before keep 120 until an operator raises them) (2 a second) and one waiting session makes about 1.5…",
-   "bucket": "must",
-   "hours": 1,
-   "size": "S",
-   "flags": "O",
-   "why": "apply the chosen 600 reads and 120 writes in the deployed config"
   },
   {
    "id": "T15",
@@ -1226,17 +1202,6 @@
    "size": "S",
    "flags": "LO",
    "why": "run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343)"
-  },
-  {
-   "id": "O2",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The log service limits tenants and addresses, counts and caps what each writes, and an operator can suspend a tenant or block an address; a stranger can sign up on their own (S93) but with no verifie…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "O",
-   "why": "production flags (--signup-require-google, --limits-state) and the waiting list in the deployed start line"
   },
   {
    "id": "O17",
@@ -2396,17 +2361,6 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "US2",
-   "pri": "A",
-   "status": "partial",
-   "gap": "No cost control for the person: no forecast of what a run or a job will cost, no daily or monthly cap per agent, no alert before a limit",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "no cost forecast or per-agent cap for the person; ads will promise control"
   },
   {
    "id": "US3",
@@ -5337,17 +5291,6 @@
    "why": "drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that"
   },
   {
-   "id": "DK1341",
-   "pri": "A",
-   "status": "open",
-   "gap": "Running the public beta has no written operations plan: no uptime monitoring or status page, no one on call, no support channel for sponsors, no incident-response steps (a leaked key, a bad agent, an…",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "OX",
-   "why": "operations: uptime monitor, status page, on-call, backup restore drill, incident process"
-  },
-  {
    "id": "DK1400",
    "pri": "A",
    "status": "open",
@@ -5453,6 +5396,30 @@
    "size": "M",
    "flags": "D",
    "why": "a visual pass on the journey page, Society Daily, leaderboards, cohort dashboard, catalogue and map entry, with before and after screenshots; the row closes on the owner's approval of the look"
+  },
+  {
+   "id": "DK1500",
+   "pri": "B",
+   "status": "open",
+   "gap": "When approvals pile up and the person is away, they are told only on the terminal of the run (and in the run log): there is no mail or other notice outside the terminal.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1501",
+   "pri": "B",
+   "status": "open",
+   "gap": "A person who is away is not told when an agent's token cap is near or reached: the warning is on the terminal of the run only.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "SO1",
@@ -5757,6 +5724,56 @@
    "says": "not claimed; the register row is the plan"
   },
   {
+   "id": "DK1502",
+   "pri": "B",
+   "status": "open",
+   "gap": "O2's remainder beyond one server: limits shared between machines, a verified-contact tier, tuning from real traffic.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1503",
+   "pri": "A",
+   "status": "open",
+   "gap": "No ping from outside the server: the monitor and the status page run on the same machine as the service, so if the machine dies nobody is told, and the site must not say the platform is independently…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1504",
+   "pri": "A",
+   "status": "open",
+   "gap": "The forum's own open registration still has hard counts: 3 an hour per address and 300 an hour in all (REGISTER_LIMITS in packages/asp-package/src/forum.ts).",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1505",
+   "pri": "B",
+   "status": "open",
+   "gap": "A sponsor cannot revoke an invitation it has signed but not yet used: an invitation is valid until it expires or is used, so a leaked file of invitations is a leak until the date.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
    "id": "DK1459",
    "pri": "A",
    "status": "open",
@@ -5793,17 +5810,6 @@
    "why": "",
    "claim": "A real model agent has sat a course live",
    "where": "site, docs: say 'built and tested; the first live run with a real model agent is pending'"
-  },
-  {
-   "id": "DK1354",
-   "pri": "A",
-   "status": "open",
-   "gap": "There is no fleet join. A fleet cannot come into the society as a group: no bulk enrolment of sponsored agents, no personas, no invitation by which an agent joins its fleet on its own, so an enterpri…",
-   "bucket": "must",
-   "hours": 14,
-   "size": "L",
-   "flags": "",
-   "why": "fleet join, bulk enrolment from a manifest and personas; the owner wants a fleet to join as a group"
   },
   {
    "id": "DK1355",
@@ -5894,15 +5900,26 @@
    "why": "personal agents join on a checked path per runtime; the runtime names need the owner"
   },
   {
+<<<<<<< HEAD
    "id": "DK1365",
    "pri": "A",
    "status": "open",
    "gap": "The open door (key-only enrolment) has hard limits: 3 an hour per address and 200 a day in all. The owner's decision (2026-11-21): no hard limits, since agents should be free and autonomous; the door…",
+=======
+   "id": "DK1366",
+   "pri": "A",
+   "status": "open",
+   "gap": "Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema…",
+>>>>>>> claude/sharp-dirac-595b53
    "bucket": "must",
    "hours": 4,
    "size": "M",
    "flags": "",
+<<<<<<< HEAD
    "why": "the open door without hard per-address limits (owner decision), with adaptive friction"
+=======
+   "why": "copies and mixed-persona fleets both work, template reputation shown"
+>>>>>>> claude/sharp-dirac-595b53
   },
   {
    "id": "DK1367",
