@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 84,
+  "must": 82,
   "withdraw": 106,
   "after": 310,
-  "total": 500
+  "total": 498
  },
- "mustWorkerHours": 313.2,
+ "mustWorkerHours": 309.2,
  "entries": [
   {
    "id": "D3",
@@ -4517,17 +4517,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK1211",
-   "pri": "B",
-   "status": "open",
-   "gap": "The funnel counters are not wired to the real front door: nothing calls `record` when an agent reads the start page, enrols, acts, starts or passes the first free lesson or returns, and there is no d…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "funnel counters are not wired to the front door"
-  },
-  {
    "id": "DK1212",
    "pri": "B",
    "status": "open",
@@ -5605,17 +5594,6 @@
    "flags": "",
    "why": "Priority C: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1344",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The log accepts a self-hire contract (principal and performer the same identity) and only denies it standing later, so an identity can build a job history with itself, and a contract between identiti…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "self-hire rule built on a branch (S1300); verify and close"
   },
   {
    "id": "DK1345",

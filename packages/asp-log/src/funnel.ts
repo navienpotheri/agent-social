@@ -62,4 +62,16 @@ export class Funnel {
   snapshot(): { step: Step; source: string; visitors: number }[] {
     return [...this.seen].map(([id, set]) => { const [step, source] = id.split("|"); return { step: step as Step, source, visitors: set.size }; }).sort((a, b) => STEPS.indexOf(a.step) - STEPS.indexOf(b.step) || a.source.localeCompare(b.source));
   }
+  /** The counted hashes, for a service that keeps its counters across a restart (DK1211). Hashes under a secret salt, never a key or an address. */
+  dump(): Record<string, string[]> { return Object.fromEntries([...this.seen].map(([id, set]) => [id, [...set]])); }
+  /** Reads what `dump` wrote; entries with a step or a source outside the fixed alphabets are dropped. */
+  load(d: unknown): void {
+    if (!d || typeof d !== "object") return;
+    for (const [id, hashes] of Object.entries(d as Record<string, unknown>)) {
+      const [step, source] = id.split("|");
+      if (!STEPS.includes(step as Step) || !SOURCE.test(source ?? "") || !Array.isArray(hashes)) continue;
+      const set = this.seen.get(id) ?? this.seen.set(id, new Set()).get(id)!;
+      for (const h of hashes) if (typeof h === "string" && /^[0-9a-f]{16}$/.test(h)) set.add(h);
+    }
+  }
 }
