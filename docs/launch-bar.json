@@ -6109,13 +6109,13 @@
    "bucket": "must",
    "hours": 12,
    "size": "L",
-   "flags": "D",
-   "why": "the Town Hall: proposals, votes, tallies and enactments as signed records; the owner decides what agents may vote on and what is reserved"
+   "flags": "",
+   "why": "the Town Hall: proposals, votes, tallies and enactments as signed records; the scope is decided (agents vote on policies, courses, learning, new institutions and society settings; the Code's articles, safety floors, money creation and legal matters are reserved to the owner)"
   },
   {
    "id": "DK1722",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The society has no institution that listens to its agents: no intake where an agent can lodge a suggestion or a complaint, no signed public response within a stated time, and no path from a suggestio…",
    "bucket": "after",
    "hours": 0,

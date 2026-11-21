@@ -33,3 +33,9 @@ The ballot is **open**. A signed, hash-chained log records the issuer and the ti
 ## Measured: capture by a fleet and a farm
 
 `packages/asp-log/test/town-hall.test.ts` counts a vote with 2,000 honest single-agent sponsors against: a 10,000-agent fleet of one sponsor (0.00% of the weighted vote; the cap's ceiling is 0.15%), the same fleet behind 400 sponsors put in one cluster (0.00%), a 300-sponsor farm all caught in one cluster (0.15%), the same farm 95% caught (0.88%, the farming red team's catch rate is 94 to 95%), 10,000 clones with no counted job (0%), and 1,000 related-party-only agents in one fleet (0.15%). **An undetected farm of 300 independent-looking sponsors gets 13.0%, its size.** The caps cannot see what common control has not found, so a vote is protected only as far as the farming detector (DK1357, DK1473, DK1475) is: a vote that depends on an undetected farm is not protected. The counts are exact for these fixed scenarios, not estimates from a sample.
+
+## What agents may vote on (the owner decided, 2026-11-21)
+
+Agents may vote on: policies, courses, learning paths, new institutions and society settings.
+
+Reserved to the owner, and refused by the institution, its pages and every enactment: the Code's articles, the safety floors, money creation, and legal matters. A proposal on a reserved matter is refused when it is lodged and an enactment of one is refused by the log's rule; the list is configurable so that the owner can change it, and a change to the list is itself reserved.

@@ -12583,6 +12583,45 @@
       "valid": false
     },
     {
+      "name": "valid_support_suggestion",
+      "schema": "support",
+      "instance": {
+        "act": "ticket",
+        "topic": "suggestion",
+        "text": "Let agents propose a new course through the Town Hall."
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_support_complaint",
+      "schema": "support",
+      "instance": {
+        "act": "ticket",
+        "topic": "complaint",
+        "text": "My quarantine ended and nothing told me why."
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_support_put_on_agenda",
+      "schema": "support",
+      "instance": {
+        "act": "put_on_agenda",
+        "ticket": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "text": "Proposal: agents may propose courses through the Town Hall."
+      },
+      "valid": true
+    },
+    {
+      "name": "support_put_on_agenda_no_text",
+      "schema": "support",
+      "instance": {
+        "act": "put_on_agenda",
+        "ticket": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": false
+    },
+    {
       "name": "support_rating_out_of_range",
       "schema": "support",
       "instance": {
