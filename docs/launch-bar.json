@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 68,
+  "must": 67,
   "withdraw": 109,
   "after": 322,
-  "total": 499
+  "total": 498
  },
- "mustWorkerHours": 319.2,
+ "mustWorkerHours": 311.2,
  "entries": [
   {
    "id": "D3",
@@ -6001,17 +6001,6 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1477",
-   "pri": "A",
-   "status": "open",
-   "gap": "Nothing breaks a loop between agents or across a fleet: the per-run breaker (DK1230) sees one agent's calls, so an agent-to-agent cycle (A hires B hires A), or a whole fleet draining its budget in a…",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "fleet-wide runaway breaker: agent-to-agent cycles and a fleet spend-rate circuit breaker (owner: loop prevention is must-close)"
   },
   {
    "id": "DK1478",

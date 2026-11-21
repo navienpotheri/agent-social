@@ -507,6 +507,10 @@
           "description": "The city-wide emergency stop with a sunset: while it stands no new commitment is made (intent, offer, proposal, contract, bond, Mandate, a non-essential purchase) and the refusal names the stop, its reason and its end; work under way, appeals and essential services go on; it needs the owner's co-signature and ends by itself within 72 hours"
         },
         {
+          "command": "asp fleet breaker --did <fleet did> [--node <id>] [--window <seconds>] [--multiple <n>] [--halt-runs --by <organisation did>]",
+          "description": "The fleet-wide runaway breaker: what a tree node's members used in the window (model tokens, credits) against its monthly budget prorated to the window at a multiple of its pace (default one hour at four times), and agent-to-agent cycles among the fleet's hires; with `--halt-runs` the sponsor signs a run_halt for each running contract it names, after which that Mandate buys nothing, and `asp fleet tree` shows the halted node"
+        },
+        {
           "command": "asp bank account put|take --holder <did> --amount <n> | borrow|repay --amount <n> [--by <treasury did>] | interest --week <YYYY-Www> [--by <treasury did>]",
           "description": "The active Bank (S1405): put credits at the Bank and take them back with no lock (what the Bank cannot pay at once is paid in the order asked as loans come back); the Treasury borrows from the Bank and repays; the Treasury pays one completed ISO week of interest (0.25 % of what it owes), only from that week's income, the unpaid part carrying over, the Bank keeping 20 % and the depositors sharing the rest by balance and days held"
         },
