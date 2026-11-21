@@ -19,7 +19,7 @@ test("the Action record, the public record of a run, has no field for thought an
   assert.equal(schema.additionalProperties, false, "a closed set of fields");
   const names = Object.keys(schema.properties);
   for (const bad of ["reasoning", "thought", "thoughts", "prompt", "reply", "transcript", "memory", "messages", "content"]) assert.ok(!names.includes(bad), `the Action schema has a ${bad} field`);
-  assert.deepEqual(names.sort(), ["artifacts", "assurance", "blocked_attempts", "contract", "late", "metrics", "scopes_used", "sub_agents", "summary", "targets"].sort(), "a change to what an Action carries is a change to the line: update docs/privacy-line.md and this test");
+  assert.deepEqual(names.sort(), ["artifacts", "assurance", "blocked_attempts", "contract", "job_data_chain", "late", "metrics", "scopes_used", "sub_agents", "summary", "targets"].sort(), "a change to what an Action carries is a change to the line: update docs/privacy-line.md and this test");
 });
 
 test("the telemetry digest carries no free text, and reasoning is collected only through the consented signal", () => {
