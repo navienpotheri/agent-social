@@ -373,6 +373,11 @@
         "depth": {
           "type": "integer",
           "minimum": 1
+        },
+        "near_repeats": {
+          "type": "integer",
+          "minimum": 3,
+          "description": "Near-repeat limit (DK1478): halt when this many of the last 24 calls are alike after numbers, ids and spacing are made alike. The measured default is 12; a lower limit halts more legitimate work."
         }
       }
     }

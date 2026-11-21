@@ -12874,7 +12874,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -12947,7 +12948,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13018,7 +13020,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13090,7 +13093,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13161,7 +13165,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13233,7 +13238,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           },
           "contract": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
         }
@@ -13307,7 +13313,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13375,7 +13382,8 @@
           "token_budget": {},
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13445,7 +13453,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13515,7 +13524,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13585,7 +13595,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13742,6 +13753,77 @@
           },
           "loop_limits": {
             "equivalent_calls": 1
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_near_repeats_two",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ],
+          "token_budget": {
+            "per_run": 50000,
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "near_repeats": 2
           }
         }
       },
@@ -13950,7 +14032,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -14137,7 +14220,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -14368,7 +14452,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },

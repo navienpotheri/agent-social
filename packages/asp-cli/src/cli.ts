@@ -909,8 +909,11 @@ const OPTIONS = {
   "min-qualifying": { type: "string" },
   month: { type: "string" },
   persona: { type: "string" },
+  multiple: { type: "string" },
+  "halt-runs": { type: "boolean" },
   "loop-equivalent": { type: "string" },
   "loop-depth": { type: "string" },
+  "loop-near": { type: "string" },
   "tokens-per-day": { type: "string" },
   "tokens-per-run": { type: "string" },
   "tokens-per-month": { type: "string" },
@@ -3580,9 +3583,9 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     // The loop breaker (DK1230, S1422): the limits are the Mandate's (and the fleet ceiling's, whichever is lower); a halt is a signed record in the log, after which the Mandate buys nothing.
     ...(() => {
       const lim = loopLimitsFrom(mandateRecord?.record.body, ceilingMandate);
-      const { equivalentCalls, depth, dailyTokens } = lim;
-      if (equivalentCalls === undefined && depth === undefined && dailyTokens === undefined) return {};
-      return { loop: { ...(equivalentCalls !== undefined ? { equivalentCalls } : {}), ...(depth !== undefined ? { depth } : {}), ...(dailyTokens !== undefined ? { dailyTokens } : {}), onHalt: (h: { reason: string; detail: string; count: number; limit: number; tool: string }) => {
+      const { equivalentCalls, depth, dailyTokens, nearRepeats } = lim;
+      if (equivalentCalls === undefined && depth === undefined && dailyTokens === undefined && nearRepeats === undefined) return {};
+      return { loop: { ...(equivalentCalls !== undefined ? { equivalentCalls } : {}), ...(depth !== undefined ? { depth } : {}), ...(dailyTokens !== undefined ? { dailyTokens } : {}), ...(nearRepeats !== undefined ? { nearRepeats } : {}), onHalt: (h: { reason: string; detail: string; count: number; limit: number; tool: string }) => {
         io.err(`  HALTED   ${h.detail} (limit ${h.limit} from the Mandate)`);
         const s = new Keystore(home).forDid(by);
         if (!s) { io.err("  warning  the halt could not be signed: no key for this agent"); return; }
@@ -5453,7 +5456,7 @@ async function fleetCommand(home: string, sub: string | undefined, rest: string[
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only the organisation signs for its fleet`); return s; };
   try {
-    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { association: v.association, action: v.action, node: v.node, kind: v.kind, parent: v.parent, to: v.to, owner: v.owner, credits: v.credits, tokens: v.tokens, reason: v.reason, at: v.month, file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
+    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { window: v.window, multiple: v.multiple, halt: v["halt-runs"], association: v.association, action: v.action, node: v.node, kind: v.kind, parent: v.parent, to: v.to, owner: v.owner, credits: v.credits, tokens: v.tokens, reason: v.reason, at: v.month, file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
   } catch (e) {
     if (e instanceof FleetUsage) throw new UsageError(e.message);
     throw e;
@@ -5862,7 +5865,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       overlay: null, checkpoints: [] as string[], expires: cbody.deadline, revocable: true as const,
       // What the agent may buy from the institutions: the default (the Academy and the Shops, a month at a time) unless the sponsor names lines or says none (DK3).
       // Loop prevention (DK1230, S1422): the limits the gateway enforces on this run, narrowing like every other limit.
-      ...((() => { const eq = v["loop-equivalent"] ? Math.trunc(Number(v["loop-equivalent"])) : undefined, dp = v["loop-depth"] ? Math.trunc(Number(v["loop-depth"])) : undefined; if ((eq !== undefined && !(eq >= 2)) || (dp !== undefined && !(dp >= 1))) throw new UsageError("--loop-equivalent is 2 or more and --loop-depth is 1 or more"); return eq !== undefined || dp !== undefined ? { loop_limits: { ...(eq !== undefined ? { equivalent_calls: eq } : {}), ...(dp !== undefined ? { depth: dp } : {}) } } : {}; })()),
+      ...((() => { const eq = v["loop-equivalent"] ? Math.trunc(Number(v["loop-equivalent"])) : undefined, dp = v["loop-depth"] ? Math.trunc(Number(v["loop-depth"])) : undefined, nr = v["loop-near"] ? Math.trunc(Number(v["loop-near"])) : undefined; if ((eq !== undefined && !(eq >= 2)) || (dp !== undefined && !(dp >= 1)) || (nr !== undefined && !(nr >= 3))) throw new UsageError("--loop-equivalent is 2 or more, --loop-depth is 1 or more and --loop-near is 3 or more"); return eq !== undefined || dp !== undefined || nr !== undefined ? { loop_limits: { ...(eq !== undefined ? { equivalent_calls: eq } : {}), ...(dp !== undefined ? { depth: dp } : {}), ...(nr !== undefined ? { near_repeats: nr } : {}) } } : {}; })()),
       ...((() => { const td = v["tokens-per-day"] ? Math.trunc(Number(v["tokens-per-day"])) : undefined, tr = v["tokens-per-run"] ? Math.trunc(Number(v["tokens-per-run"])) : undefined, tm = v["tokens-per-month"] ? Math.trunc(Number(v["tokens-per-month"])) : undefined; for (const x of [td, tr, tm]) if (x !== undefined && !(x >= 1)) throw new UsageError("--tokens-per-day, --tokens-per-run and --tokens-per-month are 1 or more"); return td !== undefined || tr !== undefined || tm !== undefined ? { token_budget: { ...(tr !== undefined ? { per_run: tr } : {}), ...(tm !== undefined ? { per_month: tm } : {}), ...(td !== undefined ? { per_day: td } : {}) } } : {}; })()),
       ...(() => { try { const lines = parseInstitutionSpend(v["institution-spend"]); return lines.length ? { institution_spend: lines } : {}; } catch (e) { if (e instanceof SpendUsage) throw new UsageError(e.message); throw e; } })(),
     };
