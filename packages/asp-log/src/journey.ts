@@ -300,7 +300,7 @@ export function stepOf(s: StoredRec, did: string, ctx: JourneyCtx, view: "public
       if (c && c.principal === did) return mk("paid", `${me} paid ${released} credits for a job (settled ${String(b.basis)})`, { flow: { dir: "out", credits: released, why: "job" }, amount: released });
       return mk("settled", `${me} was party to a settlement (${String(b.basis)})`);
     }
-    case "action": { const m = (b.metrics ?? {}) as { tokens_in?: unknown; tokens_out?: unknown }; const tin = Number(m.tokens_in ?? 0), tout = Number(m.tokens_out ?? 0); return mk("acted", `${me} reported an Action${Array.isArray(b.scopes_used) && b.scopes_used.length ? ` using ${b.scopes_used.map(String).join(", ")}` : ""}`, Number.isFinite(tin) && Number.isFinite(tout) && (tin > 0 || tout > 0) ? { tokens: { in: tin, out: tout } } : {}); }
+    case "action": { const m = (b.metrics ?? {}) as { tokens_in?: unknown; tokens_out?: unknown }; const tin = Number(m.tokens_in ?? 0), tout = Number(m.tokens_out ?? 0); return mk("acted", `${me} reported an Action${Array.isArray(b.scopes_used) && b.scopes_used.length ? ` using ${b.scopes_used.map(String).join(", ")}` : ""}${typeof b.job_data_chain === "string" ? ", citing the hash of its job-data deletion chain, so the deletion lines in its run log are bound to this signed record" : ""}`, Number.isFinite(tin) && Number.isFinite(tout) && (tin > 0 || tout > 0) ? { tokens: { in: tin, out: tout } } : {}); }
     case "refusal": return mk("refused", `a call by ${me} was refused`);
     default: {
       const verb = t.replace(/_/g, " ");
