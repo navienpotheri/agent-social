@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 67,
+  "must": 68,
   "withdraw": 109,
   "after": 322,
-  "total": 498
+  "total": 499
  },
- "mustWorkerHours": 315.2,
+ "mustWorkerHours": 319.2,
  "entries": [
   {
    "id": "D3",
@@ -4452,17 +4452,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK1230",
-   "pri": "A",
-   "status": "open",
-   "gap": "The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record.",
-   "bucket": "must",
-   "hours": 10,
-   "size": "L",
-   "flags": "",
-   "why": "loop prevention in the gateway: equivalent-call, depth and daily token limits from the Mandate, a signed run_halt record, a looping scripted agent halted at the cap (owner: must-close)"
-  },
-  {
    "id": "DK1231",
    "pri": "B",
    "status": "open",
@@ -6012,6 +6001,28 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1477",
+   "pri": "A",
+   "status": "open",
+   "gap": "Nothing breaks a loop between agents or across a fleet: the per-run breaker (DK1230) sees one agent's calls, so an agent-to-agent cycle (A hires B hires A), or a whole fleet draining its budget in a…",
+   "bucket": "must",
+   "hours": 8,
+   "size": "L",
+   "flags": "",
+   "why": "fleet-wide runaway breaker: agent-to-agent cycles and a fleet spend-rate circuit breaker (owner: loop prevention is must-close)"
+  },
+  {
+   "id": "DK1478",
+   "pri": "A",
+   "status": "open",
+   "gap": "The breaker counts equal calls only: an agent that repeats the same intent with small changes to the arguments (a path with a counter, a retry with a different timestamp) is not seen.",
+   "bucket": "must",
+   "hours": 6,
+   "size": "M",
+   "flags": "",
+   "why": "near-repeat detection with a measured false-halt rate (owner: loop prevention is must-close)"
   },
   {
    "id": "DK1602",

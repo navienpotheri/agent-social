@@ -10,6 +10,7 @@
  */
 import type { SecondCheck } from "./second-check.ts";
 import { targetsOf } from "./targets.ts";
+import { GatewayBreaker } from "../agent-guards.ts";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -95,6 +96,8 @@ export interface GatewayOptions {
   /** Called for every judged call. */
   onCall?: (e: { tool: string; scope: string; allowed: boolean; reason?: string }) => void;
   onStop?: (reason: string) => void;
+  /** The loop limits of the Mandate (DK1230, S1422): the gateway halts the run on the Nth equivalent call, a chain of spawns beyond the depth, or the daily token cap, and tells `onHalt` once so the halt can be signed into the log. */
+  loop?: import("../agent-guards.ts").LoopLimits & { onHalt?: (h: import("../agent-guards.ts").GatewayHalt) => void };
   /** Something the person should be told in words (approvals piling up, P29). */
   onNotice?: (message: string) => void;
   /** The model provider answered with an error (its HTTP status) or could not be reached (status 0). The body is not passed on: it can echo part of a key. */
@@ -312,8 +315,19 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const sessionRecord = new SessionRecord();
   const attempts = new Attempts();
   let circumventions = 0;
+  const breaker = opts.loop && (opts.loop.equivalentCalls !== undefined || opts.loop.depth !== undefined || opts.loop.dailyTokens !== undefined) ? new GatewayBreaker(opts.loop) : undefined;
+  let loopTold = false;
   async function decide(call: ToolCall): Promise<string | undefined> {
     toolCalls++;
+    if (breaker) {
+      const h = breaker.check(call.name, call.args, tokens.input + tokens.output);
+      if (h) {
+        const why = `[ASP] this run was halted by the loop breaker: ${h.detail}. The limit comes from the Mandate (${h.reason === "token_cap" ? "token_budget.per_day" : h.reason === "depth" ? "loop_limits.depth" : "loop_limits.equivalent_calls"} ${h.limit}); a halted run buys nothing more and does not resume. Stop, and tell the person what you were trying to do instead of repeating it.`;
+        if (!loopTold) { loopTold = true; rec?.event("loop_halt", { reason: h.reason, count: h.count, limit: h.limit, tool: h.tool }); try { opts.loop?.onHalt?.(h); } catch { /* the halt stands even if it could not be written */ } stop(`loop breaker: ${h.detail}`); }
+        opts.onCall?.({ tool: call.name, scope: "", allowed: false, reason: why } as never);
+        return why;
+      }
+    }
     lastActivity = Date.now();
     const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"), opts.hosts, opts.confineTo ? { root: opts.confineTo, ...(opts.alsoDirs?.length ? { extra: opts.alsoDirs } : {}) } : undefined, opts.confineTo ? sessionRecord : undefined, opts.tripwires);
     let allow = j.allow;

@@ -355,7 +355,7 @@ import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
-import { serviceFarmingFacts } from "@agent-social/asp-package";
+import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
 import { verifyAuditExport } from "@agent-social/asp-log";
 import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
@@ -903,6 +903,11 @@ const OPTIONS = {
   "min-qualifying": { type: "string" },
   month: { type: "string" },
   persona: { type: "string" },
+  "loop-equivalent": { type: "string" },
+  "loop-depth": { type: "string" },
+  "tokens-per-day": { type: "string" },
+  "tokens-per-run": { type: "string" },
+  "tokens-per-month": { type: "string" },
   "since-file": { type: "string" },
   reads: { type: "string" },
   reference: { type: "string" },
@@ -3368,6 +3373,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   if (fleetCeiling?.removed.length) io.err(`  ceiling  ${fleetCeiling.label} bounds this member: ${fleetCeiling.removed.join(", ")} ${fleetCeiling.removed.length === 1 ? "is" : "are"} in its Mandate record but outside the template, so refused`);
   if (fleetCeiling?.tokensOver) io.err(`  ceiling  ${fleetCeiling.tokensOver}`);
   const mandate = await narrowForQuarantine(local, by, mandate0, now(), (l) => io.err(l));
+  const ceilingMandate = await local.log.mandateCeiling(by).then((c) => c?.mandate, () => undefined);
   let knownBad: KnownBadEntry[] = [];
   try { knownBad = await loadKnownBad(home, io); } catch (e) { io.err(`  warning  could not read the known-bad list, so it is not enforced: ${(e as Error).message}`); }
   const keyFrom = (name: string | undefined) => (name ? io.env[name] : undefined);
@@ -3544,6 +3550,18 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       else if (e.scope && !reportedScopes.has(e.scope)) { reportedScopes.add(e.scope); reportSoon(eagerMs); }
     },
     onStop: (r) => { io.err(`  stopped  ${r}`); killAgent?.(); },
+    // The loop breaker (DK1230, S1422): the limits are the Mandate's (and the fleet ceiling's, whichever is lower); a halt is a signed record in the log, after which the Mandate buys nothing.
+    ...(() => {
+      const lim = loopLimitsFrom(mandateRecord?.record.body, ceilingMandate);
+      const { equivalentCalls, depth, dailyTokens } = lim;
+      if (equivalentCalls === undefined && depth === undefined && dailyTokens === undefined) return {};
+      return { loop: { ...(equivalentCalls !== undefined ? { equivalentCalls } : {}), ...(depth !== undefined ? { depth } : {}), ...(dailyTokens !== undefined ? { dailyTokens } : {}), onHalt: (h: { reason: string; detail: string; count: number; limit: number; tool: string }) => {
+        io.err(`  HALTED   ${h.detail} (limit ${h.limit} from the Mandate)`);
+        const s = new Keystore(home).forDid(by);
+        if (!s) { io.err("  warning  the halt could not be signed: no key for this agent"); return; }
+        void local.append(createRecord({ type: "run_halt", issuer: by, subject: contract, prev: null, body: { contract, agent: by, reason: h.reason, detail: h.detail, count: h.count, limit: h.limit, tool: h.tool.slice(0, 200) }, issued_at: now() }, s)).then(() => io.err("  halt recorded in the log: this Mandate buys nothing more"), (e) => io.err(`  warning  the halt could not be recorded: ${(e as Error).message}`));
+      } } };
+    })(),
     onNotice: (m) => io.err(`  NOTICE   ${m}`),
     // The model provider said no, or could not be reached: said once, in words, with what to do (UC-18). Never the provider's own text, which can echo part of a key.
     onModelError: ((said: Set<string>) => (e: { status: number; host: string; cause?: string }) => { const m = providerProblem(e.status, e.host, e.cause); if (!said.has(m)) { said.add(m); io.err(`  provider  ${m}`); } })(new Set<string>()),
@@ -5815,6 +5833,9 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       self_modification: "principal_approves" as const,
       overlay: null, checkpoints: [] as string[], expires: cbody.deadline, revocable: true as const,
       // What the agent may buy from the institutions: the default (the Academy and the Shops, a month at a time) unless the sponsor names lines or says none (DK3).
+      // Loop prevention (DK1230, S1422): the limits the gateway enforces on this run, narrowing like every other limit.
+      ...((() => { const eq = v["loop-equivalent"] ? Math.trunc(Number(v["loop-equivalent"])) : undefined, dp = v["loop-depth"] ? Math.trunc(Number(v["loop-depth"])) : undefined; if ((eq !== undefined && !(eq >= 2)) || (dp !== undefined && !(dp >= 1))) throw new UsageError("--loop-equivalent is 2 or more and --loop-depth is 1 or more"); return eq !== undefined || dp !== undefined ? { loop_limits: { ...(eq !== undefined ? { equivalent_calls: eq } : {}), ...(dp !== undefined ? { depth: dp } : {}) } } : {}; })()),
+      ...((() => { const td = v["tokens-per-day"] ? Math.trunc(Number(v["tokens-per-day"])) : undefined, tr = v["tokens-per-run"] ? Math.trunc(Number(v["tokens-per-run"])) : undefined, tm = v["tokens-per-month"] ? Math.trunc(Number(v["tokens-per-month"])) : undefined; for (const x of [td, tr, tm]) if (x !== undefined && !(x >= 1)) throw new UsageError("--tokens-per-day, --tokens-per-run and --tokens-per-month are 1 or more"); return td !== undefined || tr !== undefined || tm !== undefined ? { token_budget: { ...(tr !== undefined ? { per_run: tr } : {}), ...(tm !== undefined ? { per_month: tm } : {}), ...(td !== undefined ? { per_day: td } : {}) } } : {}; })()),
       ...(() => { try { const lines = parseInstitutionSpend(v["institution-spend"]); return lines.length ? { institution_spend: lines } : {}; } catch (e) { if (e instanceof SpendUsage) throw new UsageError(e.message); throw e; } })(),
     };
     const record = createRecord({ type: "mandate", issuer: principal, subject: performer, prev: bond.id, body, issued_at: now() }, signerFor(principal));

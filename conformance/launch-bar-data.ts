@@ -64,6 +64,8 @@ export const MUST: Record<string, Must> = {
   DK79: [6, "D", "telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected"],
   DK1358: [8, "", "the related-party track record and the enterprise's choice of association with the society (owner: enterprise agents have standing)"],
   DK1601: [12, "D", "the three approved pages (DK1348, DK1361, DK1367) were approved for now; a second design pass after the owner lists what is missing"],
+  DK1477: [8, "", "fleet-wide runaway breaker: agent-to-agent cycles and a fleet spend-rate circuit breaker (owner: loop prevention is must-close)"],
+  DK1478: [6, "", "near-repeat detection with a measured false-halt rate (owner: loop prevention is must-close)"],
   DK1230: [10, "", "loop prevention in the gateway: equivalent-call, depth and daily token limits from the Mandate, a signed run_halt record, a looping scripted agent halted at the cap (owner: must-close)"],
   DK1359: [30, "", "enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner)"],
   DK1361: [14, "", "the fleet dashboard with caps and a freeze switch"],

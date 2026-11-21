@@ -12640,7 +12640,12 @@
           ],
           "token_budget": {
             "per_run": 50000,
-            "per_month": 1000000
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           }
         }
       },
@@ -12708,7 +12713,12 @@
           ],
           "token_budget": {
             "per_run": 50000,
-            "per_month": 1000000
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           }
         }
       },
@@ -12774,7 +12784,12 @@
           ],
           "token_budget": {
             "per_run": 50000,
-            "per_month": 1000000
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           }
         }
       },
@@ -12841,7 +12856,12 @@
           ],
           "token_budget": {
             "per_run": 50000,
-            "per_month": 1000000
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           }
         }
       },
@@ -12907,7 +12927,12 @@
           ],
           "token_budget": {
             "per_run": 50000,
-            "per_month": 1000000
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           }
         }
       },
@@ -12974,7 +12999,12 @@
           ],
           "token_budget": {
             "per_run": 50000,
-            "per_month": 1000000
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           },
           "contract": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
         }
@@ -13043,7 +13073,12 @@
           ],
           "token_budget": {
             "per_run": 50000,
-            "per_month": 1000000
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           }
         }
       },
@@ -13108,7 +13143,11 @@
               "period": "month"
             }
           ],
-          "token_budget": {}
+          "token_budget": {},
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
+          }
         }
       },
       "valid": false
@@ -13174,6 +13213,10 @@
           ],
           "token_budget": {
             "per_run": 0
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           }
         }
       },
@@ -13239,7 +13282,11 @@
             }
           ],
           "token_budget": {
-            "per_day": 5
+            "per_hour": 5
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           }
         }
       },
@@ -13306,6 +13353,10 @@
           ],
           "token_budget": {
             "per_month": 250000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           }
         }
       },
@@ -13320,6 +13371,290 @@
         "narrow": {
           "token_budget": {
             "per_run": 10000
+          }
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "mandate_template_zero_loop_depth",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ],
+          "token_budget": {
+            "per_run": 50000,
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "depth": 0
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_one_equivalent_call",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ],
+          "token_budget": {
+            "per_run": 50000,
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 1
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_unknown_loop_field",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ],
+          "token_budget": {
+            "per_run": 50000,
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "max_loops": 3
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_mandate_template_loop_depth_only",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ],
+          "token_budget": {
+            "per_run": 50000,
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "depth": 2
           }
         }
       },
@@ -13381,7 +13716,12 @@
           ],
           "token_budget": {
             "per_run": 50000,
-            "per_month": 1000000
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           }
         }
       },
@@ -13563,7 +13903,12 @@
           ],
           "token_budget": {
             "per_run": 50000,
-            "per_month": 1000000
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           }
         }
       },
@@ -13789,7 +14134,12 @@
           ],
           "token_budget": {
             "per_run": 50000,
-            "per_month": 1000000
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           }
         }
       },
@@ -14671,6 +15021,116 @@
         "act": "extend",
         "reason": "x",
         "until": "2026-11-24T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_run_halt",
+      "schema": "run_halt",
+      "instance": {
+        "contract": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "agent": "did:web:example.com:agents:coder-7",
+        "reason": "equivalent_calls",
+        "detail": "shell called 8 times with the same arguments",
+        "count": 8,
+        "limit": 8,
+        "tool": "shell"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_run_halt_depth",
+      "schema": "run_halt",
+      "instance": {
+        "contract": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "agent": "did:web:example.com:agents:coder-7",
+        "reason": "depth",
+        "detail": "shell called 8 times with the same arguments",
+        "count": 4,
+        "limit": 3
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_run_halt_fleet",
+      "schema": "run_halt",
+      "instance": {
+        "contract": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "agent": "did:web:example.com:agents:coder-7",
+        "reason": "fleet_spend",
+        "detail": "the node spent 120 percent of its monthly tokens",
+        "node": "platform"
+      },
+      "valid": true
+    },
+    {
+      "name": "run_halt_unknown_reason",
+      "schema": "run_halt",
+      "instance": {
+        "contract": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "agent": "did:web:example.com:agents:coder-7",
+        "reason": "bored",
+        "detail": "shell called 8 times with the same arguments",
+        "count": 8,
+        "limit": 8,
+        "tool": "shell"
+      },
+      "valid": false
+    },
+    {
+      "name": "run_halt_no_detail",
+      "schema": "run_halt",
+      "instance": {
+        "contract": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "agent": "did:web:example.com:agents:coder-7",
+        "reason": "equivalent_calls",
+        "count": 8,
+        "limit": 8,
+        "tool": "shell"
+      },
+      "valid": false
+    },
+    {
+      "name": "run_halt_no_contract",
+      "schema": "run_halt",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "reason": "equivalent_calls",
+        "detail": "shell called 8 times with the same arguments",
+        "count": 8,
+        "limit": 8,
+        "tool": "shell"
+      },
+      "valid": false
+    },
+    {
+      "name": "run_halt_zero_count",
+      "schema": "run_halt",
+      "instance": {
+        "contract": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "agent": "did:web:example.com:agents:coder-7",
+        "reason": "equivalent_calls",
+        "detail": "shell called 8 times with the same arguments",
+        "count": 0,
+        "limit": 8,
+        "tool": "shell"
+      },
+      "valid": false
+    },
+    {
+      "name": "run_halt_carries_arguments",
+      "schema": "run_halt",
+      "instance": {
+        "contract": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "agent": "did:web:example.com:agents:coder-7",
+        "reason": "equivalent_calls",
+        "detail": "shell called 8 times with the same arguments",
+        "count": 8,
+        "limit": 8,
+        "tool": "shell",
+        "arguments": {
+          "cmd": "rm"
+        }
       },
       "valid": false
     },
