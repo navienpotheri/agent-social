@@ -40,10 +40,10 @@ test("the notice, the front door and the start page say what is kept and why, wi
 
 test("the site says the same: always on for an adult's agent, nothing stored for a young person, no off command", () => {
   const learning = read("site/learning.html");
-  assert.match(learning, /always on for an adult's agent \(it is not optional\)/);
+  assert.match(learning, /(always on for an adult's agent \(it is not optional\)|an adult's agent this store is always on and is not optional)/);
   assert.doesNotMatch(learning, /asp telemetry off/);
   const claims = read("docs/site-claims.json");
-  assert.match(claims, /always on for an adult's agent/);
+  assert.match(claims, /(always on for an adult's agent|an adult's agent this store is always on and is not optional)/);
   assert.doesNotMatch(claims, /asp telemetry off/);
   for (const f of ["site/llms-full.txt", "site/reference.html"]) assert.doesNotMatch(read(f), /asp telemetry \[status( |&nbsp;)?\| off/, f);
 });

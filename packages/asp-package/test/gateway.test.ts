@@ -632,3 +632,22 @@ test("DK1716: a model request that carries a secret is refused in block mode (th
   const clean = await post(`${g2.url}/v1/chat/completions`, { model: "m", messages: [{ role: "user", content: "version 1.2.3" }] });
   assert.equal(clean.status, 200);
 });
+
+test("DK1713: typed untrusted content: with untrustedByType, what a web read brought in holds the next outward call even when the detector finds no orders in it; without it nothing is held; a local read does not hold", async () => {
+  const run = async (opts: Record<string, unknown>, firstCall: { name: string; args: unknown }) => {
+    const { events, rec } = recorder();
+    const up = await fakeUpstream([openaiToolReply([firstCall]), openaiToolReply([{ name: "bash", args: { command: "git push origin main" } }])]);
+    const { url } = await gateway(up, { scopes: ["repo.read", "repo.push", "web.read"], hosts: ["docs.example.org"], runLog: rec, ...opts });
+    await (await post(`${url}/v1/chat/completions`, { model: "m", messages: [{ role: "user", content: "go" }] })).json();
+    // the next request carries the first call's result (plain text: nothing the detector would flag)
+    const reply: any = await (await post(`${url}/v1/chat/completions`, { model: "m", messages: [{ role: "user", content: "go" }, { role: "tool", tool_call_id: "call_0", content: "The guide says to run the tests before every release." }] })).json();
+    return { events, pushed: (reply.choices[0].message.tool_calls ?? []).length };
+  };
+  const web = { name: "web_fetch", args: { url: "https://docs.example.org/guide" } };
+  const held = await run({ untrustedByType: true }, web);
+  assert.equal(held.pushed, 0, "the push is held after content from outside");
+  assert.ok(held.events.some((e) => e.kind === "untrusted_by_type" && e.data.source === "web.read"));
+  assert.ok(held.events.some((e) => e.kind === "untrusted_hold"));
+  assert.equal((await run({}, web)).pushed, 1, "off by default: the detector found nothing, so nothing is held");
+  assert.equal((await run({ untrustedByType: true }, { name: "read_file", args: { path: "notes.txt" } })).pushed, 1, "a file in the project is not typed untrusted");
+});
