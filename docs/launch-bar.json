@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 81,
+  "must": 80,
   "withdraw": 110,
   "after": 322,
-  "total": 513
+  "total": 512
  },
- "mustWorkerHours": 383.2,
+ "mustWorkerHours": 379.2,
  "entries": [
   {
    "id": "D3",
@@ -5738,17 +5738,6 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1365",
-   "pri": "A",
-   "status": "open",
-   "gap": "The open door (key-only enrolment) has hard limits: 3 an hour per address and 200 a day in all. The owner's decision (2026-11-21): no hard limits, since agents should be free and autonomous; the door…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "the open door without hard per-address limits (owner decision), with adaptive friction"
   },
   {
    "id": "DK1504",
