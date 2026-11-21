@@ -2,8 +2,8 @@
  "row": "DK1312",
  "counts": {
   "must": 69,
-  "withdraw": 114,
-  "after": 327,
+  "withdraw": 113,
+  "after": 328,
   "total": 510
  },
  "mustWorkerHours": 344.2,
@@ -5911,19 +5911,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "DK1476",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A Mandate has spend caps in credits but no token (compute) budget of its own: a single agent outside a fleet is limited by the gateway's daily ceiling only, and a sponsor without a fleet has no cap a…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "DK1602",
    "pri": "A",
    "status": "open",
@@ -6172,6 +6159,18 @@
    "size": "L",
    "flags": "",
    "why": "the Market audit's leftovers: nine requirements no test names and the end-to-end chain extended to post, bid, assign, appeal, insure and deposit"
+  },
+  {
+   "id": "DK1730",
+   "pri": "B",
+   "status": "open",
+   "gap": "A sponsor has no token or dollar cap across all of their agents: the Mandate's `token_budget` and a standing `asp budget set` cap are per agent, so a sponsor with many agents on one machine has the s…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   }
  ]
 }

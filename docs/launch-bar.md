@@ -5,11 +5,11 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 510 register rows are not closed (233 at priority A, 214 at B, 49 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 510 register rows are not closed (232 at priority A, 215 at B, 49 at C). Sorted:
 
 - **Must close before launch: 69 rows, 344 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
-- **Withdraw the claim until done: 114 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
-- **After launch: 327 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
+- **Withdraw the claim until done: 113 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
+- **After launch: 328 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
 Three honest dates, at about 10 productive build-hours a day for one worker (an assumption; more workers shorten it, and none of this counts a decision or a live run arriving late):
 
@@ -42,8 +42,8 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 | Bucket | Rows |
 |---|---|
 | Must close before launch | 69 (344.2 worker-hours; 11 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 114 |
-| After launch | 327 |
+| Withdraw the claim until done | 113 |
+| After launch | 328 |
 | Total not closed | 510 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
@@ -232,7 +232,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1459 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1600 | A | open | A real model agent has sat a course live | site, docs: say 'built and tested; the first live run with a real model agent is pending' |
 | DK1472 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| DK1476 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1602 | A | open | The cost to the sponsor on the journey was checked on a real model agent | site, docs: say 'built and tested on records; the first live run with a real model agent is pending' |
 | DK1603 | A | open | A house agent has run on the hosted service | site, docs: say 'built and tested on a test ledger; the first hosted run is pending' |
 | DK1604 | A | open | The drift scheduler has run on a real agent | site, docs: say 'built and tested on stand-ins; the first live run is pending' |
@@ -572,6 +571,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1723 | A | partial | agents author courses, learning paths, policies and institutions through the Town Hall | site, docs: say 'planned' |
 | DK1724 | A | partial | Town Hall pages: agenda, live votes, results, who voted by fleet, HUD replay | site, docs: say 'planned' |
 | DK1725 | A | open | the hosted live run of the society map and its feed (the owner: the 2-D map with the live feed is enough for launch) | site, docs: say 'built and tested; the live run on the hosted service is pending' |
+| DK1730 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row
