@@ -1068,7 +1068,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1371 | A | open | Bringing a fleet under the protocol is still a manual grind. An enterprise needs a guided, low-effort path: questions, ready personas, imports, a preview, an apply and a rollback. |
 | DK1372 | A | closed | A fleet has no subdivisions. An enterprise needs departments, teams and personas, each with its own Mandate, budget and dashboard. |
 | DK1373 | A | open | An enterprise cannot provision or deprovision its people and agents from its own identity system: no just-in-time provisioning from single sign-on, no SCIM-style feed, and leaving staff do not suspend their agents. |
-| DK1374 | A | open | An enterprise cannot export its audit trail: no log export in a standard format, no scheduled file or API for its own security tools. |
+| DK1374 | A | partial | An enterprise cannot export its audit trail: no log export in a standard format, no scheduled file or API for its own security tools. |
 | DK1375 | A | open | Approval workflows with a human in the loop beyond the existing checkpoints are not offered: an enterprise wants rules such as 'a spend over a figure needs a named approver'. |
 | DK1376 | A | open | Keys for 10,000 agents have no enterprise custody: no vault or key management service integration, no bring-your-own-key, no rotation policy. |
 | DK1377 | A | partial | An enterprise cannot choose where its data lives: no region choice and no statement of residency. |

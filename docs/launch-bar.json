@@ -5905,7 +5905,7 @@
   {
    "id": "DK1374",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "An enterprise cannot export its audit trail: no log export in a standard format, no scheduled file or API for its own security tools.",
    "bucket": "must",
    "hours": 6,

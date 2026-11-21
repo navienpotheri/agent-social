@@ -69,7 +69,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK9 | A | partial | 5 | M | - | no ledger invariant check against the live service and no alert |
 | CY12 | A | open | 6 | M | - | the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built |
 | DK1373 | A | open | 6 | M | - | just-in-time provisioning and deprovisioning from single sign-on |
-| DK1374 | A | open | 6 | M | - | audit export for an organisation as a signed file and an API |
+| DK1374 | A | partial | 6 | M | - | audit export for an organisation as a signed file and an API |
 | DK1383 | ? | partial | 6 | M | - | the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors |
 | DK1384 | A | open | 6 | M | - | offboarding and export |
 | DK241 | A | open | 6 | M | - | telemetry safeguards (minors store nothing) are unit-tested, not wired into a live run |

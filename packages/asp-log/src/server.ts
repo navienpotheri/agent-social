@@ -342,6 +342,16 @@ export function createLogServer(opts: ServerOptions): Server {
         if (q.get("format") === "text") { const t = opts.funnel.text(src); res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "content-length": Buffer.byteLength(t) }); return void res.end(t); }
         return json(res, 200, opts.funnel.view(src));
       }
+      if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/audit/export") {
+        // The audit export (DK1374, S1417): JSON lines of an organisation's signed records, for the tenant that owns the organisation (an operator: any). ?org=&from=&to=&after=
+        const q = new URLSearchParams((req.url ?? "").split("?")[1] ?? "");
+        const org = q.get("org") ?? "";
+        if (!org.startsWith("did:")) return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "?org=<the organisation's DID> is needed" } });
+        if (tenant.role !== "admin" && !(opts.owners?.of(tenant.name) ?? []).includes(org)) return json(res, 403, { ok: false, error: { code: "FORBIDDEN", message: "an audit export is for the tenant that owns the organisation, or an operator" } });
+        const out = await opts.handle.log.auditExport(org, { ...(q.get("from") ? { from: q.get("from")! } : {}), ...(q.get("to") ? { to: q.get("to")! } : {}), ...(q.get("after") ? { afterSeq: Number(q.get("after")) } : {}) });
+        res.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "content-length": Buffer.byteLength(out.text), "x-audit-last-seq": String(out.manifest.last_seq ?? "") });
+        return void res.end(out.text);
+      }
       if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/usage/statements") {
         // The months closed for this tenant's identities, each recounted against the log (DK1474, S1416). An admin sees all.
         const mine = tenant.role === "admin" ? undefined : opts.owners?.of(tenant.name) ?? [];

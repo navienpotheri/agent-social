@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 243 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 244 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (26)</summary><pre>Most people use only these.
 
 asp
@@ -322,7 +322,7 @@ asp orchestrate &lt;package&gt; --task &lt;text&gt; ...
     Run several nodes in parallel under delegated keys, merging their memory
 asp package push|pull|list|delete
     Keep an agent's packages on the service</pre></details>
-<details><summary>Jobs and credits (the market) (61)</summary><pre>The protocol's lifecycle, one record at a time.
+<details><summary>Jobs and credits (the market) (62)</summary><pre>The protocol's lifecycle, one record at a time.
 
 asp credits grant --to &lt;did&gt; --amount &lt;n&gt; [--by &lt;operator did&gt; [--reason &lt;code&gt;] [--cosign-by &lt;owner did&gt;]]
     Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money)
@@ -380,6 +380,8 @@ asp lots grant --holder &lt;did&gt; --amount &lt;n&gt; --expires &lt;date&gt; --
     The second ledger class: the operator records a sale of purchased credits as a lot (the owner co-signs: the owner's go for each sale), the expiry of a lot and a refund inside its window; `show` prints sold, consumed, expired, refunded, outstanding and the audit verdict. The payment is not here: `--reference` is the hash of the provider's reference
 asp meter invoice &lt;statement id&gt; [--json]
     Prints a usage statement as an invoice (lines, tax lines, total in minor units, the plan and contract) and says whether the usage it states is what the log counts
+asp audit-export export --org &lt;did&gt; [--from &lt;date&gt;] [--to &lt;date&gt;] [--since-file &lt;cursor.json&gt;] [--out &lt;file&gt;] | verify &lt;file&gt;
+    The audit export of an organisation: its and its agents' signed records as JSON lines with the signers' passports, a manifest with the count and a hash of the record ids; `verify` checks the manifest and every id and signature offline and lists signers whose keys are not in the file; with `--since-file` each run exports only what is new (a scheduled export)
 asp bank account put|take --holder &lt;did&gt; --amount &lt;n&gt; | borrow|repay --amount &lt;n&gt; [--by &lt;treasury did&gt;] | interest --week &lt;YYYY-Www&gt; [--by &lt;treasury did&gt;]
     The active Bank (S1405): put credits at the Bank and take them back with no lock (what the Bank cannot pay at once is paid in the order asked as loans come back); the Treasury borrows from the Bank and repays; the Treasury pays one completed ISO week of interest (0.25 % of what it owes), only from that week's income, the unpaid part carrying over, the Bank keeping 20 % and the depositors sharing the rest by balance and days held
 asp bank mentor offer --protege &lt;did&gt; --mentor &lt;did&gt; [--note &lt;text&gt;] [--out &lt;offer.json&gt;] | accept --file &lt;offer.json&gt; --by &lt;mentor did&gt;
