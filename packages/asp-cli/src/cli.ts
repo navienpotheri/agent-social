@@ -583,7 +583,6 @@ const OPTIONS = {
   tenant: { type: "string" },
   role: { type: "string" },
   "no-auth": { type: "boolean" },
-  sandbox: { type: "boolean" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
   "keyonly-review-interval": { type: "string" },
