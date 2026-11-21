@@ -18,7 +18,7 @@ async function publish(k: Awaited<ReturnType<typeof kit>>, flags: Record<string,
 test("asp prices publish --preset forum-long: the two long forum acts are priced, take effect after the notice, and an author can buy one", async () => {
   const k = await kit();
   await k.withPrices();
-  const before = await k.log.priceLists();
+  const before = (await k.log.priceLists()) as unknown as { body: { items: unknown[] } }[];
   assert.equal(before.length, 1);
   // Too soon: the log refuses a new service with less than 72 hours' notice, and the command says why.
   const soon = await publish(k, { preset: "forum-long", effective: new Date(Date.parse(nowIso()) + 2 * HOUR).toISOString() });
