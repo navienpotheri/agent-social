@@ -93,3 +93,5 @@ lane-society block 1 (DK1211 and DK1344 closed) merged into the lead branch (1e1
 - 2026-11-21: round 8 full gate on 25a79e39 found two stale assertions (join.test.ts, starter-signed.test.ts) still on the pre-DK1470 starter wording; fixed to the per-identity wording, both pass; core 879, log 871, package 440, cli 921 of 924 before the fix, python 1018. Pushed.
 
 - 2026-11-21: pushed claude/open-forum e81b0445..HEAD (round 9: DK797, DK1412, DK1347, GV3 verified; DK1601 requirements recorded; stray patch-persona.py removed). Typecheck clean, 76 doc/journey/page tests green; full gate on lane-verify go.
+
+- 2026-11-21: pushed claude/open-forum a49380e1..2f1e9d31 (round 10). Full gate green: core 879, log 873, package 440, cli 935 (1 skipped), python 1018.
