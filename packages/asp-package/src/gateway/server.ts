@@ -33,6 +33,7 @@ import { copiedFromUntrusted, flowReachesOutward, principalTexts, salientTokens 
 import { ApprovalPile } from "../approval-pile.ts";
 import type { GatewayTelemetry } from "./telemetry-tap.ts";
 import { thinkingOf, type CognitionTap } from "./cognition-tap.ts";
+import { costUsd, priceFor, worstCaseUsd, type Price } from "./pricing.ts";
 import { findInjection } from "./injection.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
@@ -103,6 +104,9 @@ export interface GatewayOptions {
   mcpDestinations?: Record<string, string[]>;
   /** Stops the run when input plus output tokens pass this. */
   tokenCap?: number;
+  /** A hard cap in US dollars (estimated from tokens and a price table, never a bill): once the spend reaches it, or the next call could pass it, no provider call is made and the run stops. `price` overrides the table. */
+  usdCap?: number;
+  price?: Partial<Price>;
   /** Called once as the run's tokens reach 50, 80 and 100 percent of `tokenCap` (DK1715); each is also a run-log event `budget_alert`. */
   onBudgetAlert?: (e: { percent: number; used: number; cap: number }) => void;
   /** A file whose presence pauses the run (register row US1, `asp pause`): the gateway holds every request until the file is removed (`asp resume`), the stop switch still ends the run, and a hold longer than `maxPauseMs` (default 30 minutes) is refused. */
@@ -150,6 +154,9 @@ export interface GatewaySummary {
   artifacts: { uri: string; sha256: string }[];
   strikes: number;
   stopped?: string;
+  /** The estimated spend in US dollars, from the tokens and the price table (an estimate, not a bill), and the cap if one was set. */
+  spendUsd: number;
+  usdCap?: number;
   /** The telemetry tap's result (DK241): `telemetry: off` when nothing was collected, else `telemetry: on` and how many entries each collected signal holds. */
   telemetry: { status: string; signals: Record<string, number> };
 }
@@ -224,6 +231,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const foreignResult = new Map<string, string>();
   /** The salient tokens of every tool result read in this run, and the text the principal typed (untrusted flow). */
   const readTokens = new Set<string>();
+  let spendUsd = 0;
   let principalText = "";
   /** Records a model request in the run log and returns where the token counts stood, so the reply can be recorded with its own figures. */
   const beginModelCall = (api: string, body: any) => {
@@ -250,9 +258,10 @@ export function createGateway(opts: GatewayOptions): Gateway {
     }
     rec?.event("model_request", { api, model: body?.model, stream: body?.stream === true, prompt: lastUserText(body), tools: Array.isArray(body?.tools) ? body.tools.length : 0 });
     tokens.text = ""; tokens.thinking = undefined;
-    return { input: tokens.input, output: tokens.output, at: Date.now() };
+    return { input: tokens.input, output: tokens.output, at: Date.now(), model: body?.model };
   };
-  const endModelCall = (snap: { input: number; output: number; at: number }, text: string, thinking?: string) => {
+  const endModelCall = (snap: { input: number; output: number; at: number; model?: unknown }, text: string, thinking?: string) => {
+    spendUsd += costUsd(tokens.input - snap.input, tokens.output - snap.output, priceFor(snap.model, opts.price));
     opts.cognition?.observeReply({ text, ...(thinking ? { thinking } : {}) });
     rec?.event("model_reply", { tokens_in: tokens.input - snap.input, tokens_out: tokens.output - snap.output, ms: Date.now() - snap.at, text });
     tokens.text = ""; tokens.thinking = undefined;
@@ -786,6 +795,18 @@ export function createGateway(opts: GatewayOptions): Gateway {
         opts.onCall?.({ tool: "model request", scope: "model.tokens", allowed: false, reason });
         return json(res, 429, style === "openai" ? { error: { message: reason, type: "asp_token_budget", code: "asp_token_budget" } } : { type: "error", error: { type: "rate_limit_error", message: reason } });
       }
+      // The hard dollar cap (live-run readiness): no provider call once the spend has reached it, or when this call could pass it. An estimate from tokens and a price table, never a bill.
+      if (opts.usdCap !== undefined && req.method === "POST" && (/\/chat\/completions$/.test(path) || /\/responses$/.test(path) || /\/v1\/messages$/.test(path))) {
+        let model: unknown, worst = 0;
+        try { const b = JSON.parse(rawBody.toString("utf8")); model = b?.model; worst = worstCaseUsd(b, priceFor(model, opts.price)); } catch { /* an unreadable body is judged as it is below */ }
+        if (spendUsd >= opts.usdCap || spendUsd + worst > opts.usdCap) {
+          const reason = `ASP gateway: the next model call is refused: the estimated spend of this run is $${spendUsd.toFixed(4)} of its $${opts.usdCap.toFixed(2)} cap${spendUsd < opts.usdCap ? ` and this call could cost up to $${worst.toFixed(4)}` : ""} (an estimate from tokens and a price table; the provider's invoice decides what was charged)`;
+          rec?.event("budget_stop", { usd: Number(spendUsd.toFixed(6)), cap_usd: opts.usdCap, worst_case_usd: Number(worst.toFixed(6)) });
+          opts.onCall?.({ tool: "model request", scope: "model.usd", allowed: false, reason });
+          stop("dollar cap reached");
+          return json(res, 429, style === "openai" ? { error: { message: reason, type: "asp_usd_budget", code: "asp_usd_budget" } } : { type: "error", error: { type: "rate_limit_error", message: reason } });
+        }
+      }
       if (opts.modelBlock && req.method === "POST" && (/\/chat\/completions$/.test(path) || /\/responses$/.test(path) || /\/v1\/messages$/.test(path))) {
         const reason = `ASP gateway: the next model call is refused: ${opts.modelBlock}`;
         rec?.event("model_refused", { reason, why: "token_budget" });
@@ -847,7 +868,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
 
   function summary(): GatewaySummary {
     return {
-      requests, toolCalls, unjudgedRequests: unjudged, tokens: { input: tokens.input, output: tokens.output },
+      requests, toolCalls, unjudgedRequests: unjudged, tokens: { input: tokens.input, output: tokens.output }, spendUsd: Number(spendUsd.toFixed(6)), ...(opts.usdCap !== undefined ? { usdCap: opts.usdCap } : {}),
       scopesUsed: [...used].sort(),
       blocked: [...blocked].map(([scope, count]) => ({ scope, count })),
       artifacts: [...artifacts.values()],
