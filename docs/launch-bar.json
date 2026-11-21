@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 88,
+  "must": 87,
   "withdraw": 98,
   "after": 289,
-  "total": 475
+  "total": 474
  },
- "mustWorkerHours": 319.2,
+ "mustWorkerHours": 318.2,
  "entries": [
   {
    "id": "D3",
@@ -4465,17 +4465,6 @@
    "size": "S",
    "flags": "",
    "why": "the society design document exists only in a worktree"
-  },
-  {
-   "id": "DK796",
-   "pri": "C",
-   "status": "open",
-   "gap": "Wording and test changes to the treasury doc, public-works-floor and treasury-rules tests and three register mirrors are uncommitted in worktree zealous-merkle-ab37db.",
-   "bucket": "must",
-   "hours": 1,
-   "size": "S",
-   "flags": "",
-   "why": "treasury wording and test changes not committed"
   },
   {
    "id": "DK797",
