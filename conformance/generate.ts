@@ -1409,6 +1409,7 @@ const worldRules = [
   const ccBody = (over: Record<string, unknown> = {}) => ({ cluster: spA, sponsors: [spA, spB], basis: ["payment"], detected_at: "2026-11-21T10:00:00Z", ...over });
   sv("valid_common_control", "common_control", ccBody(), true);
   sv("valid_common_control_lift", "common_control", ccBody({ lift: true }), true);
+  sv("valid_common_control_account", "common_control", ccBody({ basis: ["account", "address"] }), true);
   sv("valid_common_control_evidence", "common_control", ccBody({ basis: ["key_lineage", "domain", "address"], evidence: "sha256:" + "4".repeat(64) }), true);
   sv("common_control_one_sponsor", "common_control", ccBody({ sponsors: [spA] }), false);
   sv("common_control_duplicate_sponsor", "common_control", ccBody({ sponsors: [spA, spA] }), false);

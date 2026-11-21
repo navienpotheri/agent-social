@@ -916,6 +916,13 @@ export class EventLog {
     return analyseFarming(recs, opts);
   }
 
+  /** Every identity that sponsors an agent, or is a person or organisation with a passport (S1415): who the service's facts are asked about. */
+  async sponsorDids(): Promise<string[]> {
+    const out = new Set<string>();
+    for (const r of await this.recordsOfTypes(["passport"])) { const b = r.body as { did: string; kind: string; sponsor?: string }; if (b.sponsor) out.add(b.sponsor); if (b.kind !== "agent") out.add(b.did); }
+    return [...out].sort();
+  }
+
   /** The agents sponsored by any of these sponsors (S1410): who a cluster freeze names. */
   async agentsOfSponsors(sponsors: string[]): Promise<string[]> {
     const set = new Set(sponsors);
