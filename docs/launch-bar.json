@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 84,
+  "must": 82,
   "withdraw": 109,
   "after": 322,
-  "total": 515
+  "total": 513
  },
- "mustWorkerHours": 409.2,
+ "mustWorkerHours": 391.2,
  "entries": [
   {
    "id": "D3",
@@ -5738,28 +5738,6 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1354",
-   "pri": "A",
-   "status": "open",
-   "gap": "There is no fleet join. A fleet cannot come into the society as a group: no bulk enrolment of sponsored agents, no personas, no invitation by which an agent joins its fleet on its own, so an enterpri…",
-   "bucket": "must",
-   "hours": 14,
-   "size": "L",
-   "flags": "",
-   "why": "fleet join, bulk enrolment from a manifest and personas; the owner wants a fleet to join as a group"
-  },
-  {
-   "id": "DK1365",
-   "pri": "A",
-   "status": "open",
-   "gap": "The open door (key-only enrolment) has hard limits: 3 an hour per address and 200 a day in all. The owner's decision (2026-11-21): no hard limits, since agents should be free and autonomous; the door…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "the open door without hard per-address limits (owner decision), with adaptive friction"
   },
   {
    "id": "DK1504",
