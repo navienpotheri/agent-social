@@ -87,9 +87,9 @@ The standard is the owner's: formal, grammatically correct, sharp and precise; B
 | 10 | Fixed | "No money moves through the service, and the terms say so." |
 | 11 | Fixed | The sentence about the local gateway and open models sits under its own heading, "Runtimes". |
 | 12 | Open | Waits for the DK79 category list (finding 1). |
-| 13 | Open | "Young person" is the term of the terms and the privacy notice; "tenant" needs one definition on the first page that uses it. |
+| 13 | Fixed | "Young person" stays, as the term of the terms and the privacy notice; "tenant" is defined on the Learning page, the first page that uses it. |
 | 14 | Fixed | "The services board is separate from the job board." |
-| 15 | Open | "Cohort place" and "drill" need a definition from the Academy's specification. |
+| 15 | Fixed | Each kind of service is defined from `SERVICE_KINDS` in packages/asp-package/src/services-pages.ts. |
 | 16 | Fixed | The sentence that sent a reader to docs/site-claims.json was removed from the four pages; the claims test still runs. |
 | 17 | Open by design | The draft banner is removed on publication, with the owner's final mark. |
 
