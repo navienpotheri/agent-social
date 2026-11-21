@@ -5,11 +5,11 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 510 register rows are not closed (234 at priority A, 214 at B, 49 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 508 register rows are not closed (232 at priority A, 214 at B, 49 at C). Sorted:
 
 - **Must close before launch: 69 rows, 344 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
-- **Withdraw the claim until done: 114 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
-- **After launch: 327 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
+- **Withdraw the claim until done: 113 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
+- **After launch: 326 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
 Three honest dates, at about 10 productive build-hours a day for one worker (an assumption; more workers shorten it, and none of this counts a decision or a live run arriving late):
 
@@ -23,7 +23,7 @@ The live run with a real model agent is postponed by the owner, so T15, T22, DK6
 
 **What you decide first** (section 3, one question per row): the legal acceptance in docs/legal-review.md, the plan prices, the status page, the GitHub settings (O11 to O13) and the live-check day. Each row's exact question is in section 3 and in docs/owner-questions-site.md.
 
-**Closed on 2026-11-21: 77 rows** (the register rows whose status is closed and whose text says closed on that date): CY8, DK76, DK121, DK127, DK380, DK492, DK733, DK740, DK791, DK792, DK794, DK795, DK796, DK797, DK854, DK857, DK858, DK1211, DK1220, DK1230, DK1300, DK1301, DK1303, DK1307, DK1341, DK1342, DK1343, DK1344, DK1347, DK1348, DK1353, DK1354, DK1355, DK1356, DK1357, DK1358, DK1360, DK1361, DK1365, DK1366, DK1367, DK1372, DK1378, DK1382, DK1387, DK1405, DK1410, DK1450, DK1451, DK1452, DK1453, DK1454, DK1455, DK1456, DK1458, DK1470, DK1471, DK1474, DK1477, DK1601, DK1650, DK1713, DK1726, E2, E10, E11, GV3, GV5, H4, O2, P29, SC2, T12, T26, U10, US2, US4.
+**Closed on 2026-11-22: 2 rows** (the register rows whose status is closed and whose text says closed on that date): DK1608, DK1723.
 
 *This section is written by conformance/generate-launch-bar.ts from the register and docs/launch-bar.json: every number in it is computed, and packages/asp-cli/test/launch-bar-summary.test.ts fails when the prose and the JSON differ.*
 <!-- END SUMMARY -->
@@ -42,9 +42,9 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 | Bucket | Rows |
 |---|---|
 | Must close before launch | 69 (344.2 worker-hours; 11 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 114 |
-| After launch | 327 |
-| Total not closed | 510 |
+| Withdraw the claim until done | 113 |
+| After launch | 326 |
+| Total not closed | 508 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -239,7 +239,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1605 | A | open | A model swap holds the agent in the log, not only in the view | site, docs: say 'the hold is shown on the Registry; the log does not enforce it yet' |
 | DK1606 | A | open | The rent and the tax are set from measured real earnings | site, docs: say 'the rent and the tax are drafted from a seeded run; the live measure is pending' |
 | DK1607 | A | open | A reversed contest changes what the institution did | site, docs: say 'a contest is heard and decided; the institution does not yet act on a reversal' |
-| DK1608 | A | open | The log keeps an unreviewed course from going live | site, docs: say 'the Registrar checks the review; the log does not yet refuse a course that failed it' |
 
 ### Bucket 3: after launch
 
@@ -569,7 +568,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1386 | A | open | network allow lists and private connectivity: the follow-on enterprise set | not offered yet |
 | DK1700 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1722 | A | partial | the institution that listens to agents: intake, a signed response in a stated time, escalation to a proposal | site, docs: say 'planned' |
-| DK1723 | A | partial | agents author courses, learning paths, policies and institutions through the Town Hall | site, docs: say 'planned' |
 | DK1724 | A | partial | Town Hall pages: agenda, live votes, results, who voted by fleet, HUD replay | site, docs: say 'planned' |
 | DK1725 | A | open | the hosted live run of the society map and its feed (the owner: the 2-D map with the live feed is enough for launch) | site, docs: say 'built and tested; the live run on the hosted service is pending' |
 <!-- END TABLES -->

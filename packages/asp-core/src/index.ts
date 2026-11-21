@@ -14,3 +14,4 @@ export {
 export { Job, LIFECYCLE, type JobOptions, type JobSnapshot, type JobState } from "./lifecycle.ts";
 export { deriveMandate, mandateViolations, scopeCovered, type MandateLike } from "./mandate-template.ts";
 export { DEFAULT_NETWORK_RATE, hostAllowed, isNetworkScope } from "./network.ts";
+export { HIDDEN, INVARIANT_PATTERNS, lessonTextProblems, type TextProblem } from "./lesson-text.ts";

@@ -18,7 +18,7 @@ import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse 
 import { jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
 import { projectCreditLine, projectMentorship, payMentor, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
-  AspError, Job, isNetworkScope, verifyBytes, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
+  AspError, Job, isNetworkScope, verifyBytes, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord, lessonTextProblems,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
 } from "@agent-social/asp-core";
 import { starterSpendOf, type StarterSpendReport } from "./starter-spend.ts";
@@ -2411,6 +2411,7 @@ export class EventLog {
       const len = Date.parse(b.closes_at) - Date.parse(b.opens_at);
       if (!(len >= rules.minWindowMs && len <= rules.maxWindowMs)) throw rule("town_window", `the voting window runs from ${rules.minWindowMs / 86_400_000} to ${rules.maxWindowMs / 86_400_000} days`);
       if (Date.parse(b.opens_at) < now) throw rule("town_window", "a vote opens at or after the proposal");
+      if (pb.key.startsWith("academy.course.")) { const cid = pb.key.slice("academy.course.".length); if (await tx.getMarker(`town_course:${cid}`)) throw rule("town_course_exists", `a course ${cid} was put to a vote already`); await tx.putMarker(`town_course:${cid}`, r.issuer); }
       return;
     }
     const b = r.body as { proposal: string; choice?: "yes" | "no" | "abstain"; tally?: string; key?: string; value?: unknown };
@@ -3121,6 +3122,16 @@ export class EventLog {
     const list = await this.priceListInForce(tx, Date.parse(r.issued_at));
     const item = (list?.record.body as unknown as PriceListBody | undefined)?.items.find((i) => i.service === b.price_service);
     if (!item || item.institution !== institutionDid("academy")) throw rule("course_not_priced", `${b.price_service} is not a service of the Academy in the price list in force: a course is priced only by the published list`);
+    // A course that was put to a Town Hall vote (DK1608, S1554) goes live only as the voted one: enacted, signed by its proposer, and its lessons pass the text checks of the lesson gate whatever the vote.
+    const proposer = await tx.getMarker(`town_course:${b.course}`);
+    if (proposer) {
+      const enacted = JSON.parse((await tx.getMarker(`town_setting:academy.course.${b.course}`)) || "null") as { value: { lessons?: { id: string; text: string }[] } } | null;
+      if (!enacted) throw rule("course_not_enacted", `the course ${b.course} was put to a Town Hall vote and has no enactment: it does not go live before one`);
+      if (proposer !== r.issuer) throw rule("course_not_proposer", `the course ${b.course} was proposed by another identity: the instructor is the agent that put it to the vote`);
+      const lessons = enacted.value?.lessons ?? [];
+      const bad = !lessons.length ? ["no lessons"] : lessons.flatMap((l) => lessonTextProblems(l.text).map((p) => `${l.id}: ${p.rule}`));
+      if (bad.length) throw rule("course_failed_review", `the safety review of ${b.course} fails (${bad.join("; ")}): a course that fails it does not go live whatever the vote`);
+    }
     if (await tx.getMarker(`course:${b.course}`)) throw rule("course_already_published", `a course ${b.course} already exists`);
     await tx.putMarker(`course:${b.course}`, r.id);
   }
