@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { cosign, type Signer } from "@agent-social/asp-core";
 import { DEFAULT_ROUTES } from "../src/courts.ts";
-import { INSURER_DID, TREASURY_DID, premiumFor } from "../src/index.ts";
+import { INSURER_DID, TREASURY_DID, payoutFor, premiumFor } from "../src/index.ts";
 import { DAY, courts, credit, insurer, jump, kit, mk, owner, refusedBy, tick, treasury, type Party } from "./society-kit.ts";
 import { bank } from "./harness.ts";
 
@@ -35,6 +35,9 @@ async function world() {
   // cover is bought before the job starts
   const policy = mk("policy", performer, { holder: performer.did, contract: contract.id, cover: "bond_slash", insured_amount: credit(20), premium: credit(premiumFor("bond_slash", 20, 100, 0, 0)), valid_from: new Date(Date.parse("2026-11-01T00:00:00Z")).toISOString().replace(".000Z", "Z"), valid_to: "2027-06-01T00:00:00Z" }, null, { subject: performer.did });
   await k.log.append(policy);
+  // the principal also insures against a failed job (cover for the principal is not the performer's)
+  const failedPolicy = mk("policy", principal, { holder: principal.did, contract: contract.id, cover: "failed_job", insured_amount: credit(30), premium: credit(premiumFor("failed_job", 30, 100, 0, 0, "routine")), valid_from: new Date(Date.parse("2026-11-01T00:00:00Z")).toISOString().replace(".000Z", "Z"), valid_to: "2027-06-01T00:00:00Z" }, null, { subject: principal.did });
+  await k.log.append(failedPolicy);
   const bond = mk("bond", performer, { contract: contract.id, backer: performer.did, amount: credit(20), escrow: { payer: principal.did, amount: credit(100) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, { subject: contract.id });
   await k.log.append(bond);
   const mandate = mk("mandate", principal, { contract: contract.id, purpose: "Work", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2028-01-01T00:00:00Z", revocable: true }, bond.id, { subject: performer.did });
@@ -59,7 +62,8 @@ async function world() {
   };
   const claim = async (settlement: { id: string }) => { const c = mk("claim", performer, { policy: policy.id, event: settlement.id, amount_claimed: credit(1) }, null, { subject: performer.did }); await k.log.append(c); return c; };
   const decision = (claimId: string, d: string, amount: number, reason: string) => mk("claim_decision", insurer as never, { claim: claimId, decision: d, amount: credit(amount), reason }, null, { subject: null, at: tick() });
-  return { k, principal, performer, rule, settle, claim, decision, policy };
+  const principalClaim = async (settlement: { id: string }) => { const c = mk("claim", principal, { policy: failedPolicy.id, event: settlement.id, amount_claimed: credit(1) }, null, { subject: principal.did }); await k.log.append(c); return c; };
+  return { k, principal, performer, rule, settle, claim, principalClaim, decision, policy };
 }
 
 test("DK402: a decision on a claim that rests on a ruling waits for the appeal window to close; then the terms pay", async () => {
@@ -101,4 +105,17 @@ test("DK402: a ruling that finds the performer outside its Mandate excludes bond
   await w.k.log.append(w.decision(claim.id, "denied", 0, "outside_mandate"));
   assert.equal(await w.k.log.balance(w.performer.did), held0, "nothing was paid");
   assert.equal((await w.k.log.verify()).ok, true);
+});
+
+test("DK402: the exclusion is the performer's own act under bond-slash cover: the principal's failed-job cover on the same ruling is still paid", async () => {
+  const w = await world();
+  const ruling = await w.rule(true);
+  const settlement = await w.settle(ruling);
+  const claim = await w.principalClaim(settlement);
+  jump(14 * DAY);
+  const terms = payoutFor("failed_job", 30, 100, 10, 500);
+  assert.ok(terms.amount > 0, "the terms pay the principal");
+  const held0 = await w.k.log.balance(w.principal.did);
+  await w.k.log.append(w.decision(claim.id, "paid", terms.amount, "covered"));
+  assert.equal(await w.k.log.balance(w.principal.did) - held0, terms.amount, "paid although the ruling found the performer outside its Mandate");
 });
