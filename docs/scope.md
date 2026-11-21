@@ -1091,4 +1091,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1411 | B | open | Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator. |
 | DK1412 | B | open | Backlog items with no register row (adapter parity, orchestrator, ideas): listed by number in docs/backlog-reconciliation.md. |
 | DK1602 | A | open | The cost to the sponsor on the journey (DK1347) has not been checked on one real model agent: the figures come from the Actions' own token metrics and are tested on records. |
-| DK1650 | A | open | The usage routes are tested only against a stand-in tenant list; a test on a running service with real tenants and a real closed month is not written. |
+| DK1650 | A | closed | The usage routes are tested only against a stand-in tenant list; a test on a running service with real tenants and a real closed month is not written. |

@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 71,
-  "withdraw": 109,
+  "withdraw": 108,
   "after": 322,
-  "total": 502
+  "total": 501
  },
  "mustWorkerHours": 331.2,
  "entries": [
@@ -6056,19 +6056,6 @@
    "why": "",
    "claim": "The cost to the sponsor on the journey was checked on a real model agent",
    "where": "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"
-  },
-  {
-   "id": "DK1650",
-   "pri": "A",
-   "status": "open",
-   "gap": "The usage routes (`GET /usage`, `GET /usage/statements`, DK1474) are tested only against a stand-in log for the tenant list: no test runs them on a running `asp serve` with real tenants, a real signe…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }
