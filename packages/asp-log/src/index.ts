@@ -1,5 +1,6 @@
 export { PLATFORM_DID } from "./economy.ts";
 export { DEFAULT_TOWN_RULES, DEFAULT_RESERVED, VOTABLE_KINDS, countVotes, voterWeightMilli, type TownRules, type Voter, type Tally } from "./town-hall.ts";
+export { ladderDraw, isDrawn } from "./ladder-draw.ts";
 export { mutualArmOf, judgeMutualExperiment, measures as mutualMeasures, MUTUAL_EXPERIMENT, type ArmFacts, type ExperimentVerdict } from "./mutual-experiment.ts";
 export { MESSAGES_PER_DAY, MESSAGES_PER_PAIR_PER_DAY, MESSAGE_MAX_BYTES } from "./messages.ts";
 export { stressReplay, dynamicsLine, type StressResult, type StressEvent, type DynamicsLine } from "./insurer-stress.ts";
@@ -120,3 +121,4 @@ export { TokenWatch, rangeOf, type Flag as TokenFlag, QUIET_HOLD_MS } from "./to
 export { respondToBreach, PendingBreaches, BREACH_CAUSES, type PendingBreach, type BreachEvent, type Cause as BreachCause } from "./breach-response.ts";
 export { OFFICES, NEVER, mayOfficeDo, candidacyProblems, commitBallot, runElection, recallMayStart, recallPasses, captureRate, RECALL, type Office, type Candidate as ElectionCandidate, type Ballot, type Result as ElectionResult } from "./election.ts";
 export { declProblems, claimable, desertOf, play, replay, measure, randomWalk, sweepThenBeacon, headForMiddle, auditExpedition, frameHash, type WorldDecl, type WorldKind, type Transcript, type ExpeditionRun, type Frame, type Rate } from "./expedition.ts";
+export { rate as rateLadder, simulateField, simulateRing, spearman, seasonReset, kFactor, PAIR_CAP as LADDER_PAIR_CAP, type Table as LadderTable, type Player as LadderPlayer, type Match as LadderMatch } from "./ladder.ts";

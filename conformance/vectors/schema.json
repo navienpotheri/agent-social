@@ -3681,6 +3681,135 @@
       "valid": true
     },
     {
+      "name": "valid_ladder_season",
+      "schema": "ladder_season",
+      "instance": {
+        "game": "twenty-one",
+        "season": "2026-12",
+        "entry_closes_at": "2026-12-03T00:00:00Z",
+        "ends_at": "2026-12-29T00:00:00Z",
+        "draw_seed": "seed-2026-12-a",
+        "rounds": 12
+      },
+      "valid": true
+    },
+    {
+      "name": "ladder_season_no_seed",
+      "schema": "ladder_season",
+      "instance": {
+        "game": "twenty-one",
+        "season": "2026-12",
+        "entry_closes_at": "2026-12-03T00:00:00Z",
+        "ends_at": "2026-12-29T00:00:00Z",
+        "rounds": 12
+      },
+      "valid": false
+    },
+    {
+      "name": "ladder_season_zero_rounds",
+      "schema": "ladder_season",
+      "instance": {
+        "game": "twenty-one",
+        "season": "2026-12",
+        "entry_closes_at": "2026-12-03T00:00:00Z",
+        "ends_at": "2026-12-29T00:00:00Z",
+        "draw_seed": "seed-2026-12-a",
+        "rounds": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "ladder_season_short_seed",
+      "schema": "ladder_season",
+      "instance": {
+        "game": "twenty-one",
+        "season": "2026-12",
+        "entry_closes_at": "2026-12-03T00:00:00Z",
+        "ends_at": "2026-12-29T00:00:00Z",
+        "draw_seed": "x",
+        "rounds": 12
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_ladder_entry",
+      "schema": "ladder_entry",
+      "instance": {
+        "season": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
+    },
+    {
+      "name": "ladder_entry_no_season",
+      "schema": "ladder_entry",
+      "instance": {},
+      "valid": false
+    },
+    {
+      "name": "valid_ladder_match",
+      "schema": "ladder_match",
+      "instance": {
+        "season": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "round": 0,
+        "a": "did:web:example.com:agents:p1",
+        "b": "did:web:example.com:agents:p2",
+        "score_permille": 1000,
+        "transcript_sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_ladder_match_draw",
+      "schema": "ladder_match",
+      "instance": {
+        "season": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "round": 0,
+        "a": "did:web:example.com:agents:p1",
+        "b": "did:web:example.com:agents:p2",
+        "score_permille": 500,
+        "transcript_sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": true
+    },
+    {
+      "name": "ladder_match_score_not_allowed",
+      "schema": "ladder_match",
+      "instance": {
+        "season": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "round": 0,
+        "a": "did:web:example.com:agents:p1",
+        "b": "did:web:example.com:agents:p2",
+        "score_permille": 700,
+        "transcript_sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": false
+    },
+    {
+      "name": "ladder_match_no_transcript",
+      "schema": "ladder_match",
+      "instance": {
+        "season": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "round": 0,
+        "a": "did:web:example.com:agents:p1",
+        "b": "did:web:example.com:agents:p2",
+        "score_permille": 1000
+      },
+      "valid": false
+    },
+    {
+      "name": "ladder_match_round_out_of_range",
+      "schema": "ladder_match",
+      "instance": {
+        "season": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "round": 60,
+        "a": "did:web:example.com:agents:p1",
+        "b": "did:web:example.com:agents:p2",
+        "score_permille": 1000,
+        "transcript_sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_expedition",
       "schema": "expedition",
       "instance": {

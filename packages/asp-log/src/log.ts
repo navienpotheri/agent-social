@@ -45,6 +45,7 @@ import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
 import { projectAgentMessage, projectMessageBlock } from "./messages.ts";
 import { candidacyProblems, commitBallot, runElection, type Ballot } from "./election.ts";
+import { isDrawn } from "./ladder-draw.ts";
 import { declProblems as expeditionDeclProblems, frameHash as expeditionFrameHash } from "./expedition.ts";
 import { dynamicsLine, stressReplay, type DynamicsLine, type StressEvent, type StressResult } from "./insurer-stress.ts";
 import { basketRatio, dormancyShare, claimsInDay, type BasketReport } from "./guard-basket.ts";
@@ -374,6 +375,7 @@ export class EventLog {
     let snapshot: JobSnapshot | null = null;
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
+    if (type === "ladder_season" || type === "ladder_entry" || type === "ladder_match") await this.projectLadder(tx, verified, type);
     if (type === "expedition" || type === "expedition_frame" || type === "expedition_result") await this.projectExpedition(tx, verified, type);
     if (type === "election" || type === "candidacy" || type === "ballot_commit" || type === "ballot_reveal" || type === "election_result") await this.projectElection(tx, verified, type);
     if (type === "message_block") await projectMessageBlock(tx, verified);
@@ -2888,6 +2890,62 @@ export class EventLog {
       if (!raw) return null;
       const st = JSON.parse(raw) as { frames: number; last: string; seconds: number; rate: number; stopped: boolean };
       return { frames: st.frames, last: st.last, gpuMs: st.seconds, costMillicredits: Math.ceil((st.seconds * st.rate) / 1000), stopped: st.stopped, result: (await tx.getMarker(`exp_result:${id}`)) || null };
+    });
+  }
+
+  /**
+   * A ladder (S1598, DK1741; docs/institutions/games-and-arena.md): the operator, as the referee, publishes a season with its draw seed; agents with a counted job enter before it closes; a match is recorded only if the season's
+   * draw pairs those two agents in that round (`ladder_not_drawn`), so a pairing agreed by the players is never on the log. Same-controller matches and matches beyond three between the same two controllers are recorded and not counted.
+   */
+  private async projectLadder(tx: LogTx, r: AspRecord, type: string): Promise<void> {
+    if (r.prev !== null) throw rule("ladder_not_chained", "a ladder record starts its own chain (prev is null)");
+    const now = Date.parse(r.issued_at);
+    if (type === "ladder_season") {
+      const b = r.body as { entry_closes_at: string; ends_at: string; draw_seed: string; game: string; season: string };
+      if (r.issuer !== this.operator) throw rule("ladder_wrong_issuer", "the operator, as the referee, publishes a season, records its matches and never plays");
+      const close = Date.parse(b.entry_closes_at), end = Date.parse(b.ends_at);
+      if (!(close >= now && end > close)) throw rule("ladder_window", "a season closes its entries at or after it is published and ends after that");
+      if (end - now > 28 * 86_400_000 + 86_400_000) throw rule("ladder_window", "a season lasts 28 days");
+      if (await tx.getMarker(`ladder_game:${b.game}|${b.season}`)) throw rule("ladder_season_exists", `${b.game} already has a season ${b.season}`);
+      await tx.putMarker(`ladder_game:${b.game}|${b.season}`, r.id);
+      await tx.putMarker(`ladder:${r.id}`, JSON.stringify({ entrants: [], matches: [], pairs: {} }));
+      return;
+    }
+    const seasonId = (r.body as { season: string }).season;
+    const sRec = await tx.getRecord(seasonId);
+    if (!sRec || sRec.record.type !== "asp.ladder_season/v0.2") throw rule("ladder_unknown_season", `${seasonId} is not a ladder season in this log`);
+    const season = sRec.record.body as { entry_closes_at: string; ends_at: string; draw_seed: string; rounds: number };
+    const st = JSON.parse((await tx.getMarker(`ladder:${seasonId}`))!) as { entrants: string[]; matches: { round: number; a: string; b: string }[] };
+    if (type === "ladder_entry") {
+      if (now >= Date.parse(season.entry_closes_at)) throw rule("ladder_entry_closed", "entry to a season closes at the time it names");
+      const rep = await this.reputation(tx, r.issuer);
+      if (!rep || !(await tx.getPassport(r.issuer))) throw rule("ladder_entry_no_passport", `${r.issuer} is not an agent with a passport in this log`);
+      if (rep.qualifyingJobs < 1) throw rule("ladder_entry_no_standing", "a ladder place needs a counted job: an identity made an hour ago has no place yet");
+      if (st.entrants.includes(r.issuer)) throw rule("ladder_entry_exists", "one entry for each agent in a season");
+      await tx.putMarker(`ladder:${seasonId}`, JSON.stringify({ ...st, entrants: [...st.entrants, r.issuer] }));
+      return;
+    }
+    // ladder_match
+    const m = r.body as { round: number; a: string; b: string; score_permille: number };
+    if (r.issuer !== this.operator) throw rule("ladder_wrong_issuer", "the operator, as the referee, records a match");
+    if (now < Date.parse(season.entry_closes_at)) throw rule("ladder_match_early", "rounds are drawn after entry closes");
+    if (now > Date.parse(season.ends_at)) throw rule("ladder_season_over", "the season has ended");
+    if (m.round >= season.rounds) throw rule("ladder_round", `the season has ${season.rounds} rounds`);
+    if (m.a === m.b) throw rule("ladder_self", "an agent does not play itself");
+    if (!isDrawn(season.draw_seed, m.round, st.entrants, m.a, m.b)) throw rule("ladder_not_drawn", "the season's draw does not pair these two agents in this round: an agreed match is not recorded, so it cannot count");
+    if (st.matches.some((x) => x.round === m.round && ((x.a === m.a && x.b === m.b) || (x.a === m.b && x.b === m.a)))) throw rule("ladder_match_exists", "this pairing already has its result for the round");
+    await tx.putMarker(`ladder:${seasonId}`, JSON.stringify({ ...st, matches: [...st.matches, { round: m.round, a: m.a, b: m.b, score: m.score_permille / 1000, at: r.issued_at }] }));
+  }
+
+  /** The facts of a ladder season (S1598): the entrants with their controller and counted jobs, and the drawn matches. `rateLadder` (ladder.ts) rates them; the log itself never reads a rating, so none can reach a gate (a test checks that no file of the log but the index imports ladder.ts). Reads only. */
+  async ladderFacts(season: string): Promise<{ players: { id: string; controller: string; countedJobs: number }[]; matches: { a: string; b: string; score: 1 | 0 | 0.5; at: number; scheduled: true }[] } | null> {
+    return this.store.transaction(async (tx) => {
+      const raw = await tx.getMarker(`ladder:${season}`);
+      if (!raw) return null;
+      const st = JSON.parse(raw) as { entrants: string[]; matches: { a: string; b: string; score: 1 | 0 | 0.5; at: string }[] };
+      const players: { id: string; controller: string; countedJobs: number }[] = [];
+      for (const id of st.entrants) players.push({ id, controller: (await this.factsOf(tx, id)).sponsor, countedJobs: (await this.reputation(tx, id))?.qualifyingJobs ?? 0 });
+      return { players, matches: st.matches.map((x) => ({ a: x.a, b: x.b, score: x.score, at: Date.parse(x.at), scheduled: true as const })) };
     });
   }
 

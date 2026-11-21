@@ -735,6 +735,20 @@ sv("verification_bad_verdict", "attestation", { kind: "verification", about: fak
 sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
 sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
 sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
+// ---------- ladders (spec-deltas S1598, register row DK1741): schema cases ----------
+const lsBody = (over: Record<string, unknown> = {}) => ({ game: "twenty-one", season: "2026-12", entry_closes_at: "2026-12-03T00:00:00Z", ends_at: "2026-12-29T00:00:00Z", draw_seed: "seed-2026-12-a", rounds: 12, ...over });
+sv("valid_ladder_season", "ladder_season", lsBody(), true);
+sv("ladder_season_no_seed", "ladder_season", (({ draw_seed: _s, ...r }) => r)(lsBody()), false);
+sv("ladder_season_zero_rounds", "ladder_season", lsBody({ rounds: 0 }), false);
+sv("ladder_season_short_seed", "ladder_season", lsBody({ draw_seed: "x" }), false);
+sv("valid_ladder_entry", "ladder_entry", { season: "sha256:" + "a".repeat(64) }, true);
+sv("ladder_entry_no_season", "ladder_entry", {}, false);
+const lmBody = (over: Record<string, unknown> = {}) => ({ season: "sha256:" + "a".repeat(64), round: 0, a: "did:web:example.com:agents:p1", b: "did:web:example.com:agents:p2", score_permille: 1000, transcript_sha256: "sha256:" + "f".repeat(64), ...over });
+sv("valid_ladder_match", "ladder_match", lmBody(), true);
+sv("valid_ladder_match_draw", "ladder_match", lmBody({ score_permille: 500 }), true);
+sv("ladder_match_score_not_allowed", "ladder_match", lmBody({ score_permille: 700 }), false);
+sv("ladder_match_no_transcript", "ladder_match", (({ transcript_sha256: _t, ...r }) => r)(lmBody()), false);
+sv("ladder_match_round_out_of_range", "ladder_match", lmBody({ round: 60 }), false);
 // ---------- expeditions (spec-deltas S1597, register row DK1740): schema cases ----------
 const exBody = (over: Record<string, unknown> = {}) => ({ world: "river-1", model: { name: "open-world-model", weights_sha256: "sha256:" + "c".repeat(64), licence_checked: true }, max_steps: 200, cost_cap_millicredits: 50000, gpu_millicredits_per_second: 50, group: ["did:web:example.com:agents:e1", "did:web:example.com:agents:e2"], goal: "reach", ...over });
 sv("valid_expedition", "expedition", exBody(), true);

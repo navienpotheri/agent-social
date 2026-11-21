@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:ladder_season",
+  "title": "Ladder season body",
+  "description": "A ladder season of a game (register row DK1741; spec-delta S1598; docs/institutions/games-and-arena.md 3 to 6): a 28-day season in which entrants are paired by a DRAW from a published seed that no entrant chooses, and a rating counts only a drawn pairing. Signed by the operator as the referee. The seed is published here, before play; entries close at `entry_closes_at`; rounds are drawn from the entrants after that. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "game",
+    "season",
+    "entry_closes_at",
+    "ends_at",
+    "draw_seed",
+    "rounds"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "game": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "season": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "entry_closes_at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "ends_at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "draw_seed": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 64
+    },
+    "rounds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 60
+    }
+  }
+}
