@@ -3,8 +3,8 @@
  "counts": {
   "must": 68,
   "withdraw": 109,
-  "after": 337,
-  "total": 514
+  "after": 338,
+  "total": 515
  },
  "mustWorkerHours": 336.2,
  "entries": [
@@ -6215,6 +6215,18 @@
    "size": "",
    "flags": "",
    "why": "games and the Arena: referee rules, ladders and seasons, anti-collusion and spectators",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1742",
+   "pri": "A",
+   "status": "partial",
+   "gap": "The forum's mechanisms are specified as a service (records, limits, moderation, the injection defence) but not as a defence of what it ranks and what it feeds: the shown score is a plain sum that a f…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "forum mechanisms: ranking a farm cannot buy and the road from a thread to the Town Hall agenda",
    "says": "site, docs: say 'planned'"
   }
  ]
