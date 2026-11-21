@@ -208,6 +208,7 @@
  *   asp services list [--json] | post --by <agent> --service <kind> --price <n> --deposit <id> | bid --by <agent> --posting <id>   the society services board: agents hire agents for in-society services in mock credits
  *   asp log-config set --key bond_floor_from|tier_breadth_from --value <time> --by <operator> --cosign-by <owner>   write a setting into the log (once), so every copy and replay judges alike
  *   asp credits auto-refund [--yes]   the purchases an institution never answered in seven days, and the refund each buyer is owed (the operator signs them with --yes)
+ *   asp credits ratify [--by <owner did>] [--file <policy.md>] [--policy <name>] [--public-key <hex>]   the owner signs the monetary policy (with --by) or checks that the signed text is unchanged (without)
  *   asp credits guard [--json]   the monetary guard measures (issuance rate, starter pool use, hoarding, Treasury share, audit mismatch) with the action each names; exit 1 when one is over its threshold; nothing is changed
  *   asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>   the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs, certificates), the summary a governed run gives the agent; --sign signs it with the agent's key, --verify refuses a tampered or stale one
  *   asp credits balance <did>
@@ -366,7 +367,7 @@ import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
-import { ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
+import { ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
 import { FleetUsage, fleetCmd } from "./fleet.ts";
@@ -1180,6 +1181,26 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "credits" && sub === "fund") return await creditsFund(home, v, need, io);
     if (cmd === "credits" && sub === "audit") return await creditsAudit(home, v, io, rest[0]);
     if (cmd === "credits" && sub === "guard") return await creditsGuard(home, v, io);
+    if (cmd === "credits" && sub === "ratify") {
+      // The owner's signature on the monetary policy (DK1): with --by it signs the text of the file; without, it checks the statement against the text now.
+      const file = resolve(io.cwd, v.file ?? "docs/institutions/economy/credits.md");
+      const policyName = v.policy ?? "monetary-policy";
+      const out = file.replace(/\.md$/, "") + (v.policy ? `.${v.policy}` : "") + ".ratified.json";
+      if (v.by) {
+        const signer = new Keystore(home).forDid(v.by);
+        if (!signer) throw new UsageError(`no key for ${v.by} here: only its holder can sign (asp credits ratify --by <your did>)`);
+        const r = ratifyPolicy({ policy: policyName, file, out, signer, now: now() });
+        io.out(`signed ${file} (sha256 ${r.sha256.slice(0, 12)}...) as ${r.by}; the statement is ${out}`);
+        return 0;
+      }
+      // The key to check against: given, or (for a did:web owner who signed on this machine) the one in the local keystore; a did:key needs neither.
+      const by = (() => { try { return (JSON.parse(readFileSync(out, "utf8")) as { by?: string }).by; } catch { return undefined; } })();
+      const key = v["public-key"] ? Uint8Array.from(Buffer.from(v["public-key"], "hex")) : by ? (new Keystore(home).forDid(by) as { publicKey?: Uint8Array } | undefined)?.publicKey : undefined;
+      const res = verifyRatification({ statement: out, file, ...(key ? { publicKey: key } : {}) });
+      io.out(res.ok ? `the monetary policy is signed by ${res.by} and the text has not changed since (sha256 ${res.sha256!.slice(0, 12)}...)` : "the monetary policy is NOT signed as it stands");
+      for (const p of res.problems) io.err(`  problem: ${p}`);
+      return res.ok ? 0 : 1;
+    }
     if (cmd === "credits" && sub === "auto-refund") return await creditsAutoRefund(home, v, io);
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
     if (cmd === "world") return await worldCommand(home, sub, rest, v, io);

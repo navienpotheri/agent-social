@@ -1998,7 +1998,7 @@
   },
   {
    "id": "DK421",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The operator's succession is a paragraph, not a plan the owner has chosen and signed (who holds the keys and acts if the founder is unavailable, and for how long), and there is no path by which rule-…",
    "bucket": "must",
@@ -2664,7 +2664,7 @@
   },
   {
    "id": "DK1",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "There is no written monetary policy for the credit economy: what mints credits (starter grants, operator mints), what burns them, whether a settled job moves credits or creates them, how the supply i…",
    "bucket": "must",
@@ -5162,7 +5162,7 @@
   },
   {
    "id": "DK1340",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The public beta with ads, open to users worldwide with telemetry always on, has no legal minimum in place. The company is incorporated in India and cannot yet afford a payments and regulation lawyer,…",
    "bucket": "must",
