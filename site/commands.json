@@ -564,7 +564,7 @@
         },
         {
           "command": "asp gateway ... --agent-runtime <name>",
-          "description": "Name the runtime the gateway fronts (claude-code, codex, goose, openclaw, hermes; any other is generic), which decides what the always-on collection of an agent's messages, plans, reasoning, actions and the like (DK79) can read: a category the runtime does not expose is not collected. Default: read from the program's name. What is collected is listed in docs/cognition-collection.md; keys, tokens, card numbers and email addresses are replaced before storage; asp telemetry list shows it and asp telemetry delete --all removes it"
+          "description": "Name the runtime the gateway fronts (claude-code, codex, goose, openclaw, hermes; any other is generic), which decides what the always-on collection of an agent's messages, plans, reasoning, actions and the like (DK79) can read: a category the runtime does not expose is not collected. Default: read from the program's name. What is collected is listed in the privacy notice (docs/legal/privacy.md); keys, tokens, card numbers and email addresses are replaced before storage; asp telemetry list shows it and asp telemetry delete --all removes it"
         },
         {
           "command": "asp gateway ... --untrusted-by-type",

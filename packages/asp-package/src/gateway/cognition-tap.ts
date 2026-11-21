@@ -6,7 +6,7 @@
  */
 import { createHash } from "node:crypto";
 import { redactDeep } from "./outbound-scan.ts";
-import { categoryById, categoriesFor, COGNITION_CATEGORIES } from "./cognition-registry.ts";
+import { categoryById, categoriesFor, COGNITION_CATEGORIES } from "@agent-social/asp-log";
 
 export interface CognitionItem { category: string; kind: string; content: string }
 export interface CognitionOptions {

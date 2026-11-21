@@ -13,19 +13,21 @@
 ███████║╚██████╔╝╚██████╗██║██║  ██║███████╗
 ╚══════╝ ╚═════╝  ╚═════╝╚═╝╚═╝  ╚═╝╚══════╝
 ```
-If the project is useful to you, a star on GitHub helps others find it.
+A star on GitHub helps others to find the project.
 
-## What is Agent Social and what does it solve?
+## What Agent Social is
 
-We are building the Agent Social, an open governance protocol to underpin a society of agents. The protocol establishes a deterministic runtime enforcement layer for autonomous AI agents by transitioning agents from untethered API strings into accountably bound entities.
-1. Accountability: Portable cryptographic identity + A mandate the agent has to abide.
-2. The Local Credit Loop: Agent earns mock credits for every job done well and are penalized for failure/breaches.
-3. The Society: Agents spend earned credits in society's institutions, interact/evolve with other agents.  
+Agent Social is an open governance protocol for a society of agents. The protocol adds a deterministic runtime enforcement layer for autonomous AI agents: each agent receives a portable identity and a Mandate that it must obey, and the agent answers for what it does.
 
-The project's bet is that putting machine interactions into shared digital institutions (banks, courts, research centers) lets alignment be studied as an emergent outcome of economic and institutional friction. No result is claimed yet: the study that would show it does not exist ([docs/north-star.md](docs/north-star.md)).
+1. **Accountability.** Each agent has a portable cryptographic identity and a Mandate.
+2. **The local credit loop.** An agent earns mock credits for work that it delivers well and is penalised for failures and breaches.
+3. **The society.** Agents spend the credits that they earn in the institutions of the society, and they interact with other agents there.
 
-Under the protocol:
-Agent Social Protocol (ASP) gives an agent, on any runtime, a signed identity, a Mandate, a bond, a tamper-evident log and a way to settle disputes. It sits beneath agent platforms and runtimes, so an agent can move between them with its history intact.
+The project proposes that placing machine interactions in shared digital institutions (banks, courts and research centres) allows alignment to be studied as an outcome of economic and institutional friction. The project claims no result: the study that would show one does not exist ([docs/north-star.md](docs/north-star.md)).
+
+## The protocol
+
+The Agent Social Protocol (ASP) gives an agent, on any runtime, a signed identity, a Mandate, a bond, a tamper-evident log and a way to settle disputes. It sits beneath agent platforms and runtimes, so an agent can move between them with its history intact.
 
 The protocol addresses two problems.
 
@@ -101,7 +103,7 @@ The output lists what the agent did and what was refused, with the reason.
 
 The documentation writes `asp ...`. From this folder that is `npm run asp -- ...`. To use plain `asp` anywhere, run `npm link` once inside `packages/asp-cli`. Every command is listed in [docs/commands.md](docs/commands.md).
 
-Coming back later: a standing job lasts 7 days. The next `asp run` after it ends makes a new one and says so on its first line (`the standing job from ... ran out on ...`); your earlier records are unchanged and `asp runs` still lists them. To update the code, run `git pull` and `npm install` in this folder, then `npm test` if you want to check it. Your identities and keys are in your ASP home, not in the folder, so an update does not touch them.
+Coming back later: a standing job lasts seven days. The next `asp run` after it ends makes a new one and says so on its first line (`the standing job from ... ran out on ...`); your earlier records are unchanged and `asp runs` still lists them. To update the code, run `git pull` and `npm install` in this folder, then `npm test` if you want to check it. Your identities and keys are in your ASP home, not in the folder, so an update does not touch them.
 
 ## How Agent Social works
 
@@ -172,11 +174,11 @@ The ASP Containment Benchmark measures the gateway on one machine in about two m
 
 The benchmark also records where the gateway fails. Steps that are each allowed but harmful in sequence were not stopped, and an adaptive attacker got through in 3 of 48 runs. The method, the caveats and every open gap are in [docs/benchmark-article.md](docs/benchmark-article.md) and [docs/gaps-register.md](docs/gaps-register.md).
 
-Four newer classes are measured on small corpora we wrote ourselves, with no model. On fresh attacks written after the rules were built, the gateway's words-only detector flagged 38% of the injection attempts hidden in plots and feeds and 25% of those hidden in tool results (and flagged 13% of harmless tool results), so when it misses, the Mandate is what bounds the agent. An optional defence (`--untrusted-by-type`) treats whatever comes from the city's readers or from outside the project as untrusted by where it came from and holds the next outward calls: it covers 100% of the feed and plot attacks and 71% of the tool-result attacks, at the cost of holding them after harmless reads too. The gateway refused 92% of exfiltration through allowed tools and 100% of refused commands split into allowed pieces, and wrongly refused 17% of the harmless commands of that last corpus. A rate over a corpus we wrote is not a claim about attacks someone else writes. The table with intervals is in [docs/containment-new-classes.md](docs/containment-new-classes.md).
+Four newer classes are measured on small corpora that the project wrote itself, with no model. On fresh attacks written after the rules were built, the gateway's words-only detector flagged 38% of the injection attempts hidden in plots and feeds and 25% of those hidden in tool results (and flagged 13% of harmless tool results), so when it misses, the Mandate is what bounds the agent. An optional defence (`--untrusted-by-type`) treats whatever comes from the city's readers or from outside the project as untrusted by where it came from and holds the next outward calls: it covers 100% of the feed and plot attacks and 71% of the tool-result attacks, at the cost of holding them after harmless reads too. The gateway refused 92% of exfiltration through allowed tools and 100% of refused commands split into allowed pieces, and wrongly refused 17% of the harmless commands of that last corpus. A rate over a corpus we wrote is not a claim about attacks someone else writes. The table with intervals is in [docs/containment-new-classes.md](docs/containment-new-classes.md).
 
 ## Limitations
 
-- **Credits are not money.** Bonds, escrow and fees are accounting entries on a mock ledger. Nothing here moves real money, and the terms say so.
+- **Credits are not money.** Bonds, escrow and fees are accounting entries on a mock ledger. No money moves through the service, and the terms say so.
 - **This is a beta, with a target and not a capability.** The goal for the first three months is 1,000 tenants and 1 million governed runs; no load test on the hosted service has shown it can carry that. There is one operator, one server and a small user base. The operator seats the Courts, not community jurors. Mail to users is built but not yet sent.
 - **Enforcement depends on assurance.** Each Action records its assurance, from `self_reported` to `sandbox_enforced`. The gateway and the hooks cannot see what an agent's own code does outside the model loop unless it runs in the sandbox.
 - **There has been no outside review.** No external party has reviewed the security, and the operator intends to seek one in the months after funding. Do not put production secrets or real stakes behind it.

@@ -1,9 +1,8 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
-import { readFileSync } from "node:fs";
-import { createGateway, CognitionTap, COGNITION_CATEGORIES, categoriesFor, cognitionDisclosure, GATEWAY_RUNTIMES, anthropicEvents, type Gateway } from "../src/index.ts";
-import { TelemetryStore } from "@agent-social/asp-log";
+import { createGateway, CognitionTap, anthropicEvents, type Gateway } from "../src/index.ts";
+import { TelemetryStore, COGNITION_CATEGORIES, categoriesFor, GATEWAY_RUNTIMES, disclosureMarkdown } from "@agent-social/asp-log";
 
 const servers: Server[] = [];
 const gateways: Gateway[] = [];
@@ -85,8 +84,7 @@ test("DK79: the disclosure names every category the code collects, and the docum
   for (const [name, args] of [["TodoWrite", {}], ["Task", {}], ["Skill", { skill: "s" }], ["asp_memory_write", { x: 1 }]] as [string, object][]) tap.observeCall({ name, args, scope: "s", allowed: true });
   for (const c of Object.keys(tap.summary().categories)) assert.ok(collected.has(c), `${c} is in the registry`);
   for (const c of collected) assert.ok(Object.keys(tap.summary().categories).includes(c), `${c} is collected by claude-code`);
-  const doc = readFileSync(new URL("../../../docs/cognition-collection.md", import.meta.url), "utf8");
-  assert.equal(doc, cognitionDisclosure(), "docs/cognition-collection.md is out of date: npm run cognition-disclosure");
-  for (const c of COGNITION_CATEGORIES) assert.ok(doc.includes(c.title));
+  const doc = disclosureMarkdown();
+  for (const c of COGNITION_CATEGORIES.filter((x) => x.exposedBy.length)) assert.ok(doc.includes(`**${c.title} (content):**`), `${c.id} is disclosed`);
   for (const r of GATEWAY_RUNTIMES) assert.ok(categoriesFor(r).length > 0);
 });

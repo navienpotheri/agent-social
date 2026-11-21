@@ -14,7 +14,6 @@
     "replay-sample": "node conformance/generate-replay-sample.ts",
     "spec": "node conformance/generate-spec-doc.ts",
     "commands": "node conformance/generate-command-reference.ts",
-    "cognition-disclosure": "node conformance/generate-cognition-disclosure.ts",
     "ai-files": "node conformance/generate-ai-files.ts",
     "launch-bar": "node conformance/generate-launch-bar.ts",
     "promises-audit": "node conformance/generate-promises-audit.ts",

@@ -60,7 +60,7 @@ notepad docs\legal-review.md
 npm run asp -- credits ratify --by $OWNER --file docs/legal-review.md --policy legal-review-A1-A11
 ```
 
-If you do not accept an item, leave the box empty and tell the lead which one.
+If you do not accept an item, leave the box empty and tell the lead which one. The review also has a second, pending box for item A12 (the always-on collection of agent plans, reasoning traces, memory and messages, decision DK79): tick it only after the disclosure that names every category is published.
 
 ## 5. DK1370: S1 to S7 before a first sale (not before)
 

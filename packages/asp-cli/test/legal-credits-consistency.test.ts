@@ -14,8 +14,8 @@ test("the legal review has one place that says what holds now and what holds fro
   const table = review.slice(review.indexOf("## Credits: what is true now"), review.indexOf("## Cross-cutting decisions"));
   assert.match(table, /\*\*Now \(the beta\)\*\*/);
   assert.match(table, /\*\*From the first sale/);
-  for (const id of ["A1", "A5", "A11", "S1", "S7"]) assert.match(review, new RegExp(`\\| ${id} \\|`), `${id} is still in the review`);
-  assert.equal((review.match(/Signed: ____/g) ?? []).length, 2, "both signature boxes are intact");
+  for (const id of ["A1", "A5", "A11", "A12", "S1", "S7"]) assert.match(review, new RegExp(`\\| ${id} \\|`), `${id} is still in the review`);
+  assert.equal((review.match(/Signed: ____/g) ?? []).length, 3, "the signature boxes are intact: A1 to A11, A12 (pending) and S1 to S7");
 });
 
 test("outside the 'Selling credits' section, a sentence that says credits cannot be bought, are not sold or are mock is about now", () => {

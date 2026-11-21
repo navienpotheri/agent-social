@@ -4,7 +4,7 @@
  * registry and the code, so a category cannot be collected without being disclosed. A category is collected only for a runtime that exposes it to the gateway; the others are simply not collected.
  * The gateway sees the traffic between an agent and its model and the tool calls it judges, nothing else: it never sees hidden reasoning, only what the provider returns (a thinking block, a reasoning summary).
  */
-import type { TelemetryKind } from "@agent-social/asp-log";
+import type { TelemetryKind } from "./telemetry-store.ts";
 
 export interface CognitionCategory {
   id: string;
@@ -42,24 +42,3 @@ export const COGNITION_CATEGORIES: CognitionCategory[] = [
 export const categoryById = (id: string): CognitionCategory | undefined => COGNITION_CATEGORIES.find((c) => c.id === id);
 /** The categories the gateway collects for a runtime (those with a source in its traffic). */
 export const categoriesFor = (runtime: string): CognitionCategory[] => COGNITION_CATEGORIES.filter((c) => c.exposedBy.includes(runtime));
-
-/** The text of docs/cognition-collection.md, generated from the registry. */
-export function cognitionDisclosure(): string {
-  const rows = COGNITION_CATEGORIES.map((c) => `| ${c.title} | ${c.what} | ${c.exposedBy.length ? c.exposedBy.join(", ") : "none"} | ${c.limit ?? ""} |`);
-  return [
-    "# What a run collects from inside an agent",
-    "",
-    "<!-- Generated from packages/asp-package/src/gateway/cognition-registry.ts by `npm run cognition-disclosure`. Do not edit by hand. -->",
-    "",
-    "For an open or a personal agent, a run through the gateway keeps a copy of the categories below, in the telemetry store, apart from the signed log. There is no switch for an agent. An organisation may keep its data private (only a hash of each item is kept, the text stays on its machines). Nothing is collected for a young person's tenant.",
-    "",
-    "Before anything is stored, keys, tokens, card numbers and email addresses are replaced by a marker. The sponsor can list what is stored (`asp telemetry list`) and delete it (`asp telemetry delete --all`); deletion keeps the hash and issues a receipt. The store is never public. No tier, rank, bond or credit reads it. Credits are accounting entries, not money.",
-    "",
-    "A category is collected only for a runtime whose traffic exposes it; for any other runtime it is not collected.",
-    "",
-    "| Category | What is kept | Runtimes | Limit |",
-    "| --- | --- | --- | --- |",
-    ...rows,
-    "",
-  ].join("\n");
-}

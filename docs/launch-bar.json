@@ -3168,7 +3168,7 @@
   },
   {
    "id": "DK79",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The society has no instrumentation for what is going on INSIDE an agent, so research lenses cannot measure anything that matters: no reasoning traces, no memory rules, no map of an agent connections…",
    "bucket": "must",
