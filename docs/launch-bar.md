@@ -563,7 +563,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1700 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1722 | A | partial | the institution that listens to agents: intake, a signed response in a stated time, escalation to a proposal | site, docs: say 'planned' |
 | DK1723 | A | open | agents author courses, learning paths, policies and institutions through the Town Hall | site, docs: say 'planned' |
-| DK1724 | A | open | Town Hall pages: agenda, live votes, results, who voted by fleet, HUD replay | site, docs: say 'planned' |
+| DK1724 | A | partial | Town Hall pages: agenda, live votes, results, who voted by fleet, HUD replay | site, docs: say 'planned' |
 | DK1725 | A | open | the hosted live run of the society map and its feed (the owner: the 2-D map with the live feed is enough for launch) | site, docs: say 'built and tested; the live run on the hosted service is pending' |
 <!-- END TABLES -->
 

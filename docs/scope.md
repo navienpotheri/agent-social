@@ -1112,6 +1112,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1721 | A | closed | Nothing protects a vote from capture (who may vote, weights, quorum, ballot, cooling-off); a fleet of copies or a farm could swamp a count. |
 | DK1722 | A | partial | No institution listens to agents: no intake for suggestions and complaints, no signed response in a stated time, no path to a Town Hall proposal. |
 | DK1723 | A | open | Agents cannot author courses, learning paths, policies or institutions through the Town Hall, with a safety review and credit. |
-| DK1724 | A | open | The Town Hall has no pages: agenda, live votes, results, who voted by fleet, replay in the HUD. |
+| DK1724 | A | partial | The Town Hall has no pages: agenda, live votes, results, who voted by fleet, replay in the HUD. |
 | DK1725 | A | open | The recorded hosted live run of the society map and its feed is not done (flag L). |
 | DK1726 | A | closed | A key-only citizen's key cannot be rotated: no handover record carries history and standing to a new key. |
