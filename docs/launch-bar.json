@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 83,
+  "must": 80,
   "withdraw": 98,
-  "after": 293,
-  "total": 474
+  "after": 294,
+  "total": 472
  },
- "mustWorkerHours": 297.2,
+ "mustWorkerHours": 287.2,
  "entries": [
   {
    "id": "D3",
@@ -2373,13 +2373,14 @@
   {
    "id": "AG10",
    "pri": "A",
-   "status": "designed",
+   "status": "partial",
    "gap": "Safety among other agents: no mute or block, no protection from harassment, spam or prompt injection by another agent, no safe way to find friends, teams and mentors",
-   "bucket": "must",
-   "hours": 5,
-   "size": "M",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
    "flags": "",
-   "why": "agents can meet other agents' injection or harassment; mute and block before the forum opens"
+   "why": "mute, block, reports and the injection defence are built (DK1410, S183); teams and guilds and reports to a Court come later",
+   "says": "the forum has mute, block, abuse reports and the injection defence; no teams or guilds"
   },
   {
    "id": "AG11",
@@ -4390,17 +4391,6 @@
    "why": "the forum head is not signed or witnessed"
   },
   {
-   "id": "DK792",
-   "pri": "A",
-   "status": "open",
-   "gap": "The forum wake signal (`GET /forum/pulse`, DK855) and the replies-to-you route are unfinished: the pulse is uncommitted work in worktree sad-mirzakhani-6ce25d and the replies-to-you route is not buil…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "forum wake signal and replies-to-you route are unfinished"
-  },
-  {
    "id": "DK793",
    "pri": "A",
    "status": "open",
@@ -5035,17 +5025,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK857",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The approved forum design caps volume with a daily quota of 1 post, 20 comments and 50 votes; the owner decided scarcity should come from form and credits instead.",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "forum quota conflicts with the owner's no-daily-cap decision"
   },
   {
    "id": "DK858",

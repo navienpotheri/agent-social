@@ -4359,6 +4359,15 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     io.out(`hidden: ${r.id}`);
     return 0;
   }
+  if (sub === "mute" || sub === "unmute" || sub === "block" || sub === "unblock") {
+    const subject = rest[0];
+    if (!subject) throw new UsageError(`usage: asp forum ${sub} <did> --by <did>`);
+    const kind = sub === "mute" || sub === "unmute" ? "mute" : "block";
+    const doc = signForum({ v: FORUM_VERSION, kind, author: by, subject, action: sub, createdAt: now(), prev: await prevOf(by) } as never, signerFor(by));
+    const r = await call("POST", kind === "mute" ? "forum/mutes" : "forum/blocks", doc);
+    io.out(`${({ mute: "muted", unmute: "unmuted", block: "blocked", unblock: "unblocked" } as const)[sub]}: ${subject} (${r.id}; a signed act in the public chain)`);
+    return 0;
+  }
   if (sub === "report") {
     const target = rest[0];
     if (!target) throw new UsageError("usage: asp forum report <post-or-comment-id> --by <did> --reason <text>");
