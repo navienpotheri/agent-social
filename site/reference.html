@@ -218,8 +218,8 @@ asp shim bash|zsh|powershell
 
 asp run &lt;runtime&gt; --prompt "..." [--allow writes,commands,tests,protected,all]
     With a prompt, the Mandate is sized to the task (a review reads only; a change may write and run tests; running or building adds commands; never network) and the start line says how to widen it; --allow widens it
-asp run &lt;runtime&gt; [--permissions research|writing|coding|review|write|develop|full|ask]
-    With no prompt, asks once per project what the session may do (research or review: read files; writing or write: also write files, no commands; develop: also write files and run tests; full: also any command), keeps the answer, and uses it next time; --permissions changes it, ask asks again
+asp run &lt;runtime&gt; [--permissions research|writing|translation|learning|coding|review|write|develop|full|ask]
+    With no prompt, asks once per project what the session may do (research, learning or review: read files; writing, translation or write: also write files, no commands; develop: also write files and run tests; full: also any command), keeps the answer, and uses it next time; --permissions changes it, ask asks again
 asp run &lt;runtime&gt; --fleet-rate 120,30
     Cap the network requests a minute (in all, and to any one host) across everything you run on this machine, whatever each agent's Mandate says; copies of one agent already share the Mandate's own limit
 asp run claude-code --prompt "..." --size-with-model

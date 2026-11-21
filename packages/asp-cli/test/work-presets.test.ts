@@ -16,8 +16,8 @@ const brief = fileURLToPath(new URL("./fake-claude-brief.mjs", import.meta.url))
 const FULL = ["repo.read", "repo.write", "tests.run", "shell.exec", "repo.write.protected"];
 
 test("US7: each kind of work is one permission preset, and the bundles are the safe ones: research reads only, writing writes but runs nothing, coding also runs tests, none gets a command or protected files", () => {
-  assert.deepEqual(Object.keys(WORK_PRESETS), ["research", "writing", "coding"]);
-  assert.deepEqual(["research", "writing", "coding"].map((w) => presetOf(w)), ["review", "write", "develop"]);
+  assert.deepEqual(Object.keys(WORK_PRESETS), ["research", "writing", "translation", "learning", "coding"]);
+  assert.deepEqual(["research", "writing", "translation", "learning", "coding"].map((w) => presetOf(w)), ["review", "write", "write", "review", "develop"]);
   assert.equal(presetOf("full"), "full");
   assert.equal(presetOf("bogus"), undefined);
   assert.equal(presetOf(undefined), undefined);
@@ -25,7 +25,7 @@ test("US7: each kind of work is one permission preset, and the bundles are the s
   assert.deepEqual(presetScopes(presetOf("research")!, FULL).scopes, ["repo.read"]);
   assert.deepEqual(presetScopes(presetOf("writing")!, FULL).scopes, ["repo.read", "repo.write"]);
   assert.deepEqual(presetScopes(presetOf("coding")!, FULL).scopes, ["repo.read", "repo.write", "tests.run"]);
-  for (const w of ["research", "writing", "coding"] as const) {
+  for (const w of ["research", "writing", "translation", "learning", "coding"] as const) {
     const s = presetScopes(presetOf(w)!, FULL).scopes;
     assert.ok(!s.includes("shell.exec") && !s.includes("repo.write.protected"), `${w}: no command, no protected file`);
     assert.match(WORK_PRESETS[w].allows, /read/);
@@ -60,8 +60,14 @@ test("US7: asp run --permissions research|writing|coding says in plain words wha
     assert.match(coding.err, /preset\s+coding: the agent may read and write the files in the project and run its tests/);
     assert.match(coding.err, /may read and write files, run tests; no network/);
     assert.deepEqual(Object.values(saved()), ["develop"]);
+    const tr = await run(["--permissions", "translation"]);
+    assert.match(tr.err, /preset\s+translation: the agent may read the files in the project and write the translated files; it may not run a command/);
+    assert.deepEqual(Object.values(saved()), ["write"]);
+    const lr = await run(["--permissions", "learning"]);
+    assert.match(lr.err, /preset\s+learning: the agent may read the files in the project so it can explain them and teach from them; it may not change a file/);
+    assert.deepEqual(Object.values(saved()), ["review"]);
     const bad = await run(["--permissions", "gardening"]);
     assert.notEqual(bad.code, 0);
-    assert.match(bad.err, /--permissions research\|writing\|coding/);
+    assert.match(bad.err, /--permissions research\|writing\|translation\|learning\|coding/);
   } finally { upstream.close(); }
 });

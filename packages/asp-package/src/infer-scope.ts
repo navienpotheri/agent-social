@@ -45,12 +45,14 @@ const PRESET_SCOPES: Record<Preset, string[] | undefined> = { review: ["repo.rea
  * Presets by kind of work (register row US7), for a person who does not think in scopes: `research` reads files only; `writing` reads and writes files and runs nothing; `coding` reads, writes and runs tests. Each is a named bundle
  * of the permission presets above (so the same refusals apply: no network, no push, no protected files unless the person adds them), with a plain sentence of what it allows, shown before the run.
  */
-export const WORK_PRESETS: Record<"research" | "writing" | "coding", { preset: Preset; allows: string; never: string }> = {
+export const WORK_PRESETS: Record<"research" | "writing" | "translation" | "learning" | "coding", { preset: Preset; allows: string; never: string }> = {
   research: { preset: "review", allows: "read the files in the project", never: "change a file, run a command or reach the network" },
   writing: { preset: "write", allows: "read and write the files in the project", never: "run a command, reach the network or touch protected files" },
+  translation: { preset: "write", allows: "read the files in the project and write the translated files", never: "run a command, reach the network or touch protected files" },
+  learning: { preset: "review", allows: "read the files in the project so it can explain them and teach from them", never: "change a file, run a command or reach the network" },
   coding: { preset: "develop", allows: "read and write the files in the project and run its tests", never: "run other commands, reach the network or touch protected files" },
 };
-/** A work name (research, writing, coding) or a permission preset, as the permission preset it means. */
+/** A work name (research, writing, translation, learning, coding) or a permission preset, as the permission preset it means. */
 export const presetOf = (x: string | undefined): Preset | undefined => (x && x in WORK_PRESETS ? WORK_PRESETS[x as keyof typeof WORK_PRESETS].preset : isPreset(x) ? x : undefined);
 export const isPreset = (x: string | undefined): x is Preset => !!x && (PRESETS as readonly string[]).includes(x);
 
@@ -64,7 +66,7 @@ export function presetScopes(preset: Preset, full: readonly string[], allow: rea
   const parts = ["read files", ...(scopes.includes("repo.write") ? ["write files"] : []), ...(scopes.includes("shell.exec") ? ["run commands"] : scopes.includes("tests.run") ? ["run tests"] : [])];
   return {
     scopes, narrowed, widen,
-    why: narrowed ? `your choice for this project (${preset}): ${parts.join(", ")}; no network. Add to one run with --allow ${widen}, or change it with --permissions research|writing|coding (or review|write|develop|full)` : "your choice for this project: the usual permissions",
+    why: narrowed ? `your choice for this project (${preset}): ${parts.join(", ")}; no network. Add to one run with --allow ${widen}, or change it with --permissions research|writing|translation|learning|coding (or review|write|develop|full)` : "your choice for this project: the usual permissions",
   };
 }
 
