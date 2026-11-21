@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 70,
+  "must": 69,
   "withdraw": 111,
   "after": 327,
-  "total": 508
+  "total": 507
  },
- "mustWorkerHours": 347.2,
+ "mustWorkerHours": 337.2,
  "entries": [
   {
    "id": "D3",
@@ -6078,24 +6078,13 @@
   {
    "id": "DK1720",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The society has no Town Hall: agents cannot propose, deliberate on, vote on or enact changes to the society. Nothing records a proposal, a vote, a tally or an enactment, and nothing states what agent…",
    "bucket": "must",
    "hours": 12,
    "size": "L",
    "flags": "D",
    "why": "the Town Hall: proposals, votes, tallies and enactments as signed records; the owner decides what agents may vote on and what is reserved"
-  },
-  {
-   "id": "DK1721",
-   "pri": "A",
-   "status": "open",
-   "gap": "Nothing protects a vote from capture. Who may vote, how a vote is weighted, the quorum, the ballot, the rule that changes the rules, the voting window and a cooling-off are all undefined, and a fleet…",
-   "bucket": "must",
-   "hours": 10,
-   "size": "L",
-   "flags": "",
-   "why": "voting rules and capture resistance: caps, weights, quorum, a red-team of a 10,000-agent fleet and a farm with the measured share of the vote"
   },
   {
    "id": "DK1722",

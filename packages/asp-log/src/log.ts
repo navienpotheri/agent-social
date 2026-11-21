@@ -42,6 +42,7 @@ import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type L
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
+import { DEFAULT_TOWN_RULES, countVotes, type TownRules, type Voter } from "./town-hall.ts";
 import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
 import { subtreeMembers, chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
 import { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
@@ -170,6 +171,8 @@ export interface EventLogOptions {
   operator?: string;
   /** Keeps the old unsigned `mint()` working although an operator is named: for a database that still holds unsigned mints, and for tests. The hosted service never sets it. */
   allowUnsignedMint?: boolean;
+  /** The Town Hall rules (S1428): the reserved list, the window, the cooling-off, the quorum, the caps and the thresholds. */
+  town?: Partial<TownRules>;
   /** The owner's DID (credits.md 8): its co-signature is required on a `treasury_issuance` mint, a price rise above 25 % and a change of split bounds. With none set, those are refused. */
   owner?: string;
 }
@@ -297,6 +300,7 @@ export class EventLog {
     if (opts.floorMeasuredFrom !== undefined && !Number.isFinite(Date.parse(opts.floorMeasuredFrom))) throw new Error(`floorMeasuredFrom must be an ISO time, got ${opts.floorMeasuredFrom}`);
     this.floorMeasuredFrom = opts.floorMeasuredFrom;
     this.operator = opts.operator;
+    this.townRules = { ...DEFAULT_TOWN_RULES, ...(opts.town ?? {}) };
     this.allowUnsignedMint = opts.allowUnsignedMint === true;
     this.owner = opts.owner;
   }
@@ -414,6 +418,7 @@ export class EventLog {
     if (type === "run_halt") await this.projectRunHalt(tx, verified);
     if (type === "incident") await this.projectIncident(tx, verified);
     if (type === "key_handover") await this.projectKeyHandover(tx, verified);
+    if (type === "town_proposal" || type === "town_vote" || type === "town_tally" || type === "town_enactment") await this.projectTown(tx, verified, type);
     if (type === "usage_plan") await this.projectUsagePlan(tx, verified);
     if (type === "usage_statement") await this.projectUsageStatement(tx, verified);
     if (type === "fleet_node") await projectFleetNode(tx, verified);
@@ -2353,6 +2358,98 @@ export class EventLog {
     for (const c of contracts) if (await this.runHaltOf(c.contract)) halted.add(c.contract);
     const reasons = tripped(used, allowed);
     return { node, windowMs, multiple, used, allowed, reasons, contracts: reasons.length ? contracts.filter((c) => !halted.has(c.contract)) : [], cycles: hireCycles(hires) };
+  }
+
+  private townRules: TownRules = DEFAULT_TOWN_RULES;
+
+  /** A voter as the count reads them: the controller after common control, the fleet, and the standing that gives a vote its weight (S1428). */
+  private async voterOf(tx: LogTx, did: string, choice: "yes" | "no" | "abstain"): Promise<Voter> {
+    const f = await this.factsOf(tx, did);
+    const rep = await this.reputation(tx, did);
+    return { did, controller: f.sponsor, fleet: f.fleet ?? null, qualifyingJobs: rep?.qualifyingJobs ?? 0, relatedJobs: relatedEquivalentJobs(Number((await tx.getMarker(`rp_clean:${did}`)) ?? 0)), choice };
+  }
+
+  private async townVotes(tx: LogTx, proposal: string): Promise<{ voter: string; choice: "yes" | "no" | "abstain" }[]> {
+    return JSON.parse((await tx.getMarker(`town_votes:${proposal}`)) || "[]");
+  }
+
+  private async townCount(tx: LogTx, proposal: string, kind: string) {
+    const voters: Voter[] = [];
+    for (const v of await this.townVotes(tx, proposal)) voters.push(await this.voterOf(tx, v.voter, v.choice));
+    return countVotes(voters, this.townRules, kind);
+  }
+
+  /** The Town Hall (S1428, DK1720, DK1721): proposal, vote, tally and enactment. Reserved matters are refused; the tally is recomputed and must match; an enactment waits for the cooling-off. */
+  private async projectTown(tx: LogTx, r: AspRecord, type: string): Promise<void> {
+    const rules = this.townRules;
+    if (r.prev !== null) throw rule("town_not_chained", "a Town Hall record starts its own chain (prev is null)");
+    const proposalOf = async (id: string) => {
+      const p = await tx.getRecord(id);
+      if (!p || p.record.type !== "asp.town_proposal/v0.2") throw rule("town_unknown_proposal", `${id} is not a Town Hall proposal in this log`);
+      return p.record.body as { kind: string; key: string; value: unknown; opens_at: string; closes_at: string };
+    };
+    const now = Date.parse(r.issued_at);
+    if (type === "town_proposal") {
+      const b = r.body as { kind: string; opens_at: string; closes_at: string };
+      if (rules.reserved.includes(b.kind)) throw rule("town_reserved_matter", `${b.kind} is reserved: it is not put to a vote (a change to it goes through the owner)`);
+      const me = await this.voterOf(tx, r.issuer, "abstain");
+      if (!(await tx.getPassport(r.issuer)) || (me.qualifyingJobs < 1 && me.relatedJobs < 1)) throw rule("town_proposer_ineligible", "a proposer needs a passport and standing (a counted job)");
+      const len = Date.parse(b.closes_at) - Date.parse(b.opens_at);
+      if (!(len >= rules.minWindowMs && len <= rules.maxWindowMs)) throw rule("town_window", `the voting window runs from ${rules.minWindowMs / 86_400_000} to ${rules.maxWindowMs / 86_400_000} days`);
+      if (Date.parse(b.opens_at) < now) throw rule("town_window", "a vote opens at or after the proposal");
+      return;
+    }
+    const b = r.body as { proposal: string; choice?: "yes" | "no" | "abstain"; tally?: string; key?: string; value?: unknown };
+    const prop = await proposalOf(b.proposal);
+    if (type === "town_vote") {
+      if (now < Date.parse(prop.opens_at)) throw rule("town_vote_not_open", "the vote is not open yet");
+      if (now >= Date.parse(prop.closes_at)) throw rule("town_vote_closed", "the voting window has closed");
+      const v = await this.voterOf(tx, r.issuer, b.choice!);
+      if (!(await tx.getPassport(r.issuer)) || (v.qualifyingJobs < 1 && v.relatedJobs < 1)) throw rule("town_voter_ineligible", "a voter needs a passport and standing (a counted job)");
+      const votes = await this.townVotes(tx, b.proposal);
+      if (votes.some((x) => x.voter === r.issuer)) throw rule("town_vote_duplicate", "one vote per identity per proposal");
+      await tx.putMarker(`town_votes:${b.proposal}`, JSON.stringify([...votes, { voter: r.issuer, choice: b.choice }]));
+      return;
+    }
+    if (r.issuer !== this.operator) throw rule("town_wrong_issuer", "only the operator signs a tally or an enactment");
+    if (type === "town_tally") {
+      if (now < Date.parse(prop.closes_at)) throw rule("town_tally_early", "a tally waits for the window to close");
+      if (await tx.getMarker(`town_tally:${b.proposal}`)) throw rule("town_tally_done", "this proposal was tallied already");
+      const t = await this.townCount(tx, b.proposal, prop.kind);
+      const body = r.body as Record<string, unknown>;
+      const same = body.yes_milli === t.yes_milli && body.no_milli === t.no_milli && body.abstain_milli === t.abstain_milli && body.counted === t.counted && body.controllers === t.controllers && body.quorum_met === t.quorum_met && body.passed === t.passed;
+      if (!same) throw rule("town_tally_mismatch", `the count of the votes is ${JSON.stringify(t)}, which is not what was signed`);
+      await tx.putMarker(`town_tally:${b.proposal}`, JSON.stringify({ id: r.id, passed: t.passed }));
+      return;
+    }
+    // enactment
+    const tallied = JSON.parse((await tx.getMarker(`town_tally:${b.proposal}`)) || "null") as { id: string; passed: boolean } | null;
+    if (!tallied || tallied.id !== b.tally) throw rule("town_enactment_untallied", "an enactment names the tally of this proposal");
+    if (!tallied.passed) throw rule("town_enactment_not_passed", "the proposal did not pass");
+    if (rules.reserved.includes(prop.kind)) throw rule("town_reserved_matter", `${prop.kind} is reserved`);
+    if (now < Date.parse(prop.closes_at) + rules.coolingOffMs) throw rule("town_cooling_off", `an enactment waits ${rules.coolingOffMs / 3_600_000} hours after the window closes`);
+    if (await tx.getMarker(`town_enacted:${b.proposal}`)) throw rule("town_enacted", "this proposal was enacted already");
+    if (b.key !== prop.key || JSON.stringify(b.value) !== JSON.stringify(prop.value)) throw rule("town_enactment_mismatch", "an enactment makes the change that was voted, no other");
+    await tx.putMarker(`town_enacted:${b.proposal}`, r.id);
+    await tx.putMarker(`town_setting:${prop.key}`, JSON.stringify({ value: prop.value, proposal: b.proposal, enactment: r.id, at: r.issued_at }));
+    const keys = ((await tx.getMarker("town_keys")) ?? "").split("\n").filter(Boolean);
+    if (!keys.includes(prop.key)) await tx.putMarker("town_keys", [...keys, prop.key].join("\n"));
+  }
+
+  /** The live count of a proposal's votes (S1428), whether or not it was tallied yet. */
+  async townTally(proposal: string) {
+    return this.store.transaction(async (tx) => {
+      const p = await tx.getRecord(proposal);
+      if (!p || p.record.type !== "asp.town_proposal/v0.2") return null;
+      return this.townCount(tx, proposal, (p.record.body as { kind: string }).kind);
+    });
+  }
+  /** A setting a Town Hall enactment made, with the proposal and enactment behind it (S1428). */
+  async townSetting(key: string): Promise<{ value: unknown; proposal: string; enactment: string; at: string } | null> {
+    return this.store.transaction(async (tx) => { const m = await tx.getMarker(`town_setting:${key}`); return m ? JSON.parse(m) : null; });
+  }
+  async townSettings(): Promise<Record<string, { value: unknown; proposal: string; enactment: string; at: string }>> {
+    return this.store.transaction(async (tx) => { const out: Record<string, { value: unknown; proposal: string; enactment: string; at: string }> = {}; for (const k of ((await tx.getMarker("town_keys")) ?? "").split("\n").filter(Boolean)) out[k] = JSON.parse((await tx.getMarker(`town_setting:${k}`))!); return out; });
   }
 
   /** A key handover (S1427, X7): old signs, new countersigns; the old identity is retired and its standing and balance pass to the new one. */

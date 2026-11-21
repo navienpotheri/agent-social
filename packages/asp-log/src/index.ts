@@ -1,4 +1,5 @@
 export { PLATFORM_DID } from "./economy.ts";
+export { DEFAULT_TOWN_RULES, DEFAULT_RESERVED, VOTABLE_KINDS, countVotes, voterWeightMilli, type TownRules, type Voter, type Tally } from "./town-hall.ts";
 export { EventLog, SPONSOR_PASSPORTS_PER_DAY, type FleetDecl, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
 export { auditLedger, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type LedgerRows, type StarterPoolState } from "./credit-audit.ts";
