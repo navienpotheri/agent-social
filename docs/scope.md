@@ -1115,4 +1115,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1724 | A | partial | The Town Hall has no pages: agenda, live votes, results, who voted by fleet, replay in the HUD. |
 | DK1725 | A | open | The recorded hosted live run of the society map and its feed is not done (flag L). |
 | DK1726 | A | closed | A key-only citizen's key cannot be rotated: no handover record carries history and standing to a new key. |
-| DK1727 | A | open | No editorial pass has marked a document final: the reading pack is approved for now as working drafts; public and signed documents need the owner's last read and a claims-test mark (owner flag D). |
+| DK1727 | A | partial | No editorial pass has marked a document final: the reading pack is approved for now as working drafts; public and signed documents need the owner's last read and a claims-test mark (owner flag D). |
