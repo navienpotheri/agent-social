@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 71,
+  "must": 64,
   "withdraw": 109,
-  "after": 322,
-  "total": 502
+  "after": 323,
+  "total": 496
  },
- "mustWorkerHours": 331.2,
+ "mustWorkerHours": 307.2,
  "entries": [
   {
    "id": "D3",
@@ -613,11 +613,12 @@
    "pri": "A",
    "status": "partial",
    "gap": "The beta's court is the operator's (S97): tenants cannot seat jurors, the operator seats three and rules with keys held on its own machine, and the service accepts no ruling while no panel can be dra…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "D",
-   "why": "disclose that the operator seats and rules, with a published appeal promise"
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "community jurors need real jurors and live testing; the launch need (the disclosure and an appeal) is met",
+   "says": "the operator seats the Courts during the beta, and a party may ask the owner to review a ruling within 14 days (terms, site, README)"
   },
   {
    "id": "M3",
@@ -1279,7 +1280,7 @@
   {
    "id": "O6",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Scale through the service not measured (5,000+ records)",
    "bucket": "must",
    "hours": 4,
@@ -1381,17 +1382,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "E2",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The mail and dashboard need a redacted runtime log, which does not exist yet",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "mail and dashboard need a redacted run log"
-  },
-  {
    "id": "E5",
    "pri": "A",
    "status": "partial",
@@ -1435,7 +1425,7 @@
    "hours": 2,
    "size": "S",
    "flags": "",
-   "why": "the mail exists (S70) but the row stays partial until E11 (links), E5 (a run log for every runtime) and E12 are done: close it with them, not alone"
+   "why": "the mail exists (S70) but E11 and E12 are closed; the row stays partial until E5 (a run log for every runtime, needs a live run of each) is done"
   },
   {
    "id": "E9",
@@ -1447,28 +1437,6 @@
    "size": "S",
    "flags": "LO",
    "why": "live send of the end mail and an alert from the deployed service"
-  },
-  {
-   "id": "E10",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Nothing triggers the mail when a Mandate ends (`asp mail pending` is run by hand), an expired Mandate is not a state of its own, and a kill or an upheld report does not get its immediate mail",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "nothing triggers the mail when a Mandate ends"
-  },
-  {
-   "id": "E11",
-   "pri": "A",
-   "status": "open",
-   "gap": "The mail has no links: no run page, full report or hosted run log exist, so it names the run log's path on the machine that ran the job, or uses `--link-base` blindly",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "the mail names a path on a machine; say plainly it is local"
   },
   {
    "id": "E13",
@@ -1889,7 +1857,7 @@
   {
    "id": "CY12",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the sponsor to their own provider, and not priced into credits, M7), the city's own costs (lo…",
    "bucket": "must",
    "hours": 6,
@@ -1984,7 +1952,7 @@
   {
    "id": "GV6",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restore of the whole city from backup, no plan when a model provider changes terms or goes down",
    "bucket": "must",
    "hours": 2,
@@ -2031,7 +1999,7 @@
   {
    "id": "DK421",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The operator's succession is a paragraph, not a plan the owner has chosen and signed (who holds the keys and acts if the founder is unavailable, and for how long), and there is no path by which rule-…",
    "bucket": "must",
    "hours": 1,
@@ -2353,17 +2321,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "US4",
-   "pri": "A",
-   "status": "open",
-   "gap": "A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path (see the insurance design)",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "O",
-   "why": "a person who is harmed or confused needs a human route (address, 48 hours to a first reply)"
   },
   {
    "id": "US5",
@@ -3879,7 +3836,7 @@
   {
    "id": "DK241",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The telemetry safeguards are tested as units, not yet wired into a live run: the gateway does not yet read the Mandate's `telemetry` field and feed the Collector from real model replies and tool call…",
    "bucket": "must",
    "hours": 6,
@@ -4463,15 +4420,14 @@
   },
   {
    "id": "DK1230",
-   "pri": "B",
+   "pri": "A",
    "status": "open",
    "gap": "The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
+   "bucket": "must",
+   "hours": 10,
+   "size": "L",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
+   "why": "loop prevention in the gateway: equivalent-call, depth and daily token limits from the Mandate, a signed run_halt record, a looping scripted agent halted at the cap (owner: must-close)"
   },
   {
    "id": "DK1231",
@@ -5773,7 +5729,7 @@
   {
    "id": "DK1359",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must.",
    "bucket": "must",
    "hours": 30,
@@ -5782,20 +5738,9 @@
    "why": "enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner)"
   },
   {
-   "id": "DK1360",
-   "pri": "?",
-   "status": "partial",
-   "gap": "An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no.",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "the enterprise data-sharing choice, shown before an enterprise joins"
-  },
-  {
    "id": "DK1362",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown.",
    "bucket": "must",
    "hours": 16,
@@ -5817,7 +5762,7 @@
   {
    "id": "DK1364",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Personal agents at small scale are not verified end to end: a person using one of the popular personal-agent runtimes should be able to bring their agent into the protocol and the society, and nobody…",
    "bucket": "must",
    "hours": 4,
@@ -5872,7 +5817,7 @@
   {
    "id": "DK1373",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "An enterprise cannot provision or deprovision its people and agents from its own identity system: no just-in-time provisioning from single sign-on, no SCIM-style feed, and leaving staff do not suspen…",
    "bucket": "must",
    "hours": 6,
@@ -5962,17 +5907,6 @@
    "says": "the protocol is versioned 0.2"
   },
   {
-   "id": "DK1382",
-   "pri": "A",
-   "status": "open",
-   "gap": "An enterprise has nowhere to try the platform safely: no sandbox or staging tenant that behaves like production but cannot touch it.",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "the sandbox tenant"
-  },
-  {
    "id": "DK1383",
    "pri": "?",
    "status": "partial",
@@ -5988,11 +5922,13 @@
    "pri": "A",
    "status": "partial",
    "gap": "An enterprise that leaves cannot take its data and agents with it: no offboarding or migration path.",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
    "flags": "",
-   "why": "offboarding and export"
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "DK1385",
@@ -6032,10 +5968,10 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "DK1475",
+   "id": "DK1476",
    "pri": "A",
-   "status": "open",
-   "gap": "The drip farm is invisible to the job graph: rings of single hops occur by chance among honest sponsors, so only a signal that is not structure can tell them apart (when the hops and the cover work w…",
+   "status": "partial",
+   "gap": "A Mandate has spend caps in credits but no token (compute) budget of its own: a single agent outside a fleet is limited by the gateway's daily ceiling only, and a sponsor without a fleet has no cap a…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
@@ -6058,17 +5994,16 @@
    "where": "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"
   },
   {
-   "id": "DK1650",
-   "pri": "A",
+   "id": "DK1700",
+   "pri": "B",
    "status": "open",
-   "gap": "The usage routes (`GET /usage`, `GET /usage/statements`, DK1474) are tested only against a stand-in log for the tenant list: no test runs them on a running `asp serve` with real tenants, a real signe…",
-   "bucket": "withdraw",
+   "gap": "The mail watcher (`asp mail watch`) must be kept running or scheduled by hand on a person's own machine: there is no installer or scheduled task, and it has never been run live for a day against a re…",
+   "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   }
  ]
 }

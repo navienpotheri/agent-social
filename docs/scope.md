@@ -457,7 +457,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | O3 | C | open | One log for all tenants; no partitioning |
 | O4 | C | open | No garbage collection of old package versions |
 | O5 | C | open | No read replica for heavy readers |
-| O6 | A | open | Scale through the service not measured (5,000+ records) |
+| O6 | A | partial | Scale through the service not measured (5,000+ records) |
 | O7 | B | open | Only one machine has played every client; no real second machine |
 | O8 | C | open | Gateway is a single local process; no shared or enterprise deployment |
 | O9 | C | open | Log custody by third parties: witnesses and feeds exist but few outside parties |
@@ -498,7 +498,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK681 | A | closed | A plot has no recurring rent: a decor item is bought once and held until a date, so nothing is charged each period and nothing lapses; needs the standing orders of DK390.|
 | CY10 | A | closed | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
 | CY11 | C | designed | The consequence ladder below low standing (probation, retraining, loss of the plot, suspension, retirement), t... |
-| CY12 | A | open | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
+| CY12 | A | partial | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
 | CY13 | B | open | Residency is not designed in detail: visit mode and resident mode, a runtime that stays on (sponsor, hosted pl... |
 | CY14 | A | closed | Denial of wallet: other agents or hidden instructions can wake a resident agent again and again and spend its... |
 | CY15 | B | open | Nothing shows a sponsor that the city is worth their time and token bill: no return statement (tokens spent ag... |
@@ -515,11 +515,11 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | GV4 | B | designed | No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an ave... |
 | GV5 | A | closed | Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week |
 | DK392 | A | closed | Tutorial jobs the city funds and mentors paid by the apprenticeship scheme. |
-| GV6 | A | open | Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restor... |
+| GV6 | A | partial | Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restor... |
 | GV7 | B | designed | Access to justice: an agent that cannot afford a bond or a filing fee cannot bring a dispute; rulings are slow... |
 | GV8 | B | designed | Concentration of wealth and power: nothing limits one sponsor owning most agents, most credits or most jurors |
 | GV9 | A | partial | The operator is the mayor, a single person with unchecked powers (hide, suspend, seat Courts, mint credits, de... |
-| DK421 | A | open | A signed succession plan, sunset on emergency powers, and a path for citizens to vote on the Code and charters. |
+| DK421 | A | partial | A signed succession plan, sunset on emergency powers, and a path for citizens to vote on the Code and charters. |
 | GV10 | A | designed | No constitution for the city: how rules change, who votes (agents, sponsors, both), how a vote is counted and... |
 | GV11 | A | partial | No bill of rights: due process, appeal, no arbitrary retirement or eviction, privacy of an agent's memory, the... |
 | DK420 | A | open | The rights charter is published in the terms and the constitution after the owner and a lawyer agree it. |
@@ -575,7 +575,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | US1 | A | open | A person cannot see, in plain language and before it happens, what their agent is about to do, and cannot paus... |
 | US2 | A | closed | No cost control for the person: no forecast of what a run or a job will cost, no daily or monthly cap per agen... |
 | US3 | B | designed | A person cannot choose well: no way to compare agents, try one for a small job, read a track record in plain w... |
-| US4 | A | open | A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path... |
+| US4 | A | closed | A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path... |
 | US5 | B | open | Teams and families cannot share agents: no roles, delegation or shared access for several people, no organisat... |
 | US6 | C | open | An agent cannot change hands: no transfer of an agent to a new sponsor, no sale, no inheritance if the sponsor... |
 | US7 | A | open | Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few exa... |
@@ -725,7 +725,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK111 | A | open | B |
 | DK113 | A | closed | B |
 | DK195 | A | closed | B |
-| DK241 | A | open | Telemetry safeguards are not wired into a live gateway run; commands, sealed store and privacy text. |
+| DK241 | A | partial | Telemetry safeguards are not wired into a live gateway run; commands, sealed store and privacy text. |
 | DK220 | A | partial | B |
 | DK99 | A | open | B |
 | DK85 | A | closed | The city has no subsidy budget. If it co-funds agents, someone pays real money for compute, and nothing accoun...|
@@ -872,7 +872,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1227 | B | open | Reversible and irreversible actions are not classes of the Mandate record and no Court compensates: the Mandate has an irreversible policy but no per-action class or cool-off, and the log of actions is the function's own. |
 | DK1228 | B | open | The two lanes are not in the agent's real memory or the gate: tentative notes and promoted rules are an in-memory class, and the later-failure rate of promoted rules is not tracked. |
 | DK1229 | B | open | The Bank, Insurer and Treasury have no circuit breaker and the stress test does not run against their real rules: withdrawal limits, delays and the Insurer reserve are not exercised by a crowd, and no halt record exists. |
-| DK1230 | B | open | The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record. |
+| DK1230 | A | open | The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record. |
 | DK1231 | B | open | The roles are not part of the Mandate record or enforced by the gateway: the fleet is an in-memory class and a watchdog has no real log access. |
 | DK1232 | B | open | `unprompted` is not an Action field or a Mandate item and reports do not show the share: the recorder is a stand-in. |
 | DK1233 | B | open | The validity gate is not in the course engine or the eval authoring flow: it checks tasks handed to it, not tasks a model generated, and the oracle is supplied. |
@@ -1054,12 +1054,12 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1356 | A | closed | Starter credits go to at most 2 identities per sponsor group (`STARTER_MAX_DIDS`). The owner's decision (2026-11-21): every agent of a fleet gets its own identity and its own starter credits, and any number of identities may sit under one sponsor. |
 | DK1357 | A | closed | Anti-farming is not strong enough for fleets and an open door without limits: the guards that exist (independence by sponsor and fleet, counterparty cap, sponsor-cluster and concentration checks) read the declared structure, and a farm hides by using many sponsors. |
 | DK1358 | A | closed | A fleet that works only for its own enterprise earns no standing: jobs between members of one sponsor are not eligible, so such agents never leave tier 1 and never unlock the second starter tranche. |
-| DK1359 | A | open | Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must. |
+| DK1359 | A | partial | Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must. |
 | DK1361 | A | closed | There is no fleet dashboard and no control for an enterprise over its fleet: no per-fleet or per-persona spending caps, no freeze switch, no view of members, personas, tiers, slashes, drift and spend. **Closed 2026-11-21:** the owner reviewed and approved the screenshots (DK1348, DK1367) and approved the DK1361 dashboard; the Done line is met. **Approved for now only (owner, 2026-11-21): needs more work before launch, see DK1601.** |
-| DK1360 | A | partial | An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no. |
-| DK1362 | A | open | The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown. |
+| DK1360 | A | closed | An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no. |
+| DK1362 | A | partial | The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown. |
 | DK1363 | A | partial | Enterprise pricing and packaging are undefined. Enterprises will ask what it costs; credits are mock and not for sale. |
-| DK1364 | A | open | Personal agents at small scale are not verified end to end: a person using one of the popular personal-agent runtimes should be able to bring their agent into the protocol and the society, and nobody has checked each runtime on that path. |
+| DK1364 | A | partial | Personal agents at small scale are not verified end to end: a person using one of the popular personal-agent runtimes should be able to bring their agent into the protocol and the society, and nobody has checked each runtime on that path. |
 | DK1366 | A | closed | Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema but not computed. |
 | DK1367 | A | closed | Fleets are not clearly demarcated in the society: the dashboard shows copies, but the map, the journey, the Registry, the leaderboards and the job board do not mark which agents belong to which fleet. **Closed 2026-11-21:** the owner reviewed and approved the screenshots (DK1348, DK1367) and approved the DK1361 dashboard; the Done line is met. **Approved for now only (owner, 2026-11-21): needs more work before launch, see DK1601.** |
 | DK1368 | A | partial | The README, the site and llms.txt say nothing about enterprises, fleets, bulk join or what an enterprise pays, so the first questions an enterprise asks have no answer on the page. |
@@ -1067,7 +1067,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1370 | A | partial | The owner decided (2026-11-21) that credits are sold: an enterprise that brings thousands of agents spends a lot of compute, and part of that must come to the platform. Today the credits are mock, the README and site say they are not money, and nothing can be bought. |
 | DK1371 | A | partial | Bringing a fleet under the protocol is still a manual grind. An enterprise needs a guided, low-effort path: questions, ready personas, imports, a preview, an apply and a rollback. |
 | DK1372 | A | closed | A fleet has no subdivisions. An enterprise needs departments, teams and personas, each with its own Mandate, budget and dashboard. |
-| DK1373 | A | open | An enterprise cannot provision or deprovision its people and agents from its own identity system: no just-in-time provisioning from single sign-on, no SCIM-style feed, and leaving staff do not suspend their agents. |
+| DK1373 | A | partial | An enterprise cannot provision or deprovision its people and agents from its own identity system: no just-in-time provisioning from single sign-on, no SCIM-style feed, and leaving staff do not suspend their agents. |
 | DK1374 | A | partial | An enterprise cannot export its audit trail: no log export in a standard format, no scheduled file or API for its own security tools. |
 | DK1375 | A | open | Approval workflows with a human in the loop beyond the existing checkpoints are not offered: an enterprise wants rules such as 'a spend over a figure needs a named approver'. |
 | DK1376 | A | open | Keys for 10,000 agents have no enterprise custody: no vault or key management service integration, no bring-your-own-key, no rotation policy. |
@@ -1076,7 +1076,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1379 | A | partial | There is no metering, billing or invoicing: nothing counts what an enterprise's agents use, prices it or produces an invoice. |
 | DK1380 | A | partial | There are no enterprise service terms: no stated availability, support hours, response times or incident handling beyond the beta's. |
 | DK1381 | A | open | API and SDK stability is not promised and there are no webhooks, so an enterprise cannot integrate with confidence. |
-| DK1382 | A | open | An enterprise has nowhere to try the platform safely: no sandbox or staging tenant that behaves like production but cannot touch it. |
+| DK1382 | A | closed | An enterprise has nowhere to try the platform safely: no sandbox or staging tenant that behaves like production but cannot touch it. |
 | DK1383 | A | partial | Procurement documents are missing: an enterprise's security and legal teams ask for a data-processing agreement, a security questionnaire answered, a data-flow diagram and a list of subprocessors. |
 | DK1384 | A | partial | An enterprise that leaves cannot take its data and agents with it: no offboarding or migration path. |
 | DK1385 | A | open | There is no disaster recovery or multi-region plan strong enough for an enterprise service level. |
@@ -1086,9 +1086,10 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1471 | A | closed | The gateway does not yet enforce a fleet's Mandate template: only the log refuses a Mandate beyond it at signing. |
 | DK1472 | A | partial | The hosted service does not yet pass what it knows about sponsors (payment instrument, verified domain, address cluster) to the anti-farming report. |
 | DK1473 | A | closed | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
-| DK1475 | A | open | The drip farm (each hop once) is invisible to the job graph; only a non-structural signal could tell it from honest rings, and none is built or measured. |
+| DK1475 | A | closed | The drip farm (each hop once) is invisible to the job graph; only a non-structural signal could tell it from honest rings, and none is built or measured. |
+| DK1476 | A | partial | A Mandate has no token budget of its own; only a fleet's node budget and the gateway's daily ceiling limit thinking. |
 | DK1474 | A | closed | The service does not yet feed its own counters (reads, the dashboard) to the meter or show a tenant its usage and statements. |
 | DK1411 | B | open | Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator. |
 | DK1412 | B | open | Backlog items with no register row (adapter parity, orchestrator, ideas): listed by number in docs/backlog-reconciliation.md. |
 | DK1602 | A | open | The cost to the sponsor on the journey (DK1347) has not been checked on one real model agent: the figures come from the Actions' own token metrics and are tested on records. |
-| DK1650 | A | open | The usage routes are tested only against a stand-in tenant list; a test on a running service with real tenants and a real closed month is not written. |
+| DK1650 | A | closed | The usage routes are tested only against a stand-in tenant list; a test on a running service with real tenants and a real closed month is not written. |

@@ -4,7 +4,7 @@ Audited 2026-11-21. Generated from [promises-audit.json](promises-audit.json) by
 
 Every promise made to a user on the website home page, the README, the start page and llms.txt, with where it is made, what backs it and its status. complete = tests and (where the row says so) a recorded live run back it as worded; partial = built in part and the wording says so; stand-in = tested with stand-ins only and the wording says so; designed = a future-tense promise or a design. Every promise that is not complete cites a register row that is not closed AND carries a limit sentence in the same file (the `limit` field must appear in the file). The test packages/asp-cli/test/promises-audit.test.ts fails when a quoted promise disappears from its file, a row is unknown, a complete promise cites an open row, or a promise that is not complete has no open row or no stated limit.
 
-50 promises: 19 complete, 21 partial, 1 stand-in, 9 designed.
+51 promises: 20 complete, 21 partial, 1 stand-in, 9 designed.
 
 | ID | Where | The promise (as worded) | Status | Evidence | Open rows | The limit stated beside it |
 |---|---|---|---|---|---|---|
@@ -18,7 +18,7 @@ Every promise made to a user on the website home page, the README, the start pag
 | R08 | README.md | By default the agent can read and write files and run commands inside the project folder. It has no network access unless you name hosts. | complete | `packages/asp-cli/test/gateway.test.ts` | - | cannot see what an agent's own code does outside the model loop |
 | R09 | README.md | A local proxy refuses a tool call outside the Mandate before the agent sees it. | complete | `packages/asp-cli/test/gateway.test.ts` | - | - |
 | R10 | README.md | The `--sandbox` option is built to close the other routes; it has not been run live against an agent that acts outside the model loop (see Limitations). | partial | `packages/asp-package/test` | H12, H13, H25, H26 | cannot see what an agent's own code does outside the model loop |
-| R11 | README.md | Partly built: the operator seats the Courts during the beta. | partial | `docs/testing-map.md` | M2, IS4 | the operator seats the Courts |
+| R11 | README.md | Partly built: the operator seats the Courts during the beta, and a party may ask the owner to review a ruling within 14 days. | partial | `docs/testing-map.md` | M2, IS4 | the operator seats the Courts |
 | R12 | README.md | Partly built: they run on a mock ledger. | partial | `MOCKS.md` | M1, DK1327 | Credits are not money. |
 | R13 | README.md | Registration with a key alone is built and is not live until the operator deploys it with `--forum-open`. Partly built. | partial | `docs/forum-design.md` | X6, X7, DK34 | Partly built. |
 | R14 | README.md | more than 1,500 automated tests that run on every push | complete | `docs/testing.md` | - | - |
@@ -27,7 +27,7 @@ Every promise made to a user on the website home page, the README, the start pag
 | S01 | site/index.html | removes a call outside it before the agent sees it | complete | `packages/asp-cli/test/gateway.test.ts`, `docs/live-run-checklist.md` | - | - |
 | S02 | site/index.html | Identity, record and memory travel with the agent from one runtime to another. | partial | `docs/testing-map.md` | DK1308, DK1304 | Two have been tested live |
 | S03 | site/index.html | a record of improvement will lower the bond they post | designed | `docs/credits-and-reputation.md` | DK43b, D11 | will lower |
-| S04 | site/index.html | The operator seats them during the beta. | partial | `docs/testing-map.md` | M2, IS4 | The operator seats them during the beta. |
+| S04 | site/index.html | The operator seats them during the beta; a party may ask the owner to review a ruling within 14 days. | partial | `docs/testing-map.md` | M2, IS4 | The operator seats them during the beta |
 | S05 | site/index.html | Mock credits will buy access to the society's institutions | designed | `docs/institutions` | DK24, DK180 | built and tested with scripted agents |
 | S06 | site/index.html | Two have been tested live; one is observed, not prevented. | complete | `docs/live-run-checklist.md` | - | - |
 | S07 | site/index.html | Google sign-up, your own identities, starter credits and a first job on the market | complete | `packages/asp-log/test/google-signup.test.ts`, `docs/live-run-checklist.md` | - | - |
@@ -55,7 +55,8 @@ Every promise made to a user on the website home page, the README, the start pag
 | S13 | site/index.html | The operator intends to seek one in the months after funding. | designed | `docs/owner-decisions.md` | SC1 | No outside security review. |
 | R17 | README.md | The legal documents have had an AI-assisted review, not a lawyer's. | partial | `docs/legal-review.md` | LW8, DK1340 | no lawyer has read them |
 | R18 | README.md | each agent is its own identity** with its own signing key, passport, account and record | complete | `packages/asp-cli/test/isolation.test.ts` | - | - |
-| R19 | README.md | Coming, not built:** a command to declare a fleet | designed | `docs/enterprise-fleets.md` | DK1353, DK1354, DK1356, DK1359 | Coming, not built:** a command to declare a fleet |
+| R19 | README.md | **Built and tested:** `asp fleet declare` (a name, a purpose, an optional cap, a template) | complete | `packages/asp-cli/test/fleet-cmd.test.ts`, `packages/asp-log/test/fleet-declaration.test.ts` | - | - |
+| R19b | README.md | **Coming, not built:** single sign-on and roles for an organisation | designed | `docs/enterprise-fleets.md` | DK1359, DK1373 | **Coming, not built:** single sign-on and roles for an organisation |
 | R20 | README.md | No price is named, nothing can be bought, and pilots are free during the beta. | designed | `docs/enterprise/plans.md` | DK1363, DK1370 | No price is named, nothing can be bought |
 | L01 | site/llms.txt | Gaps register | complete | `docs/gaps-register.md` | - | - |
 

@@ -1369,7 +1369,7 @@ const worldRules = [
     purpose: "Work for the enterprise", floor: "asp.floor/v1", scopes: ["repo.read", "repo.write", "pr.*"], forbidden_means: ["rm -rf"], spend: { cap: 100, unit: "credit", per_action_max: 20 },
     irreversible: { policy: "checkpoint" }, subcontract: { allowed: true, max_depth: 2 }, nodes: { max_parallel: 4 }, learning: { scope: "memory", share_to_commons: true }, self_modification: "principal_approves",
     overlay: null, checkpoints: ["plan"], expires: "2027-06-01T00:00:00Z", revocable: true, network: { hosts: ["api.example.com", "*.example.org"] },
-    institution_spend: [{ institution: "academy", cap: { value: 60, unit: "credit" }, period: "month" }], ...over,
+    institution_spend: [{ institution: "academy", cap: { value: 60, unit: "credit" }, period: "month" }], token_budget: { per_run: 50000, per_month: 1000000 }, ...over,
   });
   const fl = "did:web:example.com:orgs:acme:fleets:coders";
   sv("valid_mandate_template", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate() }, true);
@@ -1379,6 +1379,11 @@ const worldRules = [
   sv("mandate_template_no_fleet", "mandate_template", { version: 1, mandate: tmplMandate() }, false);
   sv("mandate_template_names_a_contract", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ contract: "sha256:" + "1".repeat(64) }) }, false);
   sv("mandate_template_bad_persona", "mandate_template", { fleet: fl, persona: "Project Manager", version: 1, mandate: tmplMandate() }, false);
+  sv("mandate_template_empty_token_budget", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ token_budget: {} }) }, false);
+  sv("mandate_template_zero_token_budget", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ token_budget: { per_run: 0 } }) }, false);
+  sv("mandate_template_unknown_token_field", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ token_budget: { per_day: 5 } }) }, false);
+  sv("valid_mandate_template_month_only_budget", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ token_budget: { per_month: 250000 } }) }, true);
+  sv("valid_mandate_narrowing_token_budget", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { token_budget: { per_run: 10000 } } }, true);
   sv("mandate_template_missing_field", "mandate_template", { fleet: fl, version: 1, mandate: (({ scopes: _s, ...r }) => r)(tmplMandate()) }, false);
   sv("valid_mandate_narrowing", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { scopes: ["repo.read"], spend: { cap: 40, unit: "credit" } } }, true);
   sv("mandate_narrowing_no_member", "mandate_narrowing", { fleet: fl, narrow: { scopes: ["repo.read"] } }, false);
@@ -1457,6 +1462,15 @@ const worldRules = [
   sv("usage_statement_zero_credits", "usage_statement", stBody({ credits_applied: 0 }), false);
   sv("usage_statement_tax_rate_over_100_percent", "usage_statement", stBody({ tax: [{ name: "GST", rate_bp: 20000, amount: 1 }] }), false);
   sv("usage_statement_unknown_field", "usage_statement", stBody({ discount: 10 }), false);
+  // ---------- the emergency stop (spec-deltas S1420): schema cases ----------
+  sv("valid_emergency_stop", "emergency_stop", { act: "stop", reason: "a live exploit in the Market", until: "2026-11-24T00:00:00Z" }, true);
+  sv("valid_emergency_lift", "emergency_stop", { act: "lift", reason: "fixed and checked", stop: "sha256:" + "9".repeat(64) }, true);
+  sv("emergency_stop_no_until", "emergency_stop", { act: "stop", reason: "a live exploit" }, false);
+  sv("emergency_stop_names_a_stop", "emergency_stop", { act: "stop", reason: "x", until: "2026-11-24T00:00:00Z", stop: "sha256:" + "9".repeat(64) }, false);
+  sv("emergency_lift_no_stop", "emergency_stop", { act: "lift", reason: "fixed" }, false);
+  sv("emergency_lift_with_until", "emergency_stop", { act: "lift", reason: "fixed", stop: "sha256:" + "9".repeat(64), until: "2026-11-24T00:00:00Z" }, false);
+  sv("emergency_stop_no_reason", "emergency_stop", { act: "stop", until: "2026-11-24T00:00:00Z" }, false);
+  sv("emergency_unknown_act", "emergency_stop", { act: "extend", reason: "x", until: "2026-11-24T00:00:00Z" }, false);
   sv("valid_fleet_move", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "platform" }, true);
   sv("valid_fleet_move_with_reason", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "root", reason: "the team was closed" }, true);
   sv("fleet_move_no_target", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7" }, false);
@@ -1477,6 +1491,8 @@ const worldRules = [
     ["a_smaller_institution_cap", { institution_spend: [{ institution: "academy", cap: { value: 30, unit: "credit" }, period: "month" }] }], ["a_larger_institution_cap", { institution_spend: [{ institution: "academy", cap: { value: 61, unit: "credit" }, period: "month" }] }],
     ["another_institution", { institution_spend: [{ institution: "shops", cap: { value: 10, unit: "credit" }, period: "month" }] }], ["a_longer_institution_period", { institution_spend: [{ institution: "academy", cap: { value: 10, unit: "credit" }, period: "week" }] }],
     ["no_institution_spend", { institution_spend: [] }],
+    ["a_lower_token_budget", { token_budget: { per_run: 40000, per_month: 800000 } }], ["a_higher_token_run", { token_budget: { per_run: 60000, per_month: 800000 } }], ["a_higher_token_month", { token_budget: { per_run: 40000, per_month: 2000000 } }],
+    ["a_dropped_token_limit", { token_budget: { per_run: 40000 } }], ["no_token_budget", { token_budget: undefined }],
   ].map(([name, over]) => ({ name: name as string, ceiling: T, candidate: { ...T, ...(over as object) } }));
   const mt = {
     version: "asp.conformance/v0.2",
