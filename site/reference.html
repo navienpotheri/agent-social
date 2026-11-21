@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 250 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 251 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (26)</summary><pre>Most people use only these.
 
 asp
@@ -240,7 +240,7 @@ asp trust [asp.yaml]
     A file you did not write cannot widen what an agent may reach: its allow-network is used only after you trust it
 asp market mandate --contract &lt;id&gt; --principal &lt;did&gt; --performer &lt;did&gt;
     In a priced job, the principal states exactly what the performer may do, and the job starts running</pre></details>
-<details><summary>Your agents, your account, your login (15)</summary><pre>asp agent add &lt;name&gt;
+<details><summary>Your agents, your account, your login (16)</summary><pre>asp agent add &lt;name&gt;
     Make another agent in your namespace
 asp agent list
     List your agents with their key and recovery state
@@ -261,9 +261,11 @@ asp account data-sharing [--choice share|private]
 asp account starter --did &lt;did&gt;[,&lt;did&gt;...]
     Claim starter credits for each identity you own, any number, 25 to a request (each identity once; the rest when that identity has a job accepted)
 asp account export [--out &lt;dir&gt;]
-    Download everything the service holds for you
+    Download everything the service holds for you, with keys.json (whose key is on this machine) and the steps to take your agents with you
+asp account import --from &lt;export dir&gt;
+    Offboarding and migration (DK1384): replay an export into a fresh service (each record is signed, so the new log checks every signature) and upload the packages; carry the keys yourself
 asp account close --confirm &lt;tenant&gt;
-    Delete your packages, commons entries, sealed logs and token; signed records stay in the log
+    Delete your packages, commons entries, sealed logs and token; signed records stay in the log; saves a deletion receipt that is also the closure certificate
 asp token create &lt;name&gt; [--days n]
     Make a named, expiring machine token for CI or a schedule
 asp token list | revoke &lt;name&gt;
@@ -618,8 +620,8 @@ asp dashboard [--port n]
 
 asp serve --db &lt;postgres-url|local:dir&gt; --tokens &lt;file&gt;
     Run the log service (add --signup, --packages, --runlogs, --commons, --known-bad, TLS and Google options)
-asp serve token --tenant &lt;name&gt;
-    Make a tenant token (hash stored, token shown once)
+asp serve token --tenant &lt;name&gt; [--data-sharing share|private]
+    Make a tenant token (hash stored, token shown once); `--data-sharing private` records an organisation's upfront choice to keep its data private (DK1360): the service stores none of its trajectories or text, only hashes go in the log, and its agents are not part of any study
 asp serve signups | signup-close | signup-open | signup-cap
     See sign-up status, close or open sign-up, set the daily cap
 asp serve raise-limits --tokens &lt;file&gt; --rate-limit &lt;n&gt;

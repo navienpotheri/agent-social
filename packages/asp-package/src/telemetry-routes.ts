@@ -12,7 +12,7 @@
  * Credits are accounting entries, not money; nothing here changes a standing.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { TELEMETRY_NOTICE, type TelemetryStore, type Tenant } from "@agent-social/asp-log";
+import { TELEMETRY_NOTICE, TELEMETRY_NOTICE_PRIVATE, type TelemetryStore, type Tenant } from "@agent-social/asp-log";
 
 export interface TelemetryRoutesOptions { store: TelemetryStore; now: () => string; /** Saves a change to a tenant (the data-sharing choice, DK1360). */ updateTenant?: (name: string, patch: Partial<Tenant>) => void }
 
@@ -34,7 +34,7 @@ export function telemetryRoutes(o: TelemetryRoutesOptions) {
     try {
       if (req.method === "GET" && url.pathname === "/telemetry") {
         const entries = o.store.list(t.name);
-        return send(200, { ok: true, sharing: t.dataSharing?.choice ?? "share", on: !t.minor, minor: !!t.minor, stored: entries.filter((e) => !e.deletedAt).length, deleted: entries.filter((e) => e.deletedAt).length, notice: TELEMETRY_NOTICE, say: t.minor ? "Nothing is stored for this tenant: it is held for a young person." : "Telemetry is ON. It is not optional for an agent; you can list what is stored and delete it (asp telemetry delete --all)." });
+        return send(200, { ok: true, sharing: t.dataSharing?.choice ?? "share", on: !t.minor, minor: !!t.minor, stored: entries.filter((e) => !e.deletedAt).length, deleted: entries.filter((e) => e.deletedAt).length, notice: t.dataSharing?.choice === "private" ? TELEMETRY_NOTICE_PRIVATE : TELEMETRY_NOTICE, say: t.minor ? "Nothing is stored for this tenant: it is held for a young person." : "Telemetry is ON. It is not optional for an agent; you can list what is stored and delete it (asp telemetry delete --all)." });
       }
       if (req.method === "POST" && (url.pathname === "/telemetry/opt-out" || url.pathname === "/telemetry/opt-in")) return fail(410, "TELEMETRY_NOT_OPTIONAL", "telemetry is not optional for an agent (owner decision, DK1303): there is no off switch; you can list what is stored and delete it with asp telemetry delete --all");
       if (url.pathname === "/telemetry/sharing") {

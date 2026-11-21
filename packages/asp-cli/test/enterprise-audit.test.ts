@@ -49,3 +49,19 @@ test("DK1387: the compliance roadmap claims no certification, cites evidence tha
   assert.ok(r.indexOf("An outside security review") < r.indexOf("SOC 2 Type 1"), "the review comes before SOC 2");
   assert.ok(r.indexOf("SOC 2 Type 1") < r.indexOf("ISO 27001 |"), "SOC 2 comes before ISO 27001");
 });
+
+test("DK1364: docs/personal-agents.md has a way in, an assurance level, a first minute and the evidence for each named runtime, cites tests that exist, and none of them is listed as supported on the site, README or llms.txt", () => {
+  const d = read("docs/personal-agents.md");
+  for (const name of ["OpenClaw", "Hermes Agent", "Manus", "Meta's Muse", "Grok Bot", "OpenAI's Dots", "task agents", "Instinct"]) {
+    const row = d.split("\n").find((l) => l.startsWith("| ") && l.includes(name));
+    assert.ok(row, `${name} has a row`);
+    assert.match(row!, /stand-in only; no recorded real run/, `${name}: the evidence is stated as it is`);
+    assert.match(row!, /gateway-judged|self_reported/, `${name}: an assurance level`);
+  }
+  for (const p of [...d.matchAll(/\b(packages\/[A-Za-z0-9_./-]+\.test\.ts)\b/g)].map((m) => m[1]!)) assert.ok(existsSync(new URL(p, root)), `${p} exists`);
+  assert.match(d, /\*\*No personal-agent runtime below has a recorded real run yet\*\*/);
+  for (const f of ["README.md", "site/index.html", "site/llms.txt", "site/start.txt"]) {
+    const t = read(f);
+    for (const name of ["OpenClaw", "Hermes Agent", "Manus", "Grok Bot", "Instinct"]) assert.ok(!t.includes(name), `${f} must not list ${name} until it has a recorded run`);
+  }
+});

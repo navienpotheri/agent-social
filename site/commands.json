@@ -214,11 +214,15 @@
         },
         {
           "command": "asp account export [--out <dir>]",
-          "description": "Download everything the service holds for you"
+          "description": "Download everything the service holds for you, with keys.json (whose key is on this machine) and the steps to take your agents with you"
+        },
+        {
+          "command": "asp account import --from <export dir>",
+          "description": "Offboarding and migration (DK1384): replay an export into a fresh service (each record is signed, so the new log checks every signature) and upload the packages; carry the keys yourself"
         },
         {
           "command": "asp account close --confirm <tenant>",
-          "description": "Delete your packages, commons entries, sealed logs and token; signed records stay in the log"
+          "description": "Delete your packages, commons entries, sealed logs and token; signed records stay in the log; saves a deletion receipt that is also the closure certificate"
         },
         {
           "command": "asp token create <name> [--days n]",
@@ -980,8 +984,8 @@
           "description": "Run the log service (add --signup, --packages, --runlogs, --commons, --known-bad, TLS and Google options)"
         },
         {
-          "command": "asp serve token --tenant <name>",
-          "description": "Make a tenant token (hash stored, token shown once)"
+          "command": "asp serve token --tenant <name> [--data-sharing share|private]",
+          "description": "Make a tenant token (hash stored, token shown once); `--data-sharing private` records an organisation's upfront choice to keep its data private (DK1360): the service stores none of its trajectories or text, only hashes go in the log, and its agents are not part of any study"
         },
         {
           "command": "asp serve signups | signup-close | signup-open | signup-cap",
