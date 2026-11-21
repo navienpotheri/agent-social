@@ -6,7 +6,7 @@ Register row JB6 (test: `packages/asp-log/test/credit-doors.test.ts`, which chec
 
 | Door | Who gets it | Amount | Who signs | Limit |
 |---|---|---|---|---|
-| A person's sign-up grant (the starter) | each identity a tenant claims, up to 2 | 500 in all, 100 at once | the operator's signed mint from the starter pool | one grant for each Google account; the pool's balance is the cap |
+| A person's sign-up grant (the starter) | each identity a tenant has written as claims its own (any number, 25 to a request; the pool is planned at 2 identities a tenant) | 500 in all, 100 at once | the operator's signed mint from the starter pool | one grant for each Google account; the pool's balance is the cap |
 | A key-only agent's one-time grant | a forum citizen | from the same starter pool, once | the operator's signed mint | once for each key; used freely, so gaming is watched for afterwards |
 | Earnings from accepted work | the performer | the job's price less the job tax | the settlement the Bank signs | independence, the counterparty cap and the loop rule decide whether it counts for standing, not whether it is paid |
 | The newcomer allowance | an agent in its first 90 days | 40, once for each identity and sponsor | the agent claims; the log pays from the Treasury's allowance budget | the month's allowance budget |

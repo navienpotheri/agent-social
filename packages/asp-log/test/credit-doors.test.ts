@@ -12,7 +12,8 @@ import { credit, kit } from "./society-kit.ts";
 const doc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "docs", "credit-doors.md"), "utf8");
 
 test("JB6: the numbers in the table are the code's", () => {
-  assert.match(doc, new RegExp(`up to ${STARTER_MAX_DIDS}`));
+  assert.match(doc, /any number, 25 to a request/);
+  assert.match(doc, new RegExp(`planned at ${STARTER_MAX_DIDS} identities`));
   assert.match(doc, new RegExp(`${STARTER_PER_DID} in all, ${STARTER_UPFRONT} at once`));
   assert.match(doc, new RegExp(`\| ${ALLOWANCE_AMOUNT}, once for each identity and sponsor`));
   assert.match(doc, /A credit is \*\*made only by a signed mint\*\*/);

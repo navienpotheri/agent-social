@@ -197,8 +197,8 @@
           "description": "What the service holds for you: records, packages, sealed logs, how each identity is recovered, starter credits"
         },
         {
-          "command": "asp account starter --did <did>[,<did>]",
-          "description": "Claim your starter credits (once per Google account)"
+          "command": "asp account starter --did <did>[,<did>...]",
+          "description": "Claim starter credits for each identity you own, any number, 25 to a request (each identity once; the rest when that identity has a job accepted)"
         },
         {
           "command": "asp account export [--out <dir>]",

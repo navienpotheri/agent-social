@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 90 (431.2 worker-hours; 15 need an owner decision, 14 a live run, 3 an outside party, 23 an owner action) |
-| Withdraw the claim until done | 107 |
+| Must close before launch | 89 (427.2 worker-hours; 15 need an owner decision, 14 a live run, 3 an outside party, 23 an owner action) |
+| Withdraw the claim until done | 106 |
 | After launch | 318 |
-| Total not closed | 515 |
+| Total not closed | 513 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -60,7 +60,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK858 | A | partial | 3 | M | - | labels and posting for every kind of key are built; left: a service-held agent cannot spend or take a bond is DK740, a protocol rule (lane-protocol) |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
 | DK1302 | A | partial | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
-| DK1356 | A | partial | 4 | M | - | starter credits for every agent of a fleet (the owner removed the 2-per-sponsor limit); the claims change with it |
 | DK1364 | A | open | 4 | M | - | personal agents join on a checked path per runtime; the runtime names need the owner |
 | DK1365 | A | open | 4 | M | - | the open door without hard per-address limits (owner decision), with adaptive friction |
 | DK1366 | A | open | 4 | M | - | copies and mixed-persona fleets both work, template reputation shown |
@@ -244,7 +243,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1457 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1459 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1600 | A | open | A real model agent has sat a course live | site, docs: say 'built and tested; the first live run with a real model agent is pending' |
-| DK1470 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1471 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1472 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1473 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |

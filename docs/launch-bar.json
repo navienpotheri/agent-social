@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 90,
-  "withdraw": 107,
+  "must": 89,
+  "withdraw": 106,
   "after": 318,
-  "total": 515
+  "total": 513
  },
- "mustWorkerHours": 431.2,
+ "mustWorkerHours": 427.2,
  "entries": [
   {
    "id": "D3",
@@ -5817,17 +5817,6 @@
    "why": "one Mandate template per fleet or persona; without it a fleet is 10,000 hand-made Mandates"
   },
   {
-   "id": "DK1356",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Starter credits go to at most 2 identities per sponsor group (`STARTER_MAX_DIDS`). The owner's decision (2026-11-21): every agent of a fleet gets its own identity and its own starter credits, and any…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "starter credits for every agent of a fleet (the owner removed the 2-per-sponsor limit); the claims change with it"
-  },
-  {
    "id": "DK1358",
    "pri": "A",
    "status": "open",
@@ -6152,19 +6141,6 @@
    "flags": "",
    "why": "a compliance roadmap: the follow-on enterprise set",
    "says": "no certification is claimed"
-  },
-  {
-   "id": "DK1470",
-   "pri": "A",
-   "status": "open",
-   "gap": "The service's starter claim form still caps a tenant at two identities and one claim: `claimStarter` and `claimStarterSigned` (packages/asp-package/src/account.ts) name `STARTER_MAX_DIDS`, a tenant c…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "DK1471",

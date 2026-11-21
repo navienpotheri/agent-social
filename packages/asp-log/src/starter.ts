@@ -1,6 +1,6 @@
 /**
  * The starter-credit pool (launch blocker 3: a newcomer's first job; gap M9: not to be drained). Only an operator can mint credits, so a new tenant could not post an escrow or a bond and
- * nothing in the market could move. A tenant that signed up with a verified Google account may claim a starter grant once, for up to two of the identities it has written as (a principal and
+ * nothing in the market could move. A tenant that signed up with a verified Google account may claim a starter grant for each of the identities it has written as, any number, 25 to a request (DK1470; STARTER_MAX_DIDS is only the planning number for sizing the pool) (a principal and
  * an agent). The grant comes in two parts: STARTER_UPFRONT at once, which is enough for a first job (an escrow and a bond), and the rest when one of those identities has had a job accepted.
  * This counts how many credits have been minted that way, so the operator's cap on the whole pool holds; when the pool cannot cover a claim the tenant joins a waiting list, served in order
  * after the operator tops the pool up on purpose (`asp serve starter`). Credits are accounting entries in the protocol, not money (the terms say so).

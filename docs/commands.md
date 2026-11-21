@@ -68,7 +68,7 @@ A plain `asp run` uses a default development Mandate (read and write files, run 
 | `asp standing prepare` | Make the standing job without running anything (for CI) |
 | `asp standing end [<agent>]` | End and settle standing jobs; the next run makes a new one |
 | `asp account show` | What the service holds for you: records, packages, sealed logs, how each identity is recovered, starter credits |
-| `asp account starter --did <did>[,<did>]` | Claim your starter credits (once per Google account) |
+| `asp account starter --did <did>[,<did>...]` | Claim starter credits for each identity you own, any number, 25 to a request (each identity once; the rest when that identity has a job accepted) |
 | `asp account export [--out <dir>]` | Download everything the service holds for you |
 | `asp account close --confirm <tenant>` | Delete your packages, commons entries, sealed logs and token; signed records stay in the log |
 | `asp token create <name> [--days n]` | Make a named, expiring machine token for CI or a schedule |

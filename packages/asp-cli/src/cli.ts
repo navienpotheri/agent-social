@@ -1803,28 +1803,34 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     io.out(`  records written: ${a.usage?.records ?? 0} (${a.usage?.bytes ?? 0} bytes); agent identities written as: ${a.dids.length ? a.dids.join(", ") : "none"}`);
     io.out(`  packages: ${a.packages.length}; commons: ${a.commons.entries} entries, ${a.commons.reviews} reviews, ${a.commons.citations} citations`);
     for (const i of a.identities ?? []) io.out(`  ${i.did}: ${i.recovery === "recovery key" ? "key loss recoverable with its recovery code" : i.recovery === "sponsor" ? "key loss recoverable by its sponsor" : i.recovery === "none" ? "NO RECOVERY: if its key is lost the identity is lost (make a backup: asp identity backup)" : "recovery unknown"}`);
-    io.out(`  starter credits: ${a.starter.state === "claimed" ? `claimed (${a.starter.amount})` : a.starter.state === "partial" ? `${a.starter.amount} so far; ${a.starter.reason}` : a.starter.state === "available" ? `available: ${a.starter.upfront} now for each of up to ${a.starter.maxDids} of your identities, and ${a.starter.perDid - a.starter.upfront} more each after a job of theirs is accepted (asp account starter --did <principal>,<agent>)` : a.starter.state === "waiting" ? a.starter.reason : `not available: ${a.starter.reason}`}`);
+    io.out(`  starter credits: ${a.starter.state === "claimed" ? `claimed (${a.starter.amount})${a.starter.reason ? `; ${a.starter.reason}` : ""}` : a.starter.state === "partial" ? `${a.starter.amount} so far; ${a.starter.reason}` : a.starter.state === "available" ? `available: ${a.starter.upfront} now for each of your identities (any number, ${a.starter.batchMax} to a request), and ${a.starter.perDid - a.starter.upfront} more each after a job of that identity's own is accepted (asp account starter --did <did>,<did>...)` : a.starter.state === "waiting" ? a.starter.reason : `not available: ${a.starter.reason}`}`);
     return 0;
   }
   if (sub === "starter") {
     const dids = (v.did ?? "").split(",").map((d) => d.trim()).filter(Boolean);
-    if (!dids.length) throw new UsageError("asp account starter --did <did>[,<did>]: the identities (up to two, for example your principal and your agent) that get the starter credits; they must be identities you created through the service");
-    const post = (extra: Record<string, unknown> = {}) => json("account/starter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dids, ...extra }) });
-    let r;
-    try { r = await post(); } catch (e) {
-      // The service holds no key (DK94): it names what to sign, each identity signs its own starter claim here, and the service passes it to the log.
-      const d = (e as { code?: string; details?: { part?: string; amount?: number; dids?: string[] } });
-      if (d.code !== "CLAIM_NEEDED" || !d.details?.dids?.length) throw e;
-      const keys = new Keystore(home);
-      const claims = d.details.dids.map((did) => {
-        const signer = keys.forDid(did);
-        if (!signer) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign its starter claim`);
-        return createRecord({ type: "starter_claim", issuer: did, subject: did, prev: null, body: { part: d.details!.part, amount: { value: d.details!.amount, unit: "credit" as const } }, issued_at: now() }, signer);
-      });
-      r = await post({ claims });
+    if (!dids.length) throw new UsageError("asp account starter --did <did>[,<did>...]: the identities that get starter credits (any number; 25 to a request, the command asks again for the rest); they must be identities you created through the service");
+    const granted: { did: string; credits: number; balance: number }[] = []; let note = "";
+    for (let i = 0; i < dids.length; i += 25) {
+      const batch = dids.slice(i, i + 25);
+      const post = (extra: Record<string, unknown> = {}) => json("account/starter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dids: batch, ...extra }) });
+      let r;
+      try { r = await post(); } catch (e) {
+        // The service holds no key (DK94): it names what to sign, each identity signs its own starter claim here, and the service passes it to the log.
+        const d = (e as { code?: string; details?: { part?: string; amount?: number; dids?: string[]; needs?: { did: string; part: string; amount: number }[] } });
+        const needs = d.details?.needs ?? (d.details?.dids ?? []).map((did) => ({ did, part: d.details!.part!, amount: d.details!.amount! }));
+        if (d.code !== "CLAIM_NEEDED" || !needs.length) throw e;
+        const keys = new Keystore(home);
+        const claims = needs.map((n) => {
+          const signer = keys.forDid(n.did);
+          if (!signer) throw new Error(`no key for ${n.did} in ${join(home, "keys")}: only its holder can sign its starter claim`);
+          return createRecord({ type: "starter_claim", issuer: n.did, subject: n.did, prev: null, body: { part: n.part, amount: { value: n.amount, unit: "credit" as const } }, issued_at: now() }, signer);
+        });
+        r = await post({ claims });
+      }
+      granted.push(...r.granted); note = r.note;
+      for (const g of r.granted) io.out(`${g.did}: +${g.credits} credits (balance ${g.balance})`);
     }
-    for (const g of r.granted) io.out(`${g.did}: +${g.credits} credits (balance ${g.balance})`);
-    io.out(r.note);
+    io.out(note);
     return 0;
   }
   const exportTo = async (dir: string) => {
