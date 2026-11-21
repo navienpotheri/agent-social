@@ -6688,7 +6688,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   // A task gets the permissions it seems to need, not the usual full set (gap BM17); --ask on a scope and --allow add to it. A headless run uses its existing contract's Mandate as it is.
   // A session with no task is sized by the person's choice for this project, asked once and kept in the ASP home (not in the project, so a cloned repository cannot set it).
   const allowed = [...allowScopes(v.allow, prof.scopes), ...gate.filter((g) => prof.scopes.includes(g))];
-  if (v.permissions !== undefined && v.permissions !== "ask" && !presetOf(v.permissions)) throw new UsageError("--permissions research|writing|coding (or review|write|develop|full; or ask, to be asked again)");
+  if (v.permissions !== undefined && v.permissions !== "ask" && !presetOf(v.permissions)) throw new UsageError("--permissions research|writing|translation|learning|coding (or review|write|develop|full; or ask, to be asked again)");
   const wanted = presetOf(v.permissions);
   if (wanted && v.permissions! in WORK_PRESETS) { const w = WORK_PRESETS[v.permissions as keyof typeof WORK_PRESETS]; io.err(`  preset   ${v.permissions}: the agent may ${w.allows}; it may not ${w.never}`); }
   let preset: Preset | undefined;

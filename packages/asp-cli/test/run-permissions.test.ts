@@ -63,7 +63,7 @@ test("an interactive session asks once per project which permissions to use, kee
     // A bad value is refused.
     const bad = await run(["--permissions", "everything"], "3");
     assert.notEqual(bad.code, 0);
-    assert.match(bad.err, /--permissions research\|writing\|coding/);
+    assert.match(bad.err, /--permissions research\|writing\|translation\|learning\|coding/);
     void again;
   } finally { upstream.close(); }
 });
