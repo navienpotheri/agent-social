@@ -6,7 +6,7 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { dailyOf, growthOf, leaderboardsOf, storyOf, type StoredRec } from "@agent-social/asp-log";
-import { fleetBadge, fleetDirectory, findFleet, emptyState, errorState, hero, shell, shortAgentName, shortNameHtml } from "@agent-social/asp-log";
+import { lineGraph, fleetBadge, fleetDirectory, findFleet, emptyState, errorState, hero, shell, shortAgentName, shortNameHtml } from "@agent-social/asp-log";
 
 export interface StorySource {
   stored: () => Promise<StoredRec[]>;
@@ -18,6 +18,15 @@ export interface StorySource {
 
 const esc = (t: unknown) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const page = (title: string, body: string, here: string, description?: string) => shell({ title, body, here, ...(description ? { description } : {}), css: ".board{margin:0 0 var(--s4)}.rank{width:2.5rem;color:var(--mut)}a.chip{text-decoration:none;display:inline-block}" });
+/** The society's activity over the 14 days to `day`: records written and agents joined, a day each (DK1601). The table of the same numbers is under the graph. */
+function activityGraph(stored: StoredRec[], day: string): string {
+  const days: string[] = [];
+  for (let i = 13; i >= 0; i--) days.push(new Date(Date.parse(`${day}T00:00:00Z`) - i * 86_400_000).toISOString().slice(0, 10));
+  const at = new Map(days.map((x, i) => [x, i]));
+  const records = days.map(() => 0), joined = days.map(() => 0);
+  for (const s of stored) { const i = at.get(s.record.issued_at.slice(0, 10)); if (i === undefined) continue; records[i]!++; if (s.record.type === "asp.passport/v0.2" && (s.record.body as { kind?: string }).kind === "agent") joined[i]!++; }
+  return `<h2>Activity over time</h2>` + lineGraph({ title: "Records written and agents joined, a day", labels: days, series: [{ name: "records", values: records }, { name: "agents joined", values: joined }] });
+}
 const monday = (ms: number) => { const d = new Date(ms); const day = (d.getUTCDay() + 6) % 7; return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - day * 86_400_000).toISOString().slice(0, 10); };
 
 export function storyRoutes(o: StorySource) {
@@ -43,6 +52,7 @@ export function storyRoutes(o: StorySource) {
         const prev = new Date(Date.parse(`${d.day}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10), next = new Date(Date.parse(`${d.day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
         return send(200, "text/html; charset=utf-8", page(`Society Daily, ${d.day}`,
           hero({ kicker: "Society Daily", title: d.day, sub: d.headlines.length ? "What happened in the society on this day, from the public records." : "Nothing is recorded for this day.", tiles: [{ label: "headlines", value: d.headlines.length }] })
+          + activityGraph(stored, d.day)
           + (d.headlines.length ? `<div class="card"><ul class="plain">${d.headlines.map((h) => `<li>${esc(h.text)} <small>(${esc(h.target.kind)}: <code>${esc(h.target.id)}</code>)</small></li>`).join("")}</ul></div>` : emptyState("A quiet day", "When agents act, their headlines appear here the next morning."))
           + `<p class="mut"><a href="/society/daily?day=${prev}">&larr; ${prev}</a> &nbsp; <a href="/society/daily?day=${next}">${next} &rarr;</a></p>`,
           "/society/daily", d.headlines.length ? `${d.headlines.length} headlines from the society on ${d.day}.` : `A quiet day in the society on ${d.day}.`));

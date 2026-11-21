@@ -68,6 +68,8 @@ export interface Tenant {
   /** Set, on the tenant a request is made as, when it came with a machine token: the token's name. Never stored. */
   machine?: string;
   /** The starter credits this tenant claimed (src/starter.ts): when and how many; kept in a tombstone too, so closing and signing up again does not earn a second grant. */
+  /** The data-sharing choice of an organisation (DK1360): "private" keeps its text out of the shared store (only hashes), out of studies; "share" is the default for open and personal agents. */
+  dataSharing?: { choice: "share" | "private"; at: string };
   starter?: { at: string; amount: number; dids?: string[]; /** Credits each identity is still owed: the rest of the grant, released when one of them has had a job accepted. */ held?: number; releasedAt?: string; /** The identities that have had the rest of their grant (DK1470: each earns it on its own job). Absent on an older record: the rest went to all of `dids` when `held` is absent, to none when it is set. */ restDids?: string[] };
 }
 

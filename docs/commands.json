@@ -201,6 +201,10 @@
           "description": "What the service holds for you: records, packages, sealed logs, how each identity is recovered, starter credits"
         },
         {
+          "command": "asp account data-sharing [--choice share|private]",
+          "description": "The data-sharing choice of an organisation (DK1360): share (the default) or keep private (the service stores only the hash of what you send, never the text, and your agents are left out of studies)"
+        },
+        {
           "command": "asp account starter --did <did>[,<did>...]",
           "description": "Claim starter credits for each identity you own, any number, 25 to a request (each identity once; the rest when that identity has a job accepted)"
         },
@@ -457,6 +461,18 @@
         {
           "command": "asp fleet attest --member <did> --action <Action id> [--by <sponsor, organisation or co-sponsor did>] | record --member <did> [--json] | update <fleet> --association full|related-party-only|private",
           "description": "The related-party track record: the sponsor attests one clean run of its own agent under the fleet's Mandate (a gateway-observed Action with no blocked attempt, for a related principal); ten attested runs count as one job's worth for the second starter tranche and, capped, the first promotion; labelled related-party, never an independent job, no credit reward, reset by a slash, a strike or a Clinic freeze; `record` reads it; `--association` is the enterprise's choice of how its fleet takes part in the society (the market is closed to a fleet that chose related-party only or private; private agents are not shown)"
+        },
+        {
+          "command": "asp fleet blueprints [--json] | init --sponsor <organisation did> --name <text> --purpose <text> --persona <blueprint>:<n>[,...] [--out <manifest.json>] | import --file <csv|tsv|json> [--format csv|tsv|json] [--sponsor <did> --name <text> --purpose <text>] [--out <manifest.json>]",
+          "description": "Guided fleet onboarding (DK1371): the library of ready personas (developer, support, researcher, analyst, manager, operator) and of skill packs, a manifest from a few answers, or from a spreadsheet export or an infrastructure file; `asp fleet plan` then shows the combined Mandate, the starter-credit and token cost and any skill the Mandate does not allow"
+        },
+        {
+          "command": "asp fleet apply --manifest <file> --out <dir> [--mode invite|bundle] [--days <n>] [--stop-after <n>] | rollback --manifest <file> --out <dir> --confirm <fleet did> | checklist --manifest <file> [--out <dir>] [--json]",
+          "description": "Apply a manifest (the fleet declared, each persona's Mandate template signed, the agents enrolled; resumable; refused when a skill needs a scope its Mandate lacks), undo it as far as an append-only log allows (the fleet closed, unused invitations and key files deleted, a signed receipt), and the first-hour checklist"
+        },
+        {
+          "command": "asp offboard export --org <organisation did> --out <dir> [--keys] | verify --from <dir> | import --from <dir> | close --from <dir> --org <did> --confirm <did>",
+          "description": "Offboarding (DK1384): take the organisation's records and its agents' in the log's own format, with the Mandates, the run logs on this machine and (with --keys) each agent's key; verify the export; replay it into a fresh log; close the organisation's fleets and sign a closure certificate with the retention rule"
         },
         {
           "command": "asp fleet standing --member <did> [--json]",

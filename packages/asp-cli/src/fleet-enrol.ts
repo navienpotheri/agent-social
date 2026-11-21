@@ -11,16 +11,27 @@
  *   Both are resumable: a stopped run continues where it was, and running it again creates nothing twice. One signed summary (counts, the manifest's hash and a root over every agent's did) is written at the end; it holds no key.
  * Fleets of copies (one persona with a count) and fleets of different personas are the same manifest. Credits are accounting entries, not money; nothing here moves any.
  */
+import { BLUEPRINTS, SKILLS, resolvePersona } from "./fleet-blueprints.ts";
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, chmodSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { b64urlEncode, createRecord, didKeyFromPublicKey, publicKeyFromSeed, randomSeed, signBytes, signerFromSeed, type Signer } from "@agent-social/asp-core";
-import { makeInvitation, type FleetInvitation } from "@agent-social/asp-log";
+import { makeInvitation, STARTER_PER_DID, STARTER_UPFRONT, type FleetInvitation } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
 
 export class FleetEnrolUsage extends Error {}
 
-export interface Persona { name: string; role?: string; purpose?: string; count: number; template?: { runtime?: string; model?: string }; mandate_template?: string }
+export interface Persona {
+  name: string; role?: string; purpose?: string; count: number; template?: { runtime?: string; model?: string }; mandate_template?: string;
+  /** A ready persona from the blueprint library (DK1371): its Mandate template and skills apply unless the persona gives its own `mandate`. */
+  blueprint?: string;
+  /** The persona's own Mandate template, in place of the blueprint's. */
+  mandate?: Record<string, unknown>;
+  /** Skill packs from the skill library, beside the blueprint's. */
+  skills?: string[];
+  /** Tokens a month for each agent of the persona, when the enterprise sets one (the plan sums them). */
+  token_budget?: number;
+}
 export interface Manifest { version: 1; sponsor: string; fleet: { name: string; did?: string; purpose: string }; personas: Persona[]; invitation_days?: number }
 
 const LABEL = /^[a-z0-9][a-z0-9._-]{0,63}$/;
@@ -43,6 +54,10 @@ export function parseManifest(text: string): { manifest: Manifest; fleetDid: str
     if (typeof p?.name !== "string" || !LABEL.test(p.name)) problems.push(`${at}.name is a short label: lower-case letters, digits and hyphens, starting with a letter (developer, support, ceo)`);
     else if (seen.has(p.name)) problems.push(`${at}.name ${p.name} is used twice`); else seen.add(p.name);
     if (!Number.isInteger(p?.count) || p.count < 1) problems.push(`${at}.count is a whole number, at least 1`); else total += p.count;
+    if (p?.blueprint !== undefined && !BLUEPRINTS[p.blueprint]) problems.push(`${at}.blueprint ${JSON.stringify(p.blueprint)} is not in the library (${Object.keys(BLUEPRINTS).join(", ")})`);
+    if (p?.skills !== undefined && (!Array.isArray(p.skills) || p.skills.some((x: unknown) => typeof x !== "string" || !SKILLS[x as string]))) problems.push(`${at}.skills names skills from the library (${Object.keys(SKILLS).join(", ")})`);
+    if (p?.mandate !== undefined && (typeof p.mandate !== "object" || p.mandate === null || !Array.isArray((p.mandate as { scopes?: unknown }).scopes))) problems.push(`${at}.mandate is a Mandate template with scopes`);
+    if (p?.token_budget !== undefined && (!Number.isInteger(p.token_budget) || p.token_budget < 1)) problems.push(`${at}.token_budget is a whole number of tokens a month, at least 1`);
     if (p?.purpose !== undefined && (typeof p.purpose !== "string" || !p.purpose.trim() || p.purpose.length > 300)) problems.push(`${at}.purpose is 1 to 300 characters`);
   }
   if (total > MAX_FLEET) problems.push(`a fleet is at most ${MAX_FLEET} agents (the manifest asks for ${total})`);
@@ -71,7 +86,7 @@ export interface FleetEnrolOpts {
   fetch?: typeof fetch;
 }
 
-const readManifest = (f: FleetEnrolOpts["flags"]) => {
+export const readManifest = (f: FleetEnrolOpts["flags"]) => {
   if (!f.manifest) throw new FleetEnrolUsage("asp fleet plan|enrol --manifest <file>");
   return parseManifest(readFileSync(resolve(f.manifest), "utf8"));
 };
@@ -85,9 +100,16 @@ export async function fleetEnrolCmd(sub: string | undefined, o: FleetEnrolOpts):
     const { manifest, fleetDid, total } = readManifest(f);
     const rows = manifest.personas.map((p) => ({ persona: p.name, role: p.role ?? p.name, count: p.count, mandate_template: p.mandate_template ?? null }));
     const perHundred = 0.9; // seconds for a hundred passports on a local log, measured on the run logged in docs/live-run-checklist.md
-    if (f.json) { o.io.out(JSON.stringify({ fleet: fleetDid, sponsor: manifest.sponsor, total, personas: rows, records: total + 1, estimate_seconds: Math.round(total * perHundred / 100) }, null, 2)); return 0; }
+    if (f.json) { o.io.out(JSON.stringify({ fleet: fleetDid, sponsor: manifest.sponsor, total, personas: rows.map((r, i) => ({ ...r, skills: resolvePersona(manifest.personas[i]).skills, scopes: resolvePersona(manifest.personas[i]).scopes })), records: total + 1, starter_credits_up_front: total * STARTER_UPFRONT, starter_credits_in_all: total * STARTER_PER_DID, token_budget_a_month: manifest.personas.reduce((n, p) => n + (p.token_budget ?? 0) * p.count, 0), flagged: manifest.personas.flatMap((p) => resolvePersona(p).flagged.map((x) => ({ persona: p.name, ...x }))), estimate_seconds: Math.round(total * perHundred / 100) }, null, 2)); return 0; }
     o.io.out(`fleet ${manifest.fleet.name} (${fleetDid}), sponsored by ${manifest.sponsor}: ${total} agent${total === 1 ? "" : "s"} in ${rows.length} persona${rows.length === 1 ? "" : "s"}`);
-    for (const r of rows) o.io.out(`  ${r.persona.padEnd(20)} ${String(r.count).padStart(7)}  ${r.mandate_template ? `Mandate template ${r.mandate_template}` : "no Mandate template yet"}`);
+    for (const [i, r] of rows.entries()) {
+      const rp = resolvePersona(manifest.personas[i]);
+      o.io.out(`  ${r.persona.padEnd(20)} ${String(r.count).padStart(7)}  ${rp.mandate ? `Mandate: ${rp.scopes.join(", ") || "no scopes"}${manifest.personas[i].blueprint ? ` (blueprint ${manifest.personas[i].blueprint})` : ""}` : r.mandate_template ? `Mandate template ${r.mandate_template}` : "no Mandate template yet"}${rp.skills.length ? `; skills: ${rp.skills.join(", ")}` : ""}`);
+      for (const x of rp.flagged) o.io.out(`    FLAG  skill ${x.skill} needs ${x.missing.join(", ")}, which this persona's Mandate does not allow: add the scope or drop the skill before apply`);
+    }
+    const credits = total * STARTER_UPFRONT;
+    const tokens = manifest.personas.reduce((n, p) => n + (p.token_budget ?? 0) * p.count, 0);
+    o.io.out(`cost: starter credits up front ${credits} (${total} x ${STARTER_UPFRONT}), up to ${total * STARTER_PER_DID} after each agent's own first accepted job; tokens a month ${tokens ? `${tokens} set in this manifest` : "no budget set (token_budget on a persona sets one)"}. Credits are accounting entries, not money.`);
     o.io.out(`would write ${total + 1} records to the log (the fleet declaration and one passport each) in about ${Math.max(1, Math.round(total * perHundred / 100))} seconds on a local log; nothing was written`);
     o.io.out("then: asp fleet enrol --manifest <file> --out <dir>   (--mode invite, the default, keeps every key with its agent; --mode bundle makes the identities and keys here)");
     return 0;
@@ -98,7 +120,7 @@ export async function fleetEnrolCmd(sub: string | undefined, o: FleetEnrolOpts):
   throw new FleetEnrolUsage("asp fleet plan | enrol | join | status");
 }
 
-async function declareFleet(o: FleetEnrolOpts, m: Manifest, fleetDid: string, total: number): Promise<string> {
+export async function declareFleet(o: FleetEnrolOpts, m: Manifest, fleetDid: string, total: number): Promise<string> {
   const existing = await o.log.log.fleet(fleetDid);
   if (existing) {
     if (existing.org !== m.sponsor) throw new Error(`fleet ${fleetDid} already belongs to ${existing.org}, not ${m.sponsor}`);
@@ -111,7 +133,7 @@ async function declareFleet(o: FleetEnrolOpts, m: Manifest, fleetDid: string, to
   return `fleet ${fleetDid} declared (${res.id}, log seq ${res.seq}): ${total} members at most`;
 }
 
-async function enrol(o: FleetEnrolOpts): Promise<number> {
+export async function enrol(o: FleetEnrolOpts): Promise<number> {
   const f = o.flags;
   const { manifest: m, fleetDid, total } = readManifest(f);
   if (!f.out) throw new FleetEnrolUsage("asp fleet enrol --manifest <file> --out <dir> [--mode invite|bundle] [--days n]");
@@ -169,7 +191,7 @@ async function enrol(o: FleetEnrolOpts): Promise<number> {
     const file = join(dir, `${slug(s.persona, s.index)}.key.json`);
     let seed: Uint8Array, did: string;
     if (existsSync(file)) { const b = JSON.parse(readFileSync(file, "utf8")); seed = Buffer.from(b.seed, "base64url"); did = b.did; }          // a key made before a stop: reuse it
-    else { seed = randomSeed(); did = didKeyFromPublicKey(publicKeyFromSeed(seed)); writeFileSync(file, JSON.stringify({ did, kid: `${did}#key-1`, seed: b64urlEncode(seed), persona: s.persona, fleet: fleetDid, sponsor: m.sponsor, note: "This file is the agent's own key. Deliver it to where the agent runs and keep no other copy." }, null, 2), { mode: 0o600 }); try { chmodSync(file, 0o600); } catch { /* not on every system */ } }
+    else { seed = randomSeed(); did = didKeyFromPublicKey(publicKeyFromSeed(seed)); writeFileSync(file, JSON.stringify({ did, kid: `${did}#key-1`, seed: b64urlEncode(seed), persona: s.persona, skills: resolvePersona(m.personas.find((x) => x.name === s.persona)!).skills, fleet: fleetDid, sponsor: m.sponsor, note: "This file is the agent's own key. Deliver it to where the agent runs and keep no other copy." }, null, 2), { mode: 0o600 }); try { chmodSync(file, 0o600); } catch { /* not on every system */ } }
     if (!(await o.log.log.passport(did))) {
       const p = personas.get(s.persona)!;
       const body = { did, kind: "agent" as const, keys: [{ id: `${did}#key-1`, type: "Ed25519" as const, public_key: b64urlEncode(publicKeyFromSeed(seed)) }], sponsor: m.sponsor, mentor: m.sponsor, tier: 1, shape: { memory: "files + experience index", keeps_learning: true, modalities: ["text", "code"] }, purpose: p.purpose ?? `${p.role ?? p.name} of ${m.fleet.name}`, fleet: fleetDid, persona: s.persona };
