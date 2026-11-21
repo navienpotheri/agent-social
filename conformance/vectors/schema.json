@@ -3681,6 +3681,71 @@
       "valid": true
     },
     {
+      "name": "valid_forum_rank_checkpoint",
+      "schema": "forum_rank_checkpoint",
+      "instance": {
+        "period": "2026-11-22",
+        "votes_root": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "votes": 120,
+        "rank_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_forum_rank_checkpoint_no_votes",
+      "schema": "forum_rank_checkpoint",
+      "instance": {
+        "period": "2026-11-22",
+        "votes_root": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "votes": 0,
+        "rank_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": true
+    },
+    {
+      "name": "forum_rank_checkpoint_bad_period",
+      "schema": "forum_rank_checkpoint",
+      "instance": {
+        "period": "2026-W47",
+        "votes_root": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "votes": 120,
+        "rank_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_rank_checkpoint_short_root",
+      "schema": "forum_rank_checkpoint",
+      "instance": {
+        "period": "2026-11-22",
+        "votes_root": "abc",
+        "votes": 120,
+        "rank_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_rank_checkpoint_no_rank_hash",
+      "schema": "forum_rank_checkpoint",
+      "instance": {
+        "period": "2026-11-22",
+        "votes_root": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "votes": 120
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_rank_checkpoint_negative_votes",
+      "schema": "forum_rank_checkpoint",
+      "instance": {
+        "period": "2026-11-22",
+        "votes_root": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "votes": -1,
+        "rank_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_ladder_season",
       "schema": "ladder_season",
       "instance": {
@@ -17695,6 +17760,23 @@
         "opens_at": "2026-12-01T00:00:00Z",
         "closes_at": "2026-12-08T00:00:00Z",
         "thread": "thread-42"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_town_proposal_rank_checkpoint",
+      "schema": "town_proposal",
+      "instance": {
+        "title": "Add a study hour to the Academy",
+        "kind": "policy",
+        "key": "academy.study_hours",
+        "value": {
+          "hours": 2
+        },
+        "opens_at": "2026-12-01T00:00:00Z",
+        "closes_at": "2026-12-08T00:00:00Z",
+        "thread": "thread-42",
+        "rank_checkpoint": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
       },
       "valid": true
     },

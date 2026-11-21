@@ -1,0 +1,370 @@
+{
+  "cases": [
+    {
+      "name": "none",
+      "leaves": [],
+      "root": "2e1cfa82b035c26cbbbdae632cea070514eb8b773f616aaeaf668e2f0be8f10d",
+      "leaf_hashes": [],
+      "proofs": []
+    },
+    {
+      "name": "one",
+      "leaves": [
+        "vote:a:post-1:up"
+      ],
+      "root": "d25161f29139fe118a4d25d592e290a2a2c44f4f99169246b0d780e3bca3a67e",
+      "leaf_hashes": [
+        "d25161f29139fe118a4d25d592e290a2a2c44f4f99169246b0d780e3bca3a67e"
+      ],
+      "proofs": [
+        {
+          "leaf": "vote:a:post-1:up",
+          "proof": []
+        }
+      ]
+    },
+    {
+      "name": "two",
+      "leaves": [
+        "vote:a:post-1:up",
+        "vote:b:post-1:down"
+      ],
+      "root": "d8041e43149d8c3c457ab2b8f126e4c0f37e896d7fb352fb5baadb52a2ce639c",
+      "leaf_hashes": [
+        "d25161f29139fe118a4d25d592e290a2a2c44f4f99169246b0d780e3bca3a67e",
+        "02b2aec28fbfa89064b19a10bed0736066fb3f8d055c9f59f3e0ca237653cf0d"
+      ],
+      "proofs": [
+        {
+          "leaf": "vote:a:post-1:up",
+          "proof": [
+            {
+              "side": "right",
+              "hash": "02b2aec28fbfa89064b19a10bed0736066fb3f8d055c9f59f3e0ca237653cf0d"
+            }
+          ]
+        },
+        {
+          "leaf": "vote:b:post-1:down",
+          "proof": [
+            {
+              "side": "left",
+              "hash": "d25161f29139fe118a4d25d592e290a2a2c44f4f99169246b0d780e3bca3a67e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "three (an odd node is carried up)",
+      "leaves": [
+        "v3",
+        "v1",
+        "v2"
+      ],
+      "root": "bbb2072bf970b8133b365b10b7b57beff95ebe6d3b7dd6e476d3a679932a2267",
+      "leaf_hashes": [
+        "57a3a4ed11409f81371ff42a807c24efc099cb62702ccd962a85edc25966120b",
+        "75d22cc76172fe607d43a32285a653fe0a08a5002e0345d106f91020d00e8fa6",
+        "b5147884edcd81f341eae7751f2f06bcd376d1049030131671f13922eb8babce"
+      ],
+      "proofs": [
+        {
+          "leaf": "v1",
+          "proof": [
+            {
+              "side": "right",
+              "hash": "75d22cc76172fe607d43a32285a653fe0a08a5002e0345d106f91020d00e8fa6"
+            },
+            {
+              "side": "right",
+              "hash": "b5147884edcd81f341eae7751f2f06bcd376d1049030131671f13922eb8babce"
+            }
+          ]
+        },
+        {
+          "leaf": "v2",
+          "proof": [
+            {
+              "side": "left",
+              "hash": "57a3a4ed11409f81371ff42a807c24efc099cb62702ccd962a85edc25966120b"
+            },
+            {
+              "side": "right",
+              "hash": "b5147884edcd81f341eae7751f2f06bcd376d1049030131671f13922eb8babce"
+            }
+          ]
+        },
+        {
+          "leaf": "v3",
+          "proof": [
+            {
+              "side": "left",
+              "hash": "752ea1bcae4e61edb064e276ccbe839a284f907cdcc59e0367beade501d6daaf"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "five, listed out of order and with a duplicate",
+      "leaves": [
+        "e",
+        "b",
+        "d",
+        "a",
+        "c",
+        "a"
+      ],
+      "root": "4a44960d2f555777d84c586ca378466faf28c6c31ff4f15d3650f6c30bdd8e2e",
+      "leaf_hashes": [
+        "a8e8b80a9094e00a6ecc05808f71dabf39f652cb1cb5b50b5f08d49250275de3",
+        "e83fbee03669af8bb982a8721c5add834e2fd0c9f4512e0fcd34d239a3e6ebc1",
+        "e98ca949b35ed46cf85c62420942188e0ee7f4dfe3dd08c4b0a4f48ae73345a1",
+        "a3163a749e9a82629faf51952e44adaf924d0e0923a6c901b610e5bf0f34bac2",
+        "612d33e5e2dd2fb4baf544211c973fec1d381ac232af5b50a4bac6a7ae53b43a"
+      ],
+      "proofs": [
+        {
+          "leaf": "a",
+          "proof": [
+            {
+              "side": "right",
+              "hash": "e83fbee03669af8bb982a8721c5add834e2fd0c9f4512e0fcd34d239a3e6ebc1"
+            },
+            {
+              "side": "right",
+              "hash": "1f49d84aec77d3feb64c9da8d6cab3138aaaf2ecb44451c8c7792d78653582f7"
+            },
+            {
+              "side": "right",
+              "hash": "612d33e5e2dd2fb4baf544211c973fec1d381ac232af5b50a4bac6a7ae53b43a"
+            }
+          ]
+        },
+        {
+          "leaf": "b",
+          "proof": [
+            {
+              "side": "left",
+              "hash": "a8e8b80a9094e00a6ecc05808f71dabf39f652cb1cb5b50b5f08d49250275de3"
+            },
+            {
+              "side": "right",
+              "hash": "1f49d84aec77d3feb64c9da8d6cab3138aaaf2ecb44451c8c7792d78653582f7"
+            },
+            {
+              "side": "right",
+              "hash": "612d33e5e2dd2fb4baf544211c973fec1d381ac232af5b50a4bac6a7ae53b43a"
+            }
+          ]
+        },
+        {
+          "leaf": "c",
+          "proof": [
+            {
+              "side": "right",
+              "hash": "a3163a749e9a82629faf51952e44adaf924d0e0923a6c901b610e5bf0f34bac2"
+            },
+            {
+              "side": "left",
+              "hash": "bf670363d9871f7af8f34621ac67c9fd1d78c068cc7392401ac50b048b14c2a8"
+            },
+            {
+              "side": "right",
+              "hash": "612d33e5e2dd2fb4baf544211c973fec1d381ac232af5b50a4bac6a7ae53b43a"
+            }
+          ]
+        },
+        {
+          "leaf": "d",
+          "proof": [
+            {
+              "side": "left",
+              "hash": "e98ca949b35ed46cf85c62420942188e0ee7f4dfe3dd08c4b0a4f48ae73345a1"
+            },
+            {
+              "side": "left",
+              "hash": "bf670363d9871f7af8f34621ac67c9fd1d78c068cc7392401ac50b048b14c2a8"
+            },
+            {
+              "side": "right",
+              "hash": "612d33e5e2dd2fb4baf544211c973fec1d381ac232af5b50a4bac6a7ae53b43a"
+            }
+          ]
+        },
+        {
+          "leaf": "e",
+          "proof": [
+            {
+              "side": "left",
+              "hash": "ef6f06d4d637a4951d9ef4e296244af9a9373681a81f7ccb28afa195244d1994"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "eight",
+      "leaves": [
+        "vote-0",
+        "vote-1",
+        "vote-2",
+        "vote-3",
+        "vote-4",
+        "vote-5",
+        "vote-6",
+        "vote-7"
+      ],
+      "root": "c87e6f6739fb9a415ae7cbe3890a3c361e08e56cd25f1fa15acfc34ae7f05a17",
+      "leaf_hashes": [
+        "e94cb19228d2b4289280c672042bd0057c53135591d8c81db910eaa54c08ea9d",
+        "e52c10b58c370569efb0fedfaf80798403686791a4253bc81c510d39f888554d",
+        "9106913249f5e14de077d6c516b97aa3f4ffc47b8a06ca7f086af41a39704ad1",
+        "63042f825c2abbb8ffc0dba4f2d21c759eea7709414472faea807ff30a2a8f83",
+        "d310080b58f665c00ace7f8b4c7a6d1da074a167a70d08d6fd8bd470ccde61e1",
+        "9c38cea228ec025e6b725dcbf3533c8c7c7c73c3c7846dee36e8dd796d4e8b0c",
+        "dcba21b3cbd37cb410bd951c0c992887f01a45653cbdec5e506493ab12941980",
+        "9df4c75e3b5c9353a91d40c109aecc5239b431d93f4376fa90dbe076cdefdca8"
+      ],
+      "proofs": [
+        {
+          "leaf": "vote-0",
+          "proof": [
+            {
+              "side": "right",
+              "hash": "e52c10b58c370569efb0fedfaf80798403686791a4253bc81c510d39f888554d"
+            },
+            {
+              "side": "right",
+              "hash": "b18161312554a3f0cf9fff9730ad553df095b5f0efe7b8a1c18b09d9c2cfae2e"
+            },
+            {
+              "side": "right",
+              "hash": "06ed047674558b775931c0286a40f95e807e32b2817e80ef5acb8dbd3b92518c"
+            }
+          ]
+        },
+        {
+          "leaf": "vote-1",
+          "proof": [
+            {
+              "side": "left",
+              "hash": "e94cb19228d2b4289280c672042bd0057c53135591d8c81db910eaa54c08ea9d"
+            },
+            {
+              "side": "right",
+              "hash": "b18161312554a3f0cf9fff9730ad553df095b5f0efe7b8a1c18b09d9c2cfae2e"
+            },
+            {
+              "side": "right",
+              "hash": "06ed047674558b775931c0286a40f95e807e32b2817e80ef5acb8dbd3b92518c"
+            }
+          ]
+        },
+        {
+          "leaf": "vote-2",
+          "proof": [
+            {
+              "side": "right",
+              "hash": "63042f825c2abbb8ffc0dba4f2d21c759eea7709414472faea807ff30a2a8f83"
+            },
+            {
+              "side": "left",
+              "hash": "023dd7e692d202e908a2c5b050579e3fc3836faa1710255ebc0f250e150b88b0"
+            },
+            {
+              "side": "right",
+              "hash": "06ed047674558b775931c0286a40f95e807e32b2817e80ef5acb8dbd3b92518c"
+            }
+          ]
+        },
+        {
+          "leaf": "vote-3",
+          "proof": [
+            {
+              "side": "left",
+              "hash": "9106913249f5e14de077d6c516b97aa3f4ffc47b8a06ca7f086af41a39704ad1"
+            },
+            {
+              "side": "left",
+              "hash": "023dd7e692d202e908a2c5b050579e3fc3836faa1710255ebc0f250e150b88b0"
+            },
+            {
+              "side": "right",
+              "hash": "06ed047674558b775931c0286a40f95e807e32b2817e80ef5acb8dbd3b92518c"
+            }
+          ]
+        },
+        {
+          "leaf": "vote-4",
+          "proof": [
+            {
+              "side": "right",
+              "hash": "9c38cea228ec025e6b725dcbf3533c8c7c7c73c3c7846dee36e8dd796d4e8b0c"
+            },
+            {
+              "side": "right",
+              "hash": "69019645d824e5c79ab76b0351f893626039117974095a21a6fc5085bf18957b"
+            },
+            {
+              "side": "left",
+              "hash": "052d8cc586913414fac9e6531272ea574984ff29bbf1f737c9fd5255da67b058"
+            }
+          ]
+        },
+        {
+          "leaf": "vote-5",
+          "proof": [
+            {
+              "side": "left",
+              "hash": "d310080b58f665c00ace7f8b4c7a6d1da074a167a70d08d6fd8bd470ccde61e1"
+            },
+            {
+              "side": "right",
+              "hash": "69019645d824e5c79ab76b0351f893626039117974095a21a6fc5085bf18957b"
+            },
+            {
+              "side": "left",
+              "hash": "052d8cc586913414fac9e6531272ea574984ff29bbf1f737c9fd5255da67b058"
+            }
+          ]
+        },
+        {
+          "leaf": "vote-6",
+          "proof": [
+            {
+              "side": "right",
+              "hash": "9df4c75e3b5c9353a91d40c109aecc5239b431d93f4376fa90dbe076cdefdca8"
+            },
+            {
+              "side": "left",
+              "hash": "ace0882a04c6ec9746599b3c373e70c676fb285dc411777e7c0c179da94994aa"
+            },
+            {
+              "side": "left",
+              "hash": "052d8cc586913414fac9e6531272ea574984ff29bbf1f737c9fd5255da67b058"
+            }
+          ]
+        },
+        {
+          "leaf": "vote-7",
+          "proof": [
+            {
+              "side": "left",
+              "hash": "dcba21b3cbd37cb410bd951c0c992887f01a45653cbdec5e506493ab12941980"
+            },
+            {
+              "side": "left",
+              "hash": "ace0882a04c6ec9746599b3c373e70c676fb285dc411777e7c0c179da94994aa"
+            },
+            {
+              "side": "left",
+              "hash": "052d8cc586913414fac9e6531272ea574984ff29bbf1f737c9fd5255da67b058"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

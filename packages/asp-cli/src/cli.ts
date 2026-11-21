@@ -767,6 +767,7 @@ const OPTIONS = {
   "fail-on-refusal": { type: "boolean" },
   days: { type: "string" },
   multiplier: { type: "string" },
+  "rank-checkpoint": { type: "string" },
   pool: { type: "string" },
   emergency: { type: "string" },
   cause: { type: "string" },
@@ -1318,7 +1319,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "town") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
-      try { return await townCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, title: v.title, kind: v.kind, key: v.key, value: v.value, days: v.days, opens: v.opens, thread: v.thread, proposal: v.proposal, choice: v.choice, json: v.json } }); } catch (e) { if (e instanceof TownUsage) throw new UsageError(e.message); throw e; }
+      try { return await townCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, title: v.title, kind: v.kind, key: v.key, value: v.value, days: v.days, opens: v.opens, thread: v.thread, "rank-checkpoint": v["rank-checkpoint"], proposal: v.proposal, choice: v.choice, json: v.json } }); } catch (e) { if (e instanceof TownUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "listen") {
       const local = await openLog(home, logEnv);

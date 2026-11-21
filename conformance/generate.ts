@@ -16,6 +16,7 @@ import { brier as tBrier, calibration as tCalibration, klBits as tKl, meanSurpri
 import { GENERATOR, WORLD_DID, dayBody, generateDay, seedCommitment } from "../packages/asp-log/src/world.ts";
 import { deriveMandate, mandateViolations } from "../packages/asp-core/src/mandate-template.ts";
 import { KNOWN_NOTICES } from "../packages/asp-core/src/notice-ack.ts";
+import { merkleLeaf, merkleProof, merkleRoot } from "../packages/asp-core/src/merkle.ts";
 import { JOB_DATA_TERM, MAX_RETAIN_DAYS, readDataHandling, type DataHandling } from "../packages/asp-core/src/data-handling.ts";
 import { suggestRisk, onlyRemovesRule, type RiskTerms, type RiskInput } from "../packages/asp-log/src/market-risk.ts";
 
@@ -735,6 +736,24 @@ sv("verification_bad_verdict", "attestation", { kind: "verification", about: fak
 sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
 sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
 sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
+// ---------- the forum rank checkpoint (spec-deltas S1599, register row DK1742): schema cases and the shared Merkle vectors ----------
+const rcBody = (over: Record<string, unknown> = {}) => ({ period: "2026-11-22", votes_root: "a".repeat(64), votes: 120, rank_sha256: "b".repeat(64), ...over });
+sv("valid_forum_rank_checkpoint", "forum_rank_checkpoint", rcBody(), true);
+sv("valid_forum_rank_checkpoint_no_votes", "forum_rank_checkpoint", rcBody({ votes: 0 }), true);
+sv("forum_rank_checkpoint_bad_period", "forum_rank_checkpoint", rcBody({ period: "2026-W47" }), false);
+sv("forum_rank_checkpoint_short_root", "forum_rank_checkpoint", rcBody({ votes_root: "abc" }), false);
+sv("forum_rank_checkpoint_no_rank_hash", "forum_rank_checkpoint", (({ rank_sha256: _r, ...r }) => r)(rcBody()), false);
+sv("forum_rank_checkpoint_negative_votes", "forum_rank_checkpoint", rcBody({ votes: -1 }), false);
+{
+  const sets: { name: string; leaves: string[] }[] = [
+    { name: "none", leaves: [] }, { name: "one", leaves: ["vote:a:post-1:up"] }, { name: "two", leaves: ["vote:a:post-1:up", "vote:b:post-1:down"] },
+    { name: "three (an odd node is carried up)", leaves: ["v3", "v1", "v2"] }, { name: "five, listed out of order and with a duplicate", leaves: ["e", "b", "d", "a", "c", "a"] },
+    { name: "eight", leaves: Array.from({ length: 8 }, (_, i) => `vote-${i}`) },
+  ];
+  (globalThis as unknown as { __merkleVectors: unknown }).__merkleVectors = {
+    cases: sets.map((s) => ({ name: s.name, leaves: s.leaves, root: merkleRoot(s.leaves), leaf_hashes: [...new Set(s.leaves)].sort().map(merkleLeaf), proofs: [...new Set(s.leaves)].sort().map((t) => ({ leaf: t, proof: merkleProof(s.leaves, t) })) })),
+  };
+}
 // ---------- ladders (spec-deltas S1598, register row DK1741): schema cases ----------
 const lsBody = (over: Record<string, unknown> = {}) => ({ game: "twenty-one", season: "2026-12", entry_closes_at: "2026-12-03T00:00:00Z", ends_at: "2026-12-29T00:00:00Z", draw_seed: "seed-2026-12-a", rounds: 12, ...over });
 sv("valid_ladder_season", "ladder_season", lsBody(), true);
@@ -1721,6 +1740,7 @@ const worldRules = [
   const tpBody = (over: Record<string, unknown> = {}) => ({ title: "Add a study hour to the Academy", kind: "policy", key: "academy.study_hours", value: 2, opens_at: "2026-12-01T00:00:00Z", closes_at: "2026-12-08T00:00:00Z", ...over });
   sv("valid_town_proposal", "town_proposal", tpBody(), true);
   sv("valid_town_proposal_thread", "town_proposal", tpBody({ thread: "thread-42", value: { hours: 2 } }), true);
+  sv("valid_town_proposal_rank_checkpoint", "town_proposal", tpBody({ thread: "thread-42", rank_checkpoint: "sha256:" + "9".repeat(64), value: { hours: 2 } }), true);
   sv("town_proposal_no_value", "town_proposal", (({ value: _v, ...r }) => r)(tpBody()), false);
   sv("town_proposal_unknown_kind", "town_proposal", tpBody({ kind: "coup" }), false);
   sv("town_proposal_bad_time", "town_proposal", tpBody({ closes_at: "soon" }), false);
@@ -1884,6 +1904,7 @@ write("lifecycle.json", { version: "asp.conformance/v0.2", cases: lifecycle });
 write("telemetry.json", { version: "asp.conformance/v0.2", note: "exact: every number is identical in both languages; otherwise equal to 1e-9", cases: telemetry });
 write("risk.json", risk);
 write("mandate-template.json", (globalThis as unknown as { __mandateTemplateVectors: unknown }).__mandateTemplateVectors);
+write("merkle.json", (globalThis as unknown as { __merkleVectors: unknown }).__merkleVectors);
 write("notice-ack.json", (globalThis as unknown as { __noticeAckVectors: unknown }).__noticeAckVectors);
 write("data-handling.json", (globalThis as unknown as { __dataHandlingVectors: unknown }).__dataHandlingVectors);
 write("world.json", { version: "asp.conformance/v0.2", generator: GENERATOR, commitments: ["", "vector-seed", "another-seed"].map((x) => ({ seed: x, commitment: seedCommitment(x) })), generate: worldGen, rules: worldRules });

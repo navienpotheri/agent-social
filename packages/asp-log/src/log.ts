@@ -469,6 +469,7 @@ export class EventLog {
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
     if (type === "treasury_statement") await this.projectTreasuryStatement(tx, verified);
     if (type === "forum_checkpoint") await this.projectForumCheckpoint(tx, verified);
+    if (type === "forum_rank_checkpoint") await this.projectForumRankCheckpoint(tx, verified);
     if (type === "handout") await this.projectHandout(tx, verified);
     if (type === "config") await this.projectConfig(tx, verified);
     if (type === "allowance") await this.projectAllowance(tx, verified);
@@ -2506,6 +2507,14 @@ export class EventLog {
       const len = Date.parse(b.closes_at) - Date.parse(b.opens_at);
       if (!(len >= rules.minWindowMs && len <= rules.maxWindowMs)) throw rule("town_window", `the voting window runs from ${rules.minWindowMs / 86_400_000} to ${rules.maxWindowMs / 86_400_000} days`);
       if (Date.parse(b.opens_at) < now) throw rule("town_window", "a vote opens at or after the proposal");
+      // A proposal that rests on a forum thread cites the checkpoint of the rank that made the thread eligible for the agenda (S1599, DK1742): no checkpoint, or one older than 8 days, and the rank is not auditable.
+      const tb = r.body as { thread?: string; rank_checkpoint?: string };
+      if (tb.thread) {
+        if (!tb.rank_checkpoint) throw rule("town_thread_needs_checkpoint", "a proposal that rests on a forum thread cites the forum rank checkpoint behind its rank (rank_checkpoint): a rank nobody can audit does not put a thread on the agenda");
+        const cp = await tx.getRecord(tb.rank_checkpoint);
+        if (!cp || cp.record.type !== "asp.forum_rank_checkpoint/v0.2") throw rule("town_thread_needs_checkpoint", `${tb.rank_checkpoint} is not a forum rank checkpoint in this log`);
+        if (now - Date.parse(cp.record.issued_at) > 8 * 86_400_000) throw rule("town_checkpoint_stale", "the rank checkpoint is older than 8 days: cite a current one");
+      }
       // An agent-authored course (DK1608, S1554): its lessons are in the proposal, and the log refuses a lesson with no text or with characters a person cannot see; the rest of the safety review (the invariant floor) is the Registrar's, before the countersign.
       if (b.kind === "course" && /^academy\.course\./.test(pb.key)) {
         const lessons = (r.body as { value?: { lessons?: { id?: unknown; text?: unknown }[] } | null }).value?.lessons;
@@ -3002,6 +3011,28 @@ export class EventLog {
       for (const id of st.entrants) players.push({ id, controller: (await this.factsOf(tx, id)).sponsor, countedJobs: (await this.reputation(tx, id))?.qualifyingJobs ?? 0 });
       return { players, matches: st.matches.map((x) => ({ a: x.a, b: x.b, score: x.score, at: Date.parse(x.at), scheduled: true as const })) };
     });
+  }
+
+  /**
+   * A forum rank checkpoint (S1599, DK1742): the operator commits the Merkle root of a day's votes and the hash of the rank inputs computed from them. One for each day, in order (`rank_checkpoint_period`, `rank_checkpoint_known`),
+   * not for a day in the future, and the vote count never falls (`rank_checkpoint_votes`: votes are not deleted from the store). The votes stay in the forum's store; a replay from the store must reproduce the hashes.
+   */
+  private async projectForumRankCheckpoint(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { period: string; votes: number };
+    if (r.prev !== null) throw rule("rank_checkpoint_not_chained", "a forum rank checkpoint starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("rank_checkpoint_wrong_issuer", "only the operator commits the forum's votes and rank");
+    if (b.period > r.issued_at.slice(0, 10)) throw rule("rank_checkpoint_period", "a checkpoint is for a day that has begun");
+    const last = JSON.parse((await tx.getMarker("rank_checkpoint:last")) ?? "null") as { period: string; votes: number; id: string } | null;
+    if (last && b.period === last.period) throw rule("rank_checkpoint_known", `${b.period} has its checkpoint already`);
+    if (last && b.period < last.period) throw rule("rank_checkpoint_period", `checkpoints run in order: the last is for ${last.period}`);
+    if (last && b.votes < last.votes) throw rule("rank_checkpoint_votes", `the vote count was ${last.votes} and is now ${b.votes}: votes are not removed from the store`);
+    await tx.putMarker("rank_checkpoint:last", JSON.stringify({ period: b.period, votes: b.votes, id: r.id }));
+  }
+
+  /** The latest forum rank checkpoint (S1599): its record id, day, vote count and the time it was signed, or null. Reads only. */
+  async latestRankCheckpoint(): Promise<{ id: string; period: string; votes: number } | null> {
+    const raw = await this.store.transaction((tx) => tx.getMarker("rank_checkpoint:last"));
+    return raw ? JSON.parse(raw) : null;
   }
 
   /** The holders of an elected office (S1596): the last election's winners, or null. Reads only. */
