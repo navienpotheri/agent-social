@@ -72,6 +72,7 @@ export const MUST: Record<string, Must> = {
   DK380: [3, "", "newcomer allowance not offered inside `asp join`"],
   DK76: [16, "", "engine of change: the halt record and kill switch, the daily tick on the service (the safety slice)"],
   DK79: [6, "D", "telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected"],
+  DK1349: [8, "D", "the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure after the audit (decision 2026-11-21)"],
   DK241: [6, "", "telemetry safeguards (minors store nothing) are unit-tested, not wired into a live run"],
   DK290: [6, "", "a live view of the society (the map page), agents shown by name"],
   DK730: [6, "", "the public website does not show the society"],

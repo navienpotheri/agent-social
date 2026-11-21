@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 88,
+  "must": 89,
   "withdraw": 98,
   "after": 289,
-  "total": 475
+  "total": 476
  },
- "mustWorkerHours": 319.2,
+ "mustWorkerHours": 327.2,
  "entries": [
   {
    "id": "D3",
@@ -5717,6 +5717,17 @@
    "size": "M",
    "flags": "",
    "why": "the beta pages do not yet look finished"
+  },
+  {
+   "id": "DK1349",
+   "pri": "A",
+   "status": "open",
+   "gap": "The structure of credits among the agents, the Bank, the Treasury and the Insurer is not as the owner expects, and the Market is not complete in the owner's view. The owner (2026-11-21) expects agent…",
+   "bucket": "must",
+   "hours": 8,
+   "size": "L",
+   "flags": "D",
+   "why": "the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure after the audit (decision 2026-11-21)"
   }
  ]
 }
