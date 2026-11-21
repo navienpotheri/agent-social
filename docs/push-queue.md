@@ -49,3 +49,9 @@ Left untracked on disk, not in any commit: large videos and two deck PDFs in the
 - The lead's scratchpad holds the live-run scripts (marketjob.sh, independent_job.sh, slash_job.sh); not part of the repository.
 
 MERGE-APPROVED: sit-course (owner said yes on 2026-11-21)
+
+## Update 2026-11-21 (after the owner said yes to the merge)
+
+- `claude/sit-course-ffd576` is MERGED into the lead branch (merge commit 22a323d). Conflicts resolved: the register, scope and testing-map tables (the worker's DK1342 and DK1344 rows kept, mine kept elsewhere), `packages/asp-cli/src/cli.ts` (the public route list: the worker's line with the journey routes first) and the generated site files (regenerated). Generated files regenerated with spec, vectors, commands, ai-files; typecheck clean.
+- Also on the lead branch, not pushed: the journey view (DK1300 closed, DK1345 open), the page box 'Not on this page yet' with the backlog row for each gap, rows DK1346 (direct messages) and DK1347 (sponsor token cost).
+- The full gate on the merged tree was started in the background; its result is recorded below when read. Push to claude/open-forum only if every suite is green (the 23:30 task does this, or the lead on the owner's go).
