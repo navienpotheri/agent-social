@@ -5,7 +5,7 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 509 register rows are not closed (232 at priority A, 215 at B, 49 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 509 register rows are not closed (231 at priority A, 214 at B, 49 at C). Sorted:
 
 - **Must close before launch: 68 rows, 334 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 114 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
@@ -350,8 +350,8 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | CY16 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | CY17 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | SC1 | A | open | a review takes weeks; owner decision (recommend: commission now) | the site says there has been no outside security review; private reporting is the way in |
-| GV2 | A | designed | design exists (DK534) | credits are mock; supply is audited (DK9) |
-| GV4 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| GV2 | ? | partial | design exists (DK534) | credits are mock; supply is audited (DK9) |
+| GV4 | ? | partial | Priority ?: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | GV7 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | GV8 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | GV9 | A | partial | the operator is the mayor; OD-DK421 covers succession | the operator is named as the single operator |

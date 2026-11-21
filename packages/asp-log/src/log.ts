@@ -42,6 +42,7 @@ import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type L
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
+import { basketRatio, dormancyShare, claimsInDay, type BasketReport } from "./guard-basket.ts";
 import { sizeBond, sizeBondSplit, modelPremium, type BondSuggestion, type SplitSuggestion } from "./bond-sizing.ts";
 import { DEFAULT_TOWN_RULES, VOTABLE_KINDS, countVotes, type TownHallView, type TownRules, type Voter } from "./town-hall.ts";
 import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
@@ -2517,6 +2518,20 @@ export class EventLog {
     const attemptRuns = Math.min(attemptEvents, trials);
     const s = sizeBondSplit({ trials, attemptRuns, jobValue: o.jobValue, damage: o.damage });
     return { ...s, trials, attemptRuns, modelPremium: modelPremium(s, o.insured, COVER_SHARE_PERMILLE) };
+  }
+
+  /** The three guard measures the monitor could not compute before (G3, G4, G7; GV2, GV4), from the records: see guard-basket.ts. Reads only. */
+  async guardExtra(at: string): Promise<{ basket: BasketReport; dormancy: { residents: number; dormant: number; share: number | null }; claimsInDay: number }> {
+    const records = await this.recordsOfTypes(["contract", "settlement", "shops_act", "starter_claim"]);
+    const lists = (await this.priceLists()).filter((l) => Date.parse((l.body as { effective_from: string }).effective_from) <= Date.parse(at));
+    const list = lists.sort((a, b) => Date.parse((a.body as { effective_from: string }).effective_from) - Date.parse((b.body as { effective_from: string }).effective_from)).at(-1);
+    const lb = list?.body as { items: { service: string; price: number }[]; job_tax_permille: number } | undefined;
+    const houseAgents = new Set(((await this.houseAgents()) as { did: string }[]).map((h) => h.did));
+    return {
+      basket: basketRatio(records, { to: at, price: (s) => lb?.items.find((i) => i.service === s)?.price, taxPermille: lb?.job_tax_permille ?? 0, houseAgents }),
+      dormancy: dormancyShare(records, at),
+      claimsInDay: claimsInDay(records, at),
+    };
   }
 
   /** The live count of a proposal's votes (S1428), whether or not it was tallied yet. */

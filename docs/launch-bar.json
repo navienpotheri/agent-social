@@ -1927,8 +1927,8 @@
   },
   {
    "id": "GV2",
-   "pri": "A",
-   "status": "designed",
+   "pri": "?",
+   "status": "partial",
    "gap": "No monetary policy: credits are minted (starter grants, rewards) and removed (rent, tax, slashing) with no plan to keep supply, prices and wages stable Waits on the owner (docs/owner-decisions.md)./…",
    "bucket": "after",
    "hours": 0,
@@ -1939,14 +1939,14 @@
   },
   {
    "id": "GV4",
-   "pri": "B",
-   "status": "designed",
+   "pri": "?",
+   "status": "partial",
    "gap": "No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an average agent earns, so the city could price most agents out",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
