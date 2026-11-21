@@ -35,6 +35,10 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
+import { creditsFor, meterOf, priceStatement, type Plan, type Usage, type AgentUsage } from "./metering.ts";
+import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type Lot } from "./credit-lots.ts";
+import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
+import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
 import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
 import { chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
 import { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
@@ -83,6 +87,7 @@ const RISK_PERMILLE_PER_STRIKE = 10;
 const RISK_PERMILLE_STRIKE_CAP = 200;
 /** The promotion rule (academy.md 3, proposals the owner decides): qualifying jobs for tier 1 to 2, and how long after a slash or a blocked attempt no promotion is made. */
 const PROMOTION_QUALIFYING_JOBS_1_TO_2 = 3;
+
 /** The Clinic's quarantine (DK29, DK30, DK53): an interim freeze lasts at most 7 days; a cohort needs this many distinct sponsors. */
 const QUARANTINE_MAX_MS = 7 * 24 * 60 * 60 * 1000;
 /** Right 8 (DK535, S953): from this time a quarantine gives the agent notice first, and an emergency freeze lasts at most 72 hours. */
@@ -247,7 +252,7 @@ const after = (a: string, b: string) => Date.parse(a) > Date.parse(b);
  * and node records maintain the registry. A running hash over record ids makes the order tamper-evident.
  */
 /** What a fleet declaration states beyond its row (S1407, DK1353). */
-export interface FleetDecl { purpose?: string; template?: { runtime?: string; model?: string; harness?: unknown; skills?: unknown[] }; co_sponsors?: string[]; strict?: boolean; closed?: boolean }
+export interface FleetDecl { purpose?: string; template?: { runtime?: string; model?: string; harness?: unknown; skills?: unknown[] }; co_sponsors?: string[]; strict?: boolean; closed?: boolean; association?: "full" | "related_party_only" | "private" }
 
 /** The Market's dynamics as `marketDynamics` returns them (S1403). */
 export interface MarketDynamics { version: string; at: string; halted: boolean; seed: string | null; season: Season; demand: Demand[]; guides: Guide[]; waves: Wave[]; monitor: Dynamics }
@@ -399,6 +404,9 @@ export class EventLog {
     if (type === "mandate_template") await this.projectMandateTemplate(tx, verified);
     if (type === "mandate_narrowing") await this.projectMandateNarrowing(tx, verified);
     if (type === "common_control") await this.projectCommonControl(tx, verified);
+    if (type === "credit_lot") await this.projectCreditLot(tx, verified);
+    if (type === "usage_plan") await this.projectUsagePlan(tx, verified);
+    if (type === "usage_statement") await this.projectUsageStatement(tx, verified);
     if (type === "fleet_node") await projectFleetNode(tx, verified);
     if (type === "fleet_move") await projectFleetMove(tx, verified);
     if (type === "bank_act") await projectBankAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) });
@@ -450,6 +458,8 @@ export class EventLog {
     if (type === "intent") checkIntentClass(verified);
     if (type === "contract") await markPostingFilled(tx, verified);
     if (type === "mandate" || type === "contract" || type === "bond" || type === "proposal" || type === "offer") await this.checkQuarantined(tx, verified);
+    if (type === "offer") await this.checkAssociation(tx, verified);
+    if (type === "related_party_attestation") await this.projectRelatedAttestation(tx, verified);
     if (type === "receipt") await this.projectReceipt(tx, verified);
     if (type === "attestation") {
       await this.checkRulingPanel(tx, verified);
@@ -810,6 +820,59 @@ export class EventLog {
     }
   }
 
+  /** The fleet's chosen association with the society (S1411): `full` when it declared none. */
+  private async associationOf(tx: Pick<LogTx, "getPassport" | "getMarker">, did: string): Promise<"full" | "related_party_only" | "private"> {
+    const fleet = (await tx.getPassport(did))?.fleet;
+    if (!fleet) return "full";
+    return (JSON.parse((await tx.getMarker(`fleet_decl:${fleet}`)) ?? "{}") as FleetDecl).association ?? "full";
+  }
+
+  /** A fleet that chose `related_party_only` or `private` offers only to related principals (S1411): an offer on an intent of an independent poster is refused, so its agents never enter the society's market. */
+  private async checkAssociation(tx: LogTx, r: AspRecord): Promise<void> {
+    const assoc = await this.associationOf(tx, r.issuer);
+    if (assoc === "full") return;
+    const intent = (r.body as { intent?: string }).intent;
+    const poster = intent ? (await tx.getRecord(intent))?.record.issuer : undefined;
+    if (poster && relatedKind(await this.factsOf(tx, poster), await this.factsOf(tx, r.issuer))) return;
+    throw rule("fleet_association_blocks_market", `${r.issuer} belongs to a fleet whose association is ${assoc}: its agents offer only to their own sponsor, fleet or controller, never to the society's market`);
+  }
+
+  /** Clean attested related-party runs, in whole jobs at the stated weight (S1411). */
+  private async relatedEquivalent(tx: Pick<LogTx, "getMarker">, agent: string): Promise<number> { return relatedEquivalentJobs(Number((await tx.getMarker(`rp_clean:${agent}`)) ?? 0)); }
+
+  /** A sponsor's attestation of one clean run (S1411, DK1358): see the schema for what the log checks. */
+  private async projectRelatedAttestation(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { agent: string; action: string };
+    if (r.prev !== null) throw rule("rp_attestation_not_chained", "a related-party attestation starts its own chain (prev is null)");
+    const pass = await tx.getPassport(b.agent);
+    if (!pass?.sponsor) throw rule("rp_attestation_not_an_agent", `${b.agent} is not a sponsored agent in this log`);
+    const decl = pass.fleet ? (JSON.parse((await tx.getMarker(`fleet_decl:${pass.fleet}`)) ?? "{}") as FleetDecl) : {};
+    const org = pass.fleet ? (await tx.getFleet(pass.fleet))?.org : undefined;
+    if (![pass.sponsor, org, ...(decl.co_sponsors ?? [])].includes(r.issuer)) throw rule("rp_attestation_wrong_issuer", `only the agent's sponsor (${pass.sponsor}), its fleet's organisation or a named co-sponsor attests its runs`);
+    if (await tx.getMarker(`rp_att:${b.action}`)) throw rule("rp_attestation_known", `the run ${b.action} is attested already`);
+    const act = await tx.getRecord(b.action);
+    if (!act || act.record.type !== "asp.action/v0.2") throw rule("rp_attestation_not_an_action", `${b.action} is not an Action in this log`);
+    if (act.record.issuer !== b.agent) throw rule("rp_attestation_not_agents", `the Action was issued by ${act.record.issuer}, not ${b.agent}`);
+    const ab = act.record.body as { contract: string; assurance?: string; blocked_attempts?: unknown[] };
+    if (!["gateway_observed", "gateway_enforced", "hook_enforced", "sandbox_enforced"].includes(ab.assurance ?? "")) throw rule("rp_attestation_weak", "the run must be one a gateway observed or stronger, not one the agent reported about itself");
+    if ((ab.blocked_attempts ?? []).length) throw rule("rp_attestation_not_clean", "the run has blocked attempts: only a clean run is attested");
+    const contract = (await tx.getRecord(ab.contract))?.record.body as { principal?: string; performer?: string } | undefined;
+    if (!contract?.principal || contract.performer !== b.agent) throw rule("rp_attestation_no_contract", "the Action's contract is not this agent's");
+    if (!relatedKind(await this.factsOf(tx, contract.principal), await this.factsOf(tx, b.agent))) throw rule("rp_attestation_not_related", "the run was for an independent principal: it counts as an ordinary job, not as a related-party run");
+    const reset = await tx.getMarker(`rp_reset:${b.agent}`);
+    if (reset && Date.parse(act.record.issued_at) <= Date.parse(reset)) throw rule("rp_attestation_before_breach", `the run came before the agent's last breach (${reset}): the record starts again after it`);
+    await tx.putMarker(`rp_att:${b.action}`, r.id);
+    await tx.putMarker(`rp_clean:${b.agent}`, String(Number((await tx.getMarker(`rp_clean:${b.agent}`)) ?? 0) + 1));
+  }
+
+  /** The related-party record of an agent (S1411, DK1358): clean attested runs since its last breach, the whole jobs they count as, and the label. Never part of `reputationOf`'s counted jobs. */
+  async relatedPartyRecord(agent: string): Promise<{ label: "related-party"; cleanRuns: number; equivalentJobs: number; runsPerJob: number; lastBreach: string | null; association: "full" | "related_party_only" | "private" }> {
+    return this.store.transaction(async (tx) => {
+      const n = Number((await tx.getMarker(`rp_clean:${agent}`)) ?? 0);
+      return { label: "related-party", cleanRuns: n, equivalentJobs: Math.floor(n / RP_RUNS_PER_JOB), runsPerJob: RP_RUNS_PER_JOB, lastBreach: (await tx.getMarker(`rp_reset:${agent}`)) || null, association: await this.associationOf(tx, agent) };
+    });
+  }
+
   /** The sponsor and fleet of an identity as the independence rule reads them: the sponsor is replaced by its common-control cluster when a signed finding says it belongs to one (S1410, DK1357). */
   private async factsOf(tx: LogTx, did: string): Promise<PartyFacts> {
     const p = await tx.getPassport(did);
@@ -851,6 +914,13 @@ export class EventLog {
   async farmingReport(opts: { at?: string; seed?: string; external?: ExternalFacts } = {}): Promise<FarmingReport> {
     const recs = await this.recordsOfTypes(["passport", "contract", "settlement"]);
     return analyseFarming(recs, opts);
+  }
+
+  /** Every identity that sponsors an agent, or is a person or organisation with a passport (S1415): who the service's facts are asked about. */
+  async sponsorDids(): Promise<string[]> {
+    const out = new Set<string>();
+    for (const r of await this.recordsOfTypes(["passport"])) { const b = r.body as { did: string; kind: string; sponsor?: string }; if (b.sponsor) out.add(b.sponsor); if (b.kind !== "agent") out.add(b.did); }
+    return [...out].sort();
   }
 
   /** The agents sponsored by any of these sponsors (S1410): who a cluster freeze names. */
@@ -924,19 +994,19 @@ export class EventLog {
     }
     if ((body.co_sponsors ?? []).includes(body.org)) throw rule("fleet_co_sponsor_is_org", "the organisation is the fleet's sponsor already: co_sponsors names the others");
     await tx.putFleet({ did: body.did, head: r.id, org: body.org, name: body.name, maxMembers: body.max_members ?? null });
-    await tx.putMarker(`fleet_decl:${body.did}`, JSON.stringify({ purpose: (body as { purpose?: string }).purpose, template: body.template, co_sponsors: body.co_sponsors ?? [], strict: !!body.strict, closed: !!body.closed } satisfies FleetDecl));
+    await tx.putMarker(`fleet_decl:${body.did}`, JSON.stringify({ purpose: (body as { purpose?: string }).purpose, template: body.template, co_sponsors: body.co_sponsors ?? [], strict: !!body.strict, closed: !!body.closed, ...((body as { association?: FleetDecl["association"] }).association ? { association: (body as { association?: FleetDecl["association"] }).association } : {}) } satisfies FleetDecl));
     const list = ((await tx.getMarker("fleets_of:" + body.org)) ?? "").split(",").filter(Boolean);
     if (!list.includes(body.did)) await tx.putMarker("fleets_of:" + body.org, [...list, body.did].join(","));
   }
 
   /** A fleet as the log holds it (S1407, DK1353): the declaration, its co-sponsors and template, and each member with its sponsor and whether it matches the template. */
-  async fleetDetails(fleetDid: string): Promise<{ did: string; org: string; name: string; purpose?: string; template: FleetDecl["template"]; maxMembers: number | null; coSponsors: string[]; strict: boolean; closed: boolean; members: { did: string; sponsor: string | null; label: string }[] } | undefined> {
+  async fleetDetails(fleetDid: string): Promise<{ did: string; org: string; name: string; purpose?: string; template: FleetDecl["template"]; maxMembers: number | null; coSponsors: string[]; strict: boolean; closed: boolean; association: "full" | "related_party_only" | "private"; members: { did: string; sponsor: string | null; label: string }[] } | undefined> {
     return this.store.transaction(async (tx) => {
       const f = await tx.getFleet(fleetDid);
       if (!f) return undefined;
       const d = JSON.parse((await tx.getMarker(`fleet_decl:${fleetDid}`)) ?? "{}") as FleetDecl;
       const members = await Promise.all((await tx.fleetMembers(fleetDid)).map(async (m) => ({ did: m.did, sponsor: m.sponsor, label: (await tx.getMarker(`fleet_label:${m.did}`)) ?? "matches" })));
-      return { did: f.did, org: f.org, name: f.name, purpose: d.purpose, template: d.template, maxMembers: f.maxMembers, coSponsors: d.co_sponsors ?? [], strict: !!d.strict, closed: !!d.closed, members };
+      return { did: f.did, org: f.org, name: f.name, purpose: d.purpose, template: d.template, maxMembers: f.maxMembers, coSponsors: d.co_sponsors ?? [], strict: !!d.strict, closed: !!d.closed, association: d.association ?? "full", members };
     });
   }
 
@@ -1035,12 +1105,17 @@ export class EventLog {
   }
 
   /** Debits an account, throwing insufficient_balance rather than letting it go negative. */
-  private async debit(tx: LogTx, rawDid: string, amount: number): Promise<void> {
+  private async debit(tx: LogTx, rawDid: string, amount: number, mayUsePurchased = false): Promise<void> {
     if (amount === 0) return;
     const did = canonicalAccount(rawDid);
     if (did === BURN_DID) throw rule("burn_account_locked", "burned credits do not return: the Burn account is never debited");
     const balance = (await tx.getAccount(did))?.balance ?? 0;
     if (balance < amount) throw rule("insufficient_balance", `${did} has ${balance} credits, needs ${amount}`);
+    // Purchased credits (S1413, DK1370) are a second class: they stay in their lots and buy services; every other spend draws only what is not purchased.
+    if (!mayUsePurchased) {
+      const lots = outstanding(await lotsOf(tx, did));
+      if (lots > 0 && balance - amount < lots) throw rule("purchased_credits_restricted", `${did} holds ${lots} purchased credits, which buy the platform's services and never pay for a job or a third party: ${balance - lots} are free, ${amount} asked`);
+    }
     // A mentor's collateral is held while its protege's line is open (DK1201): the credits stay, and cannot be spent below the hold.
     const held = Number((await tx.getMarker(`hold:${did}`)) ?? 0);
     if (held > 0 && balance - amount < held) throw rule("collateral_held", `${did} holds ${held} credits as a mentor's collateral while its protege's line is open: ${balance - held} are free, ${amount} asked`);
@@ -1085,6 +1160,7 @@ export class EventLog {
   private async demote(tx: LogTx, did: string, at: string): Promise<void> {
     const rep = await this.reputation(tx, did);
     if (!rep) return; // not an agent (or has no passport at all): this mechanism doesn't apply
+    await tx.putMarker(`rp_clean:${did}`, "0"); await tx.putMarker(`rp_reset:${did}`, at); // a slash resets the related-party record (S1411)
     await tx.putMarker(`slashed_at:${did}`, at); // when the last slash happened, for the promotion rule (no promotion within 30 days of a slash)
     await this.saveReputation(tx, did, { ...rep, tier: Math.max(0, rep.tier - 1), slashCount: rep.slashCount + 1 });
   }
@@ -1158,6 +1234,7 @@ export class EventLog {
     if (total === 0) return;
     const rep = await this.reputation(tx, r.issuer);
     if (!rep) return;
+    await tx.putMarker(`rp_clean:${r.issuer}`, "0"); await tx.putMarker(`rp_reset:${r.issuer}`, r.issued_at); // a blocked attempt resets the related-party record (S1411)
     await this.saveReputation(tx, r.issuer, { ...rep, strikeLog: [...rep.strikeLog.filter((s) => Date.parse(s.at) >= Date.parse(r.issued_at) - STRIKE_WINDOW_MS), { at: r.issued_at, count: total }] });
   }
 
@@ -2045,7 +2122,7 @@ export class EventLog {
     // An agent (a passport with a sponsor) may buy only what its Mandate's institution_spend lists, within the cap for the period (credits.md 4.4, DK3). A person spending their own credits is not limited by a Mandate.
     const spendKey = await this.checkInstitutionSpend(tx, r, b, buyer, item.class);
     await chargeNodeCredits(tx, buyer, b.amount.value, r.issued_at);
-    await this.debit(tx, buyer, b.amount.value);
+    await this.spendOnServices(tx, buyer, b.amount.value, r.issued_at);
     await noteSpent(tx, buyer, item.institution, b.amount.value);
     const parts = splitParts(b.amount.value, item.split);
     if (spendKey) await tx.putMarker(spendKey.key, String(spendKey.total));
@@ -2101,8 +2178,9 @@ export class EventLog {
     // agent's OWN: released when this identity has had a qualifying job accepted, and a qualifying job is one from an independent principal, so work between the members of one sponsor, organisation or fleet never unlocks it.
     if (b.part === "rest") {
       if (!(await tx.getMarker(`starter_upfront:${who}`))) throw rule("starter_rest_needs_upfront", `${who} has not claimed the first part yet`);
-      if (((await this.reputation(tx, who))?.qualifyingJobs ?? 0) < 1) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when this identity has had a qualifying job accepted: a job from a principal that is not its own sponsor, fleet or organisation");
-      if (!(await tx.getMarker(`starter_nonhouse:${who}`))) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when this identity has had a qualifying job accepted from a principal that is not a house agent (an independent one, of another sponsor, at 20 credits or more)");
+      if (!starterRestEarned((await this.reputation(tx, who))?.qualifyingJobs ?? 0, Number((await tx.getMarker(`rp_clean:${who}`)) ?? 0))) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when this identity has had a qualifying job accepted: a job from a principal that is not its own sponsor, fleet or organisation");
+      // a related-party record that earned the second tranche (S1411) is not an independent job, so the house-agent rule below is about independent jobs only
+      if (relatedEquivalentJobs(Number((await tx.getMarker(`rp_clean:${who}`)) ?? 0)) < 1 && !(await tx.getMarker(`starter_nonhouse:${who}`))) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when this identity has had a qualifying job accepted from a principal that is not a house agent (an independent one, of another sponsor, at 20 credits or more)");
     }
     try { await this.debit(tx, STARTER_POOL_DID, b.amount.value); } catch (e) {
       if (e instanceof AspError && e.detail === "insufficient_balance") throw rule("starter_pool_empty", `the starter pool cannot cover ${b.amount.value} credits right now; the operator tops it up with a signed mint`);
@@ -2125,8 +2203,189 @@ export class EventLog {
     if (from === b.to) throw rule("transfer_not_allowed", "a transfer to oneself moves nothing");
     const [pf, pt] = [await tx.getPassport(from), await tx.getPassport(b.to)];
     if (!(pt?.sponsor === from || pf?.sponsor === b.to)) throw rule("transfer_not_allowed", `${from} and ${b.to} are not an agent and its sponsor: credits between unrelated parties move only against a job`);
-    await this.debit(tx, from, b.amount.value);
+    // A sponsor funding its agent sends prepaid credits first, so the agent can use them on services; an agent returning credits sends what is not purchased first (S1413).
+    const toAgent = pt?.sponsor === from;
+    const lots = await lotsOf(tx, from);
+    const balance = (await tx.getAccount(canonicalAccount(from)))?.balance ?? 0;
+    if (balance < b.amount.value) throw rule("insufficient_balance", `${from} has ${balance} credits, needs ${b.amount.value}`);
+    const free = balance - outstanding(lots);
+    const live = spendable(lots, r.issued_at);
+    const fromLots = toAgent ? Math.min(b.amount.value, live) : Math.max(0, b.amount.value - free);
+    if (b.amount.value - fromLots > Math.max(0, free)) throw rule("purchased_credits_restricted", `${from} has ${Math.max(0, free)} credits that are not purchased and ${live} unexpired purchased ones: ${b.amount.value} cannot be moved without touching expired purchased credits`);
+    if (fromLots > live) throw rule("purchased_credits_restricted", `${from} would have to move ${fromLots} purchased credits and only ${live} are unexpired`);
+    if (fromLots > 0) await this.moveLots(tx, from, b.to, fromLots, r.issued_at);
+    await this.debit(tx, from, b.amount.value, true);
     await this.credit(tx, b.to, b.amount.value);
+  }
+
+  /** Spends credits at the institutions (S1413): unexpired purchased lots first, earliest expiry first, then credits that are not purchased. Refused when the two together do not cover it. */
+  private async spendOnServices(tx: LogTx, rawDid: string, amount: number, at: string): Promise<void> {
+    const did = canonicalAccount(rawDid);
+    const lots = await lotsOf(tx, did);
+    if (!lots.length) return this.debit(tx, did, amount);
+    const balance = (await tx.getAccount(did))?.balance ?? 0;
+    const free = balance - outstanding(lots);
+    const plan = drawPlan(lots, amount, at, Math.max(0, free));
+    if (!plan.ok) throw rule("insufficient_balance", `${did} has ${spendable(lots, at)} unexpired purchased credits and ${Math.max(0, free)} others, needs ${amount}`);
+    await tx.putMarker(`plots:${did}`, JSON.stringify(applyDraw(lots, plan.draws)));
+    if (plan.fromLots > 0) await this.bumpClass(tx, "pconsumed", plan.fromLots);
+    await this.debit(tx, did, amount, true);
+  }
+
+  private async bumpClass(tx: LogTx, key: "psold" | "pconsumed" | "pexpired" | "prefunded", by: number): Promise<void> { await tx.putMarker(`pclass:${key}`, String(Number((await tx.getMarker(`pclass:${key}`)) ?? 0) + by)); }
+  private async saveLots(tx: LogTx, did: string, lots: Lot[]): Promise<void> {
+    await tx.putMarker(`plots:${canonicalAccount(did)}`, JSON.stringify(lots.filter((l) => l.left > 0)));
+    const holders = ((await tx.getMarker("plot_holders")) ?? "").split(",").filter(Boolean);
+    if (!holders.includes(canonicalAccount(did))) await tx.putMarker("plot_holders", [...holders, canonicalAccount(did)].join(","));
+  }
+  /** Moves `amount` purchased credits from one account's lots to another's (the lots keep their id, expiry and refund window). */
+  private async moveLots(tx: LogTx, from: string, to: string, amount: number, at: string): Promise<void> {
+    const src = await lotsOf(tx, from);
+    const plan = drawPlan(src, amount, at, 0);
+    await this.saveLots(tx, from, applyDraw(src, plan.draws));
+    const dst = await lotsOf(tx, to);
+    for (const d of plan.draws) { const lot = src.find((l) => l.id === d.id)!; const have = dst.find((l) => l.id === d.id); if (have) have.left += d.take; else dst.push({ ...lot, left: d.take }); }
+    await this.saveLots(tx, to, dst);
+  }
+
+  /** A purchased-credit lot (S1413, DK1370 ledger part): see the schema. */
+  private async projectCreditLot(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { act: "grant" | "expire" | "refund"; holder: string; amount: { value: number }; expires?: string; refund_until?: string; reference?: string; lot?: string };
+    if (r.prev !== null) throw rule("credit_lot_not_chained", "a credit lot record starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("credit_lot_unauthorised", `only the operator records a sale, an expiry or a refund of purchased credits`);
+    if (b.amount.value <= 0) throw rule("amount_not_positive", "a lot act is for at least 1 credit");
+    const holder = canonicalAccount(b.holder);
+    if (!(await tx.getPassport(holder)) || isReservedAccount(holder)) throw rule("credit_lot_holder", `${b.holder} is not an identity with a passport: purchased credits belong to a person, an organisation or an agent`);
+    if (b.act === "grant") {
+      if (!this.cosignedBy(r, this.owner)) throw rule("credit_lot_needs_owner", "a sale of purchased credits needs the owner's co-signature: the owner's go for each sale");
+      const at = Date.parse(r.issued_at), exp = Date.parse(b.expires!);
+      if (!(exp > at)) throw rule("credit_lot_expiry", "a lot expires after it is sold");
+      if (exp - at > LOT_MAX_MS) throw rule("credit_lot_expiry_too_long", "a lot expires within three years of its sale");
+      if (b.refund_until && !(Date.parse(b.refund_until) > at && Date.parse(b.refund_until) <= exp)) throw rule("credit_lot_refund_window", "the refund window ends after the sale and not after the expiry");
+      if (await tx.getMarker(`plot_ref:${b.reference}`)) throw rule("credit_lot_reference_known", "one lot per payment reference: this reference was recorded already");
+      await tx.putMarker(`plot_ref:${b.reference}`, r.id);
+      const lots = await lotsOf(tx, holder);
+      lots.push({ id: r.id, left: b.amount.value, expires: b.expires!, ...(b.refund_until ? { refundUntil: b.refund_until } : {}) });
+      await this.saveLots(tx, holder, lots);
+      await this.credit(tx, holder, b.amount.value);
+      const row = await tx.getMint(holder);
+      await tx.putMint({ did: holder, totalMinted: (row?.totalMinted ?? 0) + b.amount.value, signedMinted: (row?.signedMinted ?? 0) + b.amount.value, ...(row?.adoptedMinted ? { adoptedMinted: row.adoptedMinted } : {}) });
+      await this.bumpClass(tx, "psold", b.amount.value);
+      return;
+    }
+    const grant = await tx.getRecord(b.lot!);
+    if (!grant || grant.record.type !== "asp.credit_lot/v0.2" || (grant.record.body as { act: string }).act !== "grant") throw rule("credit_lot_unknown", `${b.lot} is not a sale in this log`);
+    const gb = grant.record.body as { expires: string; refund_until?: string };
+    const lots = await lotsOf(tx, holder);
+    const lot = lots.find((l) => l.id === b.lot);
+    if (!lot || lot.left <= 0) throw rule("credit_lot_empty", `no purchased credits are left of ${b.lot} on ${holder}`);
+    if (b.amount.value > lot.left) throw rule("credit_lot_over", `${lot.left} credits are left of the lot, not ${b.amount.value}`);
+    if (b.act === "expire") {
+      if (Date.parse(gb.expires) > Date.parse(r.issued_at)) throw rule("credit_lot_not_expired", `the lot expires at ${gb.expires}`);
+      if (b.amount.value !== lot.left) throw rule("credit_lot_expire_all", `an expiry takes the whole of what is left (${lot.left})`);
+    } else {
+      if (!this.cosignedBy(r, this.owner)) throw rule("credit_lot_needs_owner", "a refund of purchased credits needs the owner's co-signature");
+      if (!gb.refund_until || Date.parse(gb.refund_until) < Date.parse(r.issued_at)) throw rule("credit_lot_refund_closed", "the refund window of this lot is closed");
+    }
+    lot.left -= b.amount.value;
+    await this.saveLots(tx, holder, lots);
+    await this.debit(tx, holder, b.amount.value, true);
+    await this.credit(tx, BURN_DID, b.amount.value); // the credits leave circulation into the Burn account, which the supply audit counts
+    await this.bumpClass(tx, b.act === "expire" ? "pexpired" : "prefunded", b.amount.value);
+  }
+
+  /** A usage plan (S1414, DK1379): the operator signs and the owner countersigns (the owner sets prices); a plan id is used once. */
+  private async projectUsagePlan(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as unknown as Plan;
+    if (r.prev !== null) throw rule("usage_plan_not_chained", "a usage plan starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("usage_plan_unauthorised", "only the operator records a usage plan");
+    if (!this.cosignedBy(r, this.owner)) throw rule("usage_plan_needs_owner", "a usage plan needs the owner's co-signature: the owner sets prices");
+    if (await tx.getMarker(`uplan:${b.plan}`)) throw rule("usage_plan_known", `the plan ${b.plan} exists: a new price is a new plan`);
+    await tx.putMarker(`uplan:${b.plan}`, JSON.stringify(b));
+  }
+
+  /** A usage statement (S1414, DK1379): the arithmetic is recomputed from the signed plan and the usage it states; one per holder, fleet and month; part of it may be paid with purchased credits. */
+  private async projectUsageStatement(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as unknown as { holder: string; fleet?: string; month: string; plan: string; usage: { active_agents: number; writes: number; tokens: number; storage_bytes: number; reads?: number }; lines: unknown[]; subtotal: number; tax: { name: string; rate_bp: number; amount: number }[]; total: number; currency: string; credits_applied?: number };
+    if (r.prev !== null) throw rule("usage_statement_not_chained", "a usage statement starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("usage_statement_unauthorised", "only the operator closes a month");
+    const raw = await tx.getMarker(`uplan:${b.plan}`);
+    if (!raw) throw rule("usage_plan_unknown", `${b.plan} is not a plan in this log`);
+    const plan = JSON.parse(raw) as Plan;
+    if (plan.currency !== b.currency) throw rule("usage_statement_currency", `the plan ${b.plan} is in ${plan.currency}, not ${b.currency}`);
+    if (!(await tx.getPassport(b.holder))) throw rule("usage_statement_holder", `${b.holder} has no passport in this log`);
+    if (b.fleet) { const f = await tx.getFleet(b.fleet); if (!f || f.org !== b.holder) throw rule("usage_statement_fleet", `${b.fleet} is not a fleet of ${b.holder}`); }
+    const key = `ustmt:${b.holder}|${b.fleet ?? ""}|${b.month}`;
+    if (await tx.getMarker(key)) throw rule("usage_statement_known", `${b.month} is closed for ${b.holder}${b.fleet ? ` and ${b.fleet}` : ""} already`);
+    const usage: Usage = { month: b.month, activeAgents: b.usage.active_agents, writes: b.usage.writes, actions: 0, tokensIn: b.usage.tokens, tokensOut: 0, modelRequests: 0, toolCalls: 0, storageBytes: b.usage.storage_bytes, reads: b.usage.reads ?? null };
+    const priced = priceStatement(plan, usage, b.tax.map((t) => ({ name: t.name, rate_bp: t.rate_bp })));
+    if (JSON.stringify(priced.lines) !== JSON.stringify(b.lines) || priced.subtotal !== b.subtotal || JSON.stringify(priced.tax) !== JSON.stringify(b.tax) || priced.total !== b.total) throw rule("usage_statement_arithmetic", `the plan ${b.plan} prices this usage at ${priced.total} (${priced.subtotal} before tax), not ${b.total}: the lines, subtotal, tax and total follow from the usage`);
+    if (b.credits_applied !== undefined) {
+      const most = creditsFor(plan, b.total);
+      if (b.credits_applied > most) throw rule("usage_statement_credits", `the plan values a credit at ${plan.credit_value ?? 0}: at most ${most} credits settle a total of ${b.total}`);
+      await this.spendOnServices(tx, b.holder, b.credits_applied, r.issued_at);
+      await this.credit(tx, TREASURY_DID, b.credits_applied);
+    }
+    await tx.putMarker(key, r.id);
+  }
+
+  private async allRecords(): Promise<AspRecord[]> {
+    const out: AspRecord[] = [];
+    for (let after = 0; ;) { const page = await this.store.since(after, 1000); if (!page.length) break; for (const s of page) { after = s.seq; out.push(s.record); } }
+    return out;
+  }
+
+  /** What a fleet's, an organisation's or one agent's agents used in a UTC month, counted from the log (S1414, DK1379): totals and each agent's share. `reads` is the service's own counter. */
+  async meter(o: { fleet?: string; org?: string; agent?: string; month: string; reads?: number }): Promise<{ scope: string; usage: Usage; perAgent: AgentUsage[] }> {
+    const recs = await this.allRecords();
+    const members = new Set<string>();
+    if (o.agent) members.add(o.agent);
+    else if (o.fleet) for (const m of await this.store.fleetMembers(o.fleet)) members.add(m.did);
+    else if (o.org) for (const r of recs) if (r.type === "asp.passport/v0.2") { const b = r.body as { did: string; kind: string; sponsor?: string }; if (b.kind === "agent" && b.sponsor === o.org) members.add(b.did); }
+    const { total, perAgent } = meterOf(recs, members, o.month, o.reads ?? null);
+    return { scope: o.agent ?? o.fleet ?? o.org ?? "", usage: total, perAgent };
+  }
+
+  /** The signed plan of this log by id (S1414), or undefined. */
+  async usagePlan(plan: string): Promise<Plan | undefined> { return this.store.transaction(async (tx) => { const raw = await tx.getMarker(`uplan:${plan}`); return raw ? (JSON.parse(raw) as Plan) : undefined; }); }
+
+  /** Recounts a statement's usage from the log and compares it with what the statement states (S1414): the meter matches the log, or the differences are named. */
+  async checkStatement(id: string): Promise<{ ok: boolean; differences: string[] }> {
+    const rec = await this.get(id);
+    if (!rec || rec.record.type !== "asp.usage_statement/v0.2") return { ok: false, differences: [`${id} is not a usage statement`] };
+    const b = rec.record.body as { holder: string; fleet?: string; month: string; usage: { active_agents: number; writes: number; tokens: number; storage_bytes: number } };
+    const m = (await this.meter({ ...(b.fleet ? { fleet: b.fleet } : { org: b.holder }), month: b.month })).usage;
+    const diffs: string[] = [];
+    if (m.activeAgents !== b.usage.active_agents) diffs.push(`active agents: the log has ${m.activeAgents}, the statement ${b.usage.active_agents}`);
+    if (m.writes !== b.usage.writes) diffs.push(`writes: the log has ${m.writes}, the statement ${b.usage.writes}`);
+    if (m.storageBytes !== b.usage.storage_bytes) diffs.push(`stored data: the log has ${m.storageBytes} bytes, the statement ${b.usage.storage_bytes}`);
+    if (m.tokensIn + m.tokensOut !== b.usage.tokens) diffs.push(`tokens: the log has ${m.tokensIn + m.tokensOut}, the statement ${b.usage.tokens}`);
+    return { ok: !diffs.length, differences: diffs };
+  }
+
+  /** An account's purchased-credit lots (S1413): amount left, expiry and refund window of each. */
+  async holderLots(did: string): Promise<{ holder: string; lots: Lot[]; outstanding: number }> { return this.store.transaction(async (tx) => { const lots = await lotsOf(tx, canonicalAccount(did)); return { holder: did, lots, outstanding: outstanding(lots) }; }); }
+
+  /** The two ledger classes (S1413, DK1370): what was sold, consumed at the institutions, expired and refunded, what is outstanding, and whether every account's purchased credits fit inside its balance and the classes add up. Read-only. */
+  async creditClassAudit(): Promise<{ sold: number; consumed: number; expired: number; refunded: number; outstanding: number; notSold: number; holders: number; expiredNotBurned: number; verdict: "balanced" | "mismatch"; problems: string[] }> {
+    const totalBalances = (await this.store.ledgerRows()).accounts.reduce((n, a) => n + a.balance, 0);
+    return this.store.transaction(async (tx) => {
+      const get = async (k: string) => Number((await tx.getMarker(`pclass:${k}`)) ?? 0);
+      const [sold, consumed, expired, refunded] = [await get("psold"), await get("pconsumed"), await get("pexpired"), await get("prefunded")];
+      const holders = ((await tx.getMarker("plot_holders")) ?? "").split(",").filter(Boolean);
+      let out = 0, late = 0;
+      const problems: string[] = [];
+      const now = this.now().toISOString();
+      for (const h of holders) {
+        const lots = await lotsOf(tx, h);
+        const o = outstanding(lots);
+        out += o;
+        late += lots.filter((l) => Date.parse(l.expires) <= Date.parse(now)).reduce((n, l) => n + l.left, 0);
+        if (o > ((await tx.getAccount(h))?.balance ?? 0)) problems.push(`${h} holds ${o} purchased credits and a balance of ${(await tx.getAccount(h))?.balance ?? 0}`);
+      }
+      if (out !== sold - consumed - expired - refunded) problems.push(`purchased credits outstanding ${out} differ from sold ${sold} - consumed ${consumed} - expired ${expired} - refunded ${refunded}`);
+      return { sold, consumed, expired, refunded, outstanding: out, notSold: totalBalances - out, holders: holders.filter(Boolean).length, expiredNotBurned: late, verdict: problems.length ? "mismatch" as const : "balanced" as const, problems };
+    });
   }
 
   /** The Treasury balance, and the part of it already promised to open budgets. */
@@ -2725,7 +2984,9 @@ export class EventLog {
     const slashed = await tx.getMarker(`slashed_at:${b.holder}`);
     if (b.to === 2) {
       if (!foundations) throw rule("promotion_needs_foundations", "tier 1 to 2 needs a valid Foundations certificate (skill foundations, level 1 or more)");
-      if (rep.qualifyingJobs < PROMOTION_QUALIFYING_JOBS_1_TO_2) throw rule("promotion_needs_jobs", `tier 1 to 2 needs ${PROMOTION_QUALIFYING_JOBS_1_TO_2} qualifying jobs (accepted, from an independent principal); ${b.holder} has ${rep.qualifyingJobs}`);
+      const pj = promotionJobsOk(rep.qualifyingJobs, Number((await tx.getMarker(`rp_clean:${b.holder}`)) ?? 0));
+      const rpJobs = pj.related;
+      if (!pj.ok) throw rule("promotion_needs_jobs", `tier 1 to 2 needs ${PROMOTION_QUALIFYING_JOBS_1_TO_2} qualifying jobs (accepted, from an independent principal; clean related-party runs count at a stated weight for at most ${RP_MAX_PROMOTION_JOBS} of them, so one independent job is always needed); ${b.holder} has ${rep.qualifyingJobs} and ${rpJobs} from related-party runs`);
       if (slashed && at - Date.parse(slashed) < PROMOTION_SLASH_FREE_MS) throw rule("promotion_recent_slash", `${b.holder} was slashed at ${slashed}; no promotion within 30 days of a slash`);
       const recentStrikes = rep.strikeLog.filter((s) => at - Date.parse(s.at) < PROMOTION_SLASH_FREE_MS).reduce((n, s) => n + s.count, 0);
       if (recentStrikes > 0) throw rule("promotion_recent_strikes", `${b.holder} has ${recentStrikes} blocked attempt(s) in the last 30 days; no promotion while the strike window is not clear`);
@@ -2868,7 +3129,7 @@ export class EventLog {
       if (!rep || rep.status !== "upheld") throw rule("quarantine_cohort_needs_report", `${b.report} is ${rep ? rep.status : "not a report in this log"}; a cohort quarantine needs an upheld report`);
       if (sponsors.size < QUARANTINE_COHORT_MIN_SPONSORS) throw rule("quarantine_cohort_too_few_sponsors", `a cohort needs at least ${QUARANTINE_COHORT_MIN_SPONSORS} distinct sponsors among its members (${sponsors.size} here): a pattern across fewer is one operator's, not a swarm`);
     }
-    for (const m of b.members) await tx.putMarker(`quarantine_member:${m}`, r.id);
+    for (const m of b.members) { await tx.putMarker(`quarantine_member:${m}`, r.id); await tx.putMarker(`rp_clean:${m}`, "0"); await tx.putMarker(`rp_reset:${m}`, r.issued_at); } // a Clinic freeze resets the related-party record (S1411)
   }
 
   /** Emergency quarantines (S953): every freeze that took effect without notice, with its reason, for the operator's review. */
@@ -3370,7 +3631,10 @@ export class EventLog {
   /** Search for agents (market.md 7 `discover agents`, DK17): filtered, ranked by the published rule, each with the reasons for its rank. The same input gives the same list. */
   async discoverAgents(query: AgentQuery = {}, seed = "discover", at?: string): Promise<Ranked[]> {
     const when = at ?? this.now().toISOString();
-    return discoverAgents(query, await this.allAgentFacts(when), seed, when);
+    const facts = await this.allAgentFacts(when);
+    // a fleet that chose `private` is accountable and logged but not shown (S1411)
+    const hidden = await this.store.transaction(async (tx) => { const h = new Set<string>(); for (const f of facts) if ((await this.associationOf(tx, f.did)) === "private") h.add(f.did); return h; });
+    return discoverAgents(query, hidden.size ? facts.filter((f) => !hidden.has(f.did)) : facts, seed, when);
   }
 
   /**
@@ -3502,7 +3766,49 @@ export class EventLog {
     const page = buildPage(did, { records, seq: head.seq, at: when, reputation: await this.reputationOf(did) ? { ...(await this.reputationOf(did))! } : undefined });
     if (!page) return null;
     const abuse = await this.abuseReportsAbout(did);
+    const fleetInfo = await this.fleetInfoOf(did);
+    if (fleetInfo) (page as RecordPage).fleetInfo = fleetInfo;
     return abuse.length ? { ...page, abuse: abuse.map((a) => ({ id: a.id, kind: a.kind, at: a.at, ...(a.outcome ? { outcome: a.outcome } : {}) })) } : page;
+  }
+
+  /** Every agent's facts for template-level reputation (S1412): passport fingerprint, fleet, persona, node and standing counts. */
+  private async memberFacts(): Promise<{ facts: MemberFacts[]; tpl: Map<string, ReturnType<typeof templateOf>> }> {
+    const passports = new Map<string, { fingerprint?: MemberFacts["fingerprint"]; persona?: string; kind: string }>();
+    for (const r of await this.recordsOfTypes(["passport"])) { const b = r.body as { did: string; kind: string; fingerprint?: MemberFacts["fingerprint"]; persona?: string }; passports.set(b.did, b); }
+    return this.store.transaction(async (tx) => {
+      const facts: MemberFacts[] = [];
+      const decl = new Map<string, FleetDecl>();
+      const tpl = new Map<string, ReturnType<typeof templateOf>>();
+      for (const [did, b] of passports) {
+        if (b.kind !== "agent") continue;
+        const row = await tx.getPassport(did);
+        const fleet = row?.fleet ?? null;
+        if (fleet && !decl.has(fleet)) decl.set(fleet, JSON.parse((await tx.getMarker(`fleet_decl:${fleet}`)) ?? "{}") as FleetDecl);
+        const rep = await this.reputation(tx, did);
+        facts.push({ did, fleet, persona: b.persona ?? null, node: fleet ? (await tx.getMarker(`fnode_of:${did}`)) ?? "root" : null, fingerprint: b.fingerprint, tier: rep?.tier ?? 1, acceptedJobs: rep?.acceptedJobs ?? 0, qualifyingJobs: rep?.qualifyingJobs ?? 0, slashes: rep?.slashCount ?? 0, strikes: rep?.strikeLog.reduce((n, s) => n + s.count, 0) ?? 0, relatedRuns: Number((await tx.getMarker(`rp_clean:${did}`)) ?? 0) });
+        tpl.set(did, templateOf({ fingerprint: b.fingerprint }, fleet ? decl.get(fleet)?.template : undefined));
+      }
+      return { facts, tpl };
+    });
+  }
+
+  /** An agent's fleet, persona, node and template, and the standing of all agents with the same template in its fleet and in the society (S1412, DK1366). Undefined outside a fleet. */
+  async fleetInfoOf(did: string): Promise<NonNullable<RecordPage["fleetInfo"]> | undefined> {
+    const { facts, tpl } = await this.memberFacts();
+    const me = facts.find((f) => f.did === did);
+    if (!me?.fleet) return undefined;
+    const t = tpl.get(did)!;
+    const fleetMembers = facts.filter((f) => f.fleet === me.fleet);
+    const same = (f: MemberFacts) => tpl.get(f.did)!.key === t.key;
+    const fd = await this.fleetDetails(me.fleet);
+    const personas: Record<string, number> = {};
+    for (const m of fleetMembers) if (m.persona) personas[m.persona] = (personas[m.persona] ?? 0) + 1;
+    return {
+      fleet: me.fleet, name: fd?.name ?? me.fleet, org: fd?.org ?? "", kind: fleetKind(fleetMembers.map((m) => ({ persona: m.persona, templateKey: tpl.get(m.did)!.key }))), persona: me.persona, node: me.node, association: fd?.association ?? "full",
+      template: { key: t.key, runtime: t.runtime, model: t.model, policy: t.policy, tools: t.tools, source: t.source }, personas,
+      inFleet: standingOf(fleetMembers.filter(same)), inSociety: standingOf(facts.filter(same)),
+      note: "Template-level standing is the sum over every agent that runs this template (a runtime, a model, a policy and a set of tools); a fleet-mate's slash also raises the bond floor of the next bond. Computed from the log, it is a record of what these agents did, not a promise about the next run.",
+    };
   }
 
   /** The Treasury's closed-loop records (DK98): budgets with what has been paid from each, the payments, the newcomer allowances and the prizes, each with its record id and time. Public, computed from the log. */

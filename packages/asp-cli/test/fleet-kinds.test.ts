@@ -98,7 +98,7 @@ test("DK1366: the fleet page shows the record, each persona and the template's r
   // the Registry page of a member
   const page = await publicReply(w.k.log as never, `/registry/agents/${encodeURIComponent(w.studio[0].did)}`, true);
   assert.match(page!.html ?? "", /<th>persona<\/th><td>developer<\/td>/);
-  assert.match(page!.html ?? "", /<th>template<\/th><td>claude-code, model-one<\/td>/);
+  assert.match(page!.html ?? "", /<th>template<\/th><td>claude-code \/ model-one/);
   assert.match(page!.html ?? "", /\/society\/fleets\/did%3Aweb%3Aexample\.com%3Afleets%3Astudio/);
   const data = (await publicReply(w.k.log as never, `/registry/agents/${encodeURIComponent(w.studio[0].did)}`, false))!.json as { result: { persona: string; template: { model: string } } };
   assert.deepEqual([data.result.persona, data.result.template.model], ["developer", "model-one"]);

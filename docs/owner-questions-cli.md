@@ -69,3 +69,20 @@ The lead recorded your decisions (H4, O2, T12, DK1341, DK270). What is left need
 **OP-7. The live checks (docs/live-check-cli.md).** Two hours: checks 1 to 6, in that order. Paste back each report block.
 
 **OP-8. The adoption of unsigned mints (DK95).** After the deploy, on the server as the operator with the owner's key: `asp credits adopt ...` as in docs/owner-checklist.md, then `asp credits audit --require-signed` must pass. Paste back its output.
+
+## DK1359, DK1373, DK1374: enterprise tenancy, provisioning, audit export (worker lane-cli, 2026-11-21)
+
+- **Needs:** each Done line ends with a live check by a real identity provider (DK1359, DK1373) or a check by a person from a security team (DK1374). A worker can build and test roles, OIDC and SAML against a test identity provider, SCIM-style provisioning and a signed audit export, but cannot do the live check.
+- **Question:** Build these now to `partial` (everything but the live check, the live check written into docs/live-run-checklist.md), or hold them until there is a real identity provider and a security reviewer to check with?
+
+## DK1371: guided fleet onboarding (worker lane-cli, 2026-11-21)
+
+- **Needs:** the Done line includes a timed walkthrough that a person with no prior knowledge completes. A worker can build and test `asp fleet init|plan|apply|rollback`, the blueprints with Mandate templates, imports, the skill library and a 10,000-agent plan and apply, but not the walkthrough with a person.
+- **Question:** Is the row to close when everything else passes with the walkthrough listed as the one open live item, or does the row stay `partial` until a person has done it?
+
+## DK1362, DK1364, DK1382, DK1384, DK1360 (worker lane-cli, 2026-11-21)
+
+- **DK1364:** the Done line wants a recorded real run per runtime (OpenClaw, Hermes Agent, Manus, Muse, Grok Bot, Dots, Instinct); stand-in tests can be built now and the row stays `partial` until the live runs are allowed. Is the live run with real agents still postponed?
+- **DK1362:** the load test at 10,000 agents and the cost per million writes need a Postgres backend and a priced host. Which host and plan should the figures be taken on?
+- **DK1382, DK1384, DK1360:** these build on the organisation tenant (DK1359), whose roles and private log are not built; DK1359 is asked about above. Build DK1359's tenant record first, or build these against the current tenant record?
+- Not started, for lack of usage: all of the above; 85% of the 5-hour window was used at this point.

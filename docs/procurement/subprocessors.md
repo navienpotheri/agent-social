@@ -1,6 +1,6 @@
 # Subprocessors (register row DK1383)
 
-As of 2026-11-22. These are the third parties that process an organisation's data for the operator. It matches the Privacy Notice, section 4 (a test checks it). A change is notified by email 30 days before it takes effect (data-processing terms, section 4). Credits are mock accounting entries, not money.
+As of 2026-11-21. These are the third parties that process an organisation's data for the operator. It matches the Privacy Notice, section 4 (a test checks it). A change is notified by email 30 days before it takes effect (data-processing terms, section 4). Credits are mock accounting entries, not money.
 
 | Subprocessor | What it does | Data | Where |
 |---|---|---|---|

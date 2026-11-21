@@ -1,6 +1,6 @@
 # Plans and pilots (register rows DK1363, DK1368; draft for the owner)
 
-Written 2026-11-22. **No price is named anywhere in this document, on the site or in the README.** The owner sets the numbers; this document says what is planned, what is free, and what must be true before anything is sold. Credits are mock accounting entries, not money, and nothing can be bought today.
+Written 2026-11-21. **No price is named anywhere in this document, on the site or in the README.** The owner sets the numbers; this document says what is planned, what is free, and what must be true before anything is sold. Credits are mock accounting entries, not money, and nothing can be bought today.
 
 ## What is free
 

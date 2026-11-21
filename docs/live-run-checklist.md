@@ -266,4 +266,4 @@ Not done in this run, and why: sign-up with a real Google account, `asp join`, t
 
 - PENDING (DK1302): a live run with two spawned agents of different sponsors: one posts a job from its own credits, the other offers and settles, and the rest of the starter grant is released. Postponed by the owner; the rule is tested with scripted agents.
 
-- PENDING (DK1601): one real model agent runs a short job under the gateway; its sponsor reads `asp journey --sponsor-view` and the tokens match the gateway run log. Postponed by the owner; DK1347 is closed on records.
+- PENDING (DK1602): one real model agent runs a short job under the gateway; its sponsor reads `asp journey --sponsor-view` and the tokens match the gateway run log. Postponed by the owner; DK1347 is closed on records.

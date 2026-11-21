@@ -1409,6 +1409,7 @@ const worldRules = [
   const ccBody = (over: Record<string, unknown> = {}) => ({ cluster: spA, sponsors: [spA, spB], basis: ["payment"], detected_at: "2026-11-21T10:00:00Z", ...over });
   sv("valid_common_control", "common_control", ccBody(), true);
   sv("valid_common_control_lift", "common_control", ccBody({ lift: true }), true);
+  sv("valid_common_control_account", "common_control", ccBody({ basis: ["account", "address"] }), true);
   sv("valid_common_control_evidence", "common_control", ccBody({ basis: ["key_lineage", "domain", "address"], evidence: "sha256:" + "4".repeat(64) }), true);
   sv("common_control_one_sponsor", "common_control", ccBody({ sponsors: [spA] }), false);
   sv("common_control_duplicate_sponsor", "common_control", ccBody({ sponsors: [spA, spA] }), false);
@@ -1416,6 +1417,46 @@ const worldRules = [
   sv("common_control_unknown_basis", "common_control", ccBody({ basis: ["vibes"] }), false);
   sv("common_control_no_cluster", "common_control", (({ cluster: _c, ...r }) => r)(ccBody()), false);
   sv("common_control_unknown_field", "common_control", ccBody({ penalty: 100 }), false);
+  // ---------- the related-party record and the fleet's association (spec-deltas S1411): schema cases ----------
+  const rpAgent = "did:web:example.com:agents:coder-7", rpAction = "sha256:" + "5".repeat(64);
+  sv("valid_related_party_attestation", "related_party_attestation", { agent: rpAgent, action: rpAction }, true);
+  sv("valid_related_party_attestation_note", "related_party_attestation", { agent: rpAgent, action: rpAction, note: "clean run under the fleet's Mandate" }, true);
+  sv("related_party_attestation_no_action", "related_party_attestation", { agent: rpAgent }, false);
+  sv("related_party_attestation_no_agent", "related_party_attestation", { action: rpAction }, false);
+  sv("related_party_attestation_bad_action", "related_party_attestation", { agent: rpAgent, action: "not-a-record" }, false);
+  sv("related_party_attestation_reward", "related_party_attestation", { agent: rpAgent, action: rpAction, credits: 5 }, false);
+  for (const a of ["full", "related_party_only", "private"]) sv(`valid_fleet_association_${a}`, "fleet", { did: fl, org: "did:web:example.com:orgs:acme", name: "Coders", purpose: "ship code", association: a }, true);
+  sv("fleet_association_unknown", "fleet", { did: fl, org: "did:web:example.com:orgs:acme", name: "Coders", purpose: "ship code", association: "secret" }, false);
+  // ---------- purchased credit lots (spec-deltas S1413): schema cases ----------
+  const lotHolder = "did:web:example.com:orgs:acme", lotRef = "sha256:" + "6".repeat(64), lotId = "sha256:" + "7".repeat(64);
+  const lotGrant = (over: Record<string, unknown> = {}) => ({ act: "grant", holder: lotHolder, amount: { value: 1000, unit: "credit" }, expires: "2027-11-21T00:00:00Z", reference: lotRef, ...over });
+  sv("valid_credit_lot_grant", "credit_lot", lotGrant(), true);
+  sv("valid_credit_lot_grant_refund_window", "credit_lot", lotGrant({ refund_until: "2026-12-21T00:00:00Z", reason: "annual plan, first block" }), true);
+  sv("valid_credit_lot_expire", "credit_lot", { act: "expire", holder: lotHolder, amount: { value: 40, unit: "credit" }, lot: lotId }, true);
+  sv("valid_credit_lot_refund", "credit_lot", { act: "refund", holder: lotHolder, amount: { value: 400, unit: "credit" }, lot: lotId, reason: "cancelled inside the window" }, true);
+  sv("credit_lot_grant_no_expiry", "credit_lot", (({ expires: _e, ...r }) => r)(lotGrant()), false);
+  sv("credit_lot_grant_no_reference", "credit_lot", (({ reference: _r, ...r }) => r)(lotGrant()), false);
+  sv("credit_lot_grant_names_a_lot", "credit_lot", lotGrant({ lot: lotId }), false);
+  sv("credit_lot_expire_no_lot", "credit_lot", { act: "expire", holder: lotHolder, amount: { value: 40, unit: "credit" } }, false);
+  sv("credit_lot_expire_with_expiry", "credit_lot", { act: "expire", holder: lotHolder, amount: { value: 40, unit: "credit" }, lot: lotId, expires: "2027-11-21T00:00:00Z" }, false);
+  sv("credit_lot_unknown_act", "credit_lot", lotGrant({ act: "resell" }), false);
+  // ---------- usage plans and statements (spec-deltas S1414): schema cases ----------
+  const planBody = (over: Record<string, unknown> = {}) => ({ plan: "team-2027", name: "Team", currency: "USD", agent_month: 500, writes_included: 100000, writes_per_1000: 20, tokens_included_m: 50, tokens_per_m: 300, storage_included_mb: 1000, storage_per_gb: 1500, dashboard_month: 2500, credit_value: 5, ...over });
+  sv("valid_usage_plan", "usage_plan", planBody(), true);
+  sv("valid_usage_plan_no_credit_value", "usage_plan", (({ credit_value: _c, ...r }) => r)(planBody()), true);
+  sv("usage_plan_negative_price", "usage_plan", planBody({ agent_month: -1 }), false);
+  sv("usage_plan_fractional_price", "usage_plan", planBody({ writes_per_1000: 0.5 }), false);
+  sv("usage_plan_bad_currency", "usage_plan", planBody({ currency: "dollars" }), false);
+  sv("usage_plan_missing_price", "usage_plan", (({ tokens_per_m: _t, ...r }) => r)(planBody()), false);
+  sv("usage_plan_bad_id", "usage_plan", planBody({ plan: "Team 2027" }), false);
+  const stBody = (over: Record<string, unknown> = {}) => ({ holder: "did:web:example.com:orgs:acme", month: "2026-12", plan: "team-2027", usage: { active_agents: 12, writes: 150000, tokens: 80000000, storage_bytes: 900000000 }, lines: [{ item: "active agents", quantity: 12, unit_price: 500, amount: 6000 }], subtotal: 6000, tax: [{ name: "GST", rate_bp: 1800, amount: 1080 }], total: 7080, currency: "USD", ...over });
+  sv("valid_usage_statement", "usage_statement", stBody(), true);
+  sv("valid_usage_statement_fleet_credits", "usage_statement", stBody({ fleet: "did:web:example.com:orgs:acme:fleets:coders", credits_applied: 100, contract: "MSA-2026-014", usage_hash: "sha256:" + "8".repeat(64) }), true);
+  sv("usage_statement_bad_month", "usage_statement", stBody({ month: "2026-13" }), false);
+  sv("usage_statement_no_total", "usage_statement", (({ total: _t, ...r }) => r)(stBody()), false);
+  sv("usage_statement_zero_credits", "usage_statement", stBody({ credits_applied: 0 }), false);
+  sv("usage_statement_tax_rate_over_100_percent", "usage_statement", stBody({ tax: [{ name: "GST", rate_bp: 20000, amount: 1 }] }), false);
+  sv("usage_statement_unknown_field", "usage_statement", stBody({ discount: 10 }), false);
   sv("valid_fleet_move", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "platform" }, true);
   sv("valid_fleet_move_with_reason", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "root", reason: "the team was closed" }, true);
   sv("fleet_move_no_target", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7" }, false);

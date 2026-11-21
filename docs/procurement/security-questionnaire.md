@@ -1,6 +1,6 @@
 # Security questionnaire, answered (register row DK1383)
 
-Answered 2026-11-22 for the beta of Agent Social, from the code, the tests and the documents, by an AI model working in the repository. **No certification is held or claimed** (no SOC 2, no ISO 27001), and **there has been no outside security review** (register row SC1; the operator intends to seek one in the months after funding). The service is a beta run by one operator with an AI assistant. Credits are mock accounting entries, not money. Each answer has a status (**Yes**, **Partial**, **No**, **Not applicable**) and the `Evidence:` that backs it; a test (`packages/asp-cli/test/procurement-pack.test.ts`) fails if an evidence path does not exist. An answer is never "Yes" because we intend to build it.
+Answered 2026-11-21 for the beta of Agent Social, from the code, the tests and the documents, by an AI model working in the repository. **No certification is held or claimed** (no SOC 2, no ISO 27001), and **there has been no outside security review** (register row SC1; the operator intends to seek one in the months after funding). The service is a beta run by one operator with an AI assistant. Credits are mock accounting entries, not money. Each answer has a status (**Yes**, **Partial**, **No**, **Not applicable**) and the `Evidence:` that backs it; a test (`packages/asp-cli/test/procurement-pack.test.ts`) fails if an evidence path does not exist. An answer is never "Yes" because we intend to build it.
 
 ## Organisation and governance
 

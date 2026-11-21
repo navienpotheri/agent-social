@@ -73,7 +73,7 @@ export { CHARTERED, CHARTER_NOTICE_MS, FORUM_DID, type CharterBody } from "./ins
 export { cyclePermille, experiencePermille, holiday, quotePremium, simulateInsurer, type HolderRecord, type SimResult } from "./insurer-dynamics.ts";
 export { KEY_ONLY_BAN_AT, KEY_ONLY_QUARANTINE_AT, KeyOnlyBans, PendingQuarantines, checkKeyProof, keyProofMessage, reviewKeyOnly, slashesOf, type BanEntry, type PendingQuarantine, type KeyOnlyAction, type KeyOnlyReview } from "./key-only.ts";
 export { frontDoorJson, frontDoorRoutes, frontDoorText, startPageHtml, startPageText, frontDoorTools, mentionsOf, SOCIETY_POLL_INTERVAL_SEC, type FrontDoorOptions, type FrontDoorTool } from "./front-door.ts";
-export { TELEMETRY_KINDS, TELEMETRY_MAX_ITEMS, TELEMETRY_MAX_ITEM_BYTES, TELEMETRY_NOTICE, TelemetryStore, telemetryHash, type PutResult, type TelemetryEntry, type TelemetryKind } from "./telemetry-store.ts";
+export { TELEMETRY_KINDS, TELEMETRY_MAX_ITEMS, TELEMETRY_MAX_ITEM_BYTES, TELEMETRY_NOTICE, TelemetryStore, type DeletionReceipt, telemetryHash, type PutResult, type TelemetryEntry, type TelemetryKind } from "./telemetry-store.ts";
 export { renewalNotices, type RenewalNotice } from "./registry.ts";
 export { velocityOf, type VelocityReport, type VelocityWindow } from "./velocity.ts";
 export { GAME_HANDS, GAME_NAME, STAND_MAX, STAND_MIN, commitSeed, playEntrant, runGame, scoreOf, total as gameTotal, transcriptHash, validPolicy, type GameEntrant, type GamePolicy, type GameResult, type GameRun, type HandRecord } from "./game-engine.ts";
@@ -95,3 +95,7 @@ export { analyseFarming, commonControl, controlMapOf, farmingFreezeBody, thresho
 export { AdaptiveDoor, type DoorOptions, type Admission } from "./adaptive-door.ts";
 export { fleetJoin } from "./fleet-join.ts";
 export { makeInvitation, invitationMessage, type FleetInvitation } from "./fleet-invite.ts";
+export { RP_RUNS_PER_JOB, RP_MAX_PROMOTION_JOBS, relatedEquivalentJobs, starterRestEarned, promotionJobsOk } from "./related-party.ts";
+export { fleetKind, standingOf, templateOf, type MemberFacts, type TemplateOf } from "./template-reputation.ts";
+export { lotsOf, outstanding, spendable, drawPlan, applyDraw, LOT_MAX_MS, type Lot } from "./credit-lots.ts";
+export { meterOf, priceStatement, creditsFor, type Plan as UsagePlan, type Usage as MeterUsage, type AgentUsage, type Priced } from "./metering.ts";

@@ -64,7 +64,7 @@ export interface Tenant {
   /** Set, on the tenant a request is made as, when it came with a machine token: the token's name. Never stored. */
   machine?: string;
   /** The starter credits this tenant claimed (src/starter.ts): when and how many; kept in a tombstone too, so closing and signing up again does not earn a second grant. */
-  starter?: { at: string; amount: number; dids?: string[]; /** Credits each identity is still owed: the rest of the grant, released when one of them has had a job accepted. */ held?: number; releasedAt?: string };
+  starter?: { at: string; amount: number; dids?: string[]; /** Credits each identity is still owed: the rest of the grant, released when one of them has had a job accepted. */ held?: number; releasedAt?: string; /** The identities that have had the rest of their grant (DK1470: each earns it on its own job). Absent on an older record: the rest went to all of `dids` when `held` is absent, to none when it is set. */ restDids?: string[] };
 }
 
 const DEFAULT_PACKAGE_QUOTA = 256 * 1024 * 1024;
@@ -95,7 +95,7 @@ export const hashToken = (token: string): string => createHash("sha256").update(
 /** EventLog methods a client may call: reads, plus verification. Nothing that writes. */
 export const LOG_METHODS = new Set([
   "get", "head", "since", "chain", "chainInfo", "passport", "keys", "fleet", "balance", "escrow", "juror", "reputationOf", "mandateOf",
-  "verificationOf", "dispatchLedger", "houseAgents", "report", "drawPanel", "drawReportPanel", "verify", "verifyCheckpoint", "mints", "creditAudit", "creditFlows", "priceLists", "mandatesOf", "certificatesOf", "academyRecords", "certificateStatus", "arenaBoard", "quarantinesOf", "refusalsAgainst", "marketInstitution", "outcomeSeries", "principalSeries", "purchasesBy", "worldRecords", "worldState", "creditConcentration", "starterPoolState", "marketBoard", "marketStats", "fleetDetails", "fleetsOf", "mandateCeiling", "templateVersion", "deriveMemberMandate", "marketDynamics", "riskModel", "suggestedBond", "riskReplay", "worldInvariants", "discoverAgents", "recordsOfTypes", "registryPage", "registryVerify", "homePage", "sponsorResources", "registrySearch", "registryTakedowns", "charterRoutes", "charters", "precedentIndex", "precedentSearch", "precedentsFor", "courtDocket", "bondLabel", "treasuryLedger", "fleetTree", "nodeOf",
+  "verificationOf", "dispatchLedger", "houseAgents", "report", "drawPanel", "drawReportPanel", "verify", "verifyCheckpoint", "mints", "creditAudit", "creditFlows", "priceLists", "mandatesOf", "certificatesOf", "academyRecords", "certificateStatus", "arenaBoard", "quarantinesOf", "refusalsAgainst", "marketInstitution", "outcomeSeries", "principalSeries", "purchasesBy", "worldRecords", "worldState", "creditConcentration", "starterPoolState", "marketBoard", "marketStats", "fleetDetails", "fleetsOf", "mandateCeiling", "checkStatement", "usagePlan", "meter", "creditClassAudit", "fleetInfoOf", "relatedPartyRecord", "templateVersion", "deriveMemberMandate", "marketDynamics", "riskModel", "suggestedBond", "riskReplay", "worldInvariants", "discoverAgents", "recordsOfTypes", "registryPage", "registryVerify", "homePage", "sponsorResources", "registrySearch", "registryTakedowns", "charterRoutes", "charters", "precedentIndex", "precedentSearch", "precedentsFor", "courtDocket", "bondLabel", "treasuryLedger", "fleetTree", "nodeOf", "holderLots", "sponsorDids",
 ]);
 const TENANT_HANDLE_METHODS = new Set(["append", "importRecords"]);
 const ADMIN_HANDLE_METHODS = new Set(["mint"]);

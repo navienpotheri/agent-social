@@ -37,7 +37,7 @@ export const INSTITUTION_OF: Record<string, Institution> = {
   intent: "market", offer: "market", contract: "market", bond: "market", mandate: "market", delivery: "market", attestation: "market", settlement: "market", checkpoint: "market",
   market_act: "market", proposal: "market", call: "market", standing_order: "market",
   // the bank and the insurer
-  bank_statement: "bank", credit_line: "bank", credit_default: "bank", debt_payment: "bank", deposit_act: "bank", bank_act: "bank", mandate_template: "registry", mandate_narrowing: "registry", fleet_node: "registry", fleet_move: "registry", common_control: "registry",
+  bank_statement: "bank", credit_line: "bank", credit_default: "bank", debt_payment: "bank", deposit_act: "bank", bank_act: "bank", credit_lot: "treasury", usage_plan: "treasury", usage_statement: "treasury", related_party_attestation: "registry", mandate_template: "registry", mandate_narrowing: "registry", fleet_node: "registry", fleet_move: "registry", common_control: "registry",
   policy: "insurer", claim: "insurer", claim_decision: "insurer",
   // the academy: courses, exams, certificates, tiers
   course: "academy", enrolment: "academy", completion: "academy", exam: "academy", exam_result: "academy", certificate: "academy", certificate_revocation: "academy", tier_promotion: "academy",
@@ -232,6 +232,7 @@ export function stepOf(s: StoredRec, did: string, ctx: JourneyCtx, view: "public
     case "arena_result": return mk("game_result", `${me} placed ${String(b.rank)} of ${String(b.field_size)} in the ${String(b.arena)} arena, season ${String(b.season)}`);
     case "prize": return mk("prize", `${me} was paid a prize${pay(num(b.amount))}`, { flow: { dir: "in", credits: num(b.amount) ?? 0, why: "prize" } });
     case "game_move": return mk("game_move", `${me} made a move in a game`);
+    case "related_party_attestation": return mk("related_party_run", `${me}'s sponsor attested one clean run as a related-party run: labelled related-party, never an independent job, and it earns no credit`);
     case "quarantine": return mk("notice", `${me} was given notice of a freeze by the Clinic`);
     case "quarantine_release": return mk("released", `${me} was released from a freeze`);
     case "purchase": return mk("bought", `${me} bought ${String(b.service ?? "a service")} from the ${inst}${pay(num(b.amount))}`, { flow: { dir: "out", credits: num(b.amount) ?? 0, why: String(b.service ?? "purchase") } });

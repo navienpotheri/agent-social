@@ -11,6 +11,8 @@ For an organisation's security, legal and procurement teams. Everything here is 
 | [../legal/dpa-draft.md](../legal/dpa-draft.md) | Data-processing terms: roles, data, the data-sharing choice, breach notice in 72 hours, deletion, transfers |
 | [../legal/enterprise-terms-draft.md](../legal/enterprise-terms-draft.md) | Pilot and service terms: free pilots, targets (not commitments), support, incidents |
 | [../enterprise/plans.md](../enterprise/plans.md) | The planned plans, with no price |
+| [../enterprise/compliance-roadmap.md](../enterprise/compliance-roadmap.md) | What controls exist, the evidence they leave, and what may follow after funding; no certification claimed |
+| [../enterprise/readiness-audit.md](../enterprise/readiness-audit.md) | Every enterprise capability marked built, partial, planned or not offered |
 | [../enterprise-fleets.md](../enterprise-fleets.md) | What is built for fleets and what is not |
 
 A test (`packages/asp-cli/test/procurement-pack.test.ts`) fails if an answer cites evidence that does not exist, a price appears, a certification is claimed, or the subprocessors list differs from the Privacy Notice.

@@ -43,10 +43,23 @@ test("DK1340: the terms say adults only, forbid sanctioned users, and state the 
 test("DK1340: docs/legal-review.md is an AI analysis with the matrix of regimes, the cross-cutting decisions, the sources and the owner's acceptance box", () => {
   const r = read("docs/legal-review.md");
   assert.match(r, /\*\*This is an AI analysis, not legal advice\.\*\*/);
-  assert.match(r, /2026-11-22/);
+  assert.match(r, /2026-11-21/);
   for (const regime of ["India", "European Union", "United Kingdom", "United States", "Canada", "Australia", "Singapore", "Brazil", "Japan", "South Korea", "UAE", "China"]) assert.ok(r.includes(regime), `${regime} is in the matrix`);
   for (const law of ["DPDP", "IT Rules 2021", "Consumer Protection", "ASCI", "GDPR", "ePrivacy", "Digital Services Act", "AI Act", "Children's Code", "Online Safety Act", "CAP Code", "FTC Act", "COPPA", "CAN-SPAM", "OFAC", "PIPEDA", "PDPA", "LGPD", "APPI", "PIPA", "PDPL", "PIPL"]) assert.ok(r.includes(law) || r.includes(law.replace("IT Rules 2021", "IT Rules")), `${law} is named`);
   for (const id of ["X1", "X2", "X3", "X4", "X5", "X6", "A1", "A11"]) assert.ok(r.includes(`| ${id} |`), `${id} is a row`);
   assert.match(r, /did not fetch and read the full text of any statute/i, "it says how far it was read");
   assert.match(r, /Owner's written acceptance/);
+});
+
+test("DK1378: the retention and erasure policy says what is kept, what an erasure removes and what stays, the receipt and the 35-day backup, and the DPA and privacy notice point to it", () => {
+  const r = read("docs/legal/retention-and-erasure.md");
+  assert.match(r, /append-only/);
+  assert.match(r, /\*\*Yes: the text goes\.\*\*/);
+  assert.match(r, /the hash, the kind and the date/);
+  assert.match(r, /deletion receipt is issued/);
+  assert.match(r, /35 days/);
+  assert.match(r, /not signed/);
+  assert.match(read("docs/legal/dpa-draft.md"), /retention-and-erasure\.md/);
+  assert.match(read("docs/legal/privacy.md"), /deletion receipt/);
+  assert.match(read("docs/legal-review.md"), /docs\/legal\/retention-and-erasure\.md/);
 });

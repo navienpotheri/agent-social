@@ -201,8 +201,8 @@
           "description": "What the service holds for you: records, packages, sealed logs, how each identity is recovered, starter credits"
         },
         {
-          "command": "asp account starter --did <did>[,<did>]",
-          "description": "Claim your starter credits (once per Google account)"
+          "command": "asp account starter --did <did>[,<did>...]",
+          "description": "Claim starter credits for each identity you own, any number, 25 to a request (each identity once; the rest when that identity has a job accepted)"
         },
         {
           "command": "asp account export [--out <dir>]",
@@ -453,6 +453,26 @@
         {
           "command": "asp farming report [--json] | flag [--cluster <id>] --by <operator or watcher did> | freeze --report <upheld report> --cluster <id> [--by <Clinic did>] [--level observe|halt] [--days 1-7]",
           "description": "Anti-farming: the report (sponsors under common control, rings, closed circles, wash trades, fan-ins and fleet concentration in the job graph; leads for the Clinic, never a penalty; thresholds are not published), a signed `common_control` record that makes a cluster one sponsor for independence, and the Clinic's cohort freeze on the agents of a flagged cluster (an upheld report and three sponsors are needed, as for every cohort freeze)"
+        },
+        {
+          "command": "asp fleet attest --member <did> --action <Action id> [--by <sponsor, organisation or co-sponsor did>] | record --member <did> [--json] | update <fleet> --association full|related-party-only|private",
+          "description": "The related-party track record: the sponsor attests one clean run of its own agent under the fleet's Mandate (a gateway-observed Action with no blocked attempt, for a related principal); ten attested runs count as one job's worth for the second starter tranche and, capped, the first promotion; labelled related-party, never an independent job, no credit reward, reset by a slash, a strike or a Clinic freeze; `record` reads it; `--association` is the enterprise's choice of how its fleet takes part in the society (the market is closed to a fleet that chose related-party only or private; private agents are not shown)"
+        },
+        {
+          "command": "asp fleet standing --member <did> [--json]",
+          "description": "The member's fleet, the kind of fleet (copies, personas, mixed, single), persona, tree node and association, its template (runtime, model, policy, tools), and the standing of every agent with the same template in its fleet and in the society (counted jobs, slashes, strikes, related-party runs shown apart); the same block is on its Registry page"
+        },
+        {
+          "command": "asp meter report (--fleet <did> | --org <did> | --agent <did>) [--month <YYYY-MM>] [--json] | plan --file <plan.json> --by <operator did> --cosign <owner did> | statement --holder <org did> [--fleet <did>] --month <YYYY-MM> --plan <id> [--tax-line <name:basis points> ...] [--credits <n>] [--contract <text>] --by <operator did> | check <statement id>",
+          "description": "Metering: a fleet's, an organisation's or an agent's usage in a UTC month counted from the log (active agents, writes, Actions, tokens, stored data; reads are the service's own counter); a signed plan (the owner sets prices); a statement that prices the month from the plan with tax lines, optionally settled with purchased credits at the plan's credit value; and a recount that checks a statement against the log"
+        },
+        {
+          "command": "asp lots grant --holder <did> --amount <n> --expires <date> --reference <sha256> [--refund-until <date>] --by <operator did> --cosign <owner did> | expire --lot <id> --holder <did> --by <operator did> | refund --lot <id> --holder <did> --amount <n> --by <operator did> --cosign <owner did> | show [--holder <did>] [--json]",
+          "description": "The second ledger class: the operator records a sale of purchased credits as a lot (the owner co-signs: the owner's go for each sale), the expiry of a lot and a refund inside its window; `show` prints sold, consumed, expired, refunded, outstanding and the audit verdict. The payment is not here: `--reference` is the hash of the provider's reference"
+        },
+        {
+          "command": "asp meter invoice <statement id> [--json]",
+          "description": "Prints a usage statement as an invoice (lines, tax lines, total in minor units, the plan and contract) and says whether the usage it states is what the log counts"
         },
         {
           "command": "asp bank account put|take --holder <did> --amount <n> | borrow|repay --amount <n> [--by <treasury did>] | interest --week <YYYY-Www> [--by <treasury did>]",
@@ -1032,8 +1052,8 @@
           "description": "The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)"
         },
         {
-          "command": "asp telemetry [status | list | put --kind <k> --text <t> | delete --all]",
-          "description": "The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash"
+          "command": "asp telemetry [status | list | put --kind <k> --text <t> | receipts | delete --all]",
+          "description": "The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash and issues a receipt (DK1378)"
         }
       ]
     }

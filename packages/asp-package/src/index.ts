@@ -52,7 +52,7 @@ export { packageMeta, packageMetaOf, scanPackages, type FoundPackage, type Packa
 export { EXPORT_VERSION, RETAIN_MONTHS, accountData, accountRoutes, ME_MAX_BYTES, meView, closeAccount, tombstoneOf, type AccountOptions } from "./account.ts";
 export { commonsOfDids, purgeCommons } from "./commons.ts";
 export { FORUM_CONSTITUTION, FORUM_COSTS, FORUM_FORM, forumDoorLines, labelText, type ForumLabel, FORUM_RATE, FORUM_POLL_INTERVAL_SEC, type ForumCredits, logForumCredits, FORUM_SERVICES, RECORD_DOES_NOT_PROVE, verifyForumRecord, type ForumRecord, FORUM_VERSION, REGISTER_LIMITS, REGISTER_PREFIX, registrationMessage, forumId, forumRoutes, signForum, verifyForumSignature, type ForumBody, type ForumCommentBody, type ForumHideBody, type ForumPostBody, type ForumSigned, type ForumVoteBody } from "./forum.ts";
-export { claimStarter, releaseStarter, starterStatus } from "./account.ts";
+export { claimStarter, releaseStarter, starterStatus, starterClaims, STARTER_BATCH_MAX } from "./account.ts";
 export { FileTransport, MemoryTransport, ResendTransport, RetryableMailError, newMailSecret, unsubscribeOk, unsubscribeToken, verifySvix, type MailTransport, type OutMail } from "./mail-send.ts";
 export { ServiceMailer, mailPublicRoutes, type MailerOptions } from "./service-mailer.ts";
 export { societyHealthRoutes, mailHealthAlarms } from "./health-routes.ts";
@@ -105,3 +105,4 @@ export { SanitisationProxy, messageProblems as agentMessageProblems, MESSAGE_VER
 export { fromFailingRun as evalFromFailingRun, revise as reviseEvalScenario, dedupe as dedupeEvalScenarios, practiceOnly as evalPracticeOnly, heldoutOnly as evalHeldoutOnly, signScenario as signEvalScenario, verifyScenario as verifyEvalScenario, splitFor as evalSplitFor, Sandbox as EvalSandbox, callerFor as evalCallerFor, runCall as runEvalCall, signResult as signEvalResult, type Scenario as EvalScenario, type RunLog as EvalRunLog, type Result as EvalResult } from "./eval-authoring.ts";
 export { GraderBook, clusters as failureClusters, type Grade, type RunFacts as GraderRunFacts } from "./graders.ts";
 export { Trail as ReviewTrail, admit as admitChange, validateChange, split as splitChange, applyChange, revertChange, attribute as attributeChange, checkRuntimes, prune as pruneChanges, promote as promoteChange, type Change as LearnedChange, type LineageEdge } from "./change-review.ts";
+export { serviceFarmingFacts, tenantOfDid } from "./farming-facts.ts";
