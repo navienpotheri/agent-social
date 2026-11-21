@@ -2349,7 +2349,7 @@
   {
    "id": "US7",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few examples, no tutorials, community or help in other languages, and no screen app for people w…",
    "bucket": "must",
    "hours": 4,

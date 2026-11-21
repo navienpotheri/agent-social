@@ -401,7 +401,7 @@ import {
 } from "@agent-social/asp-core";
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
 import { DailyCeiling, renderSponsorReturn, sponsorReturn, screenMemoryWriteBack, askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
-import { allowScopes, inferScopes, isPreset, presetScopes, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
+import { allowScopes, inferScopes, isPreset, presetOf, presetScopes, WORK_PRESETS, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
 import { NEEDS_PASSPHRASE, isSealed, open as openSealed, passphraseFrom, seal } from "@agent-social/asp-package";
 import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
@@ -6660,14 +6660,16 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   // A task gets the permissions it seems to need, not the usual full set (gap BM17); --ask on a scope and --allow add to it. A headless run uses its existing contract's Mandate as it is.
   // A session with no task is sized by the person's choice for this project, asked once and kept in the ASP home (not in the project, so a cloned repository cannot set it).
   const allowed = [...allowScopes(v.allow, prof.scopes), ...gate.filter((g) => prof.scopes.includes(g))];
-  if (v.permissions !== undefined && v.permissions !== "ask" && !isPreset(v.permissions)) throw new UsageError("--permissions review|develop|full (or ask, to be asked again)");
+  if (v.permissions !== undefined && v.permissions !== "ask" && !presetOf(v.permissions)) throw new UsageError("--permissions research|writing|coding (or review|write|develop|full; or ask, to be asked again)");
+  const wanted = presetOf(v.permissions);
+  if (wanted && v.permissions! in WORK_PRESETS) { const w = WORK_PRESETS[v.permissions as keyof typeof WORK_PRESETS]; io.err(`  preset   ${v.permissions}: the agent may ${w.allows}; it may not ${w.never}`); }
   let preset: Preset | undefined;
   if (!headless) {
     const prefsFile = join(home, "project-permissions.json");
     const prefs = ((): Record<string, string> => { try { return JSON.parse(readFileSync(prefsFile, "utf8")); } catch { return {}; } })();
     const projKey = resolve(io.cwd, v.project ?? ".");
     const keep = (p: Preset) => { prefs[projKey] = p; mkdirSync(home, { recursive: true }); writeFileSync(`${prefsFile}.part`, JSON.stringify(prefs, null, 2)); renameSync(`${prefsFile}.part`, prefsFile); };
-    if (isPreset(v.permissions)) { preset = v.permissions; keep(preset); }
+    if (wanted) { preset = wanted; keep(preset); }
     else if (!v.prompt) {
       const saved = v.permissions === "ask" ? undefined : prefs[projKey];
       preset = isPreset(saved) ? saved : undefined;

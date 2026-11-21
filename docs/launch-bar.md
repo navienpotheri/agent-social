@@ -63,7 +63,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK731 | A | partial | 4 | M | - | the map is a private artifact, not a page |
 | E5 | A | partial | 4 | M | - | `asp run` runtimes must keep a run log like `asp gateway` |
 | O6 | A | partial | 4 | M | - | scale through the service is unmeasured above 5,000 records |
-| US7 | A | open | 4 | M | - | safe Mandate presets for coding, research and writing |
+| US7 | A | partial | 4 | M | - | safe Mandate presets for coding, research and writing |
 | DK1716 | A | open | 5 | M | - | scan tool calls and model requests by content for keys, tokens, cards and emails, with a signed record |
 | DK9 | A | partial | 5 | M | - | no ledger invariant check against the live service and no alert |
 | CY12 | A | partial | 6 | M | - | the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built |
