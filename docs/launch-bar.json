@@ -2,8 +2,8 @@
  "row": "DK1312",
  "counts": {
   "must": 67,
-  "withdraw": 114,
-  "after": 326,
+  "withdraw": 113,
+  "after": 327,
   "total": 507
  },
  "mustWorkerHours": 328.2,
@@ -1109,16 +1109,15 @@
   },
   {
    "id": "T22",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "A sub-agent's short-lived, revocable key can be avoided or left unbound: a node grant that cites no Mandate is limited only by the log's 24-hour cap (no `max_parallel`, no end at the Mandate's expiry…",
-   "bucket": "withdraw",
+   "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+   "why": "Priority ?: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "T28",
