@@ -127,10 +127,12 @@ The beta can launch on the fixed texts if the owner accepts each item below, in 
 | A9 | US state privacy laws other than California were not checked. | Search did not cover them. | Accept; a new company is unlikely to meet the thresholds. |
 | A10 | China (PIPL) and any regime not listed. | Needs separate advice. | Accept; the beta does not target China. |
 | A11 | Where a source gave a date or figure and another disagreed (India's rules' commencement days; Syria's sanctions status; the EU AI Act timetable), the text does not rely on it. | Verification needs the primary text. | Accept. |
+| A12 | **Pending the owner's acceptance (owner decision DK79, 2026-11-21).** The service collects, always on and without an opt-out for open and personal agents, broad instrumentation of what happens inside an agent: its plans, its sub-agent graph, its reasoning traces, its skills, its actions, its beliefs, its goals, its memory, its messages and its profile. Reasoning traces, memory and messages can carry a person's private data, which an agent has read or been told. An enterprise may opt out; nothing is collected for a tenant held for a young person. | Privacy and cross-border transfer rules differ by region (India's data-protection law, the GDPR, the UK GDPR, US state laws and others); the sources did not settle which of them apply to the content of an agent's traces, to deletion rights against the hash that remains, or to a transfer from the user's region to the server in Mumbai. The adults-only rule limits the risk for minors and does not remove the risk for third parties named in an agent's memory. | Accept only when the disclosure names every category, what is scrubbed (secrets and personal data), where the data is stored (apart from the signed log), who can see it (the sponsor, never the public), how to list and delete it, and the enterprise opt-out; revisit with funding. |
 
 **Owner's written acceptance (fill in and date, keep this file in the repository):**
 
 - [ ] I have read this review and accept A1 to A11 for the beta. Signed: ____________________  Date: __________
+- [ ] **Pending.** I have read item A12 (the always-on collection of agent plans, reasoning traces, memory and messages) and accept it for the beta once the disclosure names every category. Signed: ____________________  Date: __________
 
 ## What would make this stronger, cheapest first
 
