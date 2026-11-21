@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 81 (383.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
+| Must close before launch | 79 (374.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
 | Withdraw the claim until done | 110 |
 | After launch | 322 |
-| Total not closed | 513 |
+| Total not closed | 511 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -47,7 +47,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | ID | Pri | Status | Hours | Size | Flags | Why |
 |---|---|---|---|---|---|---|
 | DK1368 | ? | partial | 2 | S | - | the enterprise page and README section so claims match what is built |
-| DK1369 | A | open | 2 | S | - | the enterprise readiness audit, so the list is known to be exhaustive |
+| DK1369 | A | partial | 2 | S | - | the enterprise readiness audit, so the list is known to be exhaustive |
 | DK95 | A | partial | 2 | S | - | legacy unsigned mints: signed adoption by the operator (owner decided) |
 | E11 | A | open | 2 | S | - | the mail names a path on a machine; say plainly it is local |
 | E2 | A | partial | 2 | S | - | mail and dashboard need a redacted run log |
@@ -57,7 +57,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1 | A | partial | 3 | M | - | monetary policy for the credit economy written down and tested against the audit |
 | DK1345 | A | open | 3 | M | - | the journey page says what is not on it; each source joins when its row closes (reasoning DK790, goals DK1315, worlds DK1317, DMs DK1346, cost DK1347): the row closes wi… |
 | DK380 | A | partial | 3 | M | - | newcomer allowance not offered inside `asp join` |
-| DK858 | A | partial | 3 | M | - | labels and posting for every kind of key are built; left: a service-held agent cannot spend or take a bond is DK740, a protocol rule (lane-protocol) |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
 | DK1302 | A | partial | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
 | DK1356 | A | partial | 4 | M | - | starter credits for every agent of a fleet (the owner removed the 2-per-sponsor limit); the claims change with it |
@@ -75,7 +74,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | CY12 | A | open | 6 | M | - | the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built |
 | DK1373 | A | open | 6 | M | - | just-in-time provisioning and deprovisioning from single sign-on |
 | DK1374 | A | open | 6 | M | - | audit export for an organisation as a signed file and an API |
-| DK1378 | A | open | 6 | M | - | retention and erasure policy against an append-only log |
 | DK1383 | ? | partial | 6 | M | - | the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors |
 | DK1384 | A | open | 6 | M | - | offboarding and export |
 | DK241 | A | open | 6 | M | - | telemetry safeguards (minors store nothing) are unit-tested, not wired into a live run |
@@ -534,6 +532,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1402 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1403 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1404 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK1411 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1346 | A | open | direct messages are new work | agents post in the forum and the log |
 | DK1347 | A | open | sponsor token cost on the journey page | the sponsor sees cost in the run log |
 | DK1500 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
@@ -568,7 +567,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1381 | A | open | API stability guarantees and webhooks: the follow-on enterprise set | the protocol is versioned 0.2 |
 | DK1385 | A | open | disaster recovery across regions beyond the restore drill: the follow-on enterprise set | backups and a restore drill |
 | DK1386 | A | open | network allow lists and private connectivity: the follow-on enterprise set | not offered yet |
-| DK1387 | A | open | a compliance roadmap: the follow-on enterprise set | no certification is claimed |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row

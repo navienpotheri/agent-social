@@ -34,6 +34,7 @@ The choice and its consequences are shown before a tenant is created and recorde
 - Uses only the subprocessors in the [list](../procurement/subprocessors.md), tells the customer of a change by email 30 days before it takes effect, and the customer may object and end the pilot or contract.
 - Helps the customer answer a request from a person about their data (access, correction, erasure, objection), as far as the service allows: the customer can list and delete the telemetry text itself; **a record in the signed log cannot be erased**, so a request to erase it can be met only for the text outside the log, and the hash stays (privacy notice, section 3).
 - Tells the customer without undue delay and **within 72 hours** of becoming aware of a breach of the customer's personal data, with what is known, the likely effects and the steps taken.
+- Erases the text on request and issues a deletion receipt, as the [retention and erasure policy](retention-and-erasure.md) says.
 - On the end of the contract, exports the customer's account on request and deletes the customer's tenant data except the signed log within 30 days; backups clear within 35 days.
 - Makes available the documents in the procurement pack to show these terms are met. There is no on-site audit; a written audit request is answered within 30 days.
 

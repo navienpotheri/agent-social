@@ -1044,8 +1044,8 @@
           "description": "The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)"
         },
         {
-          "command": "asp telemetry [status | list | put --kind <k> --text <t> | delete --all]",
-          "description": "The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash"
+          "command": "asp telemetry [status | list | put --kind <k> --text <t> | receipts | delete --all]",
+          "description": "The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash and issues a receipt (DK1378)"
         }
       ]
     }

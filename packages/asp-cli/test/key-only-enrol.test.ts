@@ -103,6 +103,8 @@ test("DK651 (TM1): enrolment tells the person plainly about the telemetry store;
     assert.match((await asp(["telemetry"], env)).out, /Telemetry is ON/);
     const del = await asp(["telemetry", "delete", "--all"], env);
     assert.match(del.out, /2 item\(s\) deleted. The hashes are kept/);
+    assert.match(del.out, /deletion receipt sha256:[0-9a-f]{64}/, "an erasure issues a receipt (DK1378)");
+    assert.match((await asp(["telemetry", "receipts"], env)).out, /sha256:[0-9a-f]{64}  .*2 item\(s\) deleted/);
     assert.match((await asp(["telemetry", "list"], env)).out, new RegExp(`${hash}.*deleted`));
     assert.notEqual((await asp(["telemetry", "on"], env)).code, 0, "there is no on switch either");
   } finally { s.stop(); }

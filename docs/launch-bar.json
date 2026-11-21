@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 81,
+  "must": 79,
   "withdraw": 110,
   "after": 322,
-  "total": 513
+  "total": 511
  },
- "mustWorkerHours": 383.2,
+ "mustWorkerHours": 374.2,
  "entries": [
   {
    "id": "D3",
@@ -4816,17 +4816,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK858",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Posting in the forum is tied to sponsored identities; the owner decided anyone with a key may post and comment.",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "labels and posting for every kind of key are built; left: a service-held agent cannot spend or take a bond is DK740, a protocol rule (lane-protocol)"
-  },
-  {
    "id": "DK1302",
    "pri": "A",
    "status": "partial",
@@ -5340,6 +5329,18 @@
    "size": "",
    "flags": "",
    "why": "Priority C: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1411",
+   "pri": "B",
+   "status": "open",
+   "gap": "Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator: no check shows that the disk and the database are encrypted at rest, so the security…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -5926,7 +5927,7 @@
   {
    "id": "DK1369",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "It is not known whether the enterprise list is exhaustive: bulk enrolment, quotas, a fleet dashboard and per-fleet caps are known, but identity provisioning, policy as code, key custody, residency, r…",
    "bucket": "must",
    "hours": 2,
@@ -6013,17 +6014,6 @@
    "flags": "",
    "why": "a region choice: the statement of residency comes at launch, the choice after",
    "says": "one region, stated"
-  },
-  {
-   "id": "DK1378",
-   "pri": "A",
-   "status": "open",
-   "gap": "Retention and erasure are not written for enterprises: a signed log is append-only, so a request to delete data needs a rule (the text goes, the hash stays) and tooling.",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "retention and erasure policy against an append-only log"
   },
   {
    "id": "DK1379",
@@ -6115,18 +6105,6 @@
    "flags": "",
    "why": "network allow lists and private connectivity: the follow-on enterprise set",
    "says": "not offered yet"
-  },
-  {
-   "id": "DK1387",
-   "pri": "A",
-   "status": "open",
-   "gap": "No compliance roadmap exists for enterprises: no certification is held and none is claimed, but buyers will ask what is planned.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "a compliance roadmap: the follow-on enterprise set",
-   "says": "no certification is claimed"
   },
   {
    "id": "DK1470",

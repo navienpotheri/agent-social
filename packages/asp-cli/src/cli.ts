@@ -1173,7 +1173,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "housing") return await housingCommand(home, sub, rest, v, io);
     if (cmd === "events") return await eventsCommand(home, sub, rest, v, io);
     if (cmd === "research") return await researchCommand(home, sub, rest, v, io);
-    if (cmd === "telemetry" && (sub === undefined || ["status", "off", "on", "list", "put", "delete"].includes(sub))) return await contentStoreCmd(sub, v, io);
+    if (cmd === "telemetry" && (sub === undefined || ["status", "off", "on", "list", "put", "delete", "receipts"].includes(sub))) return await contentStoreCmd(sub, v, io);
     if (cmd === "telemetry") return await telemetryCommand(home, sub, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
@@ -2274,10 +2274,12 @@ async function contentStoreCmd(sub: string | undefined, v: Values, io: Io): Prom
   if (what === "status") { const j = await call("telemetry"); io.out(j.say); io.out(`stored: ${j.stored} item(s); deleted (hash kept): ${j.deleted}`); io.out(j.notice); return 0; }
   if (what === "list") { for (const e of (await call("telemetry/content")).entries) io.out(`${e.hash}  ${e.kind}  ${e.at}  ${e.bytes} bytes${e.deletedAt ? `  deleted ${e.deletedAt}` : ""}`); return 0; }
   if (what === "delete") {
-    if (v.all) { io.out((await call("telemetry/delete-all", "POST", {})).say); return 0; }
+    const show = (j: any) => { io.out(j.say); if (j.receipt) { io.out(`deletion receipt ${j.receipt.id} (${j.receipt.at}): ${j.receipt.deleted.length} item(s); kept: ${j.receipt.kept}`); } };
+    if (v.all) { show(await call("telemetry/delete-all", "POST", {})); return 0; }
     if (!v.hash) throw new UsageError("asp telemetry delete --all, or --hash sha256:<hex>");
-    io.out((await call(`telemetry/content/${encodeURIComponent(v.hash)}`, "DELETE")).say); return 0;
+    show(await call(`telemetry/content/${encodeURIComponent(v.hash)}`, "DELETE")); return 0;
   }
+  if (what === "receipts") { for (const r of (await call("telemetry/receipts")).receipts) io.out(`${r.id}  ${r.at}  ${r.deleted.length} item(s) deleted`); return 0; }
   if (what === "put") {
     const content = v.file ? readFileSync(v.file, "utf8") : v.text;
     if (!content || !v.kind) throw new UsageError("asp telemetry put --kind trajectory|message|text (--file <path> | --text <text>) [--did <did>]");
@@ -2285,7 +2287,7 @@ async function contentStoreCmd(sub: string | undefined, v: Values, io: Io): Prom
     io.out(`${j.stored ? "stored" : "already stored"}: ${j.hash}`);
     return 0;
   }
-  throw new UsageError("asp telemetry [status|list|put|delete --all|--hash <h>]");
+  throw new UsageError("asp telemetry [status|list|put|receipts|delete --all|--hash <h>]");
 }
 
 /**
