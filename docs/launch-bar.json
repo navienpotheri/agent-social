@@ -1950,7 +1950,7 @@
   },
   {
    "id": "GV6",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restore of the whole city from backup, no plan when a model provider changes terms or goes down",
    "bucket": "must",
