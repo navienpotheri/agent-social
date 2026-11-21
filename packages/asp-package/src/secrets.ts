@@ -45,7 +45,9 @@ export function resolveSecrets(env: Env | undefined, from: NodeJS.ProcessEnv): {
   return { values, missing };
 }
 
-const PATTERNS: [string, RegExp][] = [
+/** The key and token shapes (also read by the gateway's outbound scan, DK1716). */
+export const SECRET_PATTERNS: [string, RegExp][] = [
+
   ["private key", /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
   ["Anthropic API key", /\bsk-ant-[A-Za-z0-9_-]{20,}/],
   // The provider keys people actually paste (gap E4): OpenRouter's is hex after its prefix, which the long-token rule below leaves alone as a hash.
@@ -67,13 +69,14 @@ const PATTERNS: [string, RegExp][] = [
   ["bearer token", /\bBearer\s+[A-Za-z0-9._~+/-]{20,}=*/],
   ["password assignment", /\b(password|passwd|secret|api[_-]?key|token)\s*[:=]\s*["'][^"'\s${}]{8,}["']/i],
 ];
+const PATTERNS = SECRET_PATTERNS;
 
 /**
  * Shapes a secret takes inside a shell command or tool input, beyond the file patterns above:
  * credentials in a URL, an Authorization header, NAME=value for a secret-named variable, a secret
  * flag's value, and a long mixed letter-and-digit token that is not a plain hex hash.
  */
-const COMMAND_PATTERNS: [string, RegExp, string | ((m: string, ...g: string[]) => string)][] = [
+export const COMMAND_SECRET_PATTERNS: [string, RegExp, string | ((m: string, ...g: string[]) => string)][] = [
   ["URL credentials", /(:\/\/)[^\s/:@]+:[^\s/@]+@/g, "$1[redacted]@"],
   ["Authorization header", /(Authorization:\s*)(Basic|Bearer|Token)\s+\S+/gi, "$1$2 [redacted]"],
   ["secret variable", /\b([A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|PRIVATE_?KEY|ACCESS_?KEY|CREDENTIAL)[A-Za-z0-9_]*)=("[^"]*"|'[^']*'|\S+)/gi, "$1=[redacted]"],
@@ -116,7 +119,7 @@ export function redactSecrets(text: string): { text: string; redacted: number } 
     const global = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
     out = count(out, out.replace(global, "[redacted]"));
   }
-  for (const [, re, replacement] of COMMAND_PATTERNS) {
+  for (const [, re, replacement] of COMMAND_SECRET_PATTERNS) {
     out = count(out, out.replace(re, replacement as string));
   }
   return { text: out, redacted };

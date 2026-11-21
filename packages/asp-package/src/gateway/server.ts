@@ -11,6 +11,7 @@
 import type { SecondCheck } from "./second-check.ts";
 import { targetsOf } from "./targets.ts";
 import { newAlertLevels } from "../budget.ts";
+import { outboundAction, redactValue, scanValue, type OutboundMode } from "./outbound-scan.ts";
 import { GatewayBreaker } from "../agent-guards.ts";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -94,6 +95,8 @@ export interface GatewayOptions {
   mcpDestinations?: Record<string, string[]>;
   /** Stops the run when input plus output tokens pass this. */
   tokenCap?: number;
+  /** The outbound scan of tool-call arguments and model requests (DK1716): off, record, guard (the default), redact or block. */
+  outbound?: OutboundMode;
   /** What set the token cap (the run's own flag, the Mandate, the day's allowance or the default), named in the alerts and the refusal (DK1715). */
   tokenCapSource?: string;
   /** Told once each at 50, 80 and 100 percent of the token cap (DK1715); the run log gets the same as a `budget_alert` event. */
@@ -355,6 +358,18 @@ export function createGateway(opts: GatewayOptions): Gateway {
     if (allow && opts.secondCheck) {
       const r = await opts.secondCheck.review(call, j);
       if (!r.allow) { allow = false; strike = false; reason = `[ASP] ${r.reason}`; rec?.event("second_check_block", { scope: j.scope }); }
+    }
+    // The outbound scan (DK1716): a key, a card number or an address in the arguments of a call. A call cannot be edited on its way, so one that carries what the mode blocks is not run (no strike: it may be an accident).
+    if (allow && (opts.outbound ?? "guard") !== "off") {
+      const hits = scanValue(call.args);
+      const told: string[] = [];
+      let blocked = false;
+      for (const h of hits) {
+        const action = outboundAction(opts.outbound ?? "guard", h.class, "tool_call");
+        rec?.event("outbound_hit", { where: "tool_call", tool: call.name, kind: h.kind, class: h.class, hash: h.hash, action });
+        if (action === "block") { blocked = true; told.push(`${h.kind} (${h.hash})`); }
+      }
+      if (blocked) { allow = false; strike = false; reason = `[ASP] this call was not run: its arguments carry ${told.join(", ")}. The value is not shown or recorded, only its kind and a hash. Do not put keys, card numbers or personal data into a call; if it is needed, ask the person.`; }
     }
     // Text another author wrote has just been in the agent's context (the forum): for the next few calls, one that reaches outward is not run. Not a violation: no strike (DK34).
     if (untrustedLeft > 0) {
@@ -630,6 +645,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   }
 
   const alertsTold = new Set<number>();
+  const outboundTold = new Set<string>();
   const tokenCapHit = () => {
     if (opts.tokenCap !== undefined) {
       const used = tokens.input + tokens.output;
@@ -711,6 +727,27 @@ export function createGateway(opts: GatewayOptions): Gateway {
         opts.onCall?.({ tool: "model request", scope: "model.tokens", allowed: false, reason });
         return json(res, 429, style === "openai" ? { error: { message: reason, type: "asp_token_budget", code: "asp_token_budget" } } : { type: "error", error: { type: "rate_limit_error", message: reason } });
       }
+      // The outbound scan of a model request (DK1716): a key or a card number in what is about to go to the provider is masked (or the request refused, in block mode); each is recorded once by kind and hash.
+      let rawBody2 = rawBody;
+      if (req.method === "POST" && (opts.outbound ?? "guard") !== "off" && (/\/chat\/completions$/.test(path) || /\/responses$/.test(path) || /\/v1\/messages$/.test(path))) {
+        let parsed: unknown; try { parsed = JSON.parse(rawBody.toString("utf8")); } catch { parsed = undefined; }
+        const hits = parsed === undefined ? [] : scanValue(parsed);
+        const mode = opts.outbound ?? "guard";
+        const redactHits: typeof hits = [];
+        let block: string | undefined;
+        for (const h of hits) {
+          const action = outboundAction(mode, h.class, "model_request");
+          const key = `${h.kind}:${h.hash}:${action}`;
+          if (!outboundTold.has(key)) { outboundTold.add(key); rec?.event("outbound_hit", { where: "model_request", kind: h.kind, class: h.class, hash: h.hash, action }); }
+          if (action === "block") block = `${h.kind} (${h.hash})`; else if (action === "redact") redactHits.push(h);
+        }
+        if (block) {
+          const reason = `ASP gateway: the model request was not sent: it carries ${block}. The value is not shown or recorded, only its kind and a hash.`;
+          opts.onCall?.({ tool: "model request", scope: "model.outbound", allowed: false, reason });
+          return json(res, 400, style === "openai" ? { error: { message: reason, type: "asp_outbound_scan", code: "asp_outbound_scan" } } : { type: "error", error: { type: "invalid_request_error", message: reason } });
+        }
+        if (redactHits.length) rawBody2 = Buffer.from(JSON.stringify(redactValue(parsed, redactHits)));
+      }
       // The hard stop (DK1715): once the ceiling is reached the next model call is refused here, the provider is not called, and the run log names it.
       if (opts.tokenCap !== undefined && req.method === "POST" && (/\/chat\/completions$/.test(path) || /\/responses$/.test(path) || /\/v1\/messages$/.test(path)) && tokens.input + tokens.output >= opts.tokenCap) {
         const used = tokens.input + tokens.output;
@@ -719,9 +756,9 @@ export function createGateway(opts: GatewayOptions): Gateway {
         opts.onCall?.({ tool: "model request", scope: "model.tokens", allowed: false, reason });
         return json(res, 429, style === "openai" ? { error: { message: reason, type: "asp_token_budget", code: "asp_token_budget" } } : { type: "error", error: { type: "rate_limit_error", message: reason } });
       }
-      if (req.method === "POST" && /\/chat\/completions$/.test(path) && opts.openaiUpstream) return await openaiChat(req, res, rawBody);
-      if (req.method === "POST" && /\/responses$/.test(path) && opts.openaiUpstream) return await openaiResponses(req, res, rawBody);
-      if (req.method === "POST" && /\/v1\/messages$/.test(path) && opts.anthropicUpstream) return await anthropicMessages(req, res, rawBody);
+      if (req.method === "POST" && /\/chat\/completions$/.test(path) && opts.openaiUpstream) return await openaiChat(req, res, rawBody2);
+      if (req.method === "POST" && /\/responses$/.test(path) && opts.openaiUpstream) return await openaiResponses(req, res, rawBody2);
+      if (req.method === "POST" && /\/v1\/messages$/.test(path) && opts.anthropicUpstream) return await anthropicMessages(req, res, rawBody2);
       return await passthrough(req, res, rawBody, path.includes("/messages") || path.startsWith("/v1/complete") ? "anthropic" : "openai");
     } catch (e) {
       if (!res.headersSent) json(res, 502, { error: { message: `ASP gateway: ${(e as Error).message}` } });

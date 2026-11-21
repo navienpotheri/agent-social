@@ -555,6 +555,10 @@
           "description": "Let only the named senders wake the agent: a wake by anyone else, or by no named sender, is refused and recorded (with --daily-tokens, --daily-wakes, --sender-wakes)"
         },
         {
+          "command": "asp gateway ... --outbound-scan off|record|guard|redact|block",
+          "description": "Read the arguments of every tool call and every model request for keys, card numbers and email addresses before they leave: by default a call with a key or a card is not run and a request has them masked; each hit is recorded by kind and hash, never the value"
+        },
+        {
           "command": "asp wakes [--agent <did>]",
           "description": "Who woke each agent and how much it spent, by day, from the runs made through asp gateway: wakes, tokens, wakes refused and the ceiling that refused them (--daily-tokens, --daily-wakes, --sender-wakes on asp gateway; --woken-by names the sender)."
         },

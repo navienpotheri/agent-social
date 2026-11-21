@@ -45,7 +45,7 @@
  *   asp run-log keep [<log>] | kept | fetch --id <id> | drop --id <id> | disclose --id <id> --to <did,..> --reason <why> [--upload] | open <sealed.json> [--as <did>]
  *     An optional encrypted copy of a run log on the service, and a signed disclosure of it to a court. `asp run <runtime> --keep-run-log` seals the session's log when it ends.
  *   asp serve ... --known-bad <dir>   also holds the known-bad list (docs/spec-deltas.md S54): command fingerprints an upheld report found harmful.
- *   asp gateway --contract <id> --by <agent did> (--openai-upstream <base url> | --anthropic-upstream <origin>) [--openai-key-env NAME] [--anthropic-key-env NAME] [--max-strikes n] [--token-cap n] [--approval-wait s] [--port n] [-- <command> ...] [--no-history-context]
+ *   asp gateway --contract <id> --by <agent did> (--openai-upstream <base url> | --anthropic-upstream <origin>) [--openai-key-env NAME] [--anthropic-key-env NAME] [--max-strikes n] [--token-cap n] [--outbound-scan off|record|guard|redact|block] [--approval-wait s] [--port n] [-- <command> ...] [--no-history-context]
  *     Gateway P1 (docs/gateway-design.md): runs any agent command under the contract's Mandate. The command's OPENAI_BASE_URL and
  *     ANTHROPIC_BASE_URL point at a local proxy that removes tool calls the Mandate does not allow from the model's reply before the
  *     agent sees them (streams are relayed live, each tool call held until it is judged), holds calls on gated scopes for the principal's signed
@@ -364,7 +364,7 @@ import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
-import { ApprovalPile, Budgets, budgetWarnings, DEFAULT_DAILY_TOKENS, DEFAULT_RUN_TOKENS, OPERATOR_MAX_DAILY_TOKENS, OPERATOR_MAX_RUN_TOKENS } from "@agent-social/asp-package";
+import { OUTBOUND_MODES, type OutboundMode, ApprovalPile, Budgets, budgetWarnings, DEFAULT_DAILY_TOKENS, DEFAULT_RUN_TOKENS, OPERATOR_MAX_DAILY_TOKENS, OPERATOR_MAX_RUN_TOKENS } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
 import { FleetUsage, fleetCmd } from "./fleet.ts";
@@ -629,6 +629,7 @@ const OPTIONS = {
   "openai-key-env": { type: "string" },
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
+  "outbound-scan": { type: "string" },
   "daily-tokens": { type: "string" },
   manifest: { type: "string" },
   "stop-after": { type: "string" },
@@ -3568,6 +3569,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(v["also-dir"] ? { alsoDirs: v["also-dir"].split(",").map((d) => d.trim()).filter(Boolean).map((d) => resolve(io.cwd, d)) } : {}),
     scopes: mandate.scopes, hosts: effectiveHosts, ...(fleetCeiling ? { ceiling: { label: fleetCeiling.label, removed: fleetCeiling.removed }, ...(fleetCeiling.tokensOver ? { modelBlock: fleetCeiling.tokensOver } : {}) } : {}), rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
+    // The outbound scan (DK1716): keys, card numbers and addresses in a call or a model request; guard by default.
+    ...((() => { const m = v["outbound-scan"]; if (m === undefined) return {}; if (!(OUTBOUND_MODES as readonly string[]).includes(m)) throw new UsageError(`--outbound-scan is one of ${OUTBOUND_MODES.join(", ")}`); return { outbound: m as OutboundMode }; })()),
     // The run's token ceiling (DK1715): the smallest of the run's own flag, what is left of the day, the Mandate's per-run budget and the default; never above what the operator allows. Named in the alerts and the refusal.
     ...((() => {
       const flag = v["token-cap"] ? Math.trunc(Number(v["token-cap"])) : undefined;
