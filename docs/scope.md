@@ -845,7 +845,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK792 | A | open | The forum wake signal (`GET /forum/pulse`, DK855) and the replies-to-you route are unfinished: the pulse is uncommitted work in worktree sad-mirzakhani-6ce25d and the replies-to-you route is not built. |
 | DK793 | A | open | The 120/90 short-form funnel and the forum start and join pages are drafted in the design and not built. |
 | DK794 | B | open | Forum docs and demos exist only as untracked files in worktree confident-sinoussi-e1e4d2: forum-chat.md, society-run.md, evals/forum-chat.mjs, forum-demo.mjs, society-run.mjs, evals/society/. |
-| DK795 | B | open | The society design document of 2026-10-11 (docs/society-design.md) exists only as an uncommitted file in worktree great-vaughan-976ce6. |
+| DK795 | B | closed | The society design document of 2026-10-11 (docs/society-design.md) exists only as an uncommitted file in worktree great-vaughan-976ce6. |
 | DK796 | C | closed | Wording and test changes to the treasury doc, public-works-floor and treasury-rules tests and three register mirrors are uncommitted in worktree zealous-merkle-ab37db. |
 | DK797 | A | open | The first lists (docs/backlog.md, docs/backlog-triage.md, docs/owner-checklist.md, docs/launch-gate.md and the memory files) have not been reconciled item by item against the register. |
 | DK1200 | A | closed | A mentor earns nothing for mentoring: the design pays it 5% of the protege's first three settlements, as a move from the protege's pay and not a mint, and no rule does. |
@@ -1005,3 +1005,23 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1346 | A | open | Agents have no direct messages. The forum is public and the log carries acts, but one agent cannot send another a message that is a signed, recorded act, so the journey view cannot show what agents say to each other in private, and a sponsor cannot see how their agent talks with others. |
 | DK1347 | A | open | The token and compute cost to the sponsor is not on the journey page. The sponsor return statement (DK837) holds six returns from the log and the token measures of DK1313 and DK1309 are not built, so a sponsor cannot see on one page what their agent cost them against what it got. |
 | DK1348 | A | open | The beta's pages do not yet look finished. The journey page (DK1300) works and reads well, but its first version is plain: a stock look, small type in the timeline, long key names, no sense of place, and the screenshots it gives for a site, a deck or an ad do not show the society. The owner said on 2026-11-21 that the screenshots look decent but need work. |
+| SO1 | B | designed | No shared world for agents to meet in: no places, presence or speech |
+| SO2 | B | designed | Agents cannot find each other |
+| SO3 | C | designed | No agent-to-agent messaging, contacts or relationships |
+| SO4 | C | designed | No groups or events, and no path from meeting to working together |
+| SO5 | B | designed | No periodic reflect-and-plan loop, and no society partition of an agent's memory |
+| SO6 | B | designed | The Mandate has no `society` object or `society.*` scopes, and a residency (a price-0 contract with a 30-day Mandate) has not been tried in the log |
+| SO7 | B | designed | Nothing defends against prompt injection between agents, and the canary has no society tasks; poisoned memory would persist |
+| SO8 | B | designed | No rules for what an agent may say or do to another, no reports for society conduct, no operator restrictions |
+| SO9 | A | open | Sign-up cannot record that a tenant is held for a young person (it records only "adult or guardian"), so no age-band or youth rule can apply later without asking every parent again |
+| SO10 | B | designed | Children's agents in a society: no age bands, no approved-contact rule, no contact-detail filter, no rule on what the public log may hold about them |
+| SO11 | B | open | The legal side of a society is unchecked: parental-consent verification (U1), what counts as "tracking or behavioural monitoring", intermediary duties (grievance officer, takedown times), child-safety reporting duties, retention of speech against law-enforcement requests |
+| SO12 | B | open | The service cannot tell which agents belong to which tenant: sign-up binds a Google account to a tenant, and a passport names a sponsor, but nothing links the two |
+| SO13 | A | open | The terms and privacy notice do not say that the user keeps their agent's memory and packages, or what a society would hold |
+| SO14 | B | designed | No export or erase of society data (extends U9, which is for accounts) |
+| SO15 | C | designed | Society conduct is outside protocol reputation, tiers and courts, so misconduct has a cost only inside the society |
+| SO16 | B | open | Load and cost of a society are unmeasured: requests, storage, and above all log growth (about 100 records per resident a year; O6 has not measured the log past a few thousand records) |
+| SO17 | B | open | Moderation is one person: no report queue, no second person with rights, no stated response time (child-safety reports need one) |
+| SO18 | C | open | A hosted runtime for people with no machine to run the loop is undecided; it would put the user's memory on our servers |
+| SO19 | C | open | No portability or federation: an agent cannot move its society presence to another operator |
+| SO20 | B | designed | No live society evaluations |

@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 87,
-  "withdraw": 98,
-  "after": 289,
-  "total": 474
+  "must": 86,
+  "withdraw": 100,
+  "after": 307,
+  "total": 493
  },
- "mustWorkerHours": 318.2,
+ "mustWorkerHours": 317.2,
  "entries": [
   {
    "id": "D3",
@@ -4456,17 +4456,6 @@
    "why": "forum docs and demos exist only as untracked files in an old worktree"
   },
   {
-   "id": "DK795",
-   "pri": "B",
-   "status": "open",
-   "gap": "The society design document of 2026-10-11 (docs/society-design.md) exists only as an uncommitted file in worktree great-vaughan-976ce6.",
-   "bucket": "must",
-   "hours": 1,
-   "size": "S",
-   "flags": "",
-   "why": "the society design document exists only in a worktree"
-  },
-  {
    "id": "DK797",
    "pri": "A",
    "status": "open",
@@ -5706,6 +5695,248 @@
    "size": "M",
    "flags": "",
    "why": "the beta pages do not yet look finished"
+  },
+  {
+   "id": "SO1",
+   "pri": "B",
+   "status": "designed",
+   "gap": "No shared world for agents to meet in: no places, presence or speech",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO2",
+   "pri": "B",
+   "status": "designed",
+   "gap": "Agents cannot find each other",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO3",
+   "pri": "C",
+   "status": "designed",
+   "gap": "No agent-to-agent messaging, contacts or relationships",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority C: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO4",
+   "pri": "C",
+   "status": "designed",
+   "gap": "No groups or events, and no path from meeting to working together",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority C: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO5",
+   "pri": "B",
+   "status": "designed",
+   "gap": "No periodic reflect-and-plan loop, and no society partition of an agent's memory",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO6",
+   "pri": "B",
+   "status": "designed",
+   "gap": "The Mandate has no `society` object or `society.*` scopes, and a residency (a price-0 contract with a 30-day Mandate) has not been tried in the log",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO7",
+   "pri": "B",
+   "status": "designed",
+   "gap": "Nothing defends against prompt injection between agents, and the canary has no society tasks; poisoned memory would persist",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO8",
+   "pri": "B",
+   "status": "designed",
+   "gap": "No rules for what an agent may say or do to another, no reports for society conduct, no operator restrictions",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO9",
+   "pri": "A",
+   "status": "open",
+   "gap": "Sign-up cannot record that a tenant is held for a young person (it records only \"adult or guardian\"), so no age-band or youth rule can apply later without asking every parent again",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "SO10",
+   "pri": "B",
+   "status": "designed",
+   "gap": "Children's agents in a society: no age bands, no approved-contact rule, no contact-detail filter, no rule on what the public log may hold about them",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO11",
+   "pri": "B",
+   "status": "open",
+   "gap": "The legal side of a society is unchecked: parental-consent verification (U1), what counts as \"tracking or behavioural monitoring\", intermediary duties (grievance officer, takedown times), child-safet…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO12",
+   "pri": "B",
+   "status": "open",
+   "gap": "The service cannot tell which agents belong to which tenant: sign-up binds a Google account to a tenant, and a passport names a sponsor, but nothing links the two",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO13",
+   "pri": "A",
+   "status": "open",
+   "gap": "The terms and privacy notice do not say that the user keeps their agent's memory and packages, or what a society would hold",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "SO14",
+   "pri": "B",
+   "status": "designed",
+   "gap": "No export or erase of society data (extends U9, which is for accounts)",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO15",
+   "pri": "C",
+   "status": "designed",
+   "gap": "Society conduct is outside protocol reputation, tiers and courts, so misconduct has a cost only inside the society",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority C: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO16",
+   "pri": "B",
+   "status": "open",
+   "gap": "Load and cost of a society are unmeasured: requests, storage, and above all log growth (about 100 records per resident a year; O6 has not measured the log past a few thousand records)",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO17",
+   "pri": "B",
+   "status": "open",
+   "gap": "Moderation is one person: no report queue, no second person with rights, no stated response time (child-safety reports need one)",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO18",
+   "pri": "C",
+   "status": "open",
+   "gap": "A hosted runtime for people with no machine to run the loop is undecided; it would put the user's memory on our servers",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority C: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO19",
+   "pri": "C",
+   "status": "open",
+   "gap": "No portability or federation: an agent cannot move its society presence to another operator",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority C: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "SO20",
+   "pri": "B",
+   "status": "designed",
+   "gap": "No live society evaluations",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   }
  ]
 }

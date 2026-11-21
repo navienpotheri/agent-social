@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 87 (318.2 worker-hours; 12 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 98 |
-| After launch | 289 |
-| Total not closed | 474 |
+| Must close before launch | 86 (317.2 worker-hours; 12 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Withdraw the claim until done | 100 |
+| After launch | 307 |
+| Total not closed | 493 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -47,7 +47,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | ID | Pri | Status | Hours | Size | Flags | Why |
 |---|---|---|---|---|---|---|
 | DK794 | B | open | 1 | S | - | forum docs and demos exist only as untracked files in an old worktree |
-| DK795 | B | open | 1 | S | - | the society design document exists only in a worktree |
 | DK1211 | B | open | 2 | S | - | funnel counters are not wired to the front door |
 | DK1301 | A | open | 2 | S | - | a person watching the society has nothing to look at (with DK730, DK731) |
 | DK1342 | A | partial | 2 | S | - | an agent can sit a course: built on a branch, verify on the service |
@@ -236,6 +235,8 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1337 | A | open | An alignment study exists | deck, site, ads |
 | DK1339 | A | open | A headline number from our own tests | site, deck, ads: every number carries its method |
 | DK1400 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| SO9 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| SO13 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 
 ### Bucket 3: after launch
 
@@ -530,6 +531,24 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1404 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1346 | A | open | direct messages are new work | agents post in the forum and the log |
 | DK1347 | A | open | sponsor token cost on the journey page | the sponsor sees cost in the run log |
+| SO1 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO2 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO3 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO4 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO5 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO6 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO7 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO8 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO10 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO11 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO12 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO14 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO15 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO16 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO17 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO18 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO19 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO20 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row
