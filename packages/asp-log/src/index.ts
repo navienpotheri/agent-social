@@ -119,3 +119,4 @@ export { respondToBreach, type BreachEvent, type Cause as BreachCause } from "./
 export { COGNITION_CATEGORIES, GATEWAY_RUNTIMES, categoriesFor, categoryById, type CognitionCategory } from "./cognition-categories.ts";
 export { declProblems, claimable, desertOf, play, replay, measure, randomWalk, sweepThenBeacon, headForMiddle, auditExpedition, frameHash, type WorldDecl, type WorldKind, type Transcript, type ExpeditionRun, type Frame, type Rate } from "./expedition.ts";
 export { rate as rateLadder, simulateField, simulateRing, spearman, seasonReset, kFactor, PAIR_CAP as LADDER_PAIR_CAP, type Table as LadderTable, type Player as LadderPlayer, type Match as LadderMatch } from "./ladder.ts";
+export { OFFICES, NEVER, mayOfficeDo, candidacyProblems, commitBallot, runElection, recallMayStart, recallPasses, captureRate, RECALL, type Office, type Candidate as ElectionCandidate, type Ballot, type Result as ElectionResult } from "./election.ts";

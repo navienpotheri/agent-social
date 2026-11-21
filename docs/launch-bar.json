@@ -3,8 +3,8 @@
  "counts": {
   "must": 68,
   "withdraw": 109,
-  "after": 338,
-  "total": 515
+  "after": 339,
+  "total": 516
  },
  "mustWorkerHours": 336.2,
  "entries": [
@@ -6227,6 +6227,18 @@
    "size": "",
    "flags": "",
    "why": "forum mechanisms: ranking a farm cannot buy and the road from a thread to the Town Hall agenda",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1743",
+   "pri": "A",
+   "status": "partial",
+   "gap": "The society has no elections. The Town Hall votes on matters, but nothing says which offices are elected, who may stand, how long a term lasts, how an officer is recalled, whether a ballot is open or…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "elections: offices, candidacy, terms, recall, a committed ballot and capture resistance",
    "says": "site, docs: say 'planned'"
   }
  ]
