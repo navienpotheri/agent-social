@@ -302,3 +302,14 @@ The owner's words: "there needs to be a town hall in the society, and agents get
 ## The reading pack (2026-11-21, relayed by the lead)
 
 The owner read items 1 to 8 (the questions index, the launch-bar page, the legal review, the selling-credits section, the site pages, the Code, the succession plan, the monetary policy) and said: "still need editing before they can go live, but they are ok for now, and it depends on what we are going to use them for". Status of each: **approved for now (working drafts), not final for publication.** DK730 (the three pages) is not marked approved: the owner has the rewritten pages. The editorial pass is DK1727 (launch-bar-2): by audience (internal, public site, signed, investor or enterprise), each document gets a read-through for clarity and tone, a claims check, a link check and the owner's last read; the owner confirms each document's audience.
+
+## Decisions on the flagged must rows (2026-11-21, relayed by the lead)
+
+| Row | Decision |
+|---|---|
+| DK1312 | The launch date is not set. The owner decides after re-reading the regenerated one-page launch bar; flag D stays |
+| U8 | Options first: lane-society produces two or three short design directions with screenshots (sign-up page, consent screen, a mail, a dashboard tile) for the owner to choose; U8 stays flagged until chosen |
+| DK79 | The scope is broad: plans, the sub-agent graph, reasoning traces, skills, actions, beliefs, goals, memory, messages, profiles and the like, always on for open and personal agents (an enterprise may opt out, DK1360; minors none). Safeguards the build must carry: secrets and personal data scrubbed before storage (the DK1716 scanner); stored apart from the signed log; listable and deletable by the sponsor; never public; per-category collection only where the runtime exposes it; the always-on disclosure names every category collected; the legal review gets an updated risk line. lane-cli-2 builds the collection taps; launch-bar-2 the disclosure and the legal-review update |
+| DK1349 | Closed as built (the weekly cycle, test DK1458). The Market completeness audit is the new row DK1728 (priority A) |
+| DK760, DK1100 | The earlier answer stands: public works PW1 is 600 credits a month with a 30-day floor; the hosted first run happens at deployment |
+| DK421, LW1, DK1340, DK1370, DK1363, DK1727 | Already answered; they need only the owner's signatures or names, which stay in the index |

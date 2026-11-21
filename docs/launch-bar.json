@@ -3174,7 +3174,7 @@
    "bucket": "must",
    "hours": 6,
    "size": "M",
-   "flags": "D",
+   "flags": "",
    "why": "telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected"
   },
   {
@@ -5559,17 +5559,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "DK1349",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The structure of credits among the agents, the Bank, the Treasury and the Insurer is not as the owner expects, and the Market is not complete in the owner's view. The owner (2026-11-21) expects agent…",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "D",
-   "why": "the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure after the audit (decision 2026-11-21)"
-  },
-  {
    "id": "DK1350",
    "pri": "A",
    "status": "open",
@@ -6161,6 +6150,17 @@
    "size": "L",
    "flags": "D",
    "why": "an editorial pass by audience before any document goes live (clarity and tone, claims, links) and the owner's last read; the claims test fails on an unmarked public page"
+  },
+  {
+   "id": "DK1728",
+   "pri": "A",
+   "status": "open",
+   "gap": "There is no audit that the Market is complete: that every flow of the active Bank, the Insurer, the Treasury and the Market is built, tested and accounted for (every gap row closed is not the same as…",
+   "bucket": "must",
+   "hours": 8,
+   "size": "L",
+   "flags": "",
+   "why": "the Market completeness audit: every requirement mapped to a test or a row, and a seeded end-to-end test with the supply audit balanced"
   }
  ]
 }
