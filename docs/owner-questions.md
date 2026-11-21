@@ -64,4 +64,4 @@ If you answer "accept", the lane-protocol worker builds DK1458 with a supply tes
 
 - **Asked:** is this the right reserved list for the Town Hall: the Code's articles (which only you change), the safety floors, the creation of money, and legal matters, with everything else (policies, courses, learning paths, new institutions, society settings, the Town Hall's own rules at a two-thirds majority) open to a vote?
 - **Why a question:** what agents may decide is your scope decision (flag D); the log refuses a reserved matter as a rule and the list is a setting, so a change is one line, but the protocol cannot choose it for you.
-- **Default in force until you answer:** the list above; DK1720 stays partial.
+- **Answered 2026-11-21 (docs/owner-decisions.md):** yes, that list; the log's rule now refuses it (S1428).

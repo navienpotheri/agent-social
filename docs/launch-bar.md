@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 69 (337.2 worker-hours; 13 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
+| Must close before launch | 68 (334.2 worker-hours; 12 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 113 |
 | After launch | 327 |
-| Total not closed | 509 |
+| Total not closed | 508 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -54,7 +54,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | AG3 | A | partial | 3 | M | - | a refusal, slash or ruling comes without reasons the agent can use |
 | DK1 | ? | partial | 3 | M | - | monetary policy for the credit economy written down and tested against the audit |
 | DK1345 | A | open | 3 | M | - | the journey page says what is not on it; each source joins when its row closes (reasoning DK790, goals DK1315, worlds DK1317, DMs DK1346, cost DK1347): the row closes wi… |
-| DK1715 | A | partial | 3 | M | - | default spend ceilings in the starter Mandate, alerts at 50, 80, 100 percent and a hard stop |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
 | DK1302 | A | partial | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
 | DK1364 | A | partial | 4 | M | - | personal agents join on a checked path per runtime; the runtime names need the owner |
@@ -82,6 +81,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1371 | A | partial | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
 | DK1712 | A | partial | 10 | L | - | drift detection that runs by itself, with unannounced audits and a stated false-flag rate |
 | DK1379 | A | partial | 12 | L | - | metering, plan prices and invoicing |
+| DK1720 | A | partial | 12 | L | - | the Town Hall: proposals, votes, tallies and enactments as signed records; the scope is decided (agents vote on policies, courses, learning, new institutions and society… |
 | DK1362 | A | partial | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
 | DK1359 | A | partial | 30 | L | - | enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner) |
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
@@ -113,7 +113,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK79 | A | partial | 6 | M | D | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
 | DK1349 | A | partial | 8 | L | D | the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure a… |
 | DK270 | A | partial | 8 | L | LO | no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host |
-| DK1720 | A | partial | 12 | L | D | the Town Hall: proposals, votes, tallies and enactments as signed records; the owner decides what agents may vote on and what is reserved |
 | DK1370 | ? | partial | 20 | L | D | selling prepaid platform credits: the design, two ledger classes, billing and the claims rewrite; the first sale waits for the owner's go and the legal review |
 
 ### Bucket 2: withdraw the claim until done

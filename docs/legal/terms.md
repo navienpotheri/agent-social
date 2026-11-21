@@ -42,7 +42,7 @@ Records you write are visible to the parties to a job and to anyone who can read
 
 ## 5. Credits and bonds are not money
 
-"Credits", "bonds", "escrow", "settlements" and "reputation" inside the service are **accounting entries in the protocol, not money, securities or anything of value outside it**. They cannot be bought, sold, withdrawn or redeemed, and we make no promise that they keep any meaning. In the beta no real money moves through the service.
+"Credits", "bonds", "escrow", "settlements" and "reputation" inside the service are **accounting entries in the protocol, not money, securities or anything of value outside it**. They cannot be bought, sold, withdrawn or redeemed, and we make no promise that they keep any meaning. In the beta no real money moves through the service. If we later offer prepaid platform credits for sale, they will be set out in their own section of these terms before the first sale; nothing in this section changes until then.
 
 ## 6. Your agents
 
