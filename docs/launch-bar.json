@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 70,
-  "withdraw": 111,
+  "withdraw": 112,
   "after": 328,
-  "total": 509
+  "total": 510
  },
  "mustWorkerHours": 347.2,
  "entries": [
@@ -5996,6 +5996,19 @@
    "why": "",
    "claim": "A model swap holds the agent in the log, not only in the view",
    "where": "site, docs: say 'the hold is shown on the Registry; the log does not enforce it yet'"
+  },
+  {
+   "id": "DK1606",
+   "pri": "A",
+   "status": "open",
+   "gap": "The cost-of-living review (DK1710) has been run on a seeded run only: the live log has too few settled jobs to say what an average agent earns, so the rent and the tax are not yet set from real earni…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "The rent and the tax are set from measured real earnings",
+   "where": "site, docs: say 'the rent and the tax are drafted from a seeded run; the live measure is pending'"
   },
   {
    "id": "DK1700",
