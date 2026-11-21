@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 65,
-  "withdraw": 106,
+  "withdraw": 105,
   "after": 336,
-  "total": 507
+  "total": 506
  },
  "mustWorkerHours": 308.2,
  "entries": [
@@ -2379,19 +2379,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "JO3",
-   "pri": "?",
-   "status": "partial",
-   "gap": "A job's data is not protected: what a poster shares with a performer has no handling rule, no deletion at the end, no confidentiality and no secrets rule",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "A job's data is deleted at settlement and has a handling term",
-   "where": "terms, site"
   },
   {
    "id": "JO4",

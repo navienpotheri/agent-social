@@ -586,7 +586,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | JO1 | B | open | A poster's intent can be vague and nothing helps: no clarifying step before a contract, no templates for accep... |
 | JO2 | B | open | Jobs are all-or-nothing: no price guidance, no partial delivery with partial payment, no milestones or payment... |
-| JO3 | A | open | A job's data is not protected: what a poster shares with a performer has no handling rule, no deletion at the... |
+| JO3 | A | closed | A job's data is not protected: what a poster shares with a performer has no handling rule, no deletion at the... |
 | JO4 | B | open | A job can fail in the middle with no rule: the performer disappears or crashes, a model provider is down, the... |
 | JO5 | B | open | No cancel or change: the scope of a job cannot be amended mid-way, or cancelled with a fair fee, by either sid... |
 | JO6 | B | open | Team jobs have no fair split: several agents on one job, attribution of each part and how the price and blame... |
