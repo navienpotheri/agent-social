@@ -386,7 +386,7 @@ import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenari
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { INSURER_DID, societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
-import { REGISTRAR_DID, type DoorLine, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, FunnelTap, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
+import { REGISTRAR_DID, type DoorLine, telemetryHash, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, FunnelTap, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -691,6 +691,7 @@ const OPTIONS = {
   "tls-cert": { type: "string" },
   "tls-key": { type: "string" },
   "rate-limit": { type: "string" },
+  "data-sharing": { type: "string" },
   "write-limit": { type: "string" },
   "address-limit": { type: "string" },
   "max-in-flight": { type: "string" },
@@ -2311,8 +2312,25 @@ async function captureTelemetry(env: Record<string, string | undefined>, items: 
   if (!service || !token) return [];
   const base = service.endsWith("/") ? service : service + "/";
   const out: { uri: string; sha256: string }[] = [];
+  // An organisation that chose to keep its data private (DK1360): the text never leaves the machine; its hash goes in the Action and the text is kept in the ASP home.
+  let priv = false;
+  try {
+    const st = await fetchRetry(new URL("telemetry", base), { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
+    priv = ((await st.json().catch(() => undefined)) as { sharing?: string } | undefined)?.sharing === "private";
+  } catch { /* an unreachable service sends nothing */ }
   for (const it of items) {
     if (!it.content) continue;
+    if (priv) {
+      try {
+        const text = it.content.slice(-200_000);
+        const hash = telemetryHash(text);
+        const dir = join(aspHome(env.ASP_HOME), "telemetry-private");
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(join(dir, `${hash.slice("sha256:".length)}.txt`), text, { mode: 0o600 });
+        out.push({ uri: `asp://telemetry/${it.kind}`, sha256: hash });
+      } catch { /* best effort */ }
+      continue;
+    }
     try {
       const res = await fetchRetry(new URL("telemetry/content", base), { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ ...it, content: it.content.slice(-200_000) }) });
       const j = (await res.json().catch(() => undefined)) as { ok?: boolean; hash?: string } | undefined;
@@ -2411,12 +2429,15 @@ async function serveToken(v: Values, need: Need, io: Io): Promise<number> {
   const byteQuotaMb = v["byte-quota-mb"] === undefined ? undefined : Number(v["byte-quota-mb"]);
   if (recordQuota !== undefined && !(Number.isInteger(recordQuota) && recordQuota >= 0)) throw new UsageError("--record-quota must be a whole number, 0 or more (0 for no limit)");
   if (byteQuotaMb !== undefined && !(byteQuotaMb >= 0)) throw new UsageError("--byte-quota-mb must be a number, 0 or more (0 for no limit)");
+  const sharing = v["data-sharing"];
+  if (sharing !== undefined && sharing !== "share" && sharing !== "private") throw new UsageError("--data-sharing is share or private");
   tenants.push({
-    name, role, tokenSha256: hashToken(token), ...(quotaMb ? { quotaBytes: Math.round(quotaMb * 1024 * 1024) } : {}),
+    name, role, tokenSha256: hashToken(token), ...(sharing === "private" ? { dataSharing: "private" as const } : {}), ...(quotaMb ? { quotaBytes: Math.round(quotaMb * 1024 * 1024) } : {}),
     ...(recordQuota !== undefined ? { recordQuota } : {}), ...(byteQuotaMb !== undefined ? { byteQuota: Math.round(byteQuotaMb * 1024 * 1024) } : {}),
     ...(v["rate-limit"] !== undefined ? { rateLimitPerMinute: Math.trunc(Number(v["rate-limit"])) } : {}), createdAt: now(),
   });
   writeFileSync(file, JSON.stringify(tenants, null, 2) + "\n");
+  if (sharing === "private") io.out("data sharing: private (the service stores none of this tenant's trajectories, messages or free text; only hashes go in the signed log; its agents are not part of any study)");
   io.out(`token for ${name} (${role}), shown once, only its hash is stored in ${file}:`);
   io.out(token);
   return 0;

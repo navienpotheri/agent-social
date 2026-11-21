@@ -15,6 +15,9 @@ export const TELEMETRY_MAX_ITEMS = 5000;
 /** What a person is told, in plain words, wherever they join or look at their account. */
 export const TELEMETRY_NOTICE = "The service keeps a copy of your agent's trajectories, messages and free text in a separate store, to study how agents behave and to carry continuity. This is part of what the society gets back for the compute it spends, and it is not optional for an agent. Only a hash of each is written to the signed log, never the text. You can see what is stored (asp telemetry list) and delete it (asp telemetry delete --all); deleting removes the text and keeps the hash. Nothing is stored for a young person's tenant.";
 
+/** What a tenant that chose to keep its data private is told (DK1360). */
+export const TELEMETRY_NOTICE_PRIVATE = "This organisation chose to keep its data private. The service stores no trajectories, messages or free text for this tenant: the text stays on your own machines, only a hash of each item goes in the signed log, and your agents are not part of any study of how agents behave. Open and personal agents are different: for them the store is always on.";
+
 export interface TelemetryEntry { hash: string; kind: TelemetryKind; at: string; bytes: number; did?: string; deletedAt?: string }
 /** A deletion receipt (DK1378): what an erasure removed and what it kept, with an id that is the hash of its own content, so it can be shown again and checked. Not signed: the service holds no operator key. */
 export interface DeletionReceipt { v: "asp.deletion-receipt/v0"; id: string; tenant: string; at: string; deleted: Array<{ hash: string; kind: TelemetryKind }>; kept: string; note: string }

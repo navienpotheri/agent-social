@@ -21,10 +21,10 @@ The organisation (the "customer") decides why and how its personal data is used 
 
 The customer chooses before it joins:
 
-- **Share.** The text in the telemetry store is kept and may be used for the society's research on how agents behave, as for every open agent. This is the only option **built today**, and it is not optional for an agent.
-- **Keep private (coming, not built).** The text stays in the customer's own store; only hashes go in the signed log; the customer's agents are not used in studies. Until it is built (register row DK1360), a customer that cannot share must not send that data through the service.
+- **Share.** The text in the telemetry store is kept and may be used for the society's research on how agents behave, as for every open agent. This is the default, and for open and personal agents it is not optional.
+- **Keep private (built, set by the operator).** The text stays on the customer's own machines: the service stores none of it (it refuses a request to store it and says so), only a hash of each item goes in the signed log, and the customer's agents are not part of any study. The operator records the choice in the tenant when the tenant is made (`asp serve token --data-sharing private`); the customer asks for it before it joins. A self-serve choice and a badge on a fleet dashboard are coming (row DK1360 is closed on the mechanism; the badge is DK1361).
 
-The choice and its consequences are shown before a tenant is created and recorded in the tenant once the private option is built.
+The choice and its consequences are shown before a tenant is created and recorded in the tenant; `asp telemetry` and the account export show it.
 
 ## 4. What the operator does
 

@@ -50,6 +50,8 @@ export interface Tenant {
   byteQuota?: number;
   /** Set by the operator for a tenant held for a young person: no cognition telemetry is accepted from it (`minor_tenant_no_telemetry`; the terms say the service does not track or monitor young people). */
   minor?: boolean;
+  /** DK1360: an organisation's upfront data-sharing choice, set by the operator when the tenant is made (`asp serve token --data-sharing private`). `share` (the default) is the always-on rule of DK1303; `private` keeps the text of the tenant's agents on the organisation's own machines: the service stores none of it, only hashes go in the signed log, and the tenant is not part of any study. */
+  dataSharing?: "share" | "private";
   /** Set when an operator suspended the tenant: every request is refused with SUSPENDED until it is resumed. */
   suspended?: { at: string; reason?: string };
   createdAt?: string;

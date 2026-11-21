@@ -12,7 +12,7 @@
  * Credits are accounting entries, not money; nothing here changes a standing.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { TELEMETRY_NOTICE, type TelemetryStore, type Tenant } from "@agent-social/asp-log";
+import { TELEMETRY_NOTICE, type TelemetryStore, type Tenant, TELEMETRY_NOTICE_PRIVATE } from "@agent-social/asp-log";
 
 export interface TelemetryRoutesOptions { store: TelemetryStore; now: () => string }
 
@@ -34,10 +34,13 @@ export function telemetryRoutes(o: TelemetryRoutesOptions) {
     try {
       if (req.method === "GET" && url.pathname === "/telemetry") {
         const entries = o.store.list(t.name);
-        return send(200, { ok: true, on: !t.minor, minor: !!t.minor, stored: entries.filter((e) => !e.deletedAt).length, deleted: entries.filter((e) => e.deletedAt).length, notice: TELEMETRY_NOTICE, say: t.minor ? "Nothing is stored for this tenant: it is held for a young person." : "Telemetry is ON. It is not optional for an agent; you can list what is stored and delete it (asp telemetry delete --all)." });
+        const priv = t.dataSharing === "private";
+        if (priv) return send(200, { ok: true, on: false, sharing: "private", minor: !!t.minor, stored: 0, deleted: 0, notice: TELEMETRY_NOTICE_PRIVATE, say: "Your organisation chose to keep its data private: nothing is stored here for your agents; the text stays on your machines and only hashes go in the signed log." });
+        return send(200, { ok: true, sharing: "share", on: !t.minor, minor: !!t.minor, stored: entries.filter((e) => !e.deletedAt).length, deleted: entries.filter((e) => e.deletedAt).length, notice: TELEMETRY_NOTICE, say: t.minor ? "Nothing is stored for this tenant: it is held for a young person." : "Telemetry is ON. It is not optional for an agent; you can list what is stored and delete it (asp telemetry delete --all)." });
       }
       if (req.method === "POST" && (url.pathname === "/telemetry/opt-out" || url.pathname === "/telemetry/opt-in")) return fail(410, "TELEMETRY_NOT_OPTIONAL", "telemetry is not optional for an agent (owner decision, DK1303): there is no off switch; you can list what is stored and delete it with asp telemetry delete --all");
       if (req.method === "POST" && url.pathname === "/telemetry/content") {
+        if (t.dataSharing === "private") return fail(409, "private_tenant_keep_text_local", "this organisation chose to keep its data private: the service stores none of it. Keep the text on your own machine and put only its hash in the log (the gateway and `asp run` do this)");
         const b = await readBody(req);
         const r = o.store.put(t.name, b.kind, b.content, { ...(t.minor ? { minor: true } : {}), ...(typeof b.did === "string" ? { did: b.did.slice(0, 200) } : {}), at: o.now() });
         return r.ok ? send(r.stored ? 201 : 200, { ok: true, hash: r.hash, stored: r.stored }) : fail(r.status, r.code, r.message);

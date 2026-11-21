@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 71,
+  "must": 70,
   "withdraw": 109,
   "after": 322,
-  "total": 502
+  "total": 501
  },
- "mustWorkerHours": 331.2,
+ "mustWorkerHours": 323.2,
  "entries": [
   {
    "id": "D3",
@@ -5780,17 +5780,6 @@
    "size": "L",
    "flags": "",
    "why": "enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner)"
-  },
-  {
-   "id": "DK1360",
-   "pri": "?",
-   "status": "partial",
-   "gap": "An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no.",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "the enterprise data-sharing choice, shown before an enterprise joins"
   },
   {
    "id": "DK1362",

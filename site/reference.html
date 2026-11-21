@@ -604,8 +604,8 @@ asp dashboard [--port n]
 
 asp serve --db &lt;postgres-url|local:dir&gt; --tokens &lt;file&gt;
     Run the log service (add --signup, --packages, --runlogs, --commons, --known-bad, TLS and Google options)
-asp serve token --tenant &lt;name&gt;
-    Make a tenant token (hash stored, token shown once)
+asp serve token --tenant &lt;name&gt; [--data-sharing share|private]
+    Make a tenant token (hash stored, token shown once); `--data-sharing private` records an organisation's upfront choice to keep its data private (DK1360): the service stores none of its trajectories or text, only hashes go in the log, and its agents are not part of any study
 asp serve signups | signup-close | signup-open | signup-cap
     See sign-up status, close or open sign-up, set the daily cap
 asp serve raise-limits --tokens &lt;file&gt; --rate-limit &lt;n&gt;

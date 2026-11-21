@@ -66,7 +66,6 @@ export const MUST: Record<string, Must> = {
   DK1358: [8, "", "the related-party track record and the enterprise's choice of association with the society (owner: enterprise agents have standing)"],
   DK1601: [12, "D", "the three approved pages (DK1348, DK1361, DK1367) were approved for now; a second design pass after the owner lists what is missing"],
   DK1359: [30, "", "enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner)"],
-  DK1360: [8, "", "the enterprise data-sharing choice, shown before an enterprise joins"],
   DK1361: [14, "", "the fleet dashboard with caps and a freeze switch"],
   DK1362: [16, "", "the 10,000-agent load test, limits by plan and a batch route"],
   DK1363: [6, "D", "plans and the enterprise page; the owner sets the numbers, pilots are free in the beta"],

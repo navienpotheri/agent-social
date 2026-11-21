@@ -952,8 +952,8 @@
           "description": "Run the log service (add --signup, --packages, --runlogs, --commons, --known-bad, TLS and Google options)"
         },
         {
-          "command": "asp serve token --tenant <name>",
-          "description": "Make a tenant token (hash stored, token shown once)"
+          "command": "asp serve token --tenant <name> [--data-sharing share|private]",
+          "description": "Make a tenant token (hash stored, token shown once); `--data-sharing private` records an organisation's upfront choice to keep its data private (DK1360): the service stores none of its trajectories or text, only hashes go in the log, and its agents are not part of any study"
         },
         {
           "command": "asp serve signups | signup-close | signup-open | signup-cap",
