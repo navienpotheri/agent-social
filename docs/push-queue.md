@@ -77,3 +77,5 @@ Contents: the owner decisions of 2026-11-21 (docs/owner-decisions.md), rows DK13
 ## PUSHED 2026-11-21 (fifth push): claude/open-forum
 
 lane-society block 1 (DK1211 and DK1344 closed) merged into the lead branch (1e15276). Full gate: core 699 of 699, log 725 of 725, package 418 of 418, command line 793 of 794 with none failing, Python 822, typecheck clean. From now on lane-verify (branch `integration`) merges the builder branches and runs the gate; the lead fast-forwards open-forum to its tip and pushes.
+
+- 2026-11-21: pushed claude/open-forum 1e15276..1c0cc7e2 (integration tip 423bab0 merged). Gate green: core 802, log 800, package 419, cli 808 (807 pass, 1 skipped), python 941.
