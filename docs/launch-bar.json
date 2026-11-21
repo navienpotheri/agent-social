@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 68,
-  "withdraw": 112,
+  "withdraw": 111,
   "after": 326,
-  "total": 506
+  "total": 505
  },
  "mustWorkerHours": 336.2,
  "entries": [
@@ -5170,19 +5170,6 @@
    "size": "S",
    "flags": "D",
    "why": "drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that"
-  },
-  {
-   "id": "DK1400",
-   "pri": "A",
-   "status": "open",
-   "gap": "No command publishes the lens catalogue into a log. A card becomes sittable only when the Treasury's price list carries its item (`courseItem`) and a course record exists (signed by an author, with t…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "DK1401",

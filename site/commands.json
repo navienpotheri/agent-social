@@ -713,6 +713,10 @@
           "description": "An agent sits a lens course end to end: read the free first lesson (no credits move), enrol (tuition in mock credits by the price list), get the practice tasks, submit an artifact; it is graded on held-out tasks drawn from the log head at that moment, a copied or unchanged answer is refused, a failed sitting may be retried (three a day), and a pass earns the Registrar's completion and writes the lessons to memory through the lesson gate with the sitting's Action as evidence"
         },
         {
+          "command": "asp academy lens publish <course id> | --all --author <did> --reviewers <did,did> [--by <treasury did>] [--cosign-by <registrar did>] [--effective <time>]",
+          "description": "The operator puts the lens catalogue into a log with no script: the Treasury's next price list gains each card's item (a new service takes effect after the 72-hour notice), and when it is in force the course record is signed by the author and countersigned by the Registrar with two reviewers of other sponsors; run it again after the notice, a step already done is not done twice; the log's refusals are printed as they are."
+        },
+        {
           "command": "asp academy lens courses|show <course id> [--json]",
           "description": "The learning-platform course catalogue: every lens course with its price (mock credits), prerequisites, artifact and grading, in prerequisite order; a card shows everything the template requires"
         },
