@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 70,
-  "withdraw": 109,
-  "after": 322,
-  "total": 501
+  "must": 66,
+  "withdraw": 108,
+  "after": 323,
+  "total": 497
  },
- "mustWorkerHours": 323.2,
+ "mustWorkerHours": 305.2,
  "entries": [
   {
    "id": "D3",
@@ -613,11 +613,12 @@
    "pri": "A",
    "status": "partial",
    "gap": "The beta's court is the operator's (S97): tenants cannot seat jurors, the operator seats three and rules with keys held on its own machine, and the service accepts no ruling while no panel can be dra…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "D",
-   "why": "disclose that the operator seats and rules, with a published appeal promise"
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "community jurors need real jurors and live testing; the launch need (the disclosure and an appeal) is met",
+   "says": "the operator seats the Courts during the beta, and a party may ask the owner to review a ruling within 14 days (terms, site, README)"
   },
   {
    "id": "M3",
@@ -1984,7 +1985,7 @@
   {
    "id": "GV6",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restore of the whole city from backup, no plan when a model provider changes terms or goes down",
    "bucket": "must",
    "hours": 2,
@@ -2031,7 +2032,7 @@
   {
    "id": "DK421",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The operator's succession is a paragraph, not a plan the owner has chosen and signed (who holds the keys and acts if the founder is unavailable, and for how long), and there is no path by which rule-…",
    "bucket": "must",
    "hours": 1,
@@ -2353,17 +2354,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "US4",
-   "pri": "A",
-   "status": "open",
-   "gap": "A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path (see the insurance design)",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "O",
-   "why": "a person who is harmed or confused needs a human route (address, 48 hours to a first reply)"
   },
   {
    "id": "US5",
@@ -5782,17 +5772,6 @@
    "why": "enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner)"
   },
   {
-   "id": "DK1360",
-   "pri": "?",
-   "status": "partial",
-   "gap": "An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no.",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "the enterprise data-sharing choice, shown before an enterprise joins"
-  },
-  {
    "id": "DK1362",
    "pri": "A",
    "status": "partial",
@@ -5977,11 +5956,13 @@
    "pri": "A",
    "status": "partial",
    "gap": "An enterprise that leaves cannot take its data and agents with it: no offboarding or migration path.",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
    "flags": "",
-   "why": "offboarding and export"
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "DK1385",
@@ -6021,19 +6002,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "DK1475",
-   "pri": "A",
-   "status": "open",
-   "gap": "The drip farm is invisible to the job graph: rings of single hops occur by chance among honest sponsors, so only a signal that is not structure can tell them apart (when the hops and the cover work w…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "DK1602",
    "pri": "A",
    "status": "open",
@@ -6045,19 +6013,6 @@
    "why": "",
    "claim": "The cost to the sponsor on the journey was checked on a real model agent",
    "where": "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"
-  },
-  {
-   "id": "DK1650",
-   "pri": "A",
-   "status": "open",
-   "gap": "The usage routes (`GET /usage`, `GET /usage/statements`, DK1474) are tested only against a stand-in log for the tenant list: no test runs them on a running `asp serve` with real tenants, a real signe…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }

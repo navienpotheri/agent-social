@@ -390,7 +390,7 @@ import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenari
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { INSURER_DID, societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
-import { REGISTRAR_DID, type DoorLine, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, FunnelTap, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
+import { REGISTRAR_DID, type DoorLine, telemetryHash, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, FunnelTap, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -702,6 +702,7 @@ const OPTIONS = {
   "tls-cert": { type: "string" },
   "tls-key": { type: "string" },
   "rate-limit": { type: "string" },
+  "data-sharing": { type: "string" },
   "write-limit": { type: "string" },
   "plans-file": { type: "string" },
   "address-limit": { type: "string" },
@@ -909,6 +910,7 @@ const OPTIONS = {
   "since-file": { type: "string" },
   reads: { type: "string" },
   reference: { type: "string" },
+  stop: { type: "string" },
   lot: { type: "string" },
   "refund-until": { type: "string" },
   "tax-line": { type: "string", multiple: true },
@@ -1222,6 +1224,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "collusion") return await collusionCommand(home, v, io);
     if (cmd === "farming") return await farmingCommand(home, sub, v, io);
     if (cmd === "meter") return await meterCommand(home, sub, v, io, rest);
+    if (cmd === "emergency") return await emergencyCommand(home, sub, v, io);
     if (cmd === "audit-export") return await auditExportCommand(home, sub, v, io, rest);
     if (cmd === "lots") return await lotsCommand(home, sub, v, io);
     if (cmd === "charter") {
@@ -1926,6 +1929,10 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     writeFileSync(join(dir, "records.ndjson"), e.records.map((r: unknown) => JSON.stringify(r)).join("\n") + (e.records.length ? "\n" : ""));
     writeFileSync(join(dir, "commons.json"), JSON.stringify(e.commons, null, 2) + "\n");
     if (e.telemetry) writeFileSync(join(dir, "telemetry.json"), JSON.stringify(e.telemetry, null, 2) + "\n");
+    // Key handover (DK1384): the service never had these keys; the manifest says, for each identity, whether this machine holds its key, so an organisation knows what to carry to its next home. No key is copied into the export.
+    const ks = new Keystore(home);
+    const identities = (e.dids as string[]).map((did) => { let have = false; try { have = !!ks.forDid(did); } catch { have = false; } return { did, key_on_this_machine: have }; });
+    writeFileSync(join(dir, "keys.json"), JSON.stringify({ v: "asp.key-handover/v0", note: "The service never held these keys. To run an agent elsewhere, carry its key file from your ASP home (the keys folder) to the new machine: only the holder of the key can sign as the agent. A hosted bot (custody: service) first takes custody back with asp signup bind.", identities }, null, 2) + "\n");
     mkdirSync(join(dir, "packages"), { recursive: true });
     for (const p of e.packages as { name: string; sha256: string; download: string }[]) {
       const res = await call(p.download.replace(/^\//, ""));
@@ -1949,7 +1956,9 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
       "commons.json     the commons entries, reviews and citations those identities made",
       "packages/        each agent package as a .aspkg.tgz, checked against its hash",
       "runlogs/         each sealed run log (encrypted; only your identity key opens it: asp run-log open)",
-      "", ...e.notes,
+      "keys.json        for each identity, whether its key is on this machine (no key is copied here); see Taking your agents with you below",
+      "", ...e.notes, "",
+      "Taking your agents with you (offboarding): on a fresh service, make a tenant and run  asp account import --from <this folder>  with ASP_LOG_URL and ASP_LOG_TOKEN set to it. It replays records.ndjson (each record is signed, so the new log checks every signature) and uploads packages/. Carry the keys yourself (keys.json lists whose key is on this machine). Commons entries, sealed run logs and telemetry are not re-imported: the run logs are yours to open and keep.",
     ].join("\n") + "\n");
     return e;
   };
@@ -1972,15 +1981,42 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     io.out(r.stays.records);
     io.out(`kept ${r.stays.retained}`);
     // A deletion receipt (gap U9): the service's own account cannot be asked again once it is closed, so what it just said is written here, with a hash over it, before anything else happens.
-    const receipt = { ...r, closedAt: now() };
+    const receipt = { ...r, closedAt: now(), certificate: "asp.closure-certificate/v0", retention: "the signed log keeps the records the tenant's identities wrote (append-only); token hash, contact line, hashed address and terms record for 12 months after closing; request metadata 90 days; backups clear within 35 days (docs/legal/retention-and-erasure.md)" };
     const receiptBytes = Buffer.from(JSON.stringify(receipt), "utf8");
     const receiptPath = join(home, "exports", `deletion-receipt-${r.tenant}-${now().replace(/[:.]/g, "-")}.json`);
     mkdirSync(dirname(receiptPath), { recursive: true });
     writeFileSync(receiptPath, JSON.stringify({ ...receipt, sha256: createHash("sha256").update(receiptBytes).digest("hex") }, null, 2) + "\n");
-    io.out(`  deletion receipt saved to ${receiptPath} (what the service said it deleted and kept, and when; the account cannot be asked again to show this)`);
+    io.out(`  deletion receipt saved to ${receiptPath} (what the service said it deleted and kept, and when; the account cannot be asked again to show this; it is also the closure certificate)`);
     return 0;
   }
-  throw new UsageError("usage: asp account show | starter --did <did>[,<did>] | export [--out <dir>] | close --confirm <tenant name> [--skip-export] [--out <dir>]   (close also saves a deletion receipt to <home>/exports)");
+  if (sub === "import") {
+    // Offboarding and migration (DK1384): replay an export (asp account export) into a fresh service.
+    const from = v.from ? resolve(io.cwd, v.from) : undefined;
+    if (!from || !existsSync(join(from, "records.ndjson")) || !existsSync(join(from, "account.json"))) throw new UsageError("asp account import --from <an export folder made by asp account export>: it needs records.ndjson and account.json");
+    const handle = await openLog(home, logEnv);
+    const lines = readFileSync(join(from, "records.ndjson"), "utf8").split("\n").filter(Boolean);
+    let imported = 0, skipped = 0; const refused: string[] = [];
+    for (const line of lines) {
+      const item = JSON.parse(line) as { record: AspRecord };
+      try {
+        const r = await handle.append(item.record);
+        if ((r as { duplicate?: boolean }).duplicate) skipped++; else imported++;
+      } catch (e) { refused.push(`${item.record.id.slice(0, 19)} (${item.record.type}): ${(e as Error).message}`); }
+    }
+    let uploaded = 0, pkgSkipped = 0;
+    if (existsSync(join(from, "packages"))) {
+      const client = new PackagesClient(url, token, v.tenant);
+      for (const f of readdirSync(join(from, "packages")).filter((n) => n.endsWith(".aspkg.tgz"))) {
+        try { await client.push(f.replace(/\.aspkg\.tgz$/, ""), readFileSync(join(from, "packages", f))); uploaded++; }
+        catch (e) { if (/already exists/.test((e as Error).message)) pkgSkipped++; else refused.push(`package ${f}: ${(e as Error).message}`); }
+      }
+    }
+    io.out(`imported ${imported} record(s) (${skipped} already there), ${uploaded} package(s) (${pkgSkipped} already there); ${refused.length} refused`);
+    for (const r of refused.slice(0, 10)) io.out(`  refused: ${r}`);
+    io.out("Each record is signed by its author, so the new log checked every signature. Carry the keys yourself: keys.json in the export says whose key is on the machine that made it.");
+    return refused.length ? 1 : 0;
+  }
+  throw new UsageError("usage: asp account show | starter --did <did>[,<did>] | export [--out <dir>] | close --confirm <tenant name> [--skip-export] [--out <dir>] | import --from <export dir>   (close also saves a deletion receipt to <home>/exports)");
 }
 
 interface JoinConfig { service: string; token: string; tenant: string; joinedAt: string; /** Made by asp join: who asp run uses. */ identities?: { me: string; agent: string; bank: string } }
@@ -2354,8 +2390,25 @@ async function captureTelemetry(env: Record<string, string | undefined>, items: 
   if (!service || !token) return [];
   const base = service.endsWith("/") ? service : service + "/";
   const out: { uri: string; sha256: string }[] = [];
+  // An organisation that chose to keep its data private (DK1360): the text never leaves the machine; its hash goes in the Action and the text is kept in the ASP home.
+  let priv = false;
+  try {
+    const st = await fetchRetry(new URL("telemetry", base), { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
+    priv = ((await st.json().catch(() => undefined)) as { sharing?: string } | undefined)?.sharing === "private";
+  } catch { /* an unreachable service sends nothing */ }
   for (const it of items) {
     if (!it.content) continue;
+    if (priv) {
+      try {
+        const text = it.content.slice(-200_000);
+        const hash = telemetryHash(text);
+        const dir = join(aspHome(env.ASP_HOME), "telemetry-private");
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(join(dir, `${hash.slice("sha256:".length)}.txt`), text, { mode: 0o600 });
+        out.push({ uri: `asp://telemetry/${it.kind}`, sha256: hash });
+      } catch { /* best effort */ }
+      continue;
+    }
     try {
       const res = await fetchRetry(new URL("telemetry/content", base), { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ ...it, content: it.content.slice(-200_000) }) });
       const j = (await res.json().catch(() => undefined)) as { ok?: boolean; hash?: string } | undefined;
@@ -2454,12 +2507,15 @@ async function serveToken(v: Values, need: Need, io: Io): Promise<number> {
   const byteQuotaMb = v["byte-quota-mb"] === undefined ? undefined : Number(v["byte-quota-mb"]);
   if (recordQuota !== undefined && !(Number.isInteger(recordQuota) && recordQuota >= 0)) throw new UsageError("--record-quota must be a whole number, 0 or more (0 for no limit)");
   if (byteQuotaMb !== undefined && !(byteQuotaMb >= 0)) throw new UsageError("--byte-quota-mb must be a number, 0 or more (0 for no limit)");
+  const sharing = v["data-sharing"];
+  if (sharing !== undefined && sharing !== "share" && sharing !== "private") throw new UsageError("--data-sharing is share or private");
   tenants.push({
-    name, role, tokenSha256: hashToken(token), ...(quotaMb ? { quotaBytes: Math.round(quotaMb * 1024 * 1024) } : {}),
+    name, role, tokenSha256: hashToken(token), ...(sharing === "private" ? { dataSharing: { choice: "private" as const, at: now() } } : {}), ...(quotaMb ? { quotaBytes: Math.round(quotaMb * 1024 * 1024) } : {}),
     ...(recordQuota !== undefined ? { recordQuota } : {}), ...(byteQuotaMb !== undefined ? { byteQuota: Math.round(byteQuotaMb * 1024 * 1024) } : {}),
     ...(v["rate-limit"] !== undefined ? { rateLimitPerMinute: Math.trunc(Number(v["rate-limit"])) } : {}), createdAt: now(),
   });
   writeFileSync(file, JSON.stringify(tenants, null, 2) + "\n");
+  if (sharing === "private") io.out("data sharing: private (the service stores none of this tenant's trajectories, messages or free text; only hashes go in the signed log; its agents are not part of any study)");
   io.out(`token for ${name} (${role}), shown once, only its hash is stored in ${file}:`);
   io.out(token);
   return 0;
@@ -5073,6 +5129,39 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
 }
 
 /** asp collusion [--json]: the patterns that farm the credit reward, read from the log: pairs and rings that hire each other, one sponsor's agents settling together, one principal behind most of an agent's work (register row DK6). Exit 1 when it finds something. */
+/**
+ * asp emergency status | stop --reason <text> --hours <1-72> --by <operator did> --cosign <owner did> | lift --stop <id> --reason <text> --by <operator did> (register row GV6, S1420): the city-wide emergency stop with a sunset. While it
+ * stands no new commitment is made (intent, offer, proposal, contract, bond, Mandate, a non-essential purchase); work under way, appeals and essential services go on; it ends by itself within 72 hours.
+ */
+async function emergencyCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  if (!sub || sub === "status") {
+    const live = await local.log.emergencyState();
+    const history = await local.log.emergencyHistory();
+    if (v.json) { io.out(JSON.stringify({ live, history }, null, 2)); return live ? 1 : 0; }
+    io.out(live ? `EMERGENCY STOP ${live.id.slice(0, 20)} until ${live.until}: ${live.reason}. No new commitment is made until then; deliveries, settlements, appeals, refunds and essential services go on.` : "no emergency stop is in force");
+    for (const h of history) io.out(`  ${h.at} ${h.act}: ${h.reason}${h.until ? ` (until ${h.until})` : ""}`);
+    return live ? 1 : 0;
+  }
+  if (sub === "stop") {
+    const hours = Number(v.hours);
+    if (!v.reason || !v.by || !v.cosign || !(hours >= 1 && hours <= 72)) throw new UsageError("asp emergency stop --reason <text> --hours <1-72> --by <operator did> --cosign <owner did>");
+    const at = new Date(now());
+    const until = new Date(at.getTime() + hours * 3_600_000).toISOString().replace(/\.\d+Z$/, "Z");
+    const res = await local.append(cosign(createRecord({ type: "emergency_stop", issuer: v.by, subject: null, prev: null, body: { act: "stop", reason: v.reason, until }, issued_at: now() }, signerFor(v.by)), signerFor(v.cosign)));
+    io.out(`emergency stop ${res.id} until ${until} (log seq ${res.seq}): no new commitment is made until then; it ends by itself`);
+    return 0;
+  }
+  if (sub === "lift") {
+    if (!v.stop || !v.reason || !v.by) throw new UsageError("asp emergency lift --stop <id> --reason <text> --by <operator did>");
+    const res = await local.append(createRecord({ type: "emergency_stop", issuer: v.by, subject: null, prev: null, body: { act: "lift", reason: v.reason, stop: v.stop }, issued_at: now() }, signerFor(v.by)));
+    io.out(`emergency stop ${v.stop} lifted (log seq ${res.seq})`);
+    return 0;
+  }
+  throw new UsageError("asp emergency status | stop | lift");
+}
+
 /**
  * asp audit-export export --org <did> [--from <date>] [--to <date>] [--since-file <cursor.json>] [--out <file>] | verify <file> (register row DK1374, S1417): the organisation's and its agents' signed records as JSON lines, with the
  * signers' passports so the file verifies offline; `--since-file` keeps the last position, so running it again (from cron, say) exports only what is new; `verify` checks the manifest and every record's id and signatures.

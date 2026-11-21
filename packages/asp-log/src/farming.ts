@@ -27,8 +27,8 @@ export interface FarmingFinding { kind: FindingKind; level: Level; sponsors: str
 export interface FarmingReport { at: string; clusters: Cluster[]; findings: FarmingFinding[]; flaggedSponsors: string[]; sponsors: number; jobs: number }
 
 /** The named thresholds, each a base value moved within +-15 % by the operator seed. Their names are public, their values are not. */
-export interface Thresholds { internalShare: number; minCircleJobs: number; washRatio: number; washMinJobs: number; fanInFeeders: number; fanInMinJobs: number; fanInExclusive: number; concentration: number; concentrationMinJobs: number; ringEdge: number; likelyMargin: number; strongMargin: number }
-const BASE: Thresholds = { internalShare: 0.7, minCircleJobs: 6, washRatio: 0.55, washMinJobs: 4, fanInFeeders: 8, fanInMinJobs: 3, fanInExclusive: 0.8, concentration: 0.6, concentrationMinJobs: 8, ringEdge: 3, likelyMargin: 0.08, strongMargin: 0.2 };
+export interface Thresholds { internalShare: number; minCircleJobs: number; washRatio: number; washMinJobs: number; fanInFeeders: number; fanInMinJobs: number; fanInExclusive: number; concentration: number; concentrationMinJobs: number; ringEdge: number; ringSpreadDays: number; likelyMargin: number; strongMargin: number }
+const BASE: Thresholds = { internalShare: 0.7, minCircleJobs: 6, washRatio: 0.55, washMinJobs: 4, fanInFeeders: 8, fanInMinJobs: 3, fanInExclusive: 0.8, concentration: 0.6, concentrationMinJobs: 8, ringEdge: 3, ringSpreadDays: 2, likelyMargin: 0.08, strongMargin: 0.2 };
 export function thresholdsFor(seed: string = "asp-default-seed"): Thresholds {
   const out = { ...BASE } as Record<string, number>;
   for (const [k, v] of Object.entries(BASE)) {
@@ -156,6 +156,11 @@ export function analyseFarming(records: Rec[], opts: { at?: string; seed?: strin
             const need = path.length >= 4 ? Math.max(2, t.ringEdge - 1) : t.ringEdge; // a longer ring is rarer by chance, so a shorter repeat is enough
             const lv = levelOf((minEdge - need) / need, { ...t, likelyMargin: 0, strongMargin: 0.5 });
             if (lv && lv !== "watch") { flaggedSets.add(key); findings.push({ kind: "ring", level: lv, sponsors: [...set].sort(), jobs: path.flatMap((_, i) => pair.get(`${path[i]}>${path[(i + 1) % path.length]}`)!.map((j) => j.id)).slice(0, 50), why: `a ring of ${set.size} controllers in which each hires the next at least ${minEdge} times, whatever else they do` }); }
+          }
+          // a ring whose hops all fall within a few days (the timing signal, DK1475): chance almost never lines up three to five unrelated hops that closely, so it flags a ring even when each hop happens once
+          if (path.length >= 4 && !flaggedSets.has(key)) {
+            const times = path.map((_, i) => Math.min(...pair.get(`${path[i]}>${path[(i + 1) % path.length]}`)!.map((j) => j.at)));
+            if (Math.max(...times) - Math.min(...times) <= t.ringSpreadDays * DAY) { flaggedSets.add(key); findings.push({ kind: "ring", level: "likely", sponsors: [...set].sort(), jobs: path.flatMap((_, i) => pair.get(`${path[i]}>${path[(i + 1) % path.length]}`)!.map((j) => j.id)).slice(0, 50), why: `a ring of ${set.size} controllers whose hops all happened within ${t.ringSpreadDays} days` }); }
           }
         }
       }

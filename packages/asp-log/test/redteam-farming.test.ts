@@ -74,7 +74,7 @@ function build(seed: number): Built {
   for (let g = 0; g < 40; g++) { const m = ringsA.slice(g * 5, g * 5 + 5); for (let i = 0; i < 5; i++) for (let k = 0; k < 4; k++) s.job(m[i].agent, m[(i + 1) % 5].agent, s.day(), 60); }
   const circlesB = mark("circle", 150);
   for (let g = 0; g < 15; g++) { const m = circlesB.slice(g * 10, g * 10 + 10); for (let k = 0; k < 70; k++) { const a = pick(m), b = pick(m); if (a !== b) s.job(a.agent, b.agent, s.day(), 50); } }
-  const keysC = mark("key", 200, (i) => `shared-key-${Math.floor(i / 10)}`);
+  const keysC = mark("key", 150, (i) => `shared-key-${Math.floor(i / 10)}`);
   for (let k = 0; k < 400; k++) { const a = pick(keysC), b = pick(keysC); if (a !== b) s.job(a.agent, b.agent, s.day()); } // they also trade a little among themselves
   const collectors = mark("collector", 4), feeders = mark("feeder", 196);
   feeders.forEach((f, i) => { for (let k = 0; k < 3 + (i % 3); k++) s.job(f.agent, collectors[i % 4].agent, s.day(), 30); });
@@ -88,6 +88,9 @@ function build(seed: number): Built {
   // drip: each hop only once and most work honest-looking: below the repeat rule, found only by a longer memory (not built), and its closing hop is refused for standing by the loop rule
   const drip = mark("drip", 50);
   for (let g = 0; g < 10; g++) { const m = drip.slice(g * 5, g * 5 + 5); for (let i = 0; i < 5; i++) { s.job(m[i].agent, m[(i + 1) % 5].agent, s.day(), 60); for (let k = 0; k < 10; k++) s.job(pick(people).agent, m[i].agent, s.day(), 40); } }
+  // dripsync: each hop once and most work honest-looking, but the five hops are made within two days (an attacker that wants its farm to pay at once): found by the timing signal (DK1475)
+  const dripsync = mark("dripsync", 50);
+  for (let g = 0; g < 10; g++) { const m = dripsync.slice(g * 5, g * 5 + 5); const d0 = s.day(); for (let i = 0; i < 5; i++) { s.job(m[i].agent, m[(i + 1) % 5].agent, d0 + (i % 3) * 0.5, 60); for (let k = 0; k < 10; k++) s.job(pick(people).agent, m[i].agent, s.day(), 40); } }
   return { s, farm, honest };
 }
 
@@ -113,9 +116,10 @@ describe("1,000 farm sponsors against the detector", () => {
     for (const strat of ["ring", "circle", "key", "collector", "feeder", "wash"]) { const v = m.by.get(strat); if (!v) continue; assert.ok(v.caught / v.n >= (strat === "circle" ? 0.9 : 0.95), `${strat}: ${v.caught}/${v.n}`); }
     assert.ok(m.catchRate >= 0.9, `catch rate ${m.catchRate}`);
     const st = m.by.get("stealth")!;
-    const dr = m.by.get("drip")!;
+    const dr = m.by.get("drip")!, ds = m.by.get("dripsync")!;
+    assert.ok(ds.caught / ds.n >= 0.9, `dripsync ${ds.caught}/${ds.n}: the timing signal catches hops made within days of each other`);
     assert.ok(st.caught / st.n >= 0.9, `stealth ${st.caught}/${st.n}: the repeat rule on longer rings catches a farm that repeats each hop twice`);
-    console.log(`known gap: the drip farm (each hop once, most work honest-looking) is caught ${dr.caught}/${dr.n}; the stealth farm (each hop twice) is caught ${st.caught}/${st.n}; its ring jobs are still refused by the loop rule at counting time, so it gains starter credits and the honest-looking work only`);
+    console.log(`known gap: the drip farm (each hop once, most work honest-looking) is caught ${dr.caught}/${dr.n} (hops spread over weeks: no signal found); the same farm with its hops within two days is caught ${ds.caught}/${ds.n}; the stealth farm (each hop twice) is caught ${st.caught}/${st.n}; its ring jobs are still refused by the loop rule at counting time, so it gains starter credits and the honest-looking work only`);
     assert.ok(m.falseRate <= 0.02, `false-flag rate ${m.falseRate}: ${m.falseFlags.slice(0, 5).join(", ")}`);
   });
 

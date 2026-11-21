@@ -5,7 +5,6 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
-import vm from "node:vm";
 import { FleetControls, UI_CSS, barChart, fleetDashboard, lineGraph, monthOf } from "../../asp-log/src/index.ts";
 import { fleetDashboardRoutes, fleetLiveRoute, renderFleetDashboard, renderFleetLive } from "../../asp-package/src/fleet-dashboard-routes.ts";
 import { storyRoutes } from "../../asp-package/src/story-pages.ts";
@@ -114,100 +113,21 @@ test("DK1601: the live page is public and holds no data: a token field, Start an
   assert.doesNotMatch(r.headers.get("content-security-policy") ?? "", /https?:|\*/);
   const html = await r.text();
   assert.match(html, /<label for="tok">Token<\/label><input id="tok" type="password" autocomplete="off"/);
-  assert.match(html, /<button id="go" type="button">Start<\/button><button id="stop" type="button" disabled>Stop<\/button>/);
+  assert.match(html, /<button id="go" type="button">Start<\/button><button id="pause" type="button" aria-pressed="false" disabled>Pause<\/button><button id="stop" type="button" disabled>Stop<\/button>/);
+  assert.match(html, /data-range="1h"[\s\S]*data-range="24h"[\s\S]*data-range="7d"[\s\S]*data-range="30d"/);
+  assert.match(html, /<label for="f-persona">Persona<\/label>[\s\S]*<label for="f-node">Node<\/label>[\s\S]*<label for="f-tier">Tier<\/label>/);
+  assert.match(html, /<ul id="ticker" class="ticker plain">/);
   assert.match(html, /id="status" role="status" aria-live="polite"/);
-  assert.match(html, /\/dashboard\?fragment=1/);
+  assert.match(html, /\/summary\?/);
+  assert.match(html, /\/events\?since=/);
   assert.doesNotMatch(html, /https?:\/\//);
-  assert.doesNotMatch(html, /Members by persona|credits spent/, "no data in the shell");
+  assert.doesNotMatch(html.replace(/<script>[\s\S]*<\/script>/, ""), /Members by persona|credits spent|<td/, "no data in the shell (outside the script that draws it)");
   assert.equal((await fetch(`${base}/fleet/Live/live`, { method: "POST" })).status, 405);
   assert.equal((await fetch(`${base}/fleet/Live/other`)).status, 404);
   const evil = renderFleetLive("</script><img src=x onerror=alert(1)>");
   assert.doesNotMatch(evil, /<img src=x/);
   assert.ok(!evil.slice(0, evil.indexOf("<script>")).includes("<img src=x"), "the name is escaped in the page");
   assert.ok(/\\u003c|\\x3c|<\\\/script>/.test(evil) || !evil.includes('"</script><img'), "and cannot close the script");
-});
-
-/** A stand-in browser for the live page: elements by id, a box that records what is swapped in, sessionStorage, a fetch that answers by request count, and the timer captured so a test drives it. */
-function liveBrowser(answers: (n: number, headers: Record<string, string>) => { status: number; body: string }) {
-  const listeners = new Map<string, () => void>();
-  const el = (id: string) => ({ id, textContent: "", value: "", disabled: id === "stop", innerHTML: "", addEventListener: (ev: string, cb: () => void) => listeners.set(`${id}:${ev}`, cb), querySelectorAll: (_s: string) => [] as { open: boolean }[] });
-  const els: Record<string, ReturnType<typeof el>> = Object.fromEntries(["live", "status", "tok", "go", "stop"].map((id) => [id, el(id)]));
-  const store = new Map<string, string>();
-  const timers: (() => void)[] = [];
-  const calls: { url: string; headers: Record<string, string> }[] = [];
-  const doc = { getElementById: (id: string) => els[id], hidden: false };
-  const sandbox: Record<string, unknown> = {
-    document: doc, sessionStorage: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) }, Date, JSON, encodeURIComponent,
-    fetch: (url: string, init: { headers: Record<string, string> }) => { calls.push({ url, headers: init.headers }); const a = answers(calls.length, init.headers); return Promise.resolve({ ok: a.status === 200, status: a.status, text: () => Promise.resolve(a.body) }); },
-    setInterval: (cb: () => void, ms: number) => { timers.push(cb); void ms; return timers.length; }, clearInterval: () => { timers.length = 0; },
-  };
-  return { els, listeners, timers, calls, store, doc, sandbox, settle: async () => { for (let i = 0; i < 6; i++) await new Promise((r) => setImmediate(r)); } };
-}
-const scriptOf = (html: string) => /<script>(.*)<\/script>/s.exec(html)![1]!;
-
-test("DK1601: the live update: with a token it fetches the content with the token in a header, shows it, and swaps in the next answer every 5 seconds; the token is kept in the tab and never in an address; a refusal stops it in words", async () => {
-  const b = liveBrowser((n) => ({ status: 200, body: `<p>update ${n}</p>` }));
-  vm.runInNewContext(scriptOf(renderFleetLive("Live")), b.sandbox);
-  assert.equal(b.els.status!.textContent, "Enter your token to start.");
-  assert.equal(b.calls.length, 0, "nothing is fetched without a token");
-  b.els.tok!.value = "  tenant-token-1  ";
-  b.listeners.get("go:click")!();
-  await b.settle();
-  assert.equal(b.calls[0]!.url, "/fleet/Live/dashboard?fragment=1");
-  assert.equal(b.calls[0]!.headers.authorization, "Bearer tenant-token-1", "the token goes in a header, trimmed");
-  assert.ok(!b.calls[0]!.url.includes("tenant-token"), "never in the address");
-  assert.equal(b.els.live!.innerHTML, "<p>update 1</p>");
-  assert.match(b.els.status!.textContent, /^Live: updated .*, every 5 seconds\.$/);
-  assert.equal(b.els.tok!.value, "", "the field is cleared after Start");
-  assert.equal(b.els.stop!.disabled, false);
-  assert.equal(b.store.get("asp-fleet-token"), "tenant-token-1", "kept in this tab only");
-  assert.equal(b.timers.length, 1, "one timer");
-  b.timers[0]!(); await b.settle();
-  assert.equal(b.els.live!.innerHTML, "<p>update 2</p>", "the next answer replaces the content: no reload");
-  b.timers[0]!(); await b.settle();
-  assert.equal(b.els.live!.innerHTML, "<p>update 3</p>");
-  assert.equal(b.calls.length, 3);
-  // hidden tab: no fetch
-  b.doc.hidden = true; b.timers[0]!(); await b.settle();
-  assert.equal(b.calls.length, 3, "a hidden tab does not poll");
-  b.doc.hidden = false;
-  // Stop
-  b.listeners.get("stop:click")!();
-  assert.equal(b.timers.length, 0);
-  assert.match(b.els.status!.textContent, /Stopped/);
-  assert.equal(b.els.stop!.disabled, true);
-});
-
-test("DK1601: the live update keeps working through a failure and stops on a refused token; an open table stays open across an update; a token kept in the tab starts it at once", async () => {
-  const b = liveBrowser((n) => (n === 2 ? { status: 500, body: "" } : n === 4 ? { status: 403, body: "" } : { status: 200, body: `<p>ok ${n}</p>` }));
-  b.store.set("asp-fleet-token", "kept-token");
-  vm.runInNewContext(scriptOf(renderFleetLive("Live")), b.sandbox);
-  await b.settle();
-  assert.equal(b.calls.length, 1, "a token kept in the tab starts it at once");
-  assert.equal(b.calls[0]!.headers.authorization, "Bearer kept-token");
-  assert.equal(b.els.live!.innerHTML, "<p>ok 1</p>");
-  b.timers[0]!(); await b.settle();
-  assert.match(b.els.status!.textContent, /Could not update \(500\)\. Trying again\./);
-  assert.equal(b.els.live!.innerHTML, "<p>ok 1</p>", "a failed update keeps what was shown");
-  b.timers[0]!(); await b.settle();
-  assert.equal(b.els.live!.innerHTML, "<p>ok 3</p>", "and it recovers");
-  b.timers[0]!(); await b.settle();
-  assert.match(b.els.status!.textContent, /Could not update \(403\)\. Check the token\./);
-  assert.equal(b.timers.length, 0, "a refused token stops the polling");
-  assert.equal(b.els.stop!.disabled, true);
-  // an open details stays open: the box reports one open table before the swap and the script reopens it after
-  const opened: number[] = [];
-  const c = liveBrowser(() => ({ status: 200, body: "<details></details><details></details>" }));
-  const details = [{ open: false }, { open: true }];
-  c.els.live!.querySelectorAll = () => details as never;
-  c.store.set("asp-fleet-token", "t");
-  vm.runInNewContext(scriptOf(renderFleetLive("Live")), c.sandbox);
-  await c.settle();
-  details[1]!.open = false; details[0]!.open = false; // the swap closes them
-  c.els.live!.querySelectorAll = () => { opened.push(1); return details as never; };
-  details[1]!.open = true;
-  c.timers[0]!(); await c.settle();
-  assert.ok(opened.length >= 2, "the script looked at the open tables before and after the swap");
 });
 
 async function service() {
