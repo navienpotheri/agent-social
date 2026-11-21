@@ -1568,6 +1568,13 @@ const worldRules = [
   sv("valid_town_enactment", "town_enactment", { proposal: "rec-1", tally: "rec-2", key: "academy.study_hours", value: 2 }, true);
   sv("town_enactment_no_tally", "town_enactment", { proposal: "rec-1", key: "academy.study_hours", value: 2 }, false);
   sv("town_enactment_extra", "town_enactment", { proposal: "rec-1", tally: "rec-2", key: "k", value: 2, force: true }, false);
+  // ---------- the standing adjustment (spec-deltas S1431): schema cases ----------
+  const saBody = (over: Record<string, unknown> = {}) => ({ agent: "did:key:z6MksaagentsaagentsaagentsaagentsaagentsaagentAAA", contracts: ["rec-1", "rec-2"], reason: "a ring of related sponsors passed these jobs between them", ref: "rec-9", ...over });
+  sv("valid_standing_adjustment", "standing_adjustment", saBody(), true);
+  sv("standing_adjustment_no_contracts", "standing_adjustment", saBody({ contracts: [] }), false);
+  sv("standing_adjustment_no_ref", "standing_adjustment", (({ ref: _r, ...x }) => x)(saBody()), false);
+  sv("standing_adjustment_no_reason", "standing_adjustment", saBody({ reason: "" }), false);
+  sv("standing_adjustment_extra", "standing_adjustment", saBody({ tier: 0 }), false);
   sv("valid_key_handover", "key_handover", hoBody(), true);
   sv("valid_key_handover_reason", "key_handover", hoBody({ reason: "compromise_suspected" }), true);
   sv("key_handover_no_new", "key_handover", (({ new: _n, ...r }) => r)(hoBody()), false);

@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 68,
+  "must": 67,
   "withdraw": 114,
   "after": 327,
-  "total": 509
+  "total": 508
  },
- "mustWorkerHours": 334.2,
+ "mustWorkerHours": 328.2,
  "entries": [
   {
    "id": "D3",
@@ -6150,17 +6150,6 @@
    "size": "L",
    "flags": "D",
    "why": "an editorial pass by audience before any document goes live (clarity and tone, claims, links) and the owner's last read; the claims test fails on an unmarked public page"
-  },
-  {
-   "id": "DK1730",
-   "pri": "B",
-   "status": "open",
-   "gap": "A Court cannot adjust a count. The credit design (credits.md CR-14) has a Court's signed `standing_adjustment` that removes jobs from an agent's qualifying count when collusion is found; no such reco…",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "a Court's signed standing adjustment that removes a found farm's jobs from the qualifying count (CR-14)"
   }
  ]
 }

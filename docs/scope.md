@@ -1119,4 +1119,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1727 | A | partial | No editorial pass has marked a document final: the reading pack is approved for now as working drafts; public and signed documents need the owner's last read and a claims-test mark (owner flag D). |
 | DK1728 | A | closed | No audit maps every Market, Bank and Insurer requirement to a test or a row, and no seeded end-to-end test runs the whole flow with the supply audit balanced. |
 | DK1729 | A | closed | The Market audit found nine requirements no test names (BI-12, BI-14, BI-18, CR-9, CR-10, CR-11, CR-14, CR-22, CR-25) and an end-to-end chain that stops at settlement. |
-| DK1730 | B | open | A Court cannot adjust a count: no signed `standing_adjustment` removes a found farm's jobs from the qualifying count (CR-14). |
+| DK1730 | B | closed | A Court cannot adjust a count: no signed `standing_adjustment` removes a found farm's jobs from the qualifying count (CR-14). |

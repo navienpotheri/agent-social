@@ -15978,6 +15978,73 @@
       "valid": false
     },
     {
+      "name": "valid_standing_adjustment",
+      "schema": "standing_adjustment",
+      "instance": {
+        "agent": "did:key:z6MksaagentsaagentsaagentsaagentsaagentsaagentAAA",
+        "contracts": [
+          "rec-1",
+          "rec-2"
+        ],
+        "reason": "a ring of related sponsors passed these jobs between them",
+        "ref": "rec-9"
+      },
+      "valid": true
+    },
+    {
+      "name": "standing_adjustment_no_contracts",
+      "schema": "standing_adjustment",
+      "instance": {
+        "agent": "did:key:z6MksaagentsaagentsaagentsaagentsaagentsaagentAAA",
+        "contracts": [],
+        "reason": "a ring of related sponsors passed these jobs between them",
+        "ref": "rec-9"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_adjustment_no_ref",
+      "schema": "standing_adjustment",
+      "instance": {
+        "agent": "did:key:z6MksaagentsaagentsaagentsaagentsaagentsaagentAAA",
+        "contracts": [
+          "rec-1",
+          "rec-2"
+        ],
+        "reason": "a ring of related sponsors passed these jobs between them"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_adjustment_no_reason",
+      "schema": "standing_adjustment",
+      "instance": {
+        "agent": "did:key:z6MksaagentsaagentsaagentsaagentsaagentsaagentAAA",
+        "contracts": [
+          "rec-1",
+          "rec-2"
+        ],
+        "reason": "",
+        "ref": "rec-9"
+      },
+      "valid": false
+    },
+    {
+      "name": "standing_adjustment_extra",
+      "schema": "standing_adjustment",
+      "instance": {
+        "agent": "did:key:z6MksaagentsaagentsaagentsaagentsaagentsaagentAAA",
+        "contracts": [
+          "rec-1",
+          "rec-2"
+        ],
+        "reason": "a ring of related sponsors passed these jobs between them",
+        "ref": "rec-9",
+        "tier": 0
+      },
+      "valid": false
+    },
+    {
       "name": "valid_key_handover",
       "schema": "key_handover",
       "instance": {

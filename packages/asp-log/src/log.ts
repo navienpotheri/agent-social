@@ -420,6 +420,7 @@ export class EventLog {
     if (type === "run_halt") await this.projectRunHalt(tx, verified);
     if (type === "incident") await this.projectIncident(tx, verified);
     if (type === "key_handover") await this.projectKeyHandover(tx, verified);
+    if (type === "standing_adjustment") await this.projectStandingAdjustment(tx, verified);
     if (type === "town_proposal" || type === "town_vote" || type === "town_tally" || type === "town_enactment") await this.projectTown(tx, verified, type);
     if (type === "usage_plan") await this.projectUsagePlan(tx, verified);
     if (type === "usage_statement") await this.projectUsageStatement(tx, verified);
@@ -2372,6 +2373,33 @@ export class EventLog {
     for (const c of contracts) if (await this.runHaltOf(c.contract)) halted.add(c.contract);
     const reasons = tripped(used, allowed);
     return { node, windowMs, multiple, used, allowed, reasons, contracts: reasons.length ? contracts.filter((c) => !halted.has(c.contract)) : [], cycles: hireCycles(hires) };
+  }
+
+  /**
+   * A standing adjustment (S1431, DK1730; credits.md CR-14): the Courts remove counted jobs from an agent's qualifying standing when collusion or a finding of the Courts says they should not have counted. Signed by the Courts; it cites the record that
+   * is the reason (a ruling, a finding or an upheld report); each job must be one that counted for this agent; it is applied once per job. It takes the jobs' weights off `qualifyingJobs`, which the bond floor, the starter grant's rest and the Town Hall's
+   * eligibility read; it does not demote a tier already granted (a demotion is a slash or the Clinic's act) and it moves no credit.
+   */
+  private async projectStandingAdjustment(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { agent: string; contracts: string[]; reason: string; ref: string };
+    if (r.prev !== null) throw rule("adjustment_not_chained", "a standing adjustment starts its own chain (prev is null)");
+    if (r.issuer !== institutionDid("courts")) throw rule("adjustment_wrong_issuer", "only the Courts adjust a count");
+    if (!(await tx.getPassport(b.agent))) throw rule("adjustment_unknown_agent", `${b.agent} has no passport in this log`);
+    if (!(await tx.getRecord(b.ref))) throw rule("adjustment_ref_unknown", `${b.ref} is not a record in this log: an adjustment cites its reason`);
+    if (new Set(b.contracts).size !== b.contracts.length) throw rule("adjustment_duplicate_job", "a job is listed once");
+    const feed = JSON.parse((await tx.getMarker(`qual_feed:${b.agent}`)) ?? "[]") as { contract: string | null; weight: number }[];
+    let removed = 0;
+    for (const c of b.contracts) {
+      if (await tx.getMarker(`qual_removed:${c}`)) throw rule("adjustment_already_removed", `${c} was removed from the count already`);
+      const e = feed.find((x) => x.contract === c);
+      if (!e) throw rule("adjustment_job_not_counted", `${c} is not a counted job of ${b.agent}`);
+      removed += e.weight;
+    }
+    const rep = await this.reputation(tx, b.agent);
+    if (!rep) return;
+    for (const c of b.contracts) await tx.putMarker(`qual_removed:${c}`, r.id);
+    await tx.putMarker(`qual_feed:${b.agent}`, JSON.stringify(feed.filter((x) => !b.contracts.includes(x.contract ?? ""))));
+    await this.saveReputation(tx, b.agent, { ...rep, qualifyingJobs: Math.max(0, rep.qualifyingJobs - removed) });
   }
 
   private townRules: TownRules = DEFAULT_TOWN_RULES;

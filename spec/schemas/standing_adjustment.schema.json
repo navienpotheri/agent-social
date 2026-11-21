@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:standing_adjustment",
+  "title": "Standing adjustment body",
+  "description": "The Courts remove counted jobs from an agent's qualifying standing (register row DK1730; credits.md CR-14; spec-delta S1431) when collusion or a finding says they should not have counted. `ref` is the record that is the reason (a ruling, a finding or an upheld report). Each contract must be a counted job of the agent and is removed once. The weights come off the agent's qualifying jobs, which the bond floor, the starter grant's rest and Town Hall eligibility read; a tier already granted is not demoted by this record and no credit moves. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "agent",
+    "contracts",
+    "reason",
+    "ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "contracts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    }
+  }
+}

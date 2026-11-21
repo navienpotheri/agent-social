@@ -196,3 +196,29 @@ test("DK1608: a course put to a vote is read for the protocol's invariants befor
   const after = await refusedBy(k.log.append(course(a[0])));
   assert.ok(after !== "course_vote_not_enacted" && after !== "course_not_by_proposer", `the vote no longer stops the proposer's course (the Academy's own rules then apply: ${after})`);
 });
+
+test("DK1730: the Courts remove counted jobs from an agent's standing; each job once, only counted jobs, only with a reason on record", async () => {
+  const { courts } = await import("./society-kit.ts");
+  const k = await kit();
+  await k.withPrices();
+  const sponsor = await k.person("sa-sponsor", 10);
+  const a = await k.agent("sa-agent", sponsor, { funds: 500 });
+  const clients = [];
+  for (let i = 0; i < 3; i++) { const c = await k.person(`sa-client-${i}`, 5000); clients.push(c); await k.runJob(c, a, 60); }
+  const feed = await k.log.qualifyingFeed(a.did);
+  const before = (await k.log.reputationOf(a.did))?.qualifyingJobs ?? 0;
+  assert.ok(feed.length >= 2 && before >= 2, `the agent has counted jobs (feed ${feed.length}, standing ${before})`);
+  const removeIds = feed.slice(0, 2).map((e) => e.contract!);
+  const weight = feed.slice(0, 2).reduce((n, e) => n + e.weight, 0);
+  const adj = (over: Record<string, unknown> = {}, by: typeof courts = courts) => mk("standing_adjustment", by, { agent: a.did, contracts: removeIds, reason: "these jobs were passed between related sponsors", ref: removeIds[0], ...over });
+  assert.equal(await refusedBy(k.log.append(adj({}, operator as never))), "adjustment_wrong_issuer", "only the Courts");
+  assert.equal(await refusedBy(k.log.append(adj({ ref: "no-such-record" }))), "adjustment_ref_unknown");
+  assert.equal(await refusedBy(k.log.append(adj({ contracts: ["no-such-contract"] }))), "adjustment_job_not_counted");
+  assert.equal(await refusedBy(k.log.append(adj({ contracts: [removeIds[0], removeIds[0]] }))), "adjustment_duplicate_job");
+  await k.log.append(adj());
+  const after = (await k.log.reputationOf(a.did))?.qualifyingJobs ?? 0;
+  assert.equal(after, Math.max(0, before - weight), "the removed jobs' weights came off the count");
+  assert.equal((await k.log.qualifyingFeed(a.did)).length, feed.length - 2);
+  assert.equal(await refusedBy(k.log.append(adj())), "adjustment_already_removed", "once per job");
+  assert.equal((await k.log.verify()).ok, true, "a replica replays the adjustment to the same count");
+});

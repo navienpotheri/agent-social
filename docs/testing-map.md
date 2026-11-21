@@ -991,3 +991,4 @@ The P0 rows above, in the order to do them: redeploy (UC-90) and re-run the live
 | UC-1871 | [owner] every Market, Bank, Insurer and credit requirement is mapped to a test or listed as unmapped | packages/asp-log/test/market-audit.test.ts | no | DK1728 | none | P1 |
 | UC-1872 | [agent, poster] agents vote a real setting (the longest a posting may stay open) and after the enactment the Market refuses a longer posting | packages/asp-log/test/town-hall.test.ts | no | DK1720 | none | P1 |
 | UC-1873 | [agent] a course I put to a vote is read for the protocol's invariants first, and goes live only through an enacted vote by me | packages/asp-log/test/town-hall.test.ts | no | DK1608 | none | P1 |
+| UC-1874 | [court, operator] the Courts remove counted jobs from an agent's standing with a reason on record, each job once, and the bond floor and Town Hall eligibility read the lowered count | packages/asp-log/test/town-hall.test.ts | no | DK1730 | none | P1 |

@@ -17,7 +17,6 @@ Credits are accounting entries, not money. This page maps every requirement of t
 | BI-14 | DK185 | fleet mutual cover and its experiment |
 | BI-18 | DK491 | the Insurer's drivers and the stress replay are not wired into the log |
 | CR-25 | DK172 | the quarterly return of an institution's surplus to the Treasury (`treasury_return`) |
-| CR-14 | DK1730 | a Court's signed `standing_adjustment` that removes jobs from the count: not built, opened by this audit |
 
 Each is a requirement the audit found no test for; none is claimed as built. `market-audit.test.ts` checks that each row exists in the register and is not closed without its work.
 
@@ -39,6 +38,7 @@ Each is a requirement the audit found no test for; none is claimed as built. `ma
 | BI-13 | built and tested | mentorship.test.ts | mentorship |
 | BI-15 | built and tested | insurer-dynamics.test.ts | BI-15 |
 | CR-9 | built and tested | society-tools.test.ts | balance |
+| CR-14 | built and tested | town-hall.test.ts | standing_adjustment |
 | CR-10 | built and tested | society-tools.test.ts | buy |
 | CR-11 | built and tested | academy-halls.test.ts | min_tier |
 | BI-16 | built and tested | insurer-dynamics.test.ts | credit-cycle |
