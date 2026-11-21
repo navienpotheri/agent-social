@@ -18,7 +18,7 @@ async function publish(k: Awaited<ReturnType<typeof kit>>, flags: Record<string,
 test("asp prices publish --preset forum-long: the two long forum acts are priced, take effect after the notice, and an author can buy one", async () => {
   const k = await kit();
   await k.withPrices();
-  const before = (await k.log.priceLists()) as unknown as { body: { items: unknown[] } }[];
+  const before = await k.log.priceLists();
   assert.equal(before.length, 1);
   // Too soon: the log refuses a new service with less than 72 hours' notice, and the command says why.
   const soon = await publish(k, { preset: "forum-long", effective: new Date(Date.parse(nowIso()) + 2 * HOUR).toISOString() });
@@ -28,7 +28,7 @@ test("asp prices publish --preset forum-long: the two long forum acts are priced
   const done = await publish(k);
   assert.equal(done.code, 0, done.text);
   assert.match(done.text, /price list version 2 signed/);
-  const lists = ((await k.log.priceLists()) as unknown) as { id: string; body: { version: number; items: { service: string; price: number; institution: string }[] } }[];
+  const lists = (await k.log.priceLists()) as unknown as { id: string; body: { version: number; items: { service: string; price: number; institution: string }[] } }[];
   assert.equal(lists.length, 2);
   const v2 = lists.find((l) => l.body.version === 2)!;
   assert.equal(v2.body.items.length, (before[0]!.body as { items: unknown[] }).items.length + 2, "the old services are kept");

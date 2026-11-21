@@ -101,7 +101,7 @@ export const hashToken = (token: string): string => createHash("sha256").update(
 /** EventLog methods a client may call: reads, plus verification. Nothing that writes. */
 export const LOG_METHODS = new Set([
   "get", "head", "since", "chain", "chainInfo", "passport", "keys", "fleet", "balance", "escrow", "juror", "reputationOf", "mandateOf",
-  "verificationOf", "dispatchLedger", "houseAgents", "report", "drawPanel", "drawReportPanel", "verify", "verifyCheckpoint", "mints", "creditAudit", "creditFlows", "priceLists", "mandatesOf", "certificatesOf", "academyRecords", "certificateStatus", "arenaBoard", "quarantinesOf", "refusalsAgainst", "marketInstitution", "outcomeSeries", "principalSeries", "purchasesBy", "worldRecords", "worldState", "creditConcentration", "starterPoolState", "marketBoard", "marketStats", "fleetDetails", "fleetsOf", "mandateCeiling", "checkStatement", "usagePlan", "meter", "creditClassAudit", "fleetInfoOf", "relatedPartyRecord", "templateVersion", "deriveMemberMandate", "marketDynamics", "riskModel", "suggestedBond", "riskReplay", "worldInvariants", "discoverAgents", "recordsOfTypes", "registryPage", "registryVerify", "homePage", "sponsorResources", "registrySearch", "registryTakedowns", "charterRoutes", "charters", "precedentIndex", "precedentSearch", "precedentsFor", "courtDocket", "bondLabel", "treasuryLedger", "fleetTree", "nodeOf", "runHaltOf", "emergencyState", "emergencyHistory", "holderLots", "sponsorDids",
+  "verificationOf", "dispatchLedger", "houseAgents", "report", "drawPanel", "drawReportPanel", "verify", "verifyCheckpoint", "mints", "creditAudit", "creditFlows", "priceLists", "mandatesOf", "certificatesOf", "academyRecords", "certificateStatus", "arenaBoard", "quarantinesOf", "refusalsAgainst", "marketInstitution", "outcomeSeries", "principalSeries", "purchasesBy", "worldRecords", "worldState", "creditConcentration", "starterPoolState", "marketBoard", "marketStats", "fleetDetails", "fleetsOf", "mandateCeiling", "checkStatement", "usagePlan", "meter", "creditClassAudit", "fleetInfoOf", "relatedPartyRecord", "templateVersion", "deriveMemberMandate", "marketDynamics", "riskModel", "suggestedBond", "riskReplay", "worldInvariants", "discoverAgents", "recordsOfTypes", "registryPage", "registryVerify", "homePage", "sponsorResources", "registrySearch", "registryTakedowns", "charterRoutes", "charters", "precedentIndex", "precedentSearch", "precedentsFor", "courtDocket", "bondLabel", "treasuryLedger", "fleetTree", "nodeOf", "fleetBreaker", "runHaltOf", "emergencyState", "emergencyHistory", "holderLots", "sponsorDids",
 ]);
 const TENANT_HANDLE_METHODS = new Set(["append", "importRecords"]);
 const ADMIN_HANDLE_METHODS = new Set(["mint"]);
@@ -133,6 +133,10 @@ export interface ServerOptions {
   blocked?: () => string[];
   /** Counts of what each tenant has written, and the defaults a tenant without its own quota gets (0 for none). Without a store nothing is counted. */
   usage?: UsageStore;
+  /** Use-anomaly detection for tokens (DK1717, S1425): a flag, an alert to the sponsor and a hold on writes until the sponsor confirms. */
+  tokenWatch?: import("./token-watch.ts").TokenWatch;
+  /** Called with the flag and, when a hold began, the confirmation code that must reach the SPONSOR out of band (never the response to the token's own request). */
+  onTokenAlert?: (tenant: string, flag: import("./token-watch.ts").Flag, code?: string) => void;
   /** Limits by plan (S1418, DK1362): a tenant with `plan` takes what the table says for the limits it does not set itself. */
   plans?: Record<string, PlanLimits>;
   /** The service clock, for the per-month read and write counts (tests set it). */
@@ -342,6 +346,11 @@ export function createLogServer(opts: ServerOptions): Server {
         return json(res, 401, { ok: false, error: { code: "UNAUTHORIZED", message: "a valid bearer token is required" } });
       }
       if (tenant.suspended) return json(res, 403, { ok: false, error: { code: "SUSPENDED", message: `this tenant is suspended${tenant.suspended.reason ? `: ${tenant.suspended.reason}` : ""}` } });
+      if (opts.tokenWatch && tenant.role !== "admin") {
+        // what this token does is compared with its own history: a new range or a burst raises a flag and an alert to the sponsor, and holds its writes until the sponsor confirms (DK1717, S1425)
+        const v = opts.tokenWatch.observe(tenant.name, clientAddress(req, !!opts.trustProxy), (opts.now ? opts.now() : new Date()).getTime(), false);
+        if (v.flag) { try { opts.onTokenAlert?.(tenant.name, v.flag, v.code); } catch { /* an alert that fails must not break the request */ } }
+      }
       if (limits) {
         const v = limits.checkTenant(tenant.name, tenant.rateLimitPerMinute);
         if (!v.ok) return tooMany(res, v);
@@ -356,6 +365,16 @@ export function createLogServer(opts: ServerOptions): Server {
         const src = q.get("source") ?? undefined;
         if (q.get("format") === "text") { const t = opts.funnel.text(src); res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "content-length": Buffer.byteLength(t) }); return void res.end(t); }
         return json(res, 200, opts.funnel.view(src));
+      }
+      if (req.method === "POST" && req.url === "/token/confirm" && opts.tokenWatch) {
+        let body: { code?: string };
+        try { body = JSON.parse(await readBody(req, maxBody)); } catch { return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "send {\"code\": \"<the code that was sent to the sponsor>\"}" } }); }
+        const ok = tenant.role !== "admin" && opts.tokenWatch.confirm(tenant.name, String(body.code ?? ""));
+        return json(res, ok ? 200 : 403, ok ? { ok: true, result: { confirmed: true } } : { ok: false, error: { code: "WRONG_CODE", message: "that is not the code sent to the sponsor, or nothing is on hold" } });
+      }
+      if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/society/token-watch" && opts.tokenWatch) {
+        if (tenant.role !== "admin") return json(res, 403, { ok: false, error: { code: "FORBIDDEN", message: "the token watch is for an operator token" } });
+        return json(res, 200, { ok: true, result: opts.tokenWatch.all() });
       }
       if (req.method === "POST" && req.url === "/append-batch") {
         // A batch of records in one request (S1418, DK1362): each is appended in order and judged on its own; every record takes a place in the tenant's write limit and counts in its quota, so a batch is not a way round them.
@@ -418,6 +437,7 @@ export function createLogServer(opts: ServerOptions): Server {
       const args = Array.isArray(call.args) ? call.args : [];
       let fn: ((...a: unknown[]) => unknown) | undefined;
       const isWrite = target === "handle" && typeof method === "string" && TENANT_HANDLE_METHODS.has(method);
+      if (opts.tokenWatch && isWrite && tenant.role !== "admin" && !opts.tokenWatch.writesAllowed(tenant.name, (opts.now ? opts.now() : new Date()).getTime())) return json(res, 423, { ok: false, error: { code: "TOKEN_HELD", message: "this token is used from somewhere new or far above its usual rate, so its writes are on hold until the sponsor confirms with the code sent to them (POST /token/confirm), or, for an ordinary new network, for a short time. Reads still work." } });
       if (limits && isWrite) {
         const v = limits.checkWrite(tenant.name, 1, tenant.writeLimitPerMinute);
         if (!v.ok) return tooMany(res, v);

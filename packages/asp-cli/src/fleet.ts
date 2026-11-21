@@ -13,7 +13,7 @@ export interface FleetOpts {
   io: { out: (l: string) => void };
   now: () => string;
   signerFor: (did: string) => Signer;
-  flags: { association?: string; action?: string; node?: string; kind?: string; parent?: string; to?: string; owner?: string; credits?: string; tokens?: string; reason?: string; at?: string; file?: string; persona?: string; member?: string; contract?: string; org?: string; by?: string; did?: string; name?: string; purpose?: string; "max-members"?: string; runtime?: string; model?: string; "harness-sha"?: string; "harness-uri"?: string; skills?: string[]; "co-sponsor"?: string[]; strict?: boolean; json?: boolean };
+  flags: { window?: string; multiple?: string; halt?: boolean; association?: string; action?: string; node?: string; kind?: string; parent?: string; to?: string; owner?: string; credits?: string; tokens?: string; reason?: string; at?: string; file?: string; persona?: string; member?: string; contract?: string; org?: string; by?: string; did?: string; name?: string; purpose?: string; "max-members"?: string; runtime?: string; model?: string; "harness-sha"?: string; "harness-uri"?: string; skills?: string[]; "co-sponsor"?: string[]; strict?: boolean; json?: boolean };
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "fleet";
@@ -199,6 +199,32 @@ export async function fleetCmd(sub: string | undefined, rest: string[], o: Fleet
     o.io.out(`related-party record of ${f.member}: ${r.cleanRuns} clean attested run(s) since ${r.lastBreach ?? "the start"}, ${r.equivalentJobs} job(s) at ${r.runsPerJob} runs a job; association ${r.association}. Labelled related-party; never mixed with independent jobs; no credit reward`);
     return 0;
   }
+  // The fleet breaker (S1423, DK1477): `asp fleet breaker --did <fleet> [--node <id>] [--window <seconds>] [--multiple <n>] [--halt-runs --by <organisation did>]`: what a node's members used in the window against its budget prorated, and agent-to-agent cycles; `--halt-runs` signs a run_halt for each running contract it names.
+  if (sub === "breaker") {
+    const fleet = f.did ?? rest[0];
+    if (!fleet) throw new FleetUsage("asp fleet breaker --did <fleet did> [--node <id>] [--window <seconds>] [--multiple <n>] [--halt-runs --by <organisation did>]");
+    const d = await declaration(o, fleet);
+    const windowMs = f.window === undefined ? 3_600_000 : Number(f.window) * 1000, multiple = f.multiple === undefined ? 4 : Number(f.multiple);
+    if (!(windowMs >= 1000) || !(multiple >= 1)) throw new FleetUsage("--window is seconds (1 or more) and --multiple is 1 or more");
+    const r = await o.log.log.fleetBreaker(fleet, { ...(f.node ? { node: f.node } : {}), at: o.now(), windowMs, multiple });
+    o.io.out(`node ${r.node}: in ${windowMs / 1000} s its members used ${r.used.tokens} token(s) and ${r.used.credits} credit(s); allowed at ${multiple}x its budget's pace: ${r.allowed.tokens ?? "no token budget"} token(s), ${r.allowed.credits ?? "no credit budget"} credit(s)`);
+    for (const x of r.reasons) o.io.out(`  TRIPPED  ${x}`);
+    for (const c of r.cycles) o.io.out(`  CYCLE    ${c.agents.join(" -> ")} -> ${c.agents[0]} (${c.contracts.length} contract(s))`);
+    if (!r.reasons.length && !r.cycles.length) o.io.out("  nothing tripped: no spiral and no cycle");
+    if (!f.halt) return r.reasons.length || r.cycles.length ? 1 : 0;
+    const by = f.by ?? d.org;
+    const targets = [...r.contracts.map((c) => ({ ...c, reason: "fleet_spend" as const, detail: r.reasons.join("; ") })), ...r.cycles.flatMap((c) => c.contracts.map((ct) => ({ contract: ct, agent: "", reason: "cycle" as const, detail: `an agent-to-agent cycle: ${c.agents.join(" -> ")} -> ${c.agents[0]}` })))];
+    let n = 0;
+    for (const t of targets) {
+      const contract = await o.log.log.get(t.contract);
+      const agent = t.agent || (contract?.record.body as { performer?: string } | undefined)?.performer;
+      if (!agent || (await o.log.log.runHaltOf(t.contract))) continue;
+      await o.log.append(createRecord({ type: "run_halt", issuer: by, subject: t.contract, prev: null, body: { contract: t.contract, agent, reason: t.reason, detail: t.detail, ...(t.reason === "fleet_spend" ? { node: r.node } : {}) }, issued_at: o.now() }, o.signerFor(by)));
+      n++;
+    }
+    o.io.out(`${n} run(s) halted by a signed record; a halted run buys nothing more`);
+    return 0;
+  }
   // The fleet tree (S1409, DK1372): `asp fleet node set --did <fleet> --node <id> --kind <fleet|department|team|persona> --name <text> [--parent <id>] --owner <did> [--credits <n>] [--tokens <n>] [--file <mandate.json>] [--persona <p>] [--by <org>]`,
   // `asp fleet move --did <fleet> --member <did> --to <node> [--by <org, node owner or sponsor>] [--reason <text>]`, `asp fleet tree <fleet> [--month <YYYY-MM-DD>] [--json]`.
   if (sub === "node") {
@@ -236,10 +262,10 @@ export async function fleetCmd(sub: string | undefined, rest: string[], o: Fleet
     o.io.out(`fleet ${fleet}: ${t.members} member(s), ${t.nodes.filter((n) => n.version > 0).length} node(s), ${t.moves} move(s); usage for ${t.month}`);
     for (const n of t.nodes) {
       const cr = n.usage.credits, tk = n.usage.tokens;
-      const parts = [`${n.members} here, ${n.subtreeMembers} below and here`, cr.budget !== null ? `credits ${cr.spent}/${cr.budget}` : `credits ${cr.spent}`, tk.budget !== null ? `tokens ${tk.used}/${tk.budget}${tk.over ? " OVER" : ""}` : `tokens ${tk.used}`, n.mandate ? "Mandate set" : "Mandate inherited", ...(n.version ? [`owner ${n.owner}`] : [])];
+      const parts = [`${n.members} here, ${n.subtreeMembers} below and here`, cr.budget !== null ? `credits ${cr.spent}/${cr.budget}` : `credits ${cr.spent}`, tk.budget !== null ? `tokens ${tk.used}/${tk.budget}${tk.over ? " OVER" : ""}` : `tokens ${tk.used}`, n.mandate ? "Mandate set" : "Mandate inherited", ...(n.halt ? [`HALTED (${n.halt.reason}, ${n.halt.at})`] : []), ...(n.version ? [`owner ${n.owner}`] : [])];
       o.io.out(`${"  ".repeat(n.depth + 1)}${n.node} [${n.kind}] ${n.version ? n.name : "(not declared: members sit here by default)"}  ${parts.join("; ")}`);
     }
     return 0;
   }
-  throw new FleetUsage("asp fleet declare|show|update|members|close|list|template|narrow|mandate|node|move|tree|attest|record|standing");
+  throw new FleetUsage("asp fleet declare|show|update|members|close|list|template|narrow|mandate|node|move|tree|attest|record|standing|breaker");
 }

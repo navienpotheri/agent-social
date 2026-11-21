@@ -335,6 +335,7 @@ import { WorldUsage, worldCmd } from "./world.ts";
 import { FleetEnrolUsage, fleetEnrolCmd } from "./fleet-enrol.ts";
 import { fleetOnboardCmd } from "./fleet-onboard.ts";
 import { OffboardUsage, offboardCmd } from "./offboard.ts";
+import { alertLine, ceilingsFor } from "./spend-guard.ts";
 import { OrgUsage, orgCmd } from "./org.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
@@ -357,6 +358,7 @@ import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
+import { TokenWatch } from "@agent-social/asp-log";
 import { verifyAuditExport } from "@agent-social/asp-log";
 import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
@@ -401,7 +403,7 @@ import {
 } from "@agent-social/asp-core";
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
 import { DailyCeiling, renderSponsorReturn, sponsorReturn, screenMemoryWriteBack, askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
-import { allowScopes, inferScopes, isPreset, presetScopes, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
+import { allowScopes, inferScopes, isPreset, presetOf, presetScopes, WORK_PRESETS, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
 import { NEEDS_PASSPHRASE, isSealed, open as openSealed, passphraseFrom, seal } from "@agent-social/asp-package";
 import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
@@ -448,6 +450,7 @@ const OPTIONS = {
   format: { type: "string" },
   choice: { type: "string" },
   keys: { type: "boolean" },
+  pack: { type: "string", multiple: true },
   "private-log": { type: "string" },
   "keep-agents": { type: "boolean" },
   times: { type: "string" },
@@ -589,6 +592,7 @@ const OPTIONS = {
   tenant: { type: "string" },
   role: { type: "string" },
   "no-auth": { type: "boolean" },
+  "outbound-scan": { type: "string" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
   "keyonly-review-interval": { type: "string" },
@@ -909,8 +913,11 @@ const OPTIONS = {
   "min-qualifying": { type: "string" },
   month: { type: "string" },
   persona: { type: "string" },
+  multiple: { type: "string" },
+  "halt-runs": { type: "boolean" },
   "loop-equivalent": { type: "string" },
   "loop-depth": { type: "string" },
+  "loop-near": { type: "string" },
   "tokens-per-day": { type: "string" },
   "tokens-per-run": { type: "string" },
   "tokens-per-month": { type: "string" },
@@ -1081,7 +1088,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "offboard") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: the organisation's key must be on this machine`); return s; };
-      try { return await offboardCmd(sub, { home, log: local, io, now, signerFor, flags: { org: v.org, out: v.out, from: v.from, keys: v.keys, confirm: v.confirm } }); } catch (e) { if (e instanceof OffboardUsage) throw new UsageError(e.message); throw e; }
+      try { return await offboardCmd(sub, { home, log: local, io, now, signerFor, packAgent: (did, runtime, project, outDir) => main(["pack", "--runtime", runtime, "--agent", did, "--project", project, "--out", outDir], io), flags: { org: v.org, out: v.out, from: v.from, keys: v.keys, confirm: v.confirm, ...(v.pack ? { pack: v.pack } : {}) } }); } catch (e) { if (e instanceof OffboardUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "fleet" && ["plan", "enrol", "join", "status", "blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
     if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
@@ -1258,7 +1265,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tax-line" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "co-sponsor" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tax-line" | "pack" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "co-sponsor" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -2570,6 +2577,7 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
       if (!ft) return;
       ft.tokenSha256 = hashToken(token);
       ft.tokenRotatedAt = at;
+      try { new TokenWatch({ salt: "forget", path: `${file}.watch.json` }).forget(name); } catch { /* no history to forget */ }
       if (ft.machineTokens) ft.machineTokens = ft.machineTokens.map((m) => (m.revoked ? m : { ...m, revoked: at }));
       save(fresh);
     });
@@ -2923,7 +2931,18 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const farmingSalt = process.env.ASP_FARMING_SALT ?? (v.tokens ? createHash("sha256").update(`farming|${v.tokens}`).digest("hex") : "asp-farming-salt");
   const planTable = v["plans-file"] ? (JSON.parse(readFileSync(v["plans-file"], "utf8")) as Record<string, unknown>) : undefined;
-  const server = createLogServer({ ...(planTable ? { plans: planTable as never } : {}), ...(didDomain && tenantSource ? { farmingFacts: async () => serviceFarmingFacts(tenantSource(), didDomain, await handle.log.sponsorDids(), farmingSalt) } : {}), funnel, ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  // Use-anomaly detection for tokens (DK1717, S1425): a token used from a new place or far above its rate raises a flag and holds its writes; the confirmation code goes to the sponsor's verified address, never to the token.
+  const tokenWatch = !noAuth ? new TokenWatch({ salt: createHash("sha256").update(`token-watch|${v.tokens}|${farmingSalt}`).digest("hex"), path: `${v.tokens}.watch.json` }) : undefined;
+  const onTokenAlert = (tenant: string, f: { kind: string; detail: string }, code?: string) => {
+    io.err(`  TOKEN    ${tenant}: ${f.kind}: ${f.detail}${code ? " (writes held until the sponsor confirms)" : ""}`);
+    if (mailer) {
+      void mailer.tellTenant(tenant, `token:${tenant}:${f.kind}:${Date.now()}`, "Your Agent Social token was used from somewhere new", `Your token was used in a way that is not like its history (${f.detail}).
+
+If this was you${code ? `, confirm with the code ${code}: POST /token/confirm {"code": "${code}"} with your token (asp account confirm)` : ""}, nothing else is needed. If it was not you, replace the token now: ask the operator to run asp serve reset-token for your account.`);
+      void mailer.tellOperator(`token-op:${tenant}:${f.kind}:${Date.now()}`, `Token alert: ${tenant} (${f.kind})`, `${tenant}: ${f.kind}: ${f.detail}. The sponsor was mailed${code ? " with a confirmation code" : ""}.`);
+    }
+  };
+  const server = createLogServer({ ...(tokenWatch ? { tokenWatch, onTokenAlert } : {}), ...(planTable ? { plans: planTable as never } : {}), ...(didDomain && tenantSource ? { farmingFacts: async () => serviceFarmingFacts(tenantSource(), didDomain, await handle.log.sponsorDids(), farmingSalt) } : {}), funnel, ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   // The sponsor-less review (rows DK542, DK546): every --keyonly-review-interval seconds (default 300) the slashes of each key-only tenant are counted from the log; two ban its key and address and suspend the tenant,
   // one asks the Clinic for a quarantine, which the service cannot sign (the Clinic's key is the owner's): the request waits in <tokens>.keyonly-pending.json for `asp clinic keyonly-freeze`.
   if (signup && keyOnlyPending && !v["no-key-only-signup"]) {
@@ -3416,6 +3435,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const ceiling = new DailyCeiling(ceilingFile);
   const wakeDay = now().slice(0, 10);
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
+  const guard = ceilingsFor(v, io.env);
+  for (const w of guard.clamped) io.err(`  budget   ${w}`);
   if (!wake.ok) { io.err(`  refused  ${wake.reason}`); throw new Error(`${wake.ceiling}: ${wake.reason}`); }
   // DK1341: the company's own compute. A house agent (the operator's scripted agents, run on the operator's key) also counts against the company's ceiling, set with asp budget set --agent company; when it is reached the run is refused.
   const companyCap = new Budgets(join(home, "budgets.json")).get(COMPANY);
@@ -3550,6 +3571,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
     confineTo: resolve(io.cwd, v.project ?? "."),
+    // The outbound scan (DK1716): a key, a card number or an email address in a call or a model request is blocked or masked.
+    ...(v["outbound-scan"] ? { outbound: { mode: (v["outbound-scan"] === "redact" ? "redact" : "block") as "block" | "redact" } } : {}),
     // The Code of the City goes into the system context of every model request, unless the person turns it off (gap LW1).
     // The Code, and the agent's own record from the log (DK59): both go into the system context of every request. The record is read once at the start of the run, at the log head named in it.
     ...(() => {
@@ -3566,7 +3589,9 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(v["also-dir"] ? { alsoDirs: v["also-dir"].split(",").map((d) => d.trim()).filter(Boolean).map((d) => resolve(io.cwd, d)) } : {}),
     scopes: mandate.scopes, hosts: effectiveHosts, ...(fleetCeiling ? { ceiling: { label: fleetCeiling.label, removed: fleetCeiling.removed }, ...(fleetCeiling.tokensOver ? { modelBlock: fleetCeiling.tokensOver } : {}) } : {}), rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
-    ...((() => { const caps = [v["token-cap"] ? Math.trunc(Number(v["token-cap"])) : undefined, wake.tokensLeft].filter((x): x is number => x !== undefined); return caps.length ? { tokenCap: Math.min(...caps) } : {}; })()),
+    // The sponsor's spend guard (DK1715): default per-run and per-day ceilings in tokens, clamped to what the operator allows, alerts at 50, 80 and 100 percent, and a hard stop at the next model call.
+    tokenCap: Math.min(guard.perRun, wake.tokensLeft ?? Math.max(0, guard.perDay - ceiling.tokensUsed(by, wakeDay))),
+    onBudgetAlert: (e) => io.err(`  budget   ${alertLine(e)}`),
     onCall: (e) => {
       io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`);
       // The permissions were sized to the task (gap BM17): say, to the person and not to the agent, how to give it more.
@@ -3580,9 +3605,9 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     // The loop breaker (DK1230, S1422): the limits are the Mandate's (and the fleet ceiling's, whichever is lower); a halt is a signed record in the log, after which the Mandate buys nothing.
     ...(() => {
       const lim = loopLimitsFrom(mandateRecord?.record.body, ceilingMandate);
-      const { equivalentCalls, depth, dailyTokens } = lim;
-      if (equivalentCalls === undefined && depth === undefined && dailyTokens === undefined) return {};
-      return { loop: { ...(equivalentCalls !== undefined ? { equivalentCalls } : {}), ...(depth !== undefined ? { depth } : {}), ...(dailyTokens !== undefined ? { dailyTokens } : {}), onHalt: (h: { reason: string; detail: string; count: number; limit: number; tool: string }) => {
+      const { equivalentCalls, depth, dailyTokens, nearRepeats } = lim;
+      if (equivalentCalls === undefined && depth === undefined && dailyTokens === undefined && nearRepeats === undefined) return {};
+      return { loop: { ...(equivalentCalls !== undefined ? { equivalentCalls } : {}), ...(depth !== undefined ? { depth } : {}), ...(dailyTokens !== undefined ? { dailyTokens } : {}), ...(nearRepeats !== undefined ? { nearRepeats } : {}), onHalt: (h: { reason: string; detail: string; count: number; limit: number; tool: string }) => {
         io.err(`  HALTED   ${h.detail} (limit ${h.limit} from the Mandate)`);
         const s = new Keystore(home).forDid(by);
         if (!s) { io.err("  warning  the halt could not be signed: no key for this agent"); return; }
@@ -5453,7 +5478,7 @@ async function fleetCommand(home: string, sub: string | undefined, rest: string[
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only the organisation signs for its fleet`); return s; };
   try {
-    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { association: v.association, action: v.action, node: v.node, kind: v.kind, parent: v.parent, to: v.to, owner: v.owner, credits: v.credits, tokens: v.tokens, reason: v.reason, at: v.month, file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
+    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { window: v.window, multiple: v.multiple, halt: v["halt-runs"], association: v.association, action: v.action, node: v.node, kind: v.kind, parent: v.parent, to: v.to, owner: v.owner, credits: v.credits, tokens: v.tokens, reason: v.reason, at: v.month, file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
   } catch (e) {
     if (e instanceof FleetUsage) throw new UsageError(e.message);
     throw e;
@@ -5862,7 +5887,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       overlay: null, checkpoints: [] as string[], expires: cbody.deadline, revocable: true as const,
       // What the agent may buy from the institutions: the default (the Academy and the Shops, a month at a time) unless the sponsor names lines or says none (DK3).
       // Loop prevention (DK1230, S1422): the limits the gateway enforces on this run, narrowing like every other limit.
-      ...((() => { const eq = v["loop-equivalent"] ? Math.trunc(Number(v["loop-equivalent"])) : undefined, dp = v["loop-depth"] ? Math.trunc(Number(v["loop-depth"])) : undefined; if ((eq !== undefined && !(eq >= 2)) || (dp !== undefined && !(dp >= 1))) throw new UsageError("--loop-equivalent is 2 or more and --loop-depth is 1 or more"); return eq !== undefined || dp !== undefined ? { loop_limits: { ...(eq !== undefined ? { equivalent_calls: eq } : {}), ...(dp !== undefined ? { depth: dp } : {}) } } : {}; })()),
+      ...((() => { const eq = v["loop-equivalent"] ? Math.trunc(Number(v["loop-equivalent"])) : undefined, dp = v["loop-depth"] ? Math.trunc(Number(v["loop-depth"])) : undefined, nr = v["loop-near"] ? Math.trunc(Number(v["loop-near"])) : undefined; if ((eq !== undefined && !(eq >= 2)) || (dp !== undefined && !(dp >= 1)) || (nr !== undefined && !(nr >= 3))) throw new UsageError("--loop-equivalent is 2 or more, --loop-depth is 1 or more and --loop-near is 3 or more"); return eq !== undefined || dp !== undefined || nr !== undefined ? { loop_limits: { ...(eq !== undefined ? { equivalent_calls: eq } : {}), ...(dp !== undefined ? { depth: dp } : {}), ...(nr !== undefined ? { near_repeats: nr } : {}) } } : {}; })()),
       ...((() => { const td = v["tokens-per-day"] ? Math.trunc(Number(v["tokens-per-day"])) : undefined, tr = v["tokens-per-run"] ? Math.trunc(Number(v["tokens-per-run"])) : undefined, tm = v["tokens-per-month"] ? Math.trunc(Number(v["tokens-per-month"])) : undefined; for (const x of [td, tr, tm]) if (x !== undefined && !(x >= 1)) throw new UsageError("--tokens-per-day, --tokens-per-run and --tokens-per-month are 1 or more"); return td !== undefined || tr !== undefined || tm !== undefined ? { token_budget: { ...(tr !== undefined ? { per_run: tr } : {}), ...(tm !== undefined ? { per_month: tm } : {}), ...(td !== undefined ? { per_day: td } : {}) } } : {}; })()),
       ...(() => { try { const lines = parseInstitutionSpend(v["institution-spend"]); return lines.length ? { institution_spend: lines } : {}; } catch (e) { if (e instanceof SpendUsage) throw new UsageError(e.message); throw e; } })(),
     };
@@ -6660,14 +6685,16 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   // A task gets the permissions it seems to need, not the usual full set (gap BM17); --ask on a scope and --allow add to it. A headless run uses its existing contract's Mandate as it is.
   // A session with no task is sized by the person's choice for this project, asked once and kept in the ASP home (not in the project, so a cloned repository cannot set it).
   const allowed = [...allowScopes(v.allow, prof.scopes), ...gate.filter((g) => prof.scopes.includes(g))];
-  if (v.permissions !== undefined && v.permissions !== "ask" && !isPreset(v.permissions)) throw new UsageError("--permissions review|develop|full (or ask, to be asked again)");
+  if (v.permissions !== undefined && v.permissions !== "ask" && !presetOf(v.permissions)) throw new UsageError("--permissions research|writing|coding (or review|write|develop|full; or ask, to be asked again)");
+  const wanted = presetOf(v.permissions);
+  if (wanted && v.permissions! in WORK_PRESETS) { const w = WORK_PRESETS[v.permissions as keyof typeof WORK_PRESETS]; io.err(`  preset   ${v.permissions}: the agent may ${w.allows}; it may not ${w.never}`); }
   let preset: Preset | undefined;
   if (!headless) {
     const prefsFile = join(home, "project-permissions.json");
     const prefs = ((): Record<string, string> => { try { return JSON.parse(readFileSync(prefsFile, "utf8")); } catch { return {}; } })();
     const projKey = resolve(io.cwd, v.project ?? ".");
     const keep = (p: Preset) => { prefs[projKey] = p; mkdirSync(home, { recursive: true }); writeFileSync(`${prefsFile}.part`, JSON.stringify(prefs, null, 2)); renameSync(`${prefsFile}.part`, prefsFile); };
-    if (isPreset(v.permissions)) { preset = v.permissions; keep(preset); }
+    if (wanted) { preset = wanted; keep(preset); }
     else if (!v.prompt) {
       const saved = v.permissions === "ask" ? undefined : prefs[projKey];
       preset = isPreset(saved) ? saved : undefined;

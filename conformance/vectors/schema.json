@@ -424,6 +424,139 @@
       "valid": true
     },
     {
+      "name": "call_missing_deadline",
+      "schema": "call",
+      "instance": {
+        "purpose": "Cut CI time in half",
+        "budget": {
+          "value": 5000,
+          "unit": "credit"
+        },
+        "evaluation_criteria": [
+          "median CI minutes"
+        ],
+        "panel": [
+          "did:web:example.com:courts:panel-1"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "call_empty_purpose",
+      "schema": "call",
+      "instance": {
+        "purpose": "",
+        "budget": {
+          "value": 5000,
+          "unit": "credit"
+        },
+        "evaluation_criteria": [
+          "median CI minutes"
+        ],
+        "panel": [
+          "did:web:example.com:courts:panel-1"
+        ],
+        "deadline": "2026-11-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "proposal_missing_milestones",
+      "schema": "proposal",
+      "instance": {
+        "call": "sha256:7edb360f06acaef2cc80dba16cf563f199d347db4443da04da0c8173e3f9e4ed",
+        "plan": "Shard and cache",
+        "team": [
+          "did:web:example.com:agents:coder-1"
+        ],
+        "budget_asked": {
+          "value": 1200,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "proposal_empty_plan",
+      "schema": "proposal",
+      "instance": {
+        "call": "sha256:7edb360f06acaef2cc80dba16cf563f199d347db4443da04da0c8173e3f9e4ed",
+        "plan": "",
+        "team": [
+          "did:web:example.com:agents:coder-1"
+        ],
+        "budget_asked": {
+          "value": 1200,
+          "unit": "credit"
+        },
+        "milestones": [
+          {
+            "description": "sharding",
+            "due": "2026-10-15T00:00:00Z"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "bond_missing_escrow",
+      "schema": "bond",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "backer": "did:web:example.com:agents:coder-1",
+        "amount": {
+          "value": 10,
+          "unit": "credit"
+        },
+        "slashing_conditions": []
+      },
+      "valid": false
+    },
+    {
+      "name": "bond_amount_not_an_amount",
+      "schema": "bond",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "backer": "did:web:example.com:agents:coder-1",
+        "amount": 10,
+        "escrow": {},
+        "slashing_conditions": []
+      },
+      "valid": false
+    },
+    {
+      "name": "package_missing_lineage_head",
+      "schema": "package",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-1",
+        "memory": {
+          "uri": "x",
+          "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "package_agent_not_a_did",
+      "schema": "package",
+      "instance": {
+        "agent": "coder",
+        "passport": "sha256:148de9c5a7a44d19e56cd9ae1a554bf67847afb0c58f6e12fa29ac7ddfca9940",
+        "memory": {
+          "uri": "x",
+          "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "experience_store": {
+          "uri": "x",
+          "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "permissions": {},
+        "lineage_head": "sha256:acac86c0e609ca906f632b0e2dacccb2b77d22b0621f20ebece1a4835b93f6f0",
+        "source_runtime": {}
+      },
+      "valid": false
+    },
+    {
       "name": "valid_action",
       "schema": "action",
       "instance": {
@@ -4939,6 +5072,71 @@
           "name": "example-runtime",
           "model": "example-model-1"
         }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_juror",
+      "schema": "juror",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-1",
+        "stake": {
+          "value": 50,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "juror_without_stake",
+      "schema": "juror",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-1"
+      },
+      "valid": false
+    },
+    {
+      "name": "juror_without_did",
+      "schema": "juror",
+      "instance": {
+        "stake": {
+          "value": 50,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "juror_did_not_a_did",
+      "schema": "juror",
+      "instance": {
+        "did": "juror-1",
+        "stake": {
+          "value": 50,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "juror_stake_not_an_amount",
+      "schema": "juror",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-1",
+        "stake": 50
+      },
+      "valid": false
+    },
+    {
+      "name": "juror_extra_field",
+      "schema": "juror",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-1",
+        "stake": {
+          "value": 50,
+          "unit": "credit"
+        },
+        "note": "pick me"
       },
       "valid": false
     },
@@ -12676,7 +12874,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -12749,7 +12948,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -12820,7 +13020,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -12892,7 +13093,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -12963,7 +13165,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13035,7 +13238,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           },
           "contract": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
         }
@@ -13109,7 +13313,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13177,7 +13382,8 @@
           "token_budget": {},
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13247,7 +13453,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13317,7 +13524,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13387,7 +13595,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13544,6 +13753,77 @@
           },
           "loop_limits": {
             "equivalent_calls": 1
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_near_repeats_two",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ],
+          "token_budget": {
+            "per_run": 50000,
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "near_repeats": 2
           }
         }
       },
@@ -13752,7 +14032,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -13939,7 +14220,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },
@@ -14170,7 +14452,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           }
         }
       },

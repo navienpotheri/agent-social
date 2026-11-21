@@ -578,3 +578,57 @@ test("T21: the time a run waits for its principal is recorded apart in the Actio
   assert.ok(m.seconds <= 1, `the working seconds leave the wait out (${m.seconds})`);
   assert.equal(g.drain().metrics.approval_wait_seconds, undefined, "counted once, then it starts again");
 });
+
+// DK1716: the outbound scan at the gateway, on a tool call and on a model request.
+const PLANTED = "sk-ant-" + "api03-" + "A".repeat(10) + "b".repeat(10) + "9".repeat(8);
+const recorder = () => { const events: { kind: string; data: any }[] = []; return { events, rec: { event: (kind: string, data: any) => { events.push({ kind, data }); }, head: () => ({}) } as any }; };
+
+test("DK1716: a planted key, a card number and an email in a tool call are blocked, the run log names the kind and a hash and holds no value, and a harmless call goes through", async () => {
+  const { events, rec } = recorder();
+  const up = await fakeUpstream([openaiToolReply([
+    { name: "bash", args: { command: `echo x-key ${PLANTED}` } },
+    { name: "bash", args: { command: "echo paying 4532 0151 1283 0366" } },
+    { name: "bash", args: { command: "echo report for jane.doe@acme-corp.com" } },
+    { name: "bash", args: { command: "node --version # v22.18.0, see 4242 4242 4242 4242 and a@example.com" } },
+  ])]);
+  const { url } = await gateway(up, { scopes: ["repo.read", "shell.exec"], outbound: { mode: "block" }, runLog: rec });
+  const reply: any = await (await post(`${url}/v1/chat/completions`, { model: "m", messages: [] })).json();
+  const kept = reply.choices[0].message.tool_calls ?? [];
+  assert.equal(kept.length, 1, "only the harmless call remains");
+  assert.match(JSON.parse(kept[0].function.arguments).command, /node --version/);
+  const scans = events.filter((e) => e.kind === "outbound_scan");
+  assert.deepEqual(scans.map((e) => e.data.kind).sort(), ["card number", "email address", "secret"]);
+  for (const e of scans) { assert.match(e.data.hash, /^sha256:/); assert.equal(e.data.where, "tool_call"); assert.equal(e.data.action, "blocked"); }
+  const all = JSON.stringify(scans);   // (the recorder here is a stub: the real run log redacts the other events it writes)
+  assert.ok(!all.includes(PLANTED) && !all.includes("4532 0151") && !all.includes("jane.doe@"), "no value is in the run log");
+});
+
+test("DK1716: a model request that carries a secret is refused in block mode (the provider is not called) and masked in redact mode, on both API styles, with the hit in the run log", async () => {
+  const body = { model: "m", max_tokens: 5, messages: [{ role: "user", content: `my key is ${PLANTED} please use it` }] };
+  const blockRec = recorder();
+  const up = await fakeUpstream([openaiToolReply([], "ok")]);
+  const { url } = await gateway(up, { outbound: { mode: "block" }, runLog: blockRec.rec });
+  const refused = await post(`${url}/v1/chat/completions`, body);
+  assert.equal(refused.status, 403);
+  assert.match(JSON.stringify(await refused.json()), /asp_outbound_scan/);
+  assert.equal(up.seen.length, 0, "the provider was not called");
+  const refusedA = await post(`${url}/v1/messages`, body);
+  assert.equal(refusedA.status, 403);
+  assert.equal(up.seen.length, 0);
+  assert.equal(blockRec.events.filter((e) => e.kind === "outbound_scan" && e.data.where === "model_request" && e.data.action === "blocked").length, 2);
+  assert.ok(!JSON.stringify(blockRec.events.filter((e) => e.kind === "outbound_scan")).includes(PLANTED));
+
+  const redactRec = recorder();
+  const up2 = await fakeUpstream([openaiToolReply([], "ok")]);
+  const g2 = await gateway(up2, { outbound: { mode: "redact" }, runLog: redactRec.rec });
+  const ok = await post(`${g2.url}/v1/chat/completions`, body);
+  assert.equal(ok.status, 200);
+  assert.equal(up2.seen.length, 1);
+  const sent = JSON.stringify(up2.seen[0].body);
+  assert.ok(!sent.includes(PLANTED), "the provider received the request with the key masked");
+  assert.match(sent, /\[redacted: secret\]/);
+  assert.equal(redactRec.events.filter((e) => e.data.action === "redacted").length, 1);
+  // a request with nothing in it goes through untouched
+  const clean = await post(`${g2.url}/v1/chat/completions`, { model: "m", messages: [{ role: "user", content: "version 1.2.3" }] });
+  assert.equal(clean.status, 200);
+});

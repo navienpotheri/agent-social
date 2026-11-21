@@ -12,6 +12,7 @@
  * What it does NOT contain yet, stated in the output (`not_yet`, with the backlog row that will add each): the agent's reasoning, goals and beliefs (the log carries actions, not thoughts: register rows DK790, DK79), private messages, the trajectory text the
  * telemetry store keeps apart from the log, and exploration (the worlds are not built: DK1317).
  */
+import { reasonsFor, type AdverseAct } from "./reasons.ts";
 import { fleetDirectory, fleetOfAgent } from "./fleets.ts";
 import type { AspRecord } from "@agent-social/asp-core";
 import { controlMapOf } from "./farming.ts";
@@ -113,6 +114,8 @@ export interface Journey {
   not_recorded: string[];
   /** What is not on the page yet, why, and the backlog rows that will put it there. */
   not_yet: NotYet[];
+  /** What was done to the agent, with the rule, the evidence and the way forward (AG3). Free text is left out of the public view. */
+  reasons: AdverseAct[];
   note: string;
   /** The cost to the sponsor (DK1347): present in the sponsor view only. */
   cost?: JourneyCost;
@@ -379,7 +382,7 @@ export function journeyOf(inp: JourneyInput, nameOrDid: string, view: "public" |
   const bal = inp.balances?.get(did);
   const fleetMark = fleetOfAgent(fleetDirectory(inp.stored), did);
   return {
-    name: agent.name, label: labelOf(did), did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(fleetMark ? { fleet: fleetMark } : {}), ...(cost ? { cost } : {}), ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED, not_yet: NOT_YET,
+    name: agent.name, label: labelOf(did), did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(fleetMark ? { fleet: fleetMark } : {}), ...(cost ? { cost } : {}), ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED, not_yet: NOT_YET, reasons: reasonsFor(inp.stored.map((s) => s.record as never), did, view),
     note: view === "sponsor" ? "sponsor view: includes the text the agent's records and forum posts carry; credits are accounting entries, not money" : "public view: names, institutions, kinds of act and amounts only, no free text; credits are accounting entries, not money",
   };
 }

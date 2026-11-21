@@ -24,17 +24,17 @@ test("asp market mandate carries --loop-equivalent, --loop-depth and --tokens-pe
     const contract = /^contract (\S+):/.exec((await asp(f, ["market", "contract", "--principal", P, "--bank", BANK, "--intent", intent, "--offer", offer])).out)![1];
     assert.equal((await asp(f, ["market", "bond", "--contract", contract, "--backer", A, "--amount", "10", "--escrow-payer", P, "--escrow-amount", "100"])).code, 0);
     const mandate = (extra: string[]) => asp(f, ["market", "mandate", "--contract", contract, "--principal", P, "--performer", A, "--scopes", "repo.read", ...extra]);
-    for (const bad of [["--loop-equivalent", "1"], ["--loop-depth", "0"], ["--tokens-per-day", "0"], ["--tokens-per-run", "0"]]) {
+    for (const bad of [["--loop-equivalent", "1"], ["--loop-depth", "0"], ["--loop-near", "2"], ["--tokens-per-day", "0"], ["--tokens-per-run", "0"]]) {
       const r = await mandate(bad);
       assert.notEqual(r.code, 0, bad.join(" "));
-      assert.match(r.err + r.out, /is 2 or more and --loop-depth is 1 or more|are 1 or more/);
+      assert.match(r.err + r.out, /is 2 or more, --loop-depth is 1 or more and --loop-near is 3 or more|are 1 or more/);
     }
-    const ok = await mandate(["--loop-equivalent", "8", "--loop-depth", "3", "--tokens-per-day", "300000", "--tokens-per-run", "50000"]);
+    const ok = await mandate(["--loop-equivalent", "8", "--loop-depth", "3", "--loop-near", "12", "--tokens-per-day", "300000", "--tokens-per-run", "50000"]);
     assert.equal(ok.code, 0, ok.err + ok.out);
     const { openLog } = await import("@agent-social/asp-package");
     const local = await openLog(f.aspHome, {});
     const stored = (await local.log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1)!.record.body as { loop_limits?: unknown; token_budget?: unknown };
-    assert.deepEqual(stored.loop_limits, { equivalent_calls: 8, depth: 3 });
+    assert.deepEqual(stored.loop_limits, { equivalent_calls: 8, depth: 3, near_repeats: 12 });
     assert.deepEqual(stored.token_budget, { per_run: 50000, per_day: 300000 });
   } finally { setClock(undefined); }
 });

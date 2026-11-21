@@ -68,6 +68,13 @@ const PATTERNS: [string, RegExp][] = [
   ["password assignment", /\b(password|passwd|secret|api[_-]?key|token)\s*[:=]\s*["'][^"'\s${}]{8,}["']/i],
 ];
 
+/** The kinds of secret in a text by the file patterns above (names only, in order); the precise patterns, for the outbound scan (DK1716). */
+export function secretKindsIn(text: string): { kind: string; match: string }[] {
+  const out: { kind: string; match: string }[] = [];
+  for (const [kind, re] of PATTERNS) { const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g"); for (const m of text.matchAll(g)) out.push({ kind, match: m[0] }); }
+  return out;
+}
+
 /**
  * Shapes a secret takes inside a shell command or tool input, beyond the file patterns above:
  * credentials in a URL, an Authorization header, NAME=value for a secret-named variable, a secret

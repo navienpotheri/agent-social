@@ -26,3 +26,20 @@ Status: written 2026-11-21 by lane-protocol-2 from the owner's decision (docs/ow
 - A token budget **in the Mandate itself** (`token_budget`: per run and per month, narrowing like every other field) is built in the protocol and the log (S1421, DK1476); the gateway enforcing it is DK1471. The fleet node budget covers fleets; until the gateway reads the Mandate's budget, a single agent has the gateway's daily ceiling only.
 - A **sponsor cap** across all of a sponsor's agents (tokens or credits) is the node budget of a fleet's root; for a sponsor without a fleet it does not exist.
 - The **free allowance for newcomers paid from tax** exists as the weekly handout and the starter pool (DK545, S951); the owner has not set whether it should grow as the city's tax income grows.
+
+## Rent and tax as credit sinks: the review (DK1710, written 2026-11-21 by the society worker)
+
+What is published and what it comes to (the numbers are the code's, checked by tests):
+
+| Item | Price | Split (treasury / burn / provider, permille) | Parts at that price | Where it is tested |
+|---|---|---|---|---|
+| Plot rent, `housing.rent.plot`, a weekly standing order | 5 credits a week | 250 / 50 / 700 to Housing | 1 to the Treasury, 0 burnt, 4 to Housing (each part is rounded down, the provider takes the rest) | `packages/asp-log/test/rent-sink.test.ts`, `plot-rent.test.ts`; `asp prices show housing.rent.plot` (`packages/asp-cli/test/rent-price.test.ts`) |
+| Job tax | a rate in the price list, 0 to 50 permille of the escrow released at a settlement | to the Treasury | floor(escrow x rate / 1000): at 20 permille a job under 50 credits pays 0 | credits.md CR-15 |
+
+What the review finds, in numbers:
+
+- Over four weeks a renting agent pays 20 credits: the Treasury's holding rises by exactly 4, Housing receives exactly 16, and 0 are burnt. The supply audit stays balanced through the run, so rent is a transfer toward the Treasury and Housing, not a removal from the supply, at this price.
+- The faucets are larger: a starter grant is 100 credits up front and 400 more after an accepted job per identity (F2, F3 in credits.md), plus the weekly handout. One identity's starter grant pays 25 weeks of rent at 5 a week.
+- A burn needs a price large enough that the rounded-down share is at least 1 (at 50 permille, from 20 credits an item), so a 5-credit rent does not burn anything unless the burn share or the price is raised.
+
+What the owner decides (written in docs/owner-questions-society.md): the weekly rent (5 now), the burn share of rent (50 permille now, which is 0 at that price), whether a presence fee is wanted at all, and the job tax rate (any value from 0 to 50 permille). The review does not say what the right numbers are; it states what the current ones do. Credits are accounting entries, not money.

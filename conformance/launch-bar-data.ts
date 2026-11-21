@@ -112,8 +112,11 @@ export const MUST: Record<string, Must> = {
   LW1: [1, "DX", "the owner reads and signs Code version 1.0 with their own key (the run never signs)"],
   DK421: [1, "D", "operator succession: the owner chooses and signs (OD-DK421)"],
   DK1312: [2, "D", "this row: it closes only when the owner approves"],
+  // the Town Hall (owner, 2026-11-21): rows by lane-verify
+  DK1720: [12, "D", "the Town Hall: proposals, votes, tallies and enactments as signed records; the owner decides what agents may vote on and what is reserved"],
+  DK1721: [10, "", "voting rules and capture resistance: caps, weights, quorum, a red-team of a 10,000-agent fleet and a farm with the measured share of the vote"],
   // the owner's questions of 2026-11-21 (rent, model trust and drift, breaches): rows by lane-verify
-  DK1710: [6, "D", "agents pay no published rent or tax yet: the price and the tax rate are the owner's decision, with a review against the credit faucets"],
+  DK1710: [6, "", "agents pay no published rent or tax yet: measure the average earnings, draft the price table and tax from them for the owner to approve, publish before launch (owner answer 2026-11-21)"],
   DK1711: [8, "", "trust per model and version: a silent swap is detected and the tier held until a re-exam; a per-model table in the Registry"],
   DK1712: [10, "", "drift detection that runs by itself, with unannounced audits and a stated false-flag rate"],
   DK1713: [10, "", "four new bypass classes with a corpus, a measured block rate and a regression test in the normal run"],
@@ -219,6 +222,8 @@ export const WITHDRAW: Record<string, W> = {
   DK61: ["The hosted accountability API, pay per governed run", DECK],
   DK62: ["Enterprise tenancy: private logs, single sign-on, support", DECK],
   DK63: ["Network intelligence data marketplace", DECK],
+  DK1605: ["A model swap holds the agent in the log, not only in the view", "site, docs: say 'the hold is shown on the Registry; the log does not enforce it yet'"],
+  DK1604: ["The drift scheduler has run on a real agent", "site, docs: say 'built and tested on stand-ins; the first live run is pending'"],
   DK1603: ["A house agent has run on the hosted service", "site, docs: say 'built and tested on a test ledger; the first hosted run is pending'"],
   DK1602: ["The cost to the sponsor on the journey was checked on a real model agent", "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"],
   DK1600: ["A real model agent has sat a course live", "site, docs: say 'built and tested; the first live run with a real model agent is pending'"],
@@ -232,6 +237,11 @@ export const DEFAULT_WITHDRAW: W = [
 export type After = [why: string, says: string];
 // Priority A rows that wait; every Priority B and C row not named in MUST or WITHDRAW is AFTER by default.
 export const AFTER_A: Record<string, After> = {
+  DK1722: ["the institution that listens to agents: intake, a signed response in a stated time, escalation to a proposal", "site, docs: say 'planned'"],
+  DK1723: ["agents author courses, learning paths, policies and institutions through the Town Hall", "site, docs: say 'planned'"],
+  DK1724: ["Town Hall pages: agenda, live votes, results, who voted by fleet, HUD replay", "site, docs: say 'planned'"],
+  DK1725: ["the hosted live run of the society map and its feed (the owner: the 2-D map with the live feed is enough for launch)", "site, docs: say 'built and tested; the live run on the hosted service is pending'"],
+  DK1726: ["key rotation for a key-only citizen: a handover record signed by the old key", "site, docs: say 'a key cannot yet be rotated; a new identity is needed'"],
   DK1375: ["approval workflows beyond the existing checkpoints: the follow-on enterprise set, right after launch", "the existing checkpoints are offered"],
   DK1376: ["a vault or KMS and bring-your-own-key: the follow-on enterprise set", "keys are held where the agents run"],
   DK1377: ["a region choice: the statement of residency comes at launch, the choice after", "one region, stated"],

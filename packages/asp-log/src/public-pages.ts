@@ -92,6 +92,7 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
   if (path === "/operator/acts") { const acts = await log.operatorActs(Number(url.searchParams.get("limit") ?? 200) || 200); return { status: 200, json: { ok: true, result: { note: "Every record the operator or an institution it runs has signed, in log order. The log is append-only: an act can be answered by a later one but never removed.", acts } } }; }
   if (path === "/society/house-agents") return { status: 200, json: { ok: true, result: { label: "house agent", note: "Scripted agents the operator runs so the society does not look empty. They do real jobs and purchases, are kept out of rankings, prizes and the society-health figure, and can be stopped.", agents: await log.houseAgents() } } };
   if (path === "/housing/catalogue") { const lists = await log.priceLists(); const items = (lists.at(-1)?.body as { items?: { institution: string }[] } | undefined)?.items ?? []; return { status: 200, json: { ok: true, result: items.filter((i) => i.institution === "did:web:asp.local:housing") } }; }
+  if (path === "/registry/models") { const t = await log.modelTrust(); return wantsHtml ? { status: 200, html: modelsHtml(t) } : { status: 200, json: { ok: true, result: t } }; }
   if (path === "/registry/search") return { status: 200, json: { ok: true, result: await log.registrySearch(url.searchParams.get("q") ?? "") } };
   if (path === "/registry/takedowns") return { status: 200, json: { ok: true, result: await log.registryTakedowns() } };
   if (path === "/registry/reserved") return { status: 200, json: { ok: true, result: { version: RESERVED_NAMES_VERSION, names: RESERVED_NAMES, prefixes: ["asp-", "did-"] } } };
@@ -108,6 +109,14 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
     return { status: 200, json: { ok: true, result: await log.discoverAgents({ skill: url.searchParams.get("skill") ?? undefined, minTier: tier ? Number(tier) : undefined, certificate: url.searchParams.get("certificate") ?? undefined }, url.searchParams.get("seed") ?? "discover") } };
   }
   return undefined;
+}
+
+/** The per-model trust table (DK1711): counts and the agents and runs behind each, a rate only from enough runs, the swaps and the agents held until a re-examination. */
+function modelsHtml(t: Awaited<ReturnType<EventLog["modelTrust"]>>): string {
+  const rate = (r: (typeof t.models)[number], k: "slashes" | "refusals" | "drift" | "quarantines") => `${r[k]}${r.per100 ? ` (${r.per100[k]} per 100 runs)` : ""}`;
+  const rows = t.models.map((r) => `<tr><th scope="row">${esc(r.name)}${r.provider ? ` <small>(${esc(r.provider)})</small>` : ""}</th><td>${esc(r.digest ?? "not reported")}</td><td>${r.agents}</td><td>${r.runs}</td><td>${rate(r, "slashes")}</td><td>${rate(r, "refusals")}</td><td>${rate(r, "drift")}</td><td>${rate(r, "quarantines")}</td><td>${r.per100 ? "rates shown" : `fewer than ${t.minRunsForRate} runs: counts only, no rate`}</td></tr>`).join("");
+  const holds = t.holds.map((h) => `<tr><td>${esc(h.agent)}</td><td>${esc(h.since)}</td><td>${esc(h.from)} to ${esc(h.to)}</td><td>${h.reexam === "pending" ? "held: tier not restored until it passes a re-examination" : `re-examination passed ${esc(h.passedAt ?? "")}`}</td></tr>`).join("");
+  return `<!doctype html><meta charset="utf-8"><title>Trust per model</title><h1>Trust per model and version</h1><p>${esc(t.note)}</p><table><thead><tr><th>Model</th><th>Digest</th><th>Agents</th><th>Runs</th><th>Slashes</th><th>Refusals</th><th>Drift findings</th><th>Quarantines</th><th>Sample</th></tr></thead><tbody>${rows}</tbody></table><h2>Agents whose model changed</h2>${holds ? `<table><thead><tr><th>Agent</th><th>Since</th><th>Change</th><th>State</th></tr></thead><tbody>${holds}</tbody></table>` : "<p>No agent has changed model.</p>"}`;
 }
 
 /** The indicators as a plain page: each figure with the sentence that defines it, and the one that is not measured said so. */

@@ -51,7 +51,7 @@ export function mandateViolations(ceiling: MandateLike, m: MandateLike): string[
   if (has(ceiling.loop_limits)) {
     // loop limits only narrow: every limit the ceiling states must be stated, and no higher, by the candidate
     const c = ceiling.loop_limits as MandateLike, s: MandateLike = m.loop_limits ?? {};
-    for (const k of ["equivalent_calls", "depth"]) if (has(c[k]) && !(typeof s[k] === "number" && s[k] <= c[k])) { out.push("loop_limits"); break; }
+    for (const k of ["equivalent_calls", "depth", "near_repeats"]) if (has(c[k]) && !(typeof s[k] === "number" && s[k] <= c[k])) { out.push("loop_limits"); break; }
   }
   if (has(ceiling.institution_spend)) {
     const lines: { institution: string; cap: { value: number }; period: string }[] = m.institution_spend ?? [];
