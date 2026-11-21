@@ -272,8 +272,8 @@ export class EventLog {
   private readonly now: () => Date;
   private readonly maxNodeTtlMs: number;
   private readonly panelSize: number;
-  private readonly bankEnv: BankEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
-  private readonly insurerEnv: InsurerEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
+  private readonly bankEnv: BankEnv = { reputation: (tx, did) => this.gatedReputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
+  private readonly insurerEnv: InsurerEnv = { reputation: (tx, did) => this.gatedReputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
 
   private readonly bondFloor: "legacy" | "v2" | "v3";
   private bondFloorFrom?: string;
@@ -459,11 +459,11 @@ export class EventLog {
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
     if (type === "support") await projectSupport(tx, verified, { operator: this.operator });
     if (type === "court_act") await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
-    if (type === "shops_act") await projectShopsAct(tx, verified, { reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
+    if (type === "shops_act") await projectShopsAct(tx, verified, { reputation: (rd, did) => this.gatedReputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
     if (type === "housing_act") await projectHousingAct(tx, verified);
     if (type === "telemetry_act") await projectTelemetryAct(tx, verified);
-    if (type === "research_act") await projectResearchAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
-    if (type === "events_act") await projectEventsAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
+    if (type === "research_act") await projectResearchAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.gatedReputation(rd, did), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
+    if (type === "events_act") await projectEventsAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.gatedReputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
     if (type === "contract") await notePerformer(tx, verified);
     if (type === "contract") await this.noteRelatedParty(tx, verified);
     if (type === "contract") await this.checkTutorial(tx, verified);
@@ -1097,6 +1097,16 @@ export class EventLog {
    * from an agent that names models records them; a later one that names a model the agent has not run before, or the same name with a different digest, opens a probation window for the agent
    * (the same window a lineage update sets, 7 days, never shortened). Nothing is refused: a runtime swap is allowed, and the window is the log's record that "a name can point to different weights".
    */
+  /**
+   * A model swap holds an agent at the entry tier (DK1605, S1555): from the swap until a passed exam of its own, every gate that reads the tier sees at most tier 1, so the Mandate limits, the board's minimum tier, the Bond
+   * floors, the arenas, the events, the research problems and the shops' gates treat the agent as new. The reputation itself (the slash count, the jobs, the stored tier) is not touched: the exam restores the view.
+   */
+  private async gatedReputation(tx: Pick<LogTx, "getPassport" | "getRecord" | "getReputation" | "getMarker">, did: string) {
+    const r = await this.reputation(tx, did);
+    if (r && r.tier > 1 && (await tx.getMarker(`model_hold:${did}`))) return { ...r, tier: 1 };
+    return r;
+  }
+
   private async noteModels(tx: LogTx, r: AspRecord): Promise<void> {
     const models = (r.body as { metrics?: { models?: { name: string; provider?: string; digest?: string }[] } }).metrics?.models;
     if (!models?.length) return;
@@ -1114,6 +1124,7 @@ export class EventLog {
     }
     await tx.putMarker(key, JSON.stringify(known));
     if (changed) {
+      await tx.putMarker(`model_hold:${r.issuer}`, r.id);
       const until = new Date(Date.parse(r.issued_at) + MODEL_CHANGE_PROBATION_MS).toISOString().replace(/\.\d{3}Z$/, "Z");
       const current = await tx.getProbation(r.issuer);
       if (!current || Date.parse(current.until) < Date.parse(until)) await tx.putProbation({ did: r.issuer, until, setBy: r.id });
@@ -1348,7 +1359,7 @@ export class EventLog {
   private async checkMandateTier(tx: LogTx, r: AspRecord): Promise<void> {
     await checkLadderOnMandate(tx, r);
     await checkMandateTelemetry(tx, r);
-    const rep = await this.reputation(tx, r.subject as string);
+    const rep = await this.gatedReputation(tx, r.subject as string);
     const remedial = (r.body as { remedial?: { sponsor: string } }).remedial;
     if (remedial) await this.checkRemedialMandate(tx, r, rep?.tier, remedial);
     else if (rep?.tier === 0) throw rule("tier_excluded", `${r.subject} is excluded from receiving a Mandate: repeat slashes demoted it to tier 0 (a remedial Mandate for a Clinic exam or course is the one it may receive: \`remedial\`)`);
@@ -2142,7 +2153,7 @@ export class EventLog {
       }
     }
     if (item.class !== "essential" && item.class !== "remedial" && !String(b.service ?? "").startsWith("courts.")) await this.checkCityStop(tx, r);
-    const rep = await this.reputation(tx, buyer);
+    const rep = await this.gatedReputation(tx, buyer);
     if (rep && rep.tier === 0 && item.class === "standard") throw rule("tier_excluded", "a tier 0 agent may buy only essential or remedial items");
     if (item.class !== "essential" && item.class !== "remedial") await assertNotDormant(tx, buyer, `buy ${b.service}`);
     if (item.institution === SHOPS_DID || item.institution === HOUSING_DID) await checkShopsPurchase(tx, buyer, item as unknown as CatalogueItem, r.issued_at, rep?.tier);
@@ -3078,6 +3089,7 @@ export class EventLog {
     await this.useRunLog(tx, b.run_log_hash, b.holder, fee.record.issued_at, "an exam result");
     await tx.putMarker(key, JSON.stringify([...history, { at: r.issued_at, variant }]));
     if (b.passed) await tx.putMarker(`exam_passed:${b.exam}|${b.holder}`, r.id);
+    if (b.passed && (await tx.getMarker(`model_hold:${b.holder}`))) await tx.putMarker(`model_hold:${b.holder}`, ""); // a passed exam of its own lifts the hold after a model swap (DK1605)
   }
 
   /**
@@ -3212,7 +3224,7 @@ export class EventLog {
     const def = (await tx.getRecord(defId))!.record.body as { min_tier: number; entry_service: string; opens: string; closes: string };
     const at = Date.parse(r.issued_at);
     if (at < Date.parse(def.opens) || at >= Date.parse(def.closes)) throw rule("arena_not_open", `${b.arena} ${b.season} takes entries from ${def.opens} until ${def.closes}`);
-    const rep = await this.reputation(tx, r.issuer);
+    const rep = await this.gatedReputation(tx, r.issuer);
     if (!rep) throw rule("arena_not_an_agent", `${r.issuer} is not an agent with a passport in this log`);
     if (rep.tier < def.min_tier) throw rule("arena_tier_too_low", `${b.arena} needs tier ${def.min_tier}; ${r.issuer} is tier ${rep.tier}. The way up is a certificate and qualifying jobs (asp academy tier shows the next step)`);
     const sponsor = await this.sponsorKey(tx, r.issuer);
@@ -3743,7 +3755,7 @@ export class EventLog {
   }
 
   /** What the Market's rules need from the log (market-rules.ts). */
-  private marketEnv(): MarketEnv { return { operator: this.operator, owner: this.owner, bondFloor: this.bondFloor, bondFloorFrom: this.bondFloorFrom, reputation: (rd, did) => this.reputation(rd, did) }; }
+  private marketEnv(): MarketEnv { return { operator: this.operator, owner: this.owner, bondFloor: this.bondFloor, bondFloorFrom: this.bondFloorFrom, reputation: (rd, did) => this.gatedReputation(rd, did) }; }
 
   /** Every record of the given short types, in log order (read by the views). */
   async recordsOfTypes(types: string[]): Promise<AspRecord[]> {
@@ -3763,7 +3775,7 @@ export class EventLog {
 
   /** Trust per model and version (DK1711): counts of slashes, refusals, drift findings and quarantines under each model, the swaps and the holds until a re-examination. House agents are left out. */
   async modelTrust() {
-    const records = await this.recordsOfTypes(["action", "contract", "settlement", "refusal", "clinic_diagnosis", "quarantine", "exam_result"]);
+    const records = await this.recordsOfTypes(["action", "contract", "settlement", "refusal", "clinic_diagnosis", "quarantine", "exam_result", "incident"]);
     return modelTrustOf(records, { houseAgents: new Set(((await this.houseAgents()) as { did: string }[]).map((h) => h.did)) });
   }
 

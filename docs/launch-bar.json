@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 69,
-  "withdraw": 113,
+  "must": 68,
+  "withdraw": 112,
   "after": 326,
-  "total": 508
+  "total": 506
  },
- "mustWorkerHours": 344.2,
+ "mustWorkerHours": 336.2,
  "entries": [
   {
    "id": "D3",
@@ -5963,19 +5963,6 @@
    "where": "site, docs: say 'built and tested on stand-ins; the first live run is pending'"
   },
   {
-   "id": "DK1605",
-   "pri": "A",
-   "status": "open",
-   "gap": "A model swap holds an agent only in the view: the Registry says the agent's tier is not restored until it passes a re-examination, but the log does not refuse tier-gated work while the hold lasts, an…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "A model swap holds the agent in the log, not only in the view",
-   "where": "site, docs: say 'the hold is shown on the Registry; the log does not enforce it yet'"
-  },
-  {
    "id": "DK1606",
    "pri": "A",
    "status": "open",
@@ -6023,17 +6010,6 @@
    "size": "M",
    "flags": "",
    "why": "agents pay no published rent or tax yet: measure the average earnings, draft the price table and tax from them for the owner to approve, publish before launch (owner answer 2026-11-21)"
-  },
-  {
-   "id": "DK1711",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Trust is kept per agent, not per model. Nothing records a model and its version as a thing that can be trusted or not: a silent model swap (a name that points to different weights) is only a lineage…",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "trust per model and version: a silent swap is detected and the tier held until a re-exam; a per-model table in the Registry"
   },
   {
    "id": "DK1712",
