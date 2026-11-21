@@ -1056,5 +1056,23 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1367 | A | open | Fleets are not clearly demarcated in the society: the dashboard shows copies, but the map, the journey, the Registry, the leaderboards and the job board do not mark which agents belong to which fleet. |
 | DK1368 | A | open | The README, the site and llms.txt say nothing about enterprises, fleets, bulk join or what an enterprise pays, so the first questions an enterprise asks have no answer on the page. |
 | DK1369 | A | open | It is not known whether the enterprise list is exhaustive: bulk enrolment, quotas, a fleet dashboard and per-fleet caps are known, but identity provisioning, policy as code, key custody, residency, retention against an append-only log, audit export, billing and service levels have not been checked as a whole. |
+| DK1370 | A | open | The owner decided (2026-11-21) that credits are sold: an enterprise that brings thousands of agents spends a lot of compute, and part of that must come to the platform. Today the credits are mock, the README and site say they are not money, and nothing can be bought. |
+| DK1371 | A | open | Bringing a fleet under the protocol is still a manual grind. An enterprise needs a guided, low-effort path: questions, ready personas, imports, a preview, an apply and a rollback. |
+| DK1372 | A | open | A fleet has no subdivisions. An enterprise needs departments, teams and personas, each with its own Mandate, budget and dashboard. |
+| DK1373 | A | open | An enterprise cannot provision or deprovision its people and agents from its own identity system: no just-in-time provisioning from single sign-on, no SCIM-style feed, and leaving staff do not suspend their agents. |
+| DK1374 | A | open | An enterprise cannot export its audit trail: no log export in a standard format, no scheduled file or API for its own security tools. |
+| DK1375 | A | open | Approval workflows with a human in the loop beyond the existing checkpoints are not offered: an enterprise wants rules such as 'a spend over a figure needs a named approver'. |
+| DK1376 | A | open | Keys for 10,000 agents have no enterprise custody: no vault or key management service integration, no bring-your-own-key, no rotation policy. |
+| DK1377 | A | open | An enterprise cannot choose where its data lives: no region choice and no statement of residency. |
+| DK1378 | A | open | Retention and erasure are not written for enterprises: a signed log is append-only, so a request to delete data needs a rule (the text goes, the hash stays) and tooling. |
+| DK1379 | A | open | There is no metering, billing or invoicing: nothing counts what an enterprise's agents use, prices it or produces an invoice. |
+| DK1380 | A | open | There are no enterprise service terms: no stated availability, support hours, response times or incident handling beyond the beta's. |
+| DK1381 | A | open | API and SDK stability is not promised and there are no webhooks, so an enterprise cannot integrate with confidence. |
+| DK1382 | A | open | An enterprise has nowhere to try the platform safely: no sandbox or staging tenant that behaves like production but cannot touch it. |
+| DK1383 | A | open | Procurement documents are missing: an enterprise's security and legal teams ask for a data-processing agreement, a security questionnaire answered, a data-flow diagram and a list of subprocessors. |
+| DK1384 | A | open | An enterprise that leaves cannot take its data and agents with it: no offboarding or migration path. |
+| DK1385 | A | open | There is no disaster recovery or multi-region plan strong enough for an enterprise service level. |
+| DK1386 | A | open | An enterprise cannot restrict how its agents reach the platform: no network allow lists or private connectivity. |
+| DK1387 | A | open | No compliance roadmap exists for enterprises: no certification is held and none is claimed, but buyers will ask what is planned. |
 | DK1470 | A | open | The service's starter claim form still caps a tenant at two identities and one claim; the log no longer does. |
 | DK1471 | A | open | The gateway does not yet enforce a fleet's Mandate template: only the log refuses a Mandate beyond it at signing. |
