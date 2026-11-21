@@ -2477,7 +2477,7 @@ export class EventLog {
       for (const d of detail) byFleet.set(d.fleet ?? "no fleet", (byFleet.get(d.fleet ?? "no fleet") ?? 0) + 1);
       const tally = tallyOf.get(p.id), enact = enactOf.get(p.id);
       const state: TownHallView["proposals"][number]["state"] = enact && Date.parse(enact.issued_at) <= now ? "enacted" : tally && Date.parse(tally.issued_at) <= now ? ((tally.body as { passed: boolean }).passed ? "passed" : "failed") : now < Date.parse(b.opens_at) ? "upcoming" : now < Date.parse(b.closes_at) ? "open" : "closed";
-      proposals.push({ id: p.id, by: p.issuer.split(":").pop() ?? p.issuer, at: p.issued_at, title: b.title, kind: b.kind, key: b.key, value: b.value, opensAt: b.opens_at, closesAt: b.closes_at, ...(b.thread ? { thread: b.thread } : {}), state, live, byFleet: [...byFleet].map(([fleet, n]) => ({ fleet, votes: n })).sort((x, y) => y.votes - x.votes || (x.fleet < y.fleet ? -1 : 1)), series, tally: tally ? { id: tally.id, ...(tally.body as object) } : null, enactment: enact ? { id: enact.id, at: enact.issued_at } : null });
+      proposals.push({ id: p.id, proposer: p.issuer, by: p.issuer.split(":").pop() ?? p.issuer, at: p.issued_at, title: b.title, kind: b.kind, key: b.key, value: b.value, opensAt: b.opens_at, closesAt: b.closes_at, ...(b.thread ? { thread: b.thread } : {}), state, live, byFleet: [...byFleet].map(([fleet, n]) => ({ fleet, votes: n })).sort((x, y) => y.votes - x.votes || (x.fleet < y.fleet ? -1 : 1)), series, tally: tally ? { id: tally.id, ...(tally.body as object) } : null, enactment: enact ? { id: enact.id, at: enact.issued_at } : null });
     }
     proposals.sort((a, b) => (a.opensAt < b.opensAt ? 1 : -1));
     const r = this.townRules;

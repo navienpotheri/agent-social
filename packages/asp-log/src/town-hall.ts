@@ -61,7 +61,7 @@ export function countVotes(votes: Voter[], rules: TownRules, kind: string): Tall
 export interface TownHallView {
   at: string;
   rules: { votable: string[]; reserved: string[]; quorumControllers: number; controllerCapMilli: number; coolingOffHours: number };
-  proposals: { id: string; by: string; at: string; title: string; kind: string; key: string; value: unknown; opensAt: string; closesAt: string; thread?: string; state: "upcoming" | "open" | "closed" | "passed" | "failed" | "enacted";
+  proposals: { id: string; proposer: string; by: string; at: string; title: string; kind: string; key: string; value: unknown; opensAt: string; closesAt: string; thread?: string; state: "upcoming" | "open" | "closed" | "passed" | "failed" | "enacted";
     live: Tally; byFleet: { fleet: string; votes: number }[]; series: { at: string; voters: number; yes_milli: number; no_milli: number; abstain_milli: number }[]; tally: ({ id: string } & Record<string, unknown>) | null; enactment: { id: string; at: string } | null }[];
   note: string;
 }

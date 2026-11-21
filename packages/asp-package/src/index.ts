@@ -63,6 +63,7 @@ export { MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromReco
 export { agentCapGuard, didAllowed, didDocument, didDocumentRoutes, didFor, didOfPath, namespaceGuard, namespaceOf } from "./namespace.ts";
 export { ApprovalPile, type AtOnce, type PileOptions } from "./approval-pile.ts";
 export * from "./infer-scope.ts";
+export { reviewOffering, mayGoLive, offeringStatus, type OfferingReview, type OfferingStatus, type OfferingValue, type OfferingLesson } from "./offerings.ts";
 export * from "./infer-scope-model.ts";
 export * from "./law-code.ts";
 export { scheduleEntries, type ScheduleEntries, type ScheduleInput } from "./mail-schedule.ts";
