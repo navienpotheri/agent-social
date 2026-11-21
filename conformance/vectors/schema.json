@@ -15645,6 +15645,61 @@
       "valid": true
     },
     {
+      "name": "valid_key_handover",
+      "schema": "key_handover",
+      "instance": {
+        "old": "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD",
+        "new": "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_key_handover_reason",
+      "schema": "key_handover",
+      "instance": {
+        "old": "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD",
+        "new": "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW",
+        "reason": "compromise_suspected"
+      },
+      "valid": true
+    },
+    {
+      "name": "key_handover_no_new",
+      "schema": "key_handover",
+      "instance": {
+        "old": "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD"
+      },
+      "valid": false
+    },
+    {
+      "name": "key_handover_no_old",
+      "schema": "key_handover",
+      "instance": {
+        "new": "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW"
+      },
+      "valid": false
+    },
+    {
+      "name": "key_handover_unknown_reason",
+      "schema": "key_handover",
+      "instance": {
+        "old": "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD",
+        "new": "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW",
+        "reason": "bored"
+      },
+      "valid": false
+    },
+    {
+      "name": "key_handover_carries_a_key",
+      "schema": "key_handover",
+      "instance": {
+        "old": "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD",
+        "new": "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW",
+        "new_key": "abc"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_fleet_move",
       "schema": "fleet_move",
       "instance": {

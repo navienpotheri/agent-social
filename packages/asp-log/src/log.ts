@@ -413,6 +413,7 @@ export class EventLog {
     if (type === "emergency_stop") await this.projectEmergencyStop(tx, verified);
     if (type === "run_halt") await this.projectRunHalt(tx, verified);
     if (type === "incident") await this.projectIncident(tx, verified);
+    if (type === "key_handover") await this.projectKeyHandover(tx, verified);
     if (type === "usage_plan") await this.projectUsagePlan(tx, verified);
     if (type === "usage_statement") await this.projectUsageStatement(tx, verified);
     if (type === "fleet_node") await projectFleetNode(tx, verified);
@@ -466,6 +467,7 @@ export class EventLog {
     if (type === "bond" || type === "mandate" || type === "proposal" || type === "purchase" || type === "contract") await checkSuspended(tx, verified);
     if (type === "intent") checkIntentClass(verified);
     if (type === "contract") await markPostingFilled(tx, verified);
+    if (type !== "key_handover" && type !== "passport" && (await tx.getMarker(`handed_over:${verified.issuer}`))) throw rule("identity_handed_over", `${verified.issuer} was handed over to a new identity: it signs nothing more`);
     if (type === "mandate" || type === "contract" || type === "bond" || type === "proposal" || type === "offer") await this.checkQuarantined(tx, verified);
     if (type === "offer") await this.checkAssociation(tx, verified);
     if (type === "related_party_attestation") await this.projectRelatedAttestation(tx, verified);
@@ -2351,6 +2353,36 @@ export class EventLog {
     for (const c of contracts) if (await this.runHaltOf(c.contract)) halted.add(c.contract);
     const reasons = tripped(used, allowed);
     return { node, windowMs, multiple, used, allowed, reasons, contracts: reasons.length ? contracts.filter((c) => !halted.has(c.contract)) : [], cycles: hireCycles(hires) };
+  }
+
+  /** A key handover (S1427, X7): old signs, new countersigns; the old identity is retired and its standing and balance pass to the new one. */
+  private async projectKeyHandover(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { old: string; new: string };
+    if (r.prev !== null) throw rule("handover_not_chained", "a key handover starts its own chain (prev is null)");
+    if (r.issuer !== b.old) throw rule("handover_not_by_old", "a handover is signed by the OLD key: a lost key cannot hand over");
+    if (!this.cosignedBy(r, b.new)) throw rule("handover_needs_new", "the new identity countersigns the handover");
+    if (b.old === b.new) throw rule("handover_same", "a handover names a different identity");
+    if (!(await tx.getPassport(b.old)) || !(await tx.getPassport(b.new))) throw rule("handover_unknown", "both identities need a passport in this log");
+    if (await tx.getMarker(`handed_over:${b.old}`)) throw rule("identity_handed_over", `${b.old} was handed over already`);
+    if (await tx.getMarker(`inherited_from:${b.new}`)) throw rule("handover_new_taken", `${b.new} already took over from another identity`);
+    const rep = await this.reputation(tx, b.old);
+    if (rep) { const cur = await this.reputation(tx, b.new); await this.saveReputation(tx, b.new, { tier: Math.max(rep.tier, cur?.tier ?? 0), slashCount: rep.slashCount + (cur?.slashCount ?? 0), strikeLog: [...rep.strikeLog, ...(cur?.strikeLog ?? [])], acceptedJobs: rep.acceptedJobs + (cur?.acceptedJobs ?? 0), qualifyingJobs: rep.qualifyingJobs + (cur?.qualifyingJobs ?? 0), recentJobs: [...rep.recentJobs, ...(cur?.recentJobs ?? [])].slice(-19) }); }
+    const bal = (await tx.getAccount(canonicalAccount(b.old)))?.balance ?? 0;
+    const held = Number((await tx.getMarker(`hold:${canonicalAccount(b.old)}`)) ?? 0);
+    const lots = outstanding(await lotsOf(tx, canonicalAccount(b.old)));
+    if (bal - held - lots > 0) { await this.debit(tx, b.old, bal - held - lots); await this.credit(tx, b.new, bal - held - lots); }
+    await tx.putMarker(`handed_over:${b.old}`, JSON.stringify({ to: b.new, id: r.id, at: r.issued_at }));
+    await tx.putMarker(`inherited_from:${b.new}`, b.old);
+  }
+
+  /** The handovers from this identity forward and back (S1427): who it was before, and who it became, oldest first. */
+  async handoverChain(did: string): Promise<{ before: string[]; after: string[] }> {
+    return this.store.transaction(async (tx) => {
+      const before: string[] = [], after: string[] = [];
+      for (let d = did; ;) { const p = await tx.getMarker(`inherited_from:${d}`); if (!p || before.includes(p)) break; before.unshift(p); d = p; }
+      for (let d = did; ;) { const n = await tx.getMarker(`handed_over:${d}`); if (!n) break; const to = (JSON.parse(n) as { to: string }).to; if (after.includes(to)) break; after.push(to); d = to; }
+      return { before, after };
+    });
   }
 
   /** An incident record (S1426, DK1714): signed by the operator or the Clinic for an agent with a passport; the response steps it lists must name records that exist. */
