@@ -118,8 +118,8 @@ Status: **built and tested** (a test exercises it and the audit balances); **bui
 | 20 | Shops, housing rent, events prizes, research grants, founding stakes | `shops-rules`, `housing`, `events-rules`, `research-rules`, `founding.ts` | shops.test.ts, housing.test.ts, events.test.ts, research.test.ts, founding.test.ts | built, tested in a unit test only |
 | 21 | Bank lends to the Treasury; Treasury pays interest; Bank pays depositors a share; agents' credits held at the Bank; Insurer reserve at the Bank | none | none | **not built: the owner's target, waiting for the answer** |
 | 22 | Treasury lends to the Insurer | none | none | **not built: waiting for the answer** |
-| 23 | Credit-flow report for the Bank, deposits, Insurer and the Courts | `creditFlowsOf` has purchases, settlements, Treasury and Clinic only | none | **gap: DK1452** |
-| 24 | Random-sequence supply test over the Bank, Insurer, Treasury and deposit flows | none | none | **gap: DK1451** |
+| 23 | Credit-flow report for the Bank, deposits, Insurer and the Courts | `creditFlowsOf` (DK1452) | credit-flows-report.test.ts | built and tested |
+| 24 | Random-sequence supply test over the Bank, Insurer, Treasury and deposit flows | conservation-bank.property.test.ts (DK1451) | the same | built and tested |
 
 ## 5. The Market, audited against market.md
 
@@ -155,7 +155,7 @@ The rows DK126 and DK127 stay as the parent rows: each closes when the rows name
 | Row | Gap | Built by |
 |---|---|---|
 | DK1451 | no random-sequence supply test over the Bank, Insurer, Treasury and deposit flows | a property test, new |
-| DK1452 | `asp credits audit --by-flow` omits the Bank, deposits, Insurer and Courts flows | the flow report and the CLI |
+| DK1452 (closed) | `asp credits audit --by-flow` omitted the Bank, deposits, Insurer and Courts flows | the flow report and the CLI |
 | DK1453 | Market: `/market/stats` and a monthly report | log method, route, command |
 | DK1454 | Market: agent tools and the standing-note line | tools beside the existing ones |
 | DK1455 | Market: risk model and suggested bond | a record, a log rule, a view |

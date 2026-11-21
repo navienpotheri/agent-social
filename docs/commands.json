@@ -488,7 +488,7 @@
         },
         {
           "command": "asp credits audit [--by-flow [clinic]] [--since <time>] [--require-signed] [--json]",
-          "description": "Check the supply rule over the whole log: balances (the Treasury, institution accounts and the Burn account included) + escrow + bonds + reserves + juror stakes + report deposits = minted. Prints balanced or MISMATCH with the figures (exit 1 on a mismatch); shows how much was minted by signed mint records and how much by the old unsigned mint (--require-signed also fails on any unsigned credit); --by-flow adds mints by reason, purchases with their split, refunds and settlements, and names the flows it cannot yet"
+          "description": "Check the supply rule over the whole log: balances (the Treasury, institution accounts and the Burn account included) + escrow + bonds + reserves + juror stakes + report deposits = minted. Prints balanced or MISMATCH with the figures (exit 1 on a mismatch); shows how much was minted by signed mint records and how much by the old unsigned mint (--require-signed also fails on any unsigned credit); --by-flow adds mints by reason, purchases with their split, refunds and settlements, the Treasury's budgets, payments, allowances, handouts and prizes, the Bank (reserve, credit lines, lent, returned, owed, defaults, debt), the deposits and their reward, the Insurer (reserve, policies, premiums, claims, decisions) and the Courts (appeals, what the appeal jurors were paid, penalties), and names the flows it cannot yet"
         },
         {
           "command": "asp market intent --by <did> --purpose <text> ...",

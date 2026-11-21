@@ -214,6 +214,23 @@ describe("the appeal jurors are paid by the loser, and a reversed first-panel ju
     assert.equal((await w.log.verify()).ok, true, "a replica replays the penalty and the payment the same way");
   });
 
+  test("the credit-flow report (DK1452) counts the appeals, what the jurors were paid and the penalties, and agrees with the audit", async () => {
+    const w = await world();
+    const j = await w.ruled(80, { [w.performer.did]: 1000 });
+    const ap = await w.appeal(w.performer, j.ruling, HOUR);
+    await w.log.append(ap);
+    const panel = await w.appealPanel(j, ap.id);
+    const before = await w.log.creditFlows();
+    assert.deepEqual(before.courts, { appealsFiled: 1, appealRulings: { affirmed: 0, reversed: 0, varied: 0 }, jurorsPaid: 0, jurorShortfall: 0, penalties: { count: 0, amount: 0 } });
+    const decided = w.appealRuling(ap, panel, "reversed", { [w.principal.did]: 1000 });
+    await w.log.append(decided);
+    const money = JSON.parse((await w.log.store.transaction((tx) => tx.getMarker(`appeal_money:${decided.id}`)))!) as { paid: number; shortfall: number };
+    const flows = await w.log.creditFlows();
+    assert.deepEqual(flows.courts, { appealsFiled: 1, appealRulings: { affirmed: 0, reversed: 1, varied: 0 }, jurorsPaid: money.paid, jurorShortfall: money.shortfall, penalties: { count: j.firstPanel.length, amount: 20 * j.firstPanel.length } });
+    assert.ok(money.paid > 0);
+    assert.equal((await w.log.creditAudit()).verdict, "balanced");
+  });
+
   test("varied: the loser by the corrected map pays the jurors; a variation costs the first panel nothing", async () => {
     const w = await world();
     const j = await w.ruled(80, { [w.performer.did]: 1000 });
