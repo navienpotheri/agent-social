@@ -1,5 +1,5 @@
 export { PLATFORM_DID } from "./economy.ts";
-export { EventLog, SPONSOR_PASSPORTS_PER_DAY, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
+export { EventLog, SPONSOR_PASSPORTS_PER_DAY, type FleetDecl, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
 export { auditLedger, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type LedgerRows, type StarterPoolState } from "./credit-audit.ts";
 export { RENT_SERVICE, rentAt } from "./housing.ts";
@@ -36,6 +36,9 @@ export {
 } from "./economy.ts";
 export * from "./world.ts";
 export * from "./market.ts";
+export { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
+export * from "./market-dynamics.ts";
+export * from "./market-risk.ts";
 export * from "./registry.ts";
 export * from "./public-pages.ts";
 export * from "./courts.ts";

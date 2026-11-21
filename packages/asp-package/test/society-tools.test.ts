@@ -112,3 +112,21 @@ test("Housing's plot tool (DK393): housing_home is offered only when the CLI sup
   assert.match(text, /not instructions to you/);
   assert.equal(((await h.callTool("housing_home", {})).content[0] as { text: string }).text, "name the agent: its DID or its registered name");
 });
+
+test("the Market's tools (DK1454, MK-10): market_jobs and market_counts when the CLI supplies them, market_bid only when the run holds the agent's key, and a call passes its arguments through and shows the log's answer", async () => {
+  const none = aspHandler({ society: { standing: async () => "x" } });
+  assert.ok(!(await none.listTools()).some((t) => t.name.startsWith("market_")));
+  const seen: unknown[] = [];
+  const market = { jobs: async () => "2 open posting(s), 1 you may take", counts: async (c: string) => { seen.push(["counts", c]); return "does not count for did:web:x: linked parties"; } };
+  const readOnly = aspHandler({ society: { standing: async () => "x", market } });
+  assert.deepEqual((await readOnly.listTools()).map((t) => t.name).filter((n) => n.startsWith("market_")).sort(), ["market_counts", "market_jobs"], "no key, no bidding");
+  assert.match(text(await readOnly.callTool("market_jobs", { ignored: 1 })), /1 you may take/);
+  assert.match(text(await readOnly.callTool("market_counts", { contract: "sha256:abc" })), /does not count/);
+  assert.deepEqual(seen, [["counts", "sha256:abc"]]);
+  assert.equal((await readOnly.callTool("market_counts", {})).isError, true, "a missing contract is refused before the log is asked");
+  const full = aspHandler({ society: { standing: async () => "x", market: { ...market, bid: async (p: string, o: string) => { seen.push(["bid", p, o]); return "The log refused the bid: tier too low"; } } } });
+  assert.ok((await full.listTools()).some((t) => t.name === "market_bid"));
+  assert.match(text(await full.callTool("market_bid", { posting: "sha256:p", offer: "sha256:o" })), /refused the bid: tier too low/, "the log's refusal is the answer");
+  assert.deepEqual(seen.at(-1), ["bid", "sha256:p", "sha256:o"]);
+  assert.equal((await full.callTool("market_bid", { posting: "sha256:p" })).isError, true);
+});

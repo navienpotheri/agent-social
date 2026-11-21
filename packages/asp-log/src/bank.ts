@@ -7,6 +7,7 @@ import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { institutionDid } from "./economy.ts";
 import { JOB_CLASSES } from "./market.ts";
 import { jobClassOfContract } from "./insurer.ts";
+import { checkLendingCeiling, noteLent } from "./bank-active.ts";
 import type { LogTx } from "./store.ts";
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
@@ -142,6 +143,7 @@ export async function projectCreditLine(tx: LogTx, r: AspRecord, env: BankEnv): 
   if (Date.parse(b.due) <= Date.parse(r.issued_at) || Date.parse(b.due) - Date.parse(r.issued_at) > LINE_WINDOW_MS) throw rule("line_due_out_of_range", "an undrawn line lapses within 14 days of issue, and after it");
   const need = Math.ceil((b.amount.value * GUARANTOR_PERMILLE) / 1000);
   if ((await balanceOf(tx, b.guarantor)) - (b.mentorship ? await holdOf(tx, b.guarantor) : 0) < need) throw rule("line_guarantor_balance", `the guarantor holds ${await balanceOf(tx, b.guarantor)} credits; a guarantee of ${b.amount.value} needs at least ${need} (25 %)`);
+  await checkLendingCeiling(tx, b.amount.value); // once the Bank is active: at most 70 % of what it holds is lent or promised (S1405)
   const committed = await num(tx, "bank_committed");
   if ((await balanceOf(tx, BANK_DID)) - committed < b.amount.value) throw rule("line_exceeds_reserve", `the Bank's reserve (${await balanceOf(tx, BANK_DID)}, ${committed} already promised) cannot cover ${b.amount.value}`);
   await tx.putMarker("bank_committed", String(committed + b.amount.value));
@@ -161,6 +163,7 @@ export async function drawAtBond(tx: LogTx, r: AspRecord, env: BankEnv): Promise
   const draw = Math.min(b.amount.value, line.amount);
   await env.debit(tx, BANK_DID, draw);
   await env.credit(tx, b.backer, draw);
+  await noteLent(tx, draw);
   await tx.putMarker("bank_committed", String((await num(tx, "bank_committed")) - line.amount));
   await writeLine(tx, { ...line, status: "drawn", drawn: draw, owed: draw });
 }
@@ -173,6 +176,7 @@ export async function repayAtSettlement(tx: LogTx, contract: string, inflow: num
   const repaid = Math.min(line.owed, inflow, await balanceOf(tx, line.borrower));
   await env.debit(tx, line.borrower, repaid);
   await env.credit(tx, BANK_DID, repaid);
+  await noteLent(tx, -repaid);
   const owed = line.owed - repaid;
   await writeLine(tx, { ...line, owed, status: owed === 0 ? "repaid" : "owing" });
   if (owed === 0) await releaseHold(tx, line.id);
@@ -193,6 +197,7 @@ export async function projectCreditDefault(tx: LogTx, r: AspRecord, env: BankEnv
   const paid = Math.min(line.owed, await balanceOf(tx, line.guarantor));
   await env.debit(tx, line.guarantor, paid);
   await env.credit(tx, BANK_DID, paid);
+  await noteLent(tx, -paid);
   const debt = line.owed - paid;
   if (debt > 0) await tx.putMarker(`bank_debt:${line.guarantor}`, String((await num(tx, `bank_debt:${line.guarantor}`)) + debt));
   await tx.putMarker(`bank_default:${line.borrower}`, line.id);
@@ -220,6 +225,7 @@ export async function projectDebtPayment(tx: LogTx, r: AspRecord, env: BankEnv):
   if (b.amount.value > line.owed) throw rule("debt_overpaid", `the debt on this line is ${line.owed}, not ${b.amount.value}`);
   await env.debit(tx, line.guarantor, b.amount.value); // refused with insufficient_balance when the guarantor cannot cover it
   await env.credit(tx, BANK_DID, b.amount.value);
+  await noteLent(tx, -b.amount.value);
   await writeLine(tx, { ...line, owed: line.owed - b.amount.value });
   await tx.putMarker(`bank_debt:${line.guarantor}`, String(Math.max(0, (await num(tx, `bank_debt:${line.guarantor}`)) - b.amount.value)));
 }

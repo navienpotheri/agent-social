@@ -13,8 +13,9 @@ export interface BankOpts {
   log: LogHandle;
   io: { out: (l: string) => void; err: (l: string) => void };
   now: () => string;
+  rest?: string[];
   signerFor: (did: string) => Signer;
-  flags: { deposit?: string; budget?: string; contract?: string; agent?: string; amount?: string; guarantor?: string; line?: string; holder?: string; by?: string; days?: string; month?: string; mentor?: string; protege?: string; note?: string; out?: string; file?: string; /** The words after the subcommand (`asp bank mentor offer`: ["offer"]). */ rest?: string[] };
+  flags: { week?: string; deposit?: string; budget?: string; contract?: string; agent?: string; amount?: string; guarantor?: string; line?: string; holder?: string; by?: string; days?: string; month?: string; mentor?: string; protege?: string; note?: string; out?: string; file?: string; /** The words after the subcommand (`asp bank mentor offer`: ["offer"]). */ rest?: string[] };
 }
 
 const DAY = 86_400_000;
@@ -34,6 +35,28 @@ async function bankRecords(log: LogHandle): Promise<{ id: string; type: string; 
 export async function bankCmd(sub: string | undefined, o: BankOpts): Promise<number> {
   const f = o.flags;
   const by = f.by ?? BANK_DID;
+  if (sub === "account") {
+    // The active Bank (DK1458, S1405): `asp bank account put|take --holder <did> --amount <n>` (no lock), `borrow|repay --amount <n>` and `interest --week <YYYY-Www>` for the Treasury.
+    const act = o.rest?.[0];
+    const week = f.week;
+    const amount = f.amount ? Math.trunc(Number(f.amount)) : undefined;
+    const sign = (issuer: string, body: Record<string, unknown>) => createRecord({ type: "bank_act" as never, issuer, subject: null, prev: null, body, issued_at: o.now() }, o.signerFor(issuer));
+    const treasury = f.by ?? "did:web:asp.local:treasury";
+    let rec;
+    if (act === "put" || act === "take") {
+      if (!f.holder || !amount) throw new BankUsage(`asp bank account ${act} --holder <did> --amount <credits>`);
+      rec = sign(f.holder, { act: act === "put" ? "deposit" : "withdraw", holder: f.holder, amount: { value: amount, unit: "credit" } });
+    } else if (act === "borrow" || act === "repay") {
+      if (!amount) throw new BankUsage(`asp bank account ${act} --amount <credits> [--by <treasury did>]`);
+      rec = sign(treasury, { act, amount: { value: amount, unit: "credit" } });
+    } else if (act === "interest") {
+      if (!week) throw new BankUsage("asp bank account interest --week <YYYY-Www> [--by <treasury did>]");
+      rec = sign(treasury, { act: "interest", week });
+    } else throw new BankUsage("asp bank account put|take --holder <did> --amount <n> | borrow|repay --amount <n> | interest --week <YYYY-Www>");
+    const res = await o.log.append(rec);
+    o.io.out(`${act} ${res.id.slice(0, 19)}... (log seq ${res.seq}); read the figures with asp credits audit --by-flow`);
+    return 0;
+  }
   if (sub === "line") {
     if (!f.contract || !f.agent || !f.guarantor) throw new BankUsage(`asp bank line --contract <id> --agent <borrower did> --guarantor <the agent's sponsor> [--amount <credits, default the whole bond: 20>] [--days 1-14] [--by ${BANK_DID}]`);
     const amount = f.amount === undefined ? 20 : Math.trunc(Number(f.amount));

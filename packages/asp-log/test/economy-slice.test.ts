@@ -492,10 +492,12 @@ describe("the starter claim (DK94, DK67): starter credits move out of a pool the
     const second = await agentOf(w, "second", 31);
     await w.log.append(claim(second, "upfront", 100));
     const third = await agentOf(w, "third", 32);
-    assert.equal(await refused(w.log.append(claim(third, "upfront", 100))), "starter_group_full", "two identities per sponsor");
+    assert.equal(await refused(w.log.append(claim(third, "upfront", 100))), "starter_pool_empty", "a third identity of one sponsor is not refused for being the third (S1406): the pool, which holds 50, cannot cover it");
     assert.equal(await w.log.balance(STARTER_POOL_DID), 50, "the pool is never overdrawn");
+    await w.mintSigned(STARTER_POOL_DID, 100, "starter_upfront");
+    await w.log.append(claim(third, "upfront", 100)); // the operator topped the pool up: the third identity of the same sponsor claims
     const a = await w.log.creditAudit();
-    assert.deepEqual([a.minted, a.mintedSigned, a.mintedUnsigned, a.verdict], [250, 250, 0, "balanced"]);
+    assert.deepEqual([a.minted, a.mintedSigned, a.mintedUnsigned, a.verdict], [350, 350, 0, "balanced"]);
     assert.equal((await w.log.verify()).ok, true);
   });
 

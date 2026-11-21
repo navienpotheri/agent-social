@@ -182,7 +182,7 @@ describe("what the rest of the system reads", () => {
     }
     assert.equal(await snap(), before);
     const state = await log.worldState("2026-12-01T12:00:00Z");
-    assert.deepEqual(Object.keys(state).sort(), ["at", "because", "gatherings", "openJobTypes", "outages", "priceMultiplier", "taxFree"]);
+    assert.deepEqual(Object.keys(state).sort(), ["at", "because", "gatherings", "halted", "openJobTypes", "outages", "priceMultiplier", "taxFree"]);
   });
 
   test("replay: running the generator again on a logged day gives the logged events", async () => {

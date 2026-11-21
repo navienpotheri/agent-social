@@ -126,6 +126,8 @@ export interface CreditFlows {
   bank: { reserve: number; linesOpened: { count: number; amount: number }; lent: { count: number; amount: number }; returned: number; outstanding: number; defaults: { count: number; unpaid: number }; debtCleared: { count: number; amount: number } };
   /** Deposits with the Bank in the period (DK294): made, withdrawn and the Treasury's reward paid, with what the deposit account holds now. */
   deposits: { made: { count: number; amount: number }; withdrawn: { count: number; amount: number }; rewards: { count: number; amount: number }; held: number };
+  /** The active Bank (DK1458, S1405): deposits and withdrawals with no lock, what waits in the queue, the Treasury's loan (principal and carried interest), and the interest paid by week with the Bank's and the depositors' shares. */
+  activeBank: { deposits: { count: number; amount: number }; withdrawals: { count: number; amount: number }; held: number; waiting: number; treasuryBorrowed: { count: number; amount: number }; treasuryRepaid: { count: number; amount: number }; principal: number; carry: number; interest: { weeks: number; due: number; paid: number; bankShare: number; depositorShare: number } };
   /** The Insurer (DK20): its reserve now, the policies sold and their premiums, the claims filed and the decisions, with the amounts paid out of the reserve. */
   insurer: { reserve: number; policies: { count: number; premiums: number }; claims: number; decisions: { paid: { count: number; amount: number }; reduced: { count: number; amount: number }; denied: { count: number } } };
   /** The Courts (S232, S1400): appeals filed and decided, what the appeal jurors were paid by the loser and what stayed unpaid, and the penalties moved from a reversed first panel to the Treasury. */
@@ -147,6 +149,7 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
   const deposits: CreditFlows["deposits"] = { made: { count: 0, amount: 0 }, withdrawn: { count: 0, amount: 0 }, rewards: { count: 0, amount: 0 }, held: (await store.getAccount(BANK_DEPOSIT_DID))?.balance ?? 0 };
   const insurer: CreditFlows["insurer"] = { reserve: (await store.getAccount(INSURER_DID))?.balance ?? 0, policies: { count: 0, premiums: 0 }, claims: 0, decisions: { paid: { count: 0, amount: 0 }, reduced: { count: 0, amount: 0 }, denied: { count: 0 } } };
   const courts: CreditFlows["courts"] = { appealsFiled: 0, appealRulings: { affirmed: 0, reversed: 0, varied: 0 }, jurorsPaid: 0, jurorShortfall: 0, penalties: { count: 0, amount: 0 } };
+  const activeBank: CreditFlows["activeBank"] = { deposits: { count: 0, amount: 0 }, withdrawals: { count: 0, amount: 0 }, held: 0, waiting: 0, treasuryBorrowed: { count: 0, amount: 0 }, treasuryRepaid: { count: 0, amount: 0 }, principal: 0, carry: 0, interest: { weeks: 0, due: 0, paid: 0, bankShare: 0, depositorShare: 0 } };
   const marker = (k: string) => store.transaction((tx) => tx.getMarker(k));
   const head = await store.logHead();
   for (let after = 0; ; ) {
@@ -174,6 +177,17 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
       {
         const b = r.record.body as Record<string, any>;
         const amt = (b.amount?.value as number | undefined) ?? 0;
+        if (r.record.type === "asp.bank_act/v0.2") {
+          if (b.act === "deposit") { activeBank.deposits.count++; activeBank.deposits.amount += amt; }
+          else if (b.act === "withdraw") { activeBank.withdrawals.count++; activeBank.withdrawals.amount += amt; }
+          else if (b.act === "borrow") { activeBank.treasuryBorrowed.count++; activeBank.treasuryBorrowed.amount += amt; }
+          else if (b.act === "repay") { activeBank.treasuryRepaid.count++; activeBank.treasuryRepaid.amount += amt; }
+          else if (b.act === "interest") {
+            const m = JSON.parse((await marker(`interest_paid:${b.week}`)) ?? "null") as { due: number; paid: number; bank: number; depositors: number } | null;
+            if (m) { activeBank.interest.weeks++; activeBank.interest.due += m.due; activeBank.interest.paid += m.paid; activeBank.interest.bankShare += m.bank; activeBank.interest.depositorShare += m.depositors; }
+          }
+          continue;
+        }
         if (r.record.type === "asp.credit_line/v0.2") {
           bank.linesOpened.count++; bank.linesOpened.amount += amt;
           const line = JSON.parse((await marker(`line:${r.id}`)) ?? "null") as { status: string; drawn: number; owed: number } | null;
@@ -229,12 +243,19 @@ export async function creditFlowsOf(store: Store, since?: string): Promise<Credi
       s.byBasis[b.basis] = (s.byBasis[b.basis] ?? 0) + 1;
     }
   }
+  activeBank.principal = Number((await marker("tr_principal")) ?? 0);
+  activeBank.carry = Number((await marker("tr_carry")) ?? 0);
+  {
+    const dep = ((await marker("bank_depositors")) ?? "").split(",").filter(Boolean);
+    for (const h of dep) activeBank.held += Number((await marker(`bankdep:${h}`)) ?? 0);
+    activeBank.waiting = (JSON.parse((await marker("bank_queue")) ?? "[]") as { amount: number }[]).reduce((n, q) => n + q.amount, 0);
+  }
   return {
-    since: since ?? null, head, settlements: s, minted: (await store.ledgerRows()).mints.reduce((n, m) => n + m.totalMinted, 0), mintedByReason, purchases, treasury, refunds, clinic, bank, deposits, insurer, courts,
+    since: since ?? null, head, settlements: s, minted: (await store.ledgerRows()).mints.reduce((n, m) => n + m.totalMinted, 0), mintedByReason, purchases, treasury, refunds, clinic, bank, deposits, activeBank, insurer, courts,
     unavailable: [
       "faucets by reason for the old unsigned mints (they carry no reason; signed mints do, see mintedByReason)",
       "job tax, standing orders and auto-refunds (not built: CR-15, CR-23)",
-      "interest and the Bank holding agents' credits (the owner's target, DK1458: not built)",
+      "nothing the Bank or the Treasury does is hidden: the old locked deposit and the active Bank (S1405) are both listed",
       "panel fees paid to jurors (derived inside a ruling settlement, not stored)",
     ],
   };

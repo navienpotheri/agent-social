@@ -27,7 +27,11 @@ export type WorldEvent = { event_id: string; event_type: EventType; title: strin
 
 export type CalendarEntryBody = { kind: "calendar_entry"; entry_id: string; source: string; event_kind: string; title: string; starts: string; ends: string; effect: Effect; seed_commitment?: string; generator?: string; params_ref?: string };
 export type DayBody = { kind: "day"; day: string; generator: string; seed: string; seed_commitment: string; events: WorldEvent[] };
-export type WorldBody = CalendarEntryBody | DayBody;
+export type HaltBody = { kind: "halt"; reason: string };
+export type ResumeBody = { kind: "resume"; halt: string; reason: string };
+export type WorldBody = CalendarEntryBody | DayBody | HaltBody | ResumeBody;
+/** A resume made this long after its halt, or later, needs the owner's co-signature (leisure-events.md 14; DK76, S1402). */
+export const RESUME_OWNER_AFTER_HOURS = 24;
 
 /** The catalogue's classes and names. Small on purpose; a bigger catalogue is a new generator version. */
 export const LISTING_CLASSES = ["code", "research", "data", "review", "writing"] as const;
@@ -118,8 +122,10 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
  *  - a day record: the seed matches its commitment, the generator is known, the day has begun, and the events are exactly what the generator gives for that seed and day.
  */
 export function checkWorldRecord(r: AspRecord): void {
+  // The kill-switch records are the operator's, not the world authority's: the log checks who signed them and the owner's co-signature (S1402). Nothing else is checked here.
+  if ((r.body as { kind?: string }).kind === "halt" || (r.body as { kind?: string }).kind === "resume") return;
   if (r.issuer !== WORLD_DID) throw wrule("world_not_authority", `${r.issuer} is not the world authority (${WORLD_DID})`);
-  const b = r.body as unknown as WorldBody;
+  const b = r.body as unknown as CalendarEntryBody | DayBody;
   if (b.kind === "calendar_entry") {
     const s = Date.parse(b.starts), e = Date.parse(b.ends);
     if (!(e > s)) throw wrule("world_bad_window", `entry ${b.entry_id} ends (${b.ends}) no later than it starts (${b.starts})`);
@@ -144,6 +150,8 @@ export interface WorldState {
   taxFree: boolean;
   openJobTypes: string[];
   gatherings: string[];
+  /** The kill-switch (S1402): set while a halt is in force at `at`; the generated events and the shocks, drills and experiments are then not in force. Null otherwise. */
+  halted: { since: string; reason: string; record: string } | null;
   /** Which records say so: the calendar entries and generated events in force. */
   because: { source: "calendar" | "generator"; id: string; title: string; starts: string; ends: string }[];
 }
@@ -152,28 +160,43 @@ export interface WorldState {
 const active = (starts: string, ends: string, at: number) => Date.parse(starts) <= at && at < Date.parse(ends);
 
 /** Every entry and event the world records hold, once each (a day recorded twice counts once), as one flat list. */
-function flatten(records: AspRecord[]): { source: "calendar" | "generator"; id: string; title: string; starts: string; ends: string; effect: Effect }[] {
+function flatten(records: AspRecord[]): { source: "calendar" | "generator"; id: string; title: string; starts: string; ends: string; effect: Effect; stoppable: boolean }[] {
   const out: ReturnType<typeof flatten> = [];
   const seen = new Set<string>();
-  const add = (source: "calendar" | "generator", id: string, title: string, starts: string, ends: string, effect: Effect) => {
+  const add = (source: "calendar" | "generator", id: string, title: string, starts: string, ends: string, effect: Effect, stoppable: boolean) => {
     if (seen.has(id)) return;
-    seen.add(id); out.push({ source, id, title, starts, ends, effect });
+    seen.add(id); out.push({ source, id, title, starts, ends, effect, stoppable });
   };
   for (const r of records) {
     if (r.type !== "asp.world/v0.2") continue;
     const b = r.body as unknown as WorldBody;
-    if (b.kind === "calendar_entry") add("calendar", `entry:${b.entry_id}`, b.title, b.starts, b.ends, b.effect);
-    else for (const ev of b.events) add("generator", ev.event_id, ev.title, ev.starts, ev.ends, ev.effect);
+    // Whatever a halt stops: every generated event, and a calendar entry of a seeded kind (shock, drill, experiment). Scheduled, season, funding and review entries run on.
+    if (b.kind === "calendar_entry") add("calendar", `entry:${b.entry_id}`, b.title, b.starts, b.ends, b.effect, SEEDED_KINDS.has(b.event_kind));
+    else if (b.kind === "day") for (const ev of b.events) add("generator", ev.event_id, ev.title, ev.starts, ev.ends, ev.effect, true);
   }
   return out;
 }
 
-/** The world as of `at`, from world records already verified by the log. A halt (kill-switch) is not modelled yet: register row DK76 stays partial. */
+/** The halts of the world, from the records: each from its own time to the time of the resume that names it (or open). Resumes that name no halt are ignored (the log refuses them). */
+export function haltIntervals(records: AspRecord[]): { record: string; since: string; until: string | null; reason: string }[] {
+  const halts = new Map<string, { record: string; since: string; until: string | null; reason: string }>();
+  for (const r of records) {
+    if (r.type !== "asp.world/v0.2") continue;
+    const b = r.body as unknown as WorldBody;
+    if (b.kind === "halt") halts.set(r.id, { record: r.id, since: r.issued_at, until: null, reason: b.reason });
+    else if (b.kind === "resume") { const h = halts.get(b.halt); if (h && h.until === null) h.until = r.issued_at; }
+  }
+  return [...halts.values()];
+}
+
+/** The world as of `at`, from world records already verified by the log. While a halt is in force the generated events and the shocks, drills and experiments are not in force (S1402). */
 export function worldStateAt(records: AspRecord[], at: Date | string): WorldState {
   const t = typeof at === "string" ? Date.parse(at) : at.getTime();
-  const st: WorldState = { at: iso(t), priceMultiplier: {}, outages: [], taxFree: false, openJobTypes: [], gatherings: [], because: [] };
+  const halt = haltIntervals(records).find((h) => Date.parse(h.since) <= t && (h.until === null || t < Date.parse(h.until)));
+  const st: WorldState = { at: iso(t), priceMultiplier: {}, outages: [], taxFree: false, openJobTypes: [], gatherings: [], halted: halt ? { since: halt.since, reason: halt.reason, record: halt.record } : null, because: [] };
   for (const x of flatten(records)) {
     if (!active(x.starts, x.ends, t)) continue;
+    if (halt && x.stoppable) continue; // the kill-switch: stopped at once, not extended after the resume
     const { source, id, title, starts, ends } = x, e = x.effect;
     st.because.push({ source, id, title, starts, ends });
     if (e.type === "price_multiplier") st.priceMultiplier[e.target] = Math.min(PRICE_MULTIPLIER_MAX, Math.max(PRICE_MULTIPLIER_MIN, Math.round(((st.priceMultiplier[e.target] ?? 1000) * e.value) / 1000)));

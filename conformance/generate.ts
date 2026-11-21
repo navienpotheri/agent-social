@@ -14,6 +14,8 @@ import {
 import { signBytes } from "../packages/asp-core/src/crypto.ts";
 import { brier as tBrier, calibration as tCalibration, klBits as tKl, meanSurprisal as tMeanSurprisal, normativePosterior as tNormative, surprisal as tSurprisal } from "../packages/asp-log/src/telemetry.ts";
 import { GENERATOR, WORLD_DID, dayBody, generateDay, seedCommitment } from "../packages/asp-log/src/world.ts";
+import { deriveMandate, mandateViolations } from "../packages/asp-core/src/mandate-template.ts";
+import { suggestRisk, onlyRemovesRule, type RiskTerms, type RiskInput } from "../packages/asp-log/src/market-risk.ts";
 
 const OUT = fileURLToPath(new URL("./vectors/", import.meta.url));
 const HERE = fileURLToPath(new URL("./", import.meta.url));
@@ -697,6 +699,18 @@ sv("envelope_extra_field", "envelope", { ...h[0], note: "hi" }, false);
 sv("envelope_bad_did", "envelope", { ...h[0], issuer: "alice" }, false);
 sv("fleet_without_org", "fleet", (({ org: _o, ...rest }) => rest)(fleetBody), false);
 sv("fleet_zero_members", "fleet", { ...fleetBody, max_members: 0 }, false);
+// S1407 (DK1353): co-sponsors, a binding template and closing
+const coA = "did:web:example.com:users:co-sponsor-a", coB = "did:web:example.com:users:co-sponsor-b";
+sv("valid_fleet_co_sponsors", "fleet", { ...fleetBody, co_sponsors: [coA, coB] }, true);
+sv("valid_fleet_no_co_sponsors", "fleet", { ...fleetBody, co_sponsors: [] }, true);
+sv("valid_fleet_strict", "fleet", { ...fleetBody, strict: true }, true);
+sv("valid_fleet_closed", "fleet", { ...fleetBody, closed: true }, true);
+sv("fleet_co_sponsors_duplicate", "fleet", { ...fleetBody, co_sponsors: [coA, coA] }, false);
+sv("fleet_co_sponsors_not_a_did", "fleet", { ...fleetBody, co_sponsors: ["not-a-did"] }, false);
+sv("fleet_co_sponsors_not_an_array", "fleet", { ...fleetBody, co_sponsors: coA }, false);
+sv("fleet_strict_not_boolean", "fleet", { ...fleetBody, strict: "yes" }, false);
+sv("fleet_closed_not_boolean", "fleet", { ...fleetBody, closed: 1 }, false);
+sv("fleet_co_sponsors_over_a_thousand", "fleet", { ...fleetBody, co_sponsors: Array.from({ length: 1001 }, (_, i) => `did:web:example.com:users:cs-${i}`) }, false);
 sv("valid_node_residency", "node", { ...nodeBody, purpose: "residency", host: "did:web:asp.local:host", mandate: "sha256:" + "a".repeat(64) }, true);
 sv("node_host_not_a_did", "node", { ...nodeBody, purpose: "residency", host: "the city" }, false);
 sv("node_minimal", "node", { node: nodeBody.node, public_key: nodeBody.public_key, expires: nodeBody.expires }, true);
@@ -1286,7 +1300,20 @@ sv("world_effect_target_is_a_did", "world", wEntry({ effect: { type: "price_mult
 sv("world_entry_missing_effect", "world", wEntry({ effect: undefined }), false);
 sv("world_day_missing_seed", "world", { kind: "day", day: "2026-11-12", generator: GENERATOR, seed_commitment: seedCommitment("x"), events: [] }, false);
 sv("world_day_bad_date", "world", { kind: "day", day: "12/11/2026", generator: GENERATOR, seed: "x", seed_commitment: seedCommitment("x"), events: [] }, false);
-sv("world_unknown_kind", "world", { kind: "halt", day: "2026-11-12" }, false);
+sv("world_unknown_kind", "world", { kind: "pause", day: "2026-11-12" }, false);
+// The kill-switch (S1402): a halt states why; a resume names the halt it ends and why; neither carries a calendar entry or a day.
+const haltId = "sha256:" + "d".repeat(64);
+sv("valid_world_halt", "world", { kind: "halt", reason: "a shock hit one class of agents too hard" }, true);
+sv("valid_world_resume", "world", { kind: "resume", halt: haltId, reason: "the cause was fixed" }, true);
+sv("world_halt_no_reason", "world", { kind: "halt" }, false);
+sv("world_halt_empty_reason", "world", { kind: "halt", reason: "" }, false);
+sv("world_halt_names_a_halt", "world", { kind: "halt", reason: "x", halt: haltId }, false);
+sv("world_halt_carries_a_day", "world", { kind: "halt", reason: "x", day: "2026-11-12" }, false);
+sv("world_halt_carries_an_entry", "world", { kind: "halt", reason: "x", entry_id: "price-review" }, false);
+sv("world_resume_no_halt", "world", { kind: "resume", reason: "x" }, false);
+sv("world_resume_no_reason", "world", { kind: "resume", halt: haltId }, false);
+sv("world_resume_bad_halt_id", "world", { kind: "resume", halt: "not-an-id", reason: "x" }, false);
+sv("world_resume_carries_events", "world", { kind: "resume", halt: haltId, reason: "x", events: [] }, false);
 sv("world_extra_field", "world", wEntry({ rank: 1 }), false);
 
 const worldSeeds = ["vector-seed", "another-seed"];
@@ -1320,8 +1347,119 @@ const worldRules = [
   rule("price_multiplier_too_low", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ effect: { type: "price_multiplier", target: "code", value: 499 } }), "calendar_out_of_bounds"),
   rule("window_ends_before_start", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ ends: "2026-12-01T00:00:00Z" }), "world_bad_window"),
   rule("window_over_90_days", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ ends: "2027-03-02T00:00:00Z" }), "world_bad_window"),
+  // The kill-switch records pass the pure rule from any issuer: who may sign them, and the owner's co-signature after 24 hours, are the log's rules (S1402).
+  rule("halt_ok", "did:web:example.com:operator", "2026-11-20T00:00:00Z", { kind: "halt", reason: "a shock hit one class too hard" }, "ok"),
+  rule("resume_ok", "did:web:example.com:operator", "2026-11-20T06:00:00Z", { kind: "resume", halt: haltId, reason: "fixed" }, "ok"),
 ];
 
+// ---------- the Mandate template (spec-deltas S1408): schema cases and the derivation, identical in both SDKs ----------
+{
+  const tmplMandate = (over: Record<string, unknown> = {}) => ({
+    purpose: "Work for the enterprise", floor: "asp.floor/v1", scopes: ["repo.read", "repo.write", "pr.*"], forbidden_means: ["rm -rf"], spend: { cap: 100, unit: "credit", per_action_max: 20 },
+    irreversible: { policy: "checkpoint" }, subcontract: { allowed: true, max_depth: 2 }, nodes: { max_parallel: 4 }, learning: { scope: "memory", share_to_commons: true }, self_modification: "principal_approves",
+    overlay: null, checkpoints: ["plan"], expires: "2027-06-01T00:00:00Z", revocable: true, network: { hosts: ["api.example.com", "*.example.org"] },
+    institution_spend: [{ institution: "academy", cap: { value: 60, unit: "credit" }, period: "month" }], ...over,
+  });
+  const fl = "did:web:example.com:orgs:acme:fleets:coders";
+  sv("valid_mandate_template", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate() }, true);
+  sv("valid_mandate_template_persona", "mandate_template", { fleet: fl, persona: "project-manager", version: 2, mandate: tmplMandate() }, true);
+  sv("mandate_template_no_version", "mandate_template", { fleet: fl, mandate: tmplMandate() }, false);
+  sv("mandate_template_version_zero", "mandate_template", { fleet: fl, version: 0, mandate: tmplMandate() }, false);
+  sv("mandate_template_no_fleet", "mandate_template", { version: 1, mandate: tmplMandate() }, false);
+  sv("mandate_template_names_a_contract", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ contract: "sha256:" + "1".repeat(64) }) }, false);
+  sv("mandate_template_bad_persona", "mandate_template", { fleet: fl, persona: "Project Manager", version: 1, mandate: tmplMandate() }, false);
+  sv("mandate_template_missing_field", "mandate_template", { fleet: fl, version: 1, mandate: (({ scopes: _s, ...r }) => r)(tmplMandate()) }, false);
+  sv("valid_mandate_narrowing", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { scopes: ["repo.read"], spend: { cap: 40, unit: "credit" } } }, true);
+  sv("mandate_narrowing_no_member", "mandate_narrowing", { fleet: fl, narrow: { scopes: ["repo.read"] } }, false);
+  sv("mandate_narrowing_unknown_field", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { privileges: ["root"] } }, false);
+  sv("mandate_narrowing_bad_scope", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { scopes: ["Repo Read"] } }, false);
+  sv("valid_passport_persona", "passport", { did: "did:web:example.com:agents:coder-7", kind: "agent", sponsor: "did:web:example.com:orgs:acme", persona: "coder", tier: 1, shape: {}, keys: [{ id: "did:web:example.com:agents:coder-7#key-1", type: "Ed25519", public_key: "A".repeat(43) }] }, true);
+  const T = tmplMandate();
+  const cases: { name: string; ceiling: Record<string, unknown>; candidate: Record<string, unknown> }[] = [
+    ["the_same_mandate_is_within", {}], ["fewer_scopes", { scopes: ["repo.read"] }], ["a_scope_under_a_wildcard", { scopes: ["pr.open", "pr.merge"] }], ["a_scope_outside", { scopes: ["repo.read", "shell.exec"] }],
+    ["a_lower_cap", { spend: { cap: 50, unit: "credit", per_action_max: 10 } }], ["a_higher_cap", { spend: { cap: 101, unit: "credit", per_action_max: 20 } }], ["a_higher_per_action_max", { spend: { cap: 100, unit: "credit", per_action_max: 21 } }],
+    ["a_missing_per_action_max", { spend: { cap: 100, unit: "credit" } }], ["a_forbidden_means_dropped", { forbidden_means: [] }], ["more_forbidden_means", { forbidden_means: ["rm -rf", "curl | sh"] }],
+    ["a_stricter_irreversible_policy", { irreversible: { policy: "forbid" } }], ["a_looser_irreversible_policy", { irreversible: { policy: "allow" } }], ["a_smaller_subcontract_depth", { subcontract: { allowed: true, max_depth: 1 } }],
+    ["a_deeper_subcontract", { subcontract: { allowed: true, max_depth: 3 } }], ["subcontract_forbidden", { subcontract: { allowed: false } }], ["more_parallel_nodes", { nodes: { max_parallel: 5 } }], ["fewer_parallel_nodes", { nodes: { max_parallel: 2 } }],
+    ["learning_not_shared", { learning: { scope: "memory", share_to_commons: false } }], ["a_deeper_learning_scope", { learning: { scope: "harness", share_to_commons: true } }], ["a_stricter_self_modification", { self_modification: "forbidden" }],
+    ["a_looser_self_modification", { self_modification: "automatic_audited" }], ["more_checkpoints", { checkpoints: ["plan", "delivery"] }], ["fewer_checkpoints", { checkpoints: [] }], ["an_earlier_expiry", { expires: "2027-01-01T00:00:00Z" }],
+    ["a_later_expiry", { expires: "2027-06-01T00:00:01Z" }], ["a_host_within", { network: { hosts: ["api.example.com"] } }], ["a_host_outside", { network: { hosts: ["evil.example.net"] } }], ["no_hosts", { network: { hosts: [] } }],
+    ["a_smaller_institution_cap", { institution_spend: [{ institution: "academy", cap: { value: 30, unit: "credit" }, period: "month" }] }], ["a_larger_institution_cap", { institution_spend: [{ institution: "academy", cap: { value: 61, unit: "credit" }, period: "month" }] }],
+    ["another_institution", { institution_spend: [{ institution: "shops", cap: { value: 10, unit: "credit" }, period: "month" }] }], ["a_longer_institution_period", { institution_spend: [{ institution: "academy", cap: { value: 10, unit: "credit" }, period: "week" }] }],
+    ["no_institution_spend", { institution_spend: [] }],
+  ].map(([name, over]) => ({ name: name as string, ceiling: T, candidate: { ...T, ...(over as object) } }));
+  const mt = {
+    version: "asp.conformance/v0.2",
+    violations: cases.map((c) => ({ ...c, expected: mandateViolations(c.ceiling, c.candidate) })),
+    derive: [
+      { name: "no_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: null },
+      { name: "a_valid_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: { scopes: ["repo.read"], spend: { cap: 40, unit: "credit", per_action_max: 5 } } },
+      { name: "a_widening_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: { scopes: ["shell.exec"], spend: { cap: 400, unit: "credit", per_action_max: 5 } } },
+      { name: "an_empty_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: {} },
+    ].map((c) => ({ ...c, expected: deriveMandate(c.template, c.contract, c.narrowing) })),
+  };
+  (globalThis as unknown as { __mandateTemplateVectors: unknown }).__mandateTemplateVectors = mt;
+}
+// ---------- the active Bank (spec-deltas S1405): schema cases ----------
+{
+  const h = "did:web:example.com:users:bank-holder";
+  const amt = (v: number) => ({ value: v, unit: "credit" });
+  sv("valid_bank_deposit", "bank_act", { act: "deposit", holder: h, amount: amt(300) }, true);
+  sv("valid_bank_withdraw", "bank_act", { act: "withdraw", holder: h, amount: amt(100) }, true);
+  sv("valid_bank_borrow", "bank_act", { act: "borrow", amount: amt(500) }, true);
+  sv("valid_bank_repay", "bank_act", { act: "repay", amount: amt(200) }, true);
+  sv("valid_bank_interest", "bank_act", { act: "interest", week: "2026-W46" }, true);
+  sv("valid_bank_interest_week_53", "bank_act", { act: "interest", week: "2026-W53" }, true);
+  sv("bank_unknown_act", "bank_act", { act: "lend", amount: amt(5) }, false);
+  sv("bank_deposit_no_holder", "bank_act", { act: "deposit", amount: amt(5) }, false);
+  sv("bank_deposit_no_amount", "bank_act", { act: "deposit", holder: h }, false);
+  sv("bank_withdraw_no_amount", "bank_act", { act: "withdraw", holder: h }, false);
+  sv("bank_borrow_names_a_holder", "bank_act", { act: "borrow", holder: h, amount: amt(5) }, false);
+  sv("bank_interest_no_week", "bank_act", { act: "interest" }, false);
+  sv("bank_interest_bad_week", "bank_act", { act: "interest", week: "2026-W54" }, false);
+  sv("bank_interest_week_zero", "bank_act", { act: "interest", week: "2026-W00" }, false);
+  sv("bank_interest_names_an_amount", "bank_act", { act: "interest", week: "2026-W46", amount: amt(5) }, false);
+  sv("bank_repay_extra_field", "bank_act", { act: "repay", amount: amt(5), rate: 25 }, false);
+}
+// ---------- the Market's risk model (spec-deltas S1404): schema cases and the suggestion, identical in both SDKs ----------
+const riskTerms = (over: Record<string, unknown> = {}) => ({
+  class_permille: { trivial: -50, routine: 0, skilled: 50, critical: 150 }, verification_permille: { deterministic: -80, principal: 0, arbiter: 40 }, poster_permille: 120, escrow_share_permille: 800, ...over,
+});
+const riskAct = (over: Record<string, unknown> = {}) => ({ act: "risk_model", model_version: 1, terms: riskTerms(), effective_from: "2026-12-01T00:00:00Z", ...over });
+sv("valid_market_risk_model", "market_act", riskAct(), true);
+sv("valid_market_risk_model_zero", "market_act", riskAct({ terms: { class_permille: { trivial: 0, routine: 0, skilled: 0, critical: 0 }, verification_permille: { deterministic: 0, principal: 0, arbiter: 0 }, poster_permille: 0, escrow_share_permille: 1000 } }), true);
+sv("market_risk_model_no_version", "market_act", riskAct({ model_version: undefined }), false);
+sv("market_risk_model_version_zero", "market_act", riskAct({ model_version: 0 }), false);
+sv("market_risk_model_no_terms", "market_act", riskAct({ terms: undefined }), false);
+sv("market_risk_model_no_effective", "market_act", riskAct({ effective_from: undefined }), false);
+sv("market_risk_model_class_term_too_big", "market_act", riskAct({ terms: riskTerms({ class_permille: { trivial: 0, routine: 0, skilled: 301, critical: 0 } }) }), false);
+sv("market_risk_model_class_term_too_low", "market_act", riskAct({ terms: riskTerms({ verification_permille: { deterministic: -201, principal: 0, arbiter: 0 } }) }), false);
+sv("market_risk_model_missing_class", "market_act", riskAct({ terms: riskTerms({ class_permille: { trivial: 0, routine: 0, skilled: 0 } }) }), false);
+sv("market_risk_model_escrow_share_low", "market_act", riskAct({ terms: riskTerms({ escrow_share_permille: 499 }) }), false);
+sv("market_risk_model_escrow_share_high", "market_act", riskAct({ terms: riskTerms({ escrow_share_permille: 1001 }) }), false);
+sv("market_risk_model_poster_negative", "market_act", riskAct({ terms: riskTerms({ poster_permille: -1 }) }), false);
+sv("market_risk_model_extra_term", "market_act", riskAct({ terms: riskTerms({ tier_bonus: 10 }) }), false);
+sv("market_risk_model_float", "market_act", riskAct({ terms: riskTerms({ poster_permille: 12.5 }) }), false);
+const riskCases: { name: string; terms: RiskTerms | null; input: RiskInput }[] = [
+  { name: "no_model_is_the_floor_and_the_whole_price", terms: null, input: { price: 80, floorPermille: 400, jobClass: "routine", verification: "principal", posterLostPermille: 0 } },
+  { name: "routine_principal_no_poster_record", terms: riskTerms() as RiskTerms, input: { price: 100, floorPermille: 300, jobClass: "routine", verification: "principal", posterLostPermille: 0 } },
+  { name: "critical_arbiter_raises_it", terms: riskTerms() as RiskTerms, input: { price: 200, floorPermille: 300, jobClass: "critical", verification: "arbiter", posterLostPermille: 0 } },
+  { name: "deterministic_tests_lower_it", terms: riskTerms() as RiskTerms, input: { price: 100, floorPermille: 300, jobClass: "trivial", verification: "deterministic", posterLostPermille: 0 } },
+  { name: "a_poster_who_lost_every_dispute", terms: riskTerms() as RiskTerms, input: { price: 100, floorPermille: 300, jobClass: "routine", verification: "principal", posterLostPermille: 1000 } },
+  { name: "a_poster_who_lost_a_third_rounds", terms: riskTerms() as RiskTerms, input: { price: 100, floorPermille: 300, jobClass: "routine", verification: "principal", posterLostPermille: 333 } },
+  { name: "half_a_permille_rounds_up", terms: riskTerms({ poster_permille: 3 }) as RiskTerms, input: { price: 100, floorPermille: 300, jobClass: "routine", verification: "principal", posterLostPermille: 500 } },
+  { name: "capped_at_the_whole_price", terms: riskTerms() as RiskTerms, input: { price: 100, floorPermille: 900, jobClass: "critical", verification: "arbiter", posterLostPermille: 1000 } },
+  { name: "never_below_zero", terms: riskTerms({ class_permille: { trivial: -200, routine: -200, skilled: -200, critical: -200 }, verification_permille: { deterministic: -200, principal: -200, arbiter: -200 } }) as RiskTerms, input: { price: 100, floorPermille: 50, jobClass: "trivial", verification: "deterministic", posterLostPermille: 0 } },
+  { name: "the_bond_rounds_up", terms: riskTerms() as RiskTerms, input: { price: 7, floorPermille: 333, jobClass: "routine", verification: "principal", posterLostPermille: 0 } },
+  { name: "a_poster_share_above_1000_is_capped", terms: riskTerms() as RiskTerms, input: { price: 100, floorPermille: 300, jobClass: "routine", verification: "principal", posterLostPermille: 5000 } },
+];
+const riskRemoves = [
+  { name: "zero_after_a_model_only_removes_rule", prev: riskTerms() as RiskTerms, next: riskTerms({ class_permille: { trivial: -50, routine: 0, skilled: 0, critical: 0 }, poster_permille: 0, escrow_share_permille: 1000 }) as RiskTerms },
+  { name: "a_higher_term_adds_rule", prev: riskTerms() as RiskTerms, next: riskTerms({ poster_permille: 121 }) as RiskTerms },
+  { name: "a_lower_escrow_share_adds_rule", prev: riskTerms() as RiskTerms, next: riskTerms({ escrow_share_permille: 799 }) as RiskTerms },
+  { name: "the_same_model_only_removes_nothing", prev: riskTerms() as RiskTerms, next: riskTerms() as RiskTerms },
+].map((c) => ({ ...c, expected: onlyRemovesRule(c.prev, c.next) }));
+const risk = { version: "asp.conformance/v0.2", model: "asp-risk-model/1", suggest: riskCases.map((c) => ({ ...c, expected: suggestRisk(c.terms, c.input) })), onlyRemoves: riskRemoves };
 // ---------- cognition telemetry: the derived measures, identical in both SDKs (DK195) ----------
 type TItem = { p: number; outcome: 0 | 1 };
 const thin: TItem[] = [{ p: 0.9, outcome: 1 }, { p: 0.7, outcome: 0 }, { p: 0.2, outcome: 0 }, { p: 0.5, outcome: 1 }, { p: 0.05, outcome: 0 }];
@@ -1349,5 +1487,7 @@ write("schema.json", { version: "asp.conformance/v0.2", cases: schema });
 write("records.json", { version: "asp.conformance/v0.2", cases: records });
 write("lifecycle.json", { version: "asp.conformance/v0.2", cases: lifecycle });
 write("telemetry.json", { version: "asp.conformance/v0.2", note: "exact: every number is identical in both languages; otherwise equal to 1e-9", cases: telemetry });
+write("risk.json", risk);
+write("mandate-template.json", (globalThis as unknown as { __mandateTemplateVectors: unknown }).__mandateTemplateVectors);
 write("world.json", { version: "asp.conformance/v0.2", generator: GENERATOR, commitments: ["", "vector-seed", "another-seed"].map((x) => ({ seed: x, commitment: seedCommitment(x) })), generate: worldGen, rules: worldRules });
 console.log(`canonical ${canonical.length}, schema ${schema.length}, records ${records.length}, lifecycle ${lifecycle.length}`);

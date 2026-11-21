@@ -25,7 +25,7 @@ Written 2026-11-12 by the build-world worker. Credits are accounting entries, no
 
 ## What is not done
 
-- **The halt record and kill-switch** (`calendar_halt`, leisure-events section 14): not built. `worldState` has no halt.
+- **The halt record and kill-switch** (leisure-events section 14): built 2026-11-21 (S1402, DK76): `halt` and `resume` kinds, the log's rules, `worldState().halted`, `asp world halt|resume|invariants`; the per-event invariant check (`EventLog.worldInvariants`) runs after each day of `asp world tick`.
 - **The effect is read, not yet applied inside the Market.** `effectivePrice` exists and `asp world today` shows it, but the Market code belongs to the credits slice; wire `effectivePrice` where a listing's price is shown and charged once that lands. Likewise the tax-free flag belongs where the fee split is applied, and an outage flag where a service answers.
 - **Steady work** (Treasury public-works jobs, a stream of market jobs): not built.
 - **Per-event invariant check** (an event must not break the credit supply rule, the Code or the charter): the supply rule is not touched by any effect in the catalogue (none moves credits), and a test checks the audit is unchanged, but there is no generic check that runs after each event.
