@@ -6087,7 +6087,7 @@
   {
    "id": "DK1715",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "A sponsor can lose tokens to a runaway agent: the denial-of-wallet guard refuses a wake past a ceiling and a per-agent token budget exists (`asp budget`, US2), but the starter Mandate does not carry…",
    "bucket": "must",
    "hours": 3,

@@ -96,6 +96,8 @@ export interface GatewayOptions {
   mcpDestinations?: Record<string, string[]>;
   /** Stops the run when input plus output tokens pass this. */
   tokenCap?: number;
+  /** Called once as the run's tokens reach 50, 80 and 100 percent of `tokenCap` (DK1715); each is also a run-log event `budget_alert`. */
+  onBudgetAlert?: (e: { percent: number; used: number; cap: number }) => void;
   fetch?: typeof fetch;
   /** The telemetry tap (DK241): fed every judged call, and collects only what the Mandate lists and the consent names; the run log gets one `telemetry` line at the end. Absent: `telemetry: off`. */
   telemetry?: GatewayTelemetry;
@@ -657,7 +659,13 @@ export function createGateway(opts: GatewayOptions): Gateway {
     res.end();
   }
 
-  const tokenCapHit = () => opts.tokenCap !== undefined && tokens.input + tokens.output > opts.tokenCap;
+  const firedAlerts = new Set<number>();
+  const tokenCapHit = () => {
+    if (opts.tokenCap === undefined) return false;
+    const used = tokens.input + tokens.output;
+    for (const percent of [50, 80, 100]) if (opts.tokenCap > 0 && used * 100 >= opts.tokenCap * percent && !firedAlerts.has(percent)) { firedAlerts.add(percent); rec?.event("budget_alert", { percent, used, cap: opts.tokenCap }); opts.onBudgetAlert?.({ percent, used, cap: opts.tokenCap }); }
+    return used > opts.tokenCap;
+  };
 
   /** Anything else is passed through unjudged (and counted), so an agent's other calls keep working. */
   async function passthrough(req: IncomingMessage, res: ServerResponse, rawBody: Buffer, style: "openai" | "anthropic") {
@@ -722,6 +730,13 @@ export function createGateway(opts: GatewayOptions): Gateway {
       lastActivity = Date.now();
       const rawBody = await readBody(req);
       if (path.startsWith("/mcp/")) return await mcpRoute(req, res, path.slice("/mcp/".length), rawBody);
+      // The hard stop at the model call (DK1715): once the run's tokens have reached the ceiling the next model request is refused, the provider is not called, and the run log says so.
+      if (opts.tokenCap !== undefined && req.method === "POST" && (/\/chat\/completions$/.test(path) || /\/responses$/.test(path) || /\/v1\/messages$/.test(path)) && tokens.input + tokens.output >= opts.tokenCap) {
+        const reason = `ASP gateway: the next model call is refused: this run has used ${tokens.input + tokens.output} of its ${opts.tokenCap} tokens (the ceiling for a run; a sponsor can raise it with --token-cap, up to what the operator allows)`;
+        rec?.event("budget_stop", { used: tokens.input + tokens.output, cap: opts.tokenCap });
+        opts.onCall?.({ tool: "model request", scope: "model.tokens", allowed: false, reason });
+        return json(res, 429, style === "openai" ? { error: { message: reason, type: "asp_token_budget", code: "asp_token_budget" } } : { type: "error", error: { type: "rate_limit_error", message: reason } });
+      }
       if (opts.modelBlock && req.method === "POST" && (/\/chat\/completions$/.test(path) || /\/responses$/.test(path) || /\/v1\/messages$/.test(path))) {
         const reason = `ASP gateway: the next model call is refused: ${opts.modelBlock}`;
         rec?.event("model_refused", { reason, why: "token_budget" });
