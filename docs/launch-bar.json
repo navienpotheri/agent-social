@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 105,
+  "withdraw": 104,
   "after": 336,
-  "total": 505
+  "total": 504
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -2977,19 +2977,6 @@
    "why": "",
    "claim": "Collateralised escrow matched to the threat matrix",
    "where": "deck, site roadmap"
-  },
-  {
-   "id": "DK58",
-   "pri": "A",
-   "status": "designed",
-   "gap": "Gated memory admission and active calibration are designs only.",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "Gated memory admission and active calibration",
-   "where": "deck, site"
   },
   {
    "id": "DK60",
