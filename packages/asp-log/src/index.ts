@@ -101,3 +101,4 @@ export { fleetKind, standingOf, templateOf, type MemberFacts, type TemplateOf } 
 export { lotsOf, outstanding, spendable, drawPlan, applyDraw, LOT_MAX_MS, type Lot } from "./credit-lots.ts";
 export { meterOf, priceStatement, creditsFor, type Plan as UsagePlan, type Usage as MeterUsage, type AgentUsage, type Priced } from "./metering.ts";
 export { buildAuditExport, verifyAuditExport, orgScope, type AuditManifest } from "./audit-export.ts";
+export { readOrgRecords } from "./audit-export.ts";
