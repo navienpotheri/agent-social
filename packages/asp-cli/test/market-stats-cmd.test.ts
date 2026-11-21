@@ -30,3 +30,18 @@ test("asp market stats and monthly read an empty Market without error, in text a
   assert.notEqual(bad.code, 0);
   assert.match(bad.err, /not a month/);
 });
+
+test("asp market dynamics (DK1456) reads the season, demand, guide prices and waves on a log with no day recorded, in text and JSON", async () => {
+  const home = mkdtempSync(join(tmpdir(), "asp-market-dynamics-"));
+  const text = await asp(home, ["market", "dynamics", "--at", "2026-05-12T12:00:00Z"]);
+  assert.equal(text.code, 0, text.err);
+  assert.match(text.out, /Market dynamics \(asp-market-dynamics\/1\)/);
+  assert.match(text.out, /seed not revealed yet/);
+  assert.match(text.out, /season 2026 Q2: the building season.*favours skilled/);
+  assert.match(text.out, /guide price by class: trivial 5 credits/);
+  assert.match(text.out, /no entrant wave announced/);
+  const json = JSON.parse((await asp(home, ["market", "dynamics", "--at", "2026-05-12T12:00:00Z", "--json"])).out);
+  assert.equal(json.halted, false);
+  assert.equal(json.demand.length, 5);
+  assert.ok(json.demand.every((d: { index: number }) => d.index === 1000));
+});

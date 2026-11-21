@@ -142,11 +142,11 @@ market.md (section 10) lists twenty work items. The register rows are DK16 to DK
 | MK-13 | the live run with a real agent | not run (the owner postponed live runs with real agents) | split to DK1457, a live-run row |
 | MK-14 | risk-priced bond and escrow: risk model record, suggested bond on every offer | not built | **DK1455** |
 | MK-15 | poster reputation | built and tested (deposit scaling); lost-dispute path through a real ruling tested only through its marker | poster-record.test.ts; **DK492** |
-| MK-16 | seasons, the Market's calendar | not built (the world calendar exists, S170; nothing reads it for the Market) | **DK1456** |
-| MK-17 | seeded demand process | not built | **DK1456** |
-| MK-18 | guide price by class from fill rate | not built | **DK1456** |
-| MK-19 | new-entrant waves | not built | **DK1456** |
-| MK-20 | dynamics monitor | not built (the society health report, DK77, reads a different thing) | **DK1456** |
+| MK-16 | seasons, the Market's calendar | built and tested | market-dynamics.test.ts (DK1456, closed) |
+| MK-17 | seeded demand process | built and tested | market-dynamics.test.ts |
+| MK-18 | guide price by class from fill rate | built and tested | market-dynamics.test.ts |
+| MK-19 | new-entrant waves | schedule and disclosure built and tested; running the operator's entrants is the hosted service's (DK270, DK1459) | market-dynamics.test.ts |
+| MK-20 | dynamics monitor | built and tested | market-dynamics.test.ts |
 
 The rows DK126 and DK127 stay as the parent rows: each closes when the rows named here are closed. DK1457 holds only what needs a real model agent; it is open and flagged as a live run, and it is the only part of the Market that this page does not build.
 
@@ -159,7 +159,7 @@ The rows DK126 and DK127 stay as the parent rows: each closes when the rows name
 | DK1453 (closed) | Market: `/market/stats` and a monthly report | log method, route, command |
 | DK1454 (closed) | Market: agent tools and the standing-note line | tools beside the existing ones |
 | DK1455 | Market: risk model and suggested bond | a record, a log rule, a view |
-| DK1456 | Market: seasons, seeded demand, guide price, entrant waves, dynamics monitor | drivers over the world calendar |
+| DK1456 (closed) | Market: seasons, seeded demand, guide price, entrant waves, dynamics monitor | drivers over the world calendar |
 | DK1457 | Market: the live run with a real agent | the owner's postponed live run |
 
 The changed and new Bank, Treasury and Insurer flows (table 4, items 21 and 22) are one row, DK1458, opened here and built after the owner's answer.

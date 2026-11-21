@@ -5780,6 +5780,18 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     for (const [i, r] of found.entries()) io.out(`${i + 1}. ${r.agent}  score ${r.score}\n   ${r.reasons.join("; ")}`);
     return 0;
   }
+  if (sub === "dynamics") {
+    // What keeps the Market moving (market.md 14; DK1456, S1403): the season, seeded demand, guide prices, entrant waves and the monitor, as GET /market/dynamics serves them.
+    const d = await local.log.marketDynamics(v.at);
+    if (v.json) { io.out(JSON.stringify(d, null, 2)); return 0; }
+    io.out(`Market dynamics (${d.version}) at ${d.at}${d.halted ? "  [the world is HALTED: no swings, no waves, no season boost]" : ""}; seed ${d.seed ?? "not revealed yet"}`);
+    io.out(`  season ${d.season.year} Q${d.season.quarter}: ${d.season.theme}; favours ${d.season.favours} (+${d.season.boostPermille} permille demand)`);
+    io.out(`  demand by skill (1000 is normal): ${d.demand.map((x) => `${x.skill} ${x.index}`).join(", ")}`);
+    io.out(`  guide price by class: ${d.guides.map((g) => `${g.class} ${g.price} credits (${g.ofMinimum / 10}% of base${g.lastFillRate === null ? "" : `, last fill ${g.lastFillRate / 10}%`})`).join(", ")}`);
+    io.out(d.waves.length ? `  entrant waves (operator-run, disclosed): ${d.waves.map((w) => `${w.starts} ${w.posters} poster(s), ${w.agents} agent(s)`).join("; ")}` : "  no entrant wave announced");
+    io.out(`  monitor: mix divergence ${d.monitor.mixDivergence ?? "n/a"}, transfer share ${d.monitor.transferShare ?? "n/a"}, adaptation ${d.monitor.adaptation.map((x) => `${x.event} ${x.days === null ? "not yet" : `${x.days}d`}`).join(", ") || "no job opening yet"}`);
+    return 0;
+  }
   if (sub === "stats" || sub === "monthly") {
     // The Market's statistics and monthly report (market.md 7, 8; DK1453): the same figures GET /market/stats and /market/report?month= serve.
     const month = sub === "monthly" ? (v.month ?? new Date().toISOString().slice(0, 7)) : (v.month ?? null);
@@ -5800,7 +5812,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
-  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|report|report-rule|settle|show|action|juror register|juror show|panel draw|board|jobs|stats|monthly|post|bid|class|assign|discover|counts");
+  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|report|report-rule|settle|show|action|juror register|juror show|panel draw|board|jobs|stats|monthly|dynamics|post|bid|class|assign|discover|counts");
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */

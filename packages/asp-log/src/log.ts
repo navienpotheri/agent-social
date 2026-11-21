@@ -32,7 +32,10 @@ import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX,
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
-import { computeMarketStats, type MarketStats } from "./market-stats.ts";
+import { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
+import { JOB_CLASSES } from "./market.ts";
+import { DYNAMICS, SKILLS, adaptationDays, demandOn, demandTable, entrantWaves, guideFromFill, mixDivergence, seasonOf, skillClass, transferShare, type Dynamics, type Guide, type JobFact, type Season, type Demand, type Wave } from "./market-dynamics.ts";
+import { seedCommitment } from "./world.ts";
 import { charterIn, checkCaseload, checkRulingExtras, checkSettlementHold, closeDispute, effectiveFault, projectCourtAct } from "./courts-rules.ts";
 import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
@@ -233,6 +236,9 @@ const after = (a: string, b: string) => Date.parse(a) > Date.parse(b);
  * linear (one successor per record); job chains must follow the ASP lifecycle; passport, fleet
  * and node records maintain the registry. A running hash over record ids makes the order tamper-evident.
  */
+/** The Market's dynamics as `marketDynamics` returns them (S1403). */
+export interface MarketDynamics { version: string; at: string; halted: boolean; seed: string | null; season: Season; demand: Demand[]; guides: Guide[]; waves: Wave[]; monitor: Dynamics }
+
 export class EventLog {
   readonly store: Store;
   private readonly schemas: SchemaSet;
@@ -2915,6 +2921,51 @@ export class EventLog {
     const audit = await this.creditAudit();
     if (audit.verdict !== "balanced") failures.push(`the credit supply rule is broken: ${audit.problems.join("; ")}`);
     return { ok: failures.length === 0, failures, checked: { days, entries } };
+  }
+
+  /**
+   * The Market's dynamics (market.md 14; MK-16 to MK-20; DK1456, S1403): the season, the seeded demand for each skill on a day, the guide price of each class from the weekly fill rate, the announced entrant waves and the monitor of how the
+   * mix of work moves. Read-only and reproducible: the seed is the one the world's newest day record reveals, the rest is the log's own records. While the world is halted (S1402) demand is at its baseline, no wave is announced and the
+   * season shows no boost. `seed` (shown as its commitment) is null when no day has been recorded: the demand is then the baseline and no wave is announced.
+   */
+  async marketDynamics(at?: string): Promise<MarketDynamics> {
+    const when = at ?? this.now().toISOString();
+    const day = when.slice(0, 10);
+    const world = await this.worldRecords();
+    const days = world.filter((r) => (r.body as { kind: string }).kind === "day");
+    const seed = days.length ? (days[days.length - 1].body as { seed: string }).seed : null;
+    const halted = (await this.worldState(when)).halted !== null;
+    const records = await this.recordsOfTypes(["market_act", "intent", "contract", "settlement"]);
+    const postingStates: Record<string, string> = {};
+    await this.store.transaction(async (tx) => { for (const r of records) if (r.type === "asp.market_act/v0.2" && (r.body as { act: string }).act === "posting") { const st = (await tx.getMarker(`posting_state:${r.id}`)) ?? "open"; if (st !== "open") postingStates[r.id] = st; } });
+    const weekly = weeklyFillByClass({ records, postingStates, countedContracts: new Set() }, when);
+    const guides = JOB_CLASSES.map((c) => guideFromFill(c, (weekly[c] ?? []).map((w) => w.fillRate)));
+    const byId = new Map(records.map((r) => [r.id, r]));
+    const raised = new Map<string, JobClass>();
+    for (const r of records) if (r.type === "asp.market_act/v0.2" && (r.body as { act: string; verdict?: string }).act === "class_check" && (r.body as { verdict?: string }).verdict === "changed_to") raised.set((r.body as { intent: string }).intent, (r.body as { class: JobClass }).class);
+    const facts: JobFact[] = [];
+    for (const r of records) {
+      if (r.type !== "asp.contract/v0.2") continue;
+      const b = r.body as { performer: string; basis?: { intent?: string } };
+      const intent = b.basis?.intent ? byId.get(b.basis.intent) : undefined;
+      facts.push({ at: r.issued_at, class: intent ? jobNeeds(intent, raised.get(intent.id)).class : "routine", performer: b.performer });
+    }
+    const t = Date.parse(when), DAYMS = 86_400_000;
+    const period = facts.filter((f) => Date.parse(f.at) > t - 30 * DAYMS && Date.parse(f.at) <= t);
+    const previous = facts.filter((f) => Date.parse(f.at) > t - 60 * DAYMS && Date.parse(f.at) <= t - 30 * DAYMS);
+    const openings: { event: string; class: JobClass; at: string }[] = [];
+    for (const r of days) for (const e of (r.body as { events: { event_id: string; event_type: string; starts: string; effect: { target: string } }[] }).events) if (e.event_type === "job_opening" && Date.parse(e.starts) <= t) openings.push({ event: e.event_id, class: skillClass(e.effect.target), at: e.starts });
+    const monitor: Dynamics = {
+      mixDivergence: mixDivergence(period, previous),
+      adaptation: openings.slice(-5).map((o) => ({ event: o.event, class: o.class, days: adaptationDays(facts, o.class, o.at, when) })),
+      transferShare: transferShare(period, facts.filter((f) => Date.parse(f.at) <= t)),
+    };
+    const season = seasonOf(day);
+    return {
+      version: DYNAMICS, at: when, halted, seed: seed === null ? null : seedCommitment(seed), season: halted ? { ...season, boostPermille: 0 } : season,
+      demand: seed === null ? SKILLS.map((s) => demandOn("none", s, day, true)) : demandTable(seed, day, halted),
+      guides, waves: seed === null ? [] : entrantWaves(seed, day, 8, halted), monitor,
+    };
   }
 
   /**

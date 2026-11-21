@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 83,
-  "withdraw": 105,
+  "withdraw": 104,
   "after": 311,
-  "total": 499
+  "total": 498
  },
  "mustWorkerHours": 297.2,
  "entries": [
@@ -5899,19 +5899,6 @@
    "pri": "A",
    "status": "open",
    "gap": "Bond and escrow ignore the job's risk: a poster and a performer pick a bond by hand and the Market suggests none (MK-14, DK43). The risk model is not a record, an offer carries no suggested bond and…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1456",
-   "pri": "A",
-   "status": "open",
-   "gap": "The Market is stationary: no seasons, no seeded demand process, the class guide price does not move with the fill rate, no new-entrant waves and no dynamics monitor (MK-16 to MK-20). The owner's prin…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

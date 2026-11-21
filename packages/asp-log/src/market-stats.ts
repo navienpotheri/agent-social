@@ -108,3 +108,51 @@ export function computeMarketStats(input: StatsInput, at: string, month: string 
     settled, assignmentsByRule, classChecks,
   };
 }
+
+/**
+ * The fill rate of each class by week (market.md 14.3, MK-18): for each Monday-started UTC week, the postings of the class that ended in it (filled by a contract, withdrawn, removed or expired) and the share that were filled,
+ * in permille. Oldest week first; a week with no ending posting is not listed. Computed from the records and the posting states, so any replica gets the same series.
+ */
+export function weeklyFillByClass(input: StatsInput, at: string): Record<string, { week: string; ended: number; filled: number; fillRate: number | null }[]> {
+  const { records, postingStates } = input;
+  const byId = new Map(records.map((r) => [r.id, r]));
+  const raised = new Map<string, JobClass>();
+  const postings: AspRecord[] = [];
+  const endedAt = new Map<string, { at: number; filled: boolean }>();
+  for (const r of records) {
+    if (r.type !== "asp.market_act/v0.2") continue;
+    const b = r.body as Record<string, any>;
+    if (b.act === "posting") postings.push(r);
+    else if (b.act === "class_check" && b.verdict === "changed_to") raised.set(b.intent, b.class);
+    else if (b.act === "withdraw" && !endedAt.has(b.posting)) endedAt.set(b.posting, { at: Date.parse(r.issued_at), filled: false });
+  }
+  const postingForIntent = new Map<string, string>();
+  for (const p of postings) postingForIntent.set((p.body as { intent: string }).intent, p.id);
+  for (const r of records) {
+    if (r.type !== "asp.contract/v0.2") continue;
+    const intent = (r.body as { basis?: { intent?: string } }).basis?.intent;
+    const posting = intent ? postingForIntent.get(intent) : undefined;
+    if (posting && !endedAt.has(posting)) endedAt.set(posting, { at: Date.parse(r.issued_at), filled: true });
+  }
+  const DAYMS = 86_400_000, now = Date.parse(at);
+  const weekOf = (t: number) => { const d = Math.floor(t / DAYMS); const monday = d - ((new Date(d * DAYMS).getUTCDay() + 6) % 7); return new Date(monday * DAYMS).toISOString().slice(0, 10); };
+  const acc = new Map<string, Map<string, { ended: number; filled: number }>>();
+  for (const p of postings) {
+    const pb = p.body as { intent: string; expires: string };
+    const intent = byId.get(pb.intent);
+    if (!intent) continue;
+    const cls = jobNeeds(intent, raised.get(pb.intent)).class;
+    let end = endedAt.get(p.id);
+    if (!end && (postingStates[p.id] === "removed" || postingStates[p.id] === "held")) end = { at: Date.parse(p.issued_at), filled: false };
+    if (!end && Date.parse(pb.expires) <= now) end = { at: Date.parse(pb.expires), filled: false };
+    if (!end) continue;
+    const wk = weekOf(end.at);
+    const m = acc.get(cls) ?? new Map();
+    const w = m.get(wk) ?? { ended: 0, filled: 0 };
+    w.ended++; if (end.filled) w.filled++;
+    m.set(wk, w); acc.set(cls, m);
+  }
+  const out: Record<string, { week: string; ended: number; filled: number; fillRate: number | null }[]> = {};
+  for (const [cls, m] of acc) out[cls] = [...m.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([week, w]) => ({ week, ended: w.ended, filled: w.filled, fillRate: w.ended ? Math.round((w.filled * 1000) / w.ended) : null }));
+  return out;
+}

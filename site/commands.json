@@ -698,6 +698,10 @@
           "description": "The Market's statistics: postings by state, the fill rate, open jobs and contracts by class with median prices, the share of settlements that counted for standing, assignments by rule (the same figures as GET /market/stats)"
         },
         {
+          "command": "asp market dynamics [--at <time>] [--json]",
+          "description": "What keeps the Market moving, read from the log and the revealed seed: the season, demand for each skill, the guide price of each class from its fill rate, the announced operator-run entrant waves and the monitor (mix divergence, adaptation, transfer share); stopped by the kill-switch of the world (the same figures as GET /market/dynamics)"
+        },
+        {
           "command": "asp market monthly [--month YYYY-MM] [--json]",
           "description": "The Market's monthly report (default this month): the statistics for the postings and contracts of one month (GET /market/report?month=)"
         },
