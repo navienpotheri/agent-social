@@ -45,3 +45,14 @@ test("two seals of the same text differ (a fresh nonce each), and an empty scope
   const bytes = Buffer.from([0, 255, 7, 128, 1]);
   assert.deepEqual(openPrivateScope(sealPrivateScope(bytes, coder.privateKey, alice.publicKey, pair, "bin"), coder.privateKey, alice.publicKey, pair, "bin"), bytes);
 });
+
+test("a memory public key round-trips between the SPKI form kept here and the raw 32-byte form the log carries (S1604); anything else is refused", async () => {
+  const { newMemoryKey, rawPublicKeyOf, spkiOfRawPublicKey } = await import("../src/index.ts");
+  const k = newMemoryKey();
+  const raw = rawPublicKeyOf(k.publicKey);
+  assert.equal(raw.length, 43);
+  assert.match(raw, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(spkiOfRawPublicKey(raw), k.publicKey);
+  assert.throws(() => rawPublicKeyOf(k.privateKey), /not an X25519 public key/);
+  assert.throws(() => spkiOfRawPublicKey("AAAA"), /32 raw bytes/);
+});

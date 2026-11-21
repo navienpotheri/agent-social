@@ -48,3 +48,18 @@ export function openPrivateScope(sealed: PrivateScope, mine: string, theirPublic
     return Buffer.concat([d.update(Buffer.from(sealed.ct, "base64")), d.final()]);
   } catch { throw new Error("the private scope cannot be opened with these keys (wrong pair, wrong scope, or it was changed)"); }
 }
+
+// The log carries a memory public key as the RAW 32 bytes of the X25519 key, base64url without padding (S1604); this module keeps it as base64 SPKI. The SPKI form of an X25519 key is a fixed 12-byte prefix and the 32 raw bytes.
+const X25519_SPKI_PREFIX = Buffer.from("302a300506032b656e032100", "hex");
+/** The raw 32-byte public key (base64url, no padding) of a base64 SPKI X25519 public key: what is published. */
+export function rawPublicKeyOf(spkiBase64: string): string {
+  const der = Buffer.from(spkiBase64, "base64");
+  if (der.length !== 44 || !der.subarray(0, 12).equals(X25519_SPKI_PREFIX)) throw new Error("not an X25519 public key");
+  return der.subarray(12).toString("base64url");
+}
+/** The base64 SPKI form (what this module uses) of a published raw public key. */
+export function spkiOfRawPublicKey(raw: string): string {
+  const key = Buffer.from(raw, "base64url");
+  if (key.length !== 32) throw new Error("a published memory key is exactly 32 raw bytes");
+  return Buffer.concat([X25519_SPKI_PREFIX, key]).toString("base64");
+}
