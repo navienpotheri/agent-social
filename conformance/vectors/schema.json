@@ -3681,6 +3681,269 @@
       "valid": true
     },
     {
+      "name": "valid_expedition",
+      "schema": "expedition",
+      "instance": {
+        "world": "river-1",
+        "model": {
+          "name": "open-world-model",
+          "weights_sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "licence_checked": true
+        },
+        "max_steps": 200,
+        "cost_cap_millicredits": 50000,
+        "gpu_millicredits_per_second": 50,
+        "group": [
+          "did:web:example.com:agents:e1",
+          "did:web:example.com:agents:e2"
+        ],
+        "goal": "reach"
+      },
+      "valid": true
+    },
+    {
+      "name": "expedition_no_weights_hash",
+      "schema": "expedition",
+      "instance": {
+        "world": "river-1",
+        "model": {
+          "name": "m",
+          "licence_checked": true
+        },
+        "max_steps": 200,
+        "cost_cap_millicredits": 50000,
+        "gpu_millicredits_per_second": 50,
+        "group": [
+          "did:web:example.com:agents:e1",
+          "did:web:example.com:agents:e2"
+        ],
+        "goal": "reach"
+      },
+      "valid": false
+    },
+    {
+      "name": "expedition_bad_goal",
+      "schema": "expedition",
+      "instance": {
+        "world": "river-1",
+        "model": {
+          "name": "open-world-model",
+          "weights_sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "licence_checked": true
+        },
+        "max_steps": 200,
+        "cost_cap_millicredits": 50000,
+        "gpu_millicredits_per_second": 50,
+        "group": [
+          "did:web:example.com:agents:e1",
+          "did:web:example.com:agents:e2"
+        ],
+        "goal": "win"
+      },
+      "valid": false
+    },
+    {
+      "name": "expedition_no_cap",
+      "schema": "expedition",
+      "instance": {
+        "world": "river-1",
+        "model": {
+          "name": "open-world-model",
+          "weights_sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "licence_checked": true
+        },
+        "max_steps": 200,
+        "gpu_millicredits_per_second": 50,
+        "group": [
+          "did:web:example.com:agents:e1",
+          "did:web:example.com:agents:e2"
+        ],
+        "goal": "reach"
+      },
+      "valid": false
+    },
+    {
+      "name": "expedition_empty_group",
+      "schema": "expedition",
+      "instance": {
+        "world": "river-1",
+        "model": {
+          "name": "open-world-model",
+          "weights_sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "licence_checked": true
+        },
+        "max_steps": 200,
+        "cost_cap_millicredits": 50000,
+        "gpu_millicredits_per_second": 50,
+        "group": [],
+        "goal": "reach"
+      },
+      "valid": false
+    },
+    {
+      "name": "expedition_has_a_seed",
+      "schema": "expedition",
+      "instance": {
+        "world": "river-1",
+        "model": {
+          "name": "open-world-model",
+          "weights_sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "licence_checked": true
+        },
+        "max_steps": 200,
+        "cost_cap_millicredits": 50000,
+        "gpu_millicredits_per_second": 50,
+        "group": [
+          "did:web:example.com:agents:e1",
+          "did:web:example.com:agents:e2"
+        ],
+        "goal": "reach",
+        "seed": "s1"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_expedition_frame",
+      "schema": "expedition_frame",
+      "instance": {
+        "expedition": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "n": 0,
+        "frame_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "action": "move_forward",
+        "gpu_ms": 1500,
+        "before": "genesis"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_expedition_frame_chained",
+      "schema": "expedition_frame",
+      "instance": {
+        "expedition": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "n": 1,
+        "frame_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "action": "move_forward",
+        "gpu_ms": 1500,
+        "before": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "valid": true
+    },
+    {
+      "name": "expedition_frame_negative_seconds",
+      "schema": "expedition_frame",
+      "instance": {
+        "expedition": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "n": 0,
+        "frame_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "action": "move_forward",
+        "gpu_ms": -1,
+        "before": "genesis"
+      },
+      "valid": false
+    },
+    {
+      "name": "expedition_frame_bad_before",
+      "schema": "expedition_frame",
+      "instance": {
+        "expedition": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "n": 0,
+        "frame_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "action": "move_forward",
+        "gpu_ms": 1500,
+        "before": "start"
+      },
+      "valid": false
+    },
+    {
+      "name": "expedition_frame_no_hash",
+      "schema": "expedition_frame",
+      "instance": {
+        "expedition": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "n": 0,
+        "action": "move_forward",
+        "gpu_ms": 1500,
+        "before": "genesis"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_expedition_result",
+      "schema": "expedition_result",
+      "instance": {
+        "expedition": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "scored",
+        "frames": 120,
+        "cost_millicredits": 9000,
+        "reached": true,
+        "evaluator": "landmark-evaluator-1",
+        "evaluator_error_permille": 80,
+        "reasons": []
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_expedition_result_void",
+      "schema": "expedition_result",
+      "instance": {
+        "expedition": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "void",
+        "frames": 120,
+        "cost_millicredits": 9000,
+        "evaluator": "landmark-evaluator-1",
+        "evaluator_error_permille": 80,
+        "reasons": [
+          "the cost exceeded the cap"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "expedition_result_error_rate_over_1000",
+      "schema": "expedition_result",
+      "instance": {
+        "expedition": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "scored",
+        "frames": 120,
+        "cost_millicredits": 9000,
+        "reached": true,
+        "evaluator": "landmark-evaluator-1",
+        "evaluator_error_permille": 1001,
+        "reasons": []
+      },
+      "valid": false
+    },
+    {
+      "name": "expedition_result_unknown_status",
+      "schema": "expedition_result",
+      "instance": {
+        "expedition": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "partly",
+        "frames": 120,
+        "cost_millicredits": 9000,
+        "reached": true,
+        "evaluator": "landmark-evaluator-1",
+        "evaluator_error_permille": 80,
+        "reasons": []
+      },
+      "valid": false
+    },
+    {
+      "name": "expedition_result_claims_a_measurement",
+      "schema": "expedition_result",
+      "instance": {
+        "expedition": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "scored",
+        "frames": 120,
+        "cost_millicredits": 9000,
+        "reached": true,
+        "evaluator": "landmark-evaluator-1",
+        "evaluator_error_permille": 80,
+        "reasons": [],
+        "claimable": true
+      },
+      "valid": false
+    },
+    {
       "name": "valid_election",
       "schema": "election",
       "instance": {

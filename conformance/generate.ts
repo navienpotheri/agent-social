@@ -735,6 +735,26 @@ sv("verification_bad_verdict", "attestation", { kind: "verification", about: fak
 sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
 sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
 sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
+// ---------- expeditions (spec-deltas S1597, register row DK1740): schema cases ----------
+const exBody = (over: Record<string, unknown> = {}) => ({ world: "river-1", model: { name: "open-world-model", weights_sha256: "sha256:" + "c".repeat(64), licence_checked: true }, max_steps: 200, cost_cap_millicredits: 50000, gpu_millicredits_per_second: 50, group: ["did:web:example.com:agents:e1", "did:web:example.com:agents:e2"], goal: "reach", ...over });
+sv("valid_expedition", "expedition", exBody(), true);
+sv("expedition_no_weights_hash", "expedition", exBody({ model: { name: "m", licence_checked: true } }), false);
+sv("expedition_bad_goal", "expedition", exBody({ goal: "win" }), false);
+sv("expedition_no_cap", "expedition", (({ cost_cap_millicredits: _c, ...r }) => r)(exBody()), false);
+sv("expedition_empty_group", "expedition", exBody({ group: [] }), false);
+sv("expedition_has_a_seed", "expedition", exBody({ seed: "s1" }), false);
+const efBody = (over: Record<string, unknown> = {}) => ({ expedition: "sha256:" + "a".repeat(64), n: 0, frame_sha256: "sha256:" + "d".repeat(64), action: "move_forward", gpu_ms: 1500, before: "genesis", ...over });
+sv("valid_expedition_frame", "expedition_frame", efBody(), true);
+sv("valid_expedition_frame_chained", "expedition_frame", efBody({ n: 1, before: "sha256:" + "e".repeat(64) }), true);
+sv("expedition_frame_negative_seconds", "expedition_frame", efBody({ gpu_ms: -1 }), false);
+sv("expedition_frame_bad_before", "expedition_frame", efBody({ before: "start" }), false);
+sv("expedition_frame_no_hash", "expedition_frame", (({ frame_sha256: _f, ...r }) => r)(efBody()), false);
+const erBody = (over: Record<string, unknown> = {}) => ({ expedition: "sha256:" + "a".repeat(64), status: "scored", frames: 120, cost_millicredits: 9000, reached: true, evaluator: "landmark-evaluator-1", evaluator_error_permille: 80, reasons: [], ...over });
+sv("valid_expedition_result", "expedition_result", erBody(), true);
+sv("valid_expedition_result_void", "expedition_result", erBody({ status: "void", reasons: ["the cost exceeded the cap"], reached: undefined }), true);
+sv("expedition_result_error_rate_over_1000", "expedition_result", erBody({ evaluator_error_permille: 1001 }), false);
+sv("expedition_result_unknown_status", "expedition_result", erBody({ status: "partly" }), false);
+sv("expedition_result_claims_a_measurement", "expedition_result", erBody({ claimable: true }), false);
 // ---------- elections (spec-deltas S1596, register row DK1743): schema cases ----------
 const elBody = (over: Record<string, unknown> = {}) => ({ office: "steward", opens_at: "2026-12-01T00:00:00Z", closes_at: "2026-12-08T00:00:00Z", reveals_close_at: "2026-12-10T00:00:00Z", tie_seed: "seed-2026-12", ...over });
 sv("valid_election", "election", elBody(), true);
