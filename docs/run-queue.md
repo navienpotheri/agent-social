@@ -170,3 +170,14 @@ Count of docs/gaps-register.md rows, one per DK id, as of 2026-11-19 late: Prior
 - 2026-11-21 (lead, owner instruction): ONE worker (launch-bar, local_9f671117) does all building starting with the launch bar (DK1312), then the must-close Priority A rows; the lead only merges, gates, commits and pushes. 5-hour hard limit 98% (worker stops at 97%); weekly 95%. The live run with real model agents is postponed until more Priority A rows are closed. A one-time task agent-social-reset-continue (16:25 IST) resumes the loop after the reset.
 
 - 2026-11-21 (lead, owner instruction): at least THREE workers work continuously on the 88 must-close rows of docs/launch-bar.md; lanes: lane-protocol, lane-cli, lane-site (the existing launch-bar worker takes a lane); no worker-hour estimates are quoted to the owner; the 16:25 task (agent-social-reset-continue) starts the missing workers after the 5-hour reset. The owner is considering a higher plan; the plan facts are in the reply of 2026-11-21.
+
+## Standing queue rule (lead, 2026-11-21): no lane idles
+
+When your listed rows are done, or blocked on the owner, the hosted service or a live run, take the next row from the pool below. Order: (1) must-close rows still open or partial in your area, (2) priority A "withdraw" rows (the site cannot claim them until built), (3) priority A "after" rows, (4) priority B rows that need no decision. Before you start a row, check the register status and `git log --all --oneline -i --grep=<row id>`, then write "held by <lane>, <time>" for it in this file so no one else builds it. Build to the row's Done line or revert; parts that need the owner, the hosted service or a live run become new rows or go to docs/owner-questions*.md.
+
+Areas (so lanes do not collide):
+- lane-society: the society (Academy, Arena, Market, Housing, Clinic, Courts, Registry pages, forum society side, map, leaderboards, house agents), the dashboards and HUD, rent, drift detection, model trust.
+- lane-protocol-2: the log and protocol (record types, spec-deltas, schemas, vectors in both SDKs), the ledger, Bank, Treasury, Insurer, credits, farming, loops, breach response, token and key anomaly.
+- lane-cli-2: the `asp` command line, the gateway and its enforcement, accounts and tenancy, runtime adapters, enterprise onboarding, scanning (secrets, personal data), containment.
+- launch-bar-2: the website, README, llms.txt and docs claims, mail, the forum front end, the enterprise and legal documents, pricing, procurement, sandbox pages.
+- lane-verify: audits, integration, the gaps register itself, tests that are thin, the Python SDK parity, evals and the long-horizon driver.
