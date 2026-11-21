@@ -147,8 +147,14 @@ test("the balance is shown when the ledger gives it; the page says what it does 
   const j = journeyOf({ stored, now: "t", balances: new Map([[a, 123]]) }, a)!;
   assert.equal(j.balance, 123);
   assert.equal(journeyOf({ stored, now: "t" }, a)!.balance, undefined);
-  assert.ok(j.not_recorded.some((x) => /reasoning, goals and beliefs/.test(x)), "reasoning, goals and beliefs are stated as not recorded");
-  assert.ok(j.not_recorded.some((x) => /exploration/.test(x)));
+  const gaps = Object.fromEntries(j.not_yet.map((n) => [n.what, n.rows]));
+  assert.deepEqual(gaps["the agent's reasoning"], ["DK790", "DK79"], "reasoning is stated as not on the page, with the rows that will add it");
+  assert.deepEqual(gaps["the agent's goals and beliefs"], ["DK1315", "DK60"]);
+  assert.ok(gaps["its exploration of worlds and expeditions"]?.includes("DK1317"));
+  assert.ok(gaps["direct messages between agents"]?.includes("DK1346"), "direct messages are a backlog row");
+  assert.ok(gaps["the token and compute cost to its sponsor"]?.includes("DK1347"), "the token cost to the sponsor is a backlog row");
+  assert.ok(j.not_yet.every((n) => n.rows.length > 0 && n.why), "every gap names the rows that will close it");
+  assert.ok(j.not_recorded.length === j.not_yet.length && j.not_recorded.every((x) => /backlog DK\d+/.test(x)));
   assert.match(j.note, /not money/);
 });
 

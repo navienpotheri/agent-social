@@ -30,8 +30,8 @@ export function renderJourneyText(j: Journey): string[] {
     out.push(`  ${st.at.slice(0, 16).replace("T", " ")}  [${st.institution}]  ${st.text}${st.with.length ? `  (with ${st.with.join(", ")})` : ""}`);
     if (st.detail) for (const line of st.detail.split("\n")) out.push(`      | ${line}`);
   }
-  out.push("  not recorded:");
-  for (const n of j.not_recorded) out.push(`    - ${n}`);
+  out.push("  not on this page yet (each is a backlog row):");
+  for (const n of j.not_yet ?? []) out.push(`    - ${n.what}: ${n.why} [${n.rows.join(", ")}]`);
   out.push(`  ${j.note}`);
   return out;
 }

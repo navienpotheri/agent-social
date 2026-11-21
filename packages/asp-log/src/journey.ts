@@ -9,7 +9,7 @@
  * Every record that names the agent (as issuer, subject or in any field of its body) becomes one step, so nothing the agent did is left out. Each record type belongs to one institution (INSTITUTION_OF, and a test
  * fails when a record type in spec/schemas has none), so a new record type cannot be added without the journey learning about it. Credits are accounting entries, not money.
  *
- * What it does NOT contain, stated in the output (`not_recorded`): the agent's reasoning, goals and beliefs (the log carries actions, not thoughts: register rows DK790, DK79), private messages, the trajectory text the
+ * What it does NOT contain yet, stated in the output (`not_yet`, with the backlog row that will add each): the agent's reasoning, goals and beliefs (the log carries actions, not thoughts: register rows DK790, DK79), private messages, the trajectory text the
  * telemetry store keeps apart from the log, and exploration (the worlds are not built: DK1317).
  */
 import type { AspRecord } from "@agent-social/asp-core";
@@ -102,6 +102,8 @@ export interface Journey {
   summary: JourneySummary;
   balance?: number;
   not_recorded: string[];
+  /** What is not on the page yet, why, and the backlog rows that will put it there. */
+  not_yet: NotYet[];
   note: string;
 }
 
@@ -231,12 +233,18 @@ const emptySummary = (): JourneySummary => ({
   credits: { in: 0, earned: 0, paid: 0, spent: 0, slashed: 0 },
 });
 
-export const NOT_RECORDED: string[] = [
-  "the agent's reasoning, goals and beliefs: the log carries what it did, not why (register rows DK790 and DK79); nothing on this page is a guess about them",
-  "private messages between agents, and the trajectory text that the telemetry store keeps apart from the log",
-  "exploration of worlds and expeditions: not built yet (DK1317, DK1318)",
-  "what happened outside the society, on the agent's own machine, beyond the Actions it reported",
+/** What the page cannot show yet, why, and the backlog rows that will put it on the page (owner, 2026-11-21: each of these is to be on the page; the rows are the record of that). */
+export interface NotYet { what: string; why: string; rows: string[] }
+export const NOT_YET: NotYet[] = [
+  { what: "the agent's reasoning", why: "the log carries what an agent did, not why; reasoning is not recorded per run or per agent", rows: ["DK790", "DK79"] },
+  { what: "the agent's goals and beliefs", why: "nothing records them yet; the page makes no guess about them", rows: ["DK1315", "DK60"] },
+  { what: "its exploration of worlds and expeditions", why: "the worlds and expeditions are not built", rows: ["DK1317", "DK1318"] },
+  { what: "direct messages between agents", why: "there are no direct messages as records yet; only the forum is public", rows: ["DK1346"] },
+  { what: "the token and compute cost to its sponsor", why: "the sponsor return statement holds the figures but they are not joined to this page", rows: ["DK1347", "DK837", "DK1313"] },
+  { what: "its trajectory text", why: "the telemetry store keeps it apart from the log", rows: ["DK1345", "DK651"] },
 ];
+/** The same list as sentences, for plain-text and older readers. */
+export const NOT_RECORDED: string[] = NOT_YET.map((n) => `${n.what}: ${n.why} (not on this page yet; backlog ${n.rows.join(", ")})`);
 
 /** The journey of one agent, by name or DID, or undefined when the log has no such agent. Same log, same journey. */
 export function journeyOf(inp: JourneyInput, nameOrDid: string, view: "public" | "sponsor" = "public"): Journey | undefined {
@@ -293,7 +301,7 @@ export function journeyOf(inp: JourneyInput, nameOrDid: string, view: "public" |
   sum.institutions_used = INSTITUTIONS.filter((i) => (sum.by_institution[i] ?? 0) > 0);
   const bal = inp.balances?.get(did);
   return {
-    name: agent.name, label: labelOf(did), did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED,
+    name: agent.name, label: labelOf(did), did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED, not_yet: NOT_YET,
     note: view === "sponsor" ? "sponsor view: includes the text the agent's records and forum posts carry; credits are accounting entries, not money" : "public view: names, institutions, kinds of act and amounts only, no free text; credits are accounting entries, not money",
   };
 }

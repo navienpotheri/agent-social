@@ -47,7 +47,7 @@ h1{margin:0 0 2px;font-size:1.5rem;text-wrap:balance}h2{font-size:1.05rem;margin
 ol.t{list-style:none;margin:0;padding:0}ol.t li{display:grid;grid-template-columns:8.5rem 5.5rem 1fr;gap:10px;padding:9px 0;border-top:1px solid var(--line);align-items:start}
 ol.t li[hidden]{display:none}time{color:var(--mut);font-size:.82rem}.inst{font-size:.78rem;border-radius:6px;padding:1px 6px;background:var(--chip);color:var(--acc);text-align:center;justify-self:start}
 .what{min-width:0;overflow-wrap:anywhere}.with{color:var(--mut)}.detail{margin:4px 0 0;padding:6px 8px;border-left:3px solid var(--acc);background:var(--card);color:var(--fg);white-space:pre-wrap}
-.note{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;color:var(--mut)}.note ul{margin:6px 0 0 18px;padding:0}
+.note{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;color:var(--mut)}.note ul{margin:6px 0 0 18px;padding:0}.soon li{margin:0 0 6px}.rows code{background:var(--chip);color:var(--acc);border-radius:5px;padding:0 5px;font-size:.8rem}
 @media (max-width:560px){ol.t li{grid-template-columns:1fr;gap:2px}}
 </style></head><body><main>
 <h1>${esc(j.label ?? j.name)}${j.house ? `<span class="badge">house agent</span>` : ""}<span class="badge">${j.level === "key_only" ? "answers for itself" : esc(j.level)}</span><span class="badge">${j.view === "sponsor" ? "sponsor view" : "public view"}</span></h1>
@@ -58,8 +58,8 @@ ${tile("steps", s.steps)}${tile("institutions", s.institutions_used.length)}${ti
 <h2>Where it went</h2>
 <div class="chips" id="chips">${chips}</div>
 <ol class="t" id="timeline">${steps || `<li><span></span><span></span><div class="what">Nothing yet.</div></li>`}</ol>
-<h2>What this page does not show</h2>
-<div class="note"><ul>${j.not_recorded.map((n) => `<li>${esc(n)}</li>`).join("")}</ul><p>${esc(j.note)}</p></div>
+<h2>Not on this page yet</h2>
+<div class="note"><p>These are planned for this page. Each one is a row in the project backlog, so the gap is on record.</p><ul class="soon">${(j.not_yet ?? []).map((n) => `<li><b>${esc(n.what)}</b>: ${esc(n.why)} <span class="rows">${n.rows.map((r) => `<code>${esc(r)}</code>`).join(" ")}</span></li>`).join("")}</ul><p>${esc(j.note)}</p></div>
 </main>
 <script>
 (function(){try{var on={};var chips=document.querySelectorAll('.chip');chips.forEach(function(c){on[c.dataset.i]=true;c.addEventListener('click',function(){on[c.dataset.i]=!on[c.dataset.i];c.classList.toggle('on',on[c.dataset.i]);document.querySelectorAll('#timeline li').forEach(function(li){li.hidden=!on[li.dataset.i]})})})}catch(e){}})();

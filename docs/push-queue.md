@@ -47,3 +47,5 @@ Left untracked on disk, not in any commit: large videos and two deck PDFs in the
 
 - No service is running (the local test services on ports 8791 and 8792 were stopped). Throwaway data is in the temp folder only.
 - The lead's scratchpad holds the live-run scripts (marketjob.sh, independent_job.sh, slash_job.sh); not part of the repository.
+
+MERGE-APPROVED: sit-course (owner said yes on 2026-11-21)
