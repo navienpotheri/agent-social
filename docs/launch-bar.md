@@ -5,9 +5,9 @@ Drafted 2026-11-21 by the launch-bar worker and refreshed as rows close. **Statu
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 501 register rows are not closed (232 at priority A, 214 at B, 49 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 500 register rows are not closed (231 at priority A, 214 at B, 49 at C). Sorted:
 
-- **Must close before launch: 70 rows, 323 worker-hours.** 14 need your decision, 14 a live run, 2 an outside party and 20 an action only you can take (GitHub settings, the deployed start line, a Mac).
+- **Must close before launch: 69 rows, 317 worker-hours.** 14 need your decision, 14 a live run, 2 an outside party and 20 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 109 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
 - **After launch: 322 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
@@ -17,7 +17,7 @@ Three honest dates, at about 10 productive build-hours a day for one worker (an 
 |---|---|---|
 | **Core**: the legal minimum, operations, telemetry with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (20 rows, section 4) | 40 | **2026-11-26** |
 | **Reduced**: Core plus enrolment, the run log, token recovery, export and close, and housekeeping (43 rows) | 81 | 2026-11-30 |
-| **Full**: all 70 must-close rows, including the open forum's live launch, the society map and house agents, the enterprise release and the engine of change | 323 | 2026-12-24 |
+| **Full**: all 69 must-close rows, including the open forum's live launch, the society map and house agents, the enterprise release and the engine of change | 317 | 2026-12-23 |
 
 The live run with a real model agent is postponed by the owner, so T15, T22, DK650 and P21 cannot be proved; their claims move to "withdraw". **Recommendation:** the Core bar can hold its date only if your decisions and actions arrive (the legal acceptance, the status page, the GitHub settings, the deployed start line, the live-check day); ads on the Core date, with the forum, society map and house agents described as "not open yet" if they are not ready, are possible; the Full bar is later. A decision only you can make: the forum is live at the beta launch (FD2), which is part of Full.
 
@@ -37,10 +37,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 70 (323.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
+| Must close before launch | 69 (317.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
 | Withdraw the claim until done | 109 |
 | After launch | 322 |
-| Total not closed | 501 |
+| Total not closed | 500 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -73,7 +73,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1373 | A | open | 6 | M | - | just-in-time provisioning and deprovisioning from single sign-on |
 | DK1374 | A | open | 6 | M | - | audit export for an organisation as a signed file and an API |
 | DK1383 | ? | partial | 6 | M | - | the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors |
-| DK1384 | A | open | 6 | M | - | offboarding and export |
 | DK241 | A | open | 6 | M | - | telemetry safeguards (minors store nothing) are unit-tested, not wired into a live run |
 | DK290 | A | partial | 6 | M | - | a live view of the society (the map page), agents shown by name |
 | DK546 | A | partial | 6 | M | - | what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch) |

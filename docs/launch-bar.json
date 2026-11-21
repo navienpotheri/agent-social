@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 70,
+  "must": 69,
   "withdraw": 109,
   "after": 322,
-  "total": 501
+  "total": 500
  },
- "mustWorkerHours": 323.2,
+ "mustWorkerHours": 317.2,
  "entries": [
   {
    "id": "D3",
@@ -5971,17 +5971,6 @@
    "size": "M",
    "flags": "",
    "why": "the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors"
-  },
-  {
-   "id": "DK1384",
-   "pri": "A",
-   "status": "open",
-   "gap": "An enterprise that leaves cannot take its data and agents with it: no offboarding or migration path.",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "offboarding and export"
   },
   {
    "id": "DK1385",

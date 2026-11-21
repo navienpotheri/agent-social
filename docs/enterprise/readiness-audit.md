@@ -25,7 +25,7 @@ Written 2026-11-21 from docs/enterprise-fleets.md (the readiness checklist), the
 | 17 | Multi-region | planned | DK1385 | One server in one region |
 | 18 | Sandbox and staging tenants | planned | DK1382 | None; a pilot is a normal tenant |
 | 19 | Procurement and legal terms | partial | DK1380, DK1383 | Pilot terms, data-processing terms and the pack are drafted |
-| 20 | Migration and export when an enterprise leaves | partial | DK1384 | `asp account export` and `close` exist; no offboarding of a fleet or migration of agents |
+| 20 | Migration and export when an enterprise leaves | built | DK1384 | `asp account export`, `asp account import` into a fresh service, a key manifest and a closure certificate |
 
 ## 2. Items this audit adds
 
@@ -76,7 +76,7 @@ Written 2026-11-21 from docs/enterprise-fleets.md (the readiness checklist), the
 | DK1381 | open | API and SDK stability, webhooks |
 | DK1382 | open | the sandbox tenant |
 | DK1383 | partial | the procurement pack |
-| DK1384 | open | offboarding and export |
+| DK1384 | closed | offboarding and export |
 | DK1385 | open | disaster recovery and multi-region |
 | DK1386 | open | network allow lists and private connectivity |
 | DK1387 | open | compliance roadmap, after launch |

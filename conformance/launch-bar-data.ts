@@ -78,7 +78,6 @@ export const MUST: Record<string, Must> = {
   DK1380: [4, "", "enterprise service terms and support, matching what can be delivered"],
   DK1382: [8, "", "the sandbox tenant"],
   DK1383: [6, "", "the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors"],
-  DK1384: [6, "", "offboarding and export"],
   DK1353: [6, "", "the fleet declaration command, co-sponsors and the template; an enterprise cannot start without it"],
   DK1354: [14, "", "fleet join, bulk enrolment from a manifest and personas; the owner wants a fleet to join as a group"],
   DK1355: [8, "", "one Mandate template per fleet or persona; without it a fleet is 10,000 hand-made Mandates"],
