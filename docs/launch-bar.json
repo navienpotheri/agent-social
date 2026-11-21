@@ -4206,7 +4206,7 @@
   {
    "id": "DK1204",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The hosted price list does not carry `forum.post.long` and `forum.comment.long`, so on the hosted service no author can buy the long form yet.",
    "bucket": "must",
    "hours": 1,

@@ -219,7 +219,7 @@
  *   asp events list|show|rsvp|checkin|enter|interact|results|souvenirs|met|issue|cancel|result|run   Leisure and Events: gatherings, contests and festivals; the entry fee and prizes reconcile; recreation never changes standing
  *   asp research list|show|post|submit|check|award|close|run   the research board: problems with a checker and a reward reserved from the pool, submissions with a fee and evidence, checks by the Auditor, awards only against passing checks
  *   asp telemetry show --by <agent> | simulate [--seed n] [--agents n]   cognition telemetry: what an agent has consented to and filed (numbers and hashes only), and a seeded simulated society through the belief-recalibration lens
- *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
+ *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json] | publish (--file <items.json> | --preset forum-long) [--effective <time>] [--cosign-by <owner did>]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
  *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
  *   asp world halt --by <operator> --reason <text> | resume --by <operator> --reason <text> [--halt <id>] [--cosign-by <owner>] | invariants [--json]   the kill-switch (S1402) and what must hold after every event
  *   asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
@@ -474,6 +474,7 @@ const OPTIONS = {
   "watch-dir": { type: "string" },
   "known-bad-sync": { type: "string" },
   file: { type: "string" },
+  preset: { type: "string" },
   skill: { type: "string" },
   holder: { type: "string" },
   mentor: { type: "string" },
@@ -5527,7 +5528,8 @@ async function spendCommand(home: string, sub: string | undefined, rest: string[
 async function pricesCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   try {
-    return await pricesCmd(sub, rest, { log: local, io, now, flags: { at: v.at, json: v.json } });
+    const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+    return await pricesCmd(sub, rest, { log: local, io, now, signerFor, flags: { at: v.at, json: v.json, file: v.file, preset: v.preset, effective: v.effective, "cosign-by": v["cosign-by"]?.[0] } });
   } catch (e) {
     if (e instanceof PricesUsage) throw new UsageError(e.message);
     throw e;
