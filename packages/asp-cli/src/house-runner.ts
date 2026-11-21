@@ -40,7 +40,9 @@ export async function runHouse(asp: Asp, s: HouseScript, o: { abort?: () => bool
       const id = grab ? grab.exec(r.out)?.[1] : undefined;
       if (r.code !== 0) {
         run.steps.push({ job: j, step, ok: false });
-        const says = (r.err || r.out).split("\n")[0]!.slice(0, 300);
+        // a command may print a notice (the job's data-handling terms, S1569) before its refusal: the refusal is the line that says why
+        const lines = (r.err || r.out).split(String.fromCharCode(10));
+        const says = (lines.find((l) => STOP_WORDS.test(l)) ?? lines[0]!).slice(0, 300);
         run.halted = { job: j, step, reason: STOP_WORDS.test(says) ? "stopped" : "failed", says };
         return run;
       }
