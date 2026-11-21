@@ -559,7 +559,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1381 | A | open | API stability guarantees and webhooks: the follow-on enterprise set | the protocol is versioned 0.2 |
 | DK1385 | A | open | disaster recovery across regions beyond the restore drill: the follow-on enterprise set | backups and a restore drill |
 | DK1386 | A | open | network allow lists and private connectivity: the follow-on enterprise set | not offered yet |
-| DK1700 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK1700 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1722 | A | partial | the institution that listens to agents: intake, a signed response in a stated time, escalation to a proposal | site, docs: say 'planned' |
 | DK1723 | A | open | agents author courses, learning paths, policies and institutions through the Town Hall | site, docs: say 'planned' |
 | DK1724 | A | partial | Town Hall pages: agenda, live votes, results, who voted by fleet, HUD replay | site, docs: say 'planned' |

@@ -76,7 +76,7 @@
  *     --packages <folder> lets an agent's page list its packages found there (*.aspkg folders and *.aspkg.tgz archives); with ASP_LOG_URL set it also lists the ones on the service and its commons entries.
  *     The dashboard on this machine only (docs/spec-deltas.md S84): agents, jobs, approvals you can answer, alerts, and the money with its conservation check.
  *     Prints an address carrying a random access token. Reads the log in the ASP home (or the service named by ASP_LOG_URL).
- *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <s>] [--to <address>] [--package <pkg>] | address set <did> <address> | address list   (queue and watch also take [--send --mail-from <address> [--mail-resend-url <url>]])
+ *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <s>] [--print-schedule] [--to <address>] [--package <pkg>] | address set <did> <address> | address list   (queue and watch also take [--send --mail-from <address> [--mail-resend-url <url>]])
  *     The end-of-Mandate mail (docs/live-beta-flow-1.md step 8, gap E8): one mail per Mandate with the highlights from the log (what was asked, allowed, done,
  *     blocked, approved, what changed in memory, how it ended and what moved) and, when the gateway kept one, the checked run log. preview prints it (--html
  *     prints the HTML body); queue writes an .eml, .html and .txt to <home>/outbox and marks the Mandate as mailed (a second queue needs --again);
@@ -371,7 +371,7 @@ import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
-import { ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
+import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
 import { FleetUsage, fleetCmd } from "./fleet.ts";
@@ -795,6 +795,7 @@ const OPTIONS = {
   "allow-plain-http": { type: "boolean" },
   "link-base": { type: "string" },
   once: { type: "boolean" },
+  "print-schedule": { type: "boolean" },
   interval: { type: "string" },
   "run-log": { type: "string" },
   html: { type: "boolean" },
@@ -4010,7 +4011,7 @@ function findRunLog(home: string, contract: string): string | undefined {
 
 /** asp mail preview|queue|pending|watch|address: see the header. */
 async function mailCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
-  const USAGE = "usage: asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <seconds>] [--to <address>] [--package <pkg>] [--send --mail-from <address>] | address set <did> <address> | address list";
+  const USAGE = "usage: asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <seconds>] [--print-schedule] [--to <address>] [--package <pkg>] [--send --mail-from <address>] | address set <did> <address> | address list";
   if (!["preview", "queue", "pending", "watch", "address"].includes(sub ?? "")) throw new UsageError(USAGE);
   const statePath = join(home, "mail-state.json");
   const addressPath = join(home, "mail-addresses.json");
@@ -4075,6 +4076,21 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
     return { finals, alerts };
   };
 
+  if (sub === "watch" && v["print-schedule"]) {
+    // DK1700: print the entry that runs `asp mail watch --once` on a timer for this system; nothing is installed.
+    const mins = v.interval ? Math.max(1, Math.trunc(Number(v.interval) / 60)) : 5;
+    const entries = scheduleEntries({ node: process.execPath, cli: fileURLToPath(import.meta.url), ...(io.env.ASP_HOME ? { home: io.env.ASP_HOME } : {}), everyMinutes: mins, args: [...(v.send ? ["--send"] : []), ...(v["mail-from"] ? ["--mail-from", v["mail-from"]] : []), ...(v.to ? ["--to", v.to] : [])] });
+    io.out(`# Windows (PowerShell or cmd; Task Scheduler, every ${mins} minute(s); remove with: schtasks /Delete /TN AgentSocialMailWatch /F)
+${entries.windows}
+
+# Linux or macOS (crontab -e)
+${entries.cron}
+
+# macOS launchd (~/Library/LaunchAgents/com.agentsocial.mailwatch.plist, then launchctl load it)
+${entries.launchd}`);
+    io.err("  nothing was installed: copy the entry for your system. Each run is `asp mail watch --once`: it queues what is due and exits.");
+    return 0;
+  }
   if (sub === "pending" || sub === "watch") {
     const pass = async (): Promise<number> => {
       const { finals, alerts } = await due();
