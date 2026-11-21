@@ -72,6 +72,8 @@ const DEFAULT_MAX_NODE_TTL_MS = 24 * 60 * 60 * 1000;
 /** Deterrence (docs/backlog.md "Making a slash actually matter"): tunable constants, a judgment
  * call like probation's 7 days, not a formula derived from anything. Per own slash, and per other
  * live fleet-mate's slash, how many extra permille of the contract price the next Bond must cover. */
+/** A bond backed by a service-held agent (custody: service) counts at this share, in permille, toward a floor until the agent binds its own key (DK740, spec-delta S1550; owner answer KO2: a 50% discount). */
+export const SERVICE_HELD_BOND_PERMILLE = 500;
 const RISK_PERMILLE_PER_OWN_SLASH = 250;
 const RISK_PERMILLE_PER_FLEET_SLASH = 100;
 const RISK_PERMILLE_PER_STRIKE = 10;
@@ -172,7 +174,7 @@ export interface AppendResult {
 
 /** One open posting on the job board (market.md 7). */
 /** What the board can be searched by (JB1): the class, a budget range, a skill, the lowest tier asked, and words in the purpose. */
-export interface BoardFilter { board?: "main" | "services"; class?: JobClass; minBudget?: number; maxBudget?: number; skill?: string; maxMinTier?: number; text?: string }
+export interface BoardFilter { board?: "main" | "services"; class?: JobClass; minBudget?: number; maxBudget?: number; skill?: string; maxMinTier?: number; text?: string; /** Only postings by agents of this fleet (its did or its name; DK1367). */ fleet?: string }
 
 export interface BoardEntry {
   /** The board the posting is on; services postings carry the service they offer. */
@@ -183,6 +185,8 @@ export interface BoardEntry {
   /** Present when the board was read for one agent. */
   forAgent?: { eligible: boolean; missing: { rule: string; message: string }[]; counts: { counts: boolean; weight: number; reason: string }; moreCounting?: number; /** Set when the agent and the poster are related parties (one sponsor, a sponsor and its agent, or one fleet): a job between them is labelled related-party (DK1344). */ relatedParty?: RelatedKind };
   /** The poster's own record, derived from the log (market.md 13.2, DK127): settlements, share accepted, median hours to accept, disputes lost, postings withdrawn after bids, and the deposit multiplier it pays. */
+  /** The fleet the poster belongs to, when it is an agent of a declared fleet (DK1367): the same mark every page shows. */
+  posterFleet?: { id: string; name: string };
   posterRecord?: { settled: number; acceptedShare: number | null; medianHoursToAccept: number | null; disputesLost: number; withdrawnAfterBids: number; depositMultiplier: number };
   /** Set when the budget is far above what this class usually pays (market.md 6, credits.md 5.4: a priced job far above the class median is how credits are moved between linked accounts). */
   priceOutlier?: { classMedian: number; ratio: number };
@@ -514,6 +518,30 @@ export class EventLog {
     }
   }
 
+  /**
+   * What a bond counts for toward a floor (DK740, S1550): in full, unless its backer is service-held (the service could sign for it) and had not yet taken its own key at the bond's time, when it counts at
+   * SERVICE_HELD_BOND_PERMILLE. A bond made after the bind counts in full, whatever came before. Computed from records only, so replay agrees.
+   */
+  private async bondCounting(tx: Pick<LogTx, "getMarker">, backer: string, amount: number, at: string): Promise<{ counted: number; custody: "local" | "service"; discounted: boolean }> {
+    if ((await tx.getMarker(`custody:${backer}`)) !== "service") return { counted: amount, custody: "local", discounted: false };
+    const rekeyed = await tx.getMarker(`custody_rekeyed:${backer}`);
+    if (rekeyed && Date.parse(rekeyed) <= Date.parse(at)) return { counted: amount, custody: "service", discounted: false };
+    return { counted: Math.floor((amount * SERVICE_HELD_BOND_PERMILLE) / 1000), custody: "service", discounted: true };
+  }
+
+  /** The bond of a contract as a page or a court shows it: who backs it, whether that identity is service-held, what is locked and what counts toward a floor (DK740). Null when there is no bond. */
+  async bondLabel(contract: string): Promise<{ contract: string; backer: string; custody: "local" | "service"; locked: number; counted: number; discountPermille: number; note: string } | null> {
+    return this.store.transaction(async (tx) => {
+      const e = await tx.getEscrow(contract);
+      if (!e) return null;
+      const stored = await tx.getMarker(`bond_counted:${contract}`);
+      const custody = (await tx.getMarker(`bond_custody:${contract}`)) === "service" ? "service" : "local";
+      const counted = stored === undefined ? e.bondLocked : Number(stored);
+      const discounted = counted < e.bondLocked;
+      return { contract, backer: e.backer, custody, locked: e.bondLocked, counted, discountPermille: discounted ? 1000 - SERVICE_HELD_BOND_PERMILLE : 0, note: custody === "service" ? (discounted ? `The backer's key is held by the service: the bond counts at ${SERVICE_HELD_BOND_PERMILLE / 10}% toward a floor until the agent binds its own key. The credits locked are the full amount.` : "The backer began service-held and took its own key before this bond: the bond counts in full. The label stays for good.") : "The backer holds its own key: the bond counts in full." };
+    });
+  }
+
   /** Registry rules: one passport chain per DID, issued by the DID itself or its sponsor. */
   private async projectPassport(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as { did: string; kind: string; custody?: "local" | "service"; sponsor?: string; fleet?: string; tier?: number; lineage?: { edge: string; parent: string }[]; keys: { id: string; public_key: string }[]; house?: true };
@@ -542,6 +570,11 @@ export class EventLog {
     if (body.custody === "service") {
       if (body.kind !== "agent" || !sponsor) throw rule("hosted_bot_needs_sponsor", "service custody is for a hosted bot: an agent with a sponsor");
       await tx.putMarker(`custody:${body.did}`, "service");
+      // The agent taking its own key (DK740, S1550): a passport update of a service-held identity that brings in a public key the passport did not hold ends the discount for bonds made from this record's time on. The label stays (it is permanent, S956).
+      if (current && !(await tx.getMarker(`custody_rekeyed:${body.did}`))) {
+        const before = new Set((((await tx.getRecord(current.head))?.record.body as { keys?: { public_key: string }[] } | undefined)?.keys ?? []).map((k) => k.public_key));
+        if (body.keys.some((k) => !before.has(k.public_key))) await tx.putMarker(`custody_rekeyed:${body.did}`, r.issued_at);
+      }
     } else if (await tx.getMarker(`custody:${body.did}`)) throw rule("custody_label_permanent", `${body.did} is a hosted bot whose key the service holds: the label is not removed by a later passport`);
     // A house agent (DK291, S371): only an agent the operator itself sponsors carries the label, and the label is permanent.
     if (body.house) {
@@ -955,6 +988,8 @@ export class EventLog {
         recentJobs = admitted.window;
         if (admitted.counts) {
           qualifyingJobs += weight;
+          // The first job that unlocks the rest of the starter grant must come from a principal that is not a house agent (DK1302, S1551; owner answer): a counted job from a house agent's seed is real work and counts toward standing, but it does not release the credits.
+          if (!(await tx.getMarker(`house:${job.principal}`))) await tx.putMarker(`starter_nonhouse:${backer}`, job.at);
           // The class and weight of each counted job, and the feed AgentRank reads (market.md 5, 7; DK128): kept in markers beside the reputation row, not in it.
           const cls = effectiveClass(declared, job.price);
           const kept = (await readQualClass(tx, backer)).filter((j) => Date.parse(j.at) > at - 90 * 24 * 3600 * 1000);
@@ -1078,7 +1113,8 @@ export class EventLog {
     const price = (contract?.record.body as { price?: { value: number } } | undefined)?.price?.value ?? 0;
     const floor = bondFloorV3(await this.floorInputsV3(tx, escrow.backer, b.contract, r.issued_at, b.scopes));
     const need = Math.ceil((price * floor) / 1000);
-    if (escrow.bondLocked < need) throw rule("bond_below_threat_floor", `the scopes this Mandate grants (${b.scopes.join(", ") || "none"}) put the floor for this job at ${floor} permille of the price, so a bond of at least ${need} is needed; ${escrow.bondLocked} is locked`);
+    const countedStored = await tx.getMarker(`bond_counted:${b.contract}`);
+    if ((countedStored === undefined ? escrow.bondLocked : Number(countedStored)) < need) throw rule("bond_below_threat_floor", `the scopes this Mandate grants (${b.scopes.join(", ") || "none"}) put the floor for this job at ${floor} permille of the price, so a bond of at least ${need} is needed; ${escrow.bondLocked} is locked`);
   }
 
   /**
@@ -1273,8 +1309,9 @@ export class EventLog {
         const contract = await tx.getRecord(body.contract);
         const price = (contract?.record.body as { price?: { value: number } } | undefined)?.price?.value ?? 0;
         const minBond = Math.ceil((price * riskFloorPermille) / 1000);
-        if (body.amount.value < minBond) {
-          throw rule("bond_below_risk_floor", `${body.backer}'s slash history requires a bond of at least ${minBond} for this contract, got ${body.amount.value}`);
+        const countedHere = (await this.bondCounting(tx, body.backer, body.amount.value, r.issued_at)).counted;
+        if (countedHere < minBond) {
+          throw rule("bond_below_risk_floor", `${body.backer}'s slash history requires a bond of at least ${minBond} for this contract, got ${body.amount.value}${countedHere < body.amount.value ? ` (it counts at ${countedHere}: the backer's key is held by the service until it binds its own)` : ""}`);
         }
       }
     }
@@ -1297,6 +1334,9 @@ export class EventLog {
       contract: body.contract, escrowPayer: body.escrow.payer, escrowLocked: body.escrow.amount.value,
       backer: body.backer, bondLocked: body.amount.value, agentPermille, feeReservePrincipal: reserveEach, feeReserveBacker: reserveEach, forcedFault: false, settled: false,
     });
+    const counting = await this.bondCounting(tx, body.backer, body.amount.value, r.issued_at);
+    await tx.putMarker(`bond_counted:${body.contract}`, String(counting.counted));
+    if (counting.custody === "service") await tx.putMarker(`bond_custody:${body.contract}`, "service");
     await noteLock(tx, body.backer, body.contract, body.amount.value);
   }
 
@@ -1931,6 +1971,7 @@ export class EventLog {
     if (b.part === "rest") {
       if (!(await tx.getMarker(`starter_upfront:${who}`))) throw rule("starter_rest_needs_upfront", `${who} has not claimed the first part yet`);
       if (((await this.reputation(tx, who))?.qualifyingJobs ?? 0) < 1) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when this identity has had a qualifying job accepted: a job from a principal that is not its own sponsor, fleet or organisation");
+      if (!(await tx.getMarker(`starter_nonhouse:${who}`))) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when this identity has had a qualifying job accepted from a principal that is not a house agent (an independent one, of another sponsor, at 20 credits or more)");
     }
     try { await this.debit(tx, STARTER_POOL_DID, b.amount.value); } catch (e) {
       if (e instanceof AspError && e.detail === "insufficient_balance") throw rule("starter_pool_empty", `the starter pool cannot cover ${b.amount.value} credits right now; the operator tops it up with a signed mint`);
@@ -3258,6 +3299,9 @@ export class EventLog {
       if (filter.maxMinTier !== undefined && entry.minTier > filter.maxMinTier) continue;
       if (filter.text && !entry.purpose.toLowerCase().includes(filter.text.toLowerCase())) continue;
       const posterPass = await this.store.getPassport(p.issuer);
+      const posterFleetRow = posterPass?.fleet ? await this.store.getFleet(posterPass.fleet) : undefined;
+      if (posterFleetRow) entry.posterFleet = { id: posterFleetRow.did, name: posterFleetRow.name };
+      if (filter.fleet && !(posterFleetRow && (posterFleetRow.did === filter.fleet || posterFleetRow.name === filter.fleet))) continue;
       const rep = await this.reputation(this.store, p.issuer);
       entry.posterStanding = { kind: posterPass?.sponsor ? "agent" : "person", tier: posterPass?.sponsor ? (rep?.tier ?? null) : null, qualifyingJobs: rep?.qualifyingJobs ?? 0, acceptedJobs: rep?.acceptedJobs ?? 0, slashes: rep?.slashCount ?? 0, strikes: rep ? rep.strikeLog.reduce((n, x) => n + x.count, 0) : 0, jobsPosted: postings.filter((x) => x.issuer === p.issuer).length };
       entry.posterRecord = await this.posterRecord(p.issuer);
@@ -3302,7 +3346,7 @@ export class EventLog {
   }
 
   /** The docket (courts.md 7): contracts with a rejection and no settlement yet, with the route, panel size, panel drawn now and the claimant's open count against the cap. */
-  async courtDocket(): Promise<{ contract: string; principal: string; performer: string; price: number; route: string; panelSize: number; panel: string[]; ruled: boolean; rejectedAt: string }[]> {
+  async courtDocket(): Promise<{ contract: string; principal: string; performer: string; price: number; route: string; panelSize: number; panel: string[]; ruled: boolean; rejectedAt: string; bond: { backer: string; custody: "local" | "service"; locked: number; counted: number } | null }[]> {
     const records = await this.recordsOfTypes(["contract", "attestation", "settlement"]);
     const settled = new Set(records.filter((r) => r.type === "asp.settlement/v0.2").map((r) => (r.body as { contract: string }).contract));
     const routes = (await this.charterRoutes()) ?? DEFAULT_ROUTES;
@@ -3312,7 +3356,7 @@ export class EventLog {
       if (!rej) continue;
       const cb = c.body as { principal: string; performer: string; price: { value: number } };
       const rt = routeFor(cb.price.value, routes);
-      out.push({ contract: c.id, principal: cb.principal, performer: cb.performer, price: cb.price.value, route: rt.route, panelSize: rt.panel, panel: await this.drawPanel(c.id).catch(() => []), ruled: records.some((r) => r.subject === c.id && r.type === "asp.attestation/v0.2" && (r.body as { kind: string }).kind === "ruling"), rejectedAt: rej.issued_at });
+      out.push({ contract: c.id, principal: cb.principal, performer: cb.performer, price: cb.price.value, route: rt.route, panelSize: rt.panel, panel: await this.drawPanel(c.id).catch(() => []), ruled: records.some((r) => r.subject === c.id && r.type === "asp.attestation/v0.2" && (r.body as { kind: string }).kind === "ruling"), rejectedAt: rej.issued_at, bond: await this.bondLabel(c.id).then((b) => (b ? { backer: b.backer, custody: b.custody, locked: b.locked, counted: b.counted } : null)) });
     }
     return out;
   }

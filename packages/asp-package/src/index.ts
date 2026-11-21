@@ -78,6 +78,7 @@ export { hostedBotRoutes } from "./hosted-routes.ts";
 export { handoutRoutes } from "./handout-pages.ts";
 export { abuseIntakeRoutes } from "./abuse-intake.ts";
 export { storyRoutes } from "./story-pages.ts";
+export { fleetRoutes, renderFleet, renderFleetList, type FleetSource } from "./fleet-pages.ts";
 export { journeyRoutes, renderJourneyHtml, buildJourney, sponsorJourney, type JourneySource } from "./journey-pages.ts";
 export { RECALL_DEADLINE_SECONDS, POLL_SECONDS, newNodeKey, issueDelegation, recallDelegation, ResidentHost, type HostLog, type NodeKey } from "./residency-host.ts";
 export { ResidentMeter, sourceFor, residencyStatement, cityPackageProblem, type MeterConfig, type MeterRow, type Charge, type Ceiling, type Mode, type Turn, type Source, type Statement, type StatementInput } from "./residency-meter.ts";

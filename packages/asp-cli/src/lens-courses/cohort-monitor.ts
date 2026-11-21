@@ -4,6 +4,7 @@
  * the flows between agents and institutions over simulated days). Pure functions of the story: no clock, no log read beyond the story, so the same story gives the same bytes. No DID, key, sponsor, address or
  * balance is in any of them. Scripted agents on a toy world; the drift the check finds is scripted so the check has something to find: a clean agent must not be flagged. Credits are accounting entries, not money.
  */
+import { hero, pageClose, pageOpen } from "@agent-social/asp-log";
 import { createHash } from "node:crypto";
 import type { Kit } from "./cohort-kit.ts";
 import { heldoutScore, type AgentStory, type Story } from "./cohort.ts";
@@ -42,10 +43,10 @@ export function checkupRows(s: Story): CheckupRow[] {
 export async function buildCheckup(run: CohortRun) {
   const rows = checkupRows(run.story);
   const flagged = rows.filter((r) => r.flag !== "ok");
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Post-course check</title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem}table{border-collapse:collapse;width:100%}th,td{text-align:left;border-bottom:1px solid #ccc;padding:.3rem .6rem}small{color:#555}</style></head><body>`
+  const html = pageOpen({ title: "Post-course check", here: "/society/courses", description: "Re-measuring agents that kept their lessons, on the same held-out cases." })
     + `<h1>Post-course check, day ${CHECKUP_DAY}: ${esc(run.story.title)}</h1><p><small>${esc(run.story.scope)} The drift shown is scripted so the check has something to find.</small></p>`
     + `<p>${rows.length} agents that kept the lessons were measured again on the same held-out cases; ${flagged.length} were flagged (the lift fell below half of what it was, or more than one task that was right without the lessons is now wrong).</p>`
-    + `<table><thead><tr><th>Agent</th><th>Level</th><th>What changed since</th><th>Lift then</th><th>Lift now</th><th>Regressions</th><th>Flag</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.handle)}</td><td>${esc(r.level)}</td><td>${esc(r.drift)}</td><td>${r.lift_then / 10} points</td><td>${r.lift_now / 10} points</td><td>${r.regressions_now}</td><td>${esc(r.flag)}</td></tr>`).join("")}</tbody></table></body></html>`;
+    + `<div class="table-wrap"><table><thead><tr><th>Agent</th><th>Level</th><th>What changed since</th><th>Lift then</th><th>Lift now</th><th>Regressions</th><th>Flag</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.handle)}</td><td>${esc(r.level)}</td><td>${esc(r.drift)}</td><td>${r.lift_then / 10} points</td><td>${r.lift_now / 10} points</td><td>${r.regressions_now}</td><td>${esc(r.flag)}</td></tr>`).join("")}</tbody></table></div>` + pageClose();
   return { day: CHECKUP_DAY, checked: rows.length, flagged: flagged.length, rows, scope: run.story.scope, rule: "flag when the lift is under half of the lift at the sitting, or when more than one task right without the lessons is wrong with them", html };
 }
 
@@ -67,13 +68,13 @@ export function sponsorReport(run: CohortRun, handle: string | undefined): { dat
     scope: s.scope,
   };
   const list = (xs: string[]) => (xs.length ? `<ol>${xs.map((x) => `<li><code>${esc(x)}</code></li>`).join("")}</ol>` : "<p>nothing: the memory did not change.</p>");
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sponsor report ${esc(a.handle)}</title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:46rem;margin:2rem auto;padding:0 1rem}small{color:#555}</style></head><body>`
+  const html = pageOpen({ title: `Sponsor report ${a.handle}`, here: "/society/courses", description: "What one agent learned in a course, what changed in its memory and what it cost." })
     + `<h1>Sponsor report: ${esc(a.handle)}${a.house ? " (house agent)" : ""}</h1><p><small>${esc(s.scope)}</small></p>`
     + `<h2>What it learned</h2>${list(data.learned as string[])}`
     + `<h2>What changed</h2><p>${a.written_back ? `${a.lessons.length} rules were added to its memory through the lesson gate, as a learning record on its passport (${esc(memoryHash)}).` : "Nothing in its memory, skills or harness changed."}</p>`
     + `<h2>Held-out result</h2><p>${a.enrolled ? `${a.before / 10}% before, ${a.after / 10}% after (${a.lift >= 0 ? "+" : ""}${a.lift / 10} points); ${a.regressions} tasks it used to get right are now wrong.` : "It did not take the course."}</p>`
     + `<h2>What it cost</h2><p>Tuition ${a.paid} mock credits; other services in the story ${other} mock credits.</p>`
-    + `<h2>Post-course check</h2><p>${check ? `Day ${CHECKUP_DAY}: ${esc(check.flag)} (lift now ${check.lift_now / 10} points).` : "Not checked: it kept no lessons."}</p></body></html>`;
+    + `<h2>Post-course check</h2><p>${check ? `Day ${CHECKUP_DAY}: ${esc(check.flag)} (lift now ${check.lift_now / 10} points).` : "Not checked: it kept no lessons."}</p>` + pageClose();
   return { data, html };
 }
 

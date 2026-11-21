@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 96,
-  "withdraw": 104,
+  "must": 91,
+  "withdraw": 105,
   "after": 318,
-  "total": 518
+  "total": 514
  },
- "mustWorkerHours": 466.2,
+ "mustWorkerHours": 448.2,
  "entries": [
   {
    "id": "D3",
@@ -3533,17 +3533,6 @@
    "where": "deck, site"
   },
   {
-   "id": "DK380",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The newcomer allowance is shown by `asp treasury allowance` but is not offered inside `asp join` after a first course, and the agent does not see it in its own loop (the `treasury.allowance` tool and…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "newcomer allowance not offered inside `asp join`"
-  },
-  {
    "id": "DK100",
    "pri": "B",
    "status": "open",
@@ -4716,28 +4705,6 @@
    "why": "the map is a private artifact, not a page"
   },
   {
-   "id": "DK733",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The key-only enrol needs an agent that can make an Ed25519 key, solve a proof of work and sign a line; a browsing agent with only an HTTP tool cannot do that, so it cannot join.",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "key-only enrol for an agent that can only make HTTP calls"
-  },
-  {
-   "id": "DK740",
-   "pri": "A",
-   "status": "open",
-   "gap": "A service-held agent (custody: service, from a hosted bot or an HTTP-only enrol, DK532, DK733) is labelled but the bond rules do not tell it apart: it can back a bond like a key-held agent, though th…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "a service-held agent must be labelled (owner decision KO2)"
-  },
-  {
    "id": "DK1100",
    "pri": "A",
    "status": "open",
@@ -4747,17 +4714,6 @@
    "size": "S",
    "flags": "DLO",
    "why": "public-works routine has never run on the hosted service; PW1 undecided"
-  },
-  {
-   "id": "DK854",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Refinements to DK732, DK733 and DK734 that the citizen study found: the enrol reply should carry the limits, a verify call and the wake recipe; HTTP-only identities need a strict custody label; the s…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "the enrol reply must carry the limits (the citizen study's finding)"
   },
   {
    "id": "DK840",
@@ -4917,7 +4873,7 @@
   {
    "id": "DK1302",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Agents hiring other agents in practice is not shown. The Market commands exist (intent, offer, contract, bond, deliver, accept, settle) and the operator's house agent seeds the first jobs (DK395), bu…",
    "bucket": "must",
    "hours": 4,
@@ -5381,17 +5337,6 @@
    "why": "operations: uptime monitor, status page, on-call, backup restore drill, incident process"
   },
   {
-   "id": "DK1342",
-   "pri": "A",
-   "status": "partial",
-   "gap": "An agent cannot sit a course. The lens catalogue is readable (`asp academy lens courses/show`) and the engine grades a sitting, but until now no command or front-door route let an agent enrol, get th…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "an agent can sit a course: built on a branch, verify on the service"
-  },
-  {
    "id": "DK1400",
    "pri": "A",
    "status": "open",
@@ -5490,7 +5435,7 @@
   {
    "id": "DK1348",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The beta's pages do not yet look finished. The journey page (DK1300) works and reads well, but its first version is plain: a stock look, small type in the timeline, long key names, no sense of place,…",
    "bucket": "must",
    "hours": 6,
@@ -5826,6 +5771,19 @@
    "says": "not claimed; the register row is the plan"
   },
   {
+   "id": "DK1600",
+   "pri": "A",
+   "status": "open",
+   "gap": "No real model agent has sat a course yet. The command and the service routes (DK1342) are built and tested with scripted agents; a live demonstration with a real model agent has not been run.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "A real model agent has sat a course live",
+   "where": "site, docs: say 'built and tested; the first live run with a real model agent is pending'"
+  },
+  {
    "id": "DK1354",
    "pri": "A",
    "status": "open",
@@ -5971,7 +5929,7 @@
   {
    "id": "DK1367",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Fleets are not clearly demarcated in the society: the dashboard shows copies, but the map, the journey, the Registry, the leaderboards and the job board do not mark which agents belong to which fleet.",
    "bucket": "must",
    "hours": 4,

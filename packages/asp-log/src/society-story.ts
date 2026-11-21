@@ -10,6 +10,7 @@
  * **Never in a view:** a key, a sponsor, a purpose or any free text from a record, an email, a token. Agents are shown by name to everyone (owner decision 2026-11-13); an agent run by the operator is labelled a
  * house agent. Credits are accounting entries, not money.
  */
+import { fleetDirectory, findFleet } from "./fleets.ts";
 import type { AspRecord } from "@agent-social/asp-core";
 
 export interface StoredRec { seq: number; id: string; record: AspRecord }
@@ -112,14 +113,20 @@ export function storyOf(inp: StoryInput, nameOrDid: string): Story | undefined {
 }
 
 // ---------- DK552: leaderboards ----------
-export interface Board { id: string; title: string; rows: { name: string; value: number }[] }
-export interface Leaderboards { week: string; boards: Board[]; concentration: { topShare: number; of: number }; note: string }
+export interface Board { id: string; title: string; rows: { name: string; value: number; /** The fleet of the agent in this row (DK1367). */ fleet?: { id: string; name: string } }[] }
+export interface Leaderboards { week: string; /** Set when the boards are for one fleet only (`?fleet=`). */ fleet?: { id: string; name: string }; boards: Board[]; concentration: { topShare: number; of: number }; note: string }
 const top = (m: Map<string, number>, n = 10): { name: string; value: number }[] => [...m].sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).slice(0, n).map(([name, value]) => ({ name, value }));
 
-export function leaderboardsOf(inp: StoryInput, weekStart: string): Leaderboards {
+export function leaderboardsOf(inp: StoryInput, weekStart: string, opts: { fleet?: string } = {}): Leaderboards {
   const ix = index(inp);
+  const fleets = fleetDirectory(inp.stored);
+  const only = opts.fleet ? findFleet(fleets, opts.fleet) : undefined;
+  const inFleet = new Set(only?.members.map((m) => m.did) ?? []);
   const from = Date.parse(weekStart), to = from + 7 * DAY;
-  const real = [...ix.agents.values()].filter((a) => !a.house);
+  const real = [...ix.agents.values()].filter((a) => !a.house && (!only || inFleet.has(a.did)));
+  const markOfName = new Map<string, { id: string; name: string }>();
+  for (const a of ix.agents.values()) { const m = fleets.byAgent.get(a.did); if (m) markOfName.set(a.name, m); }
+  const marked = (rows: { name: string; value: number }[]) => rows.map((r) => (markOfName.has(r.name) ? { ...r, fleet: markOfName.get(r.name)! } : r));
   const ok = new Set(real.map((a) => a.did));
   const richest = new Map<string, number>();
   for (const a of real) { const v = inp.balances?.get(a.did); if (v !== undefined) richest.set(a.name, v); }
@@ -145,11 +152,11 @@ export function leaderboardsOf(inp: StoryInput, weekStart: string): Leaderboards
   const streak = new Map<string, number>();
   for (const [name, set] of days) { const ds = [...set].sort(); let best = 1, run = 1; for (let i = 1; i < ds.length; i++) { run = Date.parse(ds[i]!) - Date.parse(ds[i - 1]!) === DAY ? run + 1 : 1; best = Math.max(best, run); } streak.set(name, ds.length ? best : 0); }
   return {
-    week: weekStart,
+    week: weekStart, ...(only ? { fleet: { id: only.id, name: only.name } } : {}),
     boards: [
-      { id: "richest", title: "Richest (mock credits)", rows: top(richest) }, { id: "most_active", title: "Most active this week (acts)", rows: top(active) },
-      { id: "most_popular_course", title: "Most popular course this week (enrolments)", rows: top(popular) }, { id: "learning_gain", title: "Most held-out learning gain this week (permille)", rows: top(gain).filter((r) => r.value > 0) },
-      { id: "longest_streak", title: "Longest streak (days in a row)", rows: top(streak) },
+      { id: "richest", title: "Richest (mock credits)", rows: marked(top(richest)) }, { id: "most_active", title: "Most active this week (acts)", rows: marked(top(active)) },
+      { id: "most_popular_course", title: "Most popular course this week (enrolments)", rows: top(popular) }, { id: "learning_gain", title: "Most held-out learning gain this week (permille)", rows: marked(top(gain).filter((r) => r.value > 0)) },
+      { id: "longest_streak", title: "Longest streak (days in a row)", rows: marked(top(streak)) },
     ],
     concentration: { topShare: total > 0 ? topSum / total : 0, of: richest.size },
     note: "house agents are left out; ties are broken by name; mock credits are accounting entries, not money",

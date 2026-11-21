@@ -4,6 +4,7 @@
  * s24), their level and their group; the reason a sitting failed is one of a fixed list; no DID, key, sponsor, balance, address or lesson text appears on the dashboard. HTML by default, JSON with `?format=json` or
  * `Accept: application/json`. Scripted agents on a toy world, no real model, credits are accounting entries, not money, nothing changes model weights.
  */
+import { emptyState, hero, shell, shortNameHtml } from "@agent-social/asp-log";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { runCohortWithLog, type AgentStory, type Story } from "./cohort.ts";
 import { buildCheckup, buildFeed, sponsorReport, type CohortRun } from "./cohort-monitor.ts";
@@ -39,20 +40,20 @@ export function dashboardView(s: Story) {
   };
 }
 
-const CSS = "body{font:16px/1.5 system-ui,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem}table{border-collapse:collapse;width:100%}th,td{text-align:left;border-bottom:1px solid #ccc;padding:.3rem .6rem}small{color:#555}";
-const page = (title: string, body: string) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${CSS}</style></head><body>${body}</body></html>`;
+const page = (title: string, body: string) => shell({ title, body, here: "/society/courses", description: "A cohort of agents took a course; this is what changed, measured on held-out cases." });
 
 export function dashboardHtml(s: Story): string {
   const v = dashboardView(s);
   const t = v.lift;
-  const rows = v.agents.map((a) => `<tr><td>${esc(a.handle)}${a.house ? " <small>(house agent)</small>" : ""}</td><td>${esc(a.level)}</td><td>${esc(a.group)}</td><td>${esc(a.result)}</td><td>${a.before / 10}%</td><td>${a.after / 10}%</td><td>${a.lift >= 0 ? "+" : ""}${a.lift / 10} points</td></tr>`).join("");
+  const rows = v.agents.map((a) => `<tr><td>${shortNameHtml(a.handle)}${a.house ? " <small>(house agent)</small>" : ""}</td><td>${esc(a.level)}</td><td>${esc(a.group)}</td><td>${esc(a.result)}</td><td class="num">${a.before / 10}%</td><td class="num">${a.after / 10}%</td><td class="num">${a.lift >= 0 ? "+" : ""}${a.lift / 10} points</td></tr>`).join("");
+  const lift = (n: number) => `${n >= 0 ? "+" : ""}${n / 10}`;
   return page(`Cohort ${v.id}`,
-    `<h1>Cohort ${esc(v.id)}: ${esc(v.title)}</h1><p><small>${esc(v.scope)}</small></p>`
+    hero({ kicker: "Cohort", title: v.title, badges: [v.id, `${v.price} mock credits a place`], sub: v.scope, tiles: [{ label: "enrolled", value: v.completion.cohort }, { label: "completed", value: v.completion.completed }, { label: "pass rate", value: `${v.completion.pass_rate_permille / 10}%` }, { label: "held-out after", value: `${v.held_out.cohort_after / 10}%` }, { label: "lift (points)", value: lift(t.mean_lift_cohort) }] })
     + `<h2>Completion</h2><p>${v.completion.completed} of ${v.completion.cohort} completed the course (pass rate ${v.completion.pass_rate_permille / 10}%); the control of ${t.n_control} agents did not take it. Tuition ${v.price} mock credits each.</p>`
     + `<h2>Held-out score, before and after</h2><p>Cohort: ${v.held_out.cohort_before / 10}% before, ${v.held_out.cohort_after / 10}% after. Control: ${v.held_out.control_before / 10}% before, ${v.held_out.control_after / 10}% after. Both are measured on held-out cases the agents were never shown.</p>`
     + `<h2>Lift</h2><p>Mean held-out change: cohort ${t.mean_lift_cohort / 10} points, control ${t.mean_lift_control / 10} points; difference ${t.difference / 10} points (standard error ${t.se / 10}, t = ${t.t}). Method: ${esc(t.method)}. Tasks that were right without the lessons and wrong with them: ${v.regressions}. Cost per point of lift: ${v.cost_per_point_of_lift === null ? "not defined (no lift)" : `${v.cost_per_point_of_lift} mock credits`}.</p>`
-    + `<h2>Agents</h2><table><thead><tr><th>Agent</th><th>Level</th><th>Group</th><th>Result</th><th>Before</th><th>After</th><th>Change</th></tr></thead><tbody>${rows}</tbody></table>`
-    + `<p><a href="/society/cohorts/${esc(v.id)}/checkup">post-course check</a> · <a href="/society/cohorts/${esc(v.id)}/feed.json">map feed</a></p>`);
+    + `<h2>Agents</h2>${v.agents.length ? `<div class="table-wrap"><table><thead><tr><th>Agent</th><th>Level</th><th>Group</th><th>Result</th><th class="num">Before</th><th class="num">After</th><th class="num">Change</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("No agents yet", "A cohort lists its agents once they enrol.")}`
+    + `<p><a href="/society/cohorts/${esc(v.id)}/checkup">post-course check</a> &middot; <a href="/society/cohorts/${esc(v.id)}/feed.json">map feed</a></p>`);
 }
 
 const send = (req: IncomingMessage, res: ServerResponse, type: string, body: string) => { res.writeHead(200, { "content-type": type, "cache-control": "no-store", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" }); res.end(req.method === "HEAD" ? undefined : body); };
