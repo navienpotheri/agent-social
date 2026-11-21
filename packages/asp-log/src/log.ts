@@ -35,7 +35,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
-import { dataHandlingProblem, type DataHandling } from "@agent-social/asp-core";
+import { dataHandlingProblem, noticeAckProblem, type DataHandling } from "@agent-social/asp-core";
 import { allowedInWindow, hireCycles, tripped, type Hire as BreakerHire } from "./fleet-breaker.ts";
 import { buildAuditExport, type AuditManifest } from "./audit-export.ts";
 import { creditsFor, meterOf, priceStatement, type Plan, type Usage, type AgentUsage } from "./metering.ts";
@@ -365,6 +365,7 @@ export class EventLog {
     const kind = chain?.kind ?? type!;
 
     let snapshot: JobSnapshot | null = null;
+    if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
     if (type === "contract") { this.checkSelfHire(verified); const dh = dataHandlingProblem((verified.body as { data_handling?: DataHandling }).data_handling); if (dh) throw rule(dh.rule, dh.message); }
     if (kind === "contract") {
       const job = chain?.snapshot ? Job.fromSnapshot(chain.snapshot, { schemas: this.schemas }) : new Job({ schemas: this.schemas });
@@ -2694,6 +2695,25 @@ export class EventLog {
     await this.debit(tx, r.issuer, b.amount.value);
     await this.credit(tx, TREASURY_DID, b.amount.value);
     await tx.putMarker(`treasury_return:${r.issuer}|${b.period}`, r.id);
+  }
+
+  /**
+   * A notice acknowledgement (S1591, US8): an unknown notice and a malformed hash are refused by name; when it names an agent the issuer is that agent or its sponsor; every acknowledgement is kept and the latest for an issuer and a
+   * notice is the one in force (a marker per issuer and notice, rebuilt on replay).
+   */
+  private async checkNoticeAck(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { notice: string; statement_sha256: string; agent?: string };
+    if (r.prev !== null) throw rule("notice_ack_not_chained", "a notice acknowledgement starts its own chain (prev is null)");
+    const bad = noticeAckProblem(b);
+    if (bad) throw rule(bad.rule, bad.message);
+    if (b.agent && r.issuer !== b.agent && (await tx.getPassport(b.agent))?.sponsor !== r.issuer) throw rule("notice_ack_wrong_issuer", `${r.issuer} is neither ${b.agent} nor its sponsor: only an agent or its sponsor acknowledges for it`);
+    await tx.putMarker(`notice_ack:${r.issuer}|${b.notice}`, JSON.stringify({ id: r.id, notice: b.notice, statement_sha256: b.statement_sha256, at: r.issued_at, ...(b.agent ? { agent: b.agent } : {}), count: Number(JSON.parse((await tx.getMarker(`notice_ack:${r.issuer}|${b.notice}`)) ?? "{}").count ?? 0) + 1 }));
+  }
+
+  /** The acknowledgement in force for an issuer and a notice (the latest), or null (S1591). Reads only. */
+  async noticeAck(issuer: string, notice: string): Promise<{ id: string; notice: string; statement_sha256: string; at: string; agent?: string; count: number } | null> {
+    const raw = await this.store.transaction((tx) => tx.getMarker(`notice_ack:${issuer}|${notice}`));
+    return raw ? JSON.parse(raw) : null;
   }
 
   /** An incident record (S1426, DK1714): signed by the operator or the Clinic for an agent with a passport; the response steps it lists must name records that exist. */

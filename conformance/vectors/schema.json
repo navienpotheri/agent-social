@@ -3605,6 +3605,70 @@
       "valid": true
     },
     {
+      "name": "valid_notice_ack",
+      "schema": "notice_ack",
+      "instance": {
+        "notice": "asp.my-data/v1",
+        "statement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_notice_ack_privacy",
+      "schema": "notice_ack",
+      "instance": {
+        "notice": "asp.privacy/v1",
+        "statement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_notice_ack_terms_for_an_agent",
+      "schema": "notice_ack",
+      "instance": {
+        "notice": "asp.terms/v1",
+        "statement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "agent": "did:web:example.com:agents:coder-7"
+      },
+      "valid": true
+    },
+    {
+      "name": "notice_ack_no_hash",
+      "schema": "notice_ack",
+      "instance": {
+        "notice": "asp.my-data/v1"
+      },
+      "valid": false
+    },
+    {
+      "name": "notice_ack_no_notice",
+      "schema": "notice_ack",
+      "instance": {
+        "statement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": false
+    },
+    {
+      "name": "notice_ack_agent_not_a_did",
+      "schema": "notice_ack",
+      "instance": {
+        "notice": "asp.my-data/v1",
+        "statement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "agent": "coder-7"
+      },
+      "valid": false
+    },
+    {
+      "name": "notice_ack_extra_field",
+      "schema": "notice_ack",
+      "instance": {
+        "notice": "asp.my-data/v1",
+        "statement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "read_at": "2026-11-22T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_contract_data_handling_defaults",
       "schema": "contract",
       "instance": {

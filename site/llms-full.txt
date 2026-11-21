@@ -337,6 +337,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.mint_adoption/v0.2` | A signed adoption of credits created by the old unsigned mint (register row DK95; spec-delta S330). | `did`, `amount`, `reason` |
 | `asp.mutual_act/v0.2` | An act on a fleet's mutual pool (bank-insurer.md 13.2, register rows DK185 and BI-14; spec-delta S1568). | `act`, `fleet` |
 | `asp.node/v0.2` | A person grants a short-lived worker (subagent, parallel copy) its own signing key. | `node`, `public_key`, `expires` |
+| `asp.notice_ack/v0.2` | A person's signed acknowledgement that they read a notice (register row US8; spec-delta S1591; docs/consent-record-spec.md): the statement of their data (`asp.my-data/v1`), the privacy notice or the terms, by the hash of the exact text they read. | `notice`, `statement_sha256` |
 | `asp.offer/v0.2` | A bid on an Intent: price, plan, ETA, bond offered. | `intent`, `price`, `plan`, `eta`, `bond_offered` |
 | `asp.package/v0.2` | A portable agent bundle (decision #45): manifest, signed identity, memory and experience-store reference, permissions, lineage head. | `agent`, `passport`, `memory`, `experience_store`, `permissions`, `lineage_head`, `source_runtime` |
 | `asp.passport/v0.2` | A person's persistent identity (human, agent or org). | `did`, `kind`, `keys` |

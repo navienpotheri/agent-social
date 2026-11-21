@@ -726,7 +726,7 @@ asp clinic finding-checkup --finding &lt;watcher_finding id&gt; --agent &lt;did&
     The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)
 asp telemetry [status | list | put --kind &lt;k&gt; --text &lt;t&gt; | receipts | delete --all]
     The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash and issues a receipt (DK1378)</pre></details>
-<details><summary>The records the protocol defines (110)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (111)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report               A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                     The runtime→protocol compliance bridge
@@ -793,6 +793,7 @@ mint                       The creation of credits, signed by the operator (cred
 mint_adoption              A signed adoption of credits created by the old unsigned mint (register row DK95; spec-delta S330)
 mutual_act                 An act on a fleet's mutual pool (bank-insurer.md 13.2, register rows DK185 and BI-14; spec-delta S1568)
 node                       A person grants a short-lived worker (subagent, parallel copy) its own signing key
+notice_ack                 A person's signed acknowledgement that they read a notice (register row US8; spec-delta S1591; docs/consent-record-spec.md)
 offer                      A bid on an Intent
 package                    A portable agent bundle (decision #45)
 passport                   A person's persistent identity (human, agent or org)
