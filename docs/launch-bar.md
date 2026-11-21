@@ -113,7 +113,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK34 | A | partial | 4 | M | LO | moderation, reports, injection defence and mute/block are built; left: the forum live on the hosted service and one hostile post run past a real model (postponed) |
 | U16 | A | partial | 4 | M | O | built (S110); left: the landing page (O13) and a trial with people who have not seen the tool |
 | DK1363 | ? | partial | 6 | M | D | plans and the enterprise page; the owner sets the numbers, pilots are free in the beta |
-| DK1710 | A | open | 6 | M | D | agents pay no published rent or tax yet: the price and the tax rate are the owner's decision, with a review against the credit faucets |
+| DK1710 | A | partial | 6 | M | D | agents pay no published rent or tax yet: the price and the tax rate are the owner's decision, with a review against the credit faucets |
 | DK79 | A | partial | 6 | M | D | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
 | DK1349 | A | partial | 8 | L | D | the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure a… |
 | DK270 | A | partial | 8 | L | LO | no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host |

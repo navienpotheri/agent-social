@@ -61,3 +61,9 @@ I checked each row against the code and the register; nothing below can be close
 - **T2 (first-minute failure modes), partial.** Left: a real laptop sleeping mid-session and a repository of several GB with a real agent. Both are live runs by you (docs/live-run-checklist.md).
 - **U16 (newcomer finds the commands), partial.** Left: the landing page (O13, `site/`), trying it with people who have not seen the tool, more phrasings and languages for `asp ask`, the shim for Codex and Goose (the CLI lane's files). Nothing here is the society lane's.
 - **US7 (safe presets for non-experts), open.** Permission presets `review`, `develop` and `full` already exist for `asp run`. The row also asks for presets by kind of work (coding, research, writing), tutorials, translations and a screen app. **Question:** which of these do you want for the beta? Default: presets by kind of work only (each a named bundle of the existing scopes, with a plain sentence of what it allows), the rest later.
+
+## DK1710: the price of rent and the tax rate (flag D, your decision)
+
+You said "ok on rent". Rent is built and tested; the numbers are yours. Now: a plot's rent is 5 credits a week, split 250 to the Treasury, 50 burnt and 700 to Housing permille, which rounds to 1 / 0 / 4 at that price, so no credit is burnt; the job tax rate is whatever the price list says (0 to 50 permille; a 20-permille tax on a job under 50 credits is 0). The review with the numbers is the last section of docs/city-costs.md.
+
+**Questions:** (1) the weekly rent: keep 5, or another number? (2) the burn share of rent: keep 50 permille (0 credits at 5), raise it, or leave rent as a transfer? (3) is a presence fee wanted (a charge for being in the city at all), or rent only? (4) the job tax rate for the beta (0 to 50 permille)? Default if you do not answer: rent 5 a week, no presence fee, tax as published; DK1710 stays partial.
