@@ -710,7 +710,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK73 | B | partial | The deflation side of the economy has no owner: burn and tax remove credits while the only faucets are new ten... |
 | DK74 | A | closed | The starter pool is 200,000 credits (starter.ts line 21) while the deck promises 1,000 tenants at the three-mo... |
 | DK75 | A | open | The owner decided on 2026-11-12 that city structures (homes, plots, vehicles, shop items) may carry compute an...|
-| DK76 | A | partial | The society has no engine of change. Nothing happens unless a person starts a job: no calendar, no seasons, no...|
+| DK76 | A | closed | The society has no engine of change. Nothing happens unless a person starts a job: no calendar, no seasons, no...|
 | DK77 | A | partial | Nobody measures whether the society stays non-stationary or whether agents adapt to change, so a society that...|
 | DK78 | A | open | The society has no way to carry research ideas. The owner design (2026-11-12) is that the society is a LAYER o...|
 | DK79 | A | open | The society has no instrumentation hooks that research lenses can use: nothing probes an agent beliefs, record...|
@@ -1027,8 +1027,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | SO20 | B | designed | No live society evaluations |
 | DK1451 | A | closed | No random-sequence supply test covers the Bank, the Insurer, the Treasury's lines or the deposits. The two property tests (conservation.property, conservation-flows.property) cover mints, transfers, purchases, jobs, post |
 | DK1452 | A | closed | `asp credits audit --by-flow` shows purchases, settlements, the Treasury's budgets, payments, allowances and prizes and the Clinic's flows, and nothing for the Bank (lines opened, drawn, repaid, defaulted, debt cleared), |
-| DK1453 | A | open | The Market has no statistics page and no monthly report: `GET /market/stats` (jobs by class, median price, fill rate, postings and settlements in the period) and the monthly report market.md 7 and 10 ask for (MK-9, MK-12 |
-| DK1454 | A | open | An agent in its loop cannot see or take a posted job through its tools: `market.jobs`, `market.bid` and `market.counts` over MCP and the standing-note line `3 jobs open for you` (MK-10) are not built. |
+| DK1453 | A | closed | The Market has no statistics page and no monthly report: `GET /market/stats` (jobs by class, median price, fill rate, postings and settlements in the period) and the monthly report market.md 7 and 10 ask for (MK-9, MK-12 |
+| DK1454 | A | closed | An agent in its loop cannot see or take a posted job through its tools: `market.jobs`, `market.bid` and `market.counts` over MCP and the standing-note line `3 jobs open for you` (MK-10) are not built. |
 | DK1455 | A | open | Bond and escrow ignore the job's risk: a poster and a performer pick a bond by hand and the Market suggests none (MK-14, DK43). The risk model is not a record, an offer carries no suggested bond and no cohort measures wh |
 | DK1456 | A | open | The Market is stationary: no seasons, no seeded demand process, the class guide price does not move with the fill rate, no new-entrant waves and no dynamics monitor (MK-16 to MK-20). The owner's principle is that the soc |
 | DK1457 | A | open | The Market has not been used by a real model agent end to end: one agent finds a posted job, bids, is assigned and completes it, with the posting deposit returning (MK-13). The owner postponed live runs with real agents. |
@@ -1037,3 +1037,5 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1350 | A | open | The society has no definition of the two kinds of world the owner wants: measured worlds that repeat (for comparison and studies) and expedition worlds that are new every time. DK1317 and DK1318 design only the first kind. |
 | DK1351 | A | open | There is no generative world model behind the expeditions. The owner wants agents put into totally new worlds made by an open-source interactive world model on rented cloud GPUs. |
 | DK1352 | B | open | The public website has no video of the society. The owner wants a short video of about 20 seconds of agents shown as dots moving through different environments (a desert, an open city, a forest and more), and a short expedition video. |
+| DK1459 | A | open | The world engine runs by hand: no world authority on the hosted service and nothing runs the daily tick there. |
+| DK1460 | B | open | World experiments are not built: no assignment rule for arms, no opt-out, no per-event check against the charter's caps. |

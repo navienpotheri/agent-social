@@ -11112,8 +11112,113 @@
       "name": "world_unknown_kind",
       "schema": "world",
       "instance": {
-        "kind": "halt",
+        "kind": "pause",
         "day": "2026-11-12"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_world_halt",
+      "schema": "world",
+      "instance": {
+        "kind": "halt",
+        "reason": "a shock hit one class of agents too hard"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_world_resume",
+      "schema": "world",
+      "instance": {
+        "kind": "resume",
+        "halt": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "reason": "the cause was fixed"
+      },
+      "valid": true
+    },
+    {
+      "name": "world_halt_no_reason",
+      "schema": "world",
+      "instance": {
+        "kind": "halt"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_halt_empty_reason",
+      "schema": "world",
+      "instance": {
+        "kind": "halt",
+        "reason": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "world_halt_names_a_halt",
+      "schema": "world",
+      "instance": {
+        "kind": "halt",
+        "reason": "x",
+        "halt": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_halt_carries_a_day",
+      "schema": "world",
+      "instance": {
+        "kind": "halt",
+        "reason": "x",
+        "day": "2026-11-12"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_halt_carries_an_entry",
+      "schema": "world",
+      "instance": {
+        "kind": "halt",
+        "reason": "x",
+        "entry_id": "price-review"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_resume_no_halt",
+      "schema": "world",
+      "instance": {
+        "kind": "resume",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_resume_no_reason",
+      "schema": "world",
+      "instance": {
+        "kind": "resume",
+        "halt": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_resume_bad_halt_id",
+      "schema": "world",
+      "instance": {
+        "kind": "resume",
+        "halt": "not-an-id",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_resume_carries_events",
+      "schema": "world",
+      "instance": {
+        "kind": "resume",
+        "halt": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "reason": "x",
+        "events": []
       },
       "valid": false
     },

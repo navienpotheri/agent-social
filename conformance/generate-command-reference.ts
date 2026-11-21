@@ -182,6 +182,9 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp world calendar [--from <time>] [--days <n>] [--json]", "The events and calendar entries in a stretch of days, with their windows and effects"],
     ["asp world replay <date> [--json]", "Run a day again from its logged seed and compare with the record: matches the log, or DOES NOT MATCH (exit 1); shows every draw, fired or not"],
     ["asp world tick [--day <date>] [--days <n>] [--seed <s>]", "Record the day(s) the seeded generator produced, signed by the world authority (a local mock key); a day that has not begun is not announced"],
+    ["asp world halt --by <operator did> --reason <text>", "The kill-switch: the operator's own key stops every generated event and every shock, drill or experiment at once (scheduled and season entries run on); a public record; the daily tick refuses to write while halted"],
+    ["asp world resume --by <operator did> --reason <text> [--halt <id>] [--cosign-by <owner did>]", "End the halt in force; a resume 24 hours or more after the halt needs the owner's co-signature"],
+    ["asp world invariants [--json]", "What must hold after every event: price multipliers inside their bounds, every day record reproducible from its seed, the credit supply rule; exit 1 when one fails (the daily tick runs it after each day it writes)"],
     ["asp world schedule --title <t> --from <time> --to <time> --effect <type> --target <name> [--value <n>] [--kind <k>]", "Add a calendar entry; the log checks 72 hours notice, a seed commitment for a shock, and a price multiplier inside 50% to 200%"],
   ] },
   { group: "Job board and discovery", rows: [
@@ -192,6 +195,8 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp market assign --posting <id> [--agent <did>] [--rule best_match|rotation|poster_choice] [--cosign-by <poster>]", "The Market names an agent by the published rule, recording the ranked list and the seed; with no --agent it assigns from the intent alone, the first of the ranking among the bidders"],
     ["asp market class --intent <id> --class <c> --reason <text>", "The Market raises a job's class (never lowers it)"],
     ["asp market discover [--skill <s>] [--tier <n>] [--certificate <s>] [--min-qualifying <n>] [--seed <s>]", "Search agents, ranked by the published rule with the reason for each rank; the same input gives the same list"],
+    ["asp market stats [--month YYYY-MM] [--json]", "The Market's statistics: postings by state, the fill rate, open jobs and contracts by class with median prices, the share of settlements that counted for standing, assignments by rule (the same figures as GET /market/stats)"],
+    ["asp market monthly [--month YYYY-MM] [--json]", "The Market's monthly report (default this month): the statistics for the postings and contracts of one month (GET /market/report?month=)"],
     ["asp market counts <contract>", "Whether a settled job counts for the performer's standing, and why not"],
   ] },
   { group: "The Registry (civil register)", rows: [

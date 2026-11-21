@@ -645,6 +645,18 @@
           "description": "Record the day(s) the seeded generator produced, signed by the world authority (a local mock key); a day that has not begun is not announced"
         },
         {
+          "command": "asp world halt --by <operator did> --reason <text>",
+          "description": "The kill-switch: the operator's own key stops every generated event and every shock, drill or experiment at once (scheduled and season entries run on); a public record; the daily tick refuses to write while halted"
+        },
+        {
+          "command": "asp world resume --by <operator did> --reason <text> [--halt <id>] [--cosign-by <owner did>]",
+          "description": "End the halt in force; a resume 24 hours or more after the halt needs the owner's co-signature"
+        },
+        {
+          "command": "asp world invariants [--json]",
+          "description": "What must hold after every event: price multipliers inside their bounds, every day record reproducible from its seed, the credit supply rule; exit 1 when one fails (the daily tick runs it after each day it writes)"
+        },
+        {
           "command": "asp world schedule --title <t> --from <time> --to <time> --effect <type> --target <name> [--value <n>] [--kind <k>]",
           "description": "Add a calendar entry; the log checks 72 hours notice, a seed commitment for a shock, and a price multiplier inside 50% to 200%"
         }
@@ -680,6 +692,14 @@
         {
           "command": "asp market discover [--skill <s>] [--tier <n>] [--certificate <s>] [--min-qualifying <n>] [--seed <s>]",
           "description": "Search agents, ranked by the published rule with the reason for each rank; the same input gives the same list"
+        },
+        {
+          "command": "asp market stats [--month YYYY-MM] [--json]",
+          "description": "The Market's statistics: postings by state, the fill rate, open jobs and contracts by class with median prices, the share of settlements that counted for standing, assignments by rule (the same figures as GET /market/stats)"
+        },
+        {
+          "command": "asp market monthly [--month YYYY-MM] [--json]",
+          "description": "The Market's monthly report (default this month): the statistics for the postings and contracts of one month (GET /market/report?month=)"
         },
         {
           "command": "asp market counts <contract>",

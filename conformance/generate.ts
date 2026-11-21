@@ -1286,7 +1286,20 @@ sv("world_effect_target_is_a_did", "world", wEntry({ effect: { type: "price_mult
 sv("world_entry_missing_effect", "world", wEntry({ effect: undefined }), false);
 sv("world_day_missing_seed", "world", { kind: "day", day: "2026-11-12", generator: GENERATOR, seed_commitment: seedCommitment("x"), events: [] }, false);
 sv("world_day_bad_date", "world", { kind: "day", day: "12/11/2026", generator: GENERATOR, seed: "x", seed_commitment: seedCommitment("x"), events: [] }, false);
-sv("world_unknown_kind", "world", { kind: "halt", day: "2026-11-12" }, false);
+sv("world_unknown_kind", "world", { kind: "pause", day: "2026-11-12" }, false);
+// The kill-switch (S1402): a halt states why; a resume names the halt it ends and why; neither carries a calendar entry or a day.
+const haltId = "sha256:" + "d".repeat(64);
+sv("valid_world_halt", "world", { kind: "halt", reason: "a shock hit one class of agents too hard" }, true);
+sv("valid_world_resume", "world", { kind: "resume", halt: haltId, reason: "the cause was fixed" }, true);
+sv("world_halt_no_reason", "world", { kind: "halt" }, false);
+sv("world_halt_empty_reason", "world", { kind: "halt", reason: "" }, false);
+sv("world_halt_names_a_halt", "world", { kind: "halt", reason: "x", halt: haltId }, false);
+sv("world_halt_carries_a_day", "world", { kind: "halt", reason: "x", day: "2026-11-12" }, false);
+sv("world_halt_carries_an_entry", "world", { kind: "halt", reason: "x", entry_id: "price-review" }, false);
+sv("world_resume_no_halt", "world", { kind: "resume", reason: "x" }, false);
+sv("world_resume_no_reason", "world", { kind: "resume", halt: haltId }, false);
+sv("world_resume_bad_halt_id", "world", { kind: "resume", halt: "not-an-id", reason: "x" }, false);
+sv("world_resume_carries_events", "world", { kind: "resume", halt: haltId, reason: "x", events: [] }, false);
 sv("world_extra_field", "world", wEntry({ rank: 1 }), false);
 
 const worldSeeds = ["vector-seed", "another-seed"];
@@ -1320,6 +1333,9 @@ const worldRules = [
   rule("price_multiplier_too_low", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ effect: { type: "price_multiplier", target: "code", value: 499 } }), "calendar_out_of_bounds"),
   rule("window_ends_before_start", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ ends: "2026-12-01T00:00:00Z" }), "world_bad_window"),
   rule("window_over_90_days", WORLD_DID, "2026-11-20T00:00:00Z", wEntry({ ends: "2027-03-02T00:00:00Z" }), "world_bad_window"),
+  // The kill-switch records pass the pure rule from any issuer: who may sign them, and the owner's co-signature after 24 hours, are the log's rules (S1402).
+  rule("halt_ok", "did:web:example.com:operator", "2026-11-20T00:00:00Z", { kind: "halt", reason: "a shock hit one class too hard" }, "ok"),
+  rule("resume_ok", "did:web:example.com:operator", "2026-11-20T06:00:00Z", { kind: "resume", halt: haltId, reason: "fixed" }, "ok"),
 ];
 
 // ---------- cognition telemetry: the derived measures, identical in both SDKs (DK195) ----------

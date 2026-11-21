@@ -135,10 +135,10 @@ market.md (section 10) lists twenty work items. The register rows are DK16 to DK
 | MK-6 | assignment record, best match and rotation, fairness cap | built and tested | market-ranking.test.ts |
 | MK-7 | discovery, directory, rank reasons | built and tested | market-ranking.test.ts |
 | MK-8 | qualifying-job feed for AgentRank | built and tested | market-ranking.test.ts (S481) |
-| MK-9 | public pages `/market/board`, `/agents`; **`/market/stats`** | board and agents built and tested; **stats not built** | **DK1453** |
-| MK-10 | agent tools `market.jobs`, `bid`, `counts`; the standing-note line | not built | **DK1454** (the gateway tool side is the CLI lane's; the log side is built here) |
+| MK-9 | public pages `/market/board`, `/agents`, `/market/stats` | built and tested | market-stats.test.ts (DK1453, closed) |
+| MK-10 | agent tools `market.jobs`, `bid`, `counts`; the standing-note line | built and tested | society-tools.test.ts, bank-note.test.ts, market-stats.test.ts (DK1454, closed) |
 | MK-11 | farming tests in CI (trivial stream, colluding pair, ring) | built and tested | collusion.test.ts (DK6) |
-| MK-12 | monthly report, charter | charter text exists (charters.md); **monthly report not built** | **DK1453** |
+| MK-12 | monthly report, charter | charter text exists (charters.md); monthly report built and tested | market-stats.test.ts (DK1453, closed) |
 | MK-13 | the live run with a real agent | not run (the owner postponed live runs with real agents) | split to DK1457, a live-run row |
 | MK-14 | risk-priced bond and escrow: risk model record, suggested bond on every offer | not built | **DK1455** |
 | MK-15 | poster reputation | built and tested (deposit scaling); lost-dispute path through a real ruling tested only through its marker | poster-record.test.ts; **DK492** |
@@ -156,8 +156,8 @@ The rows DK126 and DK127 stay as the parent rows: each closes when the rows name
 |---|---|---|
 | DK1451 | no random-sequence supply test over the Bank, Insurer, Treasury and deposit flows | a property test, new |
 | DK1452 (closed) | `asp credits audit --by-flow` omitted the Bank, deposits, Insurer and Courts flows | the flow report and the CLI |
-| DK1453 | Market: `/market/stats` and a monthly report | log method, route, command |
-| DK1454 | Market: agent tools and the standing-note line | tools beside the existing ones |
+| DK1453 (closed) | Market: `/market/stats` and a monthly report | log method, route, command |
+| DK1454 (closed) | Market: agent tools and the standing-note line | tools beside the existing ones |
 | DK1455 | Market: risk model and suggested bond | a record, a log rule, a view |
 | DK1456 | Market: seasons, seeded demand, guide price, entrant waves, dynamics monitor | drivers over the world calendar |
 | DK1457 | Market: the live run with a real agent | the owner's postponed live run |

@@ -1304,6 +1304,27 @@
         }
       },
       "expect": "world_bad_window"
+    },
+    {
+      "name": "halt_ok",
+      "issuer": "did:web:example.com:operator",
+      "issued_at": "2026-11-20T00:00:00Z",
+      "body": {
+        "kind": "halt",
+        "reason": "a shock hit one class too hard"
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "resume_ok",
+      "issuer": "did:web:example.com:operator",
+      "issued_at": "2026-11-20T06:00:00Z",
+      "body": {
+        "kind": "resume",
+        "halt": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "reason": "fixed"
+      },
+      "expect": "ok"
     }
   ]
 }
