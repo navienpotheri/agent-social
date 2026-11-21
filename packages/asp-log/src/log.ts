@@ -15,7 +15,7 @@ import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./d
 import { invitationMessage, type FleetInvitation } from "./fleet-invite.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
-import { COVER_SHARE_PERMILLE, PREMIUM_SPLIT, jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
+import { type InsurerDrivers, premiumFor, drivenPremium, COVER_SHARE_PERMILLE, PREMIUM_SPLIT, jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
 import { projectCreditLine, projectMentorship, payMentor, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
   AspError, Job, isNetworkScope, verifyBytes, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
@@ -166,6 +166,9 @@ export interface EventLogOptions {
    * ran under `legacy` replays under `v2` with the same result everywhere (the rule reads the record's time, never the clock). Without it `v2` applies from the first record, as before: for a new log or a test. A log must be replayed with the same value.
    */
   bondFloorFrom?: string;
+  /** From this time the Insurer's price drivers decide the premium a policy is sold at (S1567, DK491); before it, or with no value, the table's premium is the rule. `insurerSeed` seeds the premium holidays (default "asp-insurer"). */
+  insurerDriversFrom?: string;
+  insurerSeed?: string;
   /** The time from which a bond's floor reads the decayed job count and the Clinic's measured terms (DK313, S1201). Default `FLOOR_MEASURED_FROM`. */
   floorMeasuredFrom?: string;
   /** The time from which a record's panel is drawn by v2 (one seat for each funding source); before it, v1. Default `PANEL_DRAW_V2_FROM`. */
@@ -279,7 +282,9 @@ export class EventLog {
   private readonly maxNodeTtlMs: number;
   private readonly panelSize: number;
   private readonly bankEnv: BankEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
-  private readonly insurerEnv: InsurerEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
+  private insurerDrivers?: InsurerDrivers;
+  private get insurerEnv(): InsurerEnv { return { ...(this.insurerDrivers ? { drivers: this.insurerDrivers } : {}), ...this.insurerEnvBase }; }
+  private readonly insurerEnvBase: InsurerEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
 
   private readonly bondFloor: "legacy" | "v2" | "v3";
   private bondFloorFrom?: string;
@@ -301,6 +306,9 @@ export class EventLog {
     this.bondFloor = opts.bondFloor ?? "legacy";
     if (opts.bondFloorFrom !== undefined && !Number.isFinite(Date.parse(opts.bondFloorFrom))) throw new Error(`bondFloorFrom must be an ISO time, got ${opts.bondFloorFrom}`);
     this.bondFloorFrom = opts.bondFloorFrom;
+    // The owner's switch for the Insurer's price drivers: the option, or the environment of the service (ASP_INSURER_DRIVERS_FROM, an ISO time; ASP_INSURER_SEED); a replica must be started with the same value to replay the same premiums.
+    const driversFrom = opts.insurerDriversFrom ?? process.env.ASP_INSURER_DRIVERS_FROM;
+    if (driversFrom !== undefined && driversFrom !== "") { if (!Number.isFinite(Date.parse(driversFrom))) throw new Error(`insurerDriversFrom must be an ISO time, got ${driversFrom}`); this.insurerDrivers = { from: driversFrom, seed: opts.insurerSeed ?? process.env.ASP_INSURER_SEED ?? "asp-insurer" }; }
     if (opts.panelV2From !== undefined && !Number.isFinite(Date.parse(opts.panelV2From))) throw new Error(`panelV2From must be an ISO time, got ${opts.panelV2From}`);
     this.panelV2From = opts.panelV2From;
     if (opts.floorMeasuredFrom !== undefined && !Number.isFinite(Date.parse(opts.floorMeasuredFrom))) throw new Error(`floorMeasuredFrom must be an ISO time, got ${opts.floorMeasuredFrom}`);
@@ -313,7 +321,7 @@ export class EventLog {
 
   /** The options a replay needs to judge the same records the same way. */
   private replayOptions(): EventLogOptions {
-    return { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor, ...(this.bondFloorFrom ? { bondFloorFrom: this.bondFloorFrom } : {}), ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}), ...(this.floorMeasuredFrom ? { floorMeasuredFrom: this.floorMeasuredFrom } : {}), operator: this.operator, owner: this.owner };
+    return { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor, ...(this.bondFloorFrom ? { bondFloorFrom: this.bondFloorFrom } : {}), ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}), ...(this.floorMeasuredFrom ? { floorMeasuredFrom: this.floorMeasuredFrom } : {}), ...(this.insurerDrivers ? { insurerDriversFrom: this.insurerDrivers.from, insurerSeed: this.insurerDrivers.seed } : {}), operator: this.operator, owner: this.owner };
   }
 
   append(raw: unknown): Promise<AppendResult> {
@@ -3941,6 +3949,24 @@ export class EventLog {
   async claimOwed(claim: string): Promise<number> { return this.store.transaction(async (tx) => Number((await tx.getMarker(`claim_owed:${claim}`)) ?? 0)); }
 
   /** The class a contract's job counts as, for the failed-job premium (DK183). */
+  /**
+   * The premium a policy would be sold at now (S1567, DK491): the table's premium and, from the time the log's price drivers are on, the driven one the log will check a policy against. A quote and a sale agree because both
+   * come from the same function. Reads only.
+   */
+  async insurerQuote(o: { contract: string; cover: "bond_slash" | "failed_job"; holder: string; insured: number; at?: string }): Promise<{ premium: number; table: number; driven: boolean; why: string | null }> {
+    const at = o.at ?? new Date().toISOString();
+    return this.store.transaction(async (tx) => {
+      const c = await tx.getRecord(o.contract);
+      if (!c || c.record.type !== "asp.contract/v0.2") throw new AspError("BAD_PREV", `${o.contract} is not a contract in the log`);
+      const price = (c.record.body as { price: { value: number } }).price.value;
+      const rep = await this.reputation(tx, o.holder);
+      const strikes = (rep?.strikeLog ?? []).filter((s) => Date.parse(s.at) >= Date.parse(at) - STRIKE_WINDOW_MS).reduce((n, s) => n + s.count, 0);
+      const table = premiumFor(o.cover, o.insured, price, rep?.qualifyingJobs ?? 0, strikes, await jobClassOfContract(tx, c.record));
+      const driven = await drivenPremium(tx, this.insurerEnv, { holder: o.holder, table, insured: o.insured, strikes, at });
+      return { premium: driven?.premium ?? table, table, driven: !!driven, why: driven?.why ?? null };
+    });
+  }
+
   async jobClassOf(contract: string): Promise<JobClass> {
     return this.store.transaction(async (tx) => { const c = await tx.getRecord(contract); if (!c) throw new AspError("BAD_PREV", `${contract} is not in the log`); return jobClassOfContract(tx, c.record); });
   }

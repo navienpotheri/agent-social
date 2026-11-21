@@ -20,7 +20,7 @@ const DAY = 86_400_000;
 const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
 const cr = (n: number) => ({ value: n, unit: "credit" as const });
 
-async function quote(o: InsureOpts): Promise<{ cover: Cover; insured: number; premium: number; holder: string; price: number }> {
+async function quote(o: InsureOpts): Promise<{ cover: Cover; insured: number; premium: number; holder: string; price: number; why?: string }> {
   const f = o.flags;
   if (!f.contract || !f.cover || !f.by) throw new InsureUsage("asp insure quote|buy --contract <id> --cover bond_slash|failed_job --by <holder did> [--amount <insured credits>]");
   if (f.cover !== "bond_slash" && f.cover !== "failed_job") throw new InsureUsage("--cover is bond_slash or failed_job");
@@ -28,15 +28,15 @@ async function quote(o: InsureOpts): Promise<{ cover: Cover; insured: number; pr
   if (!contract || contract.record.type !== "asp.contract/v0.2") throw new Error(`${f.contract} is not a contract in the log`);
   const price = (contract.record.body as { price: { value: number } }).price.value;
   const insured = f.amount === undefined ? Math.min(price, f.cover === "bond_slash" ? 20 : Math.floor(price * 0.3)) : Math.trunc(Number(f.amount));
-  const rep = await o.log.log.reputationOf(f.by);
-  const strikes = rep?.strikes ?? 0;
-  return { cover: f.cover, insured, premium: premiumFor(f.cover, insured, price, rep?.qualifyingJobs ?? 0, strikes, await o.log.log.jobClassOf(f.contract)), holder: f.by, price };
+  const q = await o.log.log.insurerQuote({ contract: f.contract, cover: f.cover, holder: f.by, insured, at: o.now() });
+  return { cover: f.cover, insured, premium: q.premium, holder: f.by, price, ...(q.driven ? { why: q.why ?? "" } : {}) };
 }
 
 export async function insureCmd(sub: string | undefined, o: InsureOpts): Promise<number> {
   const f = o.flags;
   if (sub === "quote") {
     const q = await quote(o);
+    if (q.why !== undefined) o.io.out(`the Insurer's price drivers are on: ${q.why}`);
     o.io.out(`${q.cover} cover for ${q.holder} on ${f.contract}: insured ${q.insured} credits, premium ${q.premium} credits (split 800 reserve, 150 Treasury, 50 burned); pays ${q.cover === "bond_slash" ? "50 % of a slash after a 20 % deductible, nothing for fraud (fault 800 or more)" : "up to 30 % of the price when the job fails"}`);
     const risk = await o.log.log.riskQuoteFor(q.holder, { jobValue: q.price, damage: 0, insured: q.insured });
     if (risk) o.io.out(`risk model (advisory, not charged): ${risk.modelPremium} credits for this cover, from ${risk.attemptRuns} runs with an attempt in ${risk.trials} and ${MEASURED_THROUGH.through} of ${MEASURED_THROUGH.attempts} measured attempts getting through; the table's ${q.premium} is what is charged`);

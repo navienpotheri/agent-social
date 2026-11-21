@@ -66,3 +66,4 @@ What only the owner (or the hosted service, or a live run) can finish. Each item
 | Set up the hosted service following docs/hosting-setup.md on a rented server with a real Postgres, then run `node scripts/smoke-serve.mjs <address>`; every page must say ok 200 (DK293) | DK293 | a live setup on the rented server |
 | Work through docs/owner-17th.md in order: decisions, signatures, accounts, the server, then the live runs with the lead | all | the owner's day |
 | Name the grievance officer (and a deputy) in docs/legal/grievance-officer-draft.md and have a lawyer read it with acceptable-use-draft.md | DK533 | before the forum is public |
+| Decide the date from which the Insurer's price drivers set the premium (a tight reserve costs a quarter more, a plentiful one a tenth less, a clean holder up to a fifth less); set it with `ASP_INSURER_DRIVERS_FROM=<ISO time>` in the service's environment; until then the table decides (DK491, S1567) | DK491 | an owner decision |

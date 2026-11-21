@@ -9,6 +9,7 @@ import { effectiveClass, higherClass, type JobClass } from "./market.ts";
 import type { LogTx } from "./store.ts";
 import { effectiveFault } from "./courts-rules.ts";
 import { noteIncome } from "./bank-active.ts";
+import { cyclePermille, experiencePermille, holiday, quotePremium } from "./insurer-dynamics.ts";
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
 
@@ -60,8 +61,11 @@ export function payoutFor(cover: Cover, insured: number, price: number, slashed:
   return amount > 0 ? { amount } : { amount: 0, reason: "no_gap" };
 }
 
+/** The price drivers of bank-insurer.md 14.1 (experience rating, the credit-cycle rule, premium holidays), switched on from a time by the log's option `insurerDriversFrom` (S1567, DK491); before it the table's premium is the rule. The seed is published: a holiday is a seeded draw anyone can replay. */
+export interface InsurerDrivers { from: string; seed: string }
 export interface InsurerEnv {
-  reputation(tx: LogTx, did: string): Promise<{ tier: number; qualifyingJobs: number; strikeLog: { at: string; count: number }[] } | null>;
+  drivers?: InsurerDrivers;
+  reputation(tx: LogTx, did: string): Promise<{ tier: number; qualifyingJobs: number; strikeLog: { at: string; count: number }[]; recentJobs?: { at: string }[] } | null>;
   debit(tx: LogTx, did: string, amount: number): Promise<void>;
   credit(tx: LogTx, did: string, amount: number): Promise<void>;
 }
@@ -81,6 +85,34 @@ const readPolicy = async (tx: Pick<LogTx, "getMarker">, id: string): Promise<Pol
 const balanceOf = async (tx: Pick<LogTx, "getAccount">, did: string) => (await tx.getAccount(did))?.balance ?? 0;
 const readClaims = async (tx: Pick<LogTx, "getMarker">): Promise<{ at: string; amount: number }[]> => JSON.parse((await tx.getMarker("insurer_claims")) ?? "[]");
 const signedBy = (r: AspRecord, did: string) => r.issuer === did || (r.cosigs ?? []).some((c) => c.kid.startsWith(`${did}#`));
+
+/** The claims a holder has had paid, kept by time for the experience rating (the claims in the last 90 days raise its premium). */
+async function noteHolderClaim(tx: LogTx, holder: string, at: string): Promise<void> {
+  const list = JSON.parse((await tx.getMarker(`holder_claims:${holder}`)) ?? "[]") as string[];
+  await tx.putMarker(`holder_claims:${holder}`, JSON.stringify([...list, at].slice(-100)));
+}
+
+/**
+ * The premium with the drivers on (S1567, DK491): the table's premium times the experience factor (the holder's own clean runs in 90 days, strikes in 30, claims in 90), the credit-cycle factor (the reserve against its floor)
+ * and a seeded holiday, by `quotePremium`. Null before the time the drivers are switched on, and the table's premium is the rule. A holiday needs a reserve over 3 times the floor, so it never spends a thin reserve. The floor is the
+ * one the sale itself will be checked against, so a quote and the log agree.
+ */
+export async function drivenPremium(tx: LogTx, env: InsurerEnv, p: { holder: string; table: number; insured: number; strikes: number; at: string }): Promise<{ premium: number; why: string } | null> {
+  const d = env.drivers;
+  if (!d || Date.parse(p.at) < Date.parse(d.from)) return null;
+  const rep = await env.reputation(tx, p.holder);
+  const at = Date.parse(p.at);
+  const cleanRuns90 = (rep?.recentJobs ?? []).filter((j) => Date.parse(j.at) >= at - 90 * 86_400_000 && Date.parse(j.at) <= at).length;
+  const claims90 = (JSON.parse((await tx.getMarker(`holder_claims:${p.holder}`)) ?? "[]") as string[]).filter((t) => Date.parse(t) >= at - 90 * 86_400_000).length;
+  const reserve = await balanceOf(tx, INSURER_DID);
+  const largest = Math.max(Number((await tx.getMarker("insurer_largest")) ?? 0), p.insured);
+  const claimsSum = (await readClaims(tx)).filter((c) => Date.parse(c.at) >= at - 90 * 86_400_000).reduce((n, c) => n + c.amount, 0);
+  const floor = reserveFloor(largest, claimsSum);
+  const month = p.at.slice(0, 7);
+  const rec = { cleanRuns90, strikes30: p.strikes, claims90 };
+  const premium = quotePremium(p.table, rec, reserve, floor, d.seed, month);
+  return { premium, why: `experience ${experiencePermille(rec) / 1000} (${cleanRuns90} clean run(s), ${p.strikes} strike(s), ${claims90} claim(s)), cycle ${cyclePermille(reserve, floor) / 1000} (reserve ${reserve}, floor ${floor})${holiday(d.seed, month, reserve, floor) ? ", premium holiday" : ""}` };
+}
 
 /** A policy (bank-insurer.md 3, 5): sold by the Insurer, countersigned by the holder, before the first Action, at the premium the rules set, only if the reserve stays at or above its floor. */
 export async function projectPolicy(tx: LogTx, r: AspRecord, env: InsurerEnv): Promise<void> {
@@ -106,8 +138,10 @@ export async function projectPolicy(tx: LogTx, r: AspRecord, env: InsurerEnv): P
   const holderRep = await env.reputation(tx, b.holder);
   const strikes = (holderRep?.strikeLog ?? []).filter((s) => Date.parse(s.at) >= Date.parse(r.issued_at) - STRIKE_WINDOW_MS).reduce((n, s) => n + s.count, 0);
   const jobClass = await jobClassOfContract(tx, contract.record);
-  const premium = premiumFor(b.cover, b.insured_amount.value, price, holderRep?.qualifyingJobs ?? 0, strikes, jobClass);
-  if (b.premium.value !== premium) throw rule("premium_mismatch", `the premium for this cover is ${premium} credits (${strikes} recent strike(s) in it${b.cover === "failed_job" ? `, job class ${jobClass}` : ""}), not ${b.premium.value}`);
+  const table = premiumFor(b.cover, b.insured_amount.value, price, holderRep?.qualifyingJobs ?? 0, strikes, jobClass);
+  const driven = await drivenPremium(tx, env, { holder: b.holder, table, insured: b.insured_amount.value, strikes, at: r.issued_at });
+  const premium = driven?.premium ?? table;
+  if (b.premium.value !== premium) throw rule("premium_mismatch", `the premium for this cover is ${premium} credits (${strikes} recent strike(s) in it${b.cover === "failed_job" ? `, job class ${jobClass}` : ""}${driven ? `; the table's ${table} times the drivers: ${driven.why}` : ""}), not ${b.premium.value}`);
   const parts = splitParts(premium, PREMIUM_SPLIT);
   const reserveAfter = (await balanceOf(tx, INSURER_DID)) + parts.payees[0].amount;
   const largest = Math.max(Number((await tx.getMarker("insurer_largest")) ?? 0), b.insured_amount.value);
@@ -164,6 +198,7 @@ export async function projectClaimDecision(tx: LogTx, r: AspRecord, env: Insurer
     await env.debit(tx, INSURER_DID, dueNow);
     await env.credit(tx, (await readPolicy(tx, policyNow.policy))!.holder, dueNow);
     await tx.putMarker("insurer_claims", JSON.stringify([...(await readClaims(tx)), { at: r.issued_at, amount: dueNow }]));
+    await noteHolderClaim(tx, (await readPolicy(tx, policyNow.policy))!.holder, r.issued_at);
     await tx.putMarker(`claim_owed:${b.claim}`, String(owed - dueNow));
     return;
   }
@@ -192,6 +227,7 @@ export async function projectClaimDecision(tx: LogTx, r: AspRecord, env: Insurer
     await env.debit(tx, INSURER_DID, due);
     await env.credit(tx, policy.holder, due);
     await tx.putMarker("insurer_claims", JSON.stringify([...(await readClaims(tx)), { at: r.issued_at, amount: due }]));
+    await noteHolderClaim(tx, policy.holder, r.issued_at);
     if (due < terms.amount) await tx.putMarker(`claim_owed:${b.claim}`, String(terms.amount - due));
   }
   await tx.putMarker(`claim_decided:${b.claim}`, r.id);
