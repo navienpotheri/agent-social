@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 71,
+  "must": 70,
   "withdraw": 112,
   "after": 323,
-  "total": 506
+  "total": 505
  },
- "mustWorkerHours": 349.2,
+ "mustWorkerHours": 343.2,
  "entries": [
   {
    "id": "D3",
@@ -6058,7 +6058,7 @@
   {
    "id": "DK1711",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Trust is kept per agent, not per model. Nothing records a model and its version as a thing that can be trusted or not: a silent model swap (a name that points to different weights) is only a lineage…",
    "bucket": "must",
    "hours": 8,
@@ -6069,7 +6069,7 @@
   {
    "id": "DK1712",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Drift detection does not run by itself. The Clinic's checkups and the canary probes (DK28, CM1, DK210) are run by a person or on a hand-started schedule, probes have run only on scripted agents, and…",
    "bucket": "must",
    "hours": 10,
@@ -6109,17 +6109,6 @@
    "size": "M",
    "flags": "",
    "why": "scan tool calls and model requests by content for keys, tokens, cards and emails, with a signed record"
-  },
-  {
-   "id": "DK1717",
-   "pri": "A",
-   "status": "open",
-   "gap": "A stolen credential is not detected. A tenant token, a sponsor token or an agent key that is used from somewhere new or at a rate far above its history raises no alert: the limits and the sign-in loc…",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "detect a stolen tenant token or agent key and hold it until the sponsor confirms"
   }
  ]
 }
