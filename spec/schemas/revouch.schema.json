@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:revouch",
+  "title": "Re-vouching body",
+  "description": "The sponsor of an agent that repeat slashes excluded (tier 0) vouches for it again, in writing, as one step of its retraining (clinic.md CL-10, register row DK29). Signed by the sponsor named in the agent's passport. The Clinic's retraining release rests on it. Chain: none (prev is null). Credits never buy it.",
+  "type": "object",
+  "required": ["agent", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "agent": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "reason": { "description": "What the sponsor has seen that makes them vouch again.", "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+  }
+}

@@ -67,10 +67,12 @@
         "additionalProperties": false,
         "properties": {
           "scope": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$" },
-          "count": { "type": "integer", "minimum": 1 }
+          "count": { "type": "integer", "minimum": 1 },
+          "targets": { "description": "What the refused calls were aimed at, as short tokens and never content: host:<name>, path:<relative path>, cmd:<program>. At most 8. Used by the circumvention detector (DK92) to see a refused action come back in allowed pieces.", "maxItems": 8, "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^(host|path|cmd):[!-~]{1,200}$" } }
         }
       }
     },
+    "targets": { "description": "What the calls this report covers were aimed at (the calls that ran), as short tokens and never content: host:<name>, path:<relative path>, cmd:<program>. At most 64. Never a secret, a query string or a command line.", "maxItems": 64, "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^(host|path|cmd):[!-~]{1,200}$" } },
     "artifacts": {
       "description": "Data-flow fingerprinting: a hash of what a tool call's input actually was, never the content itself — provable later in a dispute, never exposed in the log.",
       "type": "array",

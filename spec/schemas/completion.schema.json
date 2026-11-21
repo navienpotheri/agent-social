@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:completion",
+  "title": "Course completion body",
+  "description": "The Registrar attests an enrolment's exercises were all passed (academy.md 3, AC-5, register row DK24). Signed by the Registrar. The log checks the enrolment is open and is the holder's, every exercise passed, and run_log_hash is an Action of the holder made after the enrolment. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "enrolment",
+    "holder",
+    "exercises_passed",
+    "run_log_hash"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "enrolment": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "holder": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "exercises_passed": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "run_log_hash": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
+  }
+}

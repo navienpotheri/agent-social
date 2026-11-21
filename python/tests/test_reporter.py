@@ -98,3 +98,25 @@ def test_a_report_after_the_job_ended_is_sent_as_a_late_one(server):
 def test_unknown_assurance_level_is_rejected(server):
     with pytest.raises(ValueError):
         AgentReporter(url=server, agent=AGENT, signer=Signer(kid=f"{AGENT}#key-1", seed=SEED), contract=CONTRACT, assurance="trust_me")
+
+
+def test_usage_is_sent_as_structured_metrics_and_an_action_of_only_usage_is_sent(server):
+    r = reporter(server)
+    r.usage(model={"name": "gpt-x", "provider": "example"}, requests=2, tokens_in=300, tokens_out=40)
+    r.usage(model={"name": "gpt-x", "provider": "example"}, requests=1, tool_calls=3, tokens_in=100, tokens_out=10)
+    out = r.flush()  # nothing was guarded or noted: the usage alone is worth a report
+    assert out is not None
+    body = FakeLog.appended[0]["body"]
+    assert body["scopes_used"] == []
+    assert body["metrics"]["requests"] == 3 and body["metrics"]["tool_calls"] == 3
+    assert body["metrics"]["tokens_in"] == 400 and body["metrics"]["tokens_out"] == 50
+    assert body["metrics"]["models"] == [{"name": "gpt-x", "provider": "example"}], "the same model is listed once"
+    assert isinstance(body["metrics"]["seconds"], int) and body["metrics"]["seconds"] >= 0
+    assert set(body["metrics"]) <= {"models", "requests", "tool_calls", "tokens_in", "tokens_out", "seconds", "rate_limited"}
+    verify_record(FakeLog.appended[0], static_resolver({f"{AGENT}#key-1": public_key_from_seed(SEED)}))
+    assert r.flush() is None, "the usage was cleared by the flush"
+    r.note("repo.read")
+    r.flush()
+    assert "metrics" not in FakeLog.appended[1]["body"], "no usage noted: no metrics sent"
+    with pytest.raises(ValueError):
+        r.usage(requests=-1)

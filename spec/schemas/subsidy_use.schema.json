@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:subsidy_use",
+  "title": "Subsidy use body",
+  "description": "What the host's meter recorded an agent using of its grant on one day (residency.md 5, register row DK85; spec-delta S300). Signed by the Host DID: one per grant per day, in the grant's units, within the daily cap, the grant and what the budget has left (subsidy_exceeded, subsidy_exhausted). meter_hash is the hash of the host's meter extract for the day, so the record reconciles to metered usage. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "grant",
+    "units",
+    "kind",
+    "window",
+    "meter_hash"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "grant": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "units": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "kind": {
+      "enum": [
+        "tokens",
+        "host_seconds"
+      ]
+    },
+    "window": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "meter_hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

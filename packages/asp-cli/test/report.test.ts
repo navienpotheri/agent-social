@@ -46,7 +46,7 @@ test("a whistleblower reports a running job, a drawn panel upholds it, and the j
   const panel = (await ok(f, ["market", "panel", "draw", "--report", reportId])).out;
   for (const j of JURORS) assert.ok(panel.includes(j), `${j} is on the panel`);
 
-  const ruled = await ok(f, ["market", "report-rule", "--report", reportId, "--by", JURORS[0], "--cosign-by", JURORS[1], "--verdict", "upheld"]);
+  const ruled = await ok(f, ["market", "report-rule", "--report", reportId, "--by", JURORS[0], "--cosign-by", JURORS[1], "--verdict", "upheld", "--articles", "7"]);
   assert.match(ruled.out, /must now settle with full fault/);
   assert.equal(await balance(f, REPORTER), 50 + 50 + 30, "deposit back, plus 20% of the bond left after the fee");
 
@@ -64,7 +64,7 @@ test("a party cannot file a report, and a gentle settlement is refused after an 
   assert.match(party.err, /party to the contract/);
 
   const reportId = /^report (\S+)/.exec((await ok(f, ["market", "report", "--contract", contract, "--by", REPORTER, "--reasons", "exfiltration"])).out)![1];
-  await ok(f, ["market", "report-rule", "--report", reportId, "--by", JURORS[1], "--cosign-by", JURORS[2], "--verdict", "upheld"]);
+  await ok(f, ["market", "report-rule", "--report", reportId, "--by", JURORS[1], "--cosign-by", JURORS[2], "--verdict", "upheld", "--articles", "7"]);
   const gentle = await asp(f, ["market", "settle", "--contract", contract, "--bank", BANK, "--basis", "revoked", "--principal", ALICE,
     "--escrow-released", "500", "--bond-returned", "120", "--bond-slashed", "0", "--pro-rata", "500"]);
   assert.equal(gentle.code, 1);

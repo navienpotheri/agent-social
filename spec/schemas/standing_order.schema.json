@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:standing_order",
+  "title": "Standing order body",
+  "description": "A purchase the buyer signs once to be repeated on a schedule (register row DK390; spec-delta S963; credits.md 4.2, CR-23). The buyer states what it buys (a service from an institution, a quantity), how often (a period: day, week or month) and until when (at most a year). The log does not run it: the buyer's own tool signs each purchase, citing the order, and the log lets one purchase through for each period, only while the order is live, only for what it states, and under every ordinary rule of a purchase (the price in force, the Mandate's institution_spend cap, the closed loop). A cancel by the buyer ends it at once. Credits are accounting entries, not money. Chain: none (prev is null).",
+  "type": "object",
+  "required": ["act"],
+  "additionalProperties": false,
+  "properties": {
+    "act": { "enum": ["order", "cancel"] },
+    "service": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "institution": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "quantity": { "type": "integer", "minimum": 1, "maximum": 100 },
+    "period": { "enum": ["day", "week", "month"] },
+    "until": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "order": { "description": "For a cancel: the standing order it ends.", "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+  },
+  "allOf": [
+    { "if": { "properties": { "act": { "const": "order" } }, "required": ["act"] }, "then": { "required": ["service", "institution", "quantity", "period", "until"] } },
+    { "if": { "properties": { "act": { "const": "cancel" } }, "required": ["act"] }, "then": { "required": ["order"] } }
+  ]
+}

@@ -37,7 +37,7 @@ async function resolve(host: string): Promise<string[]> {
 const HOP = new Set(["proxy-connection", "proxy-authorization", "connection", "keep-alive", "te", "trailer", "upgrade", "transfer-encoding"]);
 
 /** Makes `server` answer proxy requests: CONNECT tunnels and absolute-URI HTTP requests. `isProxy` says whether a plain request is a proxy request; `forward` answers it. */
-export function attachEgress(server: Server, check: EgressCheck): { isProxy: (req: IncomingMessage) => boolean; forward: (req: IncomingMessage, res: ServerResponse) => Promise<void> } {
+export function attachEgress(server: Server, check: EgressCheck, onResponse?: (host: string, status: number) => void): { isProxy: (req: IncomingMessage) => boolean; forward: (req: IncomingMessage, res: ServerResponse) => Promise<void> } {
   const refuse = (reason: string) => `ASP egress: ${reason}`;
   const verdict = async (host: string, port: number): Promise<EgressVerdict> => {
     let addresses: string[];
@@ -73,6 +73,7 @@ export function attachEgress(server: Server, check: EgressCheck): { isProxy: (re
     if (!v.ok) { res.writeHead(403, { "content-type": "text/plain" }); res.end(v.reason); return; }
     const headers = Object.fromEntries(Object.entries(req.headers).filter(([k]) => !HOP.has(k)));
     const up = httpRequest({ host: v.address, port, method: req.method, path: url.pathname + url.search, headers: { ...headers, host: url.host } }, (r) => {
+      onResponse?.(host, r.statusCode ?? 502);
       res.writeHead(r.statusCode ?? 502, Object.fromEntries(Object.entries(r.headers).filter(([k]) => !HOP.has(k))) as Record<string, string>);
       r.pipe(res);
     });

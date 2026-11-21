@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:usage_plan",
+  "title": "Usage plan body",
+  "description": "A plan price list for metering (register row DK1379; spec-delta S1414): what an active agent, writes over an allowance, tokens, stored data and the hosted dashboard cost, in minor units of one currency, and what a purchased credit settles. Signed by the operator and countersigned by the owner (the owner sets prices; no price is shown anywhere until a plan is signed). A plan id is used once; a new price is a new plan. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "plan",
+    "name",
+    "currency",
+    "agent_month",
+    "writes_included",
+    "writes_per_1000",
+    "tokens_included_m",
+    "tokens_per_m",
+    "storage_included_mb",
+    "storage_per_gb",
+    "dashboard_month"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "plan": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+    },
+    "name": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "agent_month": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "writes_included": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "writes_per_1000": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tokens_included_m": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tokens_per_m": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "storage_included_mb": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "storage_per_gb": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "dashboard_month": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "credit_value": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "effective_from": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    }
+  }
+}

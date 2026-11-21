@@ -34,4 +34,4 @@ Every place where the single-player build seeds mock data or stubs a platform fe
 
 | # | What | Decision |
 |---|---|---|
-| 10 | Private keys stored as plaintext JSON files (`~/.asp/keys/*.json`, mode 0600) | Leave as documented risk for now: single-player/local-only today, files are already owner-only. Revisit when this becomes a hosted, multi-tenant service (tracked in `docs/backlog.md` under "Stage 2 / hosted network") rather than taking on fragile cross-platform native keychain bindings now. |
+| 10 | Private keys stored as plaintext JSON files (`~/.asp/keys/*.json`, mode 0600) | Since 2026-10-28 (S149) they can be sealed with a passphrase (`ASP_KEY_PASSPHRASE`, `asp keys protect`); the default is still plaintext, and the OS keychain is not built. Otherwise leave as documented risk for now: single-player/local-only today, files are already owner-only. Revisit when this becomes a hosted, multi-tenant service (tracked in `docs/backlog.md` under "Stage 2 / hosted network") rather than taking on fragile cross-platform native keychain bindings now. |

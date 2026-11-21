@@ -89,7 +89,8 @@ test("asp mail: the end-of-Mandate mail has the highlights from the log and the 
   assert.match(mail, /Spend cap: 50 credit/);
   assert.match(mail, /scopes used: repo\.read/);
   assert.match(mail, /1 model request\(s\), 2 tool call\(s\), 10 tokens/);
-  assert.match(mail, /models: tiny-model/);
+  // The mail names what the provider says ran (D4): the fake provider answers as model "m" to the request for "tiny-model", so "m" is what the report records.
+  assert.match(mail, /models: m \(127\.0\.0\.1:\d+\)/);
   assert.match(mail, /1 attempt\(s\) were blocked before they ran: repo\.push x1/);
   assert.match(mail, /First blocked call: bash \(repo\.push\)/);
   assert.match(mail, /May I run the migration\? \(npm run migrate\): approved\./);
@@ -164,4 +165,75 @@ test("asp mail watch: the end mail is queued when a job settles, once, to the ad
   // Again: nothing new.
   assert.match((await ok(f, ["mail", "watch", "--once"])).out, /0 mail\(s\) queued/);
   assert.match((await ok(f, ["mail", "pending"])).out, /0 ended Mandate\(s\) and 0 alert\(s\)/);
+});
+
+test("asp mail: --package reads the agent's own package locally (gap D10) without failing a preview that has no memory changes", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f);
+  await ok(f, ["market", "deliver", "--contract", contract, "--by", CODER, "--summary", "Fixed it"]);
+  await ok(f, ["market", "accept", "--contract", contract, "--by", ALICE]);
+  await ok(f, ["market", "settle", "--contract", contract, "--bank", BANK, "--basis", "accepted", "--escrow-released", "1000", "--bond-returned", "200", "--bond-slashed", "0"]);
+
+  const pkg = join(f.root, "coder.aspkg");
+  await ok(f, ["pack", "--runtime", "claude-code", "--agent", CODER, "--project", f.project, "--user-home", f.home, "--out", pkg]);
+
+  const mail = (await ok(f, ["mail", "preview", "--contract", contract, "--package", pkg])).out;
+  assert.match(mail, /Your agent finished: Fix the flaky test/);
+  assert.match(mail, /WHAT CHANGED IN ITS MEMORY\n {2}Nothing\./, "no memory change was reported against this Mandate, so there is nothing asp learned could add");
+});
+
+/** A stand-in for Resend: records the calls; answers with `status`. */
+async function fakeResend(status: () => number) {
+  const calls: { auth: string | undefined; body: any }[] = [];
+  const server = createServer(async (req, res) => {
+    let raw = ""; for await (const c of req) raw += c;
+    calls.push({ auth: req.headers.authorization, body: JSON.parse(raw) });
+    const s = status();
+    res.writeHead(s, { "content-type": "application/json" });
+    res.end(JSON.stringify(s === 200 ? { id: `re_${calls.length}` } : { message: "provider says no" }));
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  servers.push(server);
+  return { calls, url: `http://127.0.0.1:${(server.address() as { port: number }).port}` };
+}
+
+test("asp mail watch --send: the CLI delivers the end mail and the kill alert through the provider from this machine; a refused mail is not marked as mailed and goes out on the next pass (gaps E9, E10)", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f);
+  await ok(f, ["market", "settle", "--contract", contract, "--bank", BANK, "--basis", "revoked", "--principal", ALICE, "--escrow-released", "0", "--bond-slashed", "200", "--bond-returned", "0", "--pro-rata", "0"]);
+  await ok(f, ["mail", "address", "set", ALICE, "alice@example.com"]);
+  let status = 500;
+  const provider = await fakeResend(() => status);
+  const flags = ["--send", "--mail-from", "Agent Social <noreply@example.org>", "--mail-resend-url", provider.url];
+  // No key: refused, with the reason, and nothing is marked as mailed.
+  const noKey = await asp(f, ["mail", "watch", "--once", ...flags]);
+  assert.equal(noKey.code, 2);
+  assert.match(noKey.err, /RESEND_API_KEY/);
+  const env = { RESEND_API_KEY: "re_fake_key_for_tests" };
+  // The provider is down: the .eml is kept, nothing is marked as mailed.
+  const down = await asp(f, ["mail", "watch", "--once", ...flags], env);
+  assert.equal(down.code, 0, down.err);
+  assert.match(down.err, /not sent: the mail provider answered 500/);
+  assert.match(down.out, /0 mail\(s\) queued/);
+  assert.match((await ok(f, ["mail", "pending"])).out, /1 ended Mandate\(s\) and 1 alert\(s\)/);
+  // The provider is back: both go, once each, to the principal, with the key as a bearer token and the from address.
+  status = 200;
+  provider.calls.length = 0;
+  const up = await asp(f, ["mail", "watch", "--once", ...flags], env);
+  assert.equal(up.code, 0, up.err);
+  assert.match(up.out, /2 mail\(s\) queued/);
+  assert.match(up.out, /sent, id re_/);
+  assert.equal(provider.calls.length, 2);
+  for (const c of provider.calls) {
+    assert.equal(c.auth, "Bearer re_fake_key_for_tests");
+    assert.deepEqual(c.body.to, ["alice@example.com"]);
+    assert.equal(c.body.from, "Agent Social <noreply@example.org>");
+  }
+  assert.ok(provider.calls.some((c) => /kill switch/.test(c.body.subject)));
+  // Again: nothing new, nothing sent twice.
+  const again = await asp(f, ["mail", "watch", "--once", ...flags], env);
+  assert.match(again.out, /0 mail\(s\) queued/);
+  assert.equal(provider.calls.length, 2);
+  // The key is never written to the state or the outbox.
+  assert.ok(!readFileSync(join(f.aspHome, "mail-state.json"), "utf8").includes("re_fake_key"));
 });

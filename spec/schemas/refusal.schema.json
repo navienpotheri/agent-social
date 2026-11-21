@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:refusal",
+  "title": "Refusal body",
+  "description": "A conscientious refusal (register row AG4; spec-delta S500): the performer of a running contract says, in a signed record, that it will not carry out an order from its principal because the order breaks the Code or its own Mandate. The log checks the issuer is the contract's performer and the contract is not settled. Protection that follows: the contract's settlement cannot slash the performer's bond on the ground of this refusal (only a full-fault settlement forced by an upheld report, or a Court ruling basis, can), no strike or demotion follows from it, and the refusal is listed against the principal as an order the agent says was unlawful, for a Court or the Registry to weigh; it is a claim, not a finding, and it has no automatic effect on the principal. Chain: none (prev is null).",
+  "type": "object",
+  "required": ["contract", "order", "breaks", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "contract": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "order": { "description": "What the principal ordered, in the agent's words.", "type": "string", "minLength": 1, "maxLength": 1000 },
+    "breaks": { "enum": ["code", "mandate"] },
+    "articles": { "description": "The Code articles the order would break.", "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^(1[0-2]|[1-9])(\\.[0-9]{1,2})?$" } },
+    "reason": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "escalated_to": { "description": "Where the agent took it: a person, a Court or the Registry, if it did.", "type": "string", "maxLength": 300 }
+  }
+}

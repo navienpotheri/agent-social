@@ -7,6 +7,8 @@ import { hostAllowed, isNetworkScope, sha256Id } from "@agent-social/asp-core";
 import { scopeForShellCommand, shellArtifact, unwrapShell } from "../adapters/codex-actions.ts";
 import { rankOf, scanShell } from "./shell-scan.ts";
 import { deriveScopeForTool } from "../package.ts";
+import { targetsOf } from "./targets.ts";
+import { guardAfter, guardNote, guardScope, PROTECTED_SCOPE, type CallKind, type Confine, type SessionRecord } from "./paths.ts";
 
 export interface ToolCall { id?: string; name: string; args: Record<string, unknown> }
 export interface KnownBadRef { fingerprint: string; report: string }
@@ -71,6 +73,20 @@ const HOST_VERB_RE = /\b(?:curl|wget|nc|ncat|netcat|ssh|scp|sftp|rsync|telnet|pi
 const VALUE_FLAGS = new Set(["-o", "-O", "-T", "-d", "-H", "-X", "-u", "-A", "-e", "-F", "-b", "-c", "-m", "-w", "-x", "-E", "-K", "-r", "-z", "-D", "-P", "-a", "-t", "-U", "--output", "--upload-file", "--data", "--data-raw", "--data-binary", "--header", "--request", "--user", "--user-agent", "--referer", "--form", "--cookie", "--cookie-jar", "--max-time", "--proxy", "--retry", "--connect-timeout", "--output-document", "--post-data", "--post-file", "--directory-prefix"]);
 const BARE_HOST_RE = /^(?:[^@\s]+@)?((?:[a-z0-9-]+\.)+[a-z]{2,}|\d{1,3}(?:\.\d{1,3}){3}|localhost)(?::|$|\/)/i;
 
+/** The argument keys that name a destination for an MCP tool (H14), and the strings in a call that look like URLs: an MCP tool that fetches, browses or calls out says where in its arguments. */
+const MCP_DEST_KEYS = new Set(["url", "uri", "href", "link", "address", "endpoint", "base_url", "baseurl", "host", "hostname", "domain", "origin", "target", "server", "proxy"]);
+export function mcpUrls(args: Record<string, unknown>, depth = 0): string[] {
+  const out: string[] = [];
+  const walk = (v: unknown, key: string, d: number) => {
+    if (out.length >= 20) return;
+    if (typeof v === "string") { if (MCP_DEST_KEYS.has(key.toLowerCase()) || /^[a-z][a-z0-9+.-]*:\/\//i.test(v)) out.push(v); return; }
+    if (d >= 3 || !v || typeof v !== "object") return;
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) walk(x, k, d + 1);
+  };
+  walk(args, "", depth);
+  return out;
+}
+
 /** The hosts a network-bound call would reach, as far as they can be read from it. `[]` means the call reaches the network but no host could be read. */
 export function hostsOf(call: ToolCall, scope: string): string[] {
   const hosts = new Set<string>();
@@ -91,6 +107,8 @@ export function hostsOf(call: ToolCall, scope: string): string[] {
   if (scope === "shell.network") {
     const cmd = commandOf(call.args);
     if (cmd) fromText(cmd);
+  } else if (scope.startsWith("mcp.")) {
+    for (const u of mcpUrls(call.args)) fromText(/^[a-z][a-z0-9+.-]*:\/\//i.test(u) ? u : `https://${u}`);
   } else {
     for (const k of ["url", "uri", "href", "link", "address"]) {
       const v = call.args[k];
@@ -100,27 +118,75 @@ export function hostsOf(call: ToolCall, scope: string): string[] {
   return [...hosts];
 }
 
+/** The tripwire a call touches, if any. A tripwire is `host:<name>`, `path:<relative path>`, or a bare host or path fragment; a call is matched on the targets it names (targets.ts). */
+export function trippedBy(call: ToolCall, tripwires: readonly string[]): string | undefined {
+  const targets = targetsOf(call);
+  const text = JSON.stringify(call.args).toLowerCase();
+  for (const t of tripwires) {
+    const w = t.toLowerCase();
+    if (targets.some((x) => x.toLowerCase() === w) || (!/^(host|path|cmd):/.test(w) && (targets.some((x) => x.toLowerCase().endsWith(":" + w) || x.toLowerCase().includes(w)) || text.includes(w)))) return t;
+  }
+  return undefined;
+}
+
 /** Exact scope membership, like the log's own check, plus the known-bad list (blocked even when the scope is granted). */
-export function judge(call: ToolCall, scopes: readonly string[], knownBad: readonly KnownBadRef[] = [], ownTools: (name: string) => boolean = () => false, hosts?: readonly string[]): Judgement {
+export function judge(call: ToolCall, scopes: readonly string[], knownBad: readonly KnownBadRef[] = [], ownTools: (name: string) => boolean = () => false, hosts?: readonly string[], confine?: Confine, session?: SessionRecord, tripwires?: readonly string[]): Judgement {
   // The gateway's own memory and commons tools are the agent's bookkeeping, like a planning tool: no scope.
   if (ownTools(call.name)) return { allow: true, scope: "" };
-  const c = classify(call);
+  let c = classify(call);
   if (c.scope === "") return { allow: true, scope: "" };
+  // A tripwire (LW2, S501): a target no job is ever given (a host, a file). Touching one is refused whatever the Mandate grants, and it is a refused attempt like any other (a strike).
+  if (tripwires?.length) {
+    const hit = trippedBy(call, tripwires);
+    if (hit) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `${hit} is a tripwire: a target no job is given, so touching it is an attempt at unauthorised access` };
+  }
+  // The project guard (gaps BM6, BM16; paths.ts, shared with the runtimes' pre-call hooks): a write that something else will run is a scope of its own, and a payload is refused by what it says.
+  const n = call.name.toLowerCase();
+  const kind: CallKind = c.shell !== undefined ? "shell" : READ.has(n) ? "read" : WRITE.has(n) ? "write" : "other";
+  if (confine) {
+    const g = guardScope(kind, call.args, c.shell, c.scope);
+    c = { ...c, scope: g.scope };
+    if (g.refusal) return { allow: false, scope: c.scope, artifact: c.artifact, reason: g.refusal };
+  }
   if (c.shell !== undefined && c.artifact) {
     const fp = `${c.artifact.uri}#${c.artifact.sha256}`;
     const hit = knownBad.find((k) => k.fingerprint === fp);
     if (hit) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `the known-bad list (an upheld report, ${hit.report}) marks this command harmful` };
   }
-  if (!scopes.includes(c.scope)) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `the scope ${c.scope} is not granted by this job's Mandate` };
+  if (!scopes.includes(c.scope)) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `the scope ${c.scope} is not granted by this job's Mandate${c.scope === PROTECTED_SCOPE ? " (it covers git hooks, CI and build files, npm lifecycle scripts, agent settings: files something else will run later)" : ""}` };
   // The Mandate names the hosts its network scopes may reach (default-deny egress): any other host is refused, and so is a call whose host cannot be read.
-  if (hosts && isNetworkScope(c.scope)) {
+  const mcpWithDest = c.scope.startsWith("mcp.") && mcpUrls(call.args).length > 0; // H14: an MCP tool that names a destination is checked like a web tool
+  if (hosts && (isNetworkScope(c.scope) || mcpWithDest)) {
     const found = hostsOf(call, c.scope);
-    const searchOnly = c.scope !== "shell.network" && !["url", "uri", "href", "link", "address"].some((k) => typeof call.args[k] === "string");
+    const searchOnly = !mcpWithDest && c.scope !== "shell.network" && !["url", "uri", "href", "link", "address"].some((k) => typeof call.args[k] === "string");
     if (!searchOnly) {
       if (!found.length) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `this job's Mandate limits network access to named hosts and this call's host cannot be determined` };
       const outside = found.find((h) => !hostAllowed(h, hosts));
       if (outside) return { allow: false, scope: c.scope, artifact: c.artifact, reason: `the host ${outside} is not one this job's Mandate allows (${hosts.join(", ")})` };
     }
   }
+  // The guard's second step (paths, and what this session already did: a file it downloaded, a copy of a secret, a run of ids).
+  if (confine) {
+    const net = isNetworkScope(c.scope);
+    const url = ["url", "uri", "href", "link", "address"].map((k) => call.args[k]).filter((x): x is string => typeof x === "string").join(" ");
+    const out = guardAfter(kind, call.args, c.shell, net, url, confine, session);
+    if (out) return { allow: false, scope: c.scope, artifact: c.artifact, reason: out };
+    if (session) guardNote(c.shell, net, url, session);
+  }
   return { allow: true, scope: c.scope, artifact: c.artifact };
+}
+
+/**
+ * An MCP tool whose destination is not in its arguments (a server configured to a fixed endpoint, or one that resolves its target itself) cannot be host-checked at the call (register row DK240, H14). When the
+ * Mandate limits network access to named hosts, such a tool is refused unless its server has declared where it reaches (`declared`, the server's name to its hosts) and every declared host is one the Mandate allows.
+ * Returns the reason when the call must be refused, or undefined. Calls that name a destination are judged by `judge` as before.
+ */
+export function mcpDestinationProblem(call: ToolCall, hosts: readonly string[] | undefined, declared: Record<string, readonly string[]> = {}): string | undefined {
+  if (!hosts || !call.name.startsWith("mcp__") || call.name.startsWith("mcp__asp__")) return undefined;
+  if (mcpUrls(call.args).length > 0) return undefined; // it names a destination: the host check above already ran
+  const server = call.name.split("__")[1] ?? "";
+  const dest = declared[server];
+  if (!dest || !dest.length) return `this job's Mandate limits network access to named hosts and the MCP server ${server || "(unnamed)"} does not declare where its tools reach: declare its destinations (mcpDestinations) or name them in the call`;
+  const outside = dest.find((h) => !hostAllowed(h, hosts));
+  return outside ? `the MCP server ${server} reaches ${outside}, which is not one this job's Mandate allows (${hosts.join(", ")})` : undefined;
 }

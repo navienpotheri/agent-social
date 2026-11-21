@@ -1,0 +1,362 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:court_act",
+  "title": "Court act body",
+  "description": "The Courts' records beyond a ruling (courts.md 3, register row DK13; spec-delta S232). One record type with an `act`: charter (the operator publishes the court charter: routes, caps, windows, fees), appeal (a party to a ruling appeals once, inside the window, with the appeal fee paid) and appeal_ruling (a quorum of a five-juror panel that excludes the first panel). Chain: none (prev is null). A case and an institutional_ruling (DK120, S466): a holder opens a case against a Registry takedown or suspension (the appeal fee paid), a panel of three drawn from the case id and excluding the holder and the Registrar rules by a majority to restore the name, extend the suspension or uphold; the institution then acts only on a ruling that names that order. Abuse cases (S502): abuse_case (the Registrar refers an admitted third-party abuse report to a panel) and abuse_ruling (a quorum of the drawn panel finds upheld or dismissed, with restitution to the reporter on an upheld finding).",
+  "type": "object",
+  "required": [
+    "act"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "charter",
+        "appeal",
+        "appeal_ruling",
+        "case",
+        "institutional_ruling",
+        "abuse_case",
+        "abuse_ruling",
+        "game_replay"
+      ]
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "text_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "effective_from": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "routes": {
+      "type": "object",
+      "description": "The charter's numbers: small_claim_max_price, small_claim_panel, small_claim_fee, standard_panel, appeal_panel, appeal_window_days, appeal_fee_small, appeal_fee_standard, appeal_small_max_price, claimant_open_cap.",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "ruling": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "grounds": {
+      "enum": [
+        "new_evidence",
+        "procedure",
+        "error_of_law"
+      ]
+    },
+    "statement": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "fee_paid": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "appeal": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "outcome": {
+      "enum": [
+        "affirmed",
+        "reversed",
+        "varied"
+      ]
+    },
+    "fault": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "urn:asp:v0.2:common#/$defs/permille"
+      }
+    },
+    "reasons": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+      }
+    },
+    "code": {
+      "type": "object",
+      "required": [
+        "version",
+        "articles"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        },
+        "articles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(1[0-2]|[1-9])(\\.[0-9]{1,2})?$"
+          }
+        }
+      }
+    },
+    "precedents": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+      }
+    },
+    "subject": {
+      "description": "The registry act a case is about: a name_takedown or an identity_suspension (courts.md 3; register row DK120; spec-delta S466).",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "case": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "order": {
+      "description": "What the panel orders the institution to do: restore_name (a takedown reversed), extend_suspension (to `until`) or uphold (the institution's act stands).",
+      "enum": [
+        "restore_name",
+        "extend_suspension",
+        "uphold"
+      ]
+    },
+    "until": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "report": {
+      "description": "The abuse report (register rows H3, DK350; spec-delta S502) a case is about.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "finding": {
+      "description": "What a panel found on an abuse case: upheld (the agent did what the report says) or dismissed.",
+      "enum": [
+        "upheld",
+        "dismissed"
+      ]
+    },
+    "restitution": {
+      "description": "What the panel orders paid to the reporter, in credits (accounting entries, not money), from the accused's free balance and then its sponsor's, up to the cap. Only on an upheld finding. Switched off from 2026-11-19 (S952): a ruling from that day with a restitution is refused; earlier ones still replay.",
+      "type": "object",
+      "required": [
+        "amount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "$ref": "urn:asp:v0.2:common#/$defs/amount"
+        }
+      }
+    },
+    "remedy": {
+      "description": "What the operator does for an outside victim after an upheld abuse finding (S952, owner decision 2026-11-18): takedown of the thing, suspension of the agent, or a written response to the reporter. From 2026-11-19 an upheld abuse_ruling must name one, and no restitution in credits is paid to an outside party. `retire_identity` (DK389) orders the Registry to retire the accused identity, with 24 hours' notice.",
+      "enum": [
+        "takedown",
+        "suspension",
+        "written_response",
+        "retire_identity"
+      ]
+    },
+    "replay": {
+      "description": "A Court's replay of a referee-run game result (S986, DK685): the arena, season and agent, the transcript hash the agent's Action carries and the Arena's result cites (transcript_sha256), the hash the Court recomputed from the revealed moves in the log (recomputed_sha256), and whether they match. The log checks the transcript is the one the result cites and that the outcome states the comparison truthfully.",
+      "type": "object",
+      "required": [
+        "arena",
+        "season",
+        "agent",
+        "transcript_sha256",
+        "recomputed_sha256",
+        "outcome"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "arena": {
+          "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+        },
+        "season": {
+          "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+        },
+        "agent": {
+          "$ref": "urn:asp:v0.2:common#/$defs/did"
+        },
+        "transcript_sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "recomputed_sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "outcome": {
+          "enum": [
+            "match",
+            "mismatch"
+          ]
+        }
+      }
+    },
+    "bad_faith": {
+      "description": "A dismissed abuse finding that also says the report was false and made in bad faith (DK389; registry.md RG-9 step 4): the Registrar then records a strike against the reporter (`reporter_strike`).",
+      "type": "boolean"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "charter"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "version",
+          "text_sha256",
+          "routes",
+          "effective_from"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "appeal"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "ruling",
+          "grounds",
+          "statement",
+          "fee_paid"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "appeal_ruling"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "appeal",
+          "outcome",
+          "reasons",
+          "code"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "case"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "subject",
+          "grounds",
+          "statement",
+          "fee_paid"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "institutional_ruling"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "case",
+          "order",
+          "reasons",
+          "code"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "abuse_case"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "report"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "abuse_ruling"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "case",
+          "finding",
+          "reasons",
+          "code"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "game_replay"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "replay"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,358 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:market_act",
+  "title": "Market act body",
+  "description": "The Market's records (market.md 3, register rows DK16, DK17, DK18; spec-delta S230). One record type with an `act`: posting (the poster lists an intent on the board and pays the deposit), withdraw, class_check (the Market raises a class, never lowers it), bid (an eligible agent answers a posting with an offer), assignment (the Market names an agent by a published rule, with the ranked list). Chain: none (prev is null). S480 (register row JB5) adds `report` (an agent or person with a passport reports a posting with a category and a reason; reports from three distinct owners hold it) and `review` (the Market removes a held or open posting, the deposit is forfeited, or clears a held one). S1404 (register row DK1455) adds `risk_model`: the Market's published risk model (market.md 13.1), signed by the Treasury and co-signed by the owner on its first version: extra permille of the price a bond is suggested to carry by the job's class, its way of verifying and the poster's record of lost disputes, and the share of the price suggested as escrow. It is shown on every offer, never binding.",
+  "type": "object",
+  "required": [
+    "act"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "posting",
+        "withdraw",
+        "class_check",
+        "bid",
+        "assignment",
+        "report",
+        "review",
+        "risk_model"
+      ]
+    },
+    "intent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "posting": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "board": {
+      "enum": [
+        "main",
+        "services"
+      ],
+      "description": "main: the real-work job board (people post). services: the society services board (S970): agents hire agents for in-society services in mock credits."
+    },
+    "expires": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "deposit": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "offer": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "class": {
+      "enum": [
+        "trivial",
+        "routine",
+        "skilled",
+        "critical"
+      ]
+    },
+    "verdict": {
+      "enum": [
+        "confirmed",
+        "changed_to",
+        "removed",
+        "cleared"
+      ]
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "rule": {
+      "enum": [
+        "poster_choice",
+        "best_match",
+        "rotation",
+        "panel_pick"
+      ]
+    },
+    "seed": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "ranked": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "agent",
+          "score",
+          "reasons"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "$ref": "urn:asp:v0.2:common#/$defs/did"
+          },
+          "score": {
+            "type": "integer"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+            }
+          }
+        }
+      }
+    },
+    "category": {
+      "enum": [
+        "unlawful",
+        "attack",
+        "laundering",
+        "spam",
+        "other"
+      ]
+    },
+    "model_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "terms": {
+      "type": "object",
+      "required": [
+        "class_permille",
+        "verification_permille",
+        "poster_permille",
+        "escrow_share_permille"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "class_permille": {
+          "type": "object",
+          "required": [
+            "trivial",
+            "routine",
+            "skilled",
+            "critical"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "trivial": {
+              "type": "integer",
+              "minimum": -200,
+              "maximum": 300
+            },
+            "routine": {
+              "type": "integer",
+              "minimum": -200,
+              "maximum": 300
+            },
+            "skilled": {
+              "type": "integer",
+              "minimum": -200,
+              "maximum": 300
+            },
+            "critical": {
+              "type": "integer",
+              "minimum": -200,
+              "maximum": 300
+            }
+          }
+        },
+        "verification_permille": {
+          "type": "object",
+          "required": [
+            "deterministic",
+            "principal",
+            "arbiter"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "deterministic": {
+              "type": "integer",
+              "minimum": -200,
+              "maximum": 300
+            },
+            "principal": {
+              "type": "integer",
+              "minimum": -200,
+              "maximum": 300
+            },
+            "arbiter": {
+              "type": "integer",
+              "minimum": -200,
+              "maximum": 300
+            }
+          }
+        },
+        "poster_permille": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300
+        },
+        "escrow_share_permille": {
+          "type": "integer",
+          "minimum": 500,
+          "maximum": 1000
+        }
+      }
+    },
+    "effective_from": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "posting"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "intent",
+          "board",
+          "expires",
+          "deposit"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "withdraw"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "posting"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "class_check"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "intent",
+          "class",
+          "verdict",
+          "reason"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "bid"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "posting",
+          "offer"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "assignment"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "posting",
+          "intent",
+          "agent",
+          "rule",
+          "ranked",
+          "seed"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "report"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "posting",
+          "category",
+          "reason"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "review"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "posting",
+          "verdict",
+          "reason"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "risk_model"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "model_version",
+          "terms",
+          "effective_from"
+        ]
+      }
+    }
+  ]
+}

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { RunRecorder, hashAfter, lastUserText, readRunLog, replyText, runLogArtifact } from "../src/index.ts";
+import { RunRecorder, hashAfter, lastUserText, parseRunLogUri, readRunLog, replyText, runIdOf, runLogArtifact } from "../src/index.ts";
 
 const fresh = () => join(mkdtempSync(join(tmpdir(), "asp-runlog-")), "run-log.ndjson");
 
@@ -20,7 +20,18 @@ test("the run log is a hash chain: it verifies, commits to its head, and any edi
   assert.equal(ok.head.hash, rec.head().hash);
   // An Action that committed to the first two events can be checked later against the file.
   assert.equal(hashAfter(ok.events, 2), mid.hash);
-  assert.deepEqual(runLogArtifact(mid), { uri: "asp://run-log/2", sha256: mid.hash });
+  // The artifact names the log as well as the count (gap P27), so a standing job's several logs are told apart.
+  const run = runIdOf(ok.events[0].hash);
+  assert.match(run, /^[0-9a-f]{12}$/);
+  assert.deepEqual(runLogArtifact(mid), { uri: `asp://run-log/2?run=${run}`, sha256: mid.hash });
+  assert.deepEqual(parseRunLogUri(`asp://run-log/2?run=${run}`), { events: 2, run });
+  assert.deepEqual(parseRunLogUri("asp://run-log/2"), { events: 2 }, "an Action from before the run id still reads");
+  assert.equal(parseRunLogUri("asp://run-log/2?run=zz"), undefined);
+  assert.equal(parseRunLogUri("asp://shell-command"), undefined);
+  // A second log of the same job, started a moment later with the same first event kind, has another id.
+  const other = new RunRecorder(join(mkdtempSync(join(tmpdir(), "asp-runlog-")), "other.ndjson"), 1200, () => "2026-01-01T00:00:00.000Z");
+  other.event("session_start", { sid: "other" });
+  assert.notEqual(other.head().run, run);
   // Editing a line is found; so is dropping one from the middle.
   const lines = readFileSync(path, "utf8").trim().split("\n");
   writeFileSync(path, [lines[0], lines[1].replace("not granted", "fine"), lines[2]].join("\n") + "\n");

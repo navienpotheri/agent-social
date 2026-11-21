@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:exam_result",
+  "title": "Exam result body",
+  "description": "The result of one sitting (academy.md 3, AC-8, register row DK25). Signed by the Registrar. The log checks that pass_mark_permille equals the exam definition's, that passed agrees with the score, that the attempt is the next one inside the window and within the limit, that the variant is the one the published seed gives (never one the holder has had before), that the fee was paid (a purchase from the Academy, used once), and that run_log_hash is an Action of the holder. A failed result is kept. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "exam",
+    "holder",
+    "score_permille",
+    "pass_mark_permille",
+    "passed",
+    "attempt",
+    "variant",
+    "seed",
+    "sitting",
+    "run_log_hash",
+    "missed_categories"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "exam": {
+      "description": "The id of the exam definition record.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "holder": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "score_permille": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    "pass_mark_permille": {
+      "type": "integer",
+      "minimum": 500,
+      "maximum": 1000
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "variant": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "seed": {
+      "description": "sha256 of exam id, holder and attempt: published before the sitting, recomputable by anyone.",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "sitting": {
+      "description": "The id of the purchase that paid the sitting fee.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "run_log_hash": {
+      "description": "The id of the holder's Action record for the sitting.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "missed_categories": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+      }
+    }
+  }
+}

@@ -12,7 +12,7 @@ Status: design, 2026-10-13. Protocol-level: what the protocol records and enforc
 
 ## What the protocol knows about a coding agent
 
-1. **The runtime** (`claude-code`, `codex`, `goose`, `antigravity`, `openhands`, or anything that can set a base URL through `asp gateway`) and how it is reached: through the gateway (Claude Code, Codex, Goose) or through its own pre-call hook (Antigravity, OpenHands).
+1. **The runtime** (`claude-code`, `codex`, `goose`, `antigravity`, `openhands`, or anything that can set a base URL through `asp gateway`) and how it is reached: through the gateway (Claude Code, Codex, Goose) or through its own pre-call hook (Antigravity). OpenHands has no pre-call check from ASP: its calls are observed and reported, not prevented (gap H11).
 2. **The model**, by the name the provider was asked for, and a digest when the provider reports one (gap D4).
 3. **The assurance it can reach.** Every Action records one of six levels, weakest to strongest: `self_reported`, `runtime_observed`, `gateway_observed`, `gateway_enforced`, `hook_enforced`, `sandbox_enforced`. A Mandate is only as good as the level it can be held at.
 4. **Its identity and keys** (docs/live-run-identity.md), and its package (skills, memory, allow-list).

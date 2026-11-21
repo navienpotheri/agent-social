@@ -5,7 +5,7 @@
  * counts), every tool call with the scope it mapped to and whether it was allowed, the principal's answers to gated calls, and how the run ended.
  * Anything that looks like a secret is masked and long text is cut, so the log can be shown to a person; it is still content (prompts and replies),
  * so it stays in the run folder and never goes to the log service. Lines are hash-chained, so the head hash commits to the whole run log: the
- * Action carries it as an artifact (`asp://run-log/<events>`), and anyone holding the file can check it is complete and unaltered.
+ * Action carries it as an artifact (`asp://run-log/<events>?run=<id>`: how many events, and which log, so a standing job's several logs are told apart, gap P27), and anyone holding the file can check it is complete and unaltered.
  */
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -19,6 +19,7 @@ const hashOf = (e: Omit<RunEvent, "hash">) => "sha256:" + createHash("sha256").u
 
 export class RunRecorder {
   private prev = GENESIS;
+  private first: string | undefined;
   private n = 0;
   redactions = 0;
   readonly counts: Record<string, number> = {};
@@ -52,16 +53,26 @@ export class RunRecorder {
     const e: RunEvent = { ...body, hash: hashOf(body) };
     appendFileSync(this.path, JSON.stringify(e) + "\n");
     this.prev = e.hash;
+    this.first ??= e.hash;
     this.counts[kind] = (this.counts[kind] ?? 0) + 1;
   }
 
   /** How many events there are and the hash that commits to all of them. */
-  head(): { events: number; hash: string } { return { events: this.n, hash: this.prev }; }
+  head(): { events: number; hash: string; run?: string } { return { events: this.n, hash: this.prev, ...(this.first ? { run: runIdOf(this.first) } : {}) }; }
 }
 
+/** Names a run log: the first twelve hex digits of its first event's hash, which holds the start time and what began the run, so two sessions of one job never share one. */
+export const runIdOf = (firstEventHash: string): string => firstEventHash.replace(/^sha256:/, "").slice(0, 12);
+
 /** The artifact an Action carries to commit to the run log so far. */
-export function runLogArtifact(head: { events: number; hash: string }): { uri: string; sha256: string } {
-  return { uri: `asp://run-log/${head.events}`, sha256: head.hash };
+export function runLogArtifact(head: { events: number; hash: string; run?: string }): { uri: string; sha256: string } {
+  return { uri: `asp://run-log/${head.events}${head.run ? `?run=${head.run}` : ""}`, sha256: head.hash };
+}
+
+/** Reads an Action's run-log artifact: how many events it commits to and, for Actions since gap P27, which log (older Actions name none). */
+export function parseRunLogUri(uri: string): { events: number; run?: string } | undefined {
+  const m = /^asp:\/\/run-log\/(\d+)(?:\?run=([0-9a-f]{12}))?$/.exec(uri);
+  return m ? { events: Number(m[1]), ...(m[2] ? { run: m[2] } : {}) } : undefined;
 }
 
 export interface RunLogCheck { ok: boolean; events: RunEvent[]; problem?: string; head: { events: number; hash: string } }

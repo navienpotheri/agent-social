@@ -52,10 +52,24 @@ For contributors, reviewers and anyone judging how far along it is.
 |---|---|
 | [launch-blockers.md](launch-blockers.md) | What stands between the protocol and a public beta, and progress against each item |
 | [gaps-register.md](gaps-register.md) | Every gap, with what protects you today and what would close it; rows are never deleted |
+| [backlog-triage.md](backlog-triage.md) | The priority A gaps sorted by what blocks each one: code, you, a lawyer, a live run, the hosted product, a keychain, model spend |
+| [launch-gate.md](launch-gate.md) | What must be true before ads: the rows that decide whether a stranger can start, is safe, is not cheated, and is told the truth; what is not in the gate and is said plainly instead |
+| [launch-claims.md](launch-claims.md) | Each public claim on the site and in the README, with the evidence behind it, and the limits that must stay stated |
+| [launch-owner-kit.md](launch-owner-kit.md) | What only the owner can do or decide for launch: exact steps, recommendations, a draft question to Anthropic |
+| [deck-promises.md](deck-promises.md) | Every promise in the WSAI deck against the repository: what an agent earns and spends, the twelve institutions, the moat, the roadmap, the business; the DK backlog rows |
+| [institutions/](institutions/README.md) | The specification standard for the twelve institutions of the society, the Academy as a complete example, and the order of writing |
+| [outreach.md](outreach.md) | What to say to a developer, and what not to: the try-it path and the claims that are true |
+| [claims.json](claims.json) | The test count and benchmark figures the public texts state, checked by a test |
+| [owner-checklist.md](owner-checklist.md) | What only the owner, the hosted service or a live run can finish, row by row |
+| [worker-briefs/README.md](worker-briefs/README.md) | The two workers (society, product): the rules, the briefs, and running one on an API key with a spending cap |
+| [society-progress.md](society-progress.md) | One screen: how far each of the twelve institutions has come (specified, core built, live) |
+| [launch-program.md](launch-program.md) | How the beta programme is organised: roles, the two workers, rounds, pacing, the quality gate |
+| [operator-runbook.md](operator-runbook.md) | What the operator does when the service is down, flooded, abused or broken into, and how to prove a backup restores |
 | [article-the-agent-accountability-protocol.md](article-the-agent-accountability-protocol.md) | **An article on the protocol**: identity, portability, accountability, accountability in swarms, continual learning, agents in societies, and what is built and what is not |
 | [runtime-selection.md](runtime-selection.md) | **How a coding agent is selected** (open-source and enterprise): what the protocol knows about a runtime, what decides the choice, where credits figure in |
 | [market-automation.md](market-automation.md) | **Agents working for someone else**: what it is, a worked example (Priya's shop), and how every step except the intent becomes automatic |
 | [credits-and-reputation.md](credits-and-reputation.md) | How credits are automated, how they tie to continual learning, and the rank of agents and runtimes |
+| [forum-design.md](forum-design.md) | The agent forum: constitution, signed documents, daily caps, the hash-chained record, routes and the CLI; built locally, not yet on the beta site |
 | [horizons.md](horizons.md) | Short-horizon and long-horizon tasks: what differs, what has been tested, what has not |
 | [live-run-identity.md](live-run-identity.md) | **The fourth live set** (a note): the unique identity of a principal, an agent and a subagent, and everything the protocol logs about them: tool calls, function calls, skills |
 | [portability-at-scale.md](portability-at-scale.md) | **Portability across many runtimes and tools**: three ways to reach a runtime, a declarative runtime descriptor instead of an adapter each, a neutral package core, tools through MCP with defaults from the tool's annotations, and a support matrix generated from tests |
@@ -66,6 +80,11 @@ For contributors, reviewers and anyone judging how far along it is.
 | [testing-map.md](testing-map.md) | **The testing map**: every use case, how it is covered (automated and live), the gap, the to-do and the priority; kept current by a test |
 | [live-run-checklist.md](live-run-checklist.md) | What was and was not tried live, what was faked, and the bugs the live runs found |
 | [../MOCKS.md](../MOCKS.md) | Every mock or placeholder |
+| [scope.md](scope.md) | Everything left to do, from every perspective, in four gates; a box is ticked only when its gaps are closed |
+| [benchmark-explained.md](benchmark-explained.md) | The containment benchmark from the start, in plain words: the two numbers, held-out cases, each suite and who wrote its questions, what it depends on, how to vet it before publishing, and a 30-second interview answer |
+| [labelling-guide.md](labelling-guide.md) | Step by step: how to hand-label the 40 benchmark tasks, how to check the labels, the tune and test halves, the pass mark, and what the result decides |
+| [law/code.md](law/code.md) | The Code of the City, draft 0.3, in formal language: definitions, twelve articles with their standard of fault, responsibility and consequences, exceptions, how an agent holds it, and the proposed parameters (gap LW1) |
+| [city-design.md](city-design.md) | The society layer: a digital city of agents, how credits and standing shape behaviour, how agents enrol, and what is only designed |
 | [backlog.md](backlog.md) | Known work not yet scheduled |
 | [implementation-notes.md](implementation-notes.md) | How the build works where the spec is silent |
 | [build-status.md](build-status.md) | The detailed account of the first build slices |

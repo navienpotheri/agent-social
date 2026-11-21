@@ -8,15 +8,21 @@
  *  - a body size limit and a request timeout.
  * Private keys never reach the service: records arrive already signed.
  */
+import { didYouMean } from "./surface.ts";
+import { PUBLIC_CSP, publicReply } from "./public-pages.ts";
+/** The paths served without a token (public-pages.ts). A page that is public in the specs must be listed here, or the service answers 401 for it: the smoke test (scripts/smoke-serve.mjs) fetches each one. */
+const PUBLIC_PAGE_PATH = /^\/((registry|market|courts|home|housing|events)\/.+|charters|treasury\/statement|support\/status|society\/indicators|operator\/acts|residency\/subsidy)\/?$/;
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
+import type { FunnelTap } from "./funnel-tap.ts";
+import { fleetJoin } from "./fleet-join.ts";
 import { Limits, clientAddress, type LimitOptions, type Verdict } from "./limits.ts";
 import { UsageStore } from "./usage.ts";
 import type { Signup } from "./signup.ts";
 import type { OwnerStore } from "./owners.ts";
 import type { GoogleSignIn } from "./google.ts";
-import { joinDone, joinDoneCli, joinError, joinForm } from "./join-page.ts";
+import { joinDone, joinDoneCli, joinError, joinForm, recoverDone, recoverForm } from "./join-page.ts";
 import { CHALLENGE_RE, JoinPickup } from "./join-pickup.ts";
 import type { AppendResult } from "./log.ts";
 import type { EventLog } from "./log.ts";
@@ -42,11 +48,15 @@ export interface Tenant {
   /** Records this tenant may write to the log, and bytes of them, replacing the service's defaults (0 for no limit). Admins have none. */
   recordQuota?: number;
   byteQuota?: number;
+  /** Set by the operator for a tenant held for a young person: no cognition telemetry is accepted from it (`minor_tenant_no_telemetry`; the terms say the service does not track or monitor young people). */
+  minor?: boolean;
   /** Set when an operator suspended the tenant: every request is refused with SUSPENDED until it is resumed. */
   suspended?: { at: string; reason?: string };
   createdAt?: string;
+  /** When the token was last replaced by the person signing in again (src/signup.ts recover). */
+  tokenRotatedAt?: string;
   /** Set on a tenant that signed itself up (src/signup.ts): when, a hash of the address, the terms it accepted and an unverified contact line. */
-  signup?: { at: string; addressHash: string; termsVersion: string; contact?: string; google?: { sub: string; email: string }; declaration?: "adult_or_guardian" };
+  signup?: { at: string; addressHash: string; termsVersion: string; /** Set when an agent joined a fleet by invitation (DK1354): its did, the fleet and the persona. */ fleetMember?: { did: string; fleet: string; persona?: string }; contact?: string; google?: { sub: string; email: string }; declaration?: "adult_or_guardian"; /** Set when an agent enrolled itself with only a key (src/key-only.ts): the key and the did:key it stands for. */ keyOnly?: { publicKey: string; did: string }; /** Set when an agent enrolled over plain HTTP (row DK733; owner question KO2): the model it named, the identity the service holds the key of, and when it bound its own key. */ httpEnrol?: { model: string; did: string; boundAt?: string } };
   /** Set when the tenant closed its account: the token is gone and so is everything personal except what is kept for abuse handling until `retainUntil`. */
   closed?: { at: string; retainUntil: string };
   /** Extra tokens for machines (a CI job, a scheduled task): named, with an expiry, revocable, and less powerful than the person's own token (src/account.ts). Only hashes are kept. */
@@ -54,7 +64,30 @@ export interface Tenant {
   /** Set, on the tenant a request is made as, when it came with a machine token: the token's name. Never stored. */
   machine?: string;
   /** The starter credits this tenant claimed (src/starter.ts): when and how many; kept in a tombstone too, so closing and signing up again does not earn a second grant. */
-  starter?: { at: string; amount: number; dids?: string[] };
+  starter?: { at: string; amount: number; dids?: string[]; /** Credits each identity is still owed: the rest of the grant, released when one of them has had a job accepted. */ held?: number; releasedAt?: string; /** The identities that have had the rest of their grant (DK1470: each earns it on its own job). Absent on an older record: the rest went to all of `dids` when `held` is absent, to none when it is set. */ restDids?: string[] };
+}
+
+const DEFAULT_PACKAGE_QUOTA = 256 * 1024 * 1024;
+const extrasCache = new Map<string, { at: number; extras: Record<string, number> }>();
+/** The tenant with its limit fields raised by the active resource holdings of the DIDs it has written as (a sponsor's own DID among them). */
+export async function withResourceExtras(t: Tenant, opts: ServerOptions, cache: typeof extrasCache): Promise<Tenant> {
+  const dids = opts.owners!.of(t.name);
+  if (!dids.length) return t;
+  const hit = cache.get(t.name);
+  let extras = hit && Date.now() - hit.at < 60_000 ? hit.extras : undefined;
+  if (!extras) {
+    extras = {};
+    try { for (const d of dids) for (const [k, v] of Object.entries(((await (opts.handle.log as any).sponsorResources?.(d)) ?? {}) as Record<string, number>)) extras[k] = Math.max(extras[k] ?? 0, v); } catch { extras = {}; }
+    cache.set(t.name, { at: Date.now(), extras });
+  }
+  if (!Object.keys(extras).length) return t;
+  return {
+    ...t,
+    ...(extras.quota_records && (t.recordQuota ?? opts.defaultRecordQuota ?? 0) > 0 ? { recordQuota: (t.recordQuota ?? opts.defaultRecordQuota ?? 0) + extras.quota_records } : {}),
+    ...(extras.quota_bytes && (t.byteQuota ?? opts.defaultByteQuota ?? 0) > 0 ? { byteQuota: (t.byteQuota ?? opts.defaultByteQuota ?? 0) + extras.quota_bytes } : {}),
+    ...(extras.quota_storage_bytes ? { quotaBytes: (t.quotaBytes ?? DEFAULT_PACKAGE_QUOTA) + extras.quota_storage_bytes } : {}),
+    ...(extras.rate_per_minute ? { rateLimitPerMinute: (t.rateLimitPerMinute ?? 600) + extras.rate_per_minute } : {}),
+  };
 }
 
 export const hashToken = (token: string): string => createHash("sha256").update(token).digest("hex");
@@ -62,7 +95,7 @@ export const hashToken = (token: string): string => createHash("sha256").update(
 /** EventLog methods a client may call: reads, plus verification. Nothing that writes. */
 export const LOG_METHODS = new Set([
   "get", "head", "since", "chain", "chainInfo", "passport", "keys", "fleet", "balance", "escrow", "juror", "reputationOf", "mandateOf",
-  "verificationOf", "report", "drawPanel", "drawReportPanel", "verify", "verifyCheckpoint", "mints",
+  "verificationOf", "dispatchLedger", "houseAgents", "report", "drawPanel", "drawReportPanel", "verify", "verifyCheckpoint", "mints", "creditAudit", "creditFlows", "priceLists", "mandatesOf", "certificatesOf", "academyRecords", "certificateStatus", "arenaBoard", "quarantinesOf", "refusalsAgainst", "marketInstitution", "outcomeSeries", "principalSeries", "purchasesBy", "worldRecords", "worldState", "creditConcentration", "starterPoolState", "marketBoard", "marketStats", "fleetDetails", "fleetsOf", "mandateCeiling", "checkStatement", "usagePlan", "meter", "creditClassAudit", "fleetInfoOf", "relatedPartyRecord", "templateVersion", "deriveMemberMandate", "marketDynamics", "riskModel", "suggestedBond", "riskReplay", "worldInvariants", "discoverAgents", "recordsOfTypes", "registryPage", "registryVerify", "homePage", "sponsorResources", "registrySearch", "registryTakedowns", "charterRoutes", "charters", "precedentIndex", "precedentSearch", "precedentsFor", "courtDocket", "bondLabel", "treasuryLedger", "fleetTree", "nodeOf", "holderLots", "sponsorDids",
 ]);
 const TENANT_HANDLE_METHODS = new Set(["append", "importRecords"]);
 const ADMIN_HANDLE_METHODS = new Set(["mint"]);
@@ -71,8 +104,14 @@ export interface ServerOptions {
   handle: LogHandle;
   /** Self-serve sign-up (GET /signup, GET /signup/challenge, POST /signup), open to anyone who can reach the service. Absent means no sign-up. */
   signup?: Signup;
+  /** Enrolling over plain HTTP (row DK733, flag `--http-enrol`): the handler of `POST /signup/http`. Absent means the route answers 403. */
+  httpEnrol?: (address: string, body: unknown) => Promise<{ status: number; body: unknown; retryAfterSec?: number }>;
   /** The browser sign-up with a verified Google account (/join and /auth/callback); needs `signup`. */
   google?: GoogleSignIn;
+  /** The measured front door (DK1211): counts the steps an agent takes, and serves `GET /society/funnel` to an operator. */
+  funnel?: FunnelTap;
+  /** What the service knows about sponsors and the log does not (payment, verified domain, address cluster; opaque values): read by `GET /society/farming` (DK1357). */
+  farmingFacts?: () => import("./farming.ts").ExternalFacts | Promise<import("./farming.ts").ExternalFacts>;
   /** The service's public address (https://log.example.org), for the pages and the terms links. */
   publicUrl?: string;
   tenants?: Tenant[];
@@ -123,6 +162,9 @@ async function readBody(req: IncomingMessage, max: number): Promise<string> {
 
 const NO_AUTH_TENANT: Tenant = { name: "local", tokenSha256: "", role: "admin" };
 
+/** DK854 (1): how a returning agent asks cheaply whether anything is new for it. */
+export const wakeRecipe = (did: string | undefined) => ({ call: `GET /society/pulse?did=${did ?? "<your did>"}&since=<the head seq you last saw>`, recipe: "Send the last ETag as If-None-Match: a 304 means nothing changed. Wait at least the X-Poll-Interval between calls. Act only when has_something is true." });
+
 export function authenticate(req: IncomingMessage, opts: Pick<ServerOptions, "tenants" | "tenantSource" | "noAuth">): Tenant | undefined {
   if (opts.noAuth) return NO_AUTH_TENANT;
   const m = /^Bearer\s+(\S+)$/.exec(String(req.headers.authorization ?? ""));
@@ -160,13 +202,19 @@ export function createLogServer(opts: ServerOptions): Server {
       if (opts.blocked?.().includes(address)) return json(res, 403, { ok: false, error: { code: "BLOCKED", message: "this address is blocked by the operator" } });
       if (limits) { const v = limits.checkAddress(address); if (!v.ok) return tooMany(res, v); }
       if (req.method === "GET" && req.url === "/health") return json(res, 200, { ok: true });
+      if (req.method === "GET" && PUBLIC_PAGE_PATH.test((req.url ?? "").split("?")[0])) {
+        // Public, read-only pages of the Registry and the Market (public-pages.ts): no token, derived from the log, escaped, with a strict CSP.
+        const reply = await publicReply(opts.handle.log, req.url ?? "", String(req.headers.accept ?? "").includes("text/html"));
+        if (reply?.html !== undefined) { res.writeHead(reply.status, { "content-type": "text/html; charset=utf-8", "content-security-policy": PUBLIC_CSP, "x-content-type-options": "nosniff" }); return void res.end(reply.html); }
+        if (reply) return json(res, reply.status, reply.json);
+      }
       if (pickup && req.method === "POST" && req.url === "/join/pickup") {
         let verifier = "";
         try { verifier = String(JSON.parse(await readBody(req, 1024)).verifier ?? ""); } catch { /* an empty verifier finds nothing */ }
         const got = verifier.length >= 32 && verifier.length <= 128 ? pickup.take(verifier) : undefined;
         return got ? json(res, 200, { ok: true, ...got }) : json(res, 202, { ok: true, pending: true });
       }
-      if (opts.signup && opts.google && ((req.url ?? "").split("?")[0] === "/join" || (req.url ?? "").startsWith("/auth/callback"))) {
+      if (opts.signup && opts.google && ((req.url ?? "").split("?")[0] === "/join" || (req.url ?? "").split("?")[0] === "/join/recover" || (req.url ?? "").startsWith("/auth/callback"))) {
         const secure = !!opts.tls || !!opts.trustProxy;
         const page = (status: number, body: string, extra: Record<string, string> = {}) => {
           res.writeHead(status, {
@@ -180,7 +228,15 @@ export function createLogServer(opts: ServerOptions): Server {
         const termsUrl = info.termsUrl, privacyUrl = termsUrl ? termsUrl.replace(/\/terms$/, "/privacy") : undefined;
         const askedC = new URLSearchParams((req.url ?? "").split("?")[1] ?? "").get("c") ?? undefined;
         const form = (extra: { error?: string; name?: string; c?: string } = {}) => joinForm({ termsVersion: info.termsVersion, termsUrl, privacyUrl, open: info.open, reason: info.reason, ...extra });
-        if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/join") return page(200, form(askedC && CHALLENGE_RE.test(askedC) ? { c: askedC } : {}));
+        if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/join") { opts.funnel?.personStep("join_page_viewed", req); return page(200, form(askedC && CHALLENGE_RE.test(askedC) ? { c: askedC } : {})); }
+        if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/join/recover") return page(200, recoverForm({ open: true }));
+        if (req.method === "POST" && (req.url ?? "").split("?")[0] === "/join/recover") {
+          const q = new URLSearchParams(await readBody(req, 8 * 1024).catch(() => ""));
+          const name = (q.get("name") ?? "").trim();
+          if (name && !/^[a-z][a-z0-9-]{2,31}$/.test(name)) return page(400, recoverForm({ open: true, error: "The tenant name is 3 to 32 characters: lower-case letters, digits and hyphens, starting with a letter.", name }));
+          const started = opts.google.begin({ name, accept_terms: true, terms_version: info.termsVersion, declaration: "recover" });
+          return page(303, "", { location: started.location, "set-cookie": `asp_join=${started.nonce}; Max-Age=600; Path=/auth; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}` });
+        }
         if (req.method === "POST" && (req.url ?? "").split("?")[0] === "/join") {
           const q = new URLSearchParams(await readBody(req, 8 * 1024).catch(() => ""));
           const name = q.get("name") ?? "";
@@ -191,6 +247,7 @@ export function createLogServer(opts: ServerOptions): Server {
           if (!/^[a-z][a-z0-9-]{2,31}$/.test(name)) return page(400, form({ error: "The name is 3 to 32 characters: lower-case letters, digits and hyphens, starting with a letter.", name, ...(c ? { c } : {}) }));
           if ((opts.tenantSource?.() ?? opts.tenants ?? []).some((t) => t.name === name)) return page(409, form({ error: "That name is not available.", name, ...(c ? { c } : {}) }));
           const started = opts.google.begin({ name, accept_terms: true, terms_version: info.termsVersion, declaration: "adult_or_guardian", ...(c ? { c } : {}) });
+          opts.funnel?.personStep("join_submitted", req);
           return page(303, "", { location: started.location, "set-cookie": `asp_join=${started.nonce}; Max-Age=600; Path=/auth; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}` });
         }
         if (req.method === "GET") {
@@ -198,14 +255,50 @@ export function createLogServer(opts: ServerOptions): Server {
           const done = await opts.google.finish(new URLSearchParams((req.url ?? "").split("?")[1] ?? ""), cookie);
           const clear = { "set-cookie": `asp_join=; Max-Age=0; Path=/auth; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}` };
           if (!done.ok) return page(done.status, joinError("Sign-up did not finish", done.message), clear);
+          if (done.form.declaration === "recover") {
+            const rec = opts.signup.recover(done.google, done.form.name || undefined);
+            if (!rec.ok) return page(rec.status, joinError("No new token", rec.message), clear);
+            return page(200, recoverDone({ tenant: rec.tenant, token: rec.token, service: base || `https://${req.headers.host}` }), clear);
+          }
           const r = opts.signup.registerVerified(address, { ...done.form }, done.google);
           if (!r.ok) return page(r.status, joinError("Sign-up did not finish", r.message), clear);
+          opts.funnel?.step("enrolled", req, { tenant: r.tenant });
+          opts.funnel?.personStep("signed_up", req, { tenant: r.tenant });
           if (done.form.c && pickup) { pickup.put(done.form.c, { tenant: r.tenant, token: r.token, quotas: r.quotas }); return page(201, joinDoneCli(r.tenant), clear); }
           return page(201, joinDone({ tenant: r.tenant, token: r.token, service: base || `https://${req.headers.host}`, quotas: r.quotas }), clear);
         }
         return page(405, joinError("Not allowed", "Use the sign-up page."));
       }
-      if (opts.signup && (req.url === "/signup" || req.url === "/signup/challenge")) {
+      if (opts.signup && (req.url === "/signup" || req.url === "/signup/challenge" || req.url === "/signup/key" || req.url === "/signup/http" || req.url === "/fleet/join")) {
+        if (req.method === "POST" && req.url === "/signup/http") {
+          if (!opts.httpEnrol) return json(res, 403, { ok: false, error: { code: "HTTP_ENROL_CLOSED", message: "enrolling over plain HTTP is not open on this service" } });
+          let hb: unknown;
+          try { hb = JSON.parse(await readBody(req, 8 * 1024)); } catch { return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "the body is JSON, at most 8 KB" } }); }
+          const hr = await opts.httpEnrol(address, hb);
+          if (hr.status >= 200 && hr.status < 300 && (hr.body as { ok?: boolean } | undefined)?.ok !== false) opts.funnel?.step("enrolled", req, { tenant: String((hr.body as { tenant?: unknown })?.tenant ?? "") || undefined });
+          if (hr.retryAfterSec) res.setHeader("retry-after", String(hr.retryAfterSec));
+          return json(res, hr.status, hr.body);
+        }
+        if (req.method === "POST" && req.url === "/fleet/join") {
+          let fb: unknown;
+          try { fb = JSON.parse(await readBody(req, 16 * 1024)); } catch { return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "the body is JSON, at most 16 KB" } }); }
+          const fr = await fleetJoin({ handle: opts.handle, signup: opts.signup, body: fb, address });
+          if (fr.status === 201) opts.funnel?.step("enrolled", req, { tenant: fr.status === 201 ? String((fr.body as { tenant?: unknown }).tenant ?? "") : "" });
+          if (fr.retryAfterSec) res.setHeader("retry-after", String(fr.retryAfterSec));
+          return json(res, fr.status, fr.body);
+        }
+        if (req.method === "POST" && req.url === "/signup/key") {
+          let kb: unknown;
+          try { kb = JSON.parse(await readBody(req, 8 * 1024)); } catch { return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "the body is JSON, at most 8 KB" } }); }
+          const kr = opts.signup.registerKeyOnly(address, kb);
+          if (!kr.ok && kr.status === 202 && kr.queue) { res.setHeader("retry-after", String(kr.queue.etaSec)); return json(res, 202, { ok: true, queued: true, ticket: kr.queue.ticket, position: kr.queue.position, eta_sec: kr.queue.etaSec, message: kr.message, next: 'POST /signup/key with { "ticket": "<the ticket>" }' }); }
+          if (!kr.ok) {
+            if (kr.retryAfterSec) res.setHeader("retry-after", String(kr.retryAfterSec));
+            return json(res, kr.status, { ok: false, error: { code: kr.code, message: kr.message, ...(kr.retryAfterSec ? { retryAfterSec: kr.retryAfterSec } : {}) } });
+          }
+          opts.funnel?.step("enrolled", req, { tenant: kr.tenant });
+          return json(res, 201, { ok: true, tenant: kr.tenant, token: kr.token, did: kr.did, quotas: kr.quotas, termsVersion: kr.termsVersion, ...(kr.costs ? { costs: kr.costs } : {}), verify: `GET /registry/agents/${encodeURIComponent(kr.did ?? "")}/record (your identity, recomputed from the log)`, wake: wakeRecipe(kr.did) });
+        }
         if (req.method === "GET" && req.url === "/signup") return json(res, 200, { ok: true, ...opts.signup.info() });
         if (req.method === "GET") return json(res, 200, { ok: true, ...opts.signup.challenge(address) });
         if (req.method === "POST" && req.url === "/signup") {
@@ -216,14 +309,19 @@ export function createLogServer(opts: ServerOptions): Server {
             if (r.retryAfterSec) res.setHeader("retry-after", String(r.retryAfterSec));
             return json(res, r.status, { ok: false, error: { code: r.code, message: r.message, ...(r.retryAfterSec ? { retryAfterSec: r.retryAfterSec } : {}) } });
           }
+          opts.funnel?.step("enrolled", req, { tenant: r.tenant });
           return json(res, 201, { ok: true, tenant: r.tenant, token: r.token, quotas: r.quotas, termsVersion: r.termsVersion });
         }
         return json(res, 405, { ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "GET or POST" } });
       }
       if (opts.publicRoutes && (await opts.publicRoutes(req, res))) return;
-      const tenant = authenticate(req, opts);
+      const base = authenticate(req, opts);
+      // The extra limits a tenant's sponsors hold through the Shops' resource items (DK75): added to the defaults while the holdings last, gone when they lapse. Read from the log, at most once a minute a tenant.
+      const tenant = base && base.role !== "admin" && opts.owners ? await withResourceExtras(base, opts, extrasCache) : base;
       if (!tenant) {
-        limits?.authFailed(address);
+        // A failed sign-in is a token that was presented and is wrong. A request with no token at all (the forum probe each `asp run` makes, a browser, a health check) guesses nothing, and counting it
+        // locked the whole address out after ten sessions, so the sessions after that waited out the lockout (gap T23: a 300 s hang in the approval tests).
+        if (req.headers.authorization) limits?.authFailed(address);
         return json(res, 401, { ok: false, error: { code: "UNAUTHORIZED", message: "a valid bearer token is required" } });
       }
       if (tenant.suspended) return json(res, 403, { ok: false, error: { code: "SUSPENDED", message: `this tenant is suspended${tenant.suspended.reason ? `: ${tenant.suspended.reason}` : ""}` } });
@@ -234,8 +332,22 @@ export function createLogServer(opts: ServerOptions): Server {
         if (!leave) return tooMany(res, { ok: false, retryAfterSec: 1, why: "this tenant has too many requests in flight" });
         res.on("close", leave);
       }
+      opts.funnel?.seen(req, tenant);
+      if (opts.funnel && req.method === "GET" && (req.url ?? "").split("?")[0] === "/society/funnel") {
+        if (tenant.role !== "admin") return json(res, 403, { ok: false, error: { code: "FORBIDDEN", message: "the funnel needs an operator token" } });
+        const q = new URLSearchParams((req.url ?? "").split("?")[1] ?? "");
+        const src = q.get("source") ?? undefined;
+        if (q.get("format") === "text") { const t = opts.funnel.text(src); res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "content-length": Buffer.byteLength(t) }); return void res.end(t); }
+        return json(res, 200, opts.funnel.view(src));
+      }
+      if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/society/farming") {
+        // The anti-farming report (S1410, DK1357): an operator's view only, because a published list of what the detector flags would be a guide for a farm.
+        if (tenant.role !== "admin") return json(res, 403, { ok: false, error: { code: "FORBIDDEN", message: "the farming report needs an operator token" } });
+        const external = opts.farmingFacts ? await opts.farmingFacts() : {};
+        return json(res, 200, await opts.handle.log.farmingReport({ external, ...(process.env.ASP_FARMING_SEED ? { seed: process.env.ASP_FARMING_SEED } : {}) }));
+      }
       if (opts.extra && (await opts.extra(req, res, { tenant }))) return;
-      if (req.method !== "POST" || req.url !== "/rpc") return json(res, 404, { ok: false, error: { code: "NOT_FOUND", message: "POST /rpc, GET /health" } });
+      if (req.method !== "POST" || req.url !== "/rpc") return json(res, 404, { ok: false, error: { code: "NOT_FOUND", message: "POST /rpc, GET /health", did_you_mean: didYouMean(req.url ?? "/", req.method ?? "GET"), see: "/society/surface" } });
       let call: { target?: string; method?: string; args?: unknown[] };
       try { call = JSON.parse(await readBody(req, maxBody)); } catch (e) {
         return json(res, (e as { status?: number }).status ?? 400, { ok: false, error: { code: "BAD_REQUEST", message: (e as Error).message } });
@@ -247,6 +359,11 @@ export function createLogServer(opts: ServerOptions): Server {
       if (limits && isWrite) {
         const v = limits.checkWrite(tenant.name);
         if (!v.ok) return tooMany(res, v);
+      }
+      if (tenant.minor && isWrite) {
+        const recs = method === "importRecords" ? ((args[0] as { record?: { type?: string; body?: Record<string, unknown> } }[] | undefined) ?? []).map((x) => x?.record) : [args[0] as { type?: string; body?: Record<string, unknown> } | undefined];
+        const wants = recs.some((r) => (r?.type === "asp.telemetry_act/v0.2" && r.body?.act === "consent") || (r?.type === "asp.mandate/v0.2" && r.body?.telemetry !== undefined));
+        if (wants) return json(res, 403, { ok: false, error: { code: "minor_tenant_no_telemetry", message: "this tenant is held for a young person: the service does not collect cognition telemetry for it, so no consent or Mandate field for it is accepted" } });
       }
       if (opts.guard && isWrite) {
         const refused = await opts.guard({ tenant, method: String(method), args });
@@ -275,6 +392,7 @@ export function createLogServer(opts: ServerOptions): Server {
           const recs = method === "importRecords" ? ((args[0] as { record?: { issuer?: string; subject?: string } }[] | undefined) ?? []).map((x) => x?.record) : [args[0] as { issuer?: string; subject?: string } | undefined];
           opts.owners.add(tenant.name, recs.flatMap((r) => [r?.issuer, r?.subject]).filter((x): x is string => typeof x === "string" && x.startsWith("did:")));
         }
+        if (isWrite) opts.funnel?.step("first_act", req, { tenant: tenant.name });
         if (opts.usage && incoming) opts.usage.add(tenant.name, method === "importRecords" ? ((result as { imported?: number } | undefined)?.imported ?? incoming.records) : 1, incoming.bytes);
         return json(res, 200, result === undefined ? { ok: true, undefined: true } : { ok: true, result });
       } catch (e) {
@@ -287,7 +405,7 @@ export function createLogServer(opts: ServerOptions): Server {
     }
   };
   const server = (opts.tls ? createHttpsServer({ cert: opts.tls.cert, key: opts.tls.key }, handler) : createServer(handler)) as unknown as Server;
-  server.on("close", () => { opts.usage?.flush(); opts.owners?.flush(); });
+  server.on("close", () => { opts.usage?.flush(); opts.owners?.flush(); opts.funnel?.save(true); });
   server.requestTimeout = 60_000;
   server.headersTimeout = 15_000;
   return server;

@@ -1,0 +1,38 @@
+{
+  "mechanism": "scheduled-forgetting",
+  "paper": "P34",
+  "cite": "Scaling Discovery Requires Forgetting (Tan, Zhou, Agrawal, Zhang, Chen, Mang, Lee, Jacob, Sen, Dimakis, Zaharia), arXiv number and date not legible, as printed",
+  "source_credit": "docs/lenses/papers.md P34 (image IMG_6922)",
+  "licence": {
+    "status": "unknown",
+    "code_reused": false
+  },
+  "flag": "mechanism.scheduled_forgetting",
+  "lens": "L1-generative-agents",
+  "cells": [
+    "research-commons:remember",
+    "academy:learn",
+    "housing:remember"
+  ],
+  "rule": {
+    "metric": "median_efficiency",
+    "min_delta": 0.05,
+    "kill_delta": -0.02,
+    "min_agents_per_arm": 50
+  },
+  "rule_sha256": "sha256:1752ead854719ae304c91adeb8a2d1a53c7fbf8fa74a3da658a3c1d67ca94a3a",
+  "seed": 11,
+  "simulated": true,
+  "note": "the paper tested search tasks, not social ones; the parameter assumes forgetting costs a little on a belief-updating task",
+  "measures": {
+    "control": 0.313,
+    "treatment": 0.291,
+    "delta": -0.022,
+    "agents_per_arm": {
+      "control": 63,
+      "treatment": 57
+    }
+  },
+  "decision": "kill",
+  "reason": "the treatment arm is -0.022 against control, at or under the -0.02 kill threshold fixed before the run"
+}

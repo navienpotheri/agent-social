@@ -1,5 +1,7 @@
 import type { AspRecord, JobSnapshot } from "@agent-social/asp-core";
 
+import type { LedgerRows } from "./credit-audit.ts";
+
 export const GENESIS_LOG_HASH = `sha256:${"0".repeat(64)}`;
 
 export interface LogHead {
@@ -91,7 +93,12 @@ export interface AccountRow {
  */
 export interface MintRow {
   did: string;
+  /** Everything ever minted to the DID: the unsigned local mint plus the signed `mint` records. */
   totalMinted: number;
+  /** Of which minted by signed `mint` records (credits.md CR-2). Absent means 0. A replay recreates these from the records, so only `totalMinted - signedMinted` seeds it. */
+  signedMinted?: number;
+  /** Of the signed total, what a signed adoption record moved over from the old unsigned mint (DK95). The replay seeds `totalMinted - signedMinted + adoptedMinted`, so the adoption record finds the unsigned credits it adopts. */
+  adoptedMinted?: number;
 }
 
 /**
@@ -140,6 +147,10 @@ export interface ReputationRow {
   strikeLog: { at: string; count: number }[];
   /** Settlements on basis `accepted` with nothing slashed, for the bond floor v2 (S143); left out while 0, so the row reads the same on every store. */
   acceptedJobs?: number;
+  /** Of those, the jobs that qualify for standing (independent principal, not trivial, within the counterparty cap; qualifying.ts, S161). Standing reads this, not acceptedJobs. Absent on rows written before S161, which reads as 0. */
+  qualifyingJobs?: number;
+  /** The last eligible jobs (by principal sponsor and time), kept for the counterparty cap. */
+  recentJobs?: { p: string; at: string }[];
 }
 
 /**
@@ -189,6 +200,8 @@ export interface LogTx {
   getAccount(did: string): Promise<AccountRow | undefined>;
   getEscrow(contract: string): Promise<EscrowRow | undefined>;
   getMint(did: string): Promise<MintRow | undefined>;
+  /** A small keyed value the economy rules keep (the price-list head, a purchase's idempotency key). Written inside the append, so a refused record leaves none. */
+  getMarker(key: string): Promise<string | undefined>;
   getJuror(did: string): Promise<JurorRow | undefined>;
   activeJurors(): Promise<JurorRow[]>;
   getReputation(did: string): Promise<ReputationRow | undefined>;
@@ -206,6 +219,7 @@ export interface LogTx {
   putAccount(row: AccountRow): Promise<void>;
   putEscrow(row: EscrowRow): Promise<void>;
   putMint(row: MintRow): Promise<void>;
+  putMarker(key: string, value: string): Promise<void>;
   putJuror(row: JurorRow): Promise<void>;
   putReputation(row: ReputationRow): Promise<void>;
   putMandate(row: MandateRow): Promise<void>;
@@ -231,8 +245,10 @@ export interface Store {
   keysForDid(did: string): Promise<KeyRow[]>;
   getAccount(did: string): Promise<AccountRow | undefined>;
   getEscrow(contract: string): Promise<EscrowRow | undefined>;
-  /** Every DID's cumulative minted total, as {did, balance}. Used to seed verify()'s replay. */
+  /** Every DID's cumulative UNSIGNED minted total, as {did, balance} (signed `mint` records are not here: a replay recreates them from the records). Used to seed verify()'s replay. */
   allMints(): Promise<AccountRow[]>;
+  /** One consistent, read-only view of the whole ledger (every account, every mint, every lock), for the credit audit (credits.md 6.2, CR-1). Changes nothing. */
+  ledgerRows(): Promise<LedgerRows>;
   getJuror(did: string): Promise<JurorRow | undefined>;
   activeJurors(): Promise<JurorRow[]>;
   getReputation(did: string): Promise<ReputationRow | undefined>;

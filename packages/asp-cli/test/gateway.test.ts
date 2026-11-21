@@ -81,7 +81,7 @@ test("asp gateway: any command runs under the Mandate; the disallowed call never
   const local = await LocalLog.open(f.aspHome);
   const action = (await local.log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2").at(-1)!.record.body as any;
   assert.deepEqual(action.scopes_used, ["repo.read"]);
-  assert.deepEqual(action.blocked_attempts, [{ scope: "repo.push", count: 1 }]);
+  assert.deepEqual(action.blocked_attempts, [{ scope: "repo.push", count: 1, targets: ["cmd:git/push"] }]);
   assert.match(action.summary, /ASP gateway/);
 });
 
@@ -110,7 +110,7 @@ test("asp gateway: a Mandate that names hosts lets a fetch reach only those, and
   const { LocalLog } = await import("@agent-social/asp-package");
   const action = (await (await LocalLog.open(f.aspHome)).log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2").at(-1)!.record.body as any;
   assert.deepEqual(action.scopes_used, ["web.read"]);
-  assert.deepEqual(action.blocked_attempts, [{ scope: "web.read", count: 1 }]);
+  assert.deepEqual(action.blocked_attempts, [{ scope: "web.read", count: 1, targets: ["host:login.victim.example"] }]);
 });
 
 test("asp gateway keeps a redacted, hash-chained run log; the Action commits to it; asp run-log shows and verifies it", async () => {
@@ -180,7 +180,7 @@ for (let i = 0; i < 600 && !existsSync(process.env.AGENT_RELEASE); i++) await ne
   ]);
   assert.equal(run.code, 0, run.err);
   assert.ok(body, "the Action was in the log while the agent was still running, long before the 10-minute interval");
-  assert.deepEqual(body.blocked_attempts, [{ scope: "repo.push", count: 1 }]);
+  assert.deepEqual(body.blocked_attempts, [{ scope: "repo.push", count: 1, targets: ["cmd:git/push"] }]);
   assert.deepEqual(body.scopes_used, ["repo.read"]);
 });
 

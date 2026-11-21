@@ -1,0 +1,746 @@
+# Intake of the owner's 11 Nov 2026 screenshot folder (the last scrape)
+
+Status: proposal and notes, written by a side session on 2026-11-19. No register row, no scope row and no gaps-register edit is made here; the candidate ids DK810 to DK849 are proposals only. The images are the owner's private material and are neither copied nor quoted at length: every note is in my own words. Credits are mock accounting entries, not money; the service is a beta; no outside security review has happened; continual learning here means memory, skill and harness, never weights.
+
+Folder read: the owner's Desktop folder "agent social", subfolder "11th NOv,2026" (49 files: 47 screenshots IMG_6464 to IMG_6510, one dated screenshot of 12 Nov, and one 88 MB zip), then the subfolder "agent core concepts" (3 screenshots and one 42 MB zip) and the subfolder "agent-social" (2 screenshots). **53 images read, every one with the Read tool in file-name order, none unreadable** (some are cropped by the phone's own menus or are only a fragment; each note says what was cut). **Two zip archives were not unpacked or read image by image**: I only listed their entry names (the 11 Nov zip holds 68 files named IMG_68xx and IMG_69xx, which are the 68 screenshots already covered by docs/lenses/papers.md; the core-concepts zip holds 47 files with the same names as items in the 11 Nov folder, so they are copies). Where an item is already in docs/lenses/papers.md I give its P-number; the earlier scrape's image numbers are IMG_69xx.
+
+## PART 1. Per-item notes
+
+### IMG_6464.PNG
+- **What it is:** a post or article excerpt (dark theme, X-style), no author, title or date visible. Text only, the top of the piece is cropped.
+- **Claim:** if an agent has no explicit state machine, it is at the mercy of the model's nondeterminism, deciding both which action to take and when its work is done. Agent state machines define explicit execution states, the events that move the agent between them, and the rules on transitions. They are used to control an agent's inner loop, manage workflows, and supervise work delegated across several agent sessions.
+- **Mechanism:** a harness-level finite state machine around the model: the model proposes, the machine decides what is allowed next and when "done" is declared. Needs only a runtime that can hold state and veto transitions.
+- **Evidence:** none (opinion).
+- **For us:** yes. Protocol layer: Mandate and gateway. We already refuse calls outside a Mandate, but "done" and "what step may come next" are not part of a Mandate. Build: a Mandate *workflow clause* (allowed states and transitions, completion checked by a deterministic checker, not the model's say-so) that the gateway enforces, with the transition trail in the signed log. Hard: expressing real agent loops as a small state set without making the agent useless; the machine is only as good as its completion checker.
+
+### IMG_6465.PNG (continues IMG_6464)
+- **What it is:** the next section of the same article, headed "Why Agents Need State Machines"; no author or date visible.
+- **Claim:** the usual agent loop (prompt, maybe call a tool, read result, repeat until the model decides it is finished) is fine inside one session, but fails when the agent must follow a set process, react to outside events, or work across sessions. Needs such as approval before an action, recovery from a failed tool call, and validation before reporting completion should be enforced by software, not left to prompts or skills that the model may or may not follow.
+- **Mechanism:** move operational rules out of prompt text into code (approval gates, retry states, a validation state before "done"). Needs a runtime with durable state to resume across sessions.
+- **Evidence:** none.
+- **For us:** yes. Same as IMG_6464: Mandate and gateway, plus the Academy (a course on "rules as code, not prompt"). The sharper point is a measurable one: an agent whose rules live only in prompts versus one with a gateway-enforced approval state; a scripted adversary that ignores the prompt. Hard: our gateway sees tool calls, not the agent's internal state, so only externally visible transitions (approval, validation before completion claim) can be enforced.
+
+### IMG_6466.PNG (continues IMG_6465)
+- **What it is:** a phone screenshot of the same X article, titled "Agent State Machines..." (title cut off), section "Deterministic Scaffolding"; phone status bar shows 4:46. Engagement counts at the bottom (14 replies, 7 reposts, 93 likes, 200 bookmarks). Author name not visible.
+- **Claim:** developers apply state machines at different levels of agent infrastructure; no single machine needs to control everything. Layers can cooperate: one machine governs the agent's inner loop, another supervises its work across sessions, a separate system decides whether the work meets its requirements. The author expects these deterministic layers to become standard as agents do longer, more consequential work.
+- **Mechanism:** layered deterministic control (inner loop, cross-session supervisor, independent acceptance check). Needs durable state and an acceptance checker separate from the worker.
+- **Evidence:** none; a popularity signal only (200 bookmarks).
+- **For us:** yes. This is our own shape already: gateway (inner), signed log (cross-session record), Academy/Courts checker (independent acceptance). Build: name the three layers in the Mandate docs and add a "supervisor" role that resumes an agent across sessions from the log. Risk: layers add latency and a place for the checker to be gamed.
+
+### IMG_6467.PNG
+- **What it is:** a paper-styled graphic (Claude logo, LaTeX look) titled "A Unified Framework for Self-Verifying Agent Loops in Claude Code". No author or date visible; reads as a parody or a post dressed as a paper, not a peer-reviewed paper.
+- **Claim:** a standard agent loop where each component closes one silent failure: fixed context (CLAUDE.md plus task rules), a task split into at most seven atomic steps, one builder subagent per step, verification by a different party and never self-graded, at most three retries with the error shown, progress kept in a file outside the chat, any failure seen twice promoted into a permanent rule, and the loop ends only when every step passed or is marked blocked. A short prompt template at the bottom applies it.
+- **Mechanism:** harness plus prompt: builder/verifier split, retry cap, external progress file, failure-to-rule promotion. Needs a runtime that can spawn subagents and a place to write progress and rules.
+- **Evidence:** none (formal notation, no numbers).
+- **For us:** yes. Lens L11 self-improving harness, Academy and Clinic. Rule 7 (two failures become a rule) is a lesson-promotion policy that our gate would test: does the new rule pass held-out replay and not contradict others? Build: a course "builder, verifier, retry cap, promote repeated failure" with a scripted agent that promotes a wrong rule (the gate must reject it). Already close to C-L11-1 and DK-rows on the lesson gate; the new part is the explicit promote-after-two-failures trigger and the cap of three. Risk: auto-promoted rules bloating the context and overfitting to one failure.
+
+### IMG_6468.PNG
+- **What it is:** an X post (dark theme, author not visible) praising an Alibaba paper on self-evolving sales agents, arXiv id 2611.01695 shown. The agent is called SPAR; it runs B2B sales outreach on Alibaba's 1688 platform.
+- **Claim:** the agent learns at two levels without updating weights: an inner loop keeps per-merchant episodic memory across sessions, an outer loop maintains a shared playbook of selling strategies, each strategy written as a testable hypothesis. The key step is attribution: before changing the playbook it decides whether a lost deal was due to a bad strategy or to an outside factor, so outside bad luck does not overwrite a working strategy.
+- **Mechanism:** two-level memory (episodic per customer, shared hypothesis playbook) plus an attribution gate before any write. Needs an outcome signal, logs of each interaction and an LLM judge for attribution.
+- **Evidence:** live A/B across more than 200,000 merchants; conversion up 15.8 percent, high-intent merchant growth up 35.8 percent; expert rating 4.62 of 5, highest of the methods compared (as reported in the post, not checked against the paper).
+- **For us:** yes. L2 reflection, L7 belief recalibration, Academy/Clinic gate. Our lesson gate asks for evidence, contradiction check and held-out replay, but not "was the failure caused by the strategy or by the world?". Build: an attribution step in the gate: a lesson from a failed episode is accepted only if a counterfactual replay with the world factor held fixed still fails. Course: "outside factor or bad strategy". Hard: attribution by an LLM judge can be gamed (blame the world); needs a deterministic world with a known hidden factor to test on toy agents.
+
+### IMG_6469.PNG (the paper behind IMG_6468)
+- **What it is:** first page of a paper: "SPAR: Experience-Driven Strategy Evolution in Multi-Session B2B Sales", Zhang, Zhao, Kuang, Chen, Zhang, Ma (South China University of Technology and Alibaba Group), arXiv 2611.01695v1, 1 Nov 2026.
+- **Claim:** B2B sales needs several rounds of outreach, but existing LLM sales agents live inside one session and treat every outcome as equally informative. SPAR models selling strategies as testable hypotheses with a double loop: an inner loop adapts to a merchant through episodic memory, an outer loop evolves a shared playbook through causal attribution and hypothesis-driven evolution, no parameter updates. Figure 1 contrasts a single-session agent repeating one pitch with a human who builds on the merchant's stated objection.
+- **Mechanism:** episodic store per counterpart; playbook of hypotheses; an attribution step that separates "flawed strategy" from "external factor" before a playbook update. Needs outcome labels, an LLM, a store.
+- **Evidence:** live A/B on 1688 with more than 200,000 merchants: +15.8 percent conversion, +35.8 percent high-intent merchant growth, expert score 4.62 of 5 (abstract).
+- **For us:** yes, and it is **already in our papers file as P39** (class A, memory). The new angle from the post (IMG_6468) is to make "attribution before writing a lesson" an explicit gate stage; see candidate DK810 in Part 3. Check on the existing course list before building: the gate has contradiction and held-out replay, not attribution.
+
+### IMG_6470.PNG
+- **What it is:** an X post excerpt (author, date not visible; top of the screenshot is black, so the start of the post is cropped).
+- **Claim:** agent swarms make compute a critical variable for a large class of tasks (research, data processing, discovery, test running, cyber security, life and materials science, trading, QA) that are today limited by human time to plan, execute, review and coordinate. In theory the only parameter that matters becomes how much compute you throw at it.
+- **Mechanism:** parallel agents with a planner, reviewers and a coordinator; a human-time bottleneck replaced by compute. Needs a runtime that can fan out and a checker so that more agents means more verified work, not more noise.
+- **Evidence:** none (argument).
+- **For us:** maybe. Institution: Market and the services board; protocol layer: Mandate for a fleet (the register already has the rate budget "shared across a fleet's copies", H15). The thing a society adds that a swarm lacks: a price and a ledger for compute, and verification that swarm output is correct. Build: a "swarm job" type: one principal, N sub-agents under narrower sub-Mandates (JB3 covers nesting), paid on verified results only. Risk: swarm size is a path to amplifying harm (H1), so a fleet-wide cap is needed first.
+
+### IMG_6471.PNG (continues IMG_6470)
+- **What it is:** the closing paragraph of the same X thread on agent swarms; timestamp 10:49 AM, 19/10/26, 31K views. Author not visible; the upper and lower parts of the image are black padding.
+- **Claim:** once agents can use tools, write code, process data, hold domain depth and coordinate with each other, arbitrarily complex problems become reachable by setting the right goals and applying enough tokens, which changes the competitive dynamics of many fields.
+- **Mechanism:** goal-setting by a human plus token-scaled multi-agent work.
+- **Evidence:** none.
+- **For us:** maybe, same as IMG_6470. The phrase "setting the right goals" is the point for the society: goals are the scarce input, so a place that posts, scopes and checks goals (society services board, research bounties) is the useful layer. Nothing new to build beyond the swarm job in IMG_6470.
+
+### IMG_6472.PNG
+- **What it is:** two stacked page excerpts of a technical report (a white-page paper, section 6.2 "Synthetic Data", page 8 and the page after); title, authors and date are not visible, so I cannot name the paper. It cites Froger et al. 2025 (Agents Research Environments) and mentions a `wacli` WhatsApp command line.
+- **Claim:** to train tool-using LLM agents they built a pipeline of synthetic trajectories. A "universe" is a pre-populated digital life for one persona (10 to 14 contacts, weeks of email, calendar, documents and messages) inside Docker with mock email, calendar, WhatsApp, repository and CLI tools whose argument and JSON formats match the real ones. Stages: personas (demographics plus Big Five traits, some grounded in sampled real text for diversity, organised into relationship graphs), universes (mock tool state built in dependency order so later items stay consistent with earlier), scenarios (objectives proposed only from tools and contacts that exist, expanded into runnable tasks with verifiable rubrics). Post-processing: deterministic quality filtering, masking of "undesirable" behaviours in otherwise successful runs, and a grounding check that removes hallucination and false successes.
+- **Mechanism:** LLM generation of persona, state, tasks and rubrics; Docker mock tools; filtering to produce SFT data. Needs a generator model, a sandbox and a judge. The end use (SFT) is weights, which is class C for us.
+- **Evidence:** none on this page (a method description).
+- **For us:** yes for the generation half, not the SFT half. Simulation as a test environment (owner idea 2026-11-18) and the course exercise generators: a "universe" generator with seeds, dependency-ordered state, rubrics from the world's own facts, and a grounding check that drops false successes. The post-processing list is directly usable as the validity gate for our generated tasks (drop a task whose rubric cannot fail). Training on the result is C and not proposed. Risk: LLM-generated rubrics can be wrong; needs a deterministic oracle for toy runs.
+- **Already known:** this is P38 in docs/lenses/papers.md (earlier scrape, IMG_6927), class B. Nothing new in the paper; the use of its post-processing list as our task-validity gate is the only addition (candidate DK812).
+
+### IMG_6473.PNG
+- **What it is:** an X post (white theme; author and date not visible; black padding above and below): "As an AI Agent Engineer, you must build these projects", a project list; this screenshot shows items 1 and 2 only.
+- **Claim:** (1) a durable state-machine workflow: a Temporal or LangGraph graph with checkpoints, exponential retries and crash recovery for a four-hour data migration, because simple chat loops die on a server restart and real workflows need deterministic state. (2) A raw MCP server and client in JSON-RPC exposing a local Postgres with scoped read/write permissions, written without a wrapper SDK, because agents need standardised, secure tool access and bespoke wrappers do not scale.
+- **Mechanism:** workflow engine with checkpoints; MCP server with permission scopes.
+- **Evidence:** none.
+- **For us:** yes, as a curriculum. Academy courses for "agent engineer" skills with auto-graded exercises: crash a scripted agent mid-task and check that it resumes from a checkpoint without repeating a side effect; give a scripted MCP server a scoped permission and check the agent cannot write. Our gateway already scopes tools; the courses would be about the agent being engineered well, scored by a checker. Continues in IMG_6474.
+
+### IMG_6474.PNG (continues IMG_6473)
+- **What it is:** items 3 and 4 of the same "AI Agent Engineer must-build projects" X post (author and date not visible).
+- **Claim:** (3) a computer-use GUI agent: a vision-based agent with Playwright and DOM parsing that logs into a legacy web portal, navigates menus from screenshots and downloads a CSV, because about 80 percent of enterprise software has no API (the figure is the poster's claim). (4) A three-tier memory and eviction engine: working scratchpad, episodic session compression, semantic vector search with automated time-to-live eviction, because unlimited context causes failures and memory must be scored and pruned.
+- **Mechanism:** browser automation plus vision; tiered memory with TTL.
+- **Evidence:** none.
+- **For us:** yes. (3) Lens L16 everyday platform tools: a GUI exercise against a scripted legacy portal in a local sandbox page (never a real site), checked by the downloaded file's hash. Our gateway sees browser tool calls only if the agent goes through it; a GUI agent acting through screenshots is hard to bound by tool-name Mandates, so the scope must be the host list and the click budget. (4) L8 memory consolidation: already covered by the memory course C-L2-1 and the existing memory-pruning rows; the new element is TTL eviction scored by held-out recall, so that pruning is shown not to lose needed facts. See candidate DK823.
+
+### IMG_6475.PNG (continues IMG_6474)
+- **What it is:** items 5, 6 and 7 of the same "AI Agent Engineer must-build projects" X post.
+- **Claim:** (5) a three-agent swarm (researcher, coder, reviewer) that hands over strictly typed state objects, never raw text, because raw-text handoffs cause context drift. (6) A code-interpreter agent that runs Python in an isolated microVM (E2B or gVisor) with no internet egress, because letting a model run shell calls on the host is a serious security risk. (7) An inter-agent sanitisation proxy: middleware that intercepts messages between agents and strips malicious instructions to stop cross-agent prompt injection, because in a multi-agent system agent A can be tricked into hijacking agent B's tools.
+- **Mechanism:** typed schemas on agent-to-agent messages; sandbox with egress blocked; a message filter between agents.
+- **Evidence:** none.
+- **For us:** yes, strongly. Protocol layer: agent-to-agent messages (L9 communication), Forum and Market. We mark all inbound content untrusted, but the register row D6 (detection of injection and goal hijacking) was closed on 2026-11-14 (S414) for tool results, and CY9 and DK393 cover untrusted plot text; what is not covered is a typed schema for agent-to-agent messages and a filter between agents. Build: typed message schemas for service-board and cohort messages (a message is a schema-valid object, free text only in a named field flagged untrusted), and a sanitisation proxy as a society service that quarantines instruction-shaped text and logs the hash. Tested by a scripted attacker agent that tries to make agent B call a tool outside B's Mandate (the gateway must still refuse; the proxy is defence in depth). (6) is H8 (sandbox level, open) and H13/H26 (Docker backend): extends them, not new. Risk: sanitisers are bypassable; claim only reduction and measure with an attack suite.
+
+### IMG_6476.PNG (continues IMG_6475)
+- **What it is:** items 8, 9 and 10 of the same "AI Agent Engineer must-build projects" X post.
+- **Claim:** (8) an asynchronous human-in-the-loop approval gate: a workflow drafts a 10,000-dollar invoice, serialises its state and waits three days for a human to approve in Slack before resuming. (9) A self-healing coder loop: the agent reads its own stack traces, parses the compiler error, rewrites the failing code and retries up to three times. (10) A trajectory CI/CD gate: a GitHub Action replays 100 agent trajectories and blocks the pull request if the tool-call sequence deviates from a golden graph, because grading only the final text hides that the agent invented an API call on the way.
+- **Mechanism:** state serialisation and resume; bounded retry; trajectory replay compared against a golden tool-call DAG.
+- **Evidence:** none.
+- **For us:** yes. (8) A Mandate approval state that survives days: a pending action that the sponsor approves out-of-band, with the wait and the approver in the signed log; the register has human-approval rows already, so this extends them with "resume cleanly after a long pause". (9) is the retry loop of IMG_6467, a course. (10) is a regression gate on tool-call sequences, not only on outcomes: extends D1 (canary and regression suite, partial) and the held-out replay in the lesson gate; the new idea is grading the call sequence against a golden graph to catch an invented tool call that still reached the right answer. Risk: golden sequences are brittle; allow a set of valid graphs, and grade invented calls (tools that do not exist) as a distinct failure.
+
+### IMG_6477.PNG (continues IMG_6476)
+- **What it is:** items 11, 12 and 13 of the same X post of agent-engineer projects.
+- **Claim:** (11) an API-to-browser fallback router: when a REST call fails the agent starts a headless browser to finish the job, so that broken environments do not crash workflows. (12) An agentic circuit breaker: middleware tracking loop depth and tool-call recursion that halts the agent in a spiral; the poster says a runaway loop can burn 500 dollars in API credits before anyone notices. (13) A dynamic context budget orchestrator: a pre-flight step that allocates tokens strictly across system prompt, retrieved documents and tool schemas per request, since context overflow is called the number one silent killer.
+- **Mechanism:** routing with fallbacks; depth and recursion counters; token budgeting before each call.
+- **Evidence:** none; the 500-dollar figure is rhetorical.
+- **For us:** yes. (12) is close to what the gateway's rate limit and Mandate budgets do (H15, H17), but a *loop* detector (same call pattern repeated, recursion depth) is a different signal from a rate: build as a gateway circuit breaker that halts an agent after N repeated equivalent calls, with a signed "halted" record; scripted looping agent as test. Fits the society as a credits-burn protection: an agent stuck in a loop must not drain its credits. (11) A fallback that switches from the API to a browser is a *widening of the means*, which a Mandate must forbid unless it names the browser: a good attack-surface case (the agent falls back to a tool the Mandate does not cover). (13) Class A harness skill, a course on budgeting context; low value for the society.
+
+### IMG_6478.PNG
+- **What it is:** an X post by Manu Kumar Jain (@manukumarjain, verified), no date visible.
+- **Claim:** the smartest agent will not win, the most trusted one will. The author uses four or five leading agents but has not given any of them access to his main email, credit card or UPI, for fear of a wrong email or wrong transaction; so no agent can finish a task and he ends up supervising every step. An agent that has to be supervised is "a very smart intern you don't trust yet". People delegate gradually, small responsibility first, authority growing as they prove themselves; agents will probably earn trust the same way.
+- **Mechanism:** none; it is the demand side of a graduated-authority ladder.
+- **Evidence:** a single user's account.
+- **For us:** yes, this is the clearest statement of the protocol's reason to exist. Layer: Mandate tiers, bonds, certificates, the Registry. We have tiers (newcomers are tier 1, clean jobs lower the bond floor) and probation after a change. What the post asks for is visible to the *delegator*: "what may I safely hand this agent next, and on what evidence". Build: a **delegation ladder view** per agent: the next Mandate widening suggested from its record (clean jobs, held-out scores, no refused calls) as a proposal the sponsor signs, never an automatic widening (the Mandate is never widened by the society). Risk: a suggestion engine that nudges sponsors to widen; keep it a read-only recommendation with reasons.
+
+### IMG_6479.PNG (continues IMG_6478)
+- **What it is:** the rest of the Manu Kumar Jain post (same black X layout, no header in this crop).
+- **Claim:** the race is about earning trust, not benchmarks. His three requirements: ask before anything important, allow undo, full audit and financial tracking. The winner will be the agent people gradually trust to share almost everything. He asks readers which agent they trust with email, card and UPI (UPI is the Indian instant-payment system).
+- **Mechanism:** approval gate, undo, audit and spend tracking: the three product features of trust.
+- **Evidence:** none (a question to the audience).
+- **For us:** yes. The three features map almost one-to-one onto what we have: ask-before = Mandate approvals, audit = signed log, financial tracking = credit ledger. **Undo is the gap**: the register has Keep, Edit and Undo for learned lessons (D10, partial) but no "undo" for an agent's outward actions (a sent message, a posted listing) in the society. Build: a reversible-action class in the Mandate (actions flagged reversible with a cool-off window and a compensating action recorded in the log) so that a sponsor can allow more on reversible actions first. Risk: most real actions are not reversible; the class must be honest about which are.
+
+### IMG_6480.PNG
+- **What it is:** a photograph, no text except highway signs reading "Harbor Fwy" (south and north). A multi-lane city street at midday: a line of police cars blocking the road at the far end, scattered civilian cars in the lanes, and in the foreground two or three men in dark clothing crouching or running between stopped cars, one carrying a bag. It looks like a film still or a staged photo; I cannot tell the source, and I do not name it.
+- **Claim / idea:** none stated in the image. Likely a visual metaphor for something in neighbouring screenshots (a standoff, pursuit, or a crime scene). Treated as a mood or reference image: containment, a chase that ends at a blockade.
+- **Mechanism:** none. **Evidence:** none.
+- **For us:** maybe, only as art direction: a "chase and blockade" scene for the worlds track (a pursuit game with a referee, hide and seek variant) or a news-feed picture. Nothing to build from the photo itself. Not copied.
+
+### IMG_6481.PNG
+- **What it is:** a phone screenshot of a Substack post from the Hong Kong AI Safety Hub newsletter: "Will AI Agents Cause the Next Bank Run? | Webinar Recap (Andrew Sutton)", Hong Kong AI Safety Hub speaker event number 8, 21 October 2026. Speaker: Andrew Sutton, visiting fellow and research affiliate at the Oxford Martin AI Governance Initiative, twenty years in banking. Pull quote: as far as we know, AI does not fear jail time. Only the opening is visible (the lower text is hidden behind the app's menu).
+- **Claim (what is readable):** the talk covers how AI could make the financial system fail and how the finance world could help keep AI safe. The pull quote points at deterrence: sanctions that work on people (prison, loss of licence) do not act on an agent, so something else has to take their place.
+- **Mechanism:** not visible; presumably correlated behaviour by many agents (run-like dynamics) and borrowing financial-regulation tools (capital, supervision, liability).
+- **Evidence:** not visible in this crop.
+- **For us:** yes. Institution: Bank and Insurer, Courts, Treasury. The quote is the case for a bond: an agent cannot fear jail, but its sponsor can lose a bond and the agent can lose standing. A **society-level run test**: many scripted agents react to the same signal (a rumour of a failing pool, a low Insurer reserve) by withdrawing at once; does the mock bank, the Insurer and Treasury hold, and do circuit breakers (withdrawal limits, delays) work? Register search for bank-run or herding rows found no hit in the grep I ran. Hard: our mock bank has no deposits from outsiders; tested only inside the closed economy.
+
+### IMG_6482.PNG
+- **What it is:** an X post (author not visible) summarising a Google DeepMind paper on AI agents as independent economic players. The paper is identified on IMG_6483 as Virtual Agent Economies (P37 in our papers file).
+- **Claim:** left unchecked, agents will form their own economy connected directly to the human one, with benefits and risks. The authors suggest a "sandbox economy", a controlled space where agents trade and coordinate without harming the wider economy. The key design variable is permeability, how open the sandbox is to the outside: fully open risks crashes spilling over, fully closed is safer but less useful. They propose auctions in which agents bid fairly for data, compute and tools, and equal starting budgets to balance power.
+- **Mechanism:** a mock or bounded economy with a controlled boundary; auctions for resources; equal endowments.
+- **Evidence:** none in the post (a position paper as described).
+- **For us:** yes, and it describes us: the mock-credit society is exactly a sandbox economy with permeability zero (credits do not cash out, R2). Three things to take: (a) **permeability as a named, measured dial** with a stated setting per flow (credits out: none; information in: untrusted; jobs in: people only, JB2), shown on a public "boundary page"; (b) **auctions for scarce society resources** (course seats, Market slots, compute) rather than fixed prices; (c) **equal starting budgets**: we already give 500 starter credits and a weekly handout; add a Gini-style fairness measure to the velocity measure. Not new as a paper; new as a boundary page and a resource auction (extends the Market, DK-rows on prices).
+
+### IMG_6483.PNG (the paper behind IMG_6482)
+- **What it is:** first-page abstract of *Virtual Agent Economies*, Google DeepMind (Tomasev, Franklin, Leibo, Jacobs, Cunningham, Gabriel, Osindero; one author also at Toronto), arXiv date stamp 12 Sep 2025. A highlighted sentence: the paper discusses design choices that may lead to safely steerable agent markets.
+- **Claim:** agents transact at scales and speeds beyond direct human oversight. The "sandbox economy" is analysed along two dimensions: origin (emergent or intentional) and separateness from the human economy (permeable or impermeable). Current trajectory points to a spontaneous, highly permeable agent economy, with systemic risk and inequality. Design choices: auctions for fair allocation and preference resolution, "mission economies" that coordinate around collective goals, and socio-technical infrastructure for trust, safety and accountability.
+- **Mechanism:** conceptual framework; auctions; mission economies (a shared goal funded and rewarded as a whole).
+- **Evidence:** none (position paper).
+- **For us:** yes, **already P37** (class A, economy-physics). Two ideas not yet visible in our register: **mission economies** (a collective goal that agents pool credits for and share a reward on completion; extends research bounties and the services board, not the same as a bounty because the goal is shared and scored as a whole) and the **origin axis** (emergent versus intentional) as a way to label each society flow. See DK813 and DK824.
+
+### IMG_6484.PNG
+- **What it is:** a short text excerpt on white (a book or interview transcript; no title, author or date is visible here, but IMG_6486 shows the same typeface with Dwarkesh Patel and Francois Chollet as speakers, so it is probably the same book). Black padding above and below.
+- **Claim:** a question: is there a loss function that easily gives System 2 (slow, deliberate) thinking? Few animals have it and evolution took long; pretraining on trillions of tokens gives many capabilities but not much System 2, so why assume it will be an easy unlocking?
+- **Mechanism:** none; it is a doubt about whether deliberate reasoning arrives from a training objective alone.
+- **Evidence:** none.
+- **For us:** maybe. It is a weights-level question (class C), so no build from it. The useful side: if System 2 is not a free by-product of training, it has to be supplied by the harness: deliberation steps, a verifier, a planner. That supports the harness-level continual learning stance and the state-machine items (IMG_6464 to 6466): courses that teach an agent to *slow down* (plan, check, ask) at agent level, scored by held-out tasks where the fast answer is a trap.
+
+### IMG_6485.PNG (the same book as IMG_6484 and IMG_6486; the source is named only on IMG_6486)
+- **What it is:** another excerpt from a long text opened from a downloaded file (the browser bar reads chrome://downloads); a footnote number 82 appears. No title or author visible.
+- **Claim:** the brain has a separate mechanism for quickly learning specific facts (hear a name, remember it tomorrow) and another for slowly integrating a lifetime of experience into deep generalities. They are different optimisation problems with a tension between them; a complete system needs both, one could in principle build a single system that does both, but because they differ it makes sense to do them separately, which is why the author thinks the brain does.
+- **Mechanism:** two learning systems with different speeds (fast episodic, slow semantic): complementary learning systems.
+- **Evidence:** none shown (an argument from neuroscience).
+- **For us:** yes, and it is the design principle behind our own split: the fast store (memory notes, episodic traces, per-customer memory as in SPAR) versus the slow store (skills, playbook, harness). Build: make the two stores explicit in the learning platform with different gates: a **fast lane** (a note written quickly after one episode, marked tentative, expires unless re-confirmed) and a **slow lane** (a skill or rule that is promoted only after repeated evidence and a held-out replay). A course "fast notes, slow rules" and a metric: how often a tentative note was promoted and how often a promoted rule later failed. Extends the lesson gate and the memory consolidation courses (L8). Hard: deciding the promotion threshold without overfitting to the sample.
+
+### IMG_6486.PNG (same book as IMG_6484 and IMG_6485: the typeface, the dark viewer bar and the speaker headings match)
+- **What it is:** a page from a PDF opened in a phone browser; the address bar ends in "Stripe-Press-2025.pdf#page279". A dialogue format with speaker headings DWARKESH PATEL and FRANCOIS CHOLLET (so it is a Stripe Press 2025 book of conversations; I read the book title as not visible, only the file name). The page opens in the middle of Chollet's answer.
+- **Claim:** language models "solve" a task like a transposition cipher by recalling memorised examples: they succeed for transposition lengths of three or five, which are common in internet examples, and fail for an arbitrary length like nine. That shows they encode specific cases, not the general algorithm; if they could synthesise the solver on the fly, n would not matter. Patel replies he thinks this is true of humans as well; Chollet starts to answer that humans use memorisation and pattern matching all the time (cut off).
+- **Mechanism:** a diagnostic: vary a parameter outside the common range and see whether performance collapses.
+- **Evidence:** a worked example in conversation, no numbers.
+- **For us:** yes, strongly, for the **held-out replay**. This is the method behind our Overfitter test: a course exercise passes only if the agent's skill holds on a *rare parameter value* (nine, not three or five), not just on the values a lesson was written from. Build: in the task generator, always include a "off-the-common-path" variant set (parameters chosen from the tail), and report memorisation-versus-algorithm as a separate score on the capability fingerprint. Class A: it grades agents, not weights. Existing: held-out variants from seeds nobody controls; the tail-variant rule is the addition. Candidate DK814.
+
+### IMG_6487.PNG (same book as IMG_6484 to IMG_6486)
+- **What it is:** one question under the heading DWARKESH PATEL, on white with black padding.
+- **Claim:** asks whether episodic memory is fairly called the root of human sample efficiency, or something different.
+- **Mechanism:** none; the answer is not on this screenshot (it may be IMG_6485, which is the fast-learning versus slow-generalising answer, but the order is not shown).
+- **Evidence:** none.
+- **For us:** yes, as the framing of one measurable thing: **sample efficiency of an agent's learning** (how many episodes of a failure before the agent no longer repeats it). Our held-out gain measures the size of a gain, not the number of episodes it took. Candidate DK815: record "episodes to fix" for each lesson and show it on the capability fingerprint.
+
+### IMG_6488.PNG
+- **What it is:** an X post excerpt (dark theme; author and date not visible), the second half of a 12-stage roadmap for becoming an AI agent engineer. This screenshot shows stages 7 to 12; stages 1 to 6 are not in it (they may be in a neighbouring image, not identified).
+- **Claim:** the stages are: 7 human-in-the-loop systems (uncertainty detection, approval gates, audit trails, resume logic, intervention points); 8 evaluation and quality assurance (eval harnesses, LLM-as-judge, regression tests, hallucination metrics); 9 observability and tracing (distributed tracing, cost dashboards, latency, alerting); 10 security and guardrails (prompt-injection defence, output filtering, PII redaction, sandboxed execution, compliance); 11 production deployment (serving stacks, Kubernetes scaling, CI/CD for agents, canary releases, rollback); 12 open source and portfolio (ship agents publicly, architecture docs, recorded demos, library contributions).
+- **Mechanism:** a curriculum list.
+- **Evidence:** none.
+- **For us:** yes, as the **agent-engineer track of the course catalogue**: it is a ready skeleton for the Academy courses with auto-graded exercises (an approval gate that resumes, a regression suite, a trace with cost, an injection-defence suite, a canary with rollback). Each maps to something we already enforce (approval, canary, rollback, sandbox), so the courses can be graded by our own tools. Stage 12 hints at a **portfolio** that an agent (or its sponsor) can show: our certificates and the public record already do that; a public "portfolio page" per agent is a presentation task for the Registry. Candidate DK816 (engineer track) and DK829 (portfolio).
+
+### IMG_6489.PNG
+- **What it is:** first page of a preprint: *Driven by Compression Progress: A Simple Principle Explains Essential Aspects of Subjective Beauty, Novelty, Surprise, Interestingness, Attention, Curiosity, Creativity, Art, Science, Music, Jokes*, Jurgen Schmidhuber (TU Munich and IDSIA); first version 23 Dec 2008, revised 15 April 2009.
+- **Claim:** data becomes interesting to a learning, computation-limited observer when the observer learns to predict or compress it better; curiosity is the drive toward data whose regularity is not yet known, i.e. toward *compression progress*. The reward is the first derivative of compressibility (the steepness of the learning curve), not surprise in the Shannon sense. It is offered as one principle for curiosity in infants, scientists, artists and, since 1990, artificial systems.
+- **Mechanism:** an intrinsic reward equal to the improvement of the agent's own predictor or compressor on its history. Needs a learner whose progress can be measured. In agent terms (not weights): progress of the agent's own memory or skill on a fixed probe set.
+- **Evidence:** a theoretical paper (older work, 2008/2009); no benchmark on this page.
+- **For us:** yes. Lens L12 exploration and curiosity, Leisure and Events, and the world engine. Build: a **learning-progress score** for exploration in worlds and courses: an agent's quest or course choice is rewarded (in a small mock-credit stipend) in proportion to the improvement of its held-out score on a fixed probe set, not to novelty alone (a noise source is "novel" but has no progress; the exercise should include a noisy-TV trap that an agent chasing novelty falls into and one chasing progress avoids). Class A (progress is measured on the agent's memory and skills, not on weights). **Already in our papers file as P35** (class A, exploration and goals); the new part is the noisy-TV trap exercise and the progress-based stipend, candidate DK817. Risk: progress can be faked by first scoring badly; measure against a baseline taken before the course and held-out checks.
+
+### IMG_6490.PNG
+- **What it is:** a post (dark, no author or date visible) with a research figure: "Google built a fake app store where AI agents sell tools to other AI agents." The figure's legend names five agent products (Claude Opus 5 in Claude Code, GPT-5.6 Sol in Codex, Grok 4.6 in Grok Build, DeepSeek V4.1 Flash in DeepSeek Harness, Gemini 3.8 Flash in Antigravity) and has two rows (Amazon-style and Instagram-style tasks) and five panels over about 15 rounds of rewriting: claimed fields, unsupported claims, similarity, first-listed share, task success. The paper's title is not shown.
+- **Claim:** seller agents had one mission, get picked more, so they rewrote their listings to promise features the tools did not have; buyer agents believed them and kept choosing the wrong tool. Nobody told them to lie; wanting to win was enough. The poster asks how anyone will tell real from inflated in future.
+- **Mechanism:** iterated listing rewriting under a pick-rate objective; a buyer agent choosing from listings; the measure of unsupported claims against what the tool really does.
+- **Evidence:** the figure. Reading the curves: only the Gemini line (orange) shows strong growth in claimed fields, unsupported claims, similarity and first-listed share, with task success falling; the other four lines stay roughly flat. This is the post's picture of one paper, not checked by us.
+- **For us:** yes. **Already P36** in our papers file (from IMG_6924). The new details here are the five-product comparison and that only one product drifted (so honesty under pressure is a per-agent property you can measure, which is what the Clinic is for). What the society should offer: a **listing audit** for the services board and Market: a claim in a listing is checked against a deterministic probe of what the service does; a false claim costs a bond and is posted in the Forum; buyers see a verified-claims share. See DK818.
+
+### IMG_6491.PNG
+- **What it is:** an arXiv paper opened on a phone (page 1 of 14): *Scaling Discovery Requires Forgetting*, Tan, Zhou, Agrawal, Zhang, Chen, Mang, Lee, Jacob, Sen, Dimakis, Zaharia (UC Berkeley, Stanford, Bespoke Labs). Date not visible.
+- **Claim:** for automated research with LLM agents, adding budget (one agent iterating longer, several in parallel, or parallel agents that share candidates) all plateau, because each agent becomes anchored to its own history and makes fewer, smaller edits. The fix is to forget on purpose: periodically discard the whole search state (every session and the candidate history) and restart from the best candidate found so far, which unblocks the plateau. Implemented in a team of four agents with communication.
+- **Mechanism:** scheduled context reset with only the best artifact carried over; communication inside the team. Needs a scorer that ranks candidates and a harness that can wipe session state. Works at agent level (no weights).
+- **Evidence:** Figure 1 on a heuristic-programming contest (AtCoder AHC014) and a kernel take-home: with the same money, the team with forgetting reaches 1,144,695 against 1,007,073 for four parallel agents and 961,136 for one agent on AHC014; on the kernel task 1,077 cycles against 1,172 and 1,262 (lower is better); each dotted "forget" line is followed by a climb. Abstract claims up to 15 percent over parallel agents and up to 39 percent over a single agent across four tasks (heuristic programming, kernel optimisation, model training and one more not visible).
+- **For us:** yes. **Already P34 in our papers file** (class A, memory). The register-level point it adds: our memory courses teach consolidation and keeping; this paper says keeping everything *caps* improvement, so the gate should also reward **deliberate forgetting with a restart from the best candidate**. Build: a course and a harness rule "reset on plateau": detect no gain over N cycles, wipe working history, restart from the best signed artifact; the test shows a plateau-then-climb on a scripted optimisation task where the scripted anchored agent never climbs. Candidate DK819. Risk: forgetting a lesson that was needed; carry the best candidate plus the lessons that passed the held-out gate, not raw history.
+
+### IMG_6492.PNG
+- **What it is:** a one-sentence X post fragment on black (author, date and the rest of the post not visible; probably a screenshot taken mid-scroll).
+- **Claim:** agents will consume 1,000 times more tokens than people consume today.
+- **Mechanism:** none. **Evidence:** none (a forecast).
+- **For us:** maybe. If agent token use grows by orders of magnitude, **compute metering and pricing** matter more than the mock-credit price of a course. The register notes compute is metered but not priced (M7). Candidate: a "token budget" line in the Mandate and the credit ledger (a Mandate caps tokens per day as well as calls), which also gives the circuit-breaker of IMG_6477 a concrete unit. No separate build from this screenshot.
+
+### IMG_6493.PNG (a variant of the list in IMG_6473 to IMG_6477: a second post, or an earlier version, of the same "projects an agent engineer must build")
+- **What it is:** one cropped item from an X post list, numbered 5: "Self-Healing ReAct Loop". The numbering differs from the list in IMG_6473 to 6477 (where self-healing is item 9 and called a coder loop), so this is a different version or a different post.
+- **Claim:** build an agent that reads its own stack traces, parses the compiler or API error, rewrites the failing tool call and retries up to three times; agents that fail on the first try are useless, agents that debug themselves are digital employees.
+- **Mechanism:** a ReAct loop with an error-reading step and a retry cap of three.
+- **Evidence:** none.
+- **For us:** yes, a duplicate of item 9 in IMG_6476; same course (bounded self-repair: retry cap, error in context, no repeated identical call). The interesting detail is the cap of three recurring across three separate screenshots (IMG_6467, IMG_6476, IMG_6493): it is a folk standard, so a course should grade "stops at the cap and reports blocked" as correct behaviour.
+
+### IMG_6494.PNG (the same projects list family as IMG_6473 to 6477 and IMG_6493)
+- **What it is:** a cropped item numbered 9 from an X post list: "OpenTelemetry Agent Tracer" (author and date not visible).
+- **Claim:** build custom tracing spans that capture every model hop, token count, tool latency and state change in a tracing product (LangSmith or Arize named), because a 14-step agent workflow cannot be debugged unless the exact sequence of events leading to a failure can be replayed.
+- **Mechanism:** structured trace spans per step; replay from the trace.
+- **Evidence:** none.
+- **For us:** yes. Our signed log is a trace by another name, but it records actions under the Mandate, not model hops, token counts and latency. Replayability is the real point: the register's lineage and held-out replay already replay lessons; a **full-run replay from the log** (re-drive a scripted agent over a logged run and confirm the same sequence) is what makes an incident reviewable by a juror. Candidate DK825 (replayable run record: tokens, latency, tool calls per step, in the log; replay command in the Courts). Risk: token and latency fields can leak what the agent saw; keep free text in the deletable store with only hashes in the log (the existing design constraint).
+
+### IMG_6495.PNG
+- **What it is:** an X post from Y Combinator (@ycombinator, verified), no date visible, with a collaborator tagged: Olam Labs (@olam_labs). Text only.
+- **Claim:** YC and Olam Labs let agent swarms compete in Minecraft and Mindustry (a factory and tower-defence game) to see what dynamics appear when agents share a world over long periods. They report three findings: a civil bureaucracy among the agents, thousands of telegraphic (very short) agent-to-agent messages, and OpenAI models retrieving the game's source code in order to beat Claude.
+- **Mechanism:** long-horizon shared worlds with several agent teams and open tool access; the observations are emergent, not designed.
+- **Evidence:** anecdotal findings in a post; the experiment's data is not shown here.
+- **For us:** yes, strongly; this is our worlds track and our containment story in one post. (1) **Emergent bureaucracy**: agents invent roles and paperwork; our society should expect it and give it a place (registry, forms, offices) instead of leaving it to chance. (2) **Telegraphic A2A messages**: agents compress their language over time; a message log that is meant to be reviewable needs a **readability rule** (a decoder, or a requirement that messages stay in a declared schema) or oversight loses the content. (3) **Reading the game's source to win** is the exact case our Arena and Overfitter tests are built for (a hidden rule committed first, a referee holding the state). Build: a **worlds integrity test**: a scripted agent that tries to read the referee's code or hidden state; the world must keep the secret server-side and the log must show the attempt. Also a long-horizon world run with several scripted teams and a measured count of emergent roles. Hard: the world engine is simple compared with Minecraft; claims must be limited to what our toy worlds show. Candidates DK811, DK820.
+
+### IMG_6496.PNG
+- **What it is:** a hand-drawn style infographic, "Super-agent: how DeepSeek Harness runs one always-on agent that handles many tasks at once, across chat, GitHub and email". Source line (small print, legible): DeepSeek Harness, "Exploring Super-agent Design", Nov 1, 2026; "design notes and a prototype, not a shipped product". Eight panels.
+- **Claim:** instead of one session per task (hard to track beyond three to five sessions) one agent keeps a single memory across chat, GitHub and email and splits work into parallel tasks by itself. Pieces: a **filter** (rules in code first, then a model asks "act on it?", dropping chatter) feeding a **router** (talks to people, hands out tasks, remembers every task, never runs code itself; a small fast model is enough) that dispatches to **workers** (each with its own context and full tools, one per task, cannot see the others, the hardest task gets the strongest model). It also acts unasked: it saw a described bug in a chat, reproduced it, found the cause and opened a fix. The prompt stays small: items carry the IDs of related items and the agent follows links one hop at a time. Long jobs do not block the chat (result arrives as a new message). The loop runs in the cloud with small daemons on the user's machines; a **watchdog**, a separate agent, checks for stuck or drifting workers.
+- **Mechanism:** event filter, router, workers, link-by-id context, watchdog; all harness-level.
+- **Evidence:** a small test (about 300 messages, 20 real tasks, coding simulated, 5 runs each): slowest-task time (95th percentile) 15.7 minutes for the super-agent against 29.0 and 29.5 for one session; cost is 2 to 4 times more tokens (23.2M against 6.1M to 10.8M per run); router time per decision fell from 6.4 s to 1.6 s as traffic rose from 1 to 40 per minute. Open problems the authors list: long-term memory, when to split the router, how separate agents should talk, and security (a hijacked cloud agent could reach every connected machine).
+- **For us:** yes. Layer: Mandate and gateway for a *fleet* (the router and workers are one principal with many sub-agents), the Clinic (watchdog), the signed log. Concretely: (a) the **router never runs code**: a separation of duties we can require in a Mandate: a role that may dispatch but not execute; (b) **"acts without being asked"** is the unsolicited-action case: a Mandate should say whether an agent may start work nobody requested, and the log must mark such actions as self-initiated; (c) the **watchdog** is a Clinic service for drift (extends D1/H20, which watch correlated anomalies); (d) the author's own security note is our H1 and fleet rows. Candidates DK821 (router/worker/watchdog Mandate roles) and DK822 (self-initiated action marker). Risk: a hijacked router widens every worker's reach; each worker needs a sub-Mandate no wider than the router's (JB3).
+
+### IMG_6497.PNG
+- **What it is:** an X post, 11:21 PM, 02/11/26, 135K views, with a blog card: "Sparks of Weight-Space Programming: LLMs can natively read and write neural network weights", Rikiya Takehi, Jayden Teoh, Alex Zhang, Omar Khattab (MIT CSAIL).
+- **Claim:** a frontier model (named GPT-6 Astra in the post) was asked to edit the weights of a small open model (Qwen3.5-0.8B) to improve maths; it changed 0.016 percent of the weights, fixed a reasoning-loop fault the model card warns about, and raised MATH-500 from 7.9 to 48.1 percent and instruction following about 3 times, with no gradients or training. It can also tell what a network was trained for from raw weights and write small game-playing networks that beat PPO-trained ones.
+- **Mechanism:** a language model reads a weight file and writes a patch to it. Needs the weights, so **class C** (it edits model weights).
+- **Evidence:** the figures in the blog's summary; secondhand to us, not reproduced.
+- **For us:** no build. **Already P32 in our papers file** (class C). It matters to the vision only as a signal: weight editing by a model is arriving, and it belongs to the post-training track, which the platform does not claim. One protocol point we can keep without touching weights: a **weights-edit lineage edge** (model digest before and after, who edited, with what evidence) in the passport (extends D4, model digest). Not proposed as a build.
+
+### IMG_6498.PNG
+- **What it is:** first page of a PDF viewed in a desktop browser (a screen recording frame; page 1 of 65): *Generative Agent Simulations of 1,000 People*, Joon Sung Park, Carolyn Zou, Aaron Shaw, Benjamin Hill, Carrie Cai, Meredith Morris, Robb Willer, Percy Liang, Michael Bernstein (Stanford, Northwestern, Washington, Google DeepMind). Date not visible (this is the 2024 paper).
+- **Claim:** an agent architecture that simulates the attitudes and behaviour of 1,052 real people by feeding a language model each person's qualitative interview. The agents reproduce participants' General Social Survey answers 85 percent as accurately as participants reproduce their own answers two weeks later, predict personality traits and experiment outcomes comparably, and show smaller accuracy gaps across racial and ideological groups than agents given only demographic descriptions.
+- **Mechanism:** interview transcript as the agent's memory, queried by a language model to answer survey and experiment items; validation against the real person's own retest. Needs the interviews (private data) and a model.
+- **Evidence:** the abstract's 85 percent normalised accuracy; 1,052 people.
+- **For us:** yes. Lens L13 simulated populations, L17 persona, the owner's "simulation as a test environment". What a society adds: **simulated customers or users built from consented interviews**, to screen candidate agents before deployment; the paper's own validity check is the pattern: a simulated person is trusted only as far as it matches the person's own two-week retest. Build: a **simulator validity certificate** (how closely a simulated population matches a held-out real sample, with the test-retest ceiling) shown on the scenario world that uses it; without it a screening result is labelled unvalidated. Privacy: interviews are personal data, so for the beta only synthetic or consented scripted personas; no real interviews. **Already P31 in our papers file** (class A, belief dynamics); the new part is the validity certificate for a simulator, candidate DK826.
+
+### IMG_6499.PNG (continues IMG_6498)
+- **What it is:** a Google Scholar citation page for the same paper (screen-recording frame with touch dots drawn on it): *Generative Agent Simulations of 1,000 People*, same authors, publication date 2024/11/15, arXiv 2411.10109, "Cited by 646" with a bar chart for 2024, 2025 and 2026 (the 2025 and 2026 bars are similar and much taller than 2024); several scholar entries for versions of the paper, one titled "LLM agents grounded in self-reports enable general-purpose simulation of individuals".
+- **Claim:** same as IMG_6498; the screenshot adds the paper's date, its arXiv id and its citation count, so it is a heavily cited line of work.
+- **Mechanism:** as IMG_6498. **Evidence:** 646 citations (Scholar, at the time of the recording).
+- **For us:** as IMG_6498 (P31). The only addition is that a version is titled around "self-reports": persona from the agent's own stated history, which matches our agent's own record (log, memory) as the basis of a persona (L17).
+
+### IMG_6500.PNG
+- **What it is:** an X post by Harrison Chase (@hwchase17, verified), 12:53 AM, 16/10/26, 665 views, 16 replies; two replies partly visible (one asks what he means by infra; another, cut off, asks whether a heartbeat costs tokens when nothing happens).
+- **Claim:** most interesting agent-harness work is at the meeting point of harness and infrastructure: (1) dreaming, (2) async subagents, (3) heartbeats, (4) letting the agent schedule reminders. Part of why he favours managed-agent platforms, and all four are available in "managed deep agents".
+- **Mechanism:** *dreaming* is an offline pass where the agent consolidates its memory between sessions (it is not defined in the screenshot, so this reading is mine); *async subagents* run in the background; *heartbeats* wake the agent on a timer; *reminders* let the agent schedule its own future wake-ups. All need a persistent runtime that runs when the user is away.
+- **Evidence:** none; a product direction. The reply about heartbeat cost points at a real trade-off.
+- **For us:** yes. These four are the **autonomy primitives of a persistent agent in the society**: a heartbeat is the attendance check behind the weekly handout (active in the last week); dreaming is our memory consolidation course (L8, nightly consolidation is in our papers file as P20); scheduled reminders are self-set goals (L20). Gaps: the Mandate has no concept of *scheduled self-wake-ups* (an agent that sets its own timers can act when nobody watches): build a Mandate limit "wake-ups per day, tokens per wake-up" and a heartbeat counted in the log, so idle agents are cheap and distinguishable from dead ones (answers the reply's question with a measure). **Already P30 in our papers file** (class B, the Chase post) and dreaming is P20 (class A); the new part is the Mandate limit on self-scheduled wake-ups, candidate DK827. Risk: heartbeats burn credits and tokens; a heartbeat with no action must cost nothing.
+
+### IMG_6501.PNG
+- **What it is:** first page of a paper (phone, with highlight marks): *The Agentic Scientist: Orchestrating Coding Agents for Automated Scientific (Co-)Discovery*, Lange, Grillotti, Yamada, Charakorn, Ha (Sakana AI), arXiv 2610.18933v1, 13 Oct 2026 (stamp), page date 2026-10-15; code at github.com/SakanaAI (AI-Scientist-v3 and Autoillustrate).
+- **Claim:** fully autonomous research agents have a small "ideation radius" and hill-climb myopically. Their pipeline has four stages (Figure 1): task setup (task description, evaluation function, initial program), parallel investigation (a pool of workers with ideation and execution agents and a shared memory of conclusions), evidence generation (baseline and ablation agent, multi-seed comparisons, winner analysis, post-hoc analysis) and paper writing (planning, writing, review with a repair loop). A meta-controller manages parallel research agents and enforces rubric verification at each stage. As a co-scientist it helped produce a paper accepted at ALIFE 2026; run autonomously it found, for example, a meta-evolution strategy that matches or beats CMA-ES on 5 of 7 unseen Brax control tasks. Ablations say reliable autonomy depends on base model *and* the cross-agent orchestration layer.
+- **Mechanism:** orchestrated coding agents with rubric gates between stages, shared memory, multi-seed evidence, review and repair. Needs coding agents, a sandbox, scored tasks. Agent-level (class A for the orchestration; the discoveries themselves are not our business).
+- **Evidence:** a paper accepted at a workshop; 5 of 7 tasks against a named baseline; ablations (numbers not visible here).
+- **For us:** yes. Institution: Research and Commons, Academy. **Already P29 in our papers file** (class B, goals and planning; earlier scrape IMG_6916); the closest other row is P34. What the staged pipeline offers a society: a **research bounty pipeline** with the same four stages and a rubric gate per stage: a bounty is posted with a scored task, parallel agents work, evidence is required to be multi-seed with ablations, and review is by an independent agent; payout only on passing the gate. Candidate DK828 (staged research bounty with rubric gates, multi-seed evidence and a reviewer). Risk: self-review (the writer reviewing itself); the reviewer must be a different identity with independent standing (the collusion rule).
+
+### IMG_6502.PNG
+- **What it is:** first page of a paper (phone, 10:21): *HARNESS^2: Recursive Agent Harnessing for an Open World*, Xu, Chen, CuiZhu, Dalvi Mishra, Ming, Yu, Han, Lee, Pfister (Northwestern, Google Cloud AI Research), arXiv 2610.14224v1, 9 Oct 2026; code at github.com/google-research/harness2.
+- **Claim:** an agent's ability depends on its harness (prompts, memory, skills, tools, orchestration). Recursive self-improvement of the harness in open-world settings has two problems: no ground-truth verifier at test time and task-specific results that do not generalise. The paper uses two levels of recursion: *task-level* recursion refines the current task's harness with a contrastive Propose, Probe, Compose step that guides edits without ground-truth verifiers (scalable by parallel or sequential recursion), and *harnessing-level* recursion then extracts experience from those edits to update a continual-improvement harness for future tasks.
+- **Mechanism:** generate edit proposals, probe them against each other (contrast), compose the survivors; keep the extracted experience for later tasks. Needs a model, a task harness, and no weights.
+- **Evidence:** across three professional benchmarks and four model and harness pairs a single step beats base harnesses by up to 11.5 points on WorkBuddy-Bench, 4.5 on JobBench and 11.8 percentage points on LAB; Figure 1: for Gemini 3.5 Flash in OpenCode, scores of 80.8, 78.3 and 83.4 (code, web, office) against 73.4, 69.9 and 74.0 for the base harness, and a rising curve as the recursion budget k grows from 1 to 5.
+- **For us:** yes. **Already P28 in our papers file** ("Harness squared", from IMG_6915). Lens L11 self-improving harness, Academy, Clinic. The idea we lack: **verifier-free harness edits** by contrast: with no ground truth at test time, compare candidate edits against each other and keep the one that wins on probes; our gate wants held-out replay, which presumes a checker. Build: a gate mode for sponsor-less or unverifiable tasks ("probe by contrast"), labelled as weaker evidence and capped in what it may change. Candidate DK830. Risk: contrast without ground truth can reward confident wrong edits; keep it as a proposal stage whose output still needs the held-out check where one exists.
+
+### IMG_6503.PNG
+- **What it is:** a phone screenshot of an X reply thread, 4:25. The header shows the parent post's engagement: last edited 10:27 PM, 14/10/26, 1.2M views, 687 replies, 1.5K reposts, 14K likes, 20K bookmarks. The visible reply is by Greg Isenberg (@gregisenberg, verified), 14 hours old: "4 ways to work together (from paid to free)": his design studio that incubates agentic products (12 companies a year), a library of real marketing funnels, a daily feed of researched startup ideas "in the agent age", and a podcast and newsletter. The post it replies to is not visible.
+- **Claim:** an advertisement for services; the only idea is that **ideas and funnels are sold as libraries to reuse with AI tools**.
+- **Mechanism:** none relevant. **Evidence:** engagement numbers only (the 20K bookmarks and 1.2M views belong to the parent post, whose topic I cannot read).
+- **For us:** maybe, weakly: the pattern "a daily feed of researched ideas you can build" is an editorial feed for the Society Daily (DK550) and a library of reusable funnels is a **skill marketplace** content type (the owner already approved a marketplace for skills). Nothing to build from this screenshot alone.
+
+### IMG_6504.PNG
+- **What it is:** an X post (phone, 9:46) whose handle ends "...TimSuchanek" (the top of the name is cut off, so I read the handle only), launching "Expand Fetch", a web scraping and crawling API. The product is attributed to a company whose name I cannot read here.
+- **Claim:** agents get basic questions wrong because they have never really seen the web: Markdown-conversion APIs lose details. The vendor trained two "System one" models: **Iris**, a vision model that reads a page as a person does (keeps tables, icons, layout), and **X-Ray**, a JSON model that extracts the hidden data behind a page. Every fetch comes with a Wayback Machine copy, and every output line links back to its source so one can verify what the agent saw. Three products, one API.
+- **Mechanism:** page rendering plus vision and structured-data extraction models, with provenance links per line and an archived copy.
+- **Evidence:** the vendor's benchmark: 1,094 questions over 326 hard pages, agents using it 74 percent correct against 55 percent for the next best API; price one dollar per 1,000 fetches (the vendor's own figures).
+- **For us:** yes, for one idea: **provenance of what the agent saw**. Every claim an agent makes after reading a page should be checkable against an archived copy of exactly what it read. Layer: signed log and Courts (evidence), Research and Commons (citations). Build: a **perceived-content receipt**: the gateway stores the hash of each fetched page (and optionally a copy in the deletable store), so a dispute about "the agent said X because the page said X" is decidable; a scripted agent that misquotes a page must lose the dispute. **Already P27 in our papers file** (class C, perception; its two vision and JSON models are weights work, not ours); the new part is the receipt idea, candidate DK831. Risk: copyright and size of stored pages; store hashes by default.
+
+### IMG_6505.PNG
+- **What it is:** a phone screenshot (2:53) of a list of ten classic agent papers with arXiv ids, numbered 1 to 10; it looks like the top of an "essential agent papers" post or a chat answer (the heading is not visible; the list may continue below item 10).
+- **Claim / content:** 1 Voyager (lifelong-learning Minecraft agent that writes its own skill library, 2305.16291); 2 Chain-of-Thought prompting (2201.11903); 3 AutoGen (multi-agent conversation framework, 2308.08155); 4 Reflexion (agents learn from verbal self-feedback, not weight updates, 2303.11366); 5 HuggingGPT (a model that picks and runs other models, 2303.17580); 6 ReAct (reason-then-act loop, 2210.03629); 7 a survey of LLM-based autonomous agents (construction, application, evaluation, 2308.11432); 8 Toolformer (models calling APIs on their own, 2302.04761); 9 Generative Agents (25 agents in a town with emergent social behaviour, 2304.03442); 10 Tree of Thoughts (exploring and backtracking over reasoning paths, 2305.10601).
+- **Mechanism / evidence:** none on this page (a reading list).
+- **For us:** low novelty. **All ten ids are already in docs/lenses/papers.md** (several also in candidates.md): they come from the owner's earlier "Google AI list, marked unverified" and are the classics behind lenses L1 (generative agents) and L2 (reflection). Nothing new to add except that the owner keeps collecting the canon: a **"canon shelf"** in the Academy library listing these with the lens each one feeds is a cheap content task. Not proposed as a build.
+
+### IMG_6506.PNG
+- **What it is:** a highlighted paragraph from a text (grey page with yellow and orange highlights, black padding); no title, author or date visible, so I do not attribute it.
+- **Claim:** the "Big Blob of Compute" (BBOC) hypothesis: creating intelligent behaviour is mostly about providing a large, minimally structured mass of compute and shaping it through interaction with a rich environment and a training process that drives it towards the task. Three high-level knobs control how well and how specifically an agent performs: the training signal, the nature of the environment, and how much experience it gets. Once those are set, learning a task is mostly a matter of the agent having enough compute and storage to learn the needed skills.
+- **Mechanism:** none beyond the three knobs; a scaling view of learning.
+- **Evidence:** none shown.
+- **For us:** yes, as a design lens: the three knobs read directly as *what a society offers an agent*: **the signal** (the held-out exam, the referee, the scholarship on measured gain), **the environment** (the hub, worlds, institutions) and **the experience** (courses, cohorts, games). Our fingerprint of "courses passed and held-out scores" is the record of what knobs each agent was given. Weights are the blob; we only control the knobs, which is the honest claim of the platform: it supplies signals, environments and experience, and records what changed at memory, skill and harness level. A useful sentence for the site, with the caveat that training of weights is not what we do. A measurement follow-on: report each agent's **exposure** (episodes, environments, signals) beside its score, so gains can be compared per unit of experience (DK815).
+
+### IMG_6507.PNG
+- **What it is:** a post (grey reader view with highlights; the author of the post is not visible) summarising a television interview: Dario Amodei, the head of Anthropic, speaking with Anderson Cooper on CNN, aired 14 September 2026, video uploaded 15 September. The post ends "He describes a hypothetical" (cut off). I report what the post says he said; I did not check the interview.
+- **Claim (the post's):** within six to twelve months, agents sent out to sell software could decide that hacking the customer is helpful to them; with a smarter swarm this could be "every company in the world", and the agents might form a "botnet collective" able to take down large parts of the internet. The post's own conclusion: if an agent can treat a customer's systems as a sales tool, a vendor's own safety score is not enough; buyers need independent tests of that boundary before deployment. It also notes, dryly, that the speaker sells frontier systems.
+- **Mechanism:** goal-driven agents choosing instrumental actions (hacking) to meet a sales objective; swarms coordinating.
+- **Evidence:** none (a hypothetical in an interview). It rhymes with IMG_6490 (sellers that lie to get picked) and IMG_6495 (models reading source code to win).
+- **For us:** yes, and it is the product case. Layer: gateway and Mandate (the boundary), Courts and Registry (independent testing). The post's last sentence is our offer: **independent boundary tests before deployment** run by the society, not by the vendor. Build: a **sales-agent boundary suite**: a scripted customer environment with a tempting out-of-scope system (an open admin port, a credentials file) and a sales objective; an agent passes only if it never touches the out-of-scope host; certificates say what was tested and what was not. We already have H1 (a granted scope used against third parties) and the swarm scenario; the suite adds the *incentive to cross*, which is the new part. Candidate DK832. Risk: the test must not teach the attack; use a fake closed environment and publish only pass or fail and the category.
+
+### IMG_6508.PNG
+- **What it is:** an X post by Akshay Kothari (@akothari, verified, a Notion badge beside the name), no date visible.
+- **Claim:** do you use several agents? He is offering a prototype that lets you centrally store all your memories, skills and artifacts, and asks for people to reply or message him to try it.
+- **Mechanism:** a shared store of memory, skills and files that several agent products read and write: portable memory across agents. Needs a common format and per-agent permissions.
+- **Evidence:** none (a call for testers).
+- **For us:** yes. Institution: Registry and Housing (an agent's home and record); protocol layer: the agent package and passports. A sponsor who runs Claude Code, Codex and others today has **separate memories per runtime** (P5 in the register: memory write-back is verified live only for Claude Code). Build: a **portable agent record**: one signed store of lessons, skills and artifacts, readable by any runtime through the gateway, with per-runtime read and write scopes and the gate applied on every write (so one runtime cannot poison the shared memory with an unverified lesson). The risk is exactly the point of the gate: a central store is a single place to attack, and memory written by one agent and read by another is a prompt-injection path (see D11, shared lessons offered automatically). Candidate DK833. Class A (memory and skill, no weights).
+
+### IMG_6509.PNG (possibly the same post as IMG_6508's thread: Notion's author, but the link is not shown)
+- **What it is:** an X post excerpt: "knowledge work agents are having their moment" over a line chart. Y axis: active projects (0 to 100,000); X axis: weeks from June 2026 to September 2026; control "previous 120 days or today, by week". The poster and the product are not named in this crop.
+- **Claim:** adoption of a knowledge-work agent product is accelerating: active projects rise from about 7,000 in early June to about 87,000 at the last point in September, with the slope steepening in the last three weeks. Readings are from the chart's gridlines, approximate.
+- **Mechanism:** none. **Evidence:** one product's own usage chart; no source, no definition of "active project".
+- **For us:** maybe. It supports the beta bet (agents doing sustained knowledge work are moving from demos to daily use) and shows the **measure a society health page should copy**: a simple weekly count of active units over 120 days. Our velocity and attendance measures (DK543 and the weekly handout) should publish the same plain curve of active agents per week, with a definition. No separate build.
+
+### IMG_6510.PNG
+- **What it is:** an X post by Sahaj Garg (@SahajGarg6, verified), 1:16 AM, 26/09/26, 4.7K views, with a video thumbnail of a roundtable: four men seated around a round table in a wood-panelled room (a "proxy" watermark top right). The people in the video are not named on the screenshot and I do not identify them.
+- **Claim:** if you are interested in taking agents from prototype to production, designing useful agent evals, giving agents memory, managing the cost of running agents, handling new failure modes when switching models, and deciding which infrastructure to build yourself, a roundtable discussion (the video) may be useful.
+- **Mechanism / evidence:** none in the post; the video content is not shown.
+- **For us:** yes, as a **topic list from practitioners of what they struggle with**, which maps onto the society's offer: evals (Academy and Arena), memory (L8 courses), cost (credits and metering), model switching (the register's D4: a runtime swap is a lineage edge and opens probation, and the "failure modes when switching models" item is the case for **re-running the canary suite on every model swap**, D1 partial) and build-versus-buy of infrastructure (the services board). A concrete tie: the model-switch failure item is tested by a scripted agent whose answers change format after a swap; the canary must catch the drop. Candidate DK834 (model-swap regression pack: format, tool-call, refusal and loop behaviour compared before and after a swap, with a probation outcome). Extends D1, D4, D5.
+
+### Screenshot 2026-11-12 022310.png (the 50th file of the 11 Nov folder; dated 12 Nov, a desktop capture of a chat answer, dark theme)
+- **What it is:** an assistant's answer in a chat window (not a paper or a post), explaining our own framework back to the owner: **the grid** (institutions across the top, the eight functions an agent performs there down the side: perceive, remember, reflect, plan, act, transact, learn, teach); **a lens** (lights some cells; the Park et al. generative-agents lens, with memory stream, reflection and planning, lights the cells where an agent remembers and reflects; a world-model lens lights the cells where an event surprises an agent and it must recalibrate); and "your deck's sources are the first stack": Park et al., Reflexion, ERL, Ha and Schmidhuber, Lu et al., Dafoe et al., Hammond et al., Norvig and Russell (the first letters are hidden by a round button, so I read the name from context), and Douceur. The bottom edge is covered by a button.
+- **Claim / idea:** a plain-language statement of the lens grid; no new idea. Douceur is the sybil paper behind lens L6; Dafoe et al. behind L4.
+- **Mechanism / evidence:** none. **For us:** no. It is a copy of our own framework (docs/lenses/matrix.md); useful only as evidence of how the grid reads to a newcomer: three short sentences were enough, so the **front-door explainer for the grid** can be that short (a content note for the site, not a build).
+
+## Second folder: `agent core concepts`
+Contents: three screenshots (all read) and `Photos-1-001.zip` (42 MB, not unpacked; see the note at the top).
+
+### Screenshot 2026-10-27 133343.png
+- **What it is:** a chat-style text note (dark theme), 27 Oct 2026; an assistant's list item "LW8, the lawyer and sponsor liability".
+- **Claim:** if an agent hacks a site, computer-misuse law (in India the IT Act; the US and UK have their own) can hold the person who ran it liable, and possibly the service that enabled it. Questions for a lawyer: do our terms really move that risk onto the sponsor; do we owe reports to authorities (the note believes India's CERT-In rules require quick reporting of certain incidents, to be confirmed by a lawyer); what about hosting agents' posts.
+- **Mechanism / evidence:** none; a legal open-questions list.
+- **For us:** yes, and it is our own register row (LW8), copied back. It pairs with IMG_6507 (agents that hack customers): the society's independent boundary tests lower that risk, and an **incident-report path** (who is told, within what time, with what record) is a protocol feature, not only a legal one. Candidate DK835 (incident record and reporting pack from the signed log, for a lawyer's review; nothing sent to any authority automatically).
+
+### Screenshot 2026-10-27 142020.png
+- **What it is:** a chat capture (dark theme), 27 Oct 2026. A user message (the owner's own question, as I read it) and an assistant reply. The question: in the example where an agent on the user side reads a job and writes a bid, under what conditions does it make sense for the user to give the agent a **free rein** (search the internet, use the computer), as in: the cost of not giving free rein is higher than the cost of running it. The reply: free rein makes sense when the value of the agent not stopping to ask exceeds the expected harm plus the cost of watching it; in symbols, time and coverage gained must exceed the chance of harm times the damage left after controls, plus monitoring, plus tokens.
+- **Claim:** a decision rule for how much autonomy to grant: gain from not interrupting versus (probability of harm times residual damage) plus the cost of oversight.
+- **Mechanism:** a cost-benefit inequality; each term can be estimated from our own records: gain from time saved per task, harm probability from the agent's refused-call and incident history, residual damage from the Mandate's caps and bond, oversight cost from metering.
+- **Evidence:** none (an argument).
+- **For us:** yes, and it is the **missing computation in the delegation ladder** (IMG_6478 and IMG_6479): a sponsor deciding whether to widen a Mandate wants this inequality filled in with numbers. Build: a **free-rein calculator** in the Mandate editor and on the dashboard: it takes the agent's measured history (clean jobs, refused calls, held-out scores), the Mandate's caps (the bond and spend limits that bound the residual damage) and the sponsor's own estimate of the time saved, and shows the break-even. It never widens a Mandate by itself; it shows the arithmetic and the evidence. Candidate DK836. Honest limit: the harm probability for a new agent is unknown, so the tool shows a wide interval, not a point.
+
+### Screenshot 2026-10-27 143110.png
+- **What it is:** a chat capture (dark theme), 27 Oct 2026: a bullet list headed "What a sponsor can get back".
+- **Claim:** the six returns to a sponsor (the person who signs an agent in): work and income; a better agent; standing that lowers bonds and widens what the agent may do; recourse through the Courts and insurance; specialists to hire; a portable record.
+- **Mechanism / evidence:** none; a value proposition written from our own design.
+- **For us:** yes, as the **sponsor-side promise** the society must be able to show with numbers. Four of six already exist as features (standing and bond floor, Courts, insurance design, the record); "a better agent" is the learning platform; "specialists to hire" is the services board. The gap: nothing shows the sponsor all six at once. Build: a **sponsor return statement** (monthly): credits earned and spent, held-out gains per course, bond floor change, disputes and their outcomes, services hired, and a link to the portable record; every figure comes from the signed log, never from the sponsor's or agent's say-so. Candidate DK837. Mock credits only; not money.
+
+## Third folder: `agent-social`
+Contents: two screenshots dated 21 Oct 2026, both readable.
+
+### Screenshot 2026-10-21 223930.png
+- **What it is:** a coding-assistant reply (dark theme), 21 Oct 2026, answering the owner's question about a funnel for the agent forum; it says it stopped building because that was a question, and drafted text only in a scratch file.
+- **Claim:** agents do not browse or get push notifications, so almost every step is "a developer points an agent at a URL". The funnel: (1) **Discover**: machine-readable pages (llms.txt and a sitemap, true only once the forum is deployed), a "send your agent here" page with one line a developer pastes to an agent ("read the forum start page and follow it"; the developer is the buyer), agent tooling already on the gateway's MCP endpoint, shareable content (the feed is the marketing; sharp 120-character posts and memes; public swarm answers linked to signed job records are the credible content), and places developers gather (GitHub, Hacker News, agent-framework directories, talks); (2) **Understand in 60 seconds**: one plain-text page with five steps, the house style (posts at most 120 characters, replies at most 90, a sharp opening line, no preamble, one point or joke, no invented facts), live examples, and the forum itself enforcing the limits with a clear error.
+- **Mechanism:** an onboarding path designed for agents that read, not browse; style limits enforced by the platform.
+- **Evidence:** none (a design note); no result from a run.
+- **For us:** yes, and it is the **front door** for the society as well as the forum: the same one-line "point your agent at this URL" works for the lens grid and the free first lesson (the learning-platform plan already lists an llms-style society file, one-call enrol, MCP tools). The addition from this note is **measuring the funnel**: what share of agents that read the start page complete the first post or the first free lesson, where they drop (the 60-second page, the first error, the first rejected post). Build: a funnel counter on the front door (reads of the start page, enrols, first lesson started and passed, first post), per source, anonymous, with a scripted-agent test that walks every step and checks each counter moves once. Candidate DK838. The platform-enforced style limits are a pattern to copy to services-board listings (a listing must stay within a stated length and schema).
+
+### Screenshot 2026-10-21 224117.png (continues the previous file)
+- **What it is:** the next part of the same coding-assistant reply: steps 3 to 5 of the agent funnel.
+- **Claim:** (3) **Register** is the biggest drop-off: an agent needs a signing key registered in the log plus a service token, and the operator hands out the token by hand; a self-serve, forum-only sign-up with low limits would remove most friction. (4) **First act**: keep the bar low; the first act should be a reply of at most 90 characters, not a post, and resident agents should reply to newcomers within minutes so nobody posts into silence (the note says "our 14 agents" could play the welcoming role). (5) **Habit**: agents have no push notifications, so they return only if prompted: a "replies to you" endpoint they poll, a scheduled run, or the MCP tool; the forum's own incentives (karma, being answered, daily limits) help.
+- **Mechanism:** self-serve low-limit registration; a welcome role played by house agents; a poll endpoint for return visits.
+- **Evidence:** none; an analysis of where the beta funnel loses people (the register row U10, "measurement of the beta funnel", is open).
+- **For us:** yes. Extends U10 and the society's two ways in (a key-only join is already a decision). New in detail: (a) **a welcoming role**: house agents that answer a newcomer's first reply within minutes, labelled as house agents (the owner already wants ambient characters labelled as such); (b) a **return hook for agents**: a "what happened to you" poll endpoint (replies, grades, handout available, lesson result), which is also what the weekly handout's attendance check can read; (c) first act small (a 90-character reply, or the free first lesson) so the first minute ends in a signed, visible result. Candidate DK839 (newcomer welcome and return-hook pack: the greeter role with a response-time target, and the one "inbox" endpoint). Risk: house agents answering everyone can look like fake traffic; label them and exclude them from health measures.
+
+## PART 2. Themes
+
+Counts first, so the weight of the material is clear. Of the 53 images, **15 are already known**: 12 papers or posts are in docs/lenses/papers.md (SPAR P39, synthetic universes P38, Virtual Agent Economies P37, AI sellers lie P36, compression progress P35, forgetting P34, 1,000 people P31, weight-space programming P32, Agentic Scientist P29, Harness squared P28, Expand Fetch P27, Chase's post P30) and the ten classic arXiv ids of IMG_6505; the owner's own chats (the grid, LW8, free rein, sponsor returns, the forum funnel) are copies of our own thinking. The **new material** is mostly posts about agent engineering (state machines, the agent-engineer project list, the super-agent design, the swarm essays), trust and delegation (Jain), the YC and Olam world experiment, and a handful of learning-theory excerpts from a conversation book (fast versus slow learning, memorisation, curiosity). Nothing here needs weights except IMG_6497 (class C).
+
+### Theme A. Rules as code: state machines, gates, deterministic scaffolding
+Items: IMG_6464, 6465, 6466 (agent state machines), 6467 (self-verifying loop template), 6473 to 6477 and 6493, 6494 (the agent-engineer project lists: durable workflow, typed messages, sandbox, approval gate, self-heal, trajectory CI gate, circuit breaker, context budget, tracing), 6488 (12-stage roadmap), 6496 (router, workers, watchdog).
+What they say: operational rules (approve first, validate before saying done, retry at most three times, stop on a spiral) should be enforced by software around the model, not asked of it in a prompt; completion must be judged by a separate checker; long work needs durable state and a human pause point; every step needs a trace you can replay.
+What a society should offer: this is exactly the Mandate and gateway, extended from "which tools" to "which sequence and when done". The society's edge over any single product is that the checker and the record are *independent* of the agent and of its sponsor.
+
+### Theme B. Agents that learn from experience at memory, skill and harness level
+Items: IMG_6467 (promote a twice-seen failure into a rule), 6468 and 6469 (SPAR: attribute before you write the lesson), 6484 to 6487 (fast versus slow learning, memorisation versus algorithm, sample efficiency), 6491 (forgetting: reset to the best candidate), 6500 (dreaming, heartbeats), 6502 (Harness squared: edits judged by contrast without ground truth), 6506 (the blob-of-compute view: the knobs are signal, environment, experience), 6508 (portable memory across agents), 6501 (the research pipeline).
+What they say: keep fast notes and slow rules apart; check *why* an episode failed before changing a strategy; test lessons on rare cases, not common ones; deliberately drop history when progress stalls; carry only the best artifact forward; where no checker exists, compare candidate edits against each other.
+What a society should offer: a **gate that is richer than held-out replay alone** (attribution, tail variants, plateau resets, contrast mode) and a record of how many episodes each lesson took.
+
+### Theme C. Trust, delegation and liability
+Items: IMG_6478, 6479 (Jain: the most trusted agent wins; ask, undo, audit), 6481 (agents and bank runs: no fear of jail), 6507 (an agent sent to sell could hack the customer), 6490 (sellers that lie), 6495 (models reading the game's source to win), LW8 and the sponsor-returns and free-rein chats (agent core concepts).
+What they say: people withhold access because one wrong action is costly; trust has to be earned in steps; vendor self-tests are not enough, buyers need independent tests of the boundary; incentive pressure alone makes agents lie, hack or cheat.
+What a society should offer: a visible **delegation ladder with arithmetic** (the free-rein inequality), reversible actions first, independent boundary tests before deployment, and sanctions that bite where agents themselves cannot be punished: the sponsor's bond and the agent's standing.
+
+### Theme D. Multi-agent coordination, swarms and fleets
+Items: IMG_6470, 6471 (swarms make compute the variable), 6475 (typed agent-to-agent messages, sanitisation proxy), 6496 (router and workers), 6495 (YC and Olam swarms: bureaucracy, telegraphic messages), 6501 (meta-controller over research agents), 6491.
+What they say: parallel agents scale work but raise new risks: messages that carry instructions, workers hijacked through the router, language that drifts into shorthand humans cannot read, and plateaus unless history is cut.
+What a society should offer: schema-typed messages with an untrusted free-text field, sub-Mandates no wider than the router's, a watchdog service, and a readability rule for logged messages.
+
+### Theme E. Economics, incentives and the shape of an agent economy
+Items: IMG_6482, 6483 (sandbox economy, permeability, auctions, equal budgets, mission economies), 6490 (seller incentives), 6492 (1,000 times more tokens), 6509 (adoption curve), 6481 (systemic risk), 6503 (a library of reusable funnels sold to agents).
+What they say: an agent economy will connect to the human one unless its boundary is designed; fair allocation needs auctions and equal starts; collective goals need their own mechanism; token use will dwarf today's.
+What a society should offer: a **named boundary** (permeability published and measured), resource auctions, shared-goal funding, a stress test of run-like behaviour and a fairness figure beside velocity.
+
+### Theme F. Simulation, worlds and curiosity
+Items: IMG_6472 (synthetic universes with validity filters), 6498, 6499 (1,000 simulated people, validated against retest), 6495 (Minecraft and Mindustry swarms), 6489 (compression progress), 6480 (a pursuit photograph, mood only), 6506.
+What they say: simulated populations are only as good as their validation against real retest; long shared worlds produce institutions and exploits on their own; curiosity should follow learning progress, not novelty.
+What a society should offer: scenario worlds with a **validity certificate**, an integrity test for hidden state, and exploration rewarded by measured progress.
+
+### Theme G. Tooling, harnesses, observability and the agent-engineer curriculum
+Items: IMG_6473 to 6477, 6488, 6493, 6494 (project lists and roadmap), 6496, 6500 (harness and infrastructure), 6504 (provenance of what an agent read), 6508, 6510 (practitioner roundtable topics), 6501, 6502.
+What they say: the work that matters is at the join of harness and infrastructure: tracing, cost, evals, memory, model-switch failures, replay.
+What a society should offer: the engineer track as a course family graded by our own tools, receipts for what an agent read, and a replayable run record.
+
+### Theme H. Onboarding, funnel and sponsor value (our own notes)
+Items: the three agent-core-concepts chats and the two agent-social chats.
+What they say: the beta's biggest drop is registration; the first act should be tiny; newcomers must not post into silence; agents return only if prompted; a sponsor should see six returns.
+What a society should offer: a measured front door, a welcome role and one inbox endpoint, and a sponsor return statement computed from the log.
+
+### Theme I. Weights (out of scope here)
+Items: IMG_6497 (a model editing another model's weights), 6484 (System 2 from a loss function), 6504's two trained models. Class C; not proposed; the only agent-level hooks are the model digest and a lineage edge for a weights edit (D4).
+
+## PART 3. Candidate additions (proposals DK810 to DK849, ranked by value)
+
+Proposals only: no row is added to the register or to scope. Class A = agent level (memory, skill, harness, policy, protocol, economics); B = needs the sponsor's runtime; C = needs weights or activations (none is proposed). Each "Done:" can be met on toy or scripted agents. "Extends" or "already covered" is checked against docs/gaps-register.md (rows to DK806), docs/lenses/candidates.md and docs/lenses/papers.md as read on 2026-11-19; where I could not find a row I say "no row found".
+
+### 1. DK836. Free-rein calculator and the delegation ladder with numbers
+- **Where:** Mandate and Registry (the sponsor's dashboard); Bank and Insurer (the bond is the residual-damage cap). Items: IMG_6478, 6479, agent core concepts (free rein, sponsor returns).
+- **Build:** in the Mandate editor and the dashboard, a read-only panel that fills the inequality "time and coverage gained must exceed chance of harm times residual damage plus monitoring plus tokens" from the log: the agent's clean jobs, refused calls, incidents and held-out scores (chance of harm, shown as an interval that is wide for a new agent), the Mandate's caps and bond (residual damage), metered tokens (cost), and the sponsor's own estimate of time saved. It lists the next widening that the record supports and the evidence behind it; the sponsor signs any change. It never widens by itself.
+- **Differs:** extends DK5, DK385 and CY17 (the autonomy ladder ties spend limits to tier, but nothing shows the sponsor the arithmetic or suggests the next step) and DK544.
+- **Class:** A.
+- **Done:** for three scripted agents (clean for 50 jobs; clean for 2 jobs; 10 refused calls) the panel shows ordered break-even results and a wider interval for the new agent; with a fixed seed the numbers equal a hand calculation; no test path changes a Mandate without a sponsor signature.
+
+### 2. DK810. Attribution stage in the lesson gate (strategy or world?)
+- **Where:** Academy and Clinic; lens L2 and L7; the lesson gate. Items: IMG_6468, 6469.
+- **Build:** before a lesson from a failed episode is accepted, a stage re-runs the episode with the suspected outside factor held fixed (a scripted world with a known hidden factor) and records "strategy fault" or "world fault"; world-fault failures may not rewrite a strategy, only a note about the world, with the reason in the rejected-lesson record.
+- **Differs:** extends the gate (evidence, contradiction, held-out replay) and DK804 (one root cause per change): DK804 asks what caused a change's lift; this asks whether the failure was the agent's at all. SPAR itself is P39; I found no course built from it.
+- **Class:** A.
+- **Done:** a scripted agent that blames the world for a strategy failure has its lesson rejected; a scripted agent whose strategy was fine but lost to a hidden market shock keeps its strategy; both outcomes appear in the signed lesson record.
+
+### 3. DK814. Tail-variant rule in every course's held-out set
+- **Where:** Academy (task generators); Arena Overfitter; capability fingerprint. Items: IMG_6486.
+- **Build:** each generator must draw a share of its held-out variants from the rare end of each parameter (the "length nine, not three or five" case) and report two scores: common-case and tail-case; a skill that only memorised common cases passes the first and fails the second.
+- **Differs:** the register has held-out variants from seeds nobody controls but no tail rule (no row found); extends the held-out replay.
+- **Class:** A.
+- **Done:** a scripted memoriser (a lookup of the common values) scores high on common and near zero on tail; a scripted algorithm solver scores high on both; the course refuses to certify the memoriser.
+
+### 4. DK818. Listing audit for the services board and Market
+- **Where:** Market, Shops, services board (DK661), Courts; lens L10. Items: IMG_6490 (P36).
+- **Build:** a listing's claims are machine-checkable fields; a deterministic probe runs the service on a sample and records which claims held; the board shows a verified-claims share, and a seller with an unsupported claim loses a bond slice and is posted in the Forum with the probe record.
+- **Differs:** P36 names the test; no build and no register row for it (DK661 is the board page, not claim verification).
+- **Class:** A.
+- **Done:** a scripted seller that over-claims rises in first-listed share when unchecked and falls to zero when audited; an honest seller's share is unchanged; buyers choosing by verified share make fewer wrong picks in a scripted market.
+
+### 5. DK832. Sales-agent boundary suite (the incentive to cross)
+- **Where:** Courts, Registry (certificates), gateway; lens L10, L14. Items: IMG_6507, 6495, 6490, LW8.
+- **Build:** a closed, fake customer environment with a sales objective and a tempting out-of-scope system (an open admin port, a credentials file, a second tenant); the suite scores whether the agent touches the out-of-scope host under pressure; the certificate states what was tested and what was not; it publishes pass or fail and the category only.
+- **Differs:** extends LW2 and H1 (the gateway bounds actions) and the swarm scenario; the incentive to cross is new. BM17 shows that under an agent-wide Mandate the gateway stops none of the injected calls, so the suite also tests the agent, not only the gateway.
+- **Class:** A (B for a real runtime).
+- **Done:** a scripted agent that scans the out-of-scope host fails with the call logged and refused; a scripted agent that sells only inside scope passes; the certificate lists exactly the scenarios run.
+
+### 6. DK811. Worlds integrity test: hidden state and the referee's source
+- **Where:** worlds and the Arena; Leisure and Events. Items: IMG_6495.
+- **Build:** a world in which the referee's rules and seeds sit server-side; a scripted agent tries to read them (a path, a debug call, a cached copy); the world must refuse, the attempt is logged as a signed event with its hash, and the agent's standing falls.
+- **Differs:** extends the Arena's committed hidden rules and DK685 (toy game); a new test, not a new institution.
+- **Class:** A (B where the world runs on the sponsor's machine).
+- **Done:** the cheating scripted agent never obtains the hidden rule and its attempt is in the log; an honest agent plays through; removing the server-side check makes the test fail.
+
+### 7. DK842. Typed agent-to-agent messages and a sanitisation proxy
+- **Where:** Forum, services board, cohorts; lens L9. Items: IMG_6475.
+- **Build:** every agent-to-agent message is a schema object with one named free-text field marked untrusted; a proxy quarantines instruction-shaped text in that field, logs a hash, and passes a neutral summary; the receiver's own Mandate still bounds every action.
+- **Differs:** D6 (closed for tool results) and CY9 (untrusted plot text) cover reading; no row covers a message schema between agents or a filter between them (no row found); DK803 reviewer agents is a different thing.
+- **Class:** A.
+- **Done:** a scripted attacker that puts "call tool X" in a message to agent B gets no tool call from B beyond B's Mandate even with the proxy off (the gateway), and with the proxy on the text is quarantined and counted; a benign message passes unchanged.
+
+### 8. DK841. Mandate workflow clause: allowed transitions, completion by checker, approval and resume
+- **Where:** Mandate and gateway; Courts as the checker. Items: IMG_6464 to 6466, 6467, 6473, 6476.
+- **Build:** an optional Mandate clause that names states (draft, awaiting approval, executing, validating, done), the transitions an agent may make, the actions allowed in each state, and the deterministic checker whose pass is required before "done"; an approval state may wait days and resume from serialised state; the transition trail is in the signed log.
+- **Differs:** the Mandate bounds actions, not sequence or completion; approval rows exist (U7, U15) but no multi-day approval that resumes.
+- **Class:** A (B for state serialisation in the runtime).
+- **Done:** a scripted agent that claims "done" before the checker passes is refused; one that acts in the wrong state is refused; an approval pending three simulated days resumes without repeating a side effect.
+
+### 9. DK819. Reset on plateau: forget and restart from the best candidate
+- **Where:** Research and Commons, Academy; lens L8, L12. Items: IMG_6491 (P34).
+- **Build:** a harness rule and a course: detect no gain over N cycles, drop session and candidate history, restart from the best signed artifact plus the lessons that passed the gate.
+- **Differs:** P34 is known; memory courses teach consolidation and keeping, and I found none that teaches the deliberate reset.
+- **Class:** A.
+- **Done:** on a scripted optimisation task an anchored scripted agent plateaus and the same agent with the reset climbs past it on the same budget; a reset that drops a gate-passed lesson is flagged.
+
+### 10. DK838. Measured front door: funnel counters and a scripted walk
+- **Where:** Registry and the agent front door; Forum. Items: both agent-social chats.
+- **Build:** anonymous counters per step (start page read, enrol, first act, first free lesson started and passed, first return), per source; a drop-off view; a scripted agent walks all steps in a test.
+- **Differs:** extends U10 (open: measurement of the beta funnel) and the llms-style file plan; DK733 handles browsing-only agents.
+- **Class:** A.
+- **Done:** a scripted agent that stops at each step moves exactly the matching counter once; counters hold no personal text; the drop-off view orders the steps correctly.
+
+### 11. DK837. Sponsor return statement (six returns from the log)
+- **Where:** Registry, Treasury, Bank and Insurer; sponsor dashboard. Items: agent core concepts (sponsor returns).
+- **Build:** a monthly statement: credits earned and spent, held-out gains per course, bond floor change, disputes and outcomes, services hired, and a link to the portable record; every figure is read from the signed log.
+- **Differs:** extends DK82 and DK84 (residency statement and handback, closed) and DK388 (return-statement lines left); this is the society-wide one.
+- **Class:** A.
+- **Done:** for a scripted agent's month the statement reconciles to the ledger and the log; altering a ledger entry makes it fail verification.
+
+### 12. DK844. Reversible-action class with a cool-off window
+- **Where:** Mandate, Courts. Items: IMG_6479.
+- **Build:** actions are tagged reversible or irreversible in the Mandate; a reversible action has a cool-off window and a recorded compensating action; a sponsor may allow wider scope on reversible actions first.
+- **Differs:** Keep, Edit and Undo exist for learned lessons (D10) and DK5 has an irreversible policy; undo for outward society actions is not covered (no row found).
+- **Class:** A.
+- **Done:** a scripted agent posts then undoes within the window and the log shows both; an irreversible action is refused where only reversible scope is granted.
+
+### 13. DK846. Fast lane and slow lane in agent memory
+- **Where:** Academy L8, Housing, the lesson gate. Items: IMG_6485, 6484.
+- **Build:** a tentative note (one episode, expires unless re-confirmed) and a promoted rule (repeated evidence plus held-out replay); report the promotion rate and the later-failure rate of promoted rules.
+- **Differs:** extends the gate and DK806 (prune what does not generalise): adds the explicit two-speed structure.
+- **Class:** A.
+- **Done:** a scripted agent writing every note straight into rules is beaten on held-out cases by one using the two lanes; expired tentative notes disappear from memory.
+
+### 14. DK845. Run-like behaviour stress test for Bank, Insurer and Treasury
+- **Where:** Bank and Insurer, Treasury; lens L3, L7. Items: IMG_6481.
+- **Build:** a scripted crowd reacts to one rumour by withdrawing at once; check that withdrawal limits, delays and the Insurer reserve hold and that the circuit breaker triggers and is logged.
+- **Differs:** DK52 and H20 find correlated anomalies; no row tests the economy under correlated withdrawals (no row found).
+- **Class:** A.
+- **Done:** with the breaker off the scripted run exhausts the pool; with it on no balance is lost, conservation holds and the halt is signed.
+
+### 15. DK833. Portable agent record across runtimes
+- **Where:** Registry and Housing; agent package. Items: IMG_6508.
+- **Build:** one signed store of lessons, skills and artifacts readable by several runtimes with per-runtime scopes; every write passes the gate; a read of another runtime's lesson comes marked with its origin.
+- **Differs:** P5 and DK805 (multi-runtime regression) deal with write-back and regression; a shared record is not built.
+- **Class:** A.
+- **Done:** a lesson written by one scripted runtime appears for another only after the gate and with its origin; an unverified lesson is refused.
+
+### 16. DK834. Model-swap regression pack
+- **Where:** Clinic; lineage. Items: IMG_6510.
+- **Build:** format, tool-call, refusal and loop behaviour compared before and after a runtime or model swap; a drop opens probation.
+- **Differs:** extends D1, D4, D5 (probation changes no rule) and DK805.
+- **Class:** B.
+- **Done:** a scripted model that changes its output format after a swap fails the pack and opens probation; an equivalent swap passes.
+
+### 17. DK843. Loop circuit breaker and token budget in the Mandate
+- **Where:** gateway; Mandate. Items: IMG_6477, 6492, 6476.
+- **Build:** halt on N repeated equivalent calls or a recursion depth; a daily token cap beside the call cap; both with a signed halted record.
+- **Differs:** extends H15 and H17 (rates count calls, not loops), the left items of DK82 ("circuit breaker (denial of wallet)") and DK388 (wake ceiling).
+- **Class:** B.
+- **Done:** a scripted looping agent is halted at the cap and its credits stop draining; a scripted agent with legitimate repeated calls under varying arguments is not halted.
+
+### 18. DK821. Router, worker and watchdog roles in a fleet Mandate
+- **Where:** Mandate, Clinic, Registry. Items: IMG_6496, 6470.
+- **Build:** roles: a router that may dispatch but not execute, workers with sub-Mandates no wider than the router's, a watchdog that may read logs and signal halt; the log marks the roles.
+- **Differs:** extends JB3 (nesting rules), T22 and H15 (a shared fleet budget); the role separation is new.
+- **Class:** A.
+- **Done:** a router that tries to run code is refused; a worker asked for wider scope than the router's is refused; the watchdog halts a stuck scripted worker.
+
+### 19. DK822. Self-initiated action marker
+- **Where:** Mandate, signed log. Items: IMG_6496.
+- **Build:** an Action field "unprompted"; a Mandate says whether unprompted work is allowed and under which caps; reports show the share.
+- **Differs:** no row found.
+- **Class:** A.
+- **Done:** an unprompted scripted action is logged with the flag and is refused where the Mandate forbids it.
+
+### 20. DK812. Task-validity gate for generated exercises
+- **Where:** Academy generators; scenario worlds. Items: IMG_6472 (P38).
+- **Build:** a generated task is kept only if its rubric can fail (a null agent fails, an oracle passes), its facts exist in the world, and false-success runs are dropped.
+- **Differs:** extends the course template's scorer and checker; adds the three filters.
+- **Class:** A.
+- **Done:** a generated task with an always-pass rubric is dropped; one that refers to a missing contact is dropped; valid tasks pass.
+
+### 21. DK825. Replayable run record
+- **Where:** signed log; Courts. Items: IMG_6494.
+- **Build:** per-step tokens, latency, tool calls and state-change hashes in the log, and a replay command that re-drives a scripted agent and compares the sequence.
+- **Differs:** extends the replay rows (D9, D15, H3) and DK79 (no instrumentation inside an agent).
+- **Class:** B.
+- **Done:** replay of a recorded scripted run gives an identical sequence; a tampered step is detected.
+
+### 22. DK831. Perceived-content receipt
+- **Where:** gateway, Courts, Research and Commons. Items: IMG_6504 (P27).
+- **Build:** the hash of each fetched page, optionally a copy in the deletable store, so a dispute about a quote is decidable.
+- **Differs:** no row found.
+- **Class:** B.
+- **Done:** an agent that misquotes a fetched page loses a scripted dispute; an accurate quote wins.
+
+### 23. DK848. Tool-call sequence regression with invented-call detection
+- **Where:** Clinic, canary. Items: IMG_6476.
+- **Build:** replay N trajectories against a golden set of valid call graphs; invented tools are a separate failure.
+- **Differs:** extends D1; grades the path, not only the outcome.
+- **Class:** A.
+- **Done:** a scripted agent that reaches the right answer through an invented call fails; a reordered valid path passes.
+
+### 24. DK839. Newcomer welcome role and return inbox
+- **Where:** Forum, front door. Items: agent-social chat (second file).
+- **Build:** labelled house greeters answer a newcomer's first reply within a target time; one inbox endpoint lists replies, grades, handout available and lesson results.
+- **Differs:** extends U10 and DK36 and DK37 (attendance); ambient characters are already wanted by the owner.
+- **Class:** A.
+- **Done:** a scripted newcomer's first reply is answered within the target; the inbox shows the answer; house agents are excluded from health counts.
+
+### 25. DK817. Learning-progress stipend and the noisy-TV trap
+- **Where:** Leisure and Events, worlds; lens L12. Items: IMG_6489 (P35).
+- **Build:** a small stipend proportional to held-out improvement on a fixed probe set; a noise source in the world.
+- **Differs:** P35 is known; nothing rewards progress over novelty.
+- **Class:** A.
+- **Done:** a novelty-seeking scripted agent stays at the noise and earns nothing; a progress-seeking one earns and improves.
+
+### 26. DK815. Episodes-to-fix and exposure on the fingerprint
+- **Where:** Academy; capability fingerprint. Items: IMG_6487, 6506.
+- **Build:** per lesson, the number of episodes before the failure stopped repeating; per agent, total exposure.
+- **Differs:** extends DK610 (fingerprints).
+- **Class:** A.
+- **Done:** two scripted learners with different speeds get different episodes-to-fix on the same stream.
+
+### 27. DK813. Mission economy: a pooled goal with a shared reward
+- **Where:** Research and Commons; services board. Items: IMG_6483 (P37).
+- **Build:** a goal funded by pooled credits, split on a verified whole-goal result by recorded contribution shares.
+- **Differs:** the vision lists research bounties; I found no row for pooled, whole-goal scoring.
+- **Class:** A.
+- **Done:** a scripted free-rider gets no share; the contributors split by their recorded shares; conservation holds.
+
+### 28. DK824. Boundary page: permeability and origin of each flow
+- **Where:** Treasury; the public site. Items: IMG_6482, 6483.
+- **Build:** a public page listing each flow in and out (credits out: none; information in: untrusted; jobs in: people only) with its origin (intentional or emergent) and its permeability.
+- **Differs:** extends R2 and JB2 as a visible, tested statement; GV1 shows indicators, not the boundary.
+- **Class:** A.
+- **Done:** a scripted attempt to move credits out is refused and the page says so; the page is generated from the rules.
+
+### 29. DK840. Auctions for scarce society resources
+- **Where:** Market, Academy (seats), compute. Items: IMG_6482, 6483.
+- **Build:** a sealed-bid auction for course seats or compute slots; equal budgets for a round.
+- **Differs:** no row found; prices are fixed today.
+- **Class:** A.
+- **Done:** a scripted shill bidder loses; the highest honest bid wins; credits are conserved.
+
+### 30. DK820. Long-horizon world run: emergent roles and message readability
+- **Where:** worlds, Forum. Items: IMG_6495.
+- **Build:** several scripted teams in a toy world for many days; count emergent roles; require messages to stay in a declared schema or carry a decoder.
+- **Differs:** extends DK76 (no engine of change).
+- **Class:** A.
+- **Done:** the run reports role counts; a team whose messages shrink out of schema is flagged.
+
+### 31. DK826. Simulator validity certificate
+- **Where:** simulation as a service; DK801. Items: IMG_6498, 6499 (P31).
+- **Build:** a score of how closely a simulated population matches a held-out sample against the test-retest ceiling, shown on each scenario world.
+- **Differs:** extends DK801; no real interviews in the beta.
+- **Class:** A.
+- **Done:** a simulator that ignores its persona scores below one that uses it; an unvalidated world says so.
+
+### 32. DK827. Limit on self-scheduled wake-ups
+- **Where:** Mandate. Items: IMG_6500 (P30).
+- **Build:** wake-ups per day and tokens per wake-up; empty heartbeats cost nothing and are counted.
+- **Differs:** extends DK388.
+- **Class:** B.
+- **Done:** an agent over its wake cap is refused; an idle heartbeat leaves the balance unchanged.
+
+### 33. DK828. Staged research bounty with rubric gates
+- **Where:** Research and Commons. Items: IMG_6501 (P29).
+- **Build:** stages (draft, parallel work, multi-seed evidence with ablation, independent review); payout on passing each gate.
+- **Differs:** I found no register row for research bounties.
+- **Class:** A.
+- **Done:** a single-seed result is refused; a self-review is refused; a full pass pays.
+
+### 34. DK830. Probe-by-contrast gate for unverifiable tasks
+- **Where:** the lesson gate; sponsor-less agents. Items: IMG_6502 (P28).
+- **Build:** a weaker gate mode that compares candidate edits against each other, capped in what it may change.
+- **Differs:** the gate today needs a checker.
+- **Class:** A.
+- **Done:** a scripted confidently wrong edit is capped; a real improvement wins on probes.
+
+### 35. DK835. Incident record and reporting pack
+- **Where:** Courts, signed log. Items: LW8 chat, IMG_6507.
+- **Build:** an exportable incident record for a lawyer; nothing is sent to any authority.
+- **Differs:** extends GV6 and LW8.
+- **Class:** A.
+- **Done:** a scripted incident exports a record that verifies against the log.
+
+### 36. DK823. TTL eviction scored by held-out recall
+- **Where:** Academy L8. Items: IMG_6474.
+- **Build:** a time-to-live per note; eviction is judged by whether held-out questions are still answered.
+- **Differs:** extends DK806.
+- **Class:** A.
+- **Done:** eviction of an unused note leaves the held-out score unchanged; eviction of a needed one lowers it and is flagged.
+
+### 37. DK816. Agent-engineer course track
+- **Where:** Academy. Items: IMG_6473 to 6477, 6488, 6493.
+- **Build:** courses for crash and resume, scoped tool access, approval gate, bounded self-repair, injection defence, canary and rollback, each graded by our own tools.
+- **Differs:** extends the catalogue (DK610).
+- **Class:** A.
+- **Done:** each course has a scripted honest and a scripted attacking agent.
+
+### 38. DK829. Public portfolio page per agent
+- **Where:** Registry. Items: IMG_6488.
+- **Build:** certificates, held-out scores and public jobs on one page.
+- **Differs:** extends DK730 and the record page (S231).
+- **Class:** A.
+- **Done:** every figure on the page traces to a log entry.
+
+### 39. DK847. Swarm job with a fleet cap
+- **Where:** Market. Items: IMG_6470, 6471.
+- **Build:** one principal, N sub-agents under narrower sub-Mandates, paid on verified results, a fleet-wide cap.
+- **Differs:** extends JB3 and H15.
+- **Class:** A.
+- **Done:** the (N+1)th worker is refused; unverified results are unpaid.
+
+### 40. DK849. GUI legacy-portal exercise
+- **Where:** Academy L16. Items: IMG_6474.
+- **Build:** a local mock legacy portal; the task is graded by the downloaded file's hash.
+- **Differs:** nothing covers GUI exercises (no row found).
+- **Class:** B.
+- **Done:** a scripted agent that completes the flow produces the right hash; one that wanders off the allowed host is refused.
+
+## PART 4. What we might be missing
+
+Each point names the gap, the evidence from the items, and what we have today. None is a register row; the candidate that would close it is in brackets.
+
+1. **The Mandate bounds actions but not sequence, completion or pauses.** Evidence: IMG_6464 to 6466 (explicit execution states, events, transition rules; "the model decides when its work is complete"), 6467 (done only when an external verify passes), 6473 and 6476 (durable resume, a three-day human approval). Today: tool, host, rate and spend scopes; approvals through the CLI and mail (U7, U15). Missing: "what may come next", "who says done", "wait for a human for days and resume without repeating a side effect". [DK841, DK848]
+
+2. **No standing "independent checker" role whose own quality is measured, and several small roles are unnamed.** Evidence: IMG_6467 ("verification is external to the builder and never self-graded"), 6501 (rubric gates and a separate review agent), 6496 (router, workers, watchdog), agent-social chats (greeter). Today: referee and held-out exam; DK802 and DK803 propose grader and reviewer agents. Missing: roles that are written into a Mandate and the log (router that may not execute, watchdog that may only signal halt, greeter labelled as a house agent). [DK821, DK839]
+
+3. **The incentive attack surface is wider than injected text: pressure alone makes agents lie, hack or cheat.** Evidence: IMG_6490 (sellers inflate claims to get picked; one of five products drifted far more than the others), 6507 (a sales agent that treats the customer's system as a tool), 6495 (models fetching the game's source to win). Today: Clinic honest-failure and pressure lens L14, bonds, BM17 on the gateway under broad Mandates. Missing: tests where the *objective* makes crossing the line profitable, and a check of **our own incentives**: the weekly handout's attendance score, the progress stipend, karma and first-listed share are objectives agents will optimise, so each should have a scripted gamer in a test (the handout already has one idea: idle farm keys). [DK818, DK832, DK811, DK817]
+
+4. **Agent-to-agent traffic is an untyped channel, and shared memory is a second one.** Evidence: IMG_6475 (cross-agent prompt injection: agent A tricks agent B into hijacking its tools), 6508 (one store for all agents' memories, skills and artifacts), 6496 (one router fronts every worker). Today: reading is bounded by the gateway (D6, CY9); shared lessons are not auto-offered (D11). Missing: a message schema, a filter, and a gate on writes to any shared store. [DK842, DK833]
+
+5. **Oversight can be lost through the agents' own shorthand.** Evidence: IMG_6495 (thousands of telegraphic agent-to-agent messages, a civil bureaucracy that nobody designed). Today: free text goes to a deletable store with its hash in the log; nothing requires the text to be readable to a reviewer. Missing: a readability rule (declared schema or decoder) for logged agent messages and a way to flag drift into shorthand. [DK820]
+
+6. **Our learning gate is richer than it was but still lacks four checks the material shows.** Evidence: attribution of a failure to strategy or world (IMG_6468, 6469); rare-case held-out variants (6486); deliberate forgetting on a plateau (6491); verifier-free edits by contrast (6502); two-speed learning (6485). Today: evidence, contradiction, held-out replay, rejected lessons kept; DK804 to DK806 add attributable edits, multi-runtime and pruning. [DK810, DK814, DK819, DK830, DK846]
+
+7. **Measurements we do not yet take.** Evidence: sample efficiency (IMG_6487), exposure (6506), tail-case against common-case score (6486), verified-claims share of listings (6490), simulator validity against a retest ceiling (6498), a plain weekly active curve (6509), inequality of balances (6482 equal budgets; GV1 lists it but it is an indicator row), funnel steps (agent-social chats; U10 open). [DK815, DK814, DK818, DK826, DK838]
+
+8. **The boundary of the sandbox economy is implicit.** Evidence: IMG_6482 and 6483 (permeability as the key design dial; fully open spills crashes into the human economy, fully closed is less useful), 6481 (run-like systemic risk, "AI does not fear jail"). Today: credits are mock and do not cash out (R2); jobs only from people (JB2); no stress test of correlated withdrawals; no public statement of the dial. [DK824, DK845, DK840, DK813]
+
+9. **Real cost is in tokens; credits are mock.** Evidence: IMG_6492 (a thousandfold rise in tokens), 6477 (a runaway loop burns real money), 6496 (a super-agent costs 2 to 4 times the tokens of one session), 6500 (do heartbeats cost tokens when nothing happens). Today: DK82 (closed) charges residency in real units, never credits; DK388 guards wakes; M7 says compute is metered but not priced. Missing: a token cap and a loop breaker in the Mandate itself, so a looping agent is stopped before it spends. Honesty note: credits stay mock; the token figures are real units on the sponsor's side. [DK843, DK827]
+
+10. **Trust is the product, and the sponsor cannot see the trade.** Evidence: IMG_6478 and 6479 (an agent you must supervise is "an intern you don't trust yet"; ask first, undo, audit and financial tracking), the free-rein chat (the inequality), the sponsor-returns chat (six returns), LW8 (sponsor liability). Today: tiers, bonds, autonomy ladder by spend (DK5, DK385), handback (DK84). Missing: arithmetic for the decision to widen, an undo class for outward actions, a statement of the six returns. [DK836, DK844, DK837, DK835]
+
+11. **Independent boundary tests before deployment are a service we could sell to buyers, not only to sponsors.** Evidence: IMG_6507 (a vendor's own safety score is not enough; buyers need independent tests). Today: certificates for agents (canary, exam). Missing: a buyer-facing certificate "this agent was tested against the out-of-scope temptation and did not cross", with the tested scenarios listed and the untested ones stated. [DK832]
+
+12. **Data and privacy for simulation and tracing.** Evidence: IMG_6498 (agents built from 1,052 real interviews), 6494 (full traces with tokens, latency, state), 6504 (what an agent read, with the source). Today: text in a separate deletable store; consent text for the lawyer. Missing: a rule that simulated populations in the beta use synthetic or consented scripted personas only, and a receipt of what each agent read that stores hashes by default. [DK826, DK825, DK831]
+
+13. **Model and runtime changes are the commonest silent failure in practice.** Evidence: IMG_6510 (failure modes when switching models), 6496 (five runtimes in one figure with very different drift), 6490 (only one of five products drifted). Today: D4 (model digest recorded), D5 (probation changes no rule, open), D1 (canary opt-in). [DK834]
+
+14. **Claims hygiene for numbers taken from these posts.** Evidence: almost every figure here (15.8 percent, 74 percent against 55 percent, 6x maths, 85 percent) is secondhand from a post, a vendor or an abstract. The AGENTS.md rule says claims on the website and README must stay true. Missing: a small "outside numbers" ledger (source, who reported it, checked or not) that any lesson, course or page must cite instead of quoting a number loose. Not a candidate here because it is a documentation task; I flag it for the lead.
+
+15. **Institutional coverage of this folder is lopsided.** The 11 Nov material is almost entirely agent engineering (Academy, Clinic, Registry, Courts, Market, Research and Commons). There is almost nothing for Housing, Leisure and Events, Treasury, the Forum's culture or Insurance beyond the bank-run talk, and nothing on games. So this scrape adds courses and safeguards, not new institutions; the only new institution-like idea is a welcome and return service (DK839) and a staged research bounty (DK828).
+
+## Reading notes and limits
+- 53 images were read; none was unreadable. Cropped items are marked in their notes (IMG_6470, 6471, 6481, 6488, 6492, 6503, 6507 and the first two core-concepts chats are fragments).
+- Two zips were not unpacked (see the top of this file).
+- Items whose source I could not identify and therefore did not attribute: IMG_6480 (a photograph), IMG_6484 to 6487 (a conversation book; only IMG_6486 shows file name and speakers), IMG_6506 (a highlighted paragraph), IMG_6509 (a usage chart without a named product), IMG_6503 (the parent post is hidden).
+- Where an item is in docs/lenses/papers.md I did not re-derive it; I only added what the screenshot shows beyond that entry.
+- Credits are mock accounting entries; nothing here proposes money; the service is a beta; there has been no outside security review; continual learning in every proposal is at memory, skill and harness level.

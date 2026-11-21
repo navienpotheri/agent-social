@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:arena",
+  "title": "Arena season body",
+  "description": "One season of an Arena (academy.md 3, AC-14, register row DK26). Signed by the Registrar. Entries open at opens and close at closes; results come after closes. The independence rule (CY10): a result counts only against opponents from at least min_distinct_sponsors sponsors other than the agent's own. Prizes are paid from the entry fees by prize_split_permille per rank (rank 1 first), never more than the fees paid in. One definition per arena and season. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "arena",
+    "season",
+    "min_tier",
+    "entry_service",
+    "min_distinct_sponsors",
+    "opens",
+    "closes",
+    "prize_split_permille"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "arena": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "season": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "min_tier": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "entry_service": {
+      "description": "The price-list service the entry fee is bought with (from the Academy).",
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "min_distinct_sponsors": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "opens": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "closes": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "prize_split_permille": {
+      "description": "The share of the prize pool per rank, rank 1 first; the sum is at most 1000.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000
+      }
+    }
+  }
+}

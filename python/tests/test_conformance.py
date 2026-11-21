@@ -85,3 +85,68 @@ def test_resign_reproduces_typescript_bytes(case):
     )
     assert again["id"] == r["id"]
     assert again["sig"]["value"] == r["sig"]["value"]
+
+
+# ---- the world engine (docs/spec-deltas.md S170) ----
+from asp_core.world import GENERATOR, check_world_record, generate_day, seed_commitment  # noqa: E402
+
+WORLD = load("vectors/world.json")
+
+
+def test_world_generator_name():
+    assert WORLD["generator"] == GENERATOR
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=f"{c['seed']}-{c['day']}") for c in WORLD["generate"]])
+def test_world_generate(case):
+    assert generate_day(case["seed"], case["day"]) == case["events"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["seed"] or "empty") for c in WORLD["commitments"]])
+def test_world_commitment(case):
+    assert seed_commitment(case["seed"]) == case["commitment"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in WORLD["rules"]])
+def test_world_rule(case):
+    code, detail = code_of(lambda: check_world_record(case["issuer"], case["issued_at"], case["body"]))
+    if case["expect"] == "ok":
+        assert code is None
+    else:
+        assert (code, detail) == ("GUARD_FAILED", case["expect"])
+
+
+# ---- the Market's risk model (docs/spec-deltas.md S1404) ----
+from asp_core.risk import RISK_MODEL, only_removes_rule, suggest_risk  # noqa: E402
+
+RISK = load("vectors/risk.json")
+
+
+def test_risk_model_name():
+    assert RISK["model"] == RISK_MODEL
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in RISK["suggest"]])
+def test_risk_suggest(case):
+    assert suggest_risk(case["terms"], case["input"]) == case["expected"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in RISK["onlyRemoves"]])
+def test_risk_only_removes_rule(case):
+    assert only_removes_rule(case["prev"], case["next"]) == case["expected"]
+
+
+# ---- the Mandate template (docs/spec-deltas.md S1408) ----
+from asp_core.mandate_template import derive_mandate, mandate_violations  # noqa: E402
+
+MT = load("vectors/mandate-template.json")
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in MT["violations"]])
+def test_mandate_violations(case):
+    assert mandate_violations(case["ceiling"], case["candidate"]) == case["expected"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in MT["derive"]])
+def test_derive_mandate(case):
+    assert derive_mandate(case["template"], case["contract"], case["narrowing"]) == case["expected"]

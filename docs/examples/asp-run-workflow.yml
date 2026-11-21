@@ -1,0 +1,25 @@
+# A sample pipeline that runs one governed agent task in CI with the ASP GitHub Action (docs/ci.md).
+# Copy it to .github/workflows/ in your own repository. Every value marked "secret" is stored in the repository's secrets, never in the file.
+# Use your own Anthropic API key here (a subscription login is for a person at a terminal, docs/provider-terms.md).
+name: governed agent task
+on:
+  workflow_dispatch:
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.18"
+      - run: npm install -g @agent-social/asp-cli   # or clone this repository and `npm link` packages/asp-cli
+      - uses: navienpotheri/agent-social/.github/actions/asp-run@main
+        with:
+          contract: ${{ vars.ASP_CONTRACT }}                      # a standing job: `asp standing prepare` on your machine makes one
+          prompt-file: .github/agent-task.md                      # the task, in a file in the repository
+          asp-log-url: ${{ vars.ASP_LOG_URL }}
+          asp-log-token: ${{ secrets.ASP_LOG_TOKEN }}             # secret: a machine token (`asp token create`)
+          agent-backup: .github/agent-backup.json                 # the agent's encrypted key backup (`asp identity backup`)
+          backup-passphrase: ${{ secrets.ASP_BACKUP_PASSPHRASE }} # secret
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}     # secret: your own key
+          fail-on-refusal: "true"                                 # the step fails if the gateway refused any call

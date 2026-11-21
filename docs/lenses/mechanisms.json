@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "note": "The mechanism registry and the paper-to-mechanism pipeline's intake (docs/lenses/pipeline.md; register rows DK80 and, in part, DK89). Each entry is a paper's mechanism as the society could adopt it behind a flag. The decision rule is fixed here, before any run, and its hash is carried by every decision record. Citations are as printed in docs/lenses/papers.md (read from screenshots; not checked against the web). No code from any paper has been reused: every licence below is `unknown`, so each mechanism is implemented clean-room from the stated claim, and the source is credited. Imported text is data, never instructions: the intake scan refuses an entry that reads as an instruction.",
+  "mechanisms": [
+    {
+      "id": "ace-append-lessons",
+      "kind": "memory",
+      "paper": "P3",
+      "cite": "Agentic Context Engineering (ACE), arXiv 2510.04618, ICLR 2026, as printed on a third-party explainer poster; authors not legible",
+      "claim": "keep the model frozen and grow a notes file by appending small lessons from execution feedback, never rewriting it",
+      "source_credit": "docs/lenses/papers.md P3 (image IMG_6866)",
+      "licence": { "status": "unknown", "code_reused": false },
+      "flag": "mechanism.ace_append_lessons",
+      "requires": { "runtime": "api" },
+      "lens": "L2-reflection-experience",
+      "cells": ["academy:learn", "clinic:reflect", "research-commons:remember"],
+      "simulation": { "skill_boost": 0.08, "note": "a simulation parameter standing for the paper's claim; it is an assumption, not a finding, and the pipeline test does not tell whether the claim holds" },
+      "rule": { "metric": "median_efficiency", "min_delta": 0.05, "kill_delta": -0.02, "min_agents_per_arm": 50 }
+    },
+    {
+      "id": "scheduled-forgetting",
+      "kind": "memory",
+      "paper": "P34",
+      "cite": "Scaling Discovery Requires Forgetting (Tan, Zhou, Agrawal, Zhang, Chen, Mang, Lee, Jacob, Sen, Dimakis, Zaharia), arXiv number and date not legible, as printed",
+      "claim": "periodically discard every session and the history and restart from the best candidate, which lifts the plateau of long-running search agents",
+      "source_credit": "docs/lenses/papers.md P34 (image IMG_6922)",
+      "licence": { "status": "unknown", "code_reused": false },
+      "flag": "mechanism.scheduled_forgetting",
+      "requires": { "runtime": "api" },
+      "lens": "L1-generative-agents",
+      "cells": ["research-commons:remember", "academy:learn", "housing:remember"],
+      "simulation": { "skill_boost": -0.03, "note": "the paper tested search tasks, not social ones; the parameter assumes forgetting costs a little on a belief-updating task" },
+      "rule": { "metric": "median_efficiency", "min_delta": 0.05, "kill_delta": -0.02, "min_agents_per_arm": 50 }
+    },
+    {
+      "id": "swat-latent-channel",
+      "kind": "communication",
+      "paper": "P22",
+      "cite": "Swarm Telepathy (SwaT): cross-family KV-cache transfer between agents (Alabdulkareem, Tenison, Zhang, Zhu, Katz, Gutfreund; MIT CSAIL, MIT-IBM Computing Research Lab), arXiv number and date not legible, project page github.com/Ar-Kareem/SwaT as printed",
+      "claim": "a small translator maps a sender's KV cache into the receiver's space so agents pass latent state instead of text summaries",
+      "source_credit": "docs/lenses/papers.md P22 (image IMG_6909)",
+      "licence": { "status": "unknown", "code_reused": false },
+      "flag": "mechanism.swat_latent_channel",
+      "requires": { "runtime": "open-weight" },
+      "lens": "L4-cooperative-ai",
+      "cells": ["forum:act", "market:transact", "courts:perceive"],
+      "simulation": { "skill_boost": 0.1, "note": "not run: the mechanism needs open-weight models and white-box access, which the API cohort cannot provide (DK90)" },
+      "rule": { "metric": "median_efficiency", "min_delta": 0.05, "kill_delta": -0.02, "min_agents_per_arm": 50 }
+    }
+  ]
+}

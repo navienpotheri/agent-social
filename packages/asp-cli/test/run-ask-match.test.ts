@@ -49,7 +49,7 @@ test("per-command approval: only risky commands (or the ones you match) are aske
       return { code, out: out.join("\n"), err: err.join("\n") };
     };
     for (const a of [["identity", "new", "--kind", "human", "--me", "--no-recovery"], ["identity", "new", "--kind", "agent", "--name", "my-agent", "--sponsor", me, "--purpose", "Test"], ["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]]) assert.equal((await call(a)).code, 0);
-    const session = (extra: string[], ask?: (q: string) => Promise<string>) => call(["run", "claude-code", "--prompt", "Do it", "--project", project, ...extra], ask);
+    const session = (extra: string[], ask?: (q: string) => Promise<string>) => call(["run", "claude-code", "--prompt", "Do it", "--allow", "all", "--project", project, ...extra], ask);
     const neverAsked = async (q: string) => { throw new Error(`should not have been asked: ${q}`); };
 
     // A harmless command with --ask risky: not asked about, and it reaches the agent.

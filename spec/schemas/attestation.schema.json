@@ -37,8 +37,33 @@
         }
       }
     },
+    "route": { "description": "For rulings: which route decided it (spec-delta S232).", "enum": ["standard", "small_claim", "appeal"] },
+    "precedents": {
+      "description": "For rulings: earlier rulings relied on, at most 5. Each must be an existing ruling other than this one (precedent_unknown); a ruling that cites one must carry code.",
+      "type": "array", "maxItems": 5, "uniqueItems": true,
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+    },
+    "departs_from": {
+      "description": "For rulings: earlier rulings it declines to follow; reasons must say why.",
+      "type": "array", "maxItems": 5, "uniqueItems": true,
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+    },
     "score": { "type": "integer" },
-    "skill": { "type": "string" }
+    "skill": { "type": "string" },
+    "code": {
+      "description": "For rulings and report rulings: the version of the Code of the City applied and the Articles (or clauses, such as 8.3) the judgment rests on. Required when a report is upheld.",
+      "type": "object",
+      "required": ["version", "articles"],
+      "additionalProperties": false,
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+        "sha256": { "description": "The hash of that version's text, so the ruling names the exact words.", "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "articles": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^(1[0-2]|[1-9])(\\.[0-9]{1,2})?$" }
+        }
+      }
+    }
   },
   "additionalProperties": false,
   "allOf": [
@@ -74,6 +99,10 @@
     {
       "if": { "properties": { "kind": { "const": "report_ruling" } } },
       "then": { "required": ["verdict"], "properties": { "verdict": { "enum": ["upheld", "dismissed"] } } }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "report_ruling" }, "verdict": { "const": "upheld" } }, "required": ["kind", "verdict"] },
+      "then": { "required": ["code"] }
     },
     {
       "if": { "properties": { "kind": { "const": "ruling" } } },
