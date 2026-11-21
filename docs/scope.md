@@ -407,7 +407,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | U7 | A | partial | No approvals inbox or alerts outside the CLI |
 | U8 | A | partial | The app has to look good: no design system yet |
 | U9 | A | partial | Account deletion and data export exist for the hosted service (S95: asp account show |
-| U10 | B | open | Measurement of the beta funnel (where people stop) |
+| U10 | B | closed | Measurement of the beta funnel (where people stop) |
 | U11 | A | open | The dashboard reads the whole log on every request (a few hundred records is instant, a large log is not), has... |
 | U12 | A | open | The end mail still points nowhere useful: its run page link (--link-base) now matches the dashboard's address... |
 | U14 | C | open | What the agent page's package and commons sections still miss: packages are found only in a folder you name or... |

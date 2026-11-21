@@ -5,13 +5,15 @@
  * stored; nothing a person typed, no address and no key is kept or shown. `GET /society/funnel` shows counts and the drop-off view and nothing else. A step that fails never fails the request.
  */
 import { readFileSync, writeFileSync, renameSync } from "node:fs";
-import { Funnel, STEPS, type Step } from "./funnel.ts";
+import { Funnel, STEPS, PERSON_STEPS, type PersonStep, type Step } from "./funnel.ts";
 
 const SOURCE = /^[a-z0-9][a-z0-9-]{0,23}$/;
 export const DEFAULT_SOURCE = "direct";
 
 export class FunnelTap {
   readonly funnel: Funnel;
+  /** The road a person takes in (U10, S1451): the join page, the form, the account, a first write, a return. Kept in the same file, apart from the agents' road. */
+  readonly person: Funnel;
   private readonly now: () => string;
   private readonly file?: string;
   /** address -> the source it last read the start page with (bounded; the oldest goes first). */
@@ -19,10 +21,11 @@ export class FunnelTap {
   private timer?: ReturnType<typeof setTimeout>;
   constructor(o: { now?: () => string; file?: string; funnel?: Funnel } = {}) {
     this.funnel = o.funnel ?? new Funnel();
+    this.person = new Funnel(undefined, PERSON_STEPS);
     this.now = o.now ?? (() => new Date().toISOString());
     if (o.file) {
       this.file = o.file;
-      try { this.funnel.load(JSON.parse(readFileSync(o.file, "utf8"))); } catch { /* no file yet, or unreadable: start empty */ }
+      try { const d = JSON.parse(readFileSync(o.file, "utf8")); this.funnel.load(d?.agents ?? d); this.person.load(d?.people); } catch { /* no file yet, or unreadable: start empty */ }
     }
   }
   private day(): string { return this.now().slice(0, 10); }
@@ -44,10 +47,21 @@ export class FunnelTap {
       return fresh;
     } catch { return false; }
   }
+  /** Counts a step on a person's road in, for the visitor at an address (same rules as `step`). */
+  personStep(step: PersonStep, address: string, source?: string | null): boolean {
+    try {
+      if (source) { this.sources.delete(address); this.sources.set(address, source); if (this.sources.size > 10_000) this.sources.delete(this.sources.keys().next().value as string); }
+      const fresh = this.person.record(step, source ?? this.sources.get(address) ?? DEFAULT_SOURCE, address, this.day());
+      if (fresh) this.save();
+      return fresh;
+    } catch { return false; }
+  }
   /** A tenant's first write, counted once ever (not once a day): keyed to the tenant and its enrolment day. */
   firstAct(tenant: string, enrolledAt: string | undefined, address: string): boolean {
     try {
-      const fresh = this.funnel.record("first_act", this.sources.get(address) ?? DEFAULT_SOURCE, `tenant|${tenant}`, enrolledAt?.slice(0, 10) ?? "0000-00-00");
+      const day = enrolledAt?.slice(0, 10) ?? "0000-00-00", src = this.sources.get(address) ?? DEFAULT_SOURCE;
+      const fresh = this.funnel.record("first_act", src, `tenant|${tenant}`, day);
+      this.person.record("first_act", src, `tenant|${tenant}`, day);
       if (fresh) this.save();
       return fresh;
     } catch { return false; }
@@ -56,7 +70,9 @@ export class FunnelTap {
   returned(tenant: string, enrolledAt: string | undefined, address: string): boolean {
     if (!enrolledAt || enrolledAt.slice(0, 10) >= this.day()) return false;
     try {
-      const fresh = this.funnel.record("returned", this.sources.get(address) ?? DEFAULT_SOURCE, `tenant|${tenant}`, enrolledAt.slice(0, 10));
+      const src = this.sources.get(address) ?? DEFAULT_SOURCE;
+      const fresh = this.funnel.record("returned", src, `tenant|${tenant}`, enrolledAt.slice(0, 10));
+      this.person.record("returned", src, `tenant|${tenant}`, enrolledAt.slice(0, 10));
       if (fresh) this.save();
       return fresh;
     } catch { return false; }
@@ -65,7 +81,7 @@ export class FunnelTap {
   /** What `GET /society/funnel` returns: the steps in order with visitors per step, the share still here, the step where most are lost, and the counts by source. No hash, address or key. */
   view(source?: string) {
     const src = source && SOURCE.test(source) ? source : undefined;
-    return { ok: true, beta: true, note: "Anonymous counts of steps taken, by the source label an agent arrived with. A visitor is counted once for a step; nothing identifies one.", steps: [...STEPS], source: src ?? "all", sources: this.funnel.sources(), dropOff: this.funnel.dropOff(src), worstStep: this.funnel.worstStep(src), counts: this.funnel.snapshot() };
+    return { ok: true, beta: true, note: "Anonymous counts of steps taken, by the source label an agent arrived with. A visitor is counted once for a step; nothing identifies one.", steps: [...STEPS], source: src ?? "all", sources: this.funnel.sources(), dropOff: this.funnel.dropOff(src), worstStep: this.funnel.worstStep(src), counts: this.funnel.snapshot(), people: { steps: [...PERSON_STEPS], sources: this.person.sources(), dropOff: this.person.dropOff(src), worstStep: this.person.worstStep(src), counts: this.person.snapshot() } };
   }
 
   private save(): void {
@@ -75,6 +91,6 @@ export class FunnelTap {
   }
   flush(): void {
     if (!this.file) return;
-    try { const tmp = `${this.file}.tmp`; writeFileSync(tmp, JSON.stringify(this.funnel.dump())); renameSync(tmp, this.file); } catch { /* the counts are best effort; the service is not */ }
+    try { const tmp = `${this.file}.tmp`; writeFileSync(tmp, JSON.stringify({ agents: this.funnel.dump(), people: this.person.dump() })); renameSync(tmp, this.file); } catch { /* the counts are best effort; the service is not */ }
   }
 }

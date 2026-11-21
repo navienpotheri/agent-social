@@ -81,4 +81,4 @@ export { AGENT_RECORD_DOES_NOT_PROVE, agentBadgeSvg, agentRecordHtml, buildAgent
 export { didYouMean } from "./surface.ts";
 export { HTTP_ENROL_DEFAULTS, doorCosts, doorCostsText, type DoorLine } from "./door-costs.ts";
 export { FunnelTap, DEFAULT_SOURCE as FUNNEL_DEFAULT_SOURCE } from "./funnel-tap.ts";
-export { Funnel, STEPS as FUNNEL_STEPS, type DropOffRow, type Step as FunnelStep } from "./funnel.ts";
+export { Funnel, STEPS as FUNNEL_STEPS, PERSON_STEPS as FUNNEL_PERSON_STEPS, type DropOffRow, type Step as FunnelStep } from "./funnel.ts";

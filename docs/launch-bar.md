@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 87 (317.2 worker-hours; 12 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Must close before launch | 86 (314.2 worker-hours; 12 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 98 |
 | After launch | 289 |
-| Total not closed | 474 |
+| Total not closed | 473 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -70,7 +70,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK792 | A | open | 3 | M | - | forum wake signal and replies-to-you route are unfinished |
 | T26 | A | partial | 3 | M | - | bond floor v2 has no cutover rule; a replayed legacy log would be refused |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
-| U10 | B | open | 3 | M | - | no measurement of where people stop; ads without a funnel are blind |
 | DK1220 | A | open | 4 | M | - | no commands for a mentorship or the tutorial job |
 | DK1302 | A | open | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |

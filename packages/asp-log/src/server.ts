@@ -225,7 +225,7 @@ export function createLogServer(opts: ServerOptions): Server {
         const termsUrl = info.termsUrl, privacyUrl = termsUrl ? termsUrl.replace(/\/terms$/, "/privacy") : undefined;
         const askedC = new URLSearchParams((req.url ?? "").split("?")[1] ?? "").get("c") ?? undefined;
         const form = (extra: { error?: string; name?: string; c?: string } = {}) => joinForm({ termsVersion: info.termsVersion, termsUrl, privacyUrl, open: info.open, reason: info.reason, ...extra });
-        if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/join") return page(200, form(askedC && CHALLENGE_RE.test(askedC) ? { c: askedC } : {}));
+        if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/join") { opts.funnel?.personStep("join_page_viewed", address, FunnelTap.sourceOf(req.url)); return page(200, form(askedC && CHALLENGE_RE.test(askedC) ? { c: askedC } : {})); }
         if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/join/recover") return page(200, recoverForm({ open: true }));
         if (req.method === "POST" && (req.url ?? "").split("?")[0] === "/join/recover") {
           const q = new URLSearchParams(await readBody(req, 8 * 1024).catch(() => ""));
@@ -244,6 +244,7 @@ export function createLogServer(opts: ServerOptions): Server {
           if (!/^[a-z][a-z0-9-]{2,31}$/.test(name)) return page(400, form({ error: "The name is 3 to 32 characters: lower-case letters, digits and hyphens, starting with a letter.", name, ...(c ? { c } : {}) }));
           if ((opts.tenantSource?.() ?? opts.tenants ?? []).some((t) => t.name === name)) return page(409, form({ error: "That name is not available.", name, ...(c ? { c } : {}) }));
           const started = opts.google.begin({ name, accept_terms: true, terms_version: info.termsVersion, declaration: "adult_or_guardian", ...(c ? { c } : {}) });
+          opts.funnel?.personStep("join_submitted", address);
           return page(303, "", { location: started.location, "set-cookie": `asp_join=${started.nonce}; Max-Age=600; Path=/auth; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}` });
         }
         if (req.method === "GET") {
@@ -258,7 +259,7 @@ export function createLogServer(opts: ServerOptions): Server {
           }
           const r = opts.signup.registerVerified(address, { ...done.form }, done.google);
           if (!r.ok) return page(r.status, joinError("Sign-up did not finish", r.message), clear);
-          opts.funnel?.step("enrolled", address);
+          opts.funnel?.personStep("signed_up", address);
           if (done.form.c && pickup) { pickup.put(done.form.c, { tenant: r.tenant, token: r.token, quotas: r.quotas }); return page(201, joinDoneCli(r.tenant), clear); }
           return page(201, joinDone({ tenant: r.tenant, token: r.token, service: base || `https://${req.headers.host}`, quotas: r.quotas }), clear);
         }

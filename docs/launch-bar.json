@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 87,
+  "must": 86,
   "withdraw": 98,
   "after": 289,
-  "total": 474
+  "total": 473
  },
- "mustWorkerHours": 317.2,
+ "mustWorkerHours": 314.2,
  "entries": [
   {
    "id": "D3",
@@ -782,17 +782,6 @@
    "size": "M",
    "flags": "LO",
    "why": "account export and close read live on the host, with a deletion receipt"
-  },
-  {
-   "id": "U10",
-   "pri": "B",
-   "status": "open",
-   "gap": "Measurement of the beta funnel (where people stop)",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "no measurement of where people stop; ads without a funnel are blind"
   },
   {
    "id": "U11",
