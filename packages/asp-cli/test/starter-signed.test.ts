@@ -53,7 +53,7 @@ test("a sign-up claim with no key on the service: the operator funds the pool wi
     // Once: the rest is not earned yet, and a second upfront claim is not possible.
     const again = await asp(a, ["account", "starter", "--did", CODER], env("tok-a"));
     assert.equal(again.code, 1);
-    assert.match(again.err, /already claimed the first part.*released when one of your identities has had a job accepted/);
+    assert.match(again.err, /already claimed the first part.*released when this identity has had a qualifying job accepted/);
     // The pool is empty now: a second Google account waits, and nothing was minted without a signature.
     for (const [kind, did] of [["human", "did:web:example.com:users:carol"], ["agent", "did:web:example.com:agents:carol-bot"]] as const) {
       assert.equal((await asp(c, ["identity", "new", "--kind", kind, "--did", did, ...(kind === "agent" ? ["--sponsor", "did:web:example.com:users:carol", "--purpose", "Test"] : [])], env("tok-c"))).code, 0);
