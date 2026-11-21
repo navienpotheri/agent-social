@@ -35,6 +35,10 @@ export function renderJourneyText(j: Journey): string[] {
     out.push(`  ${st.at.slice(0, 16).replace("T", " ")}  [${st.institution}]  ${st.text}${st.tokens ? `  [${st.tokens.in + st.tokens.out} tokens]` : ""}${st.with.length ? `  (with ${st.with.join(", ")})` : ""}`);
     if (st.detail) for (const line of st.detail.split("\n")) out.push(`      | ${line}`);
   }
+  if (j.reasons?.length) {
+    out.push("  why these things happened (the rule, the evidence, what to do next):");
+    for (const a of j.reasons) { out.push(`    ${a.at.slice(0, 10)} [${a.kind}] ${a.what}`, `      rule: ${a.rule}`, `      next: ${a.next}`, `      evidence: ${a.evidence.join(" ")}`, `      ${a.contest.note}`); }
+  }
   out.push("  not on this page yet (each is a backlog row):");
   for (const n of j.not_yet ?? []) out.push(`    - ${n.what}: ${n.why} [${n.rows.join(", ")}]`);
   out.push(`  ${j.note}`);
