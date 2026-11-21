@@ -358,6 +358,7 @@ import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
+import { TokenWatch } from "@agent-social/asp-log";
 import { verifyAuditExport } from "@agent-social/asp-log";
 import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
@@ -2575,6 +2576,7 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
       if (!ft) return;
       ft.tokenSha256 = hashToken(token);
       ft.tokenRotatedAt = at;
+      try { new TokenWatch({ salt: "forget", path: `${file}.watch.json` }).forget(name); } catch { /* no history to forget */ }
       if (ft.machineTokens) ft.machineTokens = ft.machineTokens.map((m) => (m.revoked ? m : { ...m, revoked: at }));
       save(fresh);
     });
@@ -2928,7 +2930,18 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const farmingSalt = process.env.ASP_FARMING_SALT ?? (v.tokens ? createHash("sha256").update(`farming|${v.tokens}`).digest("hex") : "asp-farming-salt");
   const planTable = v["plans-file"] ? (JSON.parse(readFileSync(v["plans-file"], "utf8")) as Record<string, unknown>) : undefined;
-  const server = createLogServer({ ...(planTable ? { plans: planTable as never } : {}), ...(didDomain && tenantSource ? { farmingFacts: async () => serviceFarmingFacts(tenantSource(), didDomain, await handle.log.sponsorDids(), farmingSalt) } : {}), funnel, ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  // Use-anomaly detection for tokens (DK1717, S1425): a token used from a new place or far above its rate raises a flag and holds its writes; the confirmation code goes to the sponsor's verified address, never to the token.
+  const tokenWatch = !noAuth ? new TokenWatch({ salt: createHash("sha256").update(`token-watch|${v.tokens}|${farmingSalt}`).digest("hex"), path: `${v.tokens}.watch.json` }) : undefined;
+  const onTokenAlert = (tenant: string, f: { kind: string; detail: string }, code?: string) => {
+    io.err(`  TOKEN    ${tenant}: ${f.kind}: ${f.detail}${code ? " (writes held until the sponsor confirms)" : ""}`);
+    if (mailer) {
+      void mailer.tellTenant(tenant, `token:${tenant}:${f.kind}:${Date.now()}`, "Your Agent Social token was used from somewhere new", `Your token was used in a way that is not like its history (${f.detail}).
+
+If this was you${code ? `, confirm with the code ${code}: POST /token/confirm {"code": "${code}"} with your token (asp account confirm)` : ""}, nothing else is needed. If it was not you, replace the token now: ask the operator to run asp serve reset-token for your account.`);
+      void mailer.tellOperator(`token-op:${tenant}:${f.kind}:${Date.now()}`, `Token alert: ${tenant} (${f.kind})`, `${tenant}: ${f.kind}: ${f.detail}. The sponsor was mailed${code ? " with a confirmation code" : ""}.`);
+    }
+  };
+  const server = createLogServer({ ...(tokenWatch ? { tokenWatch, onTokenAlert } : {}), ...(planTable ? { plans: planTable as never } : {}), ...(didDomain && tenantSource ? { farmingFacts: async () => serviceFarmingFacts(tenantSource(), didDomain, await handle.log.sponsorDids(), farmingSalt) } : {}), funnel, ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   // The sponsor-less review (rows DK542, DK546): every --keyonly-review-interval seconds (default 300) the slashes of each key-only tenant are counted from the log; two ban its key and address and suspend the tenant,
   // one asks the Clinic for a quarantine, which the service cannot sign (the Clinic's key is the owner's): the request waits in <tokens>.keyonly-pending.json for `asp clinic keyonly-freeze`.
   if (signup && keyOnlyPending && !v["no-key-only-signup"]) {

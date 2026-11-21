@@ -106,3 +106,4 @@ export { lotsOf, outstanding, spendable, drawPlan, applyDraw, LOT_MAX_MS, type L
 export { meterOf, priceStatement, creditsFor, type Plan as UsagePlan, type Usage as MeterUsage, type AgentUsage, type Priced } from "./metering.ts";
 export { buildAuditExport, verifyAuditExport, orgScope, type AuditManifest } from "./audit-export.ts";
 export { readOrgRecords } from "./audit-export.ts";
+export { TokenWatch, rangeOf, type Flag as TokenFlag, QUIET_HOLD_MS } from "./token-watch.ts";

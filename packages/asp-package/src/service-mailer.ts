@@ -228,6 +228,13 @@ export class ServiceMailer {
     return { sent };
   }
 
+  /** One mail to a tenant's verified Google address, once per key (a token alert with its confirmation code, DK1717). False when the tenant has no verified address or the key was handled. */
+  async tellTenant(tenant: string, key: string, subject: string, text: string): Promise<boolean> {
+    const t = (this.o.tenants() as { name: string; signup?: { google?: { email?: string } } }[]).find((x) => x.name === tenant);
+    const to = t?.signup?.google?.email;
+    return this.deliver(key, to, "tenant", () => ({ subject, text, html: `<!doctype html><html><body style="font-family:sans-serif"><pre>${esc(text)}</pre></body></html>` }), true);
+  }
+
   /** One mail to the operator, once per key (a finding from the society watcher, DK52). False when there is no operator address or the key was already handled. */
   async tellOperator(key: string, subject: string, text: string): Promise<boolean> {
     return this.deliver(key, this.o.operatorTo, "operator", () => ({ subject, text, html: `<!doctype html><html><body style="font-family:sans-serif"><pre>${esc(text)}</pre></body></html>` }), true);

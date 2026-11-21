@@ -6052,8 +6052,8 @@
    "bucket": "must",
    "hours": 6,
    "size": "M",
-   "flags": "D",
-   "why": "agents pay no published rent or tax yet: the price and the tax rate are the owner's decision, with a review against the credit faucets"
+   "flags": "",
+   "why": "agents pay no published rent or tax yet: measure the average earnings, draft the price table and tax from them for the owner to approve, publish before launch (owner answer 2026-11-21)"
   },
   {
    "id": "DK1711",
