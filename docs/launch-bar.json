@@ -5965,7 +5965,7 @@
   {
    "id": "DK1605",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "A model swap holds an agent only in the view: the Registry says the agent's tier is not restored until it passes a re-examination, but the log does not refuse tier-gated work while the hold lasts, an…",
    "bucket": "withdraw",
    "hours": 0,
@@ -5991,7 +5991,7 @@
   {
    "id": "DK1607",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "A reversed contest changes nothing yet: the Courts' `contest_ruling` is a record, but the institution that made the contested act (the Clinic's quarantine or diagnosis, the Bank's slash, the runtime'…",
    "bucket": "withdraw",
    "hours": 0,

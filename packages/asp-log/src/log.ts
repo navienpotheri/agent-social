@@ -476,6 +476,7 @@ export class EventLog {
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
     if (type === "support") await projectSupport(tx, verified, { operator: this.operator });
     if (type === "court_act") await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
+    if (type === "court_act" && (r.body as { act?: string; decision?: string }).act === "contest_ruling") await this.applyContestReversal(tx, verified);
     if (type === "shops_act") await projectShopsAct(tx, verified, { reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
     if (type === "housing_act") await projectHousingAct(tx, verified);
     if (type === "telemetry_act") await projectTelemetryAct(tx, verified);
@@ -1130,6 +1131,7 @@ export class EventLog {
       else if (!was && m.digest) known[id] = m.digest;
     }
     await tx.putMarker(key, JSON.stringify(known));
+    if (changed) await tx.putMarker(`model_hold:${r.issuer}`, r.issued_at); // DK1605, S1556: held until a passed exam of its own after this time
     if (changed) {
       const until = new Date(Date.parse(r.issued_at) + MODEL_CHANGE_PROBATION_MS).toISOString().replace(/\.\d{3}Z$/, "Z");
       const current = await tx.getProbation(r.issuer);
@@ -3240,6 +3242,7 @@ export class EventLog {
     await this.useRunLog(tx, b.run_log_hash, b.holder, fee.record.issued_at, "an exam result");
     await tx.putMarker(key, JSON.stringify([...history, { at: r.issued_at, variant }]));
     if (b.passed) await tx.putMarker(`exam_passed:${b.exam}|${b.holder}`, r.id);
+    if (b.passed) await tx.putMarker(`exam_pass_at:${b.holder}`, r.issued_at); // the re-examination that lifts a model-swap hold (DK1605)
   }
 
   /**
@@ -3464,6 +3467,12 @@ export class EventLog {
     if (r.prev !== null) throw rule("promotion_not_chained", "a tier promotion starts its own chain (prev is null)");
     if (await tx.getMarker(`house:${b.holder}`)) throw rule("house_agent_no_rank", `${b.holder} is a house agent: it is not promoted by the Academy`);
     if (r.issuer !== REGISTRAR_DID) throw rule("promotion_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar promotes an agent`);
+    // A model swap holds the agent (DK1605, S1556): its tier does not rise until it passes an exam of its own after the swap.
+    const heldSince = await tx.getMarker(`model_hold:${b.holder}`);
+    if (heldSince) {
+      const passedAt = await tx.getMarker(`exam_pass_at:${b.holder}`);
+      if (!passedAt || Date.parse(passedAt) <= Date.parse(heldSince)) throw rule("agent_model_hold", `${b.holder} changed the model behind it on ${heldSince}: it is held, and its tier does not rise until it passes an exam after that`);
+    }
     const rep = await this.reputation(tx, b.holder);
     if (!rep) throw rule("promotion_not_an_agent", `${b.holder} has no passport in this log, so it has no tier`);
     if (b.from !== rep.tier) throw rule("promotion_wrong_tier", `${b.holder} is tier ${rep.tier}, not ${b.from}`);
@@ -3645,6 +3654,28 @@ export class EventLog {
   }
 
   /** A release (clinic.md; DK29, DK30, DK53): the Clinic clears one member on evidence of a clean run after the freeze. */
+  /**
+   * A reversed contest changes what the institution did (DK1607, spec-delta S1555): when the Courts reverse a contested act, the effect the act had is undone where the log can undo it without moving credits. A reversed quarantine
+   * releases the agent from it (the same marker the Clinic's release writes). A reversed strike is struck from the agent's recent strikes, so the bond floor stops counting it. A reversed slash or Clinic diagnosis is recorded
+   * and shown but moves nothing here: the return of a slashed bond needs a Treasury budget line and is a separate decision (a ruling that upholds, or none, changes nothing).
+   */
+  private async applyContestReversal(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { case: string; decision: string };
+    if (b.decision !== "reversed") return;
+    const cinfo = JSON.parse((await tx.getMarker(`contest_case:${b.case}`)) ?? "null") as { contest: string; agent: string } | null;
+    const craw = cinfo ? await tx.getMarker(`contest:${cinfo.contest}`) : undefined;
+    if (!cinfo || !craw) return;
+    const c = JSON.parse(craw) as { subject: string; agent: string };
+    const sub = await tx.getRecord(c.subject);
+    if (!sub) return;
+    if (sub.record.type === "asp.quarantine/v0.2") { await tx.putMarker(`quarantine_released:${c.subject}|${c.agent}`, r.id); return; }
+    if (sub.record.type === "asp.action/v0.2") {
+      const rep = await this.reputation(tx, c.agent);
+      if (rep) await this.saveReputation(tx, c.agent, { ...rep, strikeLog: rep.strikeLog.filter((x) => x.at !== sub.record.issued_at) });
+      await tx.putMarker(`strike_reversed:${c.subject}`, r.id);
+    }
+  }
+
   private async projectQuarantineRelease(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { quarantine: string; member: string; evidence: string };
     if (r.prev !== null) throw rule("release_not_chained", "a quarantine release starts its own chain (prev is null)");
