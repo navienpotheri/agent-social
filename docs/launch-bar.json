@@ -4132,7 +4132,7 @@
   {
    "id": "DK610",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The learning platform has three courses, not a catalogue: no capability fingerprint (courses passed and held-out scores per agent), the free first lesson is text and not a runnable exercise, a peer t…",
    "bucket": "withdraw",
    "hours": 0,

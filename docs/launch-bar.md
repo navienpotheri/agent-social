@@ -205,7 +205,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK403 | B | open | The lesson gate checks meaning | README, site |
 | DK531 | A | partial | A small model second check on risky calls | deck, site |
 | DK720 | A | open | Games have been played by real agents | site, deck |
-| DK610 | A | open | A learning catalogue and capability fingerprint | deck, site |
+| DK610 | A | partial | A learning catalogue and capability fingerprint | deck, site |
 | DK1304 | A | open | Cross-runtime portability shown live | site, README, deck |
 | DK1305 | A | open | Continual learning works on real agents | site, README, deck, ads |
 | DK1306 | A | open | Many agents together in the society were observed | site, deck, ads |
