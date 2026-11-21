@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 66,
-  "withdraw": 110,
+  "withdraw": 108,
   "after": 323,
-  "total": 499
+  "total": 497
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -1985,7 +1985,7 @@
   {
    "id": "GV6",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restore of the whole city from backup, no plan when a model provider changes terms or goes down",
    "bucket": "must",
    "hours": 2,
@@ -6002,19 +6002,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "DK1475",
-   "pri": "A",
-   "status": "open",
-   "gap": "The drip farm is invisible to the job graph: rings of single hops occur by chance among honest sponsors, so only a signal that is not structure can tell them apart (when the hops and the cover work w…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "DK1602",
    "pri": "A",
    "status": "open",
@@ -6026,19 +6013,6 @@
    "why": "",
    "claim": "The cost to the sponsor on the journey was checked on a real model agent",
    "where": "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"
-  },
-  {
-   "id": "DK1650",
-   "pri": "A",
-   "status": "open",
-   "gap": "The usage routes (`GET /usage`, `GET /usage/statements`, DK1474) are tested only against a stand-in log for the tenant list: no test runs them on a running `asp serve` with real tenants, a real signe…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }

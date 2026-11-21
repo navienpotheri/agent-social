@@ -14280,6 +14280,85 @@
       "valid": false
     },
     {
+      "name": "valid_emergency_stop",
+      "schema": "emergency_stop",
+      "instance": {
+        "act": "stop",
+        "reason": "a live exploit in the Market",
+        "until": "2026-11-24T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_emergency_lift",
+      "schema": "emergency_stop",
+      "instance": {
+        "act": "lift",
+        "reason": "fixed and checked",
+        "stop": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+      },
+      "valid": true
+    },
+    {
+      "name": "emergency_stop_no_until",
+      "schema": "emergency_stop",
+      "instance": {
+        "act": "stop",
+        "reason": "a live exploit"
+      },
+      "valid": false
+    },
+    {
+      "name": "emergency_stop_names_a_stop",
+      "schema": "emergency_stop",
+      "instance": {
+        "act": "stop",
+        "reason": "x",
+        "until": "2026-11-24T00:00:00Z",
+        "stop": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+      },
+      "valid": false
+    },
+    {
+      "name": "emergency_lift_no_stop",
+      "schema": "emergency_stop",
+      "instance": {
+        "act": "lift",
+        "reason": "fixed"
+      },
+      "valid": false
+    },
+    {
+      "name": "emergency_lift_with_until",
+      "schema": "emergency_stop",
+      "instance": {
+        "act": "lift",
+        "reason": "fixed",
+        "stop": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "until": "2026-11-24T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "emergency_stop_no_reason",
+      "schema": "emergency_stop",
+      "instance": {
+        "act": "stop",
+        "until": "2026-11-24T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "emergency_unknown_act",
+      "schema": "emergency_stop",
+      "instance": {
+        "act": "extend",
+        "reason": "x",
+        "until": "2026-11-24T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_fleet_move",
       "schema": "fleet_move",
       "instance": {

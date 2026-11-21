@@ -43,6 +43,12 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
     if (!page) return notFound(id);
     return wantsHtml ? { status: 200, html: pageHtml(page) } : { status: 200, json: { ok: true, result: page } };
   }
+  if (path === "/society/emergency") {
+    // the emergency stop in force and every stop and lifting before it (S1420, GV6): public
+    const live = await log.emergencyState(), history = await log.emergencyHistory();
+    if (wantsHtml) return { status: 200, html: `<!doctype html><meta charset="utf-8"><title>Emergency stop</title><style>body{font:16px system-ui;margin:1rem auto;max-width:42rem;padding:0 1rem}</style><h1>${live ? "The city is under an emergency stop" : "No emergency stop"}</h1>${live ? `<p>Until ${esc(live.until)}: ${esc(live.reason)}. No new commitment is made until then; deliveries, settlements, appeals, refunds and essential services go on.</p>` : "<p>Nothing is stopped.</p>"}<ul>${history.map((h) => `<li>${esc(h.at)} ${esc(h.act)}: ${esc(h.reason)}${h.until ? ` (until ${esc(h.until)})` : ""}</li>`).join("")}</ul>` };
+    return { status: 200, json: { ok: true, result: { live, history } } };
+  }
   if ((m = /^\/home\/(.+)$/.exec(path))) {
     const id = decodeURIComponent(m[1]);
     const home = await log.homePage(id);

@@ -88,6 +88,8 @@ const RISK_PERMILLE_PER_STRIKE = 10;
 const RISK_PERMILLE_STRIKE_CAP = 200;
 /** The promotion rule (academy.md 3, proposals the owner decides): qualifying jobs for tier 1 to 2, and how long after a slash or a blocked attempt no promotion is made. */
 const PROMOTION_QUALIFYING_JOBS_1_TO_2 = 3;
+/** An emergency stop has a sunset: at most 72 hours (S1420, GV6). */
+export const EMERGENCY_MAX_MS = 72 * 3_600_000;
 
 /** The Clinic's quarantine (DK29, DK30, DK53): an interim freeze lasts at most 7 days; a cohort needs this many distinct sponsors. */
 const QUARANTINE_MAX_MS = 7 * 24 * 60 * 60 * 1000;
@@ -406,6 +408,7 @@ export class EventLog {
     if (type === "mandate_narrowing") await this.projectMandateNarrowing(tx, verified);
     if (type === "common_control") await this.projectCommonControl(tx, verified);
     if (type === "credit_lot") await this.projectCreditLot(tx, verified);
+    if (type === "emergency_stop") await this.projectEmergencyStop(tx, verified);
     if (type === "usage_plan") await this.projectUsagePlan(tx, verified);
     if (type === "usage_statement") await this.projectUsageStatement(tx, verified);
     if (type === "fleet_node") await projectFleetNode(tx, verified);
@@ -455,6 +458,7 @@ export class EventLog {
     if (type === "contract") await this.noteRelatedParty(tx, verified);
     if (type === "contract") await this.checkTutorial(tx, verified);
     if (type === "registry_act") await projectRegistryAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did) });
+    if (type && ["intent", "offer", "proposal", "contract", "bond", "mandate"].includes(type)) await this.checkCityStop(tx, verified);
     if (type === "bond" || type === "mandate" || type === "proposal" || type === "purchase" || type === "contract") await checkSuspended(tx, verified);
     if (type === "intent") checkIntentClass(verified);
     if (type === "contract") await markPostingFilled(tx, verified);
@@ -2114,6 +2118,7 @@ export class EventLog {
         if (p.account === mine || (await controller(p.account)) === mine) throw rule("self_dealing", `${b.service} gives standing, and its payee ${p.account} is the buyer's sponsor or controlled by it: a buyer cannot pay itself for standing`);
       }
     }
+    if (item.class !== "essential" && item.class !== "remedial" && !String(b.service ?? "").startsWith("courts.")) await this.checkCityStop(tx, r);
     const rep = await this.reputation(tx, buyer);
     if (rep && rep.tier === 0 && item.class === "standard") throw rule("tier_excluded", "a tier 0 agent may buy only essential or remedial items");
     if (item.class !== "essential" && item.class !== "remedial") await assertNotDormant(tx, buyer, `buy ${b.service}`);
@@ -2293,6 +2298,48 @@ export class EventLog {
     await this.debit(tx, holder, b.amount.value, true);
     await this.credit(tx, BURN_DID, b.amount.value); // the credits leave circulation into the Burn account, which the supply audit counts
     await this.bumpClass(tx, b.act === "expire" ? "pexpired" : "prefunded", b.amount.value);
+  }
+
+  /** The emergency stop in force at a time (S1420, GV6): undefined when there is none or it has ended. It ends by itself at its sunset. */
+  private async liveStop(tx: Pick<LogTx, "getMarker">, at: string): Promise<{ id: string; until: string; reason: string } | undefined> {
+    const raw = await tx.getMarker("estop:live");
+    if (!raw) return undefined;
+    const s = JSON.parse(raw) as { id: string; until: string; reason: string };
+    return Date.parse(s.until) > Date.parse(at) ? s : undefined;
+  }
+
+  /** No new commitment while the city is stopped (S1420): the refusal names the stop, its reason and its end. Work under way finishes. */
+  private async checkCityStop(tx: LogTx, r: AspRecord): Promise<void> {
+    const s = await this.liveStop(tx, r.issued_at);
+    if (s) throw rule("city_stopped", `the city is under an emergency stop (${s.id}) until ${s.until}: ${s.reason}. No new commitment is made until then; deliveries, settlements, appeals, refunds and essential services go on`);
+  }
+
+  /** An emergency stop or its lifting (S1420, GV6): see the schema. */
+  private async projectEmergencyStop(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { act: "stop" | "lift"; reason: string; until?: string; stop?: string };
+    if (r.prev !== null) throw rule("emergency_not_chained", "an emergency record starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("emergency_unauthorised", "only the operator records an emergency stop or its lifting");
+    const live = await this.liveStop(tx, r.issued_at);
+    if (b.act === "stop") {
+      if (!this.cosignedBy(r, this.owner)) throw rule("emergency_needs_owner", "an emergency stop needs the owner's co-signature");
+      if (live) throw rule("emergency_already_live", `the stop ${live.id} is live until ${live.until}: a new one can start when it has ended`);
+      const at = Date.parse(r.issued_at), until = Date.parse(b.until!);
+      if (!(until > at)) throw rule("emergency_until_past", "a stop ends after it begins");
+      if (until - at > EMERGENCY_MAX_MS) throw rule("emergency_too_long", "a stop lasts at most 72 hours: it has a sunset, and a longer one is a new decision after it ends");
+      await tx.putMarker("estop:live", JSON.stringify({ id: r.id, until: b.until, reason: b.reason }));
+      await tx.putMarker("estop:count", String(Number((await tx.getMarker("estop:count")) ?? 0) + 1));
+      return;
+    }
+    if (!live || live.id !== b.stop) throw rule("emergency_not_live", `${b.stop} is not the live stop`);
+    await tx.putMarker("estop:live", JSON.stringify({ id: live.id, until: r.issued_at, reason: live.reason }));
+  }
+
+  /** The emergency stop in force now, or none (S1420): public, for the page and the commands. */
+  async emergencyState(at: string = this.now().toISOString()): Promise<{ id: string; until: string; reason: string } | null> { return this.store.transaction(async (tx) => (await this.liveStop(tx, at)) ?? null); }
+
+  /** Every emergency stop and lifting, newest last (S1420): the public record. */
+  async emergencyHistory(): Promise<{ id: string; at: string; act: string; reason: string; until?: string; stop?: string }[]> {
+    return (await this.recordsOfTypes(["emergency_stop"])).map((r) => { const b = r.body as { act: string; reason: string; until?: string; stop?: string }; return { id: r.id, at: r.issued_at, act: b.act, reason: b.reason, ...(b.until ? { until: b.until } : {}), ...(b.stop ? { stop: b.stop } : {}) }; });
   }
 
   /** A usage plan (S1414, DK1379): the operator signs and the owner countersigns (the owner sets prices); a plan id is used once. */

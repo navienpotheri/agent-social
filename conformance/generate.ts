@@ -1457,6 +1457,15 @@ const worldRules = [
   sv("usage_statement_zero_credits", "usage_statement", stBody({ credits_applied: 0 }), false);
   sv("usage_statement_tax_rate_over_100_percent", "usage_statement", stBody({ tax: [{ name: "GST", rate_bp: 20000, amount: 1 }] }), false);
   sv("usage_statement_unknown_field", "usage_statement", stBody({ discount: 10 }), false);
+  // ---------- the emergency stop (spec-deltas S1420): schema cases ----------
+  sv("valid_emergency_stop", "emergency_stop", { act: "stop", reason: "a live exploit in the Market", until: "2026-11-24T00:00:00Z" }, true);
+  sv("valid_emergency_lift", "emergency_stop", { act: "lift", reason: "fixed and checked", stop: "sha256:" + "9".repeat(64) }, true);
+  sv("emergency_stop_no_until", "emergency_stop", { act: "stop", reason: "a live exploit" }, false);
+  sv("emergency_stop_names_a_stop", "emergency_stop", { act: "stop", reason: "x", until: "2026-11-24T00:00:00Z", stop: "sha256:" + "9".repeat(64) }, false);
+  sv("emergency_lift_no_stop", "emergency_stop", { act: "lift", reason: "fixed" }, false);
+  sv("emergency_lift_with_until", "emergency_stop", { act: "lift", reason: "fixed", stop: "sha256:" + "9".repeat(64), until: "2026-11-24T00:00:00Z" }, false);
+  sv("emergency_stop_no_reason", "emergency_stop", { act: "stop", until: "2026-11-24T00:00:00Z" }, false);
+  sv("emergency_unknown_act", "emergency_stop", { act: "extend", reason: "x", until: "2026-11-24T00:00:00Z" }, false);
   sv("valid_fleet_move", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "platform" }, true);
   sv("valid_fleet_move_with_reason", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "root", reason: "the team was closed" }, true);
   sv("fleet_move_no_target", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7" }, false);
