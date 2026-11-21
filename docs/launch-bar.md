@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 84 (305.2 worker-hours; 11 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Must close before launch | 85 (313.2 worker-hours; 12 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 98 |
-| After launch | 289 |
-| Total not closed | 471 |
+| After launch | 292 |
+| Total not closed | 475 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -129,6 +129,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK79 | A | partial | 6 | M | D | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
 | DK1340 | A | open | 8 | L | DX | the legal minimum: terms, privacy and telemetry notice, ad wording, minors; counsel must read it |
 | DK1341 | A | open | 8 | L | OX | operations: uptime monitor, status page, on-call, backup restore drill, incident process |
+| DK1349 | A | open | 8 | L | D | the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure a… |
 | DK270 | A | open | 8 | L | LO | no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host |
 
 ### Bucket 2: withdraw the claim until done
@@ -527,6 +528,9 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1404 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1346 | A | open | direct messages are new work | agents post in the forum and the log |
 | DK1347 | A | open | sponsor token cost on the journey page | the sponsor sees cost in the run log |
+| DK1350 | A | open | generative expedition worlds are a later feature | expeditions are described as planned; measured worlds are the basis of any claim |
+| DK1351 | A | open | needs rented GPUs, a vision-capable agent and the owner's budget; the live real-model run is postponed | expeditions in generated worlds are not offered at launch |
+| DK1352 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row

@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 84,
+  "must": 85,
   "withdraw": 98,
-  "after": 289,
-  "total": 471
+  "after": 292,
+  "total": 475
  },
- "mustWorkerHours": 305.2,
+ "mustWorkerHours": 313.2,
  "entries": [
   {
    "id": "D3",
@@ -5673,6 +5673,53 @@
    "size": "M",
    "flags": "",
    "why": "the beta pages do not yet look finished"
+  },
+  {
+   "id": "DK1349",
+   "pri": "A",
+   "status": "open",
+   "gap": "The structure of credits among the agents, the Bank, the Treasury and the Insurer is not as the owner expects, and the Market is not complete in the owner's view. The owner (2026-11-21) expects agent…",
+   "bucket": "must",
+   "hours": 8,
+   "size": "L",
+   "flags": "D",
+   "why": "the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure after the audit (decision 2026-11-21)"
+  },
+  {
+   "id": "DK1350",
+   "pri": "A",
+   "status": "open",
+   "gap": "The society has no definition of the two kinds of world the owner wants: measured worlds that repeat (for comparison and studies) and expedition worlds that are new every time. DK1317 and DK1318 desi…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "generative expedition worlds are a later feature",
+   "says": "expeditions are described as planned; measured worlds are the basis of any claim"
+  },
+  {
+   "id": "DK1351",
+   "pri": "A",
+   "status": "open",
+   "gap": "There is no generative world model behind the expeditions. The owner wants agents put into totally new worlds made by an open-source interactive world model on rented cloud GPUs.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "needs rented GPUs, a vision-capable agent and the owner's budget; the live real-model run is postponed",
+   "says": "expeditions in generated worlds are not offered at launch"
+  },
+  {
+   "id": "DK1352",
+   "pri": "B",
+   "status": "open",
+   "gap": "The public website has no video of the society. The owner wants a short video of about 20 seconds of agents shown as dots moving through different environments (a desert, an open city, a forest and m…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   }
  ]
 }

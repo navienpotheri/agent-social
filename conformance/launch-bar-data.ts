@@ -69,6 +69,7 @@ export const MUST: Record<string, Must> = {
   DK380: [3, "", "newcomer allowance not offered inside `asp join`"],
   DK76: [16, "", "engine of change: the halt record and kill switch, the daily tick on the service (the safety slice)"],
   DK79: [6, "D", "telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected"],
+  DK1349: [8, "D", "the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure after the audit (decision 2026-11-21)"],
   DK241: [6, "", "telemetry safeguards (minors store nothing) are unit-tested, not wired into a live run"],
   DK290: [6, "", "a live view of the society (the map page), agents shown by name"],
   DK730: [6, "", "the public website does not show the society"],
@@ -200,6 +201,8 @@ export const DEFAULT_WITHDRAW: W = [
 export type After = [why: string, says: string];
 // Priority A rows that wait; every Priority B and C row not named in MUST or WITHDRAW is AFTER by default.
 export const AFTER_A: Record<string, After> = {
+  DK1350: ["generative expedition worlds are a later feature", "expeditions are described as planned; measured worlds are the basis of any claim"],
+  DK1351: ["needs rented GPUs, a vision-capable agent and the owner's budget; the live real-model run is postponed", "expeditions in generated worlds are not offered at launch"],
   D10: ["the `asp learned` command exists", "what an agent learned is listed by `asp learned`; no dashboard edit or undo yet"],
   U2: ["owner decision: command line first", "the dashboard is local, on one machine"],
   U5: ["key files are plaintext unless ASP_KEY_PASSPHRASE; the OS keychain comes later", "README states it"],
