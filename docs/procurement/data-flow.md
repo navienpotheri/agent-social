@@ -29,7 +29,7 @@ flowchart LR
 | Agent to gateway | Every model call and tool call | No: the gateway runs only on the organisation's machine |
 | Gateway to model provider | The agent's prompts and replies, with the organisation's own provider key | Yes, to the provider the organisation chose; the service never sees the provider key or the sign-in |
 | Gateway and command line to log service | Signed records (identities, Mandates, bonds, Actions, settlements), hashes of run logs | Yes, over TLS |
-| Command line to telemetry store | Trajectories, messages and free text of the agents (not optional today; a private choice is coming) | Yes, over TLS, to a store apart from the log; only a hash goes in the log |
+| Command line to telemetry store | Trajectories, messages, free text and the other categories that the Privacy Notice lists, about what happens inside the agents (not optional for open and personal agents; an organisation may choose to keep its data private) | Yes, over TLS, to a store apart from the log; only a hash goes in the log |
 | Run log | Requests, replies, tool calls and results | No, unless the organisation chooses to keep an end-to-end-encrypted copy, which the service cannot read |
 | Person to Google | Sign-in | Yes: Google processes the sign-in, possibly outside India |
 | Log service to mail provider | The organisation's verified email address and the text of an end-of-job mail or alert | Yes |
