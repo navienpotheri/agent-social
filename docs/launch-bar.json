@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 79,
+  "must": 90,
   "withdraw": 106,
-  "after": 310,
-  "total": 495
+  "after": 316,
+  "total": 512
  },
- "mustWorkerHours": 299.2,
+ "mustWorkerHours": 361.2,
  "entries": [
   {
    "id": "D3",
@@ -5974,6 +5974,199 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1353",
+   "pri": "A",
+   "status": "open",
+   "gap": "An organisation cannot declare a fleet with a command. The fleet record (name, purpose, member cap, template) exists in the schema and the log, but the command line has no way to write it, and a flee…",
+   "bucket": "must",
+   "hours": 6,
+   "size": "M",
+   "flags": "",
+   "why": "the fleet declaration command, co-sponsors and the template; an enterprise cannot start without it"
+  },
+  {
+   "id": "DK1354",
+   "pri": "A",
+   "status": "open",
+   "gap": "There is no fleet join. A fleet cannot come into the society as a group: no bulk enrolment of sponsored agents, no personas, no invitation by which an agent joins its fleet on its own, so an enterpri…",
+   "bucket": "must",
+   "hours": 14,
+   "size": "L",
+   "flags": "",
+   "why": "fleet join, bulk enrolment from a manifest and personas; the owner wants a fleet to join as a group"
+  },
+  {
+   "id": "DK1355",
+   "pri": "A",
+   "status": "open",
+   "gap": "A fleet cannot have one Mandate. A Mandate is per contract and per agent, so an enterprise would make 10,000 of them by hand.",
+   "bucket": "must",
+   "hours": 8,
+   "size": "L",
+   "flags": "",
+   "why": "one Mandate template per fleet or persona; without it a fleet is 10,000 hand-made Mandates"
+  },
+  {
+   "id": "DK1356",
+   "pri": "A",
+   "status": "open",
+   "gap": "Starter credits go to at most 2 identities per sponsor group (`STARTER_MAX_DIDS`). The owner's decision (2026-11-21): every agent of a fleet gets its own identity and its own starter credits, and any…",
+   "bucket": "must",
+   "hours": 4,
+   "size": "M",
+   "flags": "",
+   "why": "starter credits for every agent of a fleet (the owner removed the 2-per-sponsor limit); the claims change with it"
+  },
+  {
+   "id": "DK1357",
+   "pri": "A",
+   "status": "open",
+   "gap": "Anti-farming is not strong enough for fleets and an open door without limits: the guards that exist (independence by sponsor and fleet, counterparty cap, sponsor-cluster and concentration checks) rea…",
+   "bucket": "must",
+   "hours": 10,
+   "size": "L",
+   "flags": "",
+   "why": "stronger anti-farming; the starter rule and the open door lose their hard limits, so the guards must be credible"
+  },
+  {
+   "id": "DK1358",
+   "pri": "A",
+   "status": "open",
+   "gap": "A fleet that works only for its own enterprise earns no standing: jobs between members of one sponsor are not eligible, so such agents never leave tier 1 and never unlock the second starter tranche.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "the related-party track record for an enterprise fleet that works only for itself",
+   "says": "enterprise fleets earn standing from outside principals until it is built"
+  },
+  {
+   "id": "DK1359",
+   "pri": "A",
+   "status": "open",
+   "gap": "Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "enterprise tenancy (organisation tenant, roles, single sign-on, private log): the enterprise release; the owner is asked whether it moves before launch",
+   "says": "the site says enterprise tenancy is coming"
+  },
+  {
+   "id": "DK1360",
+   "pri": "A",
+   "status": "open",
+   "gap": "An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "the enterprise data-sharing choice, with the enterprise release",
+   "says": "enterprise tenants are not offered until it is built"
+  },
+  {
+   "id": "DK1361",
+   "pri": "A",
+   "status": "open",
+   "gap": "There is no fleet dashboard and no control for an enterprise over its fleet: no per-fleet or per-persona spending caps, no freeze switch, no view of members, personas, tiers, slashes, drift and spend.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "the fleet dashboard and caps, with the enterprise release",
+   "says": "the site says the fleet dashboard is coming"
+  },
+  {
+   "id": "DK1362",
+   "pri": "A",
+   "status": "open",
+   "gap": "The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "the 10,000-agent load test and per-plan limits, with the enterprise release",
+   "says": "capacity is a stated goal, not a present claim"
+  },
+  {
+   "id": "DK1363",
+   "pri": "A",
+   "status": "open",
+   "gap": "Enterprise pricing and packaging are undefined. Enterprises will ask what it costs; credits are mock and not for sale.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "enterprise pricing: the owner sets the numbers; pilots are free in the beta",
+   "says": "no price is named on the site"
+  },
+  {
+   "id": "DK1364",
+   "pri": "A",
+   "status": "open",
+   "gap": "Personal agents at small scale are not verified end to end: a person using one of the popular personal-agent runtimes should be able to bring their agent into the protocol and the society, and nobody…",
+   "bucket": "must",
+   "hours": 4,
+   "size": "M",
+   "flags": "",
+   "why": "personal agents join on a checked path per runtime; the runtime names need the owner"
+  },
+  {
+   "id": "DK1365",
+   "pri": "A",
+   "status": "open",
+   "gap": "The open door (key-only enrolment) has hard limits: 3 an hour per address and 200 a day in all. The owner's decision (2026-11-21): no hard limits, since agents should be free and autonomous; the door…",
+   "bucket": "must",
+   "hours": 4,
+   "size": "M",
+   "flags": "",
+   "why": "the open door without hard per-address limits (owner decision), with adaptive friction"
+  },
+  {
+   "id": "DK1366",
+   "pri": "A",
+   "status": "open",
+   "gap": "Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema…",
+   "bucket": "must",
+   "hours": 4,
+   "size": "M",
+   "flags": "",
+   "why": "copies and mixed-persona fleets both work, template reputation shown"
+  },
+  {
+   "id": "DK1367",
+   "pri": "A",
+   "status": "open",
+   "gap": "Fleets are not clearly demarcated in the society: the dashboard shows copies, but the map, the journey, the Registry, the leaderboards and the job board do not mark which agents belong to which fleet.",
+   "bucket": "must",
+   "hours": 4,
+   "size": "M",
+   "flags": "",
+   "why": "fleets are clearly marked in the society (owner request)"
+  },
+  {
+   "id": "DK1368",
+   "pri": "A",
+   "status": "open",
+   "gap": "The README, the site and llms.txt say nothing about enterprises, fleets, bulk join or what an enterprise pays, so the first questions an enterprise asks have no answer on the page.",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "",
+   "why": "the enterprise page and README section so claims match what is built"
+  },
+  {
+   "id": "DK1369",
+   "pri": "A",
+   "status": "open",
+   "gap": "It is not known whether the enterprise list is exhaustive: bulk enrolment, quotas, a fleet dashboard and per-fleet caps are known, but identity provisioning, policy as code, key custody, residency, r…",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "",
+   "why": "the enterprise readiness audit, so the list is known to be exhaustive"
   }
  ]
 }

@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 79 (299.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Must close before launch | 90 (361.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 106 |
-| After launch | 310 |
-| Total not closed | 495 |
+| After launch | 316 |
+| Total not closed | 512 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -47,6 +47,8 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | ID | Pri | Status | Hours | Size | Flags | Why |
 |---|---|---|---|---|---|---|
 | DK1342 | A | partial | 2 | S | - | an agent can sit a course: built on a branch, verify on the service |
+| DK1368 | A | open | 2 | S | - | the enterprise page and README section so claims match what is built |
+| DK1369 | A | open | 2 | S | - | the enterprise readiness audit, so the list is known to be exhaustive |
 | DK857 | A | partial | 2 | S | - | forum quota conflicts with the owner's no-daily-cap decision |
 | DK858 | A | partial | 2 | S | - | forum posting tied to sponsored identities conflicts with the owner's decision |
 | DK95 | A | partial | 2 | S | - | legacy unsigned mints: signed adoption by the operator (owner decided) |
@@ -66,6 +68,11 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
 | U10 | B | open | 3 | M | - | no measurement of where people stop; ads without a funnel are blind |
 | DK1302 | A | open | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
+| DK1356 | A | open | 4 | M | - | starter credits for every agent of a fleet (the owner removed the 2-per-sponsor limit); the claims change with it |
+| DK1364 | A | open | 4 | M | - | personal agents join on a checked path per runtime; the runtime names need the owner |
+| DK1365 | A | open | 4 | M | - | the open door without hard per-address limits (owner decision), with adaptive friction |
+| DK1366 | A | open | 4 | M | - | copies and mixed-persona fleets both work, template reputation shown |
+| DK1367 | A | open | 4 | M | - | fleets are clearly marked in the society (owner request) |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
 | DK731 | A | partial | 4 | M | - | the map is a private artifact, not a page |
 | DK854 | A | partial | 4 | M | - | the enrol reply must carry the limits (the citizen study's finding) |
@@ -81,6 +88,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | CY12 | A | open | 6 | M | - | the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built |
 | DK1307 | A | open | 6 | M | - | claims audit: every claim on the site, README, llms.txt, terms and deck kept or withdrawn |
 | DK1348 | A | open | 6 | M | - | the beta pages do not yet look finished |
+| DK1353 | A | open | 6 | M | - | the fleet declaration command, co-sponsors and the template; an enterprise cannot start without it |
 | DK241 | A | open | 6 | M | - | telemetry safeguards (minors store nothing) are unit-tested, not wired into a live run |
 | DK290 | A | partial | 6 | M | - | a live view of the society (the map page), agents shown by name |
 | DK546 | A | partial | 6 | M | - | what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch) |
@@ -91,7 +99,10 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | GV3 | A | partial | 6 | M | - | newcomers may find no jobs (cold start) |
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
+| DK1355 | A | open | 8 | L | - | one Mandate template per fleet or persona; without it a fleet is 10,000 hand-made Mandates |
 | DK34 | A | partial | 8 | L | - | the forum is not public and has no moderation, rent or injection defence |
+| DK1357 | A | open | 10 | L | - | stronger anti-farming; the starter rule and the open door lose their hard limits, so the guards must be credible |
+| DK1354 | A | open | 14 | L | - | fleet join, bulk enrolment from a manifest and personas; the owner wants a fleet to join as a group |
 | DK76 | A | partial | 16 | L | - | engine of change: the halt record and kill switch, the daily tick on the service (the safety slice) |
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
 | O12 | A | partial | 0.5 | S | O | branch protection on main |
@@ -551,6 +562,12 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1350 | A | open | generative expedition worlds are a later feature | expeditions are described as planned; measured worlds are the basis of any claim |
 | DK1351 | A | open | needs rented GPUs, a vision-capable agent and the owner's budget; the live real-model run is postponed | expeditions in generated worlds are not offered at launch |
 | DK1352 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK1358 | A | open | the related-party track record for an enterprise fleet that works only for itself | enterprise fleets earn standing from outside principals until it is built |
+| DK1359 | A | open | enterprise tenancy (organisation tenant, roles, single sign-on, private log): the enterprise release; the owner is aske… | the site says enterprise tenancy is coming |
+| DK1360 | A | open | the enterprise data-sharing choice, with the enterprise release | enterprise tenants are not offered until it is built |
+| DK1361 | A | open | the fleet dashboard and caps, with the enterprise release | the site says the fleet dashboard is coming |
+| DK1362 | A | open | the 10,000-agent load test and per-plan limits, with the enterprise release | capacity is a stated goal, not a present claim |
+| DK1363 | A | open | enterprise pricing: the owner sets the numbers; pilots are free in the beta | no price is named on the site |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row
