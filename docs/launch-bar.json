@@ -5986,7 +5986,7 @@
   {
    "id": "DK1384",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "An enterprise that leaves cannot take its data and agents with it: no offboarding or migration path.",
    "bucket": "must",
    "hours": 6,
