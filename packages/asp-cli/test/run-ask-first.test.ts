@@ -44,3 +44,15 @@ test("--ask-first prints the plan and does not start without an answer; --yes st
   assert.equal(go.code, 0, go.err + go.out);
   assert.match(go.out, /Session summary[\s\S]*finished/);
 });
+
+test("a run says in one line what the job-data term covers", async () => {
+  const upstream = createHttp(async (req, res) => { for await (const _ of req) { /* not inspected */ } res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ id: "m", type: "message", role: "assistant", model: "m", stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: "text", text: "Done." }] })); });
+  await new Promise<void>((r) => upstream.listen(0, "127.0.0.1", r));
+  servers.push(upstream);
+  const env = { ASP_CLAUDE_BIN: process.execPath, ASP_CLAUDE_SCRIPT: fakeClaude, ASP_RUN_ANTHROPIC_UPSTREAM: `http://127.0.0.1:${(upstream.address() as { port: number }).port}` };
+  const f = makeFixture();
+  const project = join(f.root, "project"); mkdirSync(project, { recursive: true }); mkdirSync(f.aspHome, { recursive: true });
+  const r = await asp(f.aspHome, ["run", "claude-code", "--local", "--prompt", "Say done", "--project", project], env);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.err, /a job's data is shared for the job only and is deleted when the job settles \(asp job-data delete\)/);
+});

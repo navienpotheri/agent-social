@@ -5956,6 +5956,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const record = createRecord({ type: "intent", issuer: by, subject: by, prev: null, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
     io.out(`intent ${res.id} by ${by} (log seq ${res.seq})`);
+    // JO3: say, once, what the job-data term covers, at the point where the poster describes the job.
+    io.err(`  data     what you share for this job is shared for the job only: the performer uses it only to do the job and deletes its copies when the job settles. Do not put secrets or personal data of other people in the purpose, the criteria or any file that the job does not need; the contract can allow the commons (--commons-sharing) or a retention period (--retain-days).`);
     return 0;
   }
 
@@ -7099,6 +7101,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}${scopes.includes("shell.exec") ? ", run commands" : scopes.includes("tests.run") ? ", run tests" : ""}${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)${renewed ? `; ${renewed}, so this one was made, and your earlier records are unchanged` : ""}` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
   if (inferred.narrowed) io.err(`  scope    ${inferred.why}`);
+  // JO3: at the start of a run, one line on the job-data term: what is shared for a job is for the job only.
+  io.err("  data     the agent reads this project and your prompt: do not put secrets or personal data of other people in them unless the task needs it; a job's data is shared for the job only and is deleted when the job settles (asp job-data delete)");
   // US1: with --ask-first the plan above is shown before anything runs and the person answers. Without a terminal nobody can answer, so the run does not start unless --yes says the plan was read.
   if (v["ask-first"] && !v.yes) {
     let go = false;
