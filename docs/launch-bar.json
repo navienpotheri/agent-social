@@ -921,7 +921,7 @@
   {
    "id": "T1",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Install on macOS and on an older Node has never been tried by hand (CI runs Linux and Windows only; the old-Node message is tested by a unit test only)",
    "bucket": "must",
    "hours": 3,
