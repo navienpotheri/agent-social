@@ -25,6 +25,8 @@ npm run asp -- credits audit --require-signed
 
 Proof: the second audit exits 0. Record the adoption record ids.
 
+For DK9 (the ledger invariant against the live service), run the same audit without the flag once a day for the first week and note the figures; the audit must report balances plus burned equal minted, and a mismatch is an incident (docs/incident-runbook.md).
+
 ## 2. The GitHub Action: publish and test (DK64; owner)
 
 The action is `.github/actions/asp-run` (inputs: contract, prompt-file, asp-log-url, asp-log-token, agent-backup, backup-passphrase, anthropic-api-key, fail-on-refusal). To publish it for others, tag the repository: `git tag asp-run-v0.1 ; git push origin asp-run-v0.1` (owner only; pushing is the owner's go). To test it end to end:
