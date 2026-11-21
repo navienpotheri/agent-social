@@ -58,6 +58,8 @@ test("DK1750: the loop run on 112 simulated learners per arm: arms by the publis
   assert.equal(JSON.stringify(await runLoop({ seed: 1 })), JSON.stringify(r), "the same seed gives the same readout");
   assert.notEqual((await runLoop({ seed: 2 })).looks[0]!.effect.difference, r.looks[0]!.effect.difference);
   const text = formatReadout(r);
+  assert.equal(text.split(String.fromCharCode(10))[0], "SIMULATED learners: this shows the pipeline works, not that any lesson works on a real agent.", "the first line of every readout says the learners are simulated");
+  assert.equal(formatReadout(await runLoop({ seed: 1, nullRun: true, agents: 20 })).split(String.fromCharCode(10))[0], text.split(String.fromCharCode(10))[0]);
   assert.match(text, /DECISION: adopt/);
   assert.match(text, /would be false if/);
   assert.match(text, /limit: the learners are scripted and the world is a toy/);

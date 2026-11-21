@@ -26,6 +26,7 @@ import { engineIds, sit } from "./lens-courses/index.ts";
 import { REPLAY_TASKS } from "./lens-courses/writeback.ts";
 import { copierSuite, doNothingSuite, flagAllSuite, honestSuite, overfitterSuite, practiceFor, runSuite, suiteLesson, type EvalSuite } from "./lens-courses/evolving-evals.ts";
 
+export const SIMULATED_NOTICE = "SIMULATED learners: this shows the pipeline works, not that any lesson works on a real agent.";
 export const LOOP_SCOPE = "Scripted learners on a toy world, scored by the course's own engine on held-out cases: no real model, nothing changes model weights, credits are accounting entries and not money. A run with real model agents is postponed (register row DK1759) and would add: real variation in what an agent writes, real cost, and the drift of a real runtime.";
 
 // ---------------------------------------------------------------- 1. intake: a paper becomes a testable property
@@ -360,7 +361,7 @@ export function lensIsLive(intake: Intake, kills: readonly (KillRecord & { sig: 
 // ---------------------------------------------------------------- the readout in words
 
 export function formatReadout(r: Readout): string {
-  const L: string[] = [];
+  const L: string[] = [SIMULATED_NOTICE];
   const pct = (x: number) => `${r1(x / 10)}%`;
   L.push(`Lens learning loop: ${r.intake.paper} (${r.intake.lens}), course ${r.intake.course}${r.null_run ? "  [NULL RUN: nobody learns, so no effect should show]" : ""}`);
   L.push(`  ${r.scope}`);
