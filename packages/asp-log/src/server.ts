@@ -16,6 +16,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
 import type { FunnelTap } from "./funnel-tap.ts";
+import { fleetJoin } from "./fleet-join.ts";
 import { Limits, clientAddress, type LimitOptions, type Verdict } from "./limits.ts";
 import { UsageStore } from "./usage.ts";
 import type { Signup } from "./signup.ts";
@@ -55,7 +56,7 @@ export interface Tenant {
   /** When the token was last replaced by the person signing in again (src/signup.ts recover). */
   tokenRotatedAt?: string;
   /** Set on a tenant that signed itself up (src/signup.ts): when, a hash of the address, the terms it accepted and an unverified contact line. */
-  signup?: { at: string; addressHash: string; termsVersion: string; contact?: string; google?: { sub: string; email: string }; declaration?: "adult_or_guardian"; /** Set when an agent enrolled itself with only a key (src/key-only.ts): the key and the did:key it stands for. */ keyOnly?: { publicKey: string; did: string }; /** Set when an agent enrolled over plain HTTP (row DK733; owner question KO2): the model it named, the identity the service holds the key of, and when it bound its own key. */ httpEnrol?: { model: string; did: string; boundAt?: string } };
+  signup?: { at: string; addressHash: string; termsVersion: string; /** Set when an agent joined a fleet by invitation (DK1354): its did, the fleet and the persona. */ fleetMember?: { did: string; fleet: string; persona?: string }; contact?: string; google?: { sub: string; email: string }; declaration?: "adult_or_guardian"; /** Set when an agent enrolled itself with only a key (src/key-only.ts): the key and the did:key it stands for. */ keyOnly?: { publicKey: string; did: string }; /** Set when an agent enrolled over plain HTTP (row DK733; owner question KO2): the model it named, the identity the service holds the key of, and when it bound its own key. */ httpEnrol?: { model: string; did: string; boundAt?: string } };
   /** Set when the tenant closed its account: the token is gone and so is everything personal except what is kept for abuse handling until `retainUntil`. */
   closed?: { at: string; retainUntil: string };
   /** Extra tokens for machines (a CI job, a scheduled task): named, with an expiry, revocable, and less powerful than the person's own token (src/account.ts). Only hashes are kept. */
@@ -227,7 +228,7 @@ export function createLogServer(opts: ServerOptions): Server {
         const termsUrl = info.termsUrl, privacyUrl = termsUrl ? termsUrl.replace(/\/terms$/, "/privacy") : undefined;
         const askedC = new URLSearchParams((req.url ?? "").split("?")[1] ?? "").get("c") ?? undefined;
         const form = (extra: { error?: string; name?: string; c?: string } = {}) => joinForm({ termsVersion: info.termsVersion, termsUrl, privacyUrl, open: info.open, reason: info.reason, ...extra });
-        if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/join") return page(200, form(askedC && CHALLENGE_RE.test(askedC) ? { c: askedC } : {}));
+        if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/join") { opts.funnel?.personStep("join_page_viewed", req); return page(200, form(askedC && CHALLENGE_RE.test(askedC) ? { c: askedC } : {})); }
         if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/join/recover") return page(200, recoverForm({ open: true }));
         if (req.method === "POST" && (req.url ?? "").split("?")[0] === "/join/recover") {
           const q = new URLSearchParams(await readBody(req, 8 * 1024).catch(() => ""));
@@ -246,6 +247,7 @@ export function createLogServer(opts: ServerOptions): Server {
           if (!/^[a-z][a-z0-9-]{2,31}$/.test(name)) return page(400, form({ error: "The name is 3 to 32 characters: lower-case letters, digits and hyphens, starting with a letter.", name, ...(c ? { c } : {}) }));
           if ((opts.tenantSource?.() ?? opts.tenants ?? []).some((t) => t.name === name)) return page(409, form({ error: "That name is not available.", name, ...(c ? { c } : {}) }));
           const started = opts.google.begin({ name, accept_terms: true, terms_version: info.termsVersion, declaration: "adult_or_guardian", ...(c ? { c } : {}) });
+          opts.funnel?.personStep("join_submitted", req);
           return page(303, "", { location: started.location, "set-cookie": `asp_join=${started.nonce}; Max-Age=600; Path=/auth; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}` });
         }
         if (req.method === "GET") {
@@ -261,12 +263,13 @@ export function createLogServer(opts: ServerOptions): Server {
           const r = opts.signup.registerVerified(address, { ...done.form }, done.google);
           if (!r.ok) return page(r.status, joinError("Sign-up did not finish", r.message), clear);
           opts.funnel?.step("enrolled", req, { tenant: r.tenant });
+          opts.funnel?.personStep("signed_up", req, { tenant: r.tenant });
           if (done.form.c && pickup) { pickup.put(done.form.c, { tenant: r.tenant, token: r.token, quotas: r.quotas }); return page(201, joinDoneCli(r.tenant), clear); }
           return page(201, joinDone({ tenant: r.tenant, token: r.token, service: base || `https://${req.headers.host}`, quotas: r.quotas }), clear);
         }
         return page(405, joinError("Not allowed", "Use the sign-up page."));
       }
-      if (opts.signup && (req.url === "/signup" || req.url === "/signup/challenge" || req.url === "/signup/key" || req.url === "/signup/http")) {
+      if (opts.signup && (req.url === "/signup" || req.url === "/signup/challenge" || req.url === "/signup/key" || req.url === "/signup/http" || req.url === "/fleet/join")) {
         if (req.method === "POST" && req.url === "/signup/http") {
           if (!opts.httpEnrol) return json(res, 403, { ok: false, error: { code: "HTTP_ENROL_CLOSED", message: "enrolling over plain HTTP is not open on this service" } });
           let hb: unknown;
@@ -276,10 +279,19 @@ export function createLogServer(opts: ServerOptions): Server {
           if (hr.retryAfterSec) res.setHeader("retry-after", String(hr.retryAfterSec));
           return json(res, hr.status, hr.body);
         }
+        if (req.method === "POST" && req.url === "/fleet/join") {
+          let fb: unknown;
+          try { fb = JSON.parse(await readBody(req, 16 * 1024)); } catch { return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "the body is JSON, at most 16 KB" } }); }
+          const fr = await fleetJoin({ handle: opts.handle, signup: opts.signup, body: fb, address });
+          if (fr.status === 201) opts.funnel?.step("enrolled", req, { tenant: fr.status === 201 ? String((fr.body as { tenant?: unknown }).tenant ?? "") : "" });
+          if (fr.retryAfterSec) res.setHeader("retry-after", String(fr.retryAfterSec));
+          return json(res, fr.status, fr.body);
+        }
         if (req.method === "POST" && req.url === "/signup/key") {
           let kb: unknown;
           try { kb = JSON.parse(await readBody(req, 8 * 1024)); } catch { return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "the body is JSON, at most 8 KB" } }); }
           const kr = opts.signup.registerKeyOnly(address, kb);
+          if (!kr.ok && kr.status === 202 && kr.queue) { res.setHeader("retry-after", String(kr.queue.etaSec)); return json(res, 202, { ok: true, queued: true, ticket: kr.queue.ticket, position: kr.queue.position, eta_sec: kr.queue.etaSec, message: kr.message, next: 'POST /signup/key with { "ticket": "<the ticket>" }' }); }
           if (!kr.ok) {
             if (kr.retryAfterSec) res.setHeader("retry-after", String(kr.retryAfterSec));
             return json(res, kr.status, { ok: false, error: { code: kr.code, message: kr.message, ...(kr.retryAfterSec ? { retryAfterSec: kr.retryAfterSec } : {}) } });

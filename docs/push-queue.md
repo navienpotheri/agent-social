@@ -83,3 +83,5 @@ lane-society block 1 (DK1211 and DK1344 closed) merged into the lead branch (1e1
 - 2026-11-21: pushed claude/open-forum 1c0cc7e2..HEAD (round 2: launch-bar, lane-society). Gate: core 808, log 811, package 419, cli 852 (2 load flakes pass alone), python 947.
 
 - 2026-11-21: pushed claude/open-forum 7d334ea6..HEAD (round 3: fleet tree DK1372, anti-farming DK1357). lane-verify full gate on 8d4ee01e: core 840, log 830, package 419, cli 854 (1 fail, fixed by one-line INSTITUTION_OF entry, re-run green), python 979; lead re-ran typecheck and 58 journey/doc tests green.
+
+- 2026-11-21: pushed claude/open-forum f3d9cf81..5803da83 (round 4: lane-cli DK1354, DK1365, U10, DK1220, P29, US2, T12, O2, H4, DK1341). Gate green: core 844, log 849, package 432, cli 901 (900 pass, 1 skipped), python 983.

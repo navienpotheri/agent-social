@@ -8,8 +8,9 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { b64urlEncode, cosign, createRecord, didWebUrl, fetchDidWebKeys, fetchSmallText, type AspRecord, type FetchLike, type Signer } from "@agent-social/asp-core";
 import type { LogHandle } from "@agent-social/asp-package";
 
+import { abuseDueCmd } from "./abuse-due.ts";
 export class AbuseUsage extends Error {}
-export interface AbuseOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; fetch?: FetchLike; flags: { by?: string; accused?: string; kind?: string; description?: string; about?: string; out?: string; "cosign-by"?: string; "cosign-all"?: string[]; report?: string; case?: string; finding?: string; restitution?: string; remedy?: string; reasons?: string[]; code?: { version: string; sha256?: string; articles: string[] } } }
+export interface AbuseOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; fetch?: FetchLike; flags: { by?: string; accused?: string; kind?: string; description?: string; about?: string; out?: string; "cosign-by"?: string; "cosign-all"?: string[]; report?: string; case?: string; finding?: string; restitution?: string; remedy?: string; reasons?: string[]; json?: boolean; all?: boolean; code?: { version: string; sha256?: string; articles: string[] } } }
 const KINDS = ["network_abuse", "data_exposure", "harassment", "spam", "other"];
 const sha = (t: string) => "sha256:" + createHash("sha256").update(t).digest("hex");
 
@@ -71,5 +72,6 @@ export async function abuseCmd(sub: string | undefined, file: string | undefined
     for (const r of rows) o.io.out(`  ${r.at}  ${r.kind.padEnd(14)} ${r.reporter}  ${r.id}  ${r.outcome ? (r.outcome.state === "ruled" ? `${r.outcome.finding}${r.outcome.remedy ? `, remedy ${r.outcome.remedy}` : ""}${r.outcome.paid ? `, ${r.outcome.paid} credits paid` : ""}${r.outcome.shortfall ? ` (${r.outcome.shortfall} short)` : ""}` : "referred to a panel") : "a lead"}`);
     return 0;
   }
-  throw new AbuseUsage("asp abuse file | admit | refer | rule | list: file --by <did:web> --accused <did> --kind <kind> --description <text>; admit <report.json> --cosign-by <operator did>; list --accused <did>");
+  if (sub === "due") return await abuseDueCmd({ log: o.log, io: o.io, now: o.now, ...(f.json ? { json: true } : {}), ...(f.all ? { all: true } : {}) });
+  throw new AbuseUsage("asp abuse file | admit | refer | rule | list | due: file --by <did:web> --accused <did> --kind <kind> --description <text>; admit <report.json> --cosign-by <operator did>; list --accused <did>");
 }

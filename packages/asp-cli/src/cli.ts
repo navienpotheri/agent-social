@@ -332,7 +332,7 @@ import { claimStanding, readStanding, standingPath, writeStanding, type Standing
 import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
-import { FleetUsage, fleetCmd } from "./fleet.ts";
+import { FleetEnrolUsage, fleetEnrolCmd } from "./fleet-enrol.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
@@ -358,6 +358,10 @@ import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
+import { ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
+import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
+import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
+import { FleetUsage, fleetCmd } from "./fleet.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
@@ -581,6 +585,7 @@ const OPTIONS = {
   "http-enrol": { type: "boolean" },
   "http-enrol-per-address": { type: "string" },
   "http-enrol-per-hour": { type: "string" },
+  "http-enrol-per-minute": { type: "string" },
   salt: { type: "string" },
   policies: { type: "string" },
   commit: { type: "string" },
@@ -610,6 +615,22 @@ const OPTIONS = {
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
   "daily-tokens": { type: "string" },
+  manifest: { type: "string" },
+  "stop-after": { type: "string" },
+  invitation: { type: "string" },
+  "backup-dir": { type: "string" },
+  "backup-max-hours": { type: "string" },
+  state: { type: "string" },
+  "status-out": { type: "string" },
+  "status-html-out": { type: "string" },
+  incidents: { type: "string" },
+  "alert-webhook": { type: "string" },
+  "alert-mail": { type: "string" },
+  after: { type: "string" },
+  every: { type: "string" },
+  message: { type: "string" },
+  "monthly-tokens": { type: "string" },
+  "warn-at": { type: "string" },
   "daily-wakes": { type: "string" },
   "sender-wakes": { type: "string" },
   "wake-allow": { type: "string" },
@@ -974,6 +995,13 @@ export async function main(argv: string[], io: Io): Promise<number> {
 }
 
 async function mainInner(argv: string[], io: Io): Promise<number> {
+  // `asp --version`, `asp -v` and `asp version` say which asp this is (found by the clean-machine check, row T1: `--version` is also a string option of `asp pack`, so it was refused as "argument missing").
+  if (argv.length === 1 && ["--version", "-v", "version"].includes(argv[0])) {
+    let v = "unknown";
+    try { v = (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version?: string }).version ?? v; } catch { /* a copy without its package.json still runs */ }
+    io.out(`asp ${v} (node ${process.version})`);
+    return 0;
+  }
   let parsed;
   try {
     parsed = parseArgs({ args: argv, options: OPTIONS, allowPositionals: true });
@@ -984,7 +1012,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   const { values: v, positionals: [cmd, sub, ...rest] } = parsed;
   // The full reference (every command, as the file header writes it): asp --help, asp help all. `asp` alone shows the short home instead.
   if (v.help || (cmd === "help" && sub === "all")) {
-    io.out(readFileSync(new URL(import.meta.url), "utf8").split("*/")[0].replace(/^[\s\S]*?\/\*\*\n/, "").replace(/^ \* ?/gm, ""));
+    io.out(readFileSync(new URL(import.meta.url), "utf8").replace(/\r\n/g, "\n").split("*/")[0].replace(/^[\s\S]*?\/\*\*\n/, "").replace(/^ \* ?/gm, ""));
     return 0;
   }
   const home = aspHome(v.home ?? io.env.ASP_HOME);
@@ -1014,6 +1042,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   };
 
   try {
+    if (cmd === "fleet" && ["plan", "enrol", "join", "status"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
     if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
@@ -1045,7 +1074,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "forum") return await forumCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
-    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "audit", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter", "reset-token"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
+    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "audit", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter", "reset-token", "raise-limits"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "signup") return await signupCmd(v, io);
     if (cmd === "enrol") return await enrolCmd(home, v, io);
     if (cmd === "watcher") { try { return await watcherCmd(sub, { log: await openLog(home, logEnv), io, now, flags: { dir: v["watch-dir"], finding: v.finding } }); } catch (e) { if (e instanceof WatcherUsage) throw new UsageError(e.message); throw e; } }
@@ -1067,6 +1096,9 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
     if (cmd === "today") return todayCmd(home, v, io);
     if (cmd === "trend") return todayCmd(home, v, io, true);
+    if (cmd === "budget") return await budgetCommand(home, sub, v, io);
+    if (cmd === "monitor") return await monitorCommand(home, sub, v, io);
+    if (cmd === "forecast" && v.contract) { const f = buildForecast(sessionsOf(home).map((x) => ({ start: x.start, ...(x.end ? { end: x.end } : {}) })), Number(v.days ?? 14)); try { return await jobForecast({ log: await openLog(home, logEnv), io, contract: v.contract, forecast: f.agents, days: f.days }); } catch (e) { if (e instanceof BudgetUsage) throw new UsageError(e.message); throw e; } }
     if (cmd === "forecast") { const f = buildForecast(sessionsOf(home).map((x) => ({ start: x.start, ...(x.end ? { end: x.end } : {}) })), Number(v.days ?? 14)); if (v.json) io.out(JSON.stringify(f, null, 2)); else for (const l of renderForecast(f)) io.out(l); return 0; }
     if (cmd === "stop") return await stopCmd(home, sub, v, io);
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
@@ -2433,6 +2465,19 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
     if (after.waitingList.length && after.left >= STARTER_UPFRONT) io.out("there is room for the first on the list: they claim with asp account starter");
     return 0;
   }
+  if (sub === "raise-limits") {
+    // T12: tenants signed up before the starting limit was raised keep their own 120 a minute until an operator raises them. Raises, never lowers; an admin is not limited; a tenant with no limit of its own already gets the service's.
+    const n = Number(v["rate-limit"]);
+    if (!Number.isInteger(n) || n < 1) throw new UsageError("asp serve raise-limits --tokens <file> --rate-limit <requests a minute, at least 1>");
+    let raised = 0;
+    withFileLock(file, () => {
+      const fresh: Tenant[] = JSON.parse(readFileSync(file, "utf8"));
+      for (const t of fresh) if (t.role !== "admin" && t.rateLimitPerMinute !== undefined && t.rateLimitPerMinute < n) { t.rateLimitPerMinute = n; raised++; }
+      if (raised) save(fresh);
+    });
+    io.out(`${raised} tenant(s) raised to ${n} requests a minute (a tenant already at or above ${n}, an admin, and a tenant with no limit of its own are left as they are); the running service picks it up without a restart`);
+    return 0;
+  }
   if (sub === "purge") {
     // Closed accounts keep a small tombstone for the retention period (the privacy notice); this removes the ones past it.
     const keep = tenants.filter((t) => !t.closed || Date.parse(t.closed.retainUntil) > Date.now());
@@ -2585,7 +2630,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       termsVersion: v["signup-terms-version"] ?? "2026-10", termsUrl: v["signup-terms-url"],
       difficulty: num("signup-difficulty", 20), perAddressPerDay: num("signup-per-address", 3), dailyCap: num("signup-daily-cap", 200),
       keyOnly: !v["no-key-only-signup"], bans: keyOnlyBans,
-      httpEnrol: { enabled: !!v["http-enrol"], perAddressPerHour: num("http-enrol-per-address", 2), perHour: num("http-enrol-per-hour", 20) },
+      httpEnrol: { enabled: !!v["http-enrol"], drainPerMinute: num("http-enrol-per-minute", 120) },
       anonymous: !v["signup-require-google"], ...(v["public-url"] ? { joinUrl: `${v["public-url"]}/join` } : {}),
       // Two service processes sharing one tokens file must not both take the last place of the day, or one name (gap O19): the checks and the add are one locked step.
       exclusive: (fn) => withFileLock(tokensFile, fn),
@@ -3204,12 +3249,24 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
   const gateOn = !!irreversible?.scopes?.length && irreversible.policy !== "allow";
   // The denial-of-wallet guard (DK8, CY14; S464): a run is a wake. Three ceilings for the UTC day, each refusing the run with its name: tokens spent today, wakes today, wakes by one sender; a run that starts is capped to the tokens left.
-  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); return { tokens: n("daily-tokens"), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(allow ? { allow } : {}) }; })();
+  const standing = new Budgets(join(home, "budgets.json")).get(by);
+  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); return { tokens: n("daily-tokens") ?? standing.dailyTokens, ...(standing.monthlyTokens !== undefined ? { monthTokens: standing.monthlyTokens } : {}), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(allow ? { allow } : {}) }; })();
   const ceilingFile = join(home, "wakes.json");
   const ceiling = new DailyCeiling(ceilingFile);
   const wakeDay = now().slice(0, 10);
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   if (!wake.ok) { io.err(`  refused  ${wake.reason}`); throw new Error(`${wake.ceiling}: ${wake.reason}`); }
+  // DK1341: the company's own compute. A house agent (the operator's scripted agents, run on the operator's key) also counts against the company's ceiling, set with asp budget set --agent company; when it is reached the run is refused.
+  const companyCap = new Budgets(join(home, "budgets.json")).get(COMPANY);
+  const companyWarnings = () => budgetWarnings("the company's house agents", companyCap, { today: ceiling.tokensUsed(COMPANY, wakeDay), month: ceiling.monthTokens(COMPANY, wakeDay.slice(0, 7)) });
+  const companyOn = (companyCap.dailyTokens !== undefined || companyCap.monthlyTokens !== undefined) && (await local.log.houseAgents()).some((h) => h.did === by);
+  if (companyOn) {
+    const cw = ceiling.wake(COMPANY, by, wakeDay, now(), { tokens: companyCap.dailyTokens, ...(companyCap.monthlyTokens !== undefined ? { monthTokens: companyCap.monthlyTokens } : {}) });
+    if (!cw.ok) { io.err(`  refused  the company's compute ceiling: ${cw.reason}`); throw new Error(`company_ceiling: ${cw.reason}`); }
+    for (const w of companyWarnings()) io.err(`  warning  ${w}`);
+  }
+  // US2: a person who set a cap is told before it is reached, as the run starts and again when it ends.
+  for (const w of budgetWarnings(by, standing, { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) })) io.err(`  warning  ${w}`);
   const gwRunDir = join(home, "runs", `gateway-${randomBytes(3).toString("hex")}-${now().replace(/:/g, "")}`);
   const approvalsDir = join(gwRunDir, "approvals");
   // Memory: the agent's notes are served to it by the gateway's own MCP server (asp_memory_*), from a copy that is written back after the run.
@@ -3359,6 +3416,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       else if (e.scope && !reportedScopes.has(e.scope)) { reportedScopes.add(e.scope); reportSoon(eagerMs); }
     },
     onStop: (r) => { io.err(`  stopped  ${r}`); killAgent?.(); },
+    onNotice: (m) => io.err(`  NOTICE   ${m}`),
     // The model provider said no, or could not be reached: said once, in words, with what to do (UC-18). Never the provider's own text, which can echo part of a key.
     onModelError: ((said: Set<string>) => (e: { status: number; host: string; cause?: string }) => { const m = providerProblem(e.status, e.host, e.cause); if (!said.has(m)) { said.add(m); io.err(`  provider  ${m}`); } })(new Set<string>()),
   });
@@ -3547,7 +3605,11 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   runLog?.event("run_end", { exit_code: code, requests: sum0.requests, tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
   const rc = await flushAction("exit");
   const sum = gw.summary();
+  const beforeRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
   ceiling.addTokens(by, wakeDay, sum.tokens.input + sum.tokens.output);
+  if (companyOn) { const had = new Set(companyWarnings()); ceiling.addTokens(COMPANY, wakeDay, sum.tokens.input + sum.tokens.output); for (const w of companyWarnings()) if (!had.has(w)) io.err(`  warning  ${w}`); }
+  const afterRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
+  { const had = new Set(budgetWarnings(by, standing, beforeRun)); for (const w of budgetWarnings(by, standing, afterRun)) if (!had.has(w)) io.err(`  warning  ${w}`); }
   await gw.close();
   if (pkgDir && !v["no-write-back"]) await gatewayWriteBack({ home, pkgDir, agent: by, memDir, baseMemory, gwRunDir, v, io });
   io.err(`  summary  ${JSON.stringify({ requests: sum.requests, toolCalls: sum.toolCalls, unjudged: sum.unjudgedRequests, tokens: sum.tokens, scopesUsed: sum.scopesUsed, blocked: sum.blocked, strikes: sum.strikes })}`);
@@ -4908,7 +4970,7 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await abuseCmd(sub, file, { log: local, io, now, signerFor, flags: { by: v.by, accused: v.accused, kind: v.kind, description: v.description, about: v.about, out: v.out, "cosign-by": v["cosign-by"]?.[0], "cosign-all": v["cosign-by"], report: v.report, case: v.case, finding: v.finding, restitution: v.restitution, remedy: v.remedy, reasons: v.reasons, ...(v.articles ? { code: codeCitation(v.articles, v["code-version"], false).code } : {}) } });
+    return await abuseCmd(sub, file, { log: local, io, now, signerFor, flags: { json: v.json, all: v.all, by: v.by, accused: v.accused, kind: v.kind, description: v.description, about: v.about, out: v.out, "cosign-by": v["cosign-by"]?.[0], "cosign-all": v["cosign-by"], report: v.report, case: v.case, finding: v.finding, restitution: v.restitution, remedy: v.remedy, reasons: v.reasons, ...(v.articles ? { code: codeCitation(v.articles, v["code-version"], false).code } : {}) } });
   } catch (e) {
     if (e instanceof AbuseUsage) throw new UsageError(e.message);
     throw e;
@@ -5010,6 +5072,41 @@ async function houseCommand(home: string, sub: string | undefined, v: Values, io
     return await houseCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, reason: v.reason, days: v.days, suspension: v.suspension } });
   } catch (e) {
     if (e instanceof HouseUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function monitorCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  // The alert mail goes to --alert-mail through Resend when RESEND_API_KEY is set, else into a folder next to the state file (so an alert is never silently lost).
+  const to = v["alert-mail"];
+  const from = v["mail-from"] ?? io.env.MAIL_FROM ?? "Agent Social <noreply@localhost>";
+  const key = io.env.RESEND_API_KEY;
+  const transport = key ? new ResendTransport({ apiKey: key }) : new FileTransport(join(home, "monitor-outbox"));
+  const mail = to ? async (subject: string, text: string) => { await transport.send({ from, to, subject, text, html: `<pre>${text.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</pre>` }); } : undefined;
+  try {
+    return await monitorCmd(sub, { io, now, ...(mail ? { mail } : {}), flags: { service: v.service, home: v.home ?? home, state: v.state, "backup-dir": v["backup-dir"], "backup-max-hours": v["backup-max-hours"], "status-out": v["status-out"], "status-html-out": v["status-html-out"], incidents: v.incidents, "alert-webhook": v["alert-webhook"], after: v.after, every: v.every, id: v.id, title: v.title, status: v.status, message: v.message, json: v.json, once: v.once } });
+  } catch (e) {
+    if (e instanceof MonitorUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function budgetCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  try {
+    return await budgetCmd(sub, { home, io, now, log: () => openLog(home, logEnv), flags: { agent: v.agent, "daily-tokens": v["daily-tokens"], "monthly-tokens": v["monthly-tokens"], "warn-at": v["warn-at"], json: v.json } });
+  } catch (e) {
+    if (e instanceof BudgetUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function fleetEnrolCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: the organisation's key must be on this machine to sign the fleet and its agents`); return s; };
+  try {
+    return await fleetEnrolCmd(sub, { home, log: local, io, now, signerFor, flags: { manifest: v.manifest, out: v.out, mode: v.mode, json: v.json, "stop-after": v["stop-after"], invitation: v.invitation, service: v.service, name: v.name, "accept-terms": v["accept-terms"], days: v.days } });
+  } catch (e) {
+    if (e instanceof FleetEnrolUsage) throw new UsageError(e.message);
     throw e;
   }
 }
@@ -7192,8 +7289,9 @@ async function autoSettleOnKill(local: LogHandle, home: string, contract: string
  * approved only for an `approved` resolution. Each request reopens the log fresh, because the principal
  * answers from another process, and requests are served one at a time (a job has one open Checkpoint).
  */
-function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; waitSeconds: number; io: Io; filter?: (command: string) => "ask" | "remembered" | "no-match"; onSkip?: (req: { tool: string; scope: string; summary: string }, why: string) => void }) {
+function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; waitSeconds: number; io: Io; filter?: (command: string) => "ask" | "remembered" | "no-match"; onSkip?: (req: { tool: string; scope: string; summary: string }, why: string) => void; /** P29: tell the person once when approvals pile up; a name and facts for the run log. */ onEvent?: (name: string, data: Record<string, unknown>) => void; /** P29: the agent keeps asking for a call nobody approved: end the session (no strike, no slash). */ onGiveUp?: (why: string) => void }) {
   let stopped = false;
+  const pile = new ApprovalPile({ env: o.io.env });
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   // Written to a temporary name and renamed, so a hook polling for the file never reads half of it (found by the Postgres CI job: it failed closed on "Unexpected end of JSON input").
   // ASP_DEBUG_APPROVALS=1 keeps a timed trail of this side of the hand-off (gap T23).
@@ -7202,6 +7300,7 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     const tmp = join(o.dir, `${id}.decision.tmp`);
     writeFileSync(tmp, JSON.stringify(d));
     renameSync(tmp, join(o.dir, `${id}.decision.json`));
+    if (!d.approved && ApprovalPile.isUnanswered(d.reason)) pile.noteUnanswered();
     trail(`${id}: wrote the decision (${d.approved ? "approved" : `refused: ${d.reason ?? ""}`})`);
   };
 
@@ -7315,6 +7414,15 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
         const path = join(o.dir, f);
         const req = JSON.parse(readFileSync(path, "utf8"));
         renameSync(path, join(o.dir, f.replace(".request.json", ".request.seen.json")));
+        if (pile.closed && !(o.filter && (req.tool === "Bash" || req.tool === "PowerShell") && req.scope === "shell.exec" && o.filter(req.summary) !== "ask")) {
+          // P29: nobody answered the last requests, so none is asked: no Checkpoint is raised and the hook is answered at once.
+          const piled = pile.refuseAtOnce(req.scope);
+          decide(req.id, { approved: false, reason: piled.reason });
+          trail(`${req.id}: refused at once (${pile.unansweredCount} unanswered)`);
+          if (piled.notify) { o.io.err(`  NOTICE   ${piled.notify}`); o.onEvent?.("approvals_piling", { unanswered: pile.unansweredCount }); }
+          if (piled.stop) { o.io.err(`  stopped  ${piled.stop}`); o.onEvent?.("approvals_stopped_run", { refused: pile.refusedAtOnceCount }); o.onGiveUp?.(piled.stop); }
+          continue;
+        }
         try { await handle(req); trail(`${req.id}: handled`); } catch (e) { trail(`${req.id}: failed: ${(e as Error).message}`); try { decide(req.id, { approved: false, reason: `asp run could not raise the Checkpoint: ${(e as Error).message}` }); } catch { /* the run is ending */ } }
       }
       await sleep(o.pollMs);
@@ -7464,7 +7572,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
     });
     let killTimer: NodeJS.Timeout | undefined;
     const approvals = plan.approvalsDir && v.contract
-      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io, filter: commandFilterFor(v, home, agent), onSkip: (r, why) => runLog?.event("gate_skipped", { tool: r.tool, scope: r.scope, why, input: r.summary }) })
+      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io, filter: commandFilterFor(v, home, agent), onSkip: (r, why) => runLog?.event("gate_skipped", { tool: r.tool, scope: r.scope, why, input: r.summary }), onEvent: (n, d) => runLog?.event(n, d), onGiveUp: () => { if (child.exitCode === null && child.signalCode === null) { killTree(child, "SIGTERM"); killTimer ??= setTimeout(() => { if (child.exitCode === null && child.signalCode === null) killTree(child, "SIGKILL"); }, KILL_GRACE_MS); } } })
       : undefined;
     const strike = (scope: string, how: string) => {
       strikes++;
