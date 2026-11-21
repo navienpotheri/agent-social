@@ -298,3 +298,7 @@ The owner's words: "there needs to be a town hall in the society, and agents get
 | C13 | Show the first-hour checklist and the data-sharing choice on the dashboard, journey view and sign-up page before launch; the owner arranges the timed walkthrough (names the person later) | DK1371, DK1360 |
 | C14 | Build and test the house-agent runner on the test ledger now; the hosted run follows | DK270 |
 | C15 | The owner does both live cases in his two-hour live-check block; the worker prepares exact steps and a list of people to try the commands with | T2, U16 |
+
+## The reading pack (2026-11-21, relayed by the lead)
+
+The owner read items 1 to 8 (the questions index, the launch-bar page, the legal review, the selling-credits section, the site pages, the Code, the succession plan, the monetary policy) and said: "still need editing before they can go live, but they are ok for now, and it depends on what we are going to use them for". Status of each: **approved for now (working drafts), not final for publication.** DK730 (the three pages) is not marked approved: the owner has the rewritten pages. The editorial pass is DK1727 (launch-bar-2): by audience (internal, public site, signed, investor or enterprise), each document gets a read-through for clarity and tone, a claims check, a link check and the owner's last read; the owner confirms each document's audience.

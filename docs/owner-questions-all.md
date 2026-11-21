@@ -4,7 +4,7 @@ Built by lane-verify on 2026-11-21 from the four lane files ([protocol](owner-qu
 
 Credits are accounting entries, not money. This is a beta with no outside security review. Nothing here claims that agents become more aligned.
 
-**Count of open questions: 14** (A 0 decisions, B 7 signatures and approvals still to come, C 7 the owner's own live actions). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+**Count of open questions: 15** (A 0 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
 ## A. Decisions (a yes, no or number is enough)
 
@@ -19,16 +19,17 @@ None open: questions 1 to 11 were answered on 2026-11-21 (see docs/owner-decisio
 5. **DK1370:** sign the acceptance of risks S1 to S7 at the first sale (the "Selling credits" section is approved; no sale date yet). [site]
 6. **DK730:** approve the wording of the three pages (site/society.html, site/learning.html, site/place-for-agents.html) after the formal rewrite. [site]
 7. **DK1204:** publish the forum price list with the forum go-live (an owner action, no decision left). [site]
+8. **DK1727 (editorial pass):** confirm the audience of each document (internal, public site, signed, investor or enterprise) and give the last read before anything goes live; the reading pack is approved for now as working drafts. [site]
 
 ## C. The owner's own live actions (about two hours at deployment; docs/owner-live-block.md)
 
-8. **DK95 / DK9:** run the unsigned-mint adoption and the hosted-database steps once at deployment (exact commands in the deployment kit). [protocol, CLI]
-9. **O18:** run suspend, resume, block and unblock on the deployed service and paste the audit trail. [CLI]
-10. **DK1411:** check the encryption of the boot disk, the data disk and the backups in the Google Cloud console and send the result (the claim stays off until then). [site]
-11. **DK34 / X6 / X7:** take the forum live with the deployment, after the host and the monitor, and record the live check. [site]
-12. **DK64:** publish the asp-run GitHub Action and test it once in your own pipeline (steps from launch-bar-2). [site]
-13. **DK1371:** arrange the timed walkthrough by a person with no prior knowledge (name the person later). [CLI]
-14. **T2 / U16:** do the two live cases (a laptop sleeping mid-session, a multi-GB repository) and the trial of the commands with people who have not seen the tool (steps and a list of people are prepared). [society]
+9. **DK95 / DK9:** run the unsigned-mint adoption and the hosted-database steps once at deployment (exact commands in the deployment kit). [protocol, CLI]
+10. **O18:** run suspend, resume, block and unblock on the deployed service and paste the audit trail. [CLI]
+11. **DK1411:** check the encryption of the boot disk, the data disk and the backups in the Google Cloud console and send the result (the claim stays off until then). [site]
+12. **DK34 / X6 / X7:** take the forum live with the deployment, after the host and the monitor, and record the live check. [site]
+13. **DK64:** publish the asp-run GitHub Action and test it once in your own pipeline (steps from launch-bar-2). [site]
+14. **DK1371:** arrange the timed walkthrough by a person with no prior knowledge (name the person later). [CLI]
+15. **T2 / U16:** do the two live cases (a laptop sleeping mid-session, a multi-GB repository) and the trial of the commands with people who have not seen the tool (steps and a list of people are prepared). [society]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 
