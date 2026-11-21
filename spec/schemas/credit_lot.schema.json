@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:credit_lot",
+  "title": "Purchased credit lot body",
+  "description": "The second ledger class: purchased credits (register row DK1370, ledger part; spec-delta S1413). Starter and earned credits are given and earned in the society and are never sold; a purchased credit is a prepaid platform credit, sold by the operator with the owner's go, kept apart in the ledger in LOTS, each with an expiry and a refund window. `grant` records a sale: the operator signs and the owner countersigns (the owner's go for the sale), the holder's balance rises and the supply audit counts it as minted. Purchased credits buy the platform's services (a purchase from an institution draws them first) and move between a sponsor and its own agent; they never pay for a job, never go to a third party and never become a claim on cash. `expire` burns what is left of a lot after its expiry (operator); `refund` burns the unspent part of a lot inside its refund window (operator with the owner's countersignature). The payment itself, the invoice and the tax are not in this record: `reference` is the hash of the provider's reference. Until a first grant is signed nothing is sold. Credits are accounting entries; no claim that they are money. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "act",
+    "holder",
+    "amount"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "grant",
+        "expire",
+        "refund"
+      ]
+    },
+    "holder": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "amount": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    },
+    "expires": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp",
+      "description": "grant: when the lot expires (after the grant, at most three years)."
+    },
+    "refund_until": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp",
+      "description": "grant: until when the unspent part can be refunded (not after `expires`)."
+    },
+    "reference": {
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256",
+      "description": "grant: the hash of the payment provider's reference for the sale; one lot per reference."
+    },
+    "lot": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId",
+      "description": "expire and refund: the grant being expired or refunded."
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "grant"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "expires",
+          "reference"
+        ],
+        "not": {
+          "required": [
+            "lot"
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "lot"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "expires"
+              ]
+            },
+            {
+              "required": [
+                "refund_until"
+              ]
+            },
+            {
+              "required": [
+                "reference"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
