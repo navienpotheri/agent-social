@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 76,
-  "withdraw": 109,
+  "must": 75,
+  "withdraw": 108,
   "after": 322,
-  "total": 507
+  "total": 505
  },
- "mustWorkerHours": 363.2,
+ "mustWorkerHours": 355.2,
  "entries": [
   {
    "id": "D3",
@@ -5793,17 +5793,6 @@
    "where": "site, docs: say 'built and tested; the first live run with a real model agent is pending'"
   },
   {
-   "id": "DK1355",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A fleet cannot have one Mandate. A Mandate is per contract and per agent, so an enterprise would make 10,000 of them by hand.",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "one Mandate template per fleet or persona; without it a fleet is 10,000 hand-made Mandates"
-  },
-  {
    "id": "DK1359",
    "pri": "A",
    "status": "open",
@@ -6072,19 +6061,6 @@
    "flags": "",
    "why": "network allow lists and private connectivity: the follow-on enterprise set",
    "says": "not offered yet"
-  },
-  {
-   "id": "DK1471",
-   "pri": "A",
-   "status": "open",
-   "gap": "The gateway does not yet enforce a fleet's Mandate template. The log refuses a Mandate for a member that goes beyond the template (S1408) and `EventLog.mandateCeiling` and `deriveMemberMandate` give…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "DK1472",
